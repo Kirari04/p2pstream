@@ -147,6 +147,47 @@ func TestRequest_LargeHeader(t *testing.T) {
 	}
 }
 
+func TestRequest_LargeBody(t *testing.T) {
+	id, _ := uuid.NewV7()
+	
+	// Create a large body (e.g., 5MB)
+	bodySize := 5 * 1024 * 1024
+	largeBodyData := bytes.Repeat([]byte("b"), bodySize)
+
+	req := &Request{
+		Version: "0.0.0",
+		ID:      id,
+		Type:    RequestTypeBody,
+		Headers: map[string]string{},
+		Body:    bytes.NewReader(largeBodyData),
+		BodyLen: uint32(bodySize),
+		ChunkNr: 1,
+	}
+
+	var buf bytes.Buffer
+	if _, err := req.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo failed: %v", err)
+	}
+
+	parsed, err := ParseRequest(&buf)
+	if err != nil {
+		t.Fatalf("ParseRequest failed: %v", err)
+	}
+
+	if parsed.ChunkNr != 1 {
+		t.Errorf("expected chunk nr 1, got %d", parsed.ChunkNr)
+	}
+
+	parsedBody, err := io.ReadAll(parsed.Body)
+	if err != nil {
+		t.Fatalf("failed to read parsed body: %v", err)
+	}
+
+	if !bytes.Equal(parsedBody, largeBodyData) {
+		t.Errorf("expected body to match large body data")
+	}
+}
+
 func TestRequest_WriteTo_Errors(t *testing.T) {
 	id, _ := uuid.NewV7()
 	
@@ -190,5 +231,20 @@ func TestRequest_WriteTo_Errors(t *testing.T) {
 	var buf3 bytes.Buffer
 	if _, err := req3.WriteTo(&buf3); err == nil {
 		t.Errorf("expected error for RequestTypeHeaderAndBody exceeding 64KB")
+	}
+
+	// Test invalid version during parsing
+	req4 := &Request{
+		Version: "1.0.0", // Invalid version
+		ID:      id,
+		Type:    RequestTypeHeader,
+		Headers: map[string]string{},
+	}
+	var buf4 bytes.Buffer
+	if _, err := req4.WriteTo(&buf4); err != nil {
+		t.Fatalf("WriteTo failed: %v", err)
+	}
+	if _, err := ParseRequest(&buf4); err == nil {
+		t.Errorf("expected error for unsupported protocol version")
 	}
 }

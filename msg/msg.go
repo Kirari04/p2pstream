@@ -149,6 +149,9 @@ func ParseRequest(reader io.Reader) (*Request, error) {
 		return nil, fmt.Errorf("reading version: %v", err)
 	}
 	request.Version = string(versionBuf)
+	if request.Version != Version {
+		return nil, fmt.Errorf("unsupported protocol version: expected %s, got %s", Version, request.Version)
+	}
 
 	// uuid
 	idBuf := make([]byte, 16)
