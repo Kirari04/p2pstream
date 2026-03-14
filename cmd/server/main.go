@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"p2pstream/httpmsg"
 	"p2pstream/msg"
+	"p2pstream/stats"
 )
 
 var (
@@ -21,6 +23,9 @@ var (
 	
 	// pendingRequests maps a request ID to a channel where the response chunks will be sent
 	pendingRequests sync.Map // map[uuid.UUID]chan *msg.Request
+	
+	// latestAgentStats stores the most recently reported stats
+	latestAgentStats atomic.Pointer[stats.AgentStats]
 )
 
 type agentConn struct {
@@ -29,6 +34,7 @@ type agentConn struct {
 
 func main() {
 	http.HandleFunc("/ws", wsHandler)
+	http.HandleFunc("/api/agent/stats", statsHandler)
 	http.HandleFunc("/", proxyHandler)
 
 	port := ":8080"
@@ -174,4 +180,33 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		defer resp.Body.Close()
 		io.Copy(w, resp.Body)
 	}
+}
+
+func statsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var s stats.AgentStats
+	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	// Store the latest globally
+	latestAgentStats.Store(&s)
+
+	// Log out a human readable summary
+	log.Printf("Agent Health [Mem: %dMB | Goroutines: %d | Active Req: %d]", 
+		s.AllocAllocated, s.NumGoroutine, s.ActiveRequests)
+	
+	totalReq := s.ReqSuccess + s.ReqClientError + s.ReqServerError + s.ReqInternalError
+	if totalReq > 0 || s.BytesReceived > 0 || s.BytesSent > 0 {
+		log.Printf("  Traffic (last 5s) -> Req: %d [2xx/3xx: %d, 4xx: %d, 5xx: %d, Err: %d] | RX: %.2fKB | TX: %.2fKB",
+			totalReq, s.ReqSuccess, s.ReqClientError, s.ReqServerError, s.ReqInternalError,
+			float64(s.BytesReceived)/1024.0, float64(s.BytesSent)/1024.0)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

@@ -11,13 +11,11 @@ build:
 
 run: build
 	@echo "Starting server and agent..."
-	@./bin/server & \
-	SERVER_PID=$$!; \
+	@./bin/server & SERVER_PID=$$!; \
 	sleep 1; \
-	./bin/agent & \
-	AGENT_PID=$$!; \
+	./bin/agent & AGENT_PID=$$!; \
 	echo "Both running. Press Ctrl+C to stop."; \
-	trap 'kill $$SERVER_PID $$AGENT_PID; exit 0' SIGINT SIGTERM; \
+	trap "kill $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$SERVER_PID $$AGENT_PID
 
 clean:

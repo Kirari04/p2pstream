@@ -3,18 +3,22 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 	"p2pstream/httpmsg"
 	"p2pstream/msg"
+	"p2pstream/stats"
 )
 
 var (
@@ -23,11 +27,23 @@ var (
 	
 	// writeCh queues messages to be sent back to the server
 	writeCh chan *msg.Request
+
+	// Metrics trackers
+	activeRequests   atomic.Int32
+	reqSuccess       atomic.Int32
+	reqClientError   atomic.Int32
+	reqServerError   atomic.Int32
+	reqInternalError atomic.Int32
+	bytesReceived    atomic.Uint64
+	bytesSent        atomic.Uint64
 )
 
 func main() {
 	serverURL := "ws://localhost:8080/ws"
+	apiStatsURL := "http://localhost:8080/api/agent/stats"
 	
+	go startStatsReporter(apiStatsURL)
+
 	// Simple reconnect loop
 	for {
 		log.Printf("Attempting to connect to server at %s...", serverURL)
@@ -61,11 +77,13 @@ func runAgent(serverURL string) error {
 				log.Printf("ws write error: %v", err)
 				return // End writer goroutine on error
 			}
-			if _, err := req.WriteTo(cw); err != nil {
+			n, err := req.WriteTo(cw)
+			if err != nil {
 				log.Printf("msg WriteTo error: %v", err)
 				cw.Close()
 				return
 			}
+			bytesSent.Add(uint64(n))
 			cw.Close()
 		}
 	}()
@@ -82,6 +100,7 @@ func runAgent(serverURL string) error {
 			log.Printf("ws ReadAll error: %v", err)
 			continue
 		}
+		bytesReceived.Add(uint64(len(msgBytes)))
 
 		m, err := msg.ParseRequest(bytes.NewReader(msgBytes))
 		if err != nil {
@@ -110,6 +129,8 @@ func runAgent(serverURL string) error {
 
 // handleRequest reconstructs the HTTP request, processes it, and streams the HTTP response back
 func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
+	activeRequests.Add(1)
+	defer activeRequests.Add(-1)
 	// Ensure we cleanup the channel mapping when done
 	defer incomingRequests.Delete(id)
 	
@@ -117,12 +138,14 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	firstMsg, err := stream.Next()
 	if err != nil {
 		log.Printf("[req %s] Failed to read first chunk: %v", id, err)
+		reqInternalError.Add(1)
 		return
 	}
 
 	req, err := httpmsg.DecodeRequest(firstMsg, stream)
 	if err != nil {
 		log.Printf("[req %s] Failed to decode HTTP request: %v", id, err)
+		reqInternalError.Add(1)
 		return
 	}
 
@@ -133,6 +156,9 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	if err != nil {
 		log.Printf("[req %s] Failed to dump request: %v", id, err)
 		dump = []byte(fmt.Sprintf("Failed to read body: %v", err))
+		reqServerError.Add(1)
+	} else {
+		reqSuccess.Add(1)
 	}
 
 	bodyText := fmt.Sprintf("=== Hello from the Agent! ===\nYour request successfully round-tripped through the WebSocket!\n\n%s", string(dump))
@@ -162,4 +188,40 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	}
 	
 	log.Printf("[req %s] Finished successfully.", id)
+}
+
+func startStatsReporter(url string) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		var mem runtime.MemStats
+		runtime.ReadMemStats(&mem)
+
+		s := stats.AgentStats{
+			Timestamp:        time.Now(),
+			NumGoroutine:     runtime.NumGoroutine(),
+			AllocAllocated:   mem.Alloc / 1024 / 1024,
+			ActiveRequests:   activeRequests.Load(),
+			ReqSuccess:       reqSuccess.Swap(0),
+			ReqClientError:   reqClientError.Swap(0),
+			ReqServerError:   reqServerError.Swap(0),
+			ReqInternalError: reqInternalError.Swap(0),
+			BytesReceived:    bytesReceived.Swap(0),
+			BytesSent:        bytesSent.Swap(0),
+		}
+
+		payload, err := json.Marshal(s)
+		if err != nil {
+			log.Printf("Failed to marshal stats: %v", err)
+			continue
+		}
+
+		resp, err := http.Post(url, "application/json", bytes.NewReader(payload))
+		if err != nil {
+			log.Printf("Failed to report stats: %v", err)
+			continue
+		}
+		resp.Body.Close()
+	}
 }
