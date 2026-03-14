@@ -22,6 +22,7 @@ type Encoder struct {
 	chunkNr    uint32
 	isFirst    bool
 	isDone     bool
+	eofSent    bool
 }
 
 // NewRequestEncoder creates a new encoder from an http.Request.
@@ -69,7 +70,7 @@ func NewResponseEncoder(id uuid.UUID, resp *http.Response) *Encoder {
 // Next yields the next msg.Request in the chunked sequence.
 // Returns io.EOF when the body is fully consumed.
 func (e *Encoder) Next() (*msg.Request, error) {
-	if e.isDone {
+	if e.eofSent {
 		return nil, io.EOF
 	}
 
@@ -86,6 +87,7 @@ func (e *Encoder) Next() (*msg.Request, error) {
 				}
 			}
 			e.isDone = true
+			e.eofSent = true
 			req := msg.NewRequest(e.id, msg.RequestTypeHeaderAndBody, e.headers, bytes.NewReader(bodyBuf.Bytes()), uint32(bodyBuf.Len()))
 			return req, nil
 		}
@@ -98,6 +100,13 @@ func (e *Encoder) Next() (*msg.Request, error) {
 		return req, nil
 	}
 
+	if e.isDone {
+		e.eofSent = true
+		req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string]string{}, nil, 0)
+		req.ChunkNr = e.chunkNr
+		return req, nil
+	}
+
 	// Read next chunk
 	chunk := make([]byte, MaxBodyChunkSize)
 	n, err := e.bodyReader.Read(chunk)
@@ -107,7 +116,10 @@ func (e *Encoder) Next() (*msg.Request, error) {
 
 	if n == 0 && err == io.EOF {
 		e.isDone = true
-		return nil, io.EOF
+		e.eofSent = true
+		req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string]string{}, nil, 0)
+		req.ChunkNr = e.chunkNr
+		return req, nil
 	}
 
 	req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string]string{}, bytes.NewReader(chunk[:n]), uint32(n))

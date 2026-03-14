@@ -212,8 +212,14 @@ func ParseRequest(reader io.Reader) (*Request, error) {
 		if err := binary.Read(reader, binary.BigEndian, &request.BodyLen); err != nil {
 			return nil, fmt.Errorf("reading body len: %v", err)
 		}
-		// body reader
-		request.Body = io.LimitReader(reader, int64(request.BodyLen))
+		// Eagerly read the entire body chunk into memory so the underlying reader is fully consumed.
+		if request.BodyLen > 0 {
+			bodyData := make([]byte, request.BodyLen)
+			if _, err := io.ReadFull(reader, bodyData); err != nil {
+				return nil, fmt.Errorf("reading body: %v", err)
+			}
+			request.Body = bytes.NewReader(bodyData)
+		}
 	}
 
 	return request, nil

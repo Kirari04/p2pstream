@@ -64,6 +64,10 @@ func (b *bodyReader) Read(p []byte) (int, error) {
 		}
 		b.expectedChunk++
 
+		if m.BodyLen == 0 {
+			return 0, io.EOF
+		}
+
 		if m.Body != nil {
 			b.currentBody = m.Body
 		}
