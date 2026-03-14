@@ -31,11 +31,7 @@ const (
 	RequestTypeHeaderAndBody
 )
 
-func NewRequest(t RequestType, headers map[string]string, body io.Reader, bodyLen uint32) (*Request, error) {
-	id, err := uuid.NewV7()
-	if err != nil {
-		return nil, err
-	}
+func NewRequest(id uuid.UUID, t RequestType, headers map[string]string, body io.Reader, bodyLen uint32) *Request {
 	return &Request{
 		Version: Version,
 		ID:      id,
@@ -43,7 +39,7 @@ func NewRequest(t RequestType, headers map[string]string, body io.Reader, bodyLe
 		Headers: headers,
 		Body:    body,
 		BodyLen: bodyLen,
-	}, nil
+	}
 }
 
 func (r *Request) WriteTo(w io.Writer) (int64, error) {
