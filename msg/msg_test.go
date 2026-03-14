@@ -2,27 +2,30 @@ package msg
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/google/uuid"
 )
 
-func TestRequest_ToBytes_ParseRequest(t *testing.T) {
+func TestRequest_WriteTo_ParseRequest(t *testing.T) {
 	id := uuid.NewMD5(uuid.NameSpaceDNS, []byte("test"))
+	bodyData := []byte("hello world")
 	req := &Request{
 		Version: "0.0.0",
 		ID:      id,
 		Type:    RequestTypeHeaderAndBody,
 		Headers: map[string]string{"key": "value", "foo": "bar"},
-		Body:    []byte("hello world"),
+		Body:    bytes.NewReader(bodyData),
+		BodyLen: uint32(len(bodyData)),
 	}
 
-	data, err := req.ToBytes()
-	if err != nil {
-		t.Fatalf("ToBytes failed: %v", err)
+	var buf bytes.Buffer
+	if _, err := req.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo failed: %v", err)
 	}
 
-	parsed, err := ParseRequest(data)
+	parsed, err := ParseRequest(&buf)
 	if err != nil {
 		t.Fatalf("ParseRequest failed: %v", err)
 	}
@@ -39,8 +42,13 @@ func TestRequest_ToBytes_ParseRequest(t *testing.T) {
 		t.Errorf("expected type %v, got %v", req.Type, parsed.Type)
 	}
 
-	if !bytes.Equal(parsed.Body, req.Body) {
-		t.Errorf("expected body %s, got %s", req.Body, parsed.Body)
+	parsedBody, err := io.ReadAll(parsed.Body)
+	if err != nil {
+		t.Fatalf("failed to read parsed body: %v", err)
+	}
+
+	if !bytes.Equal(parsedBody, bodyData) {
+		t.Errorf("expected body %s, got %s", bodyData, parsedBody)
 	}
 
 	if len(parsed.Headers) != len(req.Headers) {
@@ -54,23 +62,24 @@ func TestRequest_ToBytes_ParseRequest(t *testing.T) {
 	}
 }
 
-func TestRequest_ToBytes_ParseRequest_Empty(t *testing.T) {
+func TestRequest_WriteTo_ParseRequest_Empty(t *testing.T) {
 	id, _ := uuid.NewV7()
 	req := &Request{
 		Version: "0.0.0",
 		ID:      id,
 		Type:    RequestTypeBody,
 		Headers: map[string]string{},
-		Body:    []byte{},
+		Body:    nil,
+		BodyLen: 0,
 		ChunkNr: 42,
 	}
 
-	data, err := req.ToBytes()
-	if err != nil {
-		t.Fatalf("ToBytes failed: %v", err)
+	var buf bytes.Buffer
+	if _, err := req.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo failed: %v", err)
 	}
 
-	parsed, err := ParseRequest(data)
+	parsed, err := ParseRequest(&buf)
 	if err != nil {
 		t.Fatalf("ParseRequest failed: %v", err)
 	}
@@ -91,8 +100,13 @@ func TestRequest_ToBytes_ParseRequest_Empty(t *testing.T) {
 		t.Errorf("expected type %v, got %v", req.Type, parsed.Type)
 	}
 
-	if !bytes.Equal(parsed.Body, req.Body) {
-		t.Errorf("expected body %s, got %s", req.Body, parsed.Body)
+	parsedBody, err := io.ReadAll(parsed.Body)
+	if err != nil {
+		t.Fatalf("failed to read parsed body: %v", err)
+	}
+
+	if !bytes.Equal(parsedBody, []byte{}) {
+		t.Errorf("expected empty body, got %s", parsedBody)
 	}
 
 	if len(parsed.Headers) != 0 {
@@ -116,15 +130,14 @@ func TestRequest_LargeHeader(t *testing.T) {
 		ID:      id,
 		Type:    RequestTypeHeader,
 		Headers: map[string]string{largeKey: largeValue},
-		// No body for RequestTypeHeader
 	}
 
-	data, err := req.ToBytes()
-	if err != nil {
-		t.Fatalf("ToBytes failed: %v", err)
+	var buf bytes.Buffer
+	if _, err := req.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo failed: %v", err)
 	}
 
-	parsed, err := ParseRequest(data)
+	parsed, err := ParseRequest(&buf)
 	if err != nil {
 		t.Fatalf("ParseRequest failed: %v", err)
 	}
@@ -134,7 +147,7 @@ func TestRequest_LargeHeader(t *testing.T) {
 	}
 }
 
-func TestRequest_ToBytes_Errors(t *testing.T) {
+func TestRequest_WriteTo_Errors(t *testing.T) {
 	id, _ := uuid.NewV7()
 	
 	// Test header with body error
@@ -143,9 +156,11 @@ func TestRequest_ToBytes_Errors(t *testing.T) {
 		ID:      id,
 		Type:    RequestTypeHeader,
 		Headers: map[string]string{"k": "v"},
-		Body:    []byte("should fail"),
+		Body:    bytes.NewReader([]byte("should fail")),
+		BodyLen: 11,
 	}
-	if _, err := req1.ToBytes(); err == nil {
+	var buf1 bytes.Buffer
+	if _, err := req1.WriteTo(&buf1); err == nil {
 		t.Errorf("expected error for RequestTypeHeader with body")
 	}
 
@@ -155,22 +170,25 @@ func TestRequest_ToBytes_Errors(t *testing.T) {
 		ID:      id,
 		Type:    RequestTypeBody,
 		Headers: map[string]string{"k": "v"},
-		Body:    []byte("body content"),
+		Body:    bytes.NewReader([]byte("body content")),
+		BodyLen: 12,
 	}
-	if _, err := req2.ToBytes(); err == nil {
+	var buf2 bytes.Buffer
+	if _, err := req2.WriteTo(&buf2); err == nil {
 		t.Errorf("expected error for RequestTypeBody with header")
 	}
 
 	// Test large RequestTypeHeaderAndBody payload error (64KB limit)
-	largeBody := bytes.Repeat([]byte("a"), 65537)
 	req3 := &Request{
 		Version: "0.0.0",
 		ID:      id,
 		Type:    RequestTypeHeaderAndBody,
 		Headers: map[string]string{},
-		Body:    largeBody,
+		Body:    nil, // doesn't matter for the limit check, it will trigger before reading body
+		BodyLen: 65537,
 	}
-	if _, err := req3.ToBytes(); err == nil {
+	var buf3 bytes.Buffer
+	if _, err := req3.WriteTo(&buf3); err == nil {
 		t.Errorf("expected error for RequestTypeHeaderAndBody exceeding 64KB")
 	}
 }
