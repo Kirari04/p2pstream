@@ -9,25 +9,22 @@ endif
 all: build
 
 build:
-	@echo "Building server..."
+	@echo "Building p2pstream..."
 	@mkdir -p bin
-	@go build -o bin/server cmd/server/main.go
-	@echo "Building agent..."
-	@go build -o bin/agent cmd/agent/main.go
+	@go build -o bin/p2pstream main.go
 
 run: build kill
 	@echo "Starting server and agent..."
-	@./bin/server & SERVER_PID=$$!; \
+	@./bin/p2pstream server & SERVER_PID=$$!; \
 	sleep 1; \
-	./bin/agent & AGENT_PID=$$!; \
+	./bin/p2pstream agent & AGENT_PID=$$!; \
 	echo "Both running. Press Ctrl+C to stop."; \
 	trap "kill $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$SERVER_PID $$AGENT_PID
 
 kill:
 	@echo "Ensuring previous processes are killed..."
-	@-pkill -9 -f bin/server || true
-	@-pkill -9 -f bin/agent || true
+	@-pkill -9 -f bin/p2pstream || true
 
 clean:
 	@echo "Cleaning up..."

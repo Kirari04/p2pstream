@@ -1,4 +1,4 @@
-package main
+package agent
 
 import (
 	"bytes"
@@ -6,30 +6,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
+
 	"p2pstream/httpmsg"
 	"p2pstream/msg"
 	"p2pstream/stats"
-
-	"github.com/coder/websocket"
-	"github.com/google/uuid"
 )
 
 var (
-	// incomingRequests maps a request ID to a channel where incoming request chunks will be streamed
 	incomingRequests sync.Map // map[uuid.UUID]chan *msg.Request
+	writeCh          chan *msg.Request
 
-	// writeCh queues messages to be sent back to the server
-	writeCh chan *msg.Request
-
-	// Metrics trackers
 	activeRequests   atomic.Int32
 	reqSuccess       atomic.Int32
 	reqClientError   atomic.Int32
@@ -39,33 +34,23 @@ var (
 	bytesSent        atomic.Uint64
 )
 
-func main() {
-	serverURL := os.Getenv("SERVER_URL")
-	if serverURL == "" {
-		serverURL = "ws://localhost:8080/ws"
-	}
-
-	apiStatsURL := os.Getenv("SERVER_STATS_URL")
-	if apiStatsURL == "" {
-		apiStatsURL = "http://localhost:8080/api/agent/stats"
-	}
-
+// Run is the main entry point to start the agent loop
+func Run(serverURL, apiStatsURL string) {
 	go startStatsReporter(apiStatsURL)
 
-	// Simple reconnect loop
 	for {
-		log.Printf("Attempting to connect to server at %s...", serverURL)
+		log.Info().Str("server_url", serverURL).Msg("Attempting to connect to server...")
 
-		err := runAgent(serverURL)
+		err := connectAndServe(serverURL)
 		if err != nil {
-			log.Printf("Disconnected: %v", err)
+			log.Warn().Err(err).Msg("Disconnected")
 		}
 
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func runAgent(serverURL string) error {
+func connectAndServe(serverURL string) error {
 	ctx := context.Background()
 	c, _, err := websocket.Dial(ctx, serverURL, nil)
 	if err != nil {
@@ -73,24 +58,22 @@ func runAgent(serverURL string) error {
 	}
 	defer c.Close(websocket.StatusInternalError, "agent shutting down")
 
-	// Increase read limit to comfortably fit our 64KB chunking max size
 	c.SetReadLimit(128 * 1024)
 
-	log.Println("Connected successfully!")
+	log.Info().Msg("Connected successfully!")
 
 	writeCh = make(chan *msg.Request, 100)
 
-	// Writer goroutine
 	go func() {
 		for req := range writeCh {
 			cw, err := c.Writer(ctx, websocket.MessageBinary)
 			if err != nil {
-				log.Printf("ws write error: %v", err)
-				return // End writer goroutine on error
+				log.Error().Err(err).Msg("ws write error")
+				return
 			}
 			n, err := req.WriteTo(cw)
 			if err != nil {
-				log.Printf("msg WriteTo error: %v", err)
+				log.Error().Err(err).Msg("msg WriteTo error")
 				cw.Close()
 				return
 			}
@@ -99,89 +82,79 @@ func runAgent(serverURL string) error {
 		}
 	}()
 
-	// Reader loop
 	for {
-		_, cr, err := c.Reader(ctx)
+		_, reader, err := c.Reader(ctx)
 		if err != nil {
-			return fmt.Errorf("ws read loop ended: %w", err)
+			return fmt.Errorf("failed to get reader: %w", err)
 		}
 
-		msgBytes, err := io.ReadAll(cr)
+		b, err := io.ReadAll(reader)
 		if err != nil {
-			log.Printf("ws ReadAll error: %v", err)
-			continue
+			return fmt.Errorf("failed to read: %w", err)
 		}
-		bytesReceived.Add(uint64(len(msgBytes)))
 
-		m, err := msg.ParseRequest(bytes.NewReader(msgBytes))
+		bytesReceived.Add(uint64(len(b)))
+
+		m, err := msg.ParseRequest(bytes.NewReader(b))
 		if err != nil {
-			log.Printf("msg ParseRequest error: %v", err)
+			log.Error().Err(err).Msg("Failed to parse request")
 			continue
 		}
 
 		if m.Type == msg.RequestTypeHeader || m.Type == msg.RequestTypeHeaderAndBody {
-			// This is a brand new incoming HTTP request
 			reqCh := make(chan *msg.Request, 100)
 			incomingRequests.Store(m.ID, reqCh)
 			reqCh <- m
 
-			// Spin up a dedicated goroutine to process this HTTP request concurrently
 			go handleRequest(m.ID, reqCh)
 		} else {
-			// This is a body chunk for an already executing HTTP request
 			if ch, ok := incomingRequests.Load(m.ID); ok {
 				ch.(chan *msg.Request) <- m
 			} else {
-				log.Printf("Received body chunk for unknown request ID: %s", m.ID)
+				log.Warn().Str("req_id", m.ID.String()).Msg("Received chunk for unknown request")
 			}
 		}
 	}
 }
 
-// handleRequest reconstructs the HTTP request, processes it, and streams the HTTP response back
 func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	activeRequests.Add(1)
 	defer activeRequests.Add(-1)
-	// Ensure we cleanup the channel mapping when done
 	defer incomingRequests.Delete(id)
 
 	stream := &httpmsg.ChannelStream{Ch: reqCh}
 	firstMsg, err := stream.Next()
 	if err != nil {
-		log.Printf("[req %s] Failed to read first chunk: %v", id, err)
+		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to get first chunk")
 		reqInternalError.Add(1)
 		return
 	}
 
 	req, err := httpmsg.DecodeRequest(firstMsg, stream)
 	if err != nil {
-		log.Printf("[req %s] Failed to decode HTTP request: %v", id, err)
+		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode request")
 		reqInternalError.Add(1)
 		return
 	}
 
-	// Go's http.Client disallows RequestURI being set for outbound requests.
 	req.RequestURI = ""
 
-	log.Printf("[req %s] Forwarding: %s %s", id, req.Method, req.URL.String())
+	log.Info().Str("req_id", id.String()).Str("method", req.Method).Str("url", req.URL.String()).Msg("Forwarding request")
 
-	// Execute the HTTP request to the target origin
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[req %s] Proxy request failed: %v", id, err)
-		reqServerError.Add(1)
+		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to execute request")
+		reqInternalError.Add(1)
 
-		// Return a 502 Bad Gateway to the server
 		resp = &http.Response{
 			StatusCode:    http.StatusBadGateway,
 			Status:        http.StatusText(http.StatusBadGateway),
 			Header:        make(http.Header),
-			Body:          io.NopCloser(bytes.NewReader([]byte("Bad Gateway: " + err.Error()))),
-			ContentLength: int64(len("Bad Gateway: " + err.Error())),
+			Body:          io.NopCloser(bytes.NewReader([]byte(err.Error()))),
+			ContentLength: int64(len(err.Error())),
 		}
 	} else {
-		// Track successful request status metrics
 		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 			reqSuccess.Add(1)
 		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
@@ -191,7 +164,6 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 		}
 	}
 
-	// Encode response into msg.Request chunks and queue them to be sent
 	enc := httpmsg.NewResponseEncoder(id, resp)
 	for {
 		m, err := enc.Next()
@@ -199,13 +171,13 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 			break
 		}
 		if err != nil {
-			log.Printf("[req %s] Failed to encode response: %v", id, err)
+			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode response")
 			return
 		}
 		writeCh <- m
 	}
 
-	log.Printf("[req %s] Finished successfully.", id)
+	log.Info().Str("req_id", id.String()).Msg("Finished successfully")
 }
 
 func startStatsReporter(url string) {
@@ -231,13 +203,13 @@ func startStatsReporter(url string) {
 
 		payload, err := json.Marshal(s)
 		if err != nil {
-			log.Printf("Failed to marshal stats: %v", err)
+			log.Error().Err(err).Msg("Failed to marshal stats")
 			continue
 		}
 
 		resp, err := http.Post(url, "application/json", bytes.NewReader(payload))
 		if err != nil {
-			log.Printf("Failed to report stats: %v", err)
+			log.Debug().Err(err).Msg("Failed to report stats")
 			continue
 		}
 		resp.Body.Close()
