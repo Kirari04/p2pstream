@@ -38,6 +38,8 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close(websocket.StatusInternalError, "internal server error")
 
+	c.SetReadLimit(128 * 1024)
+
 	ctx := context.Background()
 	agent := &agentConn{writeCh: make(chan *msg.Request, 100)}
 	activeAgent.Store(agent)
@@ -147,6 +149,8 @@ func runAgent(ctx context.Context, wsURL string) error {
 		return err
 	}
 	defer c.Close(websocket.StatusInternalError, "agent stopping")
+
+	c.SetReadLimit(128 * 1024)
 
 	agentWriteCh = make(chan *msg.Request, 100)
 

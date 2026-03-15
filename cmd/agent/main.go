@@ -64,6 +64,9 @@ func runAgent(serverURL string) error {
 	}
 	defer c.Close(websocket.StatusInternalError, "agent shutting down")
 
+	// Increase read limit to comfortably fit our 64KB chunking max size
+	c.SetReadLimit(128 * 1024)
+
 	log.Println("Connected successfully!")
 
 	writeCh = make(chan *msg.Request, 100)

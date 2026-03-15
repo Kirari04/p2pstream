@@ -71,6 +71,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close(websocket.StatusInternalError, "internal server error")
 
+	// Increase read limit to comfortably fit our 64KB chunking max size
+	c.SetReadLimit(128 * 1024)
+
 	ctx := context.Background()
 
 	// 100-chunk buffer allows asynchronous flow without immediately blocking
