@@ -18,7 +18,58 @@ import (
 	"p2pstream/internal/config"
 	"p2pstream/internal/server"
 	"p2pstream/msg"
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
+	"connectrpc.com/connect"
 )
+
+func TestE2E_ReportStats(t *testing.T) {
+	// Setup Management Server
+	app := server.NewApp(&config.Config{}, nil)
+	mgmtMux := http.NewServeMux()
+	app.RegisterManagementRoutes(mgmtMux)
+
+	p := new(http.Protocols)
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
+	mgmtSrv := httptest.NewUnstartedServer(mgmtMux)
+	mgmtSrv.Config.Protocols = p
+	mgmtSrv.Start()
+	defer mgmtSrv.Close()
+
+	// Setup Connect Client
+	client := p2pstreamv1connect.NewAgentManagementServiceClient(
+		http.DefaultClient,
+		mgmtSrv.URL,
+		connect.WithGRPC(),
+	)
+
+	req := &p2pstreamv1.AgentStatsRequest{
+		MemorySysMb:    100,
+		NumGoroutine:   5,
+		ActiveRequests: 2,
+		ReqSuccess:     10,
+	}
+
+	// Note: Because we used the `simple` flag in buf.gen.yaml, ReportStats expects the raw struct directly
+	_, err := client.ReportStats(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to report stats via ConnectRPC: %v", err)
+	}
+
+	// Verify the server stored it
+	stats := app.LatestAgentStats.Load()
+	if stats == nil {
+		t.Fatal("Expected stats to be stored in app, got nil")
+	}
+
+	if stats.AllocAllocated != 100 {
+		t.Errorf("Expected memory 100, got %d", stats.AllocAllocated)
+	}
+	if stats.ReqSuccess != 10 {
+		t.Errorf("Expected 10 successful reqs, got %d", stats.ReqSuccess)
+	}
+}
 
 // --- MOCK AGENT LOGIC ---
 
@@ -147,13 +198,25 @@ func TestE2E_RoundTrip(t *testing.T) {
 	// No DB provided for testing core proxying logic
 	app := server.NewApp(cfg, nil)
 
-	mux := http.NewServeMux()
-	app.RegisterRoutes(mux)
-	testSrv := httptest.NewServer(mux)
-	defer testSrv.Close()
+	proxyMux := http.NewServeMux()
+	app.RegisterProxyRoutes(proxyMux)
+	proxySrv := httptest.NewServer(proxyMux)
+	defer proxySrv.Close()
+
+	mgmtMux := http.NewServeMux()
+	app.RegisterManagementRoutes(mgmtMux)
+	
+	// h2c protocols for ConnectRPC tests
+	p := new(http.Protocols)
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
+	mgmtSrv := httptest.NewUnstartedServer(mgmtMux)
+	mgmtSrv.Config.Protocols = p
+	mgmtSrv.Start()
+	defer mgmtSrv.Close()
 
 	// 3. Setup Agent
-	wsURL := "ws" + testSrv.URL[4:] + "/ws"
+	wsURL := "ws" + mgmtSrv.URL[4:] + "/ws"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -169,7 +232,7 @@ func TestE2E_RoundTrip(t *testing.T) {
 
 	// 4. Make HTTP request through Proxy
 	bodyData := bytes.Repeat([]byte("test_e2e_data_"), 1000) // ~14KB
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, testSrv.URL+"/test-e2e-path", bytes.NewReader(bodyData))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, proxySrv.URL+"/test-e2e-path", bytes.NewReader(bodyData))
 	req.Header.Set("X-E2E-Custom", "Hello")
 
 	resp, err := http.DefaultClient.Do(req)

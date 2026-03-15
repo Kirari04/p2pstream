@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package p2pstream.v1;
+
+message AgentStatsRequest {
+  int64 memory_sys_mb = 1;
+  int64 num_goroutine = 2;
+  int64 req_success = 3;
+  int64 req_client_error = 4;
+  int64 req_server_error = 5;
+  int64 req_internal_error = 6;
+  uint64 bytes_received = 7;
+  uint64 bytes_sent = 8;
+  int32 active_requests = 9;
+}
+
+message AgentStatsResponse {
+}
+
+service AgentManagementService {
+  rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
+}

@@ -37,41 +37,85 @@ var serverCmd = &cobra.Command{
 
 		app := server.NewApp(cfg, database)
 
-		mux := http.NewServeMux()
-		app.RegisterRoutes(mux)
-
-		addr := ":" + cfg.Port
-		srv := &http.Server{
-			Addr:    addr,
-			Handler: mux,
+		// Setup Proxy Server
+		proxyMux := http.NewServeMux()
+		app.RegisterProxyRoutes(proxyMux)
+		proxyAddr := ":" + cfg.Port
+		proxySrv := &http.Server{
+			Addr:    proxyAddr,
+			Handler: proxyMux,
 		}
 
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+		// Setup Management Server
+		mgmtMux := http.NewServeMux()
+		app.RegisterManagementRoutes(mgmtMux)
+		
+		// Setup h2c for ConnectRPC to support HTTP/2 without TLS
+		p := new(http.Protocols)
+		p.SetHTTP1(true)
+		p.SetUnencryptedHTTP2(true)
+		
+		mgmtAddr := ":" + cfg.ManagementPort
+		mgmtSrv := &http.Server{
+			Addr:      mgmtAddr,
+			Handler:   mgmtMux,
+			Protocols: p,
+		}
 
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		// Start Proxy Listener in its own independent goroutine
 		go func() {
 			log.Info().
-				Str("url", "http://localhost"+addr).
+				Str("url", "http://localhost"+proxyAddr).
 				Str("target", cfg.TargetOrigin).
-				Str("ws", "ws://localhost"+addr+"/ws").
-				Msg("Proxy server started")
-
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Fatal().Err(err).Msg("Server failed")
+				Msg("Attempting to start proxy server")
+			
+			app.ProxyIsRunning.Store(true)
+			err := proxySrv.ListenAndServe()
+			app.ProxyIsRunning.Store(false)
+			
+			if err != nil && err != http.ErrServerClosed {
+				errMsg := err.Error()
+				app.ProxyLastError.Store(&errMsg)
+				log.Error().Err(err).Msg("Proxy server failed to start or crashed")
 			}
 		}()
 
-		<-stop
-		log.Info().Msg("Shutting down server gracefully...")
+		// Start Management Listener
+		go func() {
+			log.Info().
+				Str("url", "http://localhost"+mgmtAddr).
+				Str("ws", "ws://localhost"+mgmtAddr+"/ws").
+				Msg("Management server listening")
+			if err := mgmtSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatal().Err(err).Msg("Management server failed to start - application cannot continue")
+			}
+		}()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Wait for interruption
+		<-ctx.Done()
+		log.Info().Msg("Shutting down servers gracefully...")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Error().Err(err).Msg("Server forced to shutdown")
+		var shutdownErrs []error
+		if app.ProxyIsRunning.Load() {
+			if err := proxySrv.Shutdown(shutdownCtx); err != nil {
+				shutdownErrs = append(shutdownErrs, err)
+			}
+		}
+		if err := mgmtSrv.Shutdown(shutdownCtx); err != nil {
+			shutdownErrs = append(shutdownErrs, err)
+		}
+		
+		if len(shutdownErrs) > 0 {
+			log.Error().Errs("errors", shutdownErrs).Msg("Errors during shutdown")
 		}
 
-		log.Info().Msg("Server stopped cleanly")
+		log.Info().Msg("Servers stopped cleanly")
 	},
 }
 

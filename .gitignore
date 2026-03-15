@@ -2,3 +2,5 @@ tmp/
 bin/
 .env
 *.db
+*-shm
+*-wal

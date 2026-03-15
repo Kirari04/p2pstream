@@ -3,22 +3,24 @@ package agent
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 	"p2pstream/httpmsg"
 	"p2pstream/msg"
-	"p2pstream/stats"
 )
 
 var (
@@ -35,13 +37,15 @@ var (
 )
 
 // Run is the main entry point to start the agent loop
-func Run(serverURL, apiStatsURL string) {
-	go startStatsReporter(apiStatsURL)
+func Run(mgmtURL string) {
+	go startStatsReporter(mgmtURL)
+
+	wsURL := strings.Replace(mgmtURL, "http", "ws", 1) + "/ws"
 
 	for {
-		log.Info().Str("server_url", serverURL).Msg("Attempting to connect to server...")
+		log.Info().Str("ws_url", wsURL).Msg("Attempting to connect to management server...")
 
-		err := connectAndServe(serverURL)
+		err := connectAndServe(wsURL)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
@@ -50,9 +54,9 @@ func Run(serverURL, apiStatsURL string) {
 	}
 }
 
-func connectAndServe(serverURL string) error {
+func connectAndServe(wsURL string) error {
 	ctx := context.Background()
-	c, _, err := websocket.Dial(ctx, serverURL, nil)
+	c, _, err := websocket.Dial(ctx, wsURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to dial: %w", err)
 	}
@@ -180,7 +184,13 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	log.Info().Str("req_id", id.String()).Msg("Finished successfully")
 }
 
-func startStatsReporter(url string) {
+func startStatsReporter(mgmtURL string) {
+	client := p2pstreamv1connect.NewAgentManagementServiceClient(
+		http.DefaultClient,
+		mgmtURL,
+		connect.WithGRPC(), // We can use gRPC or Connect protocol, let's use default Connect or GRPC
+	)
+
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -188,30 +198,21 @@ func startStatsReporter(url string) {
 		var mem runtime.MemStats
 		runtime.ReadMemStats(&mem)
 
-		s := stats.AgentStats{
-			Timestamp:        time.Now(),
-			NumGoroutine:     runtime.NumGoroutine(),
-			AllocAllocated:   mem.Alloc / 1024 / 1024,
+		req := &p2pstreamv1.AgentStatsRequest{
+			MemorySysMb:      int64(mem.Alloc / 1024 / 1024),
+			NumGoroutine:     int64(runtime.NumGoroutine()),
 			ActiveRequests:   activeRequests.Load(),
-			ReqSuccess:       reqSuccess.Swap(0),
-			ReqClientError:   reqClientError.Swap(0),
-			ReqServerError:   reqServerError.Swap(0),
-			ReqInternalError: reqInternalError.Swap(0),
+			ReqSuccess:       int64(reqSuccess.Swap(0)),
+			ReqClientError:   int64(reqClientError.Swap(0)),
+			ReqServerError:   int64(reqServerError.Swap(0)),
+			ReqInternalError: int64(reqInternalError.Swap(0)),
 			BytesReceived:    bytesReceived.Swap(0),
 			BytesSent:        bytesSent.Swap(0),
 		}
 
-		payload, err := json.Marshal(s)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to marshal stats")
-			continue
-		}
-
-		resp, err := http.Post(url, "application/json", bytes.NewReader(payload))
+		_, err := client.ReportStats(context.Background(), req)
 		if err != nil {
 			log.Debug().Err(err).Msg("Failed to report stats")
-			continue
 		}
-		resp.Body.Close()
 	}
 }

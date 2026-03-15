@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"sync"
@@ -11,10 +10,11 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 	"p2pstream/httpmsg"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
@@ -32,6 +32,9 @@ type App struct {
 	ActiveAgent      atomic.Pointer[AgentConn]
 	PendingRequests  sync.Map // map[uuid.UUID]chan *msg.Request
 	LatestAgentStats atomic.Pointer[stats.AgentStats]
+
+	ProxyIsRunning atomic.Bool
+	ProxyLastError atomic.Pointer[string]
 }
 
 func NewApp(cfg *config.Config, database *db.DB) *App {
@@ -41,10 +44,62 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 	}
 }
 
-func (a *App) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/ws", a.wsHandler)
-	mux.HandleFunc("/api/agent/stats", a.statsHandler)
+// RegisterProxyRoutes attaches the standard proxy to the given mux (Port 80/443).
+func (a *App) RegisterProxyRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/", a.proxyHandler)
+}
+
+// RegisterManagementRoutes attaches the WebSocket and ConnectRPC APIs (Port 8081).
+func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/ws", a.wsHandler)
+	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a)
+	mux.Handle(path, handler)
+}
+
+// ReportStats implements the ConnectRPC AgentManagementService.
+func (a *App) ReportStats(
+	ctx context.Context,
+	req *p2pstreamv1.AgentStatsRequest,
+) (*p2pstreamv1.AgentStatsResponse, error) {
+	payload := req
+
+	s := stats.AgentStats{
+		Timestamp:      time.Now(),
+		NumGoroutine:   int(payload.NumGoroutine),
+		AllocAllocated: uint64(payload.MemorySysMb),
+		ActiveRequests: payload.ActiveRequests,
+		ReqSuccess:     int32(payload.ReqSuccess),
+		ReqClientError: int32(payload.ReqClientError),
+		ReqServerError: int32(payload.ReqServerError),
+		BytesReceived:  payload.BytesReceived,
+		BytesSent:      payload.BytesSent,
+	}
+
+	a.LatestAgentStats.Store(&s)
+
+	log.Debug().
+		Int64("mem_mb", payload.MemorySysMb).
+		Int64("goroutines", payload.NumGoroutine).
+		Int64("req_success", payload.ReqSuccess).
+		Int64("req_err", payload.ReqServerError).
+		Msg("Agent Health")
+
+	if a.DB != nil {
+		err := a.DB.InsertAgentStat(ctx, db.InsertAgentStatParams{
+			MemoryMb:       payload.MemorySysMb,
+			Goroutines:     payload.NumGoroutine,
+			ReqSuccess:     payload.ReqSuccess,
+			ReqClientError: payload.ReqClientError,
+			ReqServerError: payload.ReqServerError,
+			BytesRx:        int64(payload.BytesReceived),
+			BytesTx:        int64(payload.BytesSent),
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to insert agent stats into DB")
+		}
+	}
+
+	return &p2pstreamv1.AgentStatsResponse{}, nil
 }
 
 func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
@@ -116,6 +171,7 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		// Use bytes.NewReader here since msg.ParseRequest expects an io.Reader
 		m, err := msg.ParseRequest(bytes.NewReader(b))
 		if err != nil {
 			log.Error().Err(err).Msg("failed to parse message")
@@ -135,79 +191,6 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Msg("Failed to update disconnection time")
 		}
 	}
-}
-
-// AgentStatsPayload adds validation rules to the raw payload
-type AgentStatsPayload struct {
-	stats.AgentStats
-}
-
-func (p AgentStatsPayload) Validate() error {
-	return validation.ValidateStruct(&p,
-		validation.Field(&p.AllocAllocated, validation.Min(uint64(0))),
-		validation.Field(&p.NumGoroutine, validation.Min(0)),
-		validation.Field(&p.ReqSuccess, validation.Min(int32(0))),
-		validation.Field(&p.ReqClientError, validation.Min(int32(0))),
-		validation.Field(&p.ReqServerError, validation.Min(int32(0))),
-		validation.Field(&p.BytesReceived, validation.Min(uint64(0))),
-		validation.Field(&p.BytesSent, validation.Min(uint64(0))),
-	)
-}
-
-func (a *App) statsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		var payload AgentStatsPayload
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
-
-		if err := payload.Validate(); err != nil {
-			log.Warn().Err(err).Msg("Validation failed for agent stats payload")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		a.LatestAgentStats.Store(&payload.AgentStats)
-
-		log.Debug().
-			Uint64("mem_mb", payload.AllocAllocated).
-			Int("goroutines", payload.NumGoroutine).
-			Int32("req_success", payload.ReqSuccess).
-			Int32("req_err", payload.ReqServerError).
-			Msg("Agent Health")
-
-		if a.DB != nil {
-			err := a.DB.InsertAgentStat(context.Background(), db.InsertAgentStatParams{
-				MemoryMb:       int64(payload.AllocAllocated),
-				Goroutines:     int64(payload.NumGoroutine),
-				ReqSuccess:     int64(payload.ReqSuccess),
-				ReqClientError: int64(payload.ReqClientError),
-				ReqServerError: int64(payload.ReqServerError),
-				BytesRx:        int64(payload.BytesReceived),
-				BytesTx:        int64(payload.BytesSent),
-			})
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to insert agent stats into DB")
-			}
-		}
-
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	if r.Method == http.MethodGet {
-		s := a.LatestAgentStats.Load()
-		if s == nil {
-			http.Error(w, "No stats available yet", http.StatusServiceUnavailable)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(s)
-		return
-	}
-
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
