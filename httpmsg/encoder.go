@@ -31,8 +31,15 @@ func NewRequestEncoder(id uuid.UUID, req *http.Request) *Encoder {
 	headers[":method"] = req.Method
 	if req.URL != nil {
 		headers[":path"] = req.URL.RequestURI()
+		if req.URL.Scheme != "" {
+			headers[":scheme"] = req.URL.Scheme
+		} else {
+			// Fallback to http if not set
+			headers[":scheme"] = "http"
+		}
 	} else {
 		headers[":path"] = "/"
+		headers[":scheme"] = "http"
 	}
 	headers[":host"] = req.Host
 

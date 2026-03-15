@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -149,29 +148,36 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 		return
 	}
 
-	log.Printf("[req %s] Executing: %s %s", id, req.Method, req.URL.Path)
+	// Go's http.Client disallows RequestURI being set for outbound requests.
+	req.RequestURI = ""
 
-	// For the demo, we'll just echo the reconstructed request back as text
-	dump, err := httputil.DumpRequest(req, true)
+	log.Printf("[req %s] Forwarding: %s %s", id, req.Method, req.URL.String())
+
+	// Execute the HTTP request to the target origin
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[req %s] Failed to dump request: %v", id, err)
-		dump = []byte(fmt.Sprintf("Failed to read body: %v", err))
+		log.Printf("[req %s] Proxy request failed: %v", id, err)
 		reqServerError.Add(1)
+		
+		// Return a 502 Bad Gateway to the server
+		resp = &http.Response{
+			StatusCode:    http.StatusBadGateway,
+			Status:        http.StatusText(http.StatusBadGateway),
+			Header:        make(http.Header),
+			Body:          io.NopCloser(bytes.NewReader([]byte("Bad Gateway: " + err.Error()))),
+			ContentLength: int64(len("Bad Gateway: " + err.Error())),
+		}
 	} else {
-		reqSuccess.Add(1)
+		// Track successful request status metrics
+		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+			reqSuccess.Add(1)
+		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			reqClientError.Add(1)
+		} else {
+			reqServerError.Add(1)
+		}
 	}
-
-	bodyText := fmt.Sprintf("=== Hello from the Agent! ===\nYour request successfully round-tripped through the WebSocket!\n\n%s", string(dump))
-
-	// Create an HTTP Response
-	resp := &http.Response{
-		StatusCode:    http.StatusOK,
-		Status:        http.StatusText(http.StatusOK),
-		Header:        make(http.Header),
-		Body:          io.NopCloser(bytes.NewReader([]byte(bodyText))),
-		ContentLength: int64(len(bodyText)),
-	}
-	resp.Header.Set("Content-Type", "text/plain")
 
 	// Encode response into msg.Request chunks and queue them to be sent
 	enc := httpmsg.NewResponseEncoder(id, resp)

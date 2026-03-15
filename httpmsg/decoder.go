@@ -88,10 +88,17 @@ func DecodeRequest(m *msg.Request, stream MessageStream) (*http.Request, error) 
 	method := m.Headers[":method"]
 	path := m.Headers[":path"]
 	host := m.Headers[":host"]
+	scheme := m.Headers[":scheme"]
 
 	reqURL, err := url.Parse(path)
 	if err != nil {
 		return nil, err
+	}
+	reqURL.Host = host
+	if scheme != "" {
+		reqURL.Scheme = scheme
+	} else {
+		reqURL.Scheme = "http"
 	}
 
 	var body io.ReadCloser

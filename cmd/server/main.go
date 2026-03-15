@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -26,6 +28,9 @@ var (
 	
 	// latestAgentStats stores the most recently reported stats
 	latestAgentStats atomic.Pointer[stats.AgentStats]
+
+	// targetOrigin is the upstream server we forward traffic to
+	targetOrigin *url.URL
 )
 
 type agentConn struct {
@@ -33,12 +38,24 @@ type agentConn struct {
 }
 
 func main() {
+	originStr := os.Getenv("TARGET_ORIGIN")
+	if originStr == "" {
+		originStr = "https://httpbin.org" // Default for testing
+	}
+	
+	var err error
+	targetOrigin, err = url.Parse(originStr)
+	if err != nil {
+		log.Fatalf("Invalid TARGET_ORIGIN %q: %v", originStr, err)
+	}
+
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/api/agent/stats", statsHandler)
 	http.HandleFunc("/", proxyHandler)
 
 	port := ":8080"
 	log.Printf("Proxy server listening on http://localhost%s", port)
+	log.Printf("Forwarding traffic to: %s", targetOrigin.String())
 	log.Printf("Agent WebSocket endpoint at ws://localhost%s/ws", port)
 	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
@@ -133,6 +150,11 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	respCh := make(chan *msg.Request, 100)
 	pendingRequests.Store(id, respCh)
 	defer pendingRequests.Delete(id)
+
+	// Rewrite request to target origin
+	r.URL.Scheme = targetOrigin.Scheme
+	r.URL.Host = targetOrigin.Host
+	r.Host = targetOrigin.Host
 
 	// Encode the HTTP request into chunks and send to agent
 	enc := httpmsg.NewRequestEncoder(id, r)

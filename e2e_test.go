@@ -3,11 +3,10 @@ package e2e_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -29,6 +28,7 @@ type agentConn struct {
 var (
 	activeAgent     atomic.Pointer[agentConn]
 	pendingRequests sync.Map // map[uuid.UUID]chan *msg.Request
+	targetOrigin    *url.URL
 )
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +91,10 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	respCh := make(chan *msg.Request, 100)
 	pendingRequests.Store(id, respCh)
 	defer pendingRequests.Delete(id)
+
+	r.URL.Scheme = targetOrigin.Scheme
+	r.URL.Host = targetOrigin.Host
+	r.Host = targetOrigin.Host
 
 	enc := httpmsg.NewRequestEncoder(id, r)
 	for {
@@ -211,14 +215,18 @@ func handleAgentRequest(id uuid.UUID, reqCh chan *msg.Request) {
 		return
 	}
 
-	dump, _ := httputil.DumpRequest(req, true)
-	bodyText := fmt.Sprintf("AGENT_ECHO\n%s", string(dump))
+	req.RequestURI = ""
 
-	resp := &http.Response{
-		StatusCode:    200,
-		Header:        make(http.Header),
-		Body:          io.NopCloser(bytes.NewReader([]byte(bodyText))),
-		ContentLength: int64(len(bodyText)),
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		resp = &http.Response{
+			StatusCode:    http.StatusBadGateway,
+			Status:        http.StatusText(http.StatusBadGateway),
+			Header:        make(http.Header),
+			Body:          io.NopCloser(bytes.NewReader([]byte(err.Error()))),
+			ContentLength: int64(len(err.Error())),
+		}
 	}
 
 	enc := httpmsg.NewResponseEncoder(id, resp)
@@ -236,17 +244,35 @@ func handleAgentRequest(id uuid.UUID, reqCh chan *msg.Request) {
 // --- ACTUAL E2E TEST ---
 
 func TestE2E_RoundTrip(t *testing.T) {
-	// 1. Setup Server
+	// 1. Setup target (origin) server
+	targetMux := http.NewServeMux()
+	targetMux.HandleFunc("/test-e2e-path", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Echo-Custom", r.Header.Get("X-E2E-Custom"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("TARGET_RESPONSE"))
+		io.Copy(w, r.Body) // echo body back
+	})
+	targetSrv := httptest.NewServer(targetMux)
+	defer targetSrv.Close()
+
+	// Parse the target URL to configure the proxy handler
+	var err error
+	targetOrigin, err = url.Parse(targetSrv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Setup Server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", wsHandler)
 	mux.HandleFunc("/", proxyHandler)
 	testSrv := httptest.NewServer(mux)
 	defer testSrv.Close()
 
-	// 2. Setup Agent
+	// 3. Setup Agent
 	wsURL := "ws" + testSrv.URL[4:] + "/ws"
 	
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	agentDone := make(chan struct{})
@@ -258,8 +284,8 @@ func TestE2E_RoundTrip(t *testing.T) {
 	// Wait for agent connection
 	time.Sleep(200 * time.Millisecond)
 
-	// 3. Make HTTP request through Proxy
-	bodyData := bytes.Repeat([]byte("test_e2e_data_"), 1000) // ~14KB, large enough to test handling but fast
+	// 4. Make HTTP request through Proxy
+	bodyData := bytes.Repeat([]byte("test_e2e_data_"), 1000) // ~14KB
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, testSrv.URL+"/test-e2e-path", bytes.NewReader(bodyData))
 	req.Header.Set("X-E2E-Custom", "Hello")
 
@@ -273,20 +299,21 @@ func TestE2E_RoundTrip(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 
+	if resp.Header.Get("X-Echo-Custom") != "Hello" {
+		t.Errorf("Expected custom header to round trip, got %s", resp.Header.Get("X-Echo-Custom"))
+	}
+
 	respBody, _ := io.ReadAll(resp.Body)
 	
-	// Verify response body contains the echoed request from the Agent
-	if !bytes.Contains(respBody, []byte("AGENT_ECHO")) {
-		t.Errorf("Expected AGENT_ECHO in response, got %s", string(respBody))
-	}
-	if !bytes.Contains(respBody, []byte("/test-e2e-path")) {
-		t.Errorf("Expected path /test-e2e-path in echoed response")
+	// Verify response body contains the origin's response
+	if !bytes.Contains(respBody, []byte("TARGET_RESPONSE")) {
+		t.Errorf("Expected TARGET_RESPONSE in response, got %s", string(respBody))
 	}
 	if !bytes.Contains(respBody, []byte("test_e2e_data_")) {
 		t.Errorf("Expected body payload in echoed response")
 	}
 
-	// 4. Teardown
+	// 5. Teardown
 	cancel() // signal agent to stop
 	<-agentDone
 }
