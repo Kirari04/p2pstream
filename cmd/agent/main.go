@@ -8,22 +8,24 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/google/uuid"
 	"p2pstream/httpmsg"
 	"p2pstream/msg"
 	"p2pstream/stats"
+
+	"github.com/coder/websocket"
+	"github.com/google/uuid"
 )
 
 var (
 	// incomingRequests maps a request ID to a channel where incoming request chunks will be streamed
 	incomingRequests sync.Map // map[uuid.UUID]chan *msg.Request
-	
+
 	// writeCh queues messages to be sent back to the server
 	writeCh chan *msg.Request
 
@@ -38,20 +40,27 @@ var (
 )
 
 func main() {
-	serverURL := "ws://localhost:8080/ws"
-	apiStatsURL := "http://localhost:8080/api/agent/stats"
-	
+	serverURL := os.Getenv("SERVER_URL")
+	if serverURL == "" {
+		serverURL = "ws://localhost:8080/ws"
+	}
+
+	apiStatsURL := os.Getenv("SERVER_STATS_URL")
+	if apiStatsURL == "" {
+		apiStatsURL = "http://localhost:8080/api/agent/stats"
+	}
+
 	go startStatsReporter(apiStatsURL)
 
 	// Simple reconnect loop
 	for {
 		log.Printf("Attempting to connect to server at %s...", serverURL)
-		
+
 		err := runAgent(serverURL)
 		if err != nil {
 			log.Printf("Disconnected: %v", err)
 		}
-		
+
 		time.Sleep(2 * time.Second)
 	}
 }
@@ -135,7 +144,7 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	defer activeRequests.Add(-1)
 	// Ensure we cleanup the channel mapping when done
 	defer incomingRequests.Delete(id)
-	
+
 	stream := &httpmsg.ChannelStream{Ch: reqCh}
 	firstMsg, err := stream.Next()
 	if err != nil {
@@ -162,7 +171,7 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	if err != nil {
 		log.Printf("[req %s] Proxy request failed: %v", id, err)
 		reqServerError.Add(1)
-		
+
 		// Return a 502 Bad Gateway to the server
 		resp = &http.Response{
 			StatusCode:    http.StatusBadGateway,
@@ -195,7 +204,7 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 		}
 		writeCh <- m
 	}
-	
+
 	log.Printf("[req %s] Finished successfully.", id)
 }
 

@@ -8,140 +8,22 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
+
 	"p2pstream/httpmsg"
+	"p2pstream/internal/config"
+	"p2pstream/internal/server"
 	"p2pstream/msg"
 )
 
-// --- MOCK SERVER LOGIC ---
-// We replicate the core proxy logic from cmd/server here for the test.
-
-type agentConn struct {
-	writeCh chan *msg.Request
-}
-
-var (
-	activeAgent     atomic.Pointer[agentConn]
-	pendingRequests sync.Map // map[uuid.UUID]chan *msg.Request
-	targetOrigin    *url.URL
-)
-
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-	c, err := websocket.Accept(w, r, nil)
-	if err != nil {
-		return
-	}
-	defer c.Close(websocket.StatusInternalError, "internal server error")
-
-	c.SetReadLimit(128 * 1024)
-
-	ctx := context.Background()
-	agent := &agentConn{writeCh: make(chan *msg.Request, 100)}
-	activeAgent.Store(agent)
-	defer activeAgent.CompareAndSwap(agent, nil)
-
-	go func() {
-		for req := range agent.writeCh {
-			cw, err := c.Writer(ctx, websocket.MessageBinary)
-			if err != nil {
-				return
-			}
-			if _, err := req.WriteTo(cw); err != nil {
-				cw.Close()
-				return
-			}
-			cw.Close()
-		}
-	}()
-
-	for {
-		_, cr, err := c.Reader(ctx)
-		if err != nil {
-				break
-		}
-
-		msgBytes, err := io.ReadAll(cr)
-		if err != nil {
-				continue
-		}
-
-		m, err := msg.ParseRequest(bytes.NewReader(msgBytes))
-		if err != nil {
-				continue
-		}
-
-		if ch, ok := pendingRequests.Load(m.ID); ok {
-			ch.(chan *msg.Request) <- m
-		} else {
-			}
-	}
-}
-
-func proxyHandler(w http.ResponseWriter, r *http.Request) {
-	agent := activeAgent.Load()
-	if agent == nil {
-		http.Error(w, "No agent", http.StatusServiceUnavailable)
-		return
-	}
-
-	id, _ := uuid.NewV7()
-	respCh := make(chan *msg.Request, 100)
-	pendingRequests.Store(id, respCh)
-	defer pendingRequests.Delete(id)
-
-	r.URL.Scheme = targetOrigin.Scheme
-	r.URL.Host = targetOrigin.Host
-	r.Host = targetOrigin.Host
-
-	enc := httpmsg.NewRequestEncoder(id, r)
-	for {
-		m, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			http.Error(w, "Encode err", 500)
-			return
-		}
-		agent.writeCh <- m
-	}
-
-	stream := &httpmsg.ChannelStream{Ch: respCh}
-	firstMsg, err := stream.Next()
-	if err != nil {
-		http.Error(w, "Read resp headers err", 502)
-		return
-	}
-
-	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
-	if err != nil {
-		http.Error(w, "Decode resp err", 500)
-		return
-	}
-
-	for k, vv := range resp.Header {
-		for _, v := range vv {
-			w.Header().Add(k, v)
-		}
-	}
-	w.WriteHeader(resp.StatusCode)
-	if resp.Body != nil {
-		defer resp.Body.Close()
-		io.Copy(w, resp.Body)
-	}
-}
-
 // --- MOCK AGENT LOGIC ---
 
-var (
-	incomingRequests sync.Map
-	agentWriteCh     chan *msg.Request
-)
+var agentWriteCh chan *msg.Request
+var incomingRequests sync.Map
 
 func runAgent(ctx context.Context, wsURL string) error {
 	c, _, err := websocket.Dial(ctx, wsURL, nil)
@@ -171,25 +53,18 @@ func runAgent(ctx context.Context, wsURL string) error {
 	}()
 
 	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			_, cr, err := c.Reader(ctx)
-			if err != nil {
-				return err
-			}
+		_, reader, err := c.Reader(ctx)
+		if err != nil {
+			return err
+		}
 
-			msgBytes, err := io.ReadAll(cr)
-			if err != nil {
-				continue
-			}
+		b, err := io.ReadAll(reader)
+		if err != nil {
+			return err
+		}
 
-			m, err := msg.ParseRequest(bytes.NewReader(msgBytes))
-			if err != nil {
-				continue
-			}
-
+		m, _ := msg.ParseRequest(bytes.NewReader(b))
+		if m != nil {
 			if m.Type == msg.RequestTypeHeader || m.Type == msg.RequestTypeHeaderAndBody {
 				reqCh := make(chan *msg.Request, 100)
 				incomingRequests.Store(m.ID, reqCh)
@@ -198,7 +73,6 @@ func runAgent(ctx context.Context, wsURL string) error {
 			} else {
 				if ch, ok := incomingRequests.Load(m.ID); ok {
 					ch.(chan *msg.Request) <- m
-				} else {
 				}
 			}
 		}
@@ -207,7 +81,7 @@ func runAgent(ctx context.Context, wsURL string) error {
 
 func handleAgentRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	defer incomingRequests.Delete(id)
-	
+
 	stream := &httpmsg.ChannelStream{Ch: reqCh}
 	firstMsg, err := stream.Next()
 	if err != nil {
@@ -260,23 +134,28 @@ func TestE2E_RoundTrip(t *testing.T) {
 	defer targetSrv.Close()
 
 	// Parse the target URL to configure the proxy handler
-	var err error
-	targetOrigin, err = url.Parse(targetSrv.URL)
+	targetOrigin, err := url.Parse(targetSrv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// 2. Setup Server
+	// 2. Setup Server with App architecture
+	cfg := &config.Config{
+		TargetOrigin:       targetSrv.URL,
+		ParsedTargetOrigin: targetOrigin,
+	}
+	// No DB provided for testing core proxying logic
+	app := server.NewApp(cfg, nil)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", wsHandler)
-	mux.HandleFunc("/", proxyHandler)
+	app.RegisterRoutes(mux)
 	testSrv := httptest.NewServer(mux)
 	defer testSrv.Close()
 
 	// 3. Setup Agent
 	wsURL := "ws" + testSrv.URL[4:] + "/ws"
-	
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	agentDone := make(chan struct{})
@@ -308,7 +187,7 @@ func TestE2E_RoundTrip(t *testing.T) {
 	}
 
 	respBody, _ := io.ReadAll(resp.Body)
-	
+
 	// Verify response body contains the origin's response
 	if !bytes.Contains(respBody, []byte("TARGET_RESPONSE")) {
 		t.Errorf("Expected TARGET_RESPONSE in response, got %s", string(respBody))

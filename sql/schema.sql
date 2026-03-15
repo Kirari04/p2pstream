@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    disconnected_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS agent_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    memory_mb INTEGER NOT NULL,
+    goroutines INTEGER NOT NULL,
+    req_success INTEGER NOT NULL,
+    req_client_error INTEGER NOT NULL,
+    req_server_error INTEGER NOT NULL,
+    bytes_rx INTEGER NOT NULL,
+    bytes_tx INTEGER NOT NULL
+);

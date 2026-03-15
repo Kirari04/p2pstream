@@ -1,2 +1,4 @@
 tmp/
-bin/.env
+bin/
+.env
+*.db

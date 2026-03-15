@@ -42,9 +42,15 @@ func TestRequest_WriteTo_ParseRequest(t *testing.T) {
 		t.Errorf("expected type %v, got %v", req.Type, parsed.Type)
 	}
 
-	parsedBody, err := io.ReadAll(parsed.Body)
-	if err != nil {
-		t.Fatalf("failed to read parsed body: %v", err)
+	var parsedBody []byte
+	if parsed.Body != nil {
+		var err error
+		parsedBody, err = io.ReadAll(parsed.Body)
+		if err != nil {
+			t.Fatalf("failed to read parsed body: %v", err)
+		}
+	} else {
+		parsedBody = []byte{}
 	}
 
 	if !bytes.Equal(parsedBody, bodyData) {
@@ -100,9 +106,15 @@ func TestRequest_WriteTo_ParseRequest_Empty(t *testing.T) {
 		t.Errorf("expected type %v, got %v", req.Type, parsed.Type)
 	}
 
-	parsedBody, err := io.ReadAll(parsed.Body)
-	if err != nil {
-		t.Fatalf("failed to read parsed body: %v", err)
+	var parsedBody []byte
+	if parsed.Body != nil {
+		var err error
+		parsedBody, err = io.ReadAll(parsed.Body)
+		if err != nil {
+			t.Fatalf("failed to read parsed body: %v", err)
+		}
+	} else {
+		parsedBody = []byte{}
 	}
 
 	if !bytes.Equal(parsedBody, []byte{}) {
@@ -178,9 +190,15 @@ func TestRequest_LargeBody(t *testing.T) {
 		t.Errorf("expected chunk nr 1, got %d", parsed.ChunkNr)
 	}
 
-	parsedBody, err := io.ReadAll(parsed.Body)
-	if err != nil {
-		t.Fatalf("failed to read parsed body: %v", err)
+	var parsedBody []byte
+	if parsed.Body != nil {
+		var err error
+		parsedBody, err = io.ReadAll(parsed.Body)
+		if err != nil {
+			t.Fatalf("failed to read parsed body: %v", err)
+		}
+	} else {
+		parsedBody = []byte{}
 	}
 
 	if !bytes.Equal(parsedBody, largeBodyData) {
