@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AgentStatsRequest, AgentStatsResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StopProxyRequest, StopProxyResponse } from "./management_pb";
+import { AgentStatsRequest, AgentStatsResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StopProxyRequest, StopProxyResponse } from "./management_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -28,6 +28,15 @@ export const AgentManagementService = {
       name: "GetStatus",
       I: GetStatusRequest,
       O: GetStatusResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.GetDashboard
+     */
+    getDashboard: {
+      name: "GetDashboard",
+      I: GetDashboardRequest,
+      O: GetDashboardResponse,
       kind: MethodKind.Unary,
     },
     /**

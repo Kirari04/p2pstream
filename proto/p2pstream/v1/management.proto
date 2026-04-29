@@ -69,6 +69,47 @@ message ProxyStatus {
   int64 stopped_at_unix_millis = 4;
 }
 
+message GetDashboardRequest {
+}
+
+message DashboardWindowSummary {
+  string label = 1;
+  int64 since_unix_millis = 2;
+  int64 proxy_requests = 3;
+  int64 proxy_success = 4;
+  int64 proxy_client_error = 5;
+  int64 proxy_server_error = 6;
+  int64 proxy_internal_error = 7;
+  int64 proxy_avg_duration_ms = 8;
+  int64 agent_samples = 9;
+  int64 agent_req_success = 10;
+  int64 agent_req_client_error = 11;
+  int64 agent_req_server_error = 12;
+  int64 agent_req_internal_error = 13;
+  uint64 agent_bytes_received = 14;
+  uint64 agent_bytes_sent = 15;
+  int64 agent_avg_memory_mb = 16;
+  int64 agent_max_memory_mb = 17;
+  int64 agent_avg_goroutines = 18;
+  int64 agent_max_goroutines = 19;
+}
+
+message AgentConnectionSummary {
+  bool connected = 1;
+  int64 total_connections = 2;
+  int64 active_connected_at_unix_millis = 3;
+  int64 last_connected_at_unix_millis = 4;
+  int64 last_disconnected_at_unix_millis = 5;
+}
+
+message GetDashboardResponse {
+  GetStatusResponse status = 1;
+  repeated DashboardWindowSummary windows = 2;
+  AgentConnectionSummary agent_connections = 3;
+  int64 retention_days = 4;
+  int64 generated_at_unix_millis = 5;
+}
+
 message GetSetupStateRequest {
 }
 
@@ -127,6 +168,7 @@ message StopProxyResponse {
 service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
+  rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
   rpc GetSetupState(GetSetupStateRequest) returns (GetSetupStateResponse) {}
   rpc SetupAdmin(SetupAdminRequest) returns (SetupAdminResponse) {}
   rpc Login(LoginRequest) returns (LoginResponse) {}

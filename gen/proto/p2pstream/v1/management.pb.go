@@ -633,6 +633,382 @@ func (x *ProxyStatus) GetStoppedAtUnixMillis() int64 {
 	return 0
 }
 
+type GetDashboardRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDashboardRequest) Reset() {
+	*x = GetDashboardRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDashboardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardRequest) ProtoMessage() {}
+
+func (x *GetDashboardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardRequest.ProtoReflect.Descriptor instead.
+func (*GetDashboardRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{7}
+}
+
+type DashboardWindowSummary struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Label                 string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	SinceUnixMillis       int64                  `protobuf:"varint,2,opt,name=since_unix_millis,json=sinceUnixMillis,proto3" json:"since_unix_millis,omitempty"`
+	ProxyRequests         int64                  `protobuf:"varint,3,opt,name=proxy_requests,json=proxyRequests,proto3" json:"proxy_requests,omitempty"`
+	ProxySuccess          int64                  `protobuf:"varint,4,opt,name=proxy_success,json=proxySuccess,proto3" json:"proxy_success,omitempty"`
+	ProxyClientError      int64                  `protobuf:"varint,5,opt,name=proxy_client_error,json=proxyClientError,proto3" json:"proxy_client_error,omitempty"`
+	ProxyServerError      int64                  `protobuf:"varint,6,opt,name=proxy_server_error,json=proxyServerError,proto3" json:"proxy_server_error,omitempty"`
+	ProxyInternalError    int64                  `protobuf:"varint,7,opt,name=proxy_internal_error,json=proxyInternalError,proto3" json:"proxy_internal_error,omitempty"`
+	ProxyAvgDurationMs    int64                  `protobuf:"varint,8,opt,name=proxy_avg_duration_ms,json=proxyAvgDurationMs,proto3" json:"proxy_avg_duration_ms,omitempty"`
+	AgentSamples          int64                  `protobuf:"varint,9,opt,name=agent_samples,json=agentSamples,proto3" json:"agent_samples,omitempty"`
+	AgentReqSuccess       int64                  `protobuf:"varint,10,opt,name=agent_req_success,json=agentReqSuccess,proto3" json:"agent_req_success,omitempty"`
+	AgentReqClientError   int64                  `protobuf:"varint,11,opt,name=agent_req_client_error,json=agentReqClientError,proto3" json:"agent_req_client_error,omitempty"`
+	AgentReqServerError   int64                  `protobuf:"varint,12,opt,name=agent_req_server_error,json=agentReqServerError,proto3" json:"agent_req_server_error,omitempty"`
+	AgentReqInternalError int64                  `protobuf:"varint,13,opt,name=agent_req_internal_error,json=agentReqInternalError,proto3" json:"agent_req_internal_error,omitempty"`
+	AgentBytesReceived    uint64                 `protobuf:"varint,14,opt,name=agent_bytes_received,json=agentBytesReceived,proto3" json:"agent_bytes_received,omitempty"`
+	AgentBytesSent        uint64                 `protobuf:"varint,15,opt,name=agent_bytes_sent,json=agentBytesSent,proto3" json:"agent_bytes_sent,omitempty"`
+	AgentAvgMemoryMb      int64                  `protobuf:"varint,16,opt,name=agent_avg_memory_mb,json=agentAvgMemoryMb,proto3" json:"agent_avg_memory_mb,omitempty"`
+	AgentMaxMemoryMb      int64                  `protobuf:"varint,17,opt,name=agent_max_memory_mb,json=agentMaxMemoryMb,proto3" json:"agent_max_memory_mb,omitempty"`
+	AgentAvgGoroutines    int64                  `protobuf:"varint,18,opt,name=agent_avg_goroutines,json=agentAvgGoroutines,proto3" json:"agent_avg_goroutines,omitempty"`
+	AgentMaxGoroutines    int64                  `protobuf:"varint,19,opt,name=agent_max_goroutines,json=agentMaxGoroutines,proto3" json:"agent_max_goroutines,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *DashboardWindowSummary) Reset() {
+	*x = DashboardWindowSummary{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DashboardWindowSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DashboardWindowSummary) ProtoMessage() {}
+
+func (x *DashboardWindowSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DashboardWindowSummary.ProtoReflect.Descriptor instead.
+func (*DashboardWindowSummary) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DashboardWindowSummary) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *DashboardWindowSummary) GetSinceUnixMillis() int64 {
+	if x != nil {
+		return x.SinceUnixMillis
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyRequests() int64 {
+	if x != nil {
+		return x.ProxyRequests
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxySuccess() int64 {
+	if x != nil {
+		return x.ProxySuccess
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyClientError() int64 {
+	if x != nil {
+		return x.ProxyClientError
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyServerError() int64 {
+	if x != nil {
+		return x.ProxyServerError
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyInternalError() int64 {
+	if x != nil {
+		return x.ProxyInternalError
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyAvgDurationMs() int64 {
+	if x != nil {
+		return x.ProxyAvgDurationMs
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentSamples() int64 {
+	if x != nil {
+		return x.AgentSamples
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentReqSuccess() int64 {
+	if x != nil {
+		return x.AgentReqSuccess
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentReqClientError() int64 {
+	if x != nil {
+		return x.AgentReqClientError
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentReqServerError() int64 {
+	if x != nil {
+		return x.AgentReqServerError
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentReqInternalError() int64 {
+	if x != nil {
+		return x.AgentReqInternalError
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentBytesReceived() uint64 {
+	if x != nil {
+		return x.AgentBytesReceived
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentBytesSent() uint64 {
+	if x != nil {
+		return x.AgentBytesSent
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentAvgMemoryMb() int64 {
+	if x != nil {
+		return x.AgentAvgMemoryMb
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentMaxMemoryMb() int64 {
+	if x != nil {
+		return x.AgentMaxMemoryMb
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentAvgGoroutines() int64 {
+	if x != nil {
+		return x.AgentAvgGoroutines
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetAgentMaxGoroutines() int64 {
+	if x != nil {
+		return x.AgentMaxGoroutines
+	}
+	return 0
+}
+
+type AgentConnectionSummary struct {
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	Connected                    bool                   `protobuf:"varint,1,opt,name=connected,proto3" json:"connected,omitempty"`
+	TotalConnections             int64                  `protobuf:"varint,2,opt,name=total_connections,json=totalConnections,proto3" json:"total_connections,omitempty"`
+	ActiveConnectedAtUnixMillis  int64                  `protobuf:"varint,3,opt,name=active_connected_at_unix_millis,json=activeConnectedAtUnixMillis,proto3" json:"active_connected_at_unix_millis,omitempty"`
+	LastConnectedAtUnixMillis    int64                  `protobuf:"varint,4,opt,name=last_connected_at_unix_millis,json=lastConnectedAtUnixMillis,proto3" json:"last_connected_at_unix_millis,omitempty"`
+	LastDisconnectedAtUnixMillis int64                  `protobuf:"varint,5,opt,name=last_disconnected_at_unix_millis,json=lastDisconnectedAtUnixMillis,proto3" json:"last_disconnected_at_unix_millis,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *AgentConnectionSummary) Reset() {
+	*x = AgentConnectionSummary{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentConnectionSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentConnectionSummary) ProtoMessage() {}
+
+func (x *AgentConnectionSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentConnectionSummary.ProtoReflect.Descriptor instead.
+func (*AgentConnectionSummary) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AgentConnectionSummary) GetConnected() bool {
+	if x != nil {
+		return x.Connected
+	}
+	return false
+}
+
+func (x *AgentConnectionSummary) GetTotalConnections() int64 {
+	if x != nil {
+		return x.TotalConnections
+	}
+	return 0
+}
+
+func (x *AgentConnectionSummary) GetActiveConnectedAtUnixMillis() int64 {
+	if x != nil {
+		return x.ActiveConnectedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentConnectionSummary) GetLastConnectedAtUnixMillis() int64 {
+	if x != nil {
+		return x.LastConnectedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentConnectionSummary) GetLastDisconnectedAtUnixMillis() int64 {
+	if x != nil {
+		return x.LastDisconnectedAtUnixMillis
+	}
+	return 0
+}
+
+type GetDashboardResponse struct {
+	state                 protoimpl.MessageState    `protogen:"open.v1"`
+	Status                *GetStatusResponse        `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Windows               []*DashboardWindowSummary `protobuf:"bytes,2,rep,name=windows,proto3" json:"windows,omitempty"`
+	AgentConnections      *AgentConnectionSummary   `protobuf:"bytes,3,opt,name=agent_connections,json=agentConnections,proto3" json:"agent_connections,omitempty"`
+	RetentionDays         int64                     `protobuf:"varint,4,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
+	GeneratedAtUnixMillis int64                     `protobuf:"varint,5,opt,name=generated_at_unix_millis,json=generatedAtUnixMillis,proto3" json:"generated_at_unix_millis,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GetDashboardResponse) Reset() {
+	*x = GetDashboardResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDashboardResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDashboardResponse) ProtoMessage() {}
+
+func (x *GetDashboardResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDashboardResponse.ProtoReflect.Descriptor instead.
+func (*GetDashboardResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetDashboardResponse) GetStatus() *GetStatusResponse {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *GetDashboardResponse) GetWindows() []*DashboardWindowSummary {
+	if x != nil {
+		return x.Windows
+	}
+	return nil
+}
+
+func (x *GetDashboardResponse) GetAgentConnections() *AgentConnectionSummary {
+	if x != nil {
+		return x.AgentConnections
+	}
+	return nil
+}
+
+func (x *GetDashboardResponse) GetRetentionDays() int64 {
+	if x != nil {
+		return x.RetentionDays
+	}
+	return 0
+}
+
+func (x *GetDashboardResponse) GetGeneratedAtUnixMillis() int64 {
+	if x != nil {
+		return x.GeneratedAtUnixMillis
+	}
+	return 0
+}
+
 type GetSetupStateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -641,7 +1017,7 @@ type GetSetupStateRequest struct {
 
 func (x *GetSetupStateRequest) Reset() {
 	*x = GetSetupStateRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -653,7 +1029,7 @@ func (x *GetSetupStateRequest) String() string {
 func (*GetSetupStateRequest) ProtoMessage() {}
 
 func (x *GetSetupStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -666,7 +1042,7 @@ func (x *GetSetupStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSetupStateRequest.ProtoReflect.Descriptor instead.
 func (*GetSetupStateRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{7}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{11}
 }
 
 type GetSetupStateResponse struct {
@@ -681,7 +1057,7 @@ type GetSetupStateResponse struct {
 
 func (x *GetSetupStateResponse) Reset() {
 	*x = GetSetupStateResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -693,7 +1069,7 @@ func (x *GetSetupStateResponse) String() string {
 func (*GetSetupStateResponse) ProtoMessage() {}
 
 func (x *GetSetupStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -706,7 +1082,7 @@ func (x *GetSetupStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSetupStateResponse.ProtoReflect.Descriptor instead.
 func (*GetSetupStateResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{8}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetSetupStateResponse) GetSetupRequired() bool {
@@ -747,7 +1123,7 @@ type SetupAdminRequest struct {
 
 func (x *SetupAdminRequest) Reset() {
 	*x = SetupAdminRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -759,7 +1135,7 @@ func (x *SetupAdminRequest) String() string {
 func (*SetupAdminRequest) ProtoMessage() {}
 
 func (x *SetupAdminRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -772,7 +1148,7 @@ func (x *SetupAdminRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetupAdminRequest.ProtoReflect.Descriptor instead.
 func (*SetupAdminRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{9}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SetupAdminRequest) GetUsername() string {
@@ -798,7 +1174,7 @@ type SetupAdminResponse struct {
 
 func (x *SetupAdminResponse) Reset() {
 	*x = SetupAdminResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -810,7 +1186,7 @@ func (x *SetupAdminResponse) String() string {
 func (*SetupAdminResponse) ProtoMessage() {}
 
 func (x *SetupAdminResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -823,7 +1199,7 @@ func (x *SetupAdminResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetupAdminResponse.ProtoReflect.Descriptor instead.
 func (*SetupAdminResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{10}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SetupAdminResponse) GetUser() *User {
@@ -843,7 +1219,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -855,7 +1231,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +1244,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{11}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *LoginRequest) GetUsername() string {
@@ -894,7 +1270,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -906,7 +1282,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -919,7 +1295,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{12}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *LoginResponse) GetUser() *User {
@@ -937,7 +1313,7 @@ type LogoutRequest struct {
 
 func (x *LogoutRequest) Reset() {
 	*x = LogoutRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -949,7 +1325,7 @@ func (x *LogoutRequest) String() string {
 func (*LogoutRequest) ProtoMessage() {}
 
 func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -962,7 +1338,7 @@ func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
 func (*LogoutRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{13}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{17}
 }
 
 type LogoutResponse struct {
@@ -973,7 +1349,7 @@ type LogoutResponse struct {
 
 func (x *LogoutResponse) Reset() {
 	*x = LogoutResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -985,7 +1361,7 @@ func (x *LogoutResponse) String() string {
 func (*LogoutResponse) ProtoMessage() {}
 
 func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -998,7 +1374,7 @@ func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
 func (*LogoutResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{14}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{18}
 }
 
 type GetCurrentUserRequest struct {
@@ -1009,7 +1385,7 @@ type GetCurrentUserRequest struct {
 
 func (x *GetCurrentUserRequest) Reset() {
 	*x = GetCurrentUserRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +1397,7 @@ func (x *GetCurrentUserRequest) String() string {
 func (*GetCurrentUserRequest) ProtoMessage() {}
 
 func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1034,7 +1410,7 @@ func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{15}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{19}
 }
 
 type GetCurrentUserResponse struct {
@@ -1046,7 +1422,7 @@ type GetCurrentUserResponse struct {
 
 func (x *GetCurrentUserResponse) Reset() {
 	*x = GetCurrentUserResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1058,7 +1434,7 @@ func (x *GetCurrentUserResponse) String() string {
 func (*GetCurrentUserResponse) ProtoMessage() {}
 
 func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1071,7 +1447,7 @@ func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{16}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetCurrentUserResponse) GetUser() *User {
@@ -1089,7 +1465,7 @@ type StartProxyRequest struct {
 
 func (x *StartProxyRequest) Reset() {
 	*x = StartProxyRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1101,7 +1477,7 @@ func (x *StartProxyRequest) String() string {
 func (*StartProxyRequest) ProtoMessage() {}
 
 func (x *StartProxyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1114,7 +1490,7 @@ func (x *StartProxyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartProxyRequest.ProtoReflect.Descriptor instead.
 func (*StartProxyRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{17}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{21}
 }
 
 type StartProxyResponse struct {
@@ -1126,7 +1502,7 @@ type StartProxyResponse struct {
 
 func (x *StartProxyResponse) Reset() {
 	*x = StartProxyResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1138,7 +1514,7 @@ func (x *StartProxyResponse) String() string {
 func (*StartProxyResponse) ProtoMessage() {}
 
 func (x *StartProxyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1151,7 +1527,7 @@ func (x *StartProxyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartProxyResponse.ProtoReflect.Descriptor instead.
 func (*StartProxyResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{18}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *StartProxyResponse) GetProxy() *ProxyStatus {
@@ -1169,7 +1545,7 @@ type StopProxyRequest struct {
 
 func (x *StopProxyRequest) Reset() {
 	*x = StopProxyRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1181,7 +1557,7 @@ func (x *StopProxyRequest) String() string {
 func (*StopProxyRequest) ProtoMessage() {}
 
 func (x *StopProxyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1194,7 +1570,7 @@ func (x *StopProxyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopProxyRequest.ProtoReflect.Descriptor instead.
 func (*StopProxyRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{19}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{23}
 }
 
 type StopProxyResponse struct {
@@ -1206,7 +1582,7 @@ type StopProxyResponse struct {
 
 func (x *StopProxyResponse) Reset() {
 	*x = StopProxyResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1218,7 +1594,7 @@ func (x *StopProxyResponse) String() string {
 func (*StopProxyResponse) ProtoMessage() {}
 
 func (x *StopProxyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1231,7 +1607,7 @@ func (x *StopProxyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopProxyResponse.ProtoReflect.Descriptor instead.
 func (*StopProxyResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{20}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *StopProxyResponse) GetProxy() *ProxyStatus {
@@ -1290,7 +1666,41 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\n" +
 	"last_error\x18\x02 \x01(\tR\tlastError\x123\n" +
 	"\x16started_at_unix_millis\x18\x03 \x01(\x03R\x13startedAtUnixMillis\x123\n" +
-	"\x16stopped_at_unix_millis\x18\x04 \x01(\x03R\x13stoppedAtUnixMillis\"\x16\n" +
+	"\x16stopped_at_unix_millis\x18\x04 \x01(\x03R\x13stoppedAtUnixMillis\"\x15\n" +
+	"\x13GetDashboardRequest\"\xf9\x06\n" +
+	"\x16DashboardWindowSummary\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12*\n" +
+	"\x11since_unix_millis\x18\x02 \x01(\x03R\x0fsinceUnixMillis\x12%\n" +
+	"\x0eproxy_requests\x18\x03 \x01(\x03R\rproxyRequests\x12#\n" +
+	"\rproxy_success\x18\x04 \x01(\x03R\fproxySuccess\x12,\n" +
+	"\x12proxy_client_error\x18\x05 \x01(\x03R\x10proxyClientError\x12,\n" +
+	"\x12proxy_server_error\x18\x06 \x01(\x03R\x10proxyServerError\x120\n" +
+	"\x14proxy_internal_error\x18\a \x01(\x03R\x12proxyInternalError\x121\n" +
+	"\x15proxy_avg_duration_ms\x18\b \x01(\x03R\x12proxyAvgDurationMs\x12#\n" +
+	"\ragent_samples\x18\t \x01(\x03R\fagentSamples\x12*\n" +
+	"\x11agent_req_success\x18\n" +
+	" \x01(\x03R\x0fagentReqSuccess\x123\n" +
+	"\x16agent_req_client_error\x18\v \x01(\x03R\x13agentReqClientError\x123\n" +
+	"\x16agent_req_server_error\x18\f \x01(\x03R\x13agentReqServerError\x127\n" +
+	"\x18agent_req_internal_error\x18\r \x01(\x03R\x15agentReqInternalError\x120\n" +
+	"\x14agent_bytes_received\x18\x0e \x01(\x04R\x12agentBytesReceived\x12(\n" +
+	"\x10agent_bytes_sent\x18\x0f \x01(\x04R\x0eagentBytesSent\x12-\n" +
+	"\x13agent_avg_memory_mb\x18\x10 \x01(\x03R\x10agentAvgMemoryMb\x12-\n" +
+	"\x13agent_max_memory_mb\x18\x11 \x01(\x03R\x10agentMaxMemoryMb\x120\n" +
+	"\x14agent_avg_goroutines\x18\x12 \x01(\x03R\x12agentAvgGoroutines\x120\n" +
+	"\x14agent_max_goroutines\x18\x13 \x01(\x03R\x12agentMaxGoroutines\"\xb3\x02\n" +
+	"\x16AgentConnectionSummary\x12\x1c\n" +
+	"\tconnected\x18\x01 \x01(\bR\tconnected\x12+\n" +
+	"\x11total_connections\x18\x02 \x01(\x03R\x10totalConnections\x12D\n" +
+	"\x1factive_connected_at_unix_millis\x18\x03 \x01(\x03R\x1bactiveConnectedAtUnixMillis\x12@\n" +
+	"\x1dlast_connected_at_unix_millis\x18\x04 \x01(\x03R\x19lastConnectedAtUnixMillis\x12F\n" +
+	" last_disconnected_at_unix_millis\x18\x05 \x01(\x03R\x1clastDisconnectedAtUnixMillis\"\xc2\x02\n" +
+	"\x14GetDashboardResponse\x127\n" +
+	"\x06status\x18\x01 \x01(\v2\x1f.p2pstream.v1.GetStatusResponseR\x06status\x12>\n" +
+	"\awindows\x18\x02 \x03(\v2$.p2pstream.v1.DashboardWindowSummaryR\awindows\x12Q\n" +
+	"\x11agent_connections\x18\x03 \x01(\v2$.p2pstream.v1.AgentConnectionSummaryR\x10agentConnections\x12%\n" +
+	"\x0eretention_days\x18\x04 \x01(\x03R\rretentionDays\x127\n" +
+	"\x18generated_at_unix_millis\x18\x05 \x01(\x03R\x15generatedAtUnixMillis\"\x16\n" +
 	"\x14GetSetupStateRequest\"\xe1\x01\n" +
 	"\x15GetSetupStateResponse\x12%\n" +
 	"\x0esetup_required\x18\x01 \x01(\bR\rsetupRequired\x12'\n" +
@@ -1328,10 +1738,11 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x14PROXY_STATE_STARTING\x10\x02\x12\x17\n" +
 	"\x13PROXY_STATE_RUNNING\x10\x03\x12\x18\n" +
 	"\x14PROXY_STATE_STOPPING\x10\x04\x12\x15\n" +
-	"\x11PROXY_STATE_ERROR\x10\x052\xf8\x05\n" +
+	"\x11PROXY_STATE_ERROR\x10\x052\xd1\x06\n" +
 	"\x16AgentManagementService\x12R\n" +
 	"\vReportStats\x12\x1f.p2pstream.v1.AgentStatsRequest\x1a .p2pstream.v1.AgentStatsResponse\"\x00\x12N\n" +
-	"\tGetStatus\x12\x1e.p2pstream.v1.GetStatusRequest\x1a\x1f.p2pstream.v1.GetStatusResponse\"\x00\x12Z\n" +
+	"\tGetStatus\x12\x1e.p2pstream.v1.GetStatusRequest\x1a\x1f.p2pstream.v1.GetStatusResponse\"\x00\x12W\n" +
+	"\fGetDashboard\x12!.p2pstream.v1.GetDashboardRequest\x1a\".p2pstream.v1.GetDashboardResponse\"\x00\x12Z\n" +
 	"\rGetSetupState\x12\".p2pstream.v1.GetSetupStateRequest\x1a#.p2pstream.v1.GetSetupStateResponse\"\x00\x12Q\n" +
 	"\n" +
 	"SetupAdmin\x12\x1f.p2pstream.v1.SetupAdminRequest\x1a .p2pstream.v1.SetupAdminResponse\"\x00\x12B\n" +
@@ -1356,7 +1767,7 @@ func file_proto_p2pstream_v1_management_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_proto_p2pstream_v1_management_proto_goTypes = []any{
 	(UserRole)(0),                  // 0: p2pstream.v1.UserRole
 	(ProxyState)(0),                // 1: p2pstream.v1.ProxyState
@@ -1367,54 +1778,63 @@ var file_proto_p2pstream_v1_management_proto_goTypes = []any{
 	(*AgentStatsSnapshot)(nil),     // 6: p2pstream.v1.AgentStatsSnapshot
 	(*GetStatusResponse)(nil),      // 7: p2pstream.v1.GetStatusResponse
 	(*ProxyStatus)(nil),            // 8: p2pstream.v1.ProxyStatus
-	(*GetSetupStateRequest)(nil),   // 9: p2pstream.v1.GetSetupStateRequest
-	(*GetSetupStateResponse)(nil),  // 10: p2pstream.v1.GetSetupStateResponse
-	(*SetupAdminRequest)(nil),      // 11: p2pstream.v1.SetupAdminRequest
-	(*SetupAdminResponse)(nil),     // 12: p2pstream.v1.SetupAdminResponse
-	(*LoginRequest)(nil),           // 13: p2pstream.v1.LoginRequest
-	(*LoginResponse)(nil),          // 14: p2pstream.v1.LoginResponse
-	(*LogoutRequest)(nil),          // 15: p2pstream.v1.LogoutRequest
-	(*LogoutResponse)(nil),         // 16: p2pstream.v1.LogoutResponse
-	(*GetCurrentUserRequest)(nil),  // 17: p2pstream.v1.GetCurrentUserRequest
-	(*GetCurrentUserResponse)(nil), // 18: p2pstream.v1.GetCurrentUserResponse
-	(*StartProxyRequest)(nil),      // 19: p2pstream.v1.StartProxyRequest
-	(*StartProxyResponse)(nil),     // 20: p2pstream.v1.StartProxyResponse
-	(*StopProxyRequest)(nil),       // 21: p2pstream.v1.StopProxyRequest
-	(*StopProxyResponse)(nil),      // 22: p2pstream.v1.StopProxyResponse
+	(*GetDashboardRequest)(nil),    // 9: p2pstream.v1.GetDashboardRequest
+	(*DashboardWindowSummary)(nil), // 10: p2pstream.v1.DashboardWindowSummary
+	(*AgentConnectionSummary)(nil), // 11: p2pstream.v1.AgentConnectionSummary
+	(*GetDashboardResponse)(nil),   // 12: p2pstream.v1.GetDashboardResponse
+	(*GetSetupStateRequest)(nil),   // 13: p2pstream.v1.GetSetupStateRequest
+	(*GetSetupStateResponse)(nil),  // 14: p2pstream.v1.GetSetupStateResponse
+	(*SetupAdminRequest)(nil),      // 15: p2pstream.v1.SetupAdminRequest
+	(*SetupAdminResponse)(nil),     // 16: p2pstream.v1.SetupAdminResponse
+	(*LoginRequest)(nil),           // 17: p2pstream.v1.LoginRequest
+	(*LoginResponse)(nil),          // 18: p2pstream.v1.LoginResponse
+	(*LogoutRequest)(nil),          // 19: p2pstream.v1.LogoutRequest
+	(*LogoutResponse)(nil),         // 20: p2pstream.v1.LogoutResponse
+	(*GetCurrentUserRequest)(nil),  // 21: p2pstream.v1.GetCurrentUserRequest
+	(*GetCurrentUserResponse)(nil), // 22: p2pstream.v1.GetCurrentUserResponse
+	(*StartProxyRequest)(nil),      // 23: p2pstream.v1.StartProxyRequest
+	(*StartProxyResponse)(nil),     // 24: p2pstream.v1.StartProxyResponse
+	(*StopProxyRequest)(nil),       // 25: p2pstream.v1.StopProxyRequest
+	(*StopProxyResponse)(nil),      // 26: p2pstream.v1.StopProxyResponse
 }
 var file_proto_p2pstream_v1_management_proto_depIdxs = []int32{
 	0,  // 0: p2pstream.v1.User.role:type_name -> p2pstream.v1.UserRole
 	6,  // 1: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
 	8,  // 2: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
 	1,  // 3: p2pstream.v1.ProxyStatus.state:type_name -> p2pstream.v1.ProxyState
-	4,  // 4: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
-	4,  // 5: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
-	4,  // 6: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
-	8,  // 7: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	8,  // 8: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	2,  // 9: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
-	5,  // 10: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
-	9,  // 11: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
-	11, // 12: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
-	13, // 13: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
-	15, // 14: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
-	17, // 15: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
-	19, // 16: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
-	21, // 17: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
-	3,  // 18: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
-	7,  // 19: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
-	10, // 20: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
-	12, // 21: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
-	14, // 22: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
-	16, // 23: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
-	18, // 24: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
-	20, // 25: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
-	22, // 26: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
-	18, // [18:27] is the sub-list for method output_type
-	9,  // [9:18] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	7,  // 4: p2pstream.v1.GetDashboardResponse.status:type_name -> p2pstream.v1.GetStatusResponse
+	10, // 5: p2pstream.v1.GetDashboardResponse.windows:type_name -> p2pstream.v1.DashboardWindowSummary
+	11, // 6: p2pstream.v1.GetDashboardResponse.agent_connections:type_name -> p2pstream.v1.AgentConnectionSummary
+	4,  // 7: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
+	4,  // 8: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
+	4,  // 9: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
+	8,  // 10: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	8,  // 11: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	2,  // 12: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
+	5,  // 13: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
+	9,  // 14: p2pstream.v1.AgentManagementService.GetDashboard:input_type -> p2pstream.v1.GetDashboardRequest
+	13, // 15: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
+	15, // 16: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
+	17, // 17: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
+	19, // 18: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
+	21, // 19: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
+	23, // 20: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
+	25, // 21: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
+	3,  // 22: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
+	7,  // 23: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
+	12, // 24: p2pstream.v1.AgentManagementService.GetDashboard:output_type -> p2pstream.v1.GetDashboardResponse
+	14, // 25: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
+	16, // 26: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
+	18, // 27: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
+	20, // 28: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
+	22, // 29: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
+	24, // 30: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
+	26, // 31: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
+	22, // [22:32] is the sub-list for method output_type
+	12, // [12:22] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_proto_p2pstream_v1_management_proto_init() }
@@ -1428,7 +1848,7 @@ func file_proto_p2pstream_v1_management_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_p2pstream_v1_management_proto_rawDesc), len(file_proto_p2pstream_v1_management_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   21,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

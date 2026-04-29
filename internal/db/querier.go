@@ -6,18 +6,28 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
 type Querier interface {
 	CountUsers(ctx context.Context) (int64, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	DeleteAgentStatsBefore(ctx context.Context, reportedAt time.Time) error
+	DeleteDisconnectedConnectionsBefore(ctx context.Context, disconnectedAt sql.NullTime) error
+	DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error
+	GetActiveConnection(ctx context.Context) (Connection, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
+	GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error)
+	GetConnectionSummarySince(ctx context.Context, connectedAt time.Time) (GetConnectionSummarySinceRow, error)
 	GetLatestAgentStat(ctx context.Context) (AgentStat, error)
+	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error
 	InsertConnection(ctx context.Context) (int64, error)
+	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
 	TouchSession(ctx context.Context, id int64) error
 	UpdateConnectionDisconnected(ctx context.Context, id int64) error

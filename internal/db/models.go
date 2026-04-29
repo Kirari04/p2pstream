@@ -28,6 +28,14 @@ type Connection struct {
 	DisconnectedAt sql.NullTime `json:"disconnected_at"`
 }
 
+type ProxyRequestEvent struct {
+	ID         int64     `json:"id"`
+	OccurredAt time.Time `json:"occurred_at"`
+	StatusCode int64     `json:"status_code"`
+	DurationMs int64     `json:"duration_ms"`
+	ErrorKind  string    `json:"error_kind"`
+}
+
 type Session struct {
 	ID         int64        `json:"id"`
 	UserID     int64        `json:"user_id"`

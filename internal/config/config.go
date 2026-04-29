@@ -9,15 +9,16 @@ import (
 )
 
 type Config struct {
-	Port                 string `env:"PORT" envDefault:"80"`
-	ManagementPort       string `env:"MANAGEMENT_PORT" envDefault:"8081"`
-	TargetOrigin         string `env:"TARGET_ORIGIN" envDefault:"https://httpbin.org"`
-	DatabaseURL          string `env:"DATABASE_URL" envDefault:"file:p2pstream.db?cache=shared&mode=rwc"`
-	Env                  string `env:"ENV" envDefault:"development"` // development or production
-	ManagementUIDevProxy string `env:"MANAGEMENT_UI_DEV_PROXY"`
-	ManagementUIDistDir  string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
-	ManagementCookieSecure bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
-	AgentToken             string `env:"AGENT_TOKEN"`
+	Port                       string `env:"PORT" envDefault:"80"`
+	ManagementPort             string `env:"MANAGEMENT_PORT" envDefault:"8081"`
+	TargetOrigin               string `env:"TARGET_ORIGIN" envDefault:"https://httpbin.org"`
+	DatabaseURL                string `env:"DATABASE_URL" envDefault:"file:p2pstream.db?cache=shared&mode=rwc"`
+	Env                        string `env:"ENV" envDefault:"development"` // development or production
+	ManagementUIDevProxy       string `env:"MANAGEMENT_UI_DEV_PROXY"`
+	ManagementUIDistDir        string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
+	ManagementCookieSecure     bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
+	AgentToken                 string `env:"AGENT_TOKEN"`
+	ObservabilityRetentionDays int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
 
 	ParsedTargetOrigin *url.URL `env:"-"`
 }

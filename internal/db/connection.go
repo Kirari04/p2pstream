@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
+	"github.com/rs/zerolog/log"
 )
 
 type DB struct {
@@ -100,6 +100,14 @@ func (db *DB) migrate() error {
 		bytes_tx INTEGER NOT NULL
 	);
 
+	CREATE TABLE IF NOT EXISTS proxy_request_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		status_code INTEGER NOT NULL,
+		duration_ms INTEGER NOT NULL,
+		error_kind TEXT NOT NULL DEFAULT ''
+	);
+
 	CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT NOT NULL UNIQUE,
@@ -119,6 +127,15 @@ func (db *DB) migrate() error {
 		expires_at DATETIME NOT NULL,
 		revoked_at DATETIME
 	);
+
+	CREATE INDEX IF NOT EXISTS idx_proxy_request_events_occurred_at
+	ON proxy_request_events (occurred_at);
+
+	CREATE INDEX IF NOT EXISTS idx_agent_stats_reported_at
+	ON agent_stats (reported_at);
+
+	CREATE INDEX IF NOT EXISTS idx_connections_connected_at
+	ON connections (connected_at);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		return err

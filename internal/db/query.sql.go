@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -73,6 +74,52 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	return i, err
 }
 
+const deleteAgentStatsBefore = `-- name: DeleteAgentStatsBefore :exec
+DELETE FROM agent_stats
+WHERE reported_at < ?
+`
+
+func (q *Queries) DeleteAgentStatsBefore(ctx context.Context, reportedAt time.Time) error {
+	_, err := q.db.ExecContext(ctx, deleteAgentStatsBefore, reportedAt)
+	return err
+}
+
+const deleteDisconnectedConnectionsBefore = `-- name: DeleteDisconnectedConnectionsBefore :exec
+DELETE FROM connections
+WHERE disconnected_at IS NOT NULL
+  AND disconnected_at < ?
+`
+
+func (q *Queries) DeleteDisconnectedConnectionsBefore(ctx context.Context, disconnectedAt sql.NullTime) error {
+	_, err := q.db.ExecContext(ctx, deleteDisconnectedConnectionsBefore, disconnectedAt)
+	return err
+}
+
+const deleteProxyRequestEventsBefore = `-- name: DeleteProxyRequestEventsBefore :exec
+DELETE FROM proxy_request_events
+WHERE occurred_at < ?
+`
+
+func (q *Queries) DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error {
+	_, err := q.db.ExecContext(ctx, deleteProxyRequestEventsBefore, occurredAt)
+	return err
+}
+
+const getActiveConnection = `-- name: GetActiveConnection :one
+SELECT id, connected_at, disconnected_at
+FROM connections
+WHERE disconnected_at IS NULL
+ORDER BY connected_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetActiveConnection(ctx context.Context) (Connection, error) {
+	row := q.db.QueryRowContext(ctx, getActiveConnection)
+	var i Connection
+	err := row.Scan(&i.ID, &i.ConnectedAt, &i.DisconnectedAt)
+	return i, err
+}
+
 const getActiveSessionByTokenHash = `-- name: GetActiveSessionByTokenHash :one
 SELECT
     s.id AS session_id,
@@ -112,6 +159,78 @@ func (q *Queries) GetActiveSessionByTokenHash(ctx context.Context, tokenHash str
 	return i, err
 }
 
+const getAgentStatsSummarySince = `-- name: GetAgentStatsSummarySince :one
+SELECT
+    COUNT(*) AS samples,
+    CAST(COALESCE(SUM(req_success), 0) AS INTEGER) AS req_success,
+    CAST(COALESCE(SUM(req_client_error), 0) AS INTEGER) AS req_client_error,
+    CAST(COALESCE(SUM(req_server_error), 0) AS INTEGER) AS req_server_error,
+    CAST(COALESCE(SUM(req_internal_error), 0) AS INTEGER) AS req_internal_error,
+    CAST(COALESCE(SUM(bytes_rx), 0) AS INTEGER) AS bytes_rx,
+    CAST(COALESCE(SUM(bytes_tx), 0) AS INTEGER) AS bytes_tx,
+    CAST(COALESCE(AVG(memory_mb), 0) AS INTEGER) AS avg_memory_mb,
+    CAST(COALESCE(MAX(memory_mb), 0) AS INTEGER) AS max_memory_mb,
+    CAST(COALESCE(AVG(goroutines), 0) AS INTEGER) AS avg_goroutines,
+    CAST(COALESCE(MAX(goroutines), 0) AS INTEGER) AS max_goroutines
+FROM agent_stats
+WHERE reported_at >= ?
+`
+
+type GetAgentStatsSummarySinceRow struct {
+	Samples          int64 `json:"samples"`
+	ReqSuccess       int64 `json:"req_success"`
+	ReqClientError   int64 `json:"req_client_error"`
+	ReqServerError   int64 `json:"req_server_error"`
+	ReqInternalError int64 `json:"req_internal_error"`
+	BytesRx          int64 `json:"bytes_rx"`
+	BytesTx          int64 `json:"bytes_tx"`
+	AvgMemoryMb      int64 `json:"avg_memory_mb"`
+	MaxMemoryMb      int64 `json:"max_memory_mb"`
+	AvgGoroutines    int64 `json:"avg_goroutines"`
+	MaxGoroutines    int64 `json:"max_goroutines"`
+}
+
+func (q *Queries) GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error) {
+	row := q.db.QueryRowContext(ctx, getAgentStatsSummarySince, reportedAt)
+	var i GetAgentStatsSummarySinceRow
+	err := row.Scan(
+		&i.Samples,
+		&i.ReqSuccess,
+		&i.ReqClientError,
+		&i.ReqServerError,
+		&i.ReqInternalError,
+		&i.BytesRx,
+		&i.BytesTx,
+		&i.AvgMemoryMb,
+		&i.MaxMemoryMb,
+		&i.AvgGoroutines,
+		&i.MaxGoroutines,
+	)
+	return i, err
+}
+
+const getConnectionSummarySince = `-- name: GetConnectionSummarySince :one
+SELECT
+    COUNT(*) AS total_connections,
+    MAX(connected_at) AS last_connected_at,
+    MAX(disconnected_at) AS last_disconnected_at
+FROM connections
+WHERE connected_at >= ?
+`
+
+type GetConnectionSummarySinceRow struct {
+	TotalConnections   int64       `json:"total_connections"`
+	LastConnectedAt    interface{} `json:"last_connected_at"`
+	LastDisconnectedAt interface{} `json:"last_disconnected_at"`
+}
+
+func (q *Queries) GetConnectionSummarySince(ctx context.Context, connectedAt time.Time) (GetConnectionSummarySinceRow, error) {
+	row := q.db.QueryRowContext(ctx, getConnectionSummarySince, connectedAt)
+	var i GetConnectionSummarySinceRow
+	err := row.Scan(&i.TotalConnections, &i.LastConnectedAt, &i.LastDisconnectedAt)
+	return i, err
+}
+
 const getLatestAgentStat = `-- name: GetLatestAgentStat :one
 SELECT id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx FROM agent_stats
 ORDER BY id DESC
@@ -132,6 +251,41 @@ func (q *Queries) GetLatestAgentStat(ctx context.Context) (AgentStat, error) {
 		&i.ReqInternalError,
 		&i.BytesRx,
 		&i.BytesTx,
+	)
+	return i, err
+}
+
+const getProxyRequestSummarySince = `-- name: GetProxyRequestSummarySince :one
+SELECT
+    COUNT(*) AS total_requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms
+FROM proxy_request_events
+WHERE occurred_at >= ?
+`
+
+type GetProxyRequestSummarySinceRow struct {
+	TotalRequests int64 `json:"total_requests"`
+	Success       int64 `json:"success"`
+	ClientError   int64 `json:"client_error"`
+	ServerError   int64 `json:"server_error"`
+	InternalError int64 `json:"internal_error"`
+	AvgDurationMs int64 `json:"avg_duration_ms"`
+}
+
+func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error) {
+	row := q.db.QueryRowContext(ctx, getProxyRequestSummarySince, occurredAt)
+	var i GetProxyRequestSummarySinceRow
+	err := row.Scan(
+		&i.TotalRequests,
+		&i.Success,
+		&i.ClientError,
+		&i.ServerError,
+		&i.InternalError,
+		&i.AvgDurationMs,
 	)
 	return i, err
 }
@@ -222,6 +376,25 @@ func (q *Queries) InsertConnection(ctx context.Context) (int64, error) {
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
+INSERT INTO proxy_request_events (
+    status_code, duration_ms, error_kind
+) VALUES (
+    ?, ?, ?
+)
+`
+
+type InsertProxyRequestEventParams struct {
+	StatusCode int64  `json:"status_code"`
+	DurationMs int64  `json:"duration_ms"`
+	ErrorKind  string `json:"error_kind"`
+}
+
+func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error {
+	_, err := q.db.ExecContext(ctx, insertProxyRequestEvent, arg.StatusCode, arg.DurationMs, arg.ErrorKind)
+	return err
 }
 
 const revokeSessionByTokenHash = `-- name: RevokeSessionByTokenHash :exec

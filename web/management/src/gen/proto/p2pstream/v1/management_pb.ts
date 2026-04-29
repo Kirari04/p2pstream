@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto/p2pstream/v1/management.proto.
  */
 export const file_proto_p2pstream_v1_management: GenFile = /*@__PURE__*/
-  fileDesc("CiNwcm90by9wMnBzdHJlYW0vdjEvbWFuYWdlbWVudC5wcm90bxIMcDJwc3RyZWFtLnYxIusBChFBZ2VudFN0YXRzUmVxdWVzdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBSIUChJBZ2VudFN0YXRzUmVzcG9uc2UiSgoEVXNlchIKCgJpZBgBIAEoAxIQCgh1c2VybmFtZRgCIAEoCRIkCgRyb2xlGAMgASgOMhYucDJwc3RyZWFtLnYxLlVzZXJSb2xlIhIKEEdldFN0YXR1c1JlcXVlc3QijQIKEkFnZW50U3RhdHNTbmFwc2hvdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBRIfChdyZXBvcnRlZF9hdF91bml4X21pbGxpcxgKIAEoAyLcAQoRR2V0U3RhdHVzUmVzcG9uc2USFQoNcHJveHlfcnVubmluZxgBIAEoCBIYChBwcm94eV9sYXN0X2Vycm9yGAIgASgJEhcKD2FnZW50X2Nvbm5lY3RlZBgDIAEoCBIVCg10YXJnZXRfb3JpZ2luGAQgASgJEjwKEmxhdGVzdF9hZ2VudF9zdGF0cxgFIAEoCzIgLnAycHN0cmVhbS52MS5BZ2VudFN0YXRzU25hcHNob3QSKAoFcHJveHkYBiABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiigEKC1Byb3h5U3RhdHVzEicKBXN0YXRlGAEgASgOMhgucDJwc3RyZWFtLnYxLlByb3h5U3RhdGUSEgoKbGFzdF9lcnJvchgCIAEoCRIeChZzdGFydGVkX2F0X3VuaXhfbWlsbGlzGAMgASgDEh4KFnN0b3BwZWRfYXRfdW5peF9taWxsaXMYBCABKAMiFgoUR2V0U2V0dXBTdGF0ZVJlcXVlc3QikAEKFUdldFNldHVwU3RhdGVSZXNwb25zZRIWCg5zZXR1cF9yZXF1aXJlZBgBIAEoCBIXCg9zZXR1cF9hdmFpbGFibGUYAiABKAgSJAocc2V0dXBfZXhwaXJlc19hdF91bml4X21pbGxpcxgDIAEoAxIgChhzZXR1cF91bmF2YWlsYWJsZV9yZWFzb24YBCABKAkiNwoRU2V0dXBBZG1pblJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiNgoSU2V0dXBBZG1pblJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5wMnBzdHJlYW0udjEuVXNlciIyCgxMb2dpblJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiMQoNTG9naW5SZXNwb25zZRIgCgR1c2VyGAEgASgLMhIucDJwc3RyZWFtLnYxLlVzZXIiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIXChVHZXRDdXJyZW50VXNlclJlcXVlc3QiOgoWR2V0Q3VycmVudFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIucDJwc3RyZWFtLnYxLlVzZXIiEwoRU3RhcnRQcm94eVJlcXVlc3QiPgoSU3RhcnRQcm94eVJlc3BvbnNlEigKBXByb3h5GAEgASgLMhkucDJwc3RyZWFtLnYxLlByb3h5U3RhdHVzIhIKEFN0b3BQcm94eVJlcXVlc3QiPQoRU3RvcFByb3h5UmVzcG9uc2USKAoFcHJveHkYASABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMqOgoIVXNlclJvbGUSGQoVVVNFUl9ST0xFX1VOU1BFQ0lGSUVEEAASEwoPVVNFUl9ST0xFX0FETUlOEAEqpgEKClByb3h5U3RhdGUSGwoXUFJPWFlfU1RBVEVfVU5TUEVDSUZJRUQQABIXChNQUk9YWV9TVEFURV9TVE9QUEVEEAESGAoUUFJPWFlfU1RBVEVfU1RBUlRJTkcQAhIXChNQUk9YWV9TVEFURV9SVU5OSU5HEAMSGAoUUFJPWFlfU1RBVEVfU1RPUFBJTkcQBBIVChFQUk9YWV9TVEFURV9FUlJPUhAFMvgFChZBZ2VudE1hbmFnZW1lbnRTZXJ2aWNlElIKC1JlcG9ydFN0YXRzEh8ucDJwc3RyZWFtLnYxLkFnZW50U3RhdHNSZXF1ZXN0GiAucDJwc3RyZWFtLnYxLkFnZW50U3RhdHNSZXNwb25zZSIAEk4KCUdldFN0YXR1cxIeLnAycHN0cmVhbS52MS5HZXRTdGF0dXNSZXF1ZXN0Gh8ucDJwc3RyZWFtLnYxLkdldFN0YXR1c1Jlc3BvbnNlIgASWgoNR2V0U2V0dXBTdGF0ZRIiLnAycHN0cmVhbS52MS5HZXRTZXR1cFN0YXRlUmVxdWVzdBojLnAycHN0cmVhbS52MS5HZXRTZXR1cFN0YXRlUmVzcG9uc2UiABJRCgpTZXR1cEFkbWluEh8ucDJwc3RyZWFtLnYxLlNldHVwQWRtaW5SZXF1ZXN0GiAucDJwc3RyZWFtLnYxLlNldHVwQWRtaW5SZXNwb25zZSIAEkIKBUxvZ2luEhoucDJwc3RyZWFtLnYxLkxvZ2luUmVxdWVzdBobLnAycHN0cmVhbS52MS5Mb2dpblJlc3BvbnNlIgASRQoGTG9nb3V0EhsucDJwc3RyZWFtLnYxLkxvZ291dFJlcXVlc3QaHC5wMnBzdHJlYW0udjEuTG9nb3V0UmVzcG9uc2UiABJdCg5HZXRDdXJyZW50VXNlchIjLnAycHN0cmVhbS52MS5HZXRDdXJyZW50VXNlclJlcXVlc3QaJC5wMnBzdHJlYW0udjEuR2V0Q3VycmVudFVzZXJSZXNwb25zZSIAElEKClN0YXJ0UHJveHkSHy5wMnBzdHJlYW0udjEuU3RhcnRQcm94eVJlcXVlc3QaIC5wMnBzdHJlYW0udjEuU3RhcnRQcm94eVJlc3BvbnNlIgASTgoJU3RvcFByb3h5Eh4ucDJwc3RyZWFtLnYxLlN0b3BQcm94eVJlcXVlc3QaHy5wMnBzdHJlYW0udjEuU3RvcFByb3h5UmVzcG9uc2UiAEKiAQoQY29tLnAycHN0cmVhbS52MUIPTWFuYWdlbWVudFByb3RvUAFaLHAycHN0cmVhbS9nZW4vcHJvdG8vcDJwc3RyZWFtL3YxO3AycHN0cmVhbXYxogIDUFhYqgIMUDJwc3RyZWFtLlYxygIMUDJwc3RyZWFtXFYx4gIYUDJwc3RyZWFtXFYxXEdQQk1ldGFkYXRh6gINUDJwc3RyZWFtOjpWMWIGcHJvdG8z");
+  fileDesc("CiNwcm90by9wMnBzdHJlYW0vdjEvbWFuYWdlbWVudC5wcm90bxIMcDJwc3RyZWFtLnYxIusBChFBZ2VudFN0YXRzUmVxdWVzdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBSIUChJBZ2VudFN0YXRzUmVzcG9uc2UiSgoEVXNlchIKCgJpZBgBIAEoAxIQCgh1c2VybmFtZRgCIAEoCRIkCgRyb2xlGAMgASgOMhYucDJwc3RyZWFtLnYxLlVzZXJSb2xlIhIKEEdldFN0YXR1c1JlcXVlc3QijQIKEkFnZW50U3RhdHNTbmFwc2hvdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBRIfChdyZXBvcnRlZF9hdF91bml4X21pbGxpcxgKIAEoAyLcAQoRR2V0U3RhdHVzUmVzcG9uc2USFQoNcHJveHlfcnVubmluZxgBIAEoCBIYChBwcm94eV9sYXN0X2Vycm9yGAIgASgJEhcKD2FnZW50X2Nvbm5lY3RlZBgDIAEoCBIVCg10YXJnZXRfb3JpZ2luGAQgASgJEjwKEmxhdGVzdF9hZ2VudF9zdGF0cxgFIAEoCzIgLnAycHN0cmVhbS52MS5BZ2VudFN0YXRzU25hcHNob3QSKAoFcHJveHkYBiABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiigEKC1Byb3h5U3RhdHVzEicKBXN0YXRlGAEgASgOMhgucDJwc3RyZWFtLnYxLlByb3h5U3RhdGUSEgoKbGFzdF9lcnJvchgCIAEoCRIeChZzdGFydGVkX2F0X3VuaXhfbWlsbGlzGAMgASgDEh4KFnN0b3BwZWRfYXRfdW5peF9taWxsaXMYBCABKAMiFQoTR2V0RGFzaGJvYXJkUmVxdWVzdCKoBAoWRGFzaGJvYXJkV2luZG93U3VtbWFyeRINCgVsYWJlbBgBIAEoCRIZChFzaW5jZV91bml4X21pbGxpcxgCIAEoAxIWCg5wcm94eV9yZXF1ZXN0cxgDIAEoAxIVCg1wcm94eV9zdWNjZXNzGAQgASgDEhoKEnByb3h5X2NsaWVudF9lcnJvchgFIAEoAxIaChJwcm94eV9zZXJ2ZXJfZXJyb3IYBiABKAMSHAoUcHJveHlfaW50ZXJuYWxfZXJyb3IYByABKAMSHQoVcHJveHlfYXZnX2R1cmF0aW9uX21zGAggASgDEhUKDWFnZW50X3NhbXBsZXMYCSABKAMSGQoRYWdlbnRfcmVxX3N1Y2Nlc3MYCiABKAMSHgoWYWdlbnRfcmVxX2NsaWVudF9lcnJvchgLIAEoAxIeChZhZ2VudF9yZXFfc2VydmVyX2Vycm9yGAwgASgDEiAKGGFnZW50X3JlcV9pbnRlcm5hbF9lcnJvchgNIAEoAxIcChRhZ2VudF9ieXRlc19yZWNlaXZlZBgOIAEoBBIYChBhZ2VudF9ieXRlc19zZW50GA8gASgEEhsKE2FnZW50X2F2Z19tZW1vcnlfbWIYECABKAMSGwoTYWdlbnRfbWF4X21lbW9yeV9tYhgRIAEoAxIcChRhZ2VudF9hdmdfZ29yb3V0aW5lcxgSIAEoAxIcChRhZ2VudF9tYXhfZ29yb3V0aW5lcxgTIAEoAyLAAQoWQWdlbnRDb25uZWN0aW9uU3VtbWFyeRIRCgljb25uZWN0ZWQYASABKAgSGQoRdG90YWxfY29ubmVjdGlvbnMYAiABKAMSJwofYWN0aXZlX2Nvbm5lY3RlZF9hdF91bml4X21pbGxpcxgDIAEoAxIlCh1sYXN0X2Nvbm5lY3RlZF9hdF91bml4X21pbGxpcxgEIAEoAxIoCiBsYXN0X2Rpc2Nvbm5lY3RlZF9hdF91bml4X21pbGxpcxgFIAEoAyL5AQoUR2V0RGFzaGJvYXJkUmVzcG9uc2USLwoGc3RhdHVzGAEgASgLMh8ucDJwc3RyZWFtLnYxLkdldFN0YXR1c1Jlc3BvbnNlEjUKB3dpbmRvd3MYAiADKAsyJC5wMnBzdHJlYW0udjEuRGFzaGJvYXJkV2luZG93U3VtbWFyeRI/ChFhZ2VudF9jb25uZWN0aW9ucxgDIAEoCzIkLnAycHN0cmVhbS52MS5BZ2VudENvbm5lY3Rpb25TdW1tYXJ5EhYKDnJldGVudGlvbl9kYXlzGAQgASgDEiAKGGdlbmVyYXRlZF9hdF91bml4X21pbGxpcxgFIAEoAyIWChRHZXRTZXR1cFN0YXRlUmVxdWVzdCKQAQoVR2V0U2V0dXBTdGF0ZVJlc3BvbnNlEhYKDnNldHVwX3JlcXVpcmVkGAEgASgIEhcKD3NldHVwX2F2YWlsYWJsZRgCIAEoCBIkChxzZXR1cF9leHBpcmVzX2F0X3VuaXhfbWlsbGlzGAMgASgDEiAKGHNldHVwX3VuYXZhaWxhYmxlX3JlYXNvbhgEIAEoCSI3ChFTZXR1cEFkbWluUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSI2ChJTZXR1cEFkbWluUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLnAycHN0cmVhbS52MS5Vc2VyIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSIxCg1Mb2dpblJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5wMnBzdHJlYW0udjEuVXNlciIPCg1Mb2dvdXRSZXF1ZXN0IhAKDkxvZ291dFJlc3BvbnNlIhcKFUdldEN1cnJlbnRVc2VyUmVxdWVzdCI6ChZHZXRDdXJyZW50VXNlclJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5wMnBzdHJlYW0udjEuVXNlciITChFTdGFydFByb3h5UmVxdWVzdCI+ChJTdGFydFByb3h5UmVzcG9uc2USKAoFcHJveHkYASABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiEgoQU3RvcFByb3h5UmVxdWVzdCI9ChFTdG9wUHJveHlSZXNwb25zZRIoCgVwcm94eRgBIAEoCzIZLnAycHN0cmVhbS52MS5Qcm94eVN0YXR1cyo6CghVc2VyUm9sZRIZChVVU0VSX1JPTEVfVU5TUEVDSUZJRUQQABITCg9VU0VSX1JPTEVfQURNSU4QASqmAQoKUHJveHlTdGF0ZRIbChdQUk9YWV9TVEFURV9VTlNQRUNJRklFRBAAEhcKE1BST1hZX1NUQVRFX1NUT1BQRUQQARIYChRQUk9YWV9TVEFURV9TVEFSVElORxACEhcKE1BST1hZX1NUQVRFX1JVTk5JTkcQAxIYChRQUk9YWV9TVEFURV9TVE9QUElORxAEEhUKEVBST1hZX1NUQVRFX0VSUk9SEAUy0QYKFkFnZW50TWFuYWdlbWVudFNlcnZpY2USUgoLUmVwb3J0U3RhdHMSHy5wMnBzdHJlYW0udjEuQWdlbnRTdGF0c1JlcXVlc3QaIC5wMnBzdHJlYW0udjEuQWdlbnRTdGF0c1Jlc3BvbnNlIgASTgoJR2V0U3RhdHVzEh4ucDJwc3RyZWFtLnYxLkdldFN0YXR1c1JlcXVlc3QaHy5wMnBzdHJlYW0udjEuR2V0U3RhdHVzUmVzcG9uc2UiABJXCgxHZXREYXNoYm9hcmQSIS5wMnBzdHJlYW0udjEuR2V0RGFzaGJvYXJkUmVxdWVzdBoiLnAycHN0cmVhbS52MS5HZXREYXNoYm9hcmRSZXNwb25zZSIAEloKDUdldFNldHVwU3RhdGUSIi5wMnBzdHJlYW0udjEuR2V0U2V0dXBTdGF0ZVJlcXVlc3QaIy5wMnBzdHJlYW0udjEuR2V0U2V0dXBTdGF0ZVJlc3BvbnNlIgASUQoKU2V0dXBBZG1pbhIfLnAycHN0cmVhbS52MS5TZXR1cEFkbWluUmVxdWVzdBogLnAycHN0cmVhbS52MS5TZXR1cEFkbWluUmVzcG9uc2UiABJCCgVMb2dpbhIaLnAycHN0cmVhbS52MS5Mb2dpblJlcXVlc3QaGy5wMnBzdHJlYW0udjEuTG9naW5SZXNwb25zZSIAEkUKBkxvZ291dBIbLnAycHN0cmVhbS52MS5Mb2dvdXRSZXF1ZXN0GhwucDJwc3RyZWFtLnYxLkxvZ291dFJlc3BvbnNlIgASXQoOR2V0Q3VycmVudFVzZXISIy5wMnBzdHJlYW0udjEuR2V0Q3VycmVudFVzZXJSZXF1ZXN0GiQucDJwc3RyZWFtLnYxLkdldEN1cnJlbnRVc2VyUmVzcG9uc2UiABJRCgpTdGFydFByb3h5Eh8ucDJwc3RyZWFtLnYxLlN0YXJ0UHJveHlSZXF1ZXN0GiAucDJwc3RyZWFtLnYxLlN0YXJ0UHJveHlSZXNwb25zZSIAEk4KCVN0b3BQcm94eRIeLnAycHN0cmVhbS52MS5TdG9wUHJveHlSZXF1ZXN0Gh8ucDJwc3RyZWFtLnYxLlN0b3BQcm94eVJlc3BvbnNlIgBCogEKEGNvbS5wMnBzdHJlYW0udjFCD01hbmFnZW1lbnRQcm90b1ABWixwMnBzdHJlYW0vZ2VuL3Byb3RvL3AycHN0cmVhbS92MTtwMnBzdHJlYW12MaICA1BYWKoCDFAycHN0cmVhbS5WMcoCDFAycHN0cmVhbVxWMeICGFAycHN0cmVhbVxWMVxHUEJNZXRhZGF0YeoCDVAycHN0cmVhbTo6VjFiBnByb3RvMw");
 
 /**
  * @generated from message p2pstream.v1.AgentStatsRequest
@@ -259,6 +259,200 @@ export const ProxyStatusSchema: GenMessage<ProxyStatus> = /*@__PURE__*/
   messageDesc(file_proto_p2pstream_v1_management, 6);
 
 /**
+ * @generated from message p2pstream.v1.GetDashboardRequest
+ */
+export type GetDashboardRequest = Message<"p2pstream.v1.GetDashboardRequest"> & {
+};
+
+/**
+ * Describes the message p2pstream.v1.GetDashboardRequest.
+ * Use `create(GetDashboardRequestSchema)` to create a new message.
+ */
+export const GetDashboardRequestSchema: GenMessage<GetDashboardRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 7);
+
+/**
+ * @generated from message p2pstream.v1.DashboardWindowSummary
+ */
+export type DashboardWindowSummary = Message<"p2pstream.v1.DashboardWindowSummary"> & {
+  /**
+   * @generated from field: string label = 1;
+   */
+  label: string;
+
+  /**
+   * @generated from field: int64 since_unix_millis = 2;
+   */
+  sinceUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 proxy_requests = 3;
+   */
+  proxyRequests: bigint;
+
+  /**
+   * @generated from field: int64 proxy_success = 4;
+   */
+  proxySuccess: bigint;
+
+  /**
+   * @generated from field: int64 proxy_client_error = 5;
+   */
+  proxyClientError: bigint;
+
+  /**
+   * @generated from field: int64 proxy_server_error = 6;
+   */
+  proxyServerError: bigint;
+
+  /**
+   * @generated from field: int64 proxy_internal_error = 7;
+   */
+  proxyInternalError: bigint;
+
+  /**
+   * @generated from field: int64 proxy_avg_duration_ms = 8;
+   */
+  proxyAvgDurationMs: bigint;
+
+  /**
+   * @generated from field: int64 agent_samples = 9;
+   */
+  agentSamples: bigint;
+
+  /**
+   * @generated from field: int64 agent_req_success = 10;
+   */
+  agentReqSuccess: bigint;
+
+  /**
+   * @generated from field: int64 agent_req_client_error = 11;
+   */
+  agentReqClientError: bigint;
+
+  /**
+   * @generated from field: int64 agent_req_server_error = 12;
+   */
+  agentReqServerError: bigint;
+
+  /**
+   * @generated from field: int64 agent_req_internal_error = 13;
+   */
+  agentReqInternalError: bigint;
+
+  /**
+   * @generated from field: uint64 agent_bytes_received = 14;
+   */
+  agentBytesReceived: bigint;
+
+  /**
+   * @generated from field: uint64 agent_bytes_sent = 15;
+   */
+  agentBytesSent: bigint;
+
+  /**
+   * @generated from field: int64 agent_avg_memory_mb = 16;
+   */
+  agentAvgMemoryMb: bigint;
+
+  /**
+   * @generated from field: int64 agent_max_memory_mb = 17;
+   */
+  agentMaxMemoryMb: bigint;
+
+  /**
+   * @generated from field: int64 agent_avg_goroutines = 18;
+   */
+  agentAvgGoroutines: bigint;
+
+  /**
+   * @generated from field: int64 agent_max_goroutines = 19;
+   */
+  agentMaxGoroutines: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.DashboardWindowSummary.
+ * Use `create(DashboardWindowSummarySchema)` to create a new message.
+ */
+export const DashboardWindowSummarySchema: GenMessage<DashboardWindowSummary> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 8);
+
+/**
+ * @generated from message p2pstream.v1.AgentConnectionSummary
+ */
+export type AgentConnectionSummary = Message<"p2pstream.v1.AgentConnectionSummary"> & {
+  /**
+   * @generated from field: bool connected = 1;
+   */
+  connected: boolean;
+
+  /**
+   * @generated from field: int64 total_connections = 2;
+   */
+  totalConnections: bigint;
+
+  /**
+   * @generated from field: int64 active_connected_at_unix_millis = 3;
+   */
+  activeConnectedAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 last_connected_at_unix_millis = 4;
+   */
+  lastConnectedAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 last_disconnected_at_unix_millis = 5;
+   */
+  lastDisconnectedAtUnixMillis: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.AgentConnectionSummary.
+ * Use `create(AgentConnectionSummarySchema)` to create a new message.
+ */
+export const AgentConnectionSummarySchema: GenMessage<AgentConnectionSummary> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 9);
+
+/**
+ * @generated from message p2pstream.v1.GetDashboardResponse
+ */
+export type GetDashboardResponse = Message<"p2pstream.v1.GetDashboardResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.GetStatusResponse status = 1;
+   */
+  status?: GetStatusResponse | undefined;
+
+  /**
+   * @generated from field: repeated p2pstream.v1.DashboardWindowSummary windows = 2;
+   */
+  windows: DashboardWindowSummary[];
+
+  /**
+   * @generated from field: p2pstream.v1.AgentConnectionSummary agent_connections = 3;
+   */
+  agentConnections?: AgentConnectionSummary | undefined;
+
+  /**
+   * @generated from field: int64 retention_days = 4;
+   */
+  retentionDays: bigint;
+
+  /**
+   * @generated from field: int64 generated_at_unix_millis = 5;
+   */
+  generatedAtUnixMillis: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.GetDashboardResponse.
+ * Use `create(GetDashboardResponseSchema)` to create a new message.
+ */
+export const GetDashboardResponseSchema: GenMessage<GetDashboardResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 10);
+
+/**
  * @generated from message p2pstream.v1.GetSetupStateRequest
  */
 export type GetSetupStateRequest = Message<"p2pstream.v1.GetSetupStateRequest"> & {
@@ -269,7 +463,7 @@ export type GetSetupStateRequest = Message<"p2pstream.v1.GetSetupStateRequest"> 
  * Use `create(GetSetupStateRequestSchema)` to create a new message.
  */
 export const GetSetupStateRequestSchema: GenMessage<GetSetupStateRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 7);
+  messageDesc(file_proto_p2pstream_v1_management, 11);
 
 /**
  * @generated from message p2pstream.v1.GetSetupStateResponse
@@ -301,7 +495,7 @@ export type GetSetupStateResponse = Message<"p2pstream.v1.GetSetupStateResponse"
  * Use `create(GetSetupStateResponseSchema)` to create a new message.
  */
 export const GetSetupStateResponseSchema: GenMessage<GetSetupStateResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 8);
+  messageDesc(file_proto_p2pstream_v1_management, 12);
 
 /**
  * @generated from message p2pstream.v1.SetupAdminRequest
@@ -323,7 +517,7 @@ export type SetupAdminRequest = Message<"p2pstream.v1.SetupAdminRequest"> & {
  * Use `create(SetupAdminRequestSchema)` to create a new message.
  */
 export const SetupAdminRequestSchema: GenMessage<SetupAdminRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 9);
+  messageDesc(file_proto_p2pstream_v1_management, 13);
 
 /**
  * @generated from message p2pstream.v1.SetupAdminResponse
@@ -340,7 +534,7 @@ export type SetupAdminResponse = Message<"p2pstream.v1.SetupAdminResponse"> & {
  * Use `create(SetupAdminResponseSchema)` to create a new message.
  */
 export const SetupAdminResponseSchema: GenMessage<SetupAdminResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 10);
+  messageDesc(file_proto_p2pstream_v1_management, 14);
 
 /**
  * @generated from message p2pstream.v1.LoginRequest
@@ -362,7 +556,7 @@ export type LoginRequest = Message<"p2pstream.v1.LoginRequest"> & {
  * Use `create(LoginRequestSchema)` to create a new message.
  */
 export const LoginRequestSchema: GenMessage<LoginRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 11);
+  messageDesc(file_proto_p2pstream_v1_management, 15);
 
 /**
  * @generated from message p2pstream.v1.LoginResponse
@@ -379,7 +573,7 @@ export type LoginResponse = Message<"p2pstream.v1.LoginResponse"> & {
  * Use `create(LoginResponseSchema)` to create a new message.
  */
 export const LoginResponseSchema: GenMessage<LoginResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 12);
+  messageDesc(file_proto_p2pstream_v1_management, 16);
 
 /**
  * @generated from message p2pstream.v1.LogoutRequest
@@ -392,7 +586,7 @@ export type LogoutRequest = Message<"p2pstream.v1.LogoutRequest"> & {
  * Use `create(LogoutRequestSchema)` to create a new message.
  */
 export const LogoutRequestSchema: GenMessage<LogoutRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 13);
+  messageDesc(file_proto_p2pstream_v1_management, 17);
 
 /**
  * @generated from message p2pstream.v1.LogoutResponse
@@ -405,7 +599,7 @@ export type LogoutResponse = Message<"p2pstream.v1.LogoutResponse"> & {
  * Use `create(LogoutResponseSchema)` to create a new message.
  */
 export const LogoutResponseSchema: GenMessage<LogoutResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 14);
+  messageDesc(file_proto_p2pstream_v1_management, 18);
 
 /**
  * @generated from message p2pstream.v1.GetCurrentUserRequest
@@ -418,7 +612,7 @@ export type GetCurrentUserRequest = Message<"p2pstream.v1.GetCurrentUserRequest"
  * Use `create(GetCurrentUserRequestSchema)` to create a new message.
  */
 export const GetCurrentUserRequestSchema: GenMessage<GetCurrentUserRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 15);
+  messageDesc(file_proto_p2pstream_v1_management, 19);
 
 /**
  * @generated from message p2pstream.v1.GetCurrentUserResponse
@@ -435,7 +629,7 @@ export type GetCurrentUserResponse = Message<"p2pstream.v1.GetCurrentUserRespons
  * Use `create(GetCurrentUserResponseSchema)` to create a new message.
  */
 export const GetCurrentUserResponseSchema: GenMessage<GetCurrentUserResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 16);
+  messageDesc(file_proto_p2pstream_v1_management, 20);
 
 /**
  * @generated from message p2pstream.v1.StartProxyRequest
@@ -448,7 +642,7 @@ export type StartProxyRequest = Message<"p2pstream.v1.StartProxyRequest"> & {
  * Use `create(StartProxyRequestSchema)` to create a new message.
  */
 export const StartProxyRequestSchema: GenMessage<StartProxyRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 17);
+  messageDesc(file_proto_p2pstream_v1_management, 21);
 
 /**
  * @generated from message p2pstream.v1.StartProxyResponse
@@ -465,7 +659,7 @@ export type StartProxyResponse = Message<"p2pstream.v1.StartProxyResponse"> & {
  * Use `create(StartProxyResponseSchema)` to create a new message.
  */
 export const StartProxyResponseSchema: GenMessage<StartProxyResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 18);
+  messageDesc(file_proto_p2pstream_v1_management, 22);
 
 /**
  * @generated from message p2pstream.v1.StopProxyRequest
@@ -478,7 +672,7 @@ export type StopProxyRequest = Message<"p2pstream.v1.StopProxyRequest"> & {
  * Use `create(StopProxyRequestSchema)` to create a new message.
  */
 export const StopProxyRequestSchema: GenMessage<StopProxyRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 19);
+  messageDesc(file_proto_p2pstream_v1_management, 23);
 
 /**
  * @generated from message p2pstream.v1.StopProxyResponse
@@ -495,7 +689,7 @@ export type StopProxyResponse = Message<"p2pstream.v1.StopProxyResponse"> & {
  * Use `create(StopProxyResponseSchema)` to create a new message.
  */
 export const StopProxyResponseSchema: GenMessage<StopProxyResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 20);
+  messageDesc(file_proto_p2pstream_v1_management, 24);
 
 /**
  * @generated from enum p2pstream.v1.UserRole
@@ -578,6 +772,14 @@ export const AgentManagementService: GenService<{
     methodKind: "unary";
     input: typeof GetStatusRequestSchema;
     output: typeof GetStatusResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.GetDashboard
+   */
+  getDashboard: {
+    methodKind: "unary";
+    input: typeof GetDashboardRequestSchema;
+    output: typeof GetDashboardResponseSchema;
   },
   /**
    * @generated from rpc p2pstream.v1.AgentManagementService.GetSetupState

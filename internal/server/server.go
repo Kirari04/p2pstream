@@ -49,6 +49,9 @@ type App struct {
 	proxyLastError string
 	proxyStartedAt time.Time
 	proxyStoppedAt time.Time
+
+	observabilityMu          sync.Mutex
+	observabilityLastCleanup time.Time
 }
 
 func NewApp(cfg *config.Config, database *db.DB) *App {
@@ -137,6 +140,10 @@ func (a *App) GetStatus(
 		return nil, err
 	}
 
+	return connect.NewResponse(a.statusResponse()), nil
+}
+
+func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 	var proxyLastError string
 	if errPtr := a.ProxyLastError.Load(); errPtr != nil {
 		proxyLastError = *errPtr
@@ -165,7 +172,7 @@ func (a *App) GetStatus(
 		}
 	}
 
-	return connect.NewResponse(resp), nil
+	return resp
 }
 
 func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
@@ -265,14 +272,25 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
+	startedAt := time.Now()
+	statusCode := http.StatusOK
+	errorKind := ""
+	defer func() {
+		a.recordProxyRequestEvent(context.Background(), statusCode, time.Since(startedAt), errorKind)
+	}()
+
 	agent := a.ActiveAgent.Load()
 	if agent == nil {
+		statusCode = http.StatusServiceUnavailable
+		errorKind = "no_agent"
 		http.Error(w, "No agent connected", http.StatusServiceUnavailable)
 		return
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
+		statusCode = http.StatusInternalServerError
+		errorKind = "request_id_failed"
 		http.Error(w, "Failed to generate ID", http.StatusInternalServerError)
 		return
 	}
@@ -299,6 +317,8 @@ func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if err != nil {
 			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode request chunk")
+			statusCode = http.StatusInternalServerError
+			errorKind = "request_encode_failed"
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
@@ -311,6 +331,8 @@ func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	var firstMsg *msg.Request
 	select {
 	case <-timeoutCtx.Done():
+		statusCode = http.StatusGatewayTimeout
+		errorKind = "agent_timeout"
 		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 		return
 	case firstMsg = <-respCh:
@@ -320,9 +342,13 @@ func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
+		statusCode = http.StatusBadGateway
+		errorKind = "response_decode_failed"
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
 		return
 	}
+
+	statusCode = resp.StatusCode
 
 	for k, vv := range resp.Header {
 		for _, v := range vv {

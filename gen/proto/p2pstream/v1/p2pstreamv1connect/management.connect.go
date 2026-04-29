@@ -39,6 +39,9 @@ const (
 	// AgentManagementServiceGetStatusProcedure is the fully-qualified name of the
 	// AgentManagementService's GetStatus RPC.
 	AgentManagementServiceGetStatusProcedure = "/p2pstream.v1.AgentManagementService/GetStatus"
+	// AgentManagementServiceGetDashboardProcedure is the fully-qualified name of the
+	// AgentManagementService's GetDashboard RPC.
+	AgentManagementServiceGetDashboardProcedure = "/p2pstream.v1.AgentManagementService/GetDashboard"
 	// AgentManagementServiceGetSetupStateProcedure is the fully-qualified name of the
 	// AgentManagementService's GetSetupState RPC.
 	AgentManagementServiceGetSetupStateProcedure = "/p2pstream.v1.AgentManagementService/GetSetupState"
@@ -66,6 +69,7 @@ const (
 type AgentManagementServiceClient interface {
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
+	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
 	GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error)
 	SetupAdmin(context.Context, *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
@@ -96,6 +100,12 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceGetStatusProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("GetStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getDashboard: connect.NewClient[v1.GetDashboardRequest, v1.GetDashboardResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetDashboardProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
 			connect.WithClientOptions(opts...),
 		),
 		getSetupState: connect.NewClient[v1.GetSetupStateRequest, v1.GetSetupStateResponse](
@@ -147,6 +157,7 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 type agentManagementServiceClient struct {
 	reportStats    *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
 	getStatus      *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
+	getDashboard   *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
 	getSetupState  *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
 	setupAdmin     *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
 	login          *connect.Client[v1.LoginRequest, v1.LoginResponse]
@@ -164,6 +175,11 @@ func (c *agentManagementServiceClient) ReportStats(ctx context.Context, req *con
 // GetStatus calls p2pstream.v1.AgentManagementService.GetStatus.
 func (c *agentManagementServiceClient) GetStatus(ctx context.Context, req *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error) {
 	return c.getStatus.CallUnary(ctx, req)
+}
+
+// GetDashboard calls p2pstream.v1.AgentManagementService.GetDashboard.
+func (c *agentManagementServiceClient) GetDashboard(ctx context.Context, req *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
+	return c.getDashboard.CallUnary(ctx, req)
 }
 
 // GetSetupState calls p2pstream.v1.AgentManagementService.GetSetupState.
@@ -206,6 +222,7 @@ func (c *agentManagementServiceClient) StopProxy(ctx context.Context, req *conne
 type AgentManagementServiceHandler interface {
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
+	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
 	GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error)
 	SetupAdmin(context.Context, *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
@@ -232,6 +249,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceGetStatusProcedure,
 		svc.GetStatus,
 		connect.WithSchema(agentManagementServiceMethods.ByName("GetStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetDashboardHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetDashboardProcedure,
+		svc.GetDashboard,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceGetSetupStateHandler := connect.NewUnaryHandler(
@@ -282,6 +305,8 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceReportStatsHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetStatusProcedure:
 			agentManagementServiceGetStatusHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetDashboardProcedure:
+			agentManagementServiceGetDashboardHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetSetupStateProcedure:
 			agentManagementServiceGetSetupStateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceSetupAdminProcedure:
@@ -311,6 +336,10 @@ func (UnimplementedAgentManagementServiceHandler) ReportStats(context.Context, *
 
 func (UnimplementedAgentManagementServiceHandler) GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetStatus is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetDashboard is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error) {
