@@ -37,15 +37,15 @@ var (
 )
 
 // Run is the main entry point to start the agent loop
-func Run(mgmtURL string) {
-	go startStatsReporter(mgmtURL)
+func Run(mgmtURL string, agentToken string) {
+	go startStatsReporter(mgmtURL, agentToken)
 
 	wsURL := strings.Replace(mgmtURL, "http", "ws", 1) + "/ws"
 
 	for {
 		log.Info().Str("ws_url", wsURL).Msg("Attempting to connect to management server...")
 
-		err := connectAndServe(wsURL)
+		err := connectAndServe(wsURL, agentToken)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
@@ -54,9 +54,18 @@ func Run(mgmtURL string) {
 	}
 }
 
-func connectAndServe(wsURL string) error {
+func connectAndServe(wsURL string, agentToken string) error {
 	ctx := context.Background()
-	c, _, err := websocket.Dial(ctx, wsURL, nil)
+	var opts *websocket.DialOptions
+	if agentToken != "" {
+		opts = &websocket.DialOptions{
+			HTTPHeader: http.Header{
+				"Authorization": []string{"Bearer " + agentToken},
+			},
+		}
+	}
+
+	c, _, err := websocket.Dial(ctx, wsURL, opts)
 	if err != nil {
 		return fmt.Errorf("failed to dial: %w", err)
 	}
@@ -184,7 +193,7 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	log.Info().Str("req_id", id.String()).Msg("Finished successfully")
 }
 
-func startStatsReporter(mgmtURL string) {
+func startStatsReporter(mgmtURL string, agentToken string) {
 	client := p2pstreamv1connect.NewAgentManagementServiceClient(
 		http.DefaultClient,
 		mgmtURL,
@@ -210,7 +219,12 @@ func startStatsReporter(mgmtURL string) {
 			BytesSent:        bytesSent.Swap(0),
 		}
 
-		_, err := client.ReportStats(context.Background(), req)
+		connectReq := connect.NewRequest(req)
+		if agentToken != "" {
+			connectReq.Header().Set("Authorization", "Bearer "+agentToken)
+		}
+
+		_, err := client.ReportStats(context.Background(), connectReq)
 		if err != nil {
 			log.Debug().Err(err).Msg("Failed to report stats")
 		}

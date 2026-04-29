@@ -37,24 +37,15 @@ var serverCmd = &cobra.Command{
 
 		app := server.NewApp(cfg, database)
 
-		// Setup Proxy Server
-		proxyMux := http.NewServeMux()
-		app.RegisterProxyRoutes(proxyMux)
-		proxyAddr := ":" + cfg.Port
-		proxySrv := &http.Server{
-			Addr:    proxyAddr,
-			Handler: proxyMux,
-		}
-
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()
 		app.RegisterManagementRoutes(mgmtMux)
-		
+
 		// Setup h2c for ConnectRPC to support HTTP/2 without TLS
 		p := new(http.Protocols)
 		p.SetHTTP1(true)
 		p.SetUnencryptedHTTP2(true)
-		
+
 		mgmtAddr := ":" + cfg.ManagementPort
 		mgmtSrv := &http.Server{
 			Addr:      mgmtAddr,
@@ -65,23 +56,9 @@ var serverCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
-		// Start Proxy Listener in its own independent goroutine
-		go func() {
-			log.Info().
-				Str("url", "http://localhost"+proxyAddr).
-				Str("target", cfg.TargetOrigin).
-				Msg("Attempting to start proxy server")
-			
-			app.ProxyIsRunning.Store(true)
-			err := proxySrv.ListenAndServe()
-			app.ProxyIsRunning.Store(false)
-			
-			if err != nil && err != http.ErrServerClosed {
-				errMsg := err.Error()
-				app.ProxyLastError.Store(&errMsg)
-				log.Error().Err(err).Msg("Proxy server failed to start or crashed")
-			}
-		}()
+		if _, err := app.StartProxyListener(context.Background()); err != nil {
+			log.Error().Err(err).Msg("Proxy server failed to start")
+		}
 
 		// Start Management Listener
 		go func() {
@@ -102,15 +79,13 @@ var serverCmd = &cobra.Command{
 		defer cancel()
 
 		var shutdownErrs []error
-		if app.ProxyIsRunning.Load() {
-			if err := proxySrv.Shutdown(shutdownCtx); err != nil {
-				shutdownErrs = append(shutdownErrs, err)
-			}
+		if _, err := app.StopProxyListener(shutdownCtx); err != nil {
+			shutdownErrs = append(shutdownErrs, err)
 		}
 		if err := mgmtSrv.Shutdown(shutdownCtx); err != nil {
 			shutdownErrs = append(shutdownErrs, err)
 		}
-		
+
 		if len(shutdownErrs) > 0 {
 			log.Error().Errs("errors", shutdownErrs).Msg("Errors during shutdown")
 		}

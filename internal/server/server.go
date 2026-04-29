@@ -3,12 +3,15 @@ package server
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -18,6 +21,7 @@ import (
 	"p2pstream/httpmsg"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	"p2pstream/internal/managementui"
 	"p2pstream/msg"
 	"p2pstream/stats"
 )
@@ -29,18 +33,33 @@ type AgentConn struct {
 type App struct {
 	Config           *config.Config
 	DB               *db.DB
+	StartedAt        time.Time
 	ActiveAgent      atomic.Pointer[AgentConn]
 	PendingRequests  sync.Map // map[uuid.UUID]chan *msg.Request
 	LatestAgentStats atomic.Pointer[stats.AgentStats]
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
+
+	setupMu sync.Mutex
+
+	proxyMu        sync.Mutex
+	proxySrv       *http.Server
+	proxyState     p2pstreamv1.ProxyState
+	proxyLastError string
+	proxyStartedAt time.Time
+	proxyStoppedAt time.Time
 }
 
 func NewApp(cfg *config.Config, database *db.DB) *App {
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
 	return &App{
-		Config: cfg,
-		DB:     database,
+		Config:     cfg,
+		DB:         database,
+		StartedAt:  time.Now(),
+		proxyState: p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 	}
 }
 
@@ -54,25 +73,31 @@ func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws", a.wsHandler)
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a)
 	mux.Handle(path, handler)
+	mux.Handle("/", managementui.NewHandler(a.Config.ManagementUIDevProxy, a.Config.ManagementUIDistDir))
 }
 
 // ReportStats implements the ConnectRPC AgentManagementService.
 func (a *App) ReportStats(
 	ctx context.Context,
-	req *p2pstreamv1.AgentStatsRequest,
-) (*p2pstreamv1.AgentStatsResponse, error) {
-	payload := req
+	req *connect.Request[p2pstreamv1.AgentStatsRequest],
+) (*connect.Response[p2pstreamv1.AgentStatsResponse], error) {
+	if !a.validAgentAuthorization(req.Header().Get("Authorization")) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("agent token required"))
+	}
+
+	payload := req.Msg
 
 	s := stats.AgentStats{
-		Timestamp:      time.Now(),
-		NumGoroutine:   int(payload.NumGoroutine),
-		AllocAllocated: uint64(payload.MemorySysMb),
-		ActiveRequests: payload.ActiveRequests,
-		ReqSuccess:     int32(payload.ReqSuccess),
-		ReqClientError: int32(payload.ReqClientError),
-		ReqServerError: int32(payload.ReqServerError),
-		BytesReceived:  payload.BytesReceived,
-		BytesSent:      payload.BytesSent,
+		Timestamp:        time.Now(),
+		NumGoroutine:     int(payload.NumGoroutine),
+		AllocAllocated:   uint64(payload.MemorySysMb),
+		ActiveRequests:   payload.ActiveRequests,
+		ReqSuccess:       int32(payload.ReqSuccess),
+		ReqClientError:   int32(payload.ReqClientError),
+		ReqServerError:   int32(payload.ReqServerError),
+		ReqInternalError: int32(payload.ReqInternalError),
+		BytesReceived:    payload.BytesReceived,
+		BytesSent:        payload.BytesSent,
 	}
 
 	a.LatestAgentStats.Store(&s)
@@ -86,23 +111,69 @@ func (a *App) ReportStats(
 
 	if a.DB != nil {
 		err := a.DB.InsertAgentStat(ctx, db.InsertAgentStatParams{
-			MemoryMb:       payload.MemorySysMb,
-			Goroutines:     payload.NumGoroutine,
-			ReqSuccess:     payload.ReqSuccess,
-			ReqClientError: payload.ReqClientError,
-			ReqServerError: payload.ReqServerError,
-			BytesRx:        int64(payload.BytesReceived),
-			BytesTx:        int64(payload.BytesSent),
+			MemoryMb:         payload.MemorySysMb,
+			Goroutines:       payload.NumGoroutine,
+			ReqSuccess:       payload.ReqSuccess,
+			ReqClientError:   payload.ReqClientError,
+			ReqServerError:   payload.ReqServerError,
+			ReqInternalError: payload.ReqInternalError,
+			BytesRx:          int64(payload.BytesReceived),
+			BytesTx:          int64(payload.BytesSent),
 		})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to insert agent stats into DB")
 		}
 	}
 
-	return &p2pstreamv1.AgentStatsResponse{}, nil
+	return connect.NewResponse(&p2pstreamv1.AgentStatsResponse{}), nil
+}
+
+// GetStatus implements the ConnectRPC AgentManagementService status endpoint.
+func (a *App) GetStatus(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.GetStatusRequest],
+) (*connect.Response[p2pstreamv1.GetStatusResponse], error) {
+	if _, err := a.requireUser(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+
+	var proxyLastError string
+	if errPtr := a.ProxyLastError.Load(); errPtr != nil {
+		proxyLastError = *errPtr
+	}
+
+	resp := &p2pstreamv1.GetStatusResponse{
+		ProxyRunning:   a.ProxyIsRunning.Load(),
+		ProxyLastError: proxyLastError,
+		AgentConnected: a.ActiveAgent.Load() != nil,
+		TargetOrigin:   a.Config.TargetOrigin,
+		Proxy:          a.proxyStatus(),
+	}
+
+	if latest := a.LatestAgentStats.Load(); latest != nil {
+		resp.LatestAgentStats = &p2pstreamv1.AgentStatsSnapshot{
+			MemorySysMb:          int64(latest.AllocAllocated),
+			NumGoroutine:         int64(latest.NumGoroutine),
+			ReqSuccess:           int64(latest.ReqSuccess),
+			ReqClientError:       int64(latest.ReqClientError),
+			ReqServerError:       int64(latest.ReqServerError),
+			ReqInternalError:     int64(latest.ReqInternalError),
+			BytesReceived:        latest.BytesReceived,
+			BytesSent:            latest.BytesSent,
+			ActiveRequests:       latest.ActiveRequests,
+			ReportedAtUnixMillis: latest.Timestamp.UnixMilli(),
+		}
+	}
+
+	return connect.NewResponse(resp), nil
 }
 
 func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
+	if !a.validAgentAuthorization(r.Header.Get("Authorization")) {
+		http.Error(w, "agent token required", http.StatusUnauthorized)
+		return
+	}
+
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("websocket accept error")
@@ -266,4 +337,15 @@ func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info().Str("req_id", id.String()).Int("status", resp.StatusCode).Msg("Finished proxying request")
+}
+
+func (a *App) validAgentAuthorization(header string) bool {
+	if a.Config == nil || a.Config.AgentToken == "" {
+		return true
+	}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(header, prefix) {
+		return false
+	}
+	return strings.TrimSpace(strings.TrimPrefix(header, prefix)) == a.Config.AgentToken
 }

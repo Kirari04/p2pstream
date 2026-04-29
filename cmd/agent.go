@@ -20,11 +20,17 @@ var agentCmd = &cobra.Command{
 			}
 		}
 
-		agent.Run(mgmtURL)
+		agentToken, _ := cmd.Flags().GetString("agent-token")
+		if agentToken == "" {
+			agentToken = os.Getenv("AGENT_TOKEN")
+		}
+
+		agent.Run(mgmtURL, agentToken)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(agentCmd)
 	agentCmd.Flags().String("management-url", "", "The HTTP URL of the p2pstream management server")
+	agentCmd.Flags().String("agent-token", "", "Bearer token required by the management server for agent connections")
 }

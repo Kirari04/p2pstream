@@ -7,10 +7,113 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createSession = `-- name: CreateSession :one
+INSERT INTO sessions (user_id, token_hash, expires_at)
+VALUES (?, ?, ?)
+RETURNING id, user_id, token_hash, created_at, last_seen_at, expires_at, revoked_at
+`
+
+type CreateSessionParams struct {
+	UserID    int64     `json:"user_id"`
+	TokenHash string    `json:"token_hash"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
+	row := q.db.QueryRowContext(ctx, createSession, arg.UserID, arg.TokenHash, arg.ExpiresAt)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.CreatedAt,
+		&i.LastSeenAt,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (username, password_hash, role)
+VALUES (?, ?, ?)
+RETURNING id, username, role
+`
+
+type CreateUserParams struct {
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+	Role         string `json:"role"`
+}
+
+type CreateUserRow struct {
+	ID       int64  `json:"id"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
+	row := q.db.QueryRowContext(ctx, createUser, arg.Username, arg.PasswordHash, arg.Role)
+	var i CreateUserRow
+	err := row.Scan(&i.ID, &i.Username, &i.Role)
+	return i, err
+}
+
+const getActiveSessionByTokenHash = `-- name: GetActiveSessionByTokenHash :one
+SELECT
+    s.id AS session_id,
+    s.user_id,
+    s.expires_at,
+    u.id,
+    u.username,
+    u.role
+FROM sessions s
+JOIN users u ON u.id = s.user_id
+WHERE s.token_hash = ?
+  AND s.revoked_at IS NULL
+  AND s.expires_at > CURRENT_TIMESTAMP
+  AND u.disabled_at IS NULL
+`
+
+type GetActiveSessionByTokenHashRow struct {
+	SessionID int64     `json:"session_id"`
+	UserID    int64     `json:"user_id"`
+	ExpiresAt time.Time `json:"expires_at"`
+	ID        int64     `json:"id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+}
+
+func (q *Queries) GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error) {
+	row := q.db.QueryRowContext(ctx, getActiveSessionByTokenHash, tokenHash)
+	var i GetActiveSessionByTokenHashRow
+	err := row.Scan(
+		&i.SessionID,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.ID,
+		&i.Username,
+		&i.Role,
+	)
+	return i, err
+}
+
 const getLatestAgentStat = `-- name: GetLatestAgentStat :one
-SELECT id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, bytes_rx, bytes_tx FROM agent_stats
+SELECT id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx FROM agent_stats
 ORDER BY id DESC
 LIMIT 1
 `
@@ -26,28 +129,72 @@ func (q *Queries) GetLatestAgentStat(ctx context.Context) (AgentStat, error) {
 		&i.ReqSuccess,
 		&i.ReqClientError,
 		&i.ReqServerError,
+		&i.ReqInternalError,
 		&i.BytesRx,
 		&i.BytesTx,
 	)
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, password_hash, role, created_at, updated_at, disabled_at
+FROM users
+WHERE id = ? AND disabled_at IS NULL
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DisabledAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, password_hash, role, created_at, updated_at, disabled_at
+FROM users
+WHERE username = ? AND disabled_at IS NULL
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DisabledAt,
+	)
+	return i, err
+}
+
 const insertAgentStat = `-- name: InsertAgentStat :exec
 INSERT INTO agent_stats (
-    memory_mb, goroutines, req_success, req_client_error, req_server_error, bytes_rx, bytes_tx
+    memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
 type InsertAgentStatParams struct {
-	MemoryMb       int64 `json:"memory_mb"`
-	Goroutines     int64 `json:"goroutines"`
-	ReqSuccess     int64 `json:"req_success"`
-	ReqClientError int64 `json:"req_client_error"`
-	ReqServerError int64 `json:"req_server_error"`
-	BytesRx        int64 `json:"bytes_rx"`
-	BytesTx        int64 `json:"bytes_tx"`
+	MemoryMb         int64 `json:"memory_mb"`
+	Goroutines       int64 `json:"goroutines"`
+	ReqSuccess       int64 `json:"req_success"`
+	ReqClientError   int64 `json:"req_client_error"`
+	ReqServerError   int64 `json:"req_server_error"`
+	ReqInternalError int64 `json:"req_internal_error"`
+	BytesRx          int64 `json:"bytes_rx"`
+	BytesTx          int64 `json:"bytes_tx"`
 }
 
 func (q *Queries) InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error {
@@ -57,6 +204,7 @@ func (q *Queries) InsertAgentStat(ctx context.Context, arg InsertAgentStatParams
 		arg.ReqSuccess,
 		arg.ReqClientError,
 		arg.ReqServerError,
+		arg.ReqInternalError,
 		arg.BytesRx,
 		arg.BytesTx,
 	)
@@ -74,6 +222,28 @@ func (q *Queries) InsertConnection(ctx context.Context) (int64, error) {
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const revokeSessionByTokenHash = `-- name: RevokeSessionByTokenHash :exec
+UPDATE sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE token_hash = ? AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error {
+	_, err := q.db.ExecContext(ctx, revokeSessionByTokenHash, tokenHash)
+	return err
+}
+
+const touchSession = `-- name: TouchSession :exec
+UPDATE sessions
+SET last_seen_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+func (q *Queries) TouchSession(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, touchSession, id)
+	return err
 }
 
 const updateConnectionDisconnected = `-- name: UpdateConnectionDisconnected :exec

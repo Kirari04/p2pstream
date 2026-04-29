@@ -21,6 +21,110 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type UserRole int32
+
+const (
+	UserRole_USER_ROLE_UNSPECIFIED UserRole = 0
+	UserRole_USER_ROLE_ADMIN       UserRole = 1
+)
+
+// Enum value maps for UserRole.
+var (
+	UserRole_name = map[int32]string{
+		0: "USER_ROLE_UNSPECIFIED",
+		1: "USER_ROLE_ADMIN",
+	}
+	UserRole_value = map[string]int32{
+		"USER_ROLE_UNSPECIFIED": 0,
+		"USER_ROLE_ADMIN":       1,
+	}
+)
+
+func (x UserRole) Enum() *UserRole {
+	p := new(UserRole)
+	*p = x
+	return p
+}
+
+func (x UserRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (UserRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[0].Descriptor()
+}
+
+func (UserRole) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[0]
+}
+
+func (x UserRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use UserRole.Descriptor instead.
+func (UserRole) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{0}
+}
+
+type ProxyState int32
+
+const (
+	ProxyState_PROXY_STATE_UNSPECIFIED ProxyState = 0
+	ProxyState_PROXY_STATE_STOPPED     ProxyState = 1
+	ProxyState_PROXY_STATE_STARTING    ProxyState = 2
+	ProxyState_PROXY_STATE_RUNNING     ProxyState = 3
+	ProxyState_PROXY_STATE_STOPPING    ProxyState = 4
+	ProxyState_PROXY_STATE_ERROR       ProxyState = 5
+)
+
+// Enum value maps for ProxyState.
+var (
+	ProxyState_name = map[int32]string{
+		0: "PROXY_STATE_UNSPECIFIED",
+		1: "PROXY_STATE_STOPPED",
+		2: "PROXY_STATE_STARTING",
+		3: "PROXY_STATE_RUNNING",
+		4: "PROXY_STATE_STOPPING",
+		5: "PROXY_STATE_ERROR",
+	}
+	ProxyState_value = map[string]int32{
+		"PROXY_STATE_UNSPECIFIED": 0,
+		"PROXY_STATE_STOPPED":     1,
+		"PROXY_STATE_STARTING":    2,
+		"PROXY_STATE_RUNNING":     3,
+		"PROXY_STATE_STOPPING":    4,
+		"PROXY_STATE_ERROR":       5,
+	}
+)
+
+func (x ProxyState) Enum() *ProxyState {
+	p := new(ProxyState)
+	*p = x
+	return p
+}
+
+func (x ProxyState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ProxyState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[1].Descriptor()
+}
+
+func (ProxyState) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[1]
+}
+
+func (x ProxyState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ProxyState.Descriptor instead.
+func (ProxyState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{1}
+}
+
 type AgentStatsRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	MemorySysMb      int64                  `protobuf:"varint,1,opt,name=memory_sys_mb,json=memorySysMb,proto3" json:"memory_sys_mb,omitempty"`
@@ -165,6 +269,978 @@ func (*AgentStatsResponse) Descriptor() ([]byte, []int) {
 	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{1}
 }
 
+type User struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Role          UserRole               `protobuf:"varint,3,opt,name=role,proto3,enum=p2pstream.v1.UserRole" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *User) Reset() {
+	*x = User{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *User) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*User) ProtoMessage() {}
+
+func (x *User) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use User.ProtoReflect.Descriptor instead.
+func (*User) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *User) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *User) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *User) GetRole() UserRole {
+	if x != nil {
+		return x.Role
+	}
+	return UserRole_USER_ROLE_UNSPECIFIED
+}
+
+type GetStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStatusRequest) Reset() {
+	*x = GetStatusRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatusRequest) ProtoMessage() {}
+
+func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetStatusRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{3}
+}
+
+type AgentStatsSnapshot struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	MemorySysMb          int64                  `protobuf:"varint,1,opt,name=memory_sys_mb,json=memorySysMb,proto3" json:"memory_sys_mb,omitempty"`
+	NumGoroutine         int64                  `protobuf:"varint,2,opt,name=num_goroutine,json=numGoroutine,proto3" json:"num_goroutine,omitempty"`
+	ReqSuccess           int64                  `protobuf:"varint,3,opt,name=req_success,json=reqSuccess,proto3" json:"req_success,omitempty"`
+	ReqClientError       int64                  `protobuf:"varint,4,opt,name=req_client_error,json=reqClientError,proto3" json:"req_client_error,omitempty"`
+	ReqServerError       int64                  `protobuf:"varint,5,opt,name=req_server_error,json=reqServerError,proto3" json:"req_server_error,omitempty"`
+	ReqInternalError     int64                  `protobuf:"varint,6,opt,name=req_internal_error,json=reqInternalError,proto3" json:"req_internal_error,omitempty"`
+	BytesReceived        uint64                 `protobuf:"varint,7,opt,name=bytes_received,json=bytesReceived,proto3" json:"bytes_received,omitempty"`
+	BytesSent            uint64                 `protobuf:"varint,8,opt,name=bytes_sent,json=bytesSent,proto3" json:"bytes_sent,omitempty"`
+	ActiveRequests       int32                  `protobuf:"varint,9,opt,name=active_requests,json=activeRequests,proto3" json:"active_requests,omitempty"`
+	ReportedAtUnixMillis int64                  `protobuf:"varint,10,opt,name=reported_at_unix_millis,json=reportedAtUnixMillis,proto3" json:"reported_at_unix_millis,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AgentStatsSnapshot) Reset() {
+	*x = AgentStatsSnapshot{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentStatsSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentStatsSnapshot) ProtoMessage() {}
+
+func (x *AgentStatsSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentStatsSnapshot.ProtoReflect.Descriptor instead.
+func (*AgentStatsSnapshot) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AgentStatsSnapshot) GetMemorySysMb() int64 {
+	if x != nil {
+		return x.MemorySysMb
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetNumGoroutine() int64 {
+	if x != nil {
+		return x.NumGoroutine
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetReqSuccess() int64 {
+	if x != nil {
+		return x.ReqSuccess
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetReqClientError() int64 {
+	if x != nil {
+		return x.ReqClientError
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetReqServerError() int64 {
+	if x != nil {
+		return x.ReqServerError
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetReqInternalError() int64 {
+	if x != nil {
+		return x.ReqInternalError
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetBytesReceived() uint64 {
+	if x != nil {
+		return x.BytesReceived
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetBytesSent() uint64 {
+	if x != nil {
+		return x.BytesSent
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetActiveRequests() int32 {
+	if x != nil {
+		return x.ActiveRequests
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetReportedAtUnixMillis() int64 {
+	if x != nil {
+		return x.ReportedAtUnixMillis
+	}
+	return 0
+}
+
+type GetStatusResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ProxyRunning     bool                   `protobuf:"varint,1,opt,name=proxy_running,json=proxyRunning,proto3" json:"proxy_running,omitempty"`
+	ProxyLastError   string                 `protobuf:"bytes,2,opt,name=proxy_last_error,json=proxyLastError,proto3" json:"proxy_last_error,omitempty"`
+	AgentConnected   bool                   `protobuf:"varint,3,opt,name=agent_connected,json=agentConnected,proto3" json:"agent_connected,omitempty"`
+	TargetOrigin     string                 `protobuf:"bytes,4,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
+	LatestAgentStats *AgentStatsSnapshot    `protobuf:"bytes,5,opt,name=latest_agent_stats,json=latestAgentStats,proto3" json:"latest_agent_stats,omitempty"`
+	Proxy            *ProxyStatus           `protobuf:"bytes,6,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetStatusResponse) Reset() {
+	*x = GetStatusResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatusResponse) ProtoMessage() {}
+
+func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetStatusResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetStatusResponse) GetProxyRunning() bool {
+	if x != nil {
+		return x.ProxyRunning
+	}
+	return false
+}
+
+func (x *GetStatusResponse) GetProxyLastError() string {
+	if x != nil {
+		return x.ProxyLastError
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetAgentConnected() bool {
+	if x != nil {
+		return x.AgentConnected
+	}
+	return false
+}
+
+func (x *GetStatusResponse) GetTargetOrigin() string {
+	if x != nil {
+		return x.TargetOrigin
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetLatestAgentStats() *AgentStatsSnapshot {
+	if x != nil {
+		return x.LatestAgentStats
+	}
+	return nil
+}
+
+func (x *GetStatusResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type ProxyStatus struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	State               ProxyState             `protobuf:"varint,1,opt,name=state,proto3,enum=p2pstream.v1.ProxyState" json:"state,omitempty"`
+	LastError           string                 `protobuf:"bytes,2,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	StartedAtUnixMillis int64                  `protobuf:"varint,3,opt,name=started_at_unix_millis,json=startedAtUnixMillis,proto3" json:"started_at_unix_millis,omitempty"`
+	StoppedAtUnixMillis int64                  `protobuf:"varint,4,opt,name=stopped_at_unix_millis,json=stoppedAtUnixMillis,proto3" json:"stopped_at_unix_millis,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ProxyStatus) Reset() {
+	*x = ProxyStatus{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProxyStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProxyStatus) ProtoMessage() {}
+
+func (x *ProxyStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProxyStatus.ProtoReflect.Descriptor instead.
+func (*ProxyStatus) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ProxyStatus) GetState() ProxyState {
+	if x != nil {
+		return x.State
+	}
+	return ProxyState_PROXY_STATE_UNSPECIFIED
+}
+
+func (x *ProxyStatus) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+func (x *ProxyStatus) GetStartedAtUnixMillis() int64 {
+	if x != nil {
+		return x.StartedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *ProxyStatus) GetStoppedAtUnixMillis() int64 {
+	if x != nil {
+		return x.StoppedAtUnixMillis
+	}
+	return 0
+}
+
+type GetSetupStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSetupStateRequest) Reset() {
+	*x = GetSetupStateRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSetupStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSetupStateRequest) ProtoMessage() {}
+
+func (x *GetSetupStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSetupStateRequest.ProtoReflect.Descriptor instead.
+func (*GetSetupStateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{7}
+}
+
+type GetSetupStateResponse struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	SetupRequired            bool                   `protobuf:"varint,1,opt,name=setup_required,json=setupRequired,proto3" json:"setup_required,omitempty"`
+	SetupAvailable           bool                   `protobuf:"varint,2,opt,name=setup_available,json=setupAvailable,proto3" json:"setup_available,omitempty"`
+	SetupExpiresAtUnixMillis int64                  `protobuf:"varint,3,opt,name=setup_expires_at_unix_millis,json=setupExpiresAtUnixMillis,proto3" json:"setup_expires_at_unix_millis,omitempty"`
+	SetupUnavailableReason   string                 `protobuf:"bytes,4,opt,name=setup_unavailable_reason,json=setupUnavailableReason,proto3" json:"setup_unavailable_reason,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *GetSetupStateResponse) Reset() {
+	*x = GetSetupStateResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSetupStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSetupStateResponse) ProtoMessage() {}
+
+func (x *GetSetupStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSetupStateResponse.ProtoReflect.Descriptor instead.
+func (*GetSetupStateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetSetupStateResponse) GetSetupRequired() bool {
+	if x != nil {
+		return x.SetupRequired
+	}
+	return false
+}
+
+func (x *GetSetupStateResponse) GetSetupAvailable() bool {
+	if x != nil {
+		return x.SetupAvailable
+	}
+	return false
+}
+
+func (x *GetSetupStateResponse) GetSetupExpiresAtUnixMillis() int64 {
+	if x != nil {
+		return x.SetupExpiresAtUnixMillis
+	}
+	return 0
+}
+
+func (x *GetSetupStateResponse) GetSetupUnavailableReason() string {
+	if x != nil {
+		return x.SetupUnavailableReason
+	}
+	return ""
+}
+
+type SetupAdminRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupAdminRequest) Reset() {
+	*x = SetupAdminRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupAdminRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupAdminRequest) ProtoMessage() {}
+
+func (x *SetupAdminRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupAdminRequest.ProtoReflect.Descriptor instead.
+func (*SetupAdminRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SetupAdminRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *SetupAdminRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+type SetupAdminResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupAdminResponse) Reset() {
+	*x = SetupAdminResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupAdminResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupAdminResponse) ProtoMessage() {}
+
+func (x *SetupAdminResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupAdminResponse.ProtoReflect.Descriptor instead.
+func (*SetupAdminResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SetupAdminResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+type LoginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginRequest) Reset() {
+	*x = LoginRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginRequest) ProtoMessage() {}
+
+func (x *LoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
+func (*LoginRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *LoginRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+type LoginResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginResponse) Reset() {
+	*x = LoginResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginResponse) ProtoMessage() {}
+
+func (x *LoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
+func (*LoginResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *LoginResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+type LogoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutRequest) Reset() {
+	*x = LogoutRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutRequest) ProtoMessage() {}
+
+func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
+func (*LogoutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{13}
+}
+
+type LogoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutResponse) Reset() {
+	*x = LogoutResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutResponse) ProtoMessage() {}
+
+func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
+func (*LogoutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{14}
+}
+
+type GetCurrentUserRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrentUserRequest) Reset() {
+	*x = GetCurrentUserRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrentUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrentUserRequest) ProtoMessage() {}
+
+func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrentUserRequest.ProtoReflect.Descriptor instead.
+func (*GetCurrentUserRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{15}
+}
+
+type GetCurrentUserResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrentUserResponse) Reset() {
+	*x = GetCurrentUserResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrentUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrentUserResponse) ProtoMessage() {}
+
+func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrentUserResponse.ProtoReflect.Descriptor instead.
+func (*GetCurrentUserResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetCurrentUserResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+type StartProxyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartProxyRequest) Reset() {
+	*x = StartProxyRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartProxyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartProxyRequest) ProtoMessage() {}
+
+func (x *StartProxyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartProxyRequest.ProtoReflect.Descriptor instead.
+func (*StartProxyRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{17}
+}
+
+type StartProxyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,1,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartProxyResponse) Reset() {
+	*x = StartProxyResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartProxyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartProxyResponse) ProtoMessage() {}
+
+func (x *StartProxyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartProxyResponse.ProtoReflect.Descriptor instead.
+func (*StartProxyResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *StartProxyResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type StopProxyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopProxyRequest) Reset() {
+	*x = StopProxyRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopProxyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopProxyRequest) ProtoMessage() {}
+
+func (x *StopProxyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopProxyRequest.ProtoReflect.Descriptor instead.
+func (*StopProxyRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{19}
+}
+
+type StopProxyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,1,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopProxyResponse) Reset() {
+	*x = StopProxyResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopProxyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopProxyResponse) ProtoMessage() {}
+
+func (x *StopProxyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopProxyResponse.ProtoReflect.Descriptor instead.
+func (*StopProxyResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *StopProxyResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
 var File_proto_p2pstream_v1_management_proto protoreflect.FileDescriptor
 
 const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
@@ -182,9 +1258,89 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\n" +
 	"bytes_sent\x18\b \x01(\x04R\tbytesSent\x12'\n" +
 	"\x0factive_requests\x18\t \x01(\x05R\x0eactiveRequests\"\x14\n" +
-	"\x12AgentStatsResponse2l\n" +
+	"\x12AgentStatsResponse\"^\n" +
+	"\x04User\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12*\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x16.p2pstream.v1.UserRoleR\x04role\"\x12\n" +
+	"\x10GetStatusRequest\"\xa6\x03\n" +
+	"\x12AgentStatsSnapshot\x12\"\n" +
+	"\rmemory_sys_mb\x18\x01 \x01(\x03R\vmemorySysMb\x12#\n" +
+	"\rnum_goroutine\x18\x02 \x01(\x03R\fnumGoroutine\x12\x1f\n" +
+	"\vreq_success\x18\x03 \x01(\x03R\n" +
+	"reqSuccess\x12(\n" +
+	"\x10req_client_error\x18\x04 \x01(\x03R\x0ereqClientError\x12(\n" +
+	"\x10req_server_error\x18\x05 \x01(\x03R\x0ereqServerError\x12,\n" +
+	"\x12req_internal_error\x18\x06 \x01(\x03R\x10reqInternalError\x12%\n" +
+	"\x0ebytes_received\x18\a \x01(\x04R\rbytesReceived\x12\x1d\n" +
+	"\n" +
+	"bytes_sent\x18\b \x01(\x04R\tbytesSent\x12'\n" +
+	"\x0factive_requests\x18\t \x01(\x05R\x0eactiveRequests\x125\n" +
+	"\x17reported_at_unix_millis\x18\n" +
+	" \x01(\x03R\x14reportedAtUnixMillis\"\xb1\x02\n" +
+	"\x11GetStatusResponse\x12#\n" +
+	"\rproxy_running\x18\x01 \x01(\bR\fproxyRunning\x12(\n" +
+	"\x10proxy_last_error\x18\x02 \x01(\tR\x0eproxyLastError\x12'\n" +
+	"\x0fagent_connected\x18\x03 \x01(\bR\x0eagentConnected\x12#\n" +
+	"\rtarget_origin\x18\x04 \x01(\tR\ftargetOrigin\x12N\n" +
+	"\x12latest_agent_stats\x18\x05 \x01(\v2 .p2pstream.v1.AgentStatsSnapshotR\x10latestAgentStats\x12/\n" +
+	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\xc6\x01\n" +
+	"\vProxyStatus\x12.\n" +
+	"\x05state\x18\x01 \x01(\x0e2\x18.p2pstream.v1.ProxyStateR\x05state\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\x02 \x01(\tR\tlastError\x123\n" +
+	"\x16started_at_unix_millis\x18\x03 \x01(\x03R\x13startedAtUnixMillis\x123\n" +
+	"\x16stopped_at_unix_millis\x18\x04 \x01(\x03R\x13stoppedAtUnixMillis\"\x16\n" +
+	"\x14GetSetupStateRequest\"\xe1\x01\n" +
+	"\x15GetSetupStateResponse\x12%\n" +
+	"\x0esetup_required\x18\x01 \x01(\bR\rsetupRequired\x12'\n" +
+	"\x0fsetup_available\x18\x02 \x01(\bR\x0esetupAvailable\x12>\n" +
+	"\x1csetup_expires_at_unix_millis\x18\x03 \x01(\x03R\x18setupExpiresAtUnixMillis\x128\n" +
+	"\x18setup_unavailable_reason\x18\x04 \x01(\tR\x16setupUnavailableReason\"K\n" +
+	"\x11SetupAdminRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"<\n" +
+	"\x12SetupAdminResponse\x12&\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.p2pstream.v1.UserR\x04user\"F\n" +
+	"\fLoginRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"7\n" +
+	"\rLoginResponse\x12&\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.p2pstream.v1.UserR\x04user\"\x0f\n" +
+	"\rLogoutRequest\"\x10\n" +
+	"\x0eLogoutResponse\"\x17\n" +
+	"\x15GetCurrentUserRequest\"@\n" +
+	"\x16GetCurrentUserResponse\x12&\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.p2pstream.v1.UserR\x04user\"\x13\n" +
+	"\x11StartProxyRequest\"E\n" +
+	"\x12StartProxyResponse\x12/\n" +
+	"\x05proxy\x18\x01 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\x12\n" +
+	"\x10StopProxyRequest\"D\n" +
+	"\x11StopProxyResponse\x12/\n" +
+	"\x05proxy\x18\x01 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy*:\n" +
+	"\bUserRole\x12\x19\n" +
+	"\x15USER_ROLE_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fUSER_ROLE_ADMIN\x10\x01*\xa6\x01\n" +
+	"\n" +
+	"ProxyState\x12\x1b\n" +
+	"\x17PROXY_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13PROXY_STATE_STOPPED\x10\x01\x12\x18\n" +
+	"\x14PROXY_STATE_STARTING\x10\x02\x12\x17\n" +
+	"\x13PROXY_STATE_RUNNING\x10\x03\x12\x18\n" +
+	"\x14PROXY_STATE_STOPPING\x10\x04\x12\x15\n" +
+	"\x11PROXY_STATE_ERROR\x10\x052\xf8\x05\n" +
 	"\x16AgentManagementService\x12R\n" +
-	"\vReportStats\x12\x1f.p2pstream.v1.AgentStatsRequest\x1a .p2pstream.v1.AgentStatsResponse\"\x00B\xa2\x01\n" +
+	"\vReportStats\x12\x1f.p2pstream.v1.AgentStatsRequest\x1a .p2pstream.v1.AgentStatsResponse\"\x00\x12N\n" +
+	"\tGetStatus\x12\x1e.p2pstream.v1.GetStatusRequest\x1a\x1f.p2pstream.v1.GetStatusResponse\"\x00\x12Z\n" +
+	"\rGetSetupState\x12\".p2pstream.v1.GetSetupStateRequest\x1a#.p2pstream.v1.GetSetupStateResponse\"\x00\x12Q\n" +
+	"\n" +
+	"SetupAdmin\x12\x1f.p2pstream.v1.SetupAdminRequest\x1a .p2pstream.v1.SetupAdminResponse\"\x00\x12B\n" +
+	"\x05Login\x12\x1a.p2pstream.v1.LoginRequest\x1a\x1b.p2pstream.v1.LoginResponse\"\x00\x12E\n" +
+	"\x06Logout\x12\x1b.p2pstream.v1.LogoutRequest\x1a\x1c.p2pstream.v1.LogoutResponse\"\x00\x12]\n" +
+	"\x0eGetCurrentUser\x12#.p2pstream.v1.GetCurrentUserRequest\x1a$.p2pstream.v1.GetCurrentUserResponse\"\x00\x12Q\n" +
+	"\n" +
+	"StartProxy\x12\x1f.p2pstream.v1.StartProxyRequest\x1a .p2pstream.v1.StartProxyResponse\"\x00\x12N\n" +
+	"\tStopProxy\x12\x1e.p2pstream.v1.StopProxyRequest\x1a\x1f.p2pstream.v1.StopProxyResponse\"\x00B\xa2\x01\n" +
 	"\x10com.p2pstream.v1B\x0fManagementProtoP\x01Z,p2pstream/gen/proto/p2pstream/v1;p2pstreamv1\xa2\x02\x03PXX\xaa\x02\fP2pstream.V1\xca\x02\fP2pstream\\V1\xe2\x02\x18P2pstream\\V1\\GPBMetadata\xea\x02\rP2pstream::V1b\x06proto3"
 
 var (
@@ -199,19 +1355,66 @@ func file_proto_p2pstream_v1_management_proto_rawDescGZIP() []byte {
 	return file_proto_p2pstream_v1_management_proto_rawDescData
 }
 
-var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_proto_p2pstream_v1_management_proto_goTypes = []any{
-	(*AgentStatsRequest)(nil),  // 0: p2pstream.v1.AgentStatsRequest
-	(*AgentStatsResponse)(nil), // 1: p2pstream.v1.AgentStatsResponse
+	(UserRole)(0),                  // 0: p2pstream.v1.UserRole
+	(ProxyState)(0),                // 1: p2pstream.v1.ProxyState
+	(*AgentStatsRequest)(nil),      // 2: p2pstream.v1.AgentStatsRequest
+	(*AgentStatsResponse)(nil),     // 3: p2pstream.v1.AgentStatsResponse
+	(*User)(nil),                   // 4: p2pstream.v1.User
+	(*GetStatusRequest)(nil),       // 5: p2pstream.v1.GetStatusRequest
+	(*AgentStatsSnapshot)(nil),     // 6: p2pstream.v1.AgentStatsSnapshot
+	(*GetStatusResponse)(nil),      // 7: p2pstream.v1.GetStatusResponse
+	(*ProxyStatus)(nil),            // 8: p2pstream.v1.ProxyStatus
+	(*GetSetupStateRequest)(nil),   // 9: p2pstream.v1.GetSetupStateRequest
+	(*GetSetupStateResponse)(nil),  // 10: p2pstream.v1.GetSetupStateResponse
+	(*SetupAdminRequest)(nil),      // 11: p2pstream.v1.SetupAdminRequest
+	(*SetupAdminResponse)(nil),     // 12: p2pstream.v1.SetupAdminResponse
+	(*LoginRequest)(nil),           // 13: p2pstream.v1.LoginRequest
+	(*LoginResponse)(nil),          // 14: p2pstream.v1.LoginResponse
+	(*LogoutRequest)(nil),          // 15: p2pstream.v1.LogoutRequest
+	(*LogoutResponse)(nil),         // 16: p2pstream.v1.LogoutResponse
+	(*GetCurrentUserRequest)(nil),  // 17: p2pstream.v1.GetCurrentUserRequest
+	(*GetCurrentUserResponse)(nil), // 18: p2pstream.v1.GetCurrentUserResponse
+	(*StartProxyRequest)(nil),      // 19: p2pstream.v1.StartProxyRequest
+	(*StartProxyResponse)(nil),     // 20: p2pstream.v1.StartProxyResponse
+	(*StopProxyRequest)(nil),       // 21: p2pstream.v1.StopProxyRequest
+	(*StopProxyResponse)(nil),      // 22: p2pstream.v1.StopProxyResponse
 }
 var file_proto_p2pstream_v1_management_proto_depIdxs = []int32{
-	0, // 0: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
-	1, // 1: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: p2pstream.v1.User.role:type_name -> p2pstream.v1.UserRole
+	6,  // 1: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
+	8,  // 2: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	1,  // 3: p2pstream.v1.ProxyStatus.state:type_name -> p2pstream.v1.ProxyState
+	4,  // 4: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
+	4,  // 5: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
+	4,  // 6: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
+	8,  // 7: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	8,  // 8: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	2,  // 9: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
+	5,  // 10: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
+	9,  // 11: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
+	11, // 12: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
+	13, // 13: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
+	15, // 14: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
+	17, // 15: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
+	19, // 16: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
+	21, // 17: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
+	3,  // 18: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
+	7,  // 19: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
+	10, // 20: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
+	12, // 21: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
+	14, // 22: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
+	16, // 23: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
+	18, // 24: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
+	20, // 25: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
+	22, // 26: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
+	18, // [18:27] is the sub-list for method output_type
+	9,  // [9:18] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_proto_p2pstream_v1_management_proto_init() }
@@ -224,13 +1427,14 @@ func file_proto_p2pstream_v1_management_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_p2pstream_v1_management_proto_rawDesc), len(file_proto_p2pstream_v1_management_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      2,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_proto_p2pstream_v1_management_proto_goTypes,
 		DependencyIndexes: file_proto_p2pstream_v1_management_proto_depIdxs,
+		EnumInfos:         file_proto_p2pstream_v1_management_proto_enumTypes,
 		MessageInfos:      file_proto_p2pstream_v1_management_proto_msgTypes,
 	}.Build()
 	File_proto_p2pstream_v1_management_proto = out.File

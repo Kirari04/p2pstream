@@ -2,6 +2,20 @@ syntax = "proto3";
 
 package p2pstream.v1;
 
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  USER_ROLE_ADMIN = 1;
+}
+
+enum ProxyState {
+  PROXY_STATE_UNSPECIFIED = 0;
+  PROXY_STATE_STOPPED = 1;
+  PROXY_STATE_STARTING = 2;
+  PROXY_STATE_RUNNING = 3;
+  PROXY_STATE_STOPPING = 4;
+  PROXY_STATE_ERROR = 5;
+}
+
 message AgentStatsRequest {
   int64 memory_sys_mb = 1;
   int64 num_goroutine = 2;
@@ -17,6 +31,107 @@ message AgentStatsRequest {
 message AgentStatsResponse {
 }
 
+message User {
+  int64 id = 1;
+  string username = 2;
+  UserRole role = 3;
+}
+
+message GetStatusRequest {
+}
+
+message AgentStatsSnapshot {
+  int64 memory_sys_mb = 1;
+  int64 num_goroutine = 2;
+  int64 req_success = 3;
+  int64 req_client_error = 4;
+  int64 req_server_error = 5;
+  int64 req_internal_error = 6;
+  uint64 bytes_received = 7;
+  uint64 bytes_sent = 8;
+  int32 active_requests = 9;
+  int64 reported_at_unix_millis = 10;
+}
+
+message GetStatusResponse {
+  bool proxy_running = 1;
+  string proxy_last_error = 2;
+  bool agent_connected = 3;
+  string target_origin = 4;
+  AgentStatsSnapshot latest_agent_stats = 5;
+  ProxyStatus proxy = 6;
+}
+
+message ProxyStatus {
+  ProxyState state = 1;
+  string last_error = 2;
+  int64 started_at_unix_millis = 3;
+  int64 stopped_at_unix_millis = 4;
+}
+
+message GetSetupStateRequest {
+}
+
+message GetSetupStateResponse {
+  bool setup_required = 1;
+  bool setup_available = 2;
+  int64 setup_expires_at_unix_millis = 3;
+  string setup_unavailable_reason = 4;
+}
+
+message SetupAdminRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message SetupAdminResponse {
+  User user = 1;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  User user = 1;
+}
+
+message LogoutRequest {
+}
+
+message LogoutResponse {
+}
+
+message GetCurrentUserRequest {
+}
+
+message GetCurrentUserResponse {
+  User user = 1;
+}
+
+message StartProxyRequest {
+}
+
+message StartProxyResponse {
+  ProxyStatus proxy = 1;
+}
+
+message StopProxyRequest {
+}
+
+message StopProxyResponse {
+  ProxyStatus proxy = 1;
+}
+
 service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
+  rpc GetSetupState(GetSetupStateRequest) returns (GetSetupStateResponse) {}
+  rpc SetupAdmin(SetupAdminRequest) returns (SetupAdminResponse) {}
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {}
+  rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse) {}
+  rpc StartProxy(StartProxyRequest) returns (StartProxyResponse) {}
+  rpc StopProxy(StopProxyRequest) returns (StopProxyResponse) {}
 }

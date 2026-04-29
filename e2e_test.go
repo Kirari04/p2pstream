@@ -11,16 +11,17 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 	"p2pstream/httpmsg"
 	"p2pstream/internal/config"
 	"p2pstream/internal/server"
 	"p2pstream/msg"
-	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
-	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
-	"connectrpc.com/connect"
+	"p2pstream/stats"
 )
 
 func TestE2E_ReportStats(t *testing.T) {
@@ -45,14 +46,14 @@ func TestE2E_ReportStats(t *testing.T) {
 	)
 
 	req := &p2pstreamv1.AgentStatsRequest{
-		MemorySysMb:    100,
-		NumGoroutine:   5,
-		ActiveRequests: 2,
-		ReqSuccess:     10,
+		MemorySysMb:      100,
+		NumGoroutine:     5,
+		ActiveRequests:   2,
+		ReqSuccess:       10,
+		ReqInternalError: 3,
 	}
 
-	// Note: Because we used the `simple` flag in buf.gen.yaml, ReportStats expects the raw struct directly
-	_, err := client.ReportStats(context.Background(), req)
+	_, err := client.ReportStats(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		t.Fatalf("Failed to report stats via ConnectRPC: %v", err)
 	}
@@ -68,6 +69,85 @@ func TestE2E_ReportStats(t *testing.T) {
 	}
 	if stats.ReqSuccess != 10 {
 		t.Errorf("Expected 10 successful reqs, got %d", stats.ReqSuccess)
+	}
+	if stats.ReqInternalError != 3 {
+		t.Errorf("Expected 3 internal errors, got %d", stats.ReqInternalError)
+	}
+}
+
+func TestE2E_GetStatus(t *testing.T) {
+	targetOrigin := "https://example.com"
+	app := server.NewApp(&config.Config{
+		Port:         "0",
+		TargetOrigin: targetOrigin,
+	}, newTestDB(t))
+	if _, err := app.StartProxyListener(context.Background()); err != nil {
+		t.Fatalf("start proxy listener: %v", err)
+	}
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if _, err := app.StopProxyListener(shutdownCtx); err != nil {
+			t.Errorf("stop proxy listener: %v", err)
+		}
+	})
+
+	lastError := "proxy failed previously"
+	app.ProxyLastError.Store(&lastError)
+	app.ActiveAgent.Store(&server.AgentConn{})
+	app.LatestAgentStats.Store(&stats.AgentStats{
+		Timestamp:        time.UnixMilli(1700000000123),
+		NumGoroutine:     7,
+		AllocAllocated:   128,
+		ActiveRequests:   4,
+		ReqSuccess:       11,
+		ReqClientError:   2,
+		ReqServerError:   1,
+		ReqInternalError: 5,
+		BytesReceived:    1234,
+		BytesSent:        5678,
+	})
+
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+
+	req := connect.NewRequest(&p2pstreamv1.GetStatusRequest{})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.GetStatus(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to get status via ConnectRPC: %v", err)
+	}
+
+	status := resp.Msg
+	if !status.ProxyRunning {
+		t.Error("Expected proxy to be running")
+	}
+	if status.ProxyLastError != lastError {
+		t.Errorf("Expected proxy last error %q, got %q", lastError, status.ProxyLastError)
+	}
+	if !status.AgentConnected {
+		t.Error("Expected agent to be connected")
+	}
+	if status.TargetOrigin != targetOrigin {
+		t.Errorf("Expected target origin %q, got %q", targetOrigin, status.TargetOrigin)
+	}
+	if status.Proxy == nil {
+		t.Fatal("Expected proxy status")
+	}
+	if status.Proxy.State != p2pstreamv1.ProxyState_PROXY_STATE_RUNNING {
+		t.Errorf("Expected proxy state RUNNING, got %s", status.Proxy.State)
+	}
+	if status.LatestAgentStats == nil {
+		t.Fatal("Expected latest agent stats")
+	}
+	if status.LatestAgentStats.MemorySysMb != 128 {
+		t.Errorf("Expected memory 128, got %d", status.LatestAgentStats.MemorySysMb)
+	}
+	if status.LatestAgentStats.ReqInternalError != 5 {
+		t.Errorf("Expected internal errors 5, got %d", status.LatestAgentStats.ReqInternalError)
+	}
+	if status.LatestAgentStats.ReportedAtUnixMillis != 1700000000123 {
+		t.Errorf("Expected reported time 1700000000123, got %d", status.LatestAgentStats.ReportedAtUnixMillis)
 	}
 }
 
@@ -205,7 +285,7 @@ func TestE2E_RoundTrip(t *testing.T) {
 
 	mgmtMux := http.NewServeMux()
 	app.RegisterManagementRoutes(mgmtMux)
-	
+
 	// h2c protocols for ConnectRPC tests
 	p := new(http.Protocols)
 	p.SetHTTP1(true)

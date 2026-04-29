@@ -10,19 +10,40 @@ import (
 )
 
 type AgentStat struct {
-	ID             int64     `json:"id"`
-	ReportedAt     time.Time `json:"reported_at"`
-	MemoryMb       int64     `json:"memory_mb"`
-	Goroutines     int64     `json:"goroutines"`
-	ReqSuccess     int64     `json:"req_success"`
-	ReqClientError int64     `json:"req_client_error"`
-	ReqServerError int64     `json:"req_server_error"`
-	BytesRx        int64     `json:"bytes_rx"`
-	BytesTx        int64     `json:"bytes_tx"`
+	ID               int64     `json:"id"`
+	ReportedAt       time.Time `json:"reported_at"`
+	MemoryMb         int64     `json:"memory_mb"`
+	Goroutines       int64     `json:"goroutines"`
+	ReqSuccess       int64     `json:"req_success"`
+	ReqClientError   int64     `json:"req_client_error"`
+	ReqServerError   int64     `json:"req_server_error"`
+	ReqInternalError int64     `json:"req_internal_error"`
+	BytesRx          int64     `json:"bytes_rx"`
+	BytesTx          int64     `json:"bytes_tx"`
 }
 
 type Connection struct {
 	ID             int64        `json:"id"`
 	ConnectedAt    time.Time    `json:"connected_at"`
 	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+}
+
+type Session struct {
+	ID         int64        `json:"id"`
+	UserID     int64        `json:"user_id"`
+	TokenHash  string       `json:"token_hash"`
+	CreatedAt  time.Time    `json:"created_at"`
+	LastSeenAt time.Time    `json:"last_seen_at"`
+	ExpiresAt  time.Time    `json:"expires_at"`
+	RevokedAt  sql.NullTime `json:"revoked_at"`
+}
+
+type User struct {
+	ID           int64        `json:"id"`
+	Username     string       `json:"username"`
+	PasswordHash string       `json:"password_hash"`
+	Role         string       `json:"role"`
+	CreatedAt    time.Time    `json:"created_at"`
+	UpdatedAt    time.Time    `json:"updated_at"`
+	DisabledAt   sql.NullTime `json:"disabled_at"`
 }

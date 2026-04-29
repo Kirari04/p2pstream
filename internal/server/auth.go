@@ -1,0 +1,338 @@
+package server
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
+	"errors"
+	"net/http"
+	"regexp"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+	"golang.org/x/crypto/bcrypt"
+
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/db"
+)
+
+const (
+	sessionCookieName       = "p2pstream_session"
+	setupWindow             = 5 * time.Minute
+	sessionDuration         = 7 * 24 * time.Hour
+	minimumPasswordLength   = 12
+	setupWindowExpiredError = "setup window expired; restart the server to retry setup"
+)
+
+var usernamePattern = regexp.MustCompile(`^[a-z0-9_-]{3,64}$`)
+
+type authenticatedUser struct {
+	ID        int64
+	Username  string
+	Role      p2pstreamv1.UserRole
+	SessionID int64
+	TokenHash string
+}
+
+func (a *App) GetSetupState(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.GetSetupStateRequest],
+) (*connect.Response[p2pstreamv1.GetSetupStateResponse], error) {
+	_ = req
+
+	state, err := a.getSetupState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(state), nil
+}
+
+func (a *App) SetupAdmin(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.SetupAdminRequest],
+) (*connect.Response[p2pstreamv1.SetupAdminResponse], error) {
+	if a.DB == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for setup"))
+	}
+
+	username := strings.TrimSpace(strings.ToLower(req.Msg.Username))
+	if !usernamePattern.MatchString(username) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("username must be 3-64 lowercase letters, numbers, underscores, or hyphens"))
+	}
+	if len(req.Msg.Password) < minimumPasswordLength {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("password must be at least 12 characters"))
+	}
+
+	a.setupMu.Lock()
+	defer a.setupMu.Unlock()
+
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	defer tx.Rollback()
+
+	qtx := a.DB.WithTx(tx)
+	count, err := qtx.CountUsers(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if count > 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("setup has already been completed"))
+	}
+	if !a.setupAvailable(time.Now()) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(setupWindowExpiredError))
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Msg.Password), 12)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	user, err := qtx.CreateUser(ctx, db.CreateUserParams{
+		Username:     username,
+		PasswordHash: string(passwordHash),
+		Role:         roleString(p2pstreamv1.UserRole_USER_ROLE_ADMIN),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&p2pstreamv1.SetupAdminResponse{
+		User: &p2pstreamv1.User{
+			Id:       user.ID,
+			Username: user.Username,
+			Role:     protoRole(user.Role),
+		},
+	}), nil
+}
+
+func (a *App) Login(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.LoginRequest],
+) (*connect.Response[p2pstreamv1.LoginResponse], error) {
+	if a.DB == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for login"))
+	}
+
+	username := strings.TrimSpace(strings.ToLower(req.Msg.Username))
+	user, err := a.DB.GetUserByUsername(ctx, username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Msg.Password)); err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
+	}
+
+	token, tokenHash, err := newSessionToken()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	expiresAt := time.Now().Add(sessionDuration)
+	if _, err := a.DB.CreateSession(ctx, db.CreateSessionParams{
+		UserID:    user.ID,
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
+	}); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	resp := connect.NewResponse(&p2pstreamv1.LoginResponse{User: dbUserToProto(user)})
+	resp.Header().Add("Set-Cookie", a.sessionCookie(token, expiresAt).String())
+	return resp, nil
+}
+
+func (a *App) Logout(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.LogoutRequest],
+) (*connect.Response[p2pstreamv1.LogoutResponse], error) {
+	user, err := a.requireUser(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	if err := a.DB.RevokeSessionByTokenHash(ctx, user.TokenHash); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	resp := connect.NewResponse(&p2pstreamv1.LogoutResponse{})
+	resp.Header().Add("Set-Cookie", a.clearSessionCookie().String())
+	return resp, nil
+}
+
+func (a *App) GetCurrentUser(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.GetCurrentUserRequest],
+) (*connect.Response[p2pstreamv1.GetCurrentUserResponse], error) {
+	user, err := a.requireUser(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&p2pstreamv1.GetCurrentUserResponse{
+		User: &p2pstreamv1.User{
+			Id:       user.ID,
+			Username: user.Username,
+			Role:     user.Role,
+		},
+	}), nil
+}
+
+func (a *App) getSetupState(ctx context.Context) (*p2pstreamv1.GetSetupStateResponse, error) {
+	if a.DB == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for setup"))
+	}
+
+	count, err := a.DB.CountUsers(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if count > 0 {
+		return &p2pstreamv1.GetSetupStateResponse{}, nil
+	}
+
+	expiresAt := a.StartedAt.Add(setupWindow)
+	resp := &p2pstreamv1.GetSetupStateResponse{
+		SetupRequired:            true,
+		SetupAvailable:           time.Now().Before(expiresAt) || time.Now().Equal(expiresAt),
+		SetupExpiresAtUnixMillis: expiresAt.UnixMilli(),
+	}
+	if !resp.SetupAvailable {
+		resp.SetupUnavailableReason = setupWindowExpiredError
+	}
+	return resp, nil
+}
+
+func (a *App) setupAvailable(now time.Time) bool {
+	expiresAt := a.StartedAt.Add(setupWindow)
+	return now.Before(expiresAt) || now.Equal(expiresAt)
+}
+
+func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticatedUser, error) {
+	if a.DB == nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authentication is unavailable"))
+	}
+
+	token := sessionTokenFromHeader(header)
+	if token == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
+	}
+
+	tokenHash := hashSessionToken(token)
+	session, err := a.DB.GetActiveSessionByTokenHash(ctx, tokenHash)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := a.DB.TouchSession(ctx, session.SessionID); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return &authenticatedUser{
+		ID:        session.ID,
+		Username:  session.Username,
+		Role:      protoRole(session.Role),
+		SessionID: session.SessionID,
+		TokenHash: tokenHash,
+	}, nil
+}
+
+func (a *App) requireAdmin(ctx context.Context, header http.Header) (*authenticatedUser, error) {
+	user, err := a.requireUser(ctx, header)
+	if err != nil {
+		return nil, err
+	}
+	if user.Role != p2pstreamv1.UserRole_USER_ROLE_ADMIN {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("admin permission required"))
+	}
+	return user, nil
+}
+
+func sessionTokenFromHeader(header http.Header) string {
+	req := &http.Request{Header: header}
+	cookie, err := req.Cookie(sessionCookieName)
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
+}
+
+func newSessionToken() (token string, tokenHash string, err error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", "", err
+	}
+	token = base64.RawURLEncoding.EncodeToString(buf)
+	return token, hashSessionToken(token), nil
+}
+
+func hashSessionToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+func (a *App) sessionCookie(token string, expiresAt time.Time) *http.Cookie {
+	return &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    token,
+		Path:     "/",
+		Expires:  expiresAt,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   a.secureCookies(),
+	}
+}
+
+func (a *App) clearSessionCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   a.secureCookies(),
+	}
+}
+
+func (a *App) secureCookies() bool {
+	return a.Config != nil && (a.Config.Env == "production" || a.Config.ManagementCookieSecure)
+}
+
+func dbUserToProto(user db.User) *p2pstreamv1.User {
+	return &p2pstreamv1.User{
+		Id:       user.ID,
+		Username: user.Username,
+		Role:     protoRole(user.Role),
+	}
+}
+
+func protoRole(role string) p2pstreamv1.UserRole {
+	switch role {
+	case roleString(p2pstreamv1.UserRole_USER_ROLE_ADMIN):
+		return p2pstreamv1.UserRole_USER_ROLE_ADMIN
+	default:
+		return p2pstreamv1.UserRole_USER_ROLE_UNSPECIFIED
+	}
+}
+
+func roleString(role p2pstreamv1.UserRole) string {
+	switch role {
+	case p2pstreamv1.UserRole_USER_ROLE_ADMIN:
+		return "admin"
+	default:
+		return "unspecified"
+	}
+}

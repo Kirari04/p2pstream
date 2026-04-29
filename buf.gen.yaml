@@ -7,7 +7,16 @@ plugins:
     out: gen
     opt:
       - paths=source_relative
-      - simple
+  - local: [bun, --cwd, web/management, ./node_modules/@bufbuild/protoc-gen-es/bin/protoc-gen-es]
+    out: web/management/src/gen
+    opt:
+      - target=ts
+      - import_extension=none
+  - local: [bun, --cwd, web/management, ./node_modules/@connectrpc/protoc-gen-connect-es/bin/protoc-gen-connect-es]
+    out: web/management/src/gen
+    opt:
+      - target=ts
+      - import_extension=none
 managed:
   enabled: true
   override:

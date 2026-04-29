@@ -1,4 +1,4 @@
-.PHONY: all build clean generate-sqlc sqlc run
+.PHONY: all build backend-build clean dev docker-build frontend-build frontend-install generate generate-proto generate-sqlc run sqlc test
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -8,31 +8,63 @@ endif
 
 all: build
 
-build:
-	@echo "Building p2pstream..."
-	@mkdir -p bin
-	@go build -o bin/p2pstream main.go
+generate-proto: frontend-install
+	@echo "Generating protobuf code..."
+	@go tool buf generate
 
 generate-sqlc:
 	@echo "Generating sqlc code..."
 	@go tool sqlc generate
 
+generate: generate-proto generate-sqlc
+
 sqlc: generate-sqlc
+
+frontend-install:
+	@cd web/management && bun install --frozen-lockfile
+
+frontend-build: frontend-install generate-proto
+	@cd web/management && bun run build
+
+backend-build:
+	@echo "Building p2pstream backend..."
+	@mkdir -p bin
+	@go build -o bin/p2pstream main.go
+
+build: frontend-build backend-build
+
+dev: frontend-install generate-proto kill
+	@echo "Starting p2pstream development mode..."
+	@cd web/management && bun run dev & FRONTEND_PID=$$!; \
+	MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
+	sleep 2; \
+	go run main.go agent & AGENT_PID=$$!; \
+	echo "Management UI: http://localhost:$${MANAGEMENT_PORT:-8081}"; \
+	trap "kill $$FRONTEND_PID $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
+	wait $$FRONTEND_PID $$SERVER_PID $$AGENT_PID
 
 run: build kill
 	@echo "Starting server and agent..."
 	@./bin/p2pstream server & SERVER_PID=$$!; \
 	sleep 1; \
 	./bin/p2pstream agent & AGENT_PID=$$!; \
-	echo "Both running. Press Ctrl+C to stop."; \
+	echo "Management UI: http://localhost:$${MANAGEMENT_PORT:-8081}"; \
 	trap "kill $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$SERVER_PID $$AGENT_PID
 
+docker-build:
+	@docker build -t p2pstream:local .
+
+test:
+	@go test ./...
+	@cd web/management && bun run typecheck
+
 kill:
 	@echo "Ensuring previous processes are killed..."
-	@-pkill -9 -f bin/p2pstream || true
+	@-pkill -9 -f 'bin/p2pstream|tmp/p2pstream-dev' || true
 
 clean:
 	@echo "Cleaning up..."
 	@rm -rf bin/
 	@rm -rf tmp/
+	@rm -rf web/management/dist/

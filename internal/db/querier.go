@@ -9,9 +9,17 @@ import (
 )
 
 type Querier interface {
+	CountUsers(ctx context.Context) (int64, error)
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
 	GetLatestAgentStat(ctx context.Context) (AgentStat, error)
+	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
 	InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error
 	InsertConnection(ctx context.Context) (int64, error)
+	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
+	TouchSession(ctx context.Context, id int64) error
 	UpdateConnectionDisconnected(ctx context.Context, id int64) error
 }
 

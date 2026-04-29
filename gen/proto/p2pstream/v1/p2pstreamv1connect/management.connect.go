@@ -36,11 +36,43 @@ const (
 	// AgentManagementServiceReportStatsProcedure is the fully-qualified name of the
 	// AgentManagementService's ReportStats RPC.
 	AgentManagementServiceReportStatsProcedure = "/p2pstream.v1.AgentManagementService/ReportStats"
+	// AgentManagementServiceGetStatusProcedure is the fully-qualified name of the
+	// AgentManagementService's GetStatus RPC.
+	AgentManagementServiceGetStatusProcedure = "/p2pstream.v1.AgentManagementService/GetStatus"
+	// AgentManagementServiceGetSetupStateProcedure is the fully-qualified name of the
+	// AgentManagementService's GetSetupState RPC.
+	AgentManagementServiceGetSetupStateProcedure = "/p2pstream.v1.AgentManagementService/GetSetupState"
+	// AgentManagementServiceSetupAdminProcedure is the fully-qualified name of the
+	// AgentManagementService's SetupAdmin RPC.
+	AgentManagementServiceSetupAdminProcedure = "/p2pstream.v1.AgentManagementService/SetupAdmin"
+	// AgentManagementServiceLoginProcedure is the fully-qualified name of the AgentManagementService's
+	// Login RPC.
+	AgentManagementServiceLoginProcedure = "/p2pstream.v1.AgentManagementService/Login"
+	// AgentManagementServiceLogoutProcedure is the fully-qualified name of the AgentManagementService's
+	// Logout RPC.
+	AgentManagementServiceLogoutProcedure = "/p2pstream.v1.AgentManagementService/Logout"
+	// AgentManagementServiceGetCurrentUserProcedure is the fully-qualified name of the
+	// AgentManagementService's GetCurrentUser RPC.
+	AgentManagementServiceGetCurrentUserProcedure = "/p2pstream.v1.AgentManagementService/GetCurrentUser"
+	// AgentManagementServiceStartProxyProcedure is the fully-qualified name of the
+	// AgentManagementService's StartProxy RPC.
+	AgentManagementServiceStartProxyProcedure = "/p2pstream.v1.AgentManagementService/StartProxy"
+	// AgentManagementServiceStopProxyProcedure is the fully-qualified name of the
+	// AgentManagementService's StopProxy RPC.
+	AgentManagementServiceStopProxyProcedure = "/p2pstream.v1.AgentManagementService/StopProxy"
 )
 
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
 type AgentManagementServiceClient interface {
-	ReportStats(context.Context, *v1.AgentStatsRequest) (*v1.AgentStatsResponse, error)
+	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
+	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
+	GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error)
+	SetupAdmin(context.Context, *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error)
+	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
+	GetCurrentUser(context.Context, *connect.Request[v1.GetCurrentUserRequest]) (*connect.Response[v1.GetCurrentUserResponse], error)
+	StartProxy(context.Context, *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error)
+	StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error)
 }
 
 // NewAgentManagementServiceClient constructs a client for the p2pstream.v1.AgentManagementService
@@ -60,27 +92,127 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("ReportStats")),
 			connect.WithClientOptions(opts...),
 		),
+		getStatus: connect.NewClient[v1.GetStatusRequest, v1.GetStatusResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetStatusProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getSetupState: connect.NewClient[v1.GetSetupStateRequest, v1.GetSetupStateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetSetupStateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetSetupState")),
+			connect.WithClientOptions(opts...),
+		),
+		setupAdmin: connect.NewClient[v1.SetupAdminRequest, v1.SetupAdminResponse](
+			httpClient,
+			baseURL+AgentManagementServiceSetupAdminProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("SetupAdmin")),
+			connect.WithClientOptions(opts...),
+		),
+		login: connect.NewClient[v1.LoginRequest, v1.LoginResponse](
+			httpClient,
+			baseURL+AgentManagementServiceLoginProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("Login")),
+			connect.WithClientOptions(opts...),
+		),
+		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
+			httpClient,
+			baseURL+AgentManagementServiceLogoutProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("Logout")),
+			connect.WithClientOptions(opts...),
+		),
+		getCurrentUser: connect.NewClient[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetCurrentUserProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetCurrentUser")),
+			connect.WithClientOptions(opts...),
+		),
+		startProxy: connect.NewClient[v1.StartProxyRequest, v1.StartProxyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceStartProxyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("StartProxy")),
+			connect.WithClientOptions(opts...),
+		),
+		stopProxy: connect.NewClient[v1.StopProxyRequest, v1.StopProxyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceStopProxyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("StopProxy")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentManagementServiceClient implements AgentManagementServiceClient.
 type agentManagementServiceClient struct {
-	reportStats *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
+	reportStats    *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
+	getStatus      *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
+	getSetupState  *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
+	setupAdmin     *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
+	login          *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout         *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getCurrentUser *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
+	startProxy     *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
+	stopProxy      *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
-func (c *agentManagementServiceClient) ReportStats(ctx context.Context, req *v1.AgentStatsRequest) (*v1.AgentStatsResponse, error) {
-	response, err := c.reportStats.CallUnary(ctx, connect.NewRequest(req))
-	if response != nil {
-		return response.Msg, err
-	}
-	return nil, err
+func (c *agentManagementServiceClient) ReportStats(ctx context.Context, req *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error) {
+	return c.reportStats.CallUnary(ctx, req)
+}
+
+// GetStatus calls p2pstream.v1.AgentManagementService.GetStatus.
+func (c *agentManagementServiceClient) GetStatus(ctx context.Context, req *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error) {
+	return c.getStatus.CallUnary(ctx, req)
+}
+
+// GetSetupState calls p2pstream.v1.AgentManagementService.GetSetupState.
+func (c *agentManagementServiceClient) GetSetupState(ctx context.Context, req *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error) {
+	return c.getSetupState.CallUnary(ctx, req)
+}
+
+// SetupAdmin calls p2pstream.v1.AgentManagementService.SetupAdmin.
+func (c *agentManagementServiceClient) SetupAdmin(ctx context.Context, req *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error) {
+	return c.setupAdmin.CallUnary(ctx, req)
+}
+
+// Login calls p2pstream.v1.AgentManagementService.Login.
+func (c *agentManagementServiceClient) Login(ctx context.Context, req *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
+	return c.login.CallUnary(ctx, req)
+}
+
+// Logout calls p2pstream.v1.AgentManagementService.Logout.
+func (c *agentManagementServiceClient) Logout(ctx context.Context, req *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return c.logout.CallUnary(ctx, req)
+}
+
+// GetCurrentUser calls p2pstream.v1.AgentManagementService.GetCurrentUser.
+func (c *agentManagementServiceClient) GetCurrentUser(ctx context.Context, req *connect.Request[v1.GetCurrentUserRequest]) (*connect.Response[v1.GetCurrentUserResponse], error) {
+	return c.getCurrentUser.CallUnary(ctx, req)
+}
+
+// StartProxy calls p2pstream.v1.AgentManagementService.StartProxy.
+func (c *agentManagementServiceClient) StartProxy(ctx context.Context, req *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error) {
+	return c.startProxy.CallUnary(ctx, req)
+}
+
+// StopProxy calls p2pstream.v1.AgentManagementService.StopProxy.
+func (c *agentManagementServiceClient) StopProxy(ctx context.Context, req *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error) {
+	return c.stopProxy.CallUnary(ctx, req)
 }
 
 // AgentManagementServiceHandler is an implementation of the p2pstream.v1.AgentManagementService
 // service.
 type AgentManagementServiceHandler interface {
-	ReportStats(context.Context, *v1.AgentStatsRequest) (*v1.AgentStatsResponse, error)
+	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
+	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
+	GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error)
+	SetupAdmin(context.Context, *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error)
+	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
+	GetCurrentUser(context.Context, *connect.Request[v1.GetCurrentUserRequest]) (*connect.Response[v1.GetCurrentUserResponse], error)
+	StartProxy(context.Context, *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error)
+	StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error)
 }
 
 // NewAgentManagementServiceHandler builds an HTTP handler from the service implementation. It
@@ -90,16 +222,80 @@ type AgentManagementServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	agentManagementServiceMethods := v1.File_proto_p2pstream_v1_management_proto.Services().ByName("AgentManagementService").Methods()
-	agentManagementServiceReportStatsHandler := connect.NewUnaryHandlerSimple(
+	agentManagementServiceReportStatsHandler := connect.NewUnaryHandler(
 		AgentManagementServiceReportStatsProcedure,
 		svc.ReportStats,
 		connect.WithSchema(agentManagementServiceMethods.ByName("ReportStats")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetStatusHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetStatusProcedure,
+		svc.GetStatus,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetSetupStateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetSetupStateProcedure,
+		svc.GetSetupState,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetSetupState")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceSetupAdminHandler := connect.NewUnaryHandler(
+		AgentManagementServiceSetupAdminProcedure,
+		svc.SetupAdmin,
+		connect.WithSchema(agentManagementServiceMethods.ByName("SetupAdmin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceLoginHandler := connect.NewUnaryHandler(
+		AgentManagementServiceLoginProcedure,
+		svc.Login,
+		connect.WithSchema(agentManagementServiceMethods.ByName("Login")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceLogoutHandler := connect.NewUnaryHandler(
+		AgentManagementServiceLogoutProcedure,
+		svc.Logout,
+		connect.WithSchema(agentManagementServiceMethods.ByName("Logout")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetCurrentUserHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetCurrentUserProcedure,
+		svc.GetCurrentUser,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetCurrentUser")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceStartProxyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceStartProxyProcedure,
+		svc.StartProxy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("StartProxy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceStopProxyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceStopProxyProcedure,
+		svc.StopProxy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("StopProxy")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/p2pstream.v1.AgentManagementService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentManagementServiceReportStatsProcedure:
 			agentManagementServiceReportStatsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetStatusProcedure:
+			agentManagementServiceGetStatusHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetSetupStateProcedure:
+			agentManagementServiceGetSetupStateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceSetupAdminProcedure:
+			agentManagementServiceSetupAdminHandler.ServeHTTP(w, r)
+		case AgentManagementServiceLoginProcedure:
+			agentManagementServiceLoginHandler.ServeHTTP(w, r)
+		case AgentManagementServiceLogoutProcedure:
+			agentManagementServiceLogoutHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetCurrentUserProcedure:
+			agentManagementServiceGetCurrentUserHandler.ServeHTTP(w, r)
+		case AgentManagementServiceStartProxyProcedure:
+			agentManagementServiceStartProxyHandler.ServeHTTP(w, r)
+		case AgentManagementServiceStopProxyProcedure:
+			agentManagementServiceStopProxyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -109,6 +305,38 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 // UnimplementedAgentManagementServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAgentManagementServiceHandler struct{}
 
-func (UnimplementedAgentManagementServiceHandler) ReportStats(context.Context, *v1.AgentStatsRequest) (*v1.AgentStatsResponse, error) {
+func (UnimplementedAgentManagementServiceHandler) ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ReportStats is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetStatus is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetSetupState is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) SetupAdmin(context.Context, *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.SetupAdmin is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.Login is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.Logout is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetCurrentUser(context.Context, *connect.Request[v1.GetCurrentUserRequest]) (*connect.Response[v1.GetCurrentUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetCurrentUser is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) StartProxy(context.Context, *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StartProxy is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StopProxy is not implemented"))
 }
