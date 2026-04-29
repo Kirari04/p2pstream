@@ -1,4 +1,4 @@
-.PHONY: all build clean run
+.PHONY: all build clean generate-sqlc sqlc run
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -12,6 +12,12 @@ build:
 	@echo "Building p2pstream..."
 	@mkdir -p bin
 	@go build -o bin/p2pstream main.go
+
+generate-sqlc:
+	@echo "Generating sqlc code..."
+	@go tool sqlc generate
+
+sqlc: generate-sqlc
 
 run: build kill
 	@echo "Starting server and agent..."
