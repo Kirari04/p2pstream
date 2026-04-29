@@ -22,9 +22,9 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id
 ) VALUES (
-    ?, ?, ?
+    ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetProxyRequestSummarySince :one
@@ -109,6 +109,7 @@ RETURNING id, user_id, token_hash, created_at, last_seen_at, expires_at, revoked
 SELECT
     s.id AS session_id,
     s.user_id,
+    s.last_seen_at,
     s.expires_at,
     u.id,
     u.username,
@@ -123,9 +124,170 @@ WHERE s.token_hash = ?
 -- name: TouchSession :exec
 UPDATE sessions
 SET last_seen_at = CURRENT_TIMESTAMP
-WHERE id = ?;
+WHERE id = ?
+  AND last_seen_at < datetime('now', '-30 seconds');
 
 -- name: RevokeSessionByTokenHash :exec
 UPDATE sessions
 SET revoked_at = CURRENT_TIMESTAMP
 WHERE token_hash = ? AND revoked_at IS NULL;
+
+-- name: CountPublicBackends :one
+SELECT COUNT(*) FROM public_backends;
+
+-- name: CountPublicListeners :one
+SELECT COUNT(*) FROM public_listeners;
+
+-- name: CreatePublicBackend :one
+INSERT INTO public_backends (
+    name,
+    target_origin,
+    backend_type,
+    tls_skip_verify,
+    static_status_code,
+    static_response_body,
+    enabled
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
+
+-- name: ListPublicBackends :many
+SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+FROM public_backends
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicBackend :one
+SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+FROM public_backends
+WHERE id = ?;
+
+-- name: UpdatePublicBackend :one
+UPDATE public_backends
+SET name = ?,
+    target_origin = ?,
+    backend_type = ?,
+    tls_skip_verify = ?,
+    static_status_code = ?,
+    static_response_body = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
+
+-- name: DeletePublicBackend :exec
+DELETE FROM public_backends
+WHERE id = ?;
+
+-- name: ListPublicBackendHeaders :many
+SELECT id, backend_id, position, name, value, created_at, updated_at
+FROM public_backend_headers
+ORDER BY backend_id ASC, position ASC, id ASC;
+
+-- name: ListPublicBackendHeadersByBackend :many
+SELECT id, backend_id, position, name, value, created_at, updated_at
+FROM public_backend_headers
+WHERE backend_id = ?
+ORDER BY position ASC, id ASC;
+
+-- name: CreatePublicBackendHeader :one
+INSERT INTO public_backend_headers (backend_id, position, name, value)
+VALUES (?, ?, ?, ?)
+RETURNING id, backend_id, position, name, value, created_at, updated_at;
+
+-- name: DeletePublicBackendHeaders :exec
+DELETE FROM public_backend_headers
+WHERE backend_id = ?;
+
+-- name: CountPublicBackendEnabledReferences :one
+SELECT
+  (
+    SELECT COUNT(*)
+    FROM public_listeners
+    WHERE default_backend_id = ? AND enabled = 1
+  ) + (
+    SELECT COUNT(*)
+    FROM public_routes
+    WHERE backend_id = ? AND enabled = 1
+  ) AS references_count;
+
+-- name: CreatePublicListener :one
+INSERT INTO public_listeners (name, bind_address, port, protocol, enabled, default_backend_id)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at;
+
+-- name: ListPublicListeners :many
+SELECT id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+FROM public_listeners
+ORDER BY port ASC, bind_address ASC, id ASC;
+
+-- name: GetPublicListener :one
+SELECT id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+FROM public_listeners
+WHERE id = ?;
+
+-- name: UpdatePublicListener :one
+UPDATE public_listeners
+SET name = ?, bind_address = ?, port = ?, protocol = ?, enabled = ?, default_backend_id = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at;
+
+-- name: SetPublicListenerEnabled :one
+UPDATE public_listeners
+SET enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at;
+
+-- name: DeletePublicListener :exec
+DELETE FROM public_listeners
+WHERE id = ?;
+
+-- name: CreatePublicRoute :one
+INSERT INTO public_routes (listener_id, priority, host_pattern, path_prefix, backend_id, enabled)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at;
+
+-- name: ListPublicRoutes :many
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+FROM public_routes
+ORDER BY listener_id ASC, priority ASC, id ASC;
+
+-- name: GetPublicRoute :one
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+FROM public_routes
+WHERE id = ?;
+
+-- name: UpdatePublicRoute :one
+UPDATE public_routes
+SET listener_id = ?, priority = ?, host_pattern = ?, path_prefix = ?, backend_id = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at;
+
+-- name: DeletePublicRoute :exec
+DELETE FROM public_routes
+WHERE id = ?;
+
+-- name: CreatePublicTlsCertificate :one
+INSERT INTO public_tls_certificates (listener_id, hostname_pattern, cert_path, key_path, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at;
+
+-- name: ListPublicTlsCertificates :many
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+FROM public_tls_certificates
+ORDER BY listener_id ASC, hostname_pattern ASC, id ASC;
+
+-- name: GetPublicTlsCertificate :one
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+FROM public_tls_certificates
+WHERE id = ?;
+
+-- name: UpdatePublicTlsCertificate :one
+UPDATE public_tls_certificates
+SET listener_id = ?, hostname_pattern = ?, cert_path = ?, key_path = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at;
+
+-- name: DeletePublicTlsCertificate :exec
+DELETE FROM public_tls_certificates
+WHERE id = ?;

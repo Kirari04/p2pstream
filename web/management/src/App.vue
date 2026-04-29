@@ -3,11 +3,13 @@ import RefreshIcon from "@primevue/icons/refresh";
 import { computed, onBeforeUnmount, onMounted, ref, provide } from "vue";
 import { managementClient } from "@/api/managementClient";
 import Button from "@/volt/Button.vue";
+import DangerButton from "@/volt/DangerButton.vue";
 import Message from "@/volt/Message.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import Skeleton from "@/volt/Skeleton.vue";
 import {
   type GetDashboardResponse,
+  type GetPublicProxyConfigResponse,
   type GetSetupStateResponse,
   type User,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -15,9 +17,11 @@ import {
 const setupState = ref<GetSetupStateResponse | null>(null);
 const currentUser = ref<User | null>(null);
 const dashboard = ref<GetDashboardResponse | null>(null);
+const publicProxyConfig = ref<GetPublicProxyConfigResponse | null>(null);
 const isLoading = ref(true);
 const isBusy = ref(false);
 const isRefreshing = ref(false);
+const isLogoutConfirmOpen = ref(false);
 const refreshTimer = ref<number | null>(null);
 const error = ref<string | null>(null);
 
@@ -33,6 +37,7 @@ const loginForm = ref({ username: "admin", password: "" });
 
 // Provide state to views
 provide('dashboard', computed(() => dashboard.value));
+provide('publicProxyConfig', computed(() => publicProxyConfig.value));
 provide('isBusy', computed(() => isBusy.value));
 
 async function bootstrap() {
@@ -45,6 +50,7 @@ async function bootstrap() {
     if (setupState.value.setupRequired) {
       currentUser.value = null;
       dashboard.value = null;
+      publicProxyConfig.value = null;
       return;
     }
 
@@ -54,6 +60,7 @@ async function bootstrap() {
     } catch {
       currentUser.value = null;
       dashboard.value = null;
+      publicProxyConfig.value = null;
       return;
     }
 
@@ -71,7 +78,12 @@ async function loadDashboard() {
   isRefreshing.value = true;
   error.value = null;
   try {
-    dashboard.value = await managementClient.getDashboard({});
+    const [dashboardResp, publicProxyResp] = await Promise.all([
+      managementClient.getDashboard({}),
+      managementClient.getPublicProxyConfig({}),
+    ]);
+    dashboard.value = dashboardResp;
+    publicProxyConfig.value = publicProxyResp;
   } catch (err) {
     error.value = messageFromError(err);
   } finally {
@@ -133,7 +145,24 @@ async function login(username: string, password: string) {
   currentUser.value = loginResp.user ?? null;
 }
 
-async function logout() {
+function requestLogout() {
+  if (isBusy.value) return;
+  isLogoutConfirmOpen.value = true;
+}
+
+function cancelLogout() {
+  if (isBusy.value) return;
+  isLogoutConfirmOpen.value = false;
+}
+
+async function confirmLogout() {
+  const didLogout = await logout();
+  if (didLogout) {
+    isLogoutConfirmOpen.value = false;
+  }
+}
+
+async function logout(): Promise<boolean> {
   isBusy.value = true;
   error.value = null;
   try {
@@ -141,33 +170,45 @@ async function logout() {
     stopAutoRefresh();
     currentUser.value = null;
     dashboard.value = null;
+    publicProxyConfig.value = null;
     loginForm.value.password = "";
+    return true;
   } catch (err) {
     error.value = messageFromError(err);
+    return false;
   } finally {
     isBusy.value = false;
   }
 }
 
 async function setProxyRunning(shouldRun: boolean) {
-  isBusy.value = true;
-  error.value = null;
-  try {
+  await runManagementAction(async () => {
     if (shouldRun) {
       await managementClient.startProxy({});
     } else {
       await managementClient.stopProxy({});
     }
+  });
+}
+
+async function runManagementAction(action: () => Promise<void>): Promise<boolean> {
+  isBusy.value = true;
+  error.value = null;
+  try {
+    await action();
     await loadDashboard();
+    return true;
   } catch (err) {
     error.value = messageFromError(err);
+    return false;
   } finally {
     isBusy.value = false;
   }
 }
 
 provide('setProxyRunning', setProxyRunning);
-provide('logout', logout);
+provide('runManagementAction', runManagementAction);
+provide('logout', requestLogout);
 
 function messageFromError(err: unknown): string {
   return err instanceof Error ? err.message : "Request failed";
@@ -222,7 +263,7 @@ onBeforeUnmount(() => {
               size="small"
               class="!bg-transparent !border-[#333] hover:!border-[#666] !text-[#888] h-8"
               :disabled="isBusy"
-              @click="logout"
+              @click="requestLogout"
             />
           </div>
         </div>
@@ -325,6 +366,49 @@ onBeforeUnmount(() => {
       <!-- Real Route Content -->
       <router-view v-else-if="dashboard"></router-view>
     </main>
+
+    <div
+      v-if="isLogoutConfirmOpen && currentUser"
+      class="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4"
+      role="presentation"
+      @click.self="cancelLogout"
+    >
+      <section
+        class="w-full max-w-md rounded-md border border-[#333] bg-black p-6 shadow-2xl shadow-black/60"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logout-confirm-title"
+        aria-describedby="logout-confirm-description"
+      >
+        <div class="mb-5">
+          <div class="mb-3 inline-flex rounded-full border border-[#333] px-2.5 py-1 text-xs font-medium text-[#888]">
+            Session
+          </div>
+          <h2 id="logout-confirm-title" class="mb-2 text-xl font-semibold tracking-tight text-white">
+            Log out of p2pstream?
+          </h2>
+          <p id="logout-confirm-description" class="text-sm leading-6 text-[#888]">
+            Your current session will end and dashboard data will be cleared from this browser view.
+          </p>
+        </div>
+
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <SecondaryButton
+            label="Stay logged in"
+            class="!border-[#333] !bg-transparent !text-[#ededed] hover:!border-[#666]"
+            :disabled="isBusy"
+            @click="cancelLogout"
+          />
+          <DangerButton
+            label="Log out"
+            class="!border-red-600 !bg-red-600 !text-white hover:!border-red-500 hover:!bg-red-500"
+            :loading="isBusy"
+            :disabled="isBusy"
+            @click="confirmLogout"
+          />
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 

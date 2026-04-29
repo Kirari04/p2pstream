@@ -1,0 +1,61 @@
+x-runtime-build: &runtime-build
+  context: .
+  target: runtime
+
+services:
+  upstream:
+    image: python:3.13-alpine
+    command: ["python", "-m", "http.server", "9000"]
+    working_dir: /tmp
+
+  server:
+    image: p2pstream:docker-smoke-runtime
+    build: *runtime-build
+    command: ["/app/p2pstream", "server"]
+    environment:
+      MANAGEMENT_PORT: "8081"
+      PORT: "8080"
+      TARGET_ORIGIN: "http://upstream:9000"
+      DATABASE_URL: "file:/data/p2pstream.db?mode=rwc"
+      AGENT_TOKEN: "docker-smoke-token"
+      MANAGEMENT_COOKIE_SECURE: "false"
+    ports:
+      - "18081:8081"
+      - "18080:8080"
+      - "18088:8088"
+      - "18443:443"
+    volumes:
+      - p2pstream-data:/data
+    depends_on:
+      - upstream
+
+  agent:
+    image: p2pstream:docker-smoke-runtime
+    build: *runtime-build
+    command: ["/app/p2pstream", "agent"]
+    environment:
+      MANAGEMENT_URL: "http://server:8081"
+      AGENT_TOKEN: "docker-smoke-token"
+    depends_on:
+      - server
+      - upstream
+
+  smoke:
+    image: p2pstream:docker-smoke-test
+    build:
+      context: .
+      target: smoke
+    command: ["go", "test", "-tags", "docker_smoke", "./internal/smoketest", "-count=1", "-v"]
+    environment:
+      MANAGEMENT_URL: "http://server:8081"
+      PUBLIC_DEFAULT_URL: "http://server:8080"
+      PUBLIC_STATIC_URL: "http://server:8088"
+      PUBLIC_HTTPS_URL: "https://server:443"
+      UPSTREAM_URL: "http://upstream:9000"
+    depends_on:
+      - server
+      - agent
+      - upstream
+
+volumes:
+  p2pstream-data:

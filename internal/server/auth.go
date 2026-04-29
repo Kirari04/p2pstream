@@ -24,6 +24,7 @@ const (
 	sessionCookieName       = "p2pstream_session"
 	setupWindow             = 5 * time.Minute
 	sessionDuration         = 7 * 24 * time.Hour
+	sessionTouchInterval    = 30 * time.Second
 	minimumPasswordLength   = 12
 	setupWindowExpiredError = "setup window expired; restart the server to retry setup"
 )
@@ -235,8 +236,10 @@ func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticat
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if err := a.DB.TouchSession(ctx, session.SessionID); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+	if session.LastSeenAt.IsZero() || time.Since(session.LastSeenAt) >= sessionTouchInterval {
+		if err := a.DB.TouchSession(ctx, session.SessionID); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 
 	return &authenticatedUser{

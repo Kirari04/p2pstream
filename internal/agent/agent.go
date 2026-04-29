@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,6 +35,9 @@ var (
 	reqInternalError atomic.Int32
 	bytesReceived    atomic.Uint64
 	bytesSent        atomic.Uint64
+
+	defaultForwardClient       = &http.Client{}
+	tlsSkipVerifyForwardClient = &http.Client{Transport: tlsSkipVerifyTransport()}
 )
 
 // Run is the main entry point to start the agent loop
@@ -142,6 +146,7 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 		reqInternalError.Add(1)
 		return
 	}
+	tlsSkipVerify := strings.EqualFold(firstMsg.Headers[httpmsg.MetadataTLSSkipVerify], "true")
 
 	req, err := httpmsg.DecodeRequest(firstMsg, stream)
 	if err != nil {
@@ -154,7 +159,7 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 
 	log.Info().Str("req_id", id.String()).Str("method", req.Method).Str("url", req.URL.String()).Msg("Forwarding request")
 
-	client := &http.Client{}
+	client := forwardHTTPClient(tlsSkipVerify)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to execute request")
@@ -191,6 +196,28 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	}
 
 	log.Info().Str("req_id", id.String()).Msg("Finished successfully")
+}
+
+func forwardHTTPClient(tlsSkipVerify bool) *http.Client {
+	if tlsSkipVerify {
+		return tlsSkipVerifyForwardClient
+	}
+	return defaultForwardClient
+}
+
+func tlsSkipVerifyTransport() http.RoundTripper {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	transport := base.Clone()
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{}
+	} else {
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	}
+	transport.TLSClientConfig.InsecureSkipVerify = true
+	return transport
 }
 
 func startStatsReporter(mgmtURL string, agentToken string) {

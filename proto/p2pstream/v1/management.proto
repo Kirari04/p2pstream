@@ -16,6 +16,18 @@ enum ProxyState {
   PROXY_STATE_ERROR = 5;
 }
 
+enum PublicListenerProtocol {
+  PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED = 0;
+  PUBLIC_LISTENER_PROTOCOL_HTTP = 1;
+  PUBLIC_LISTENER_PROTOCOL_HTTPS = 2;
+}
+
+enum PublicBackendType {
+  PUBLIC_BACKEND_TYPE_UNSPECIFIED = 0;
+  PUBLIC_BACKEND_TYPE_PROXY_FORWARD = 1;
+  PUBLIC_BACKEND_TYPE_STATIC = 2;
+}
+
 message AgentStatsRequest {
   int64 memory_sys_mb = 1;
   int64 num_goroutine = 2;
@@ -67,6 +79,263 @@ message ProxyStatus {
   string last_error = 2;
   int64 started_at_unix_millis = 3;
   int64 stopped_at_unix_millis = 4;
+  repeated PublicListenerStatus listeners = 5;
+}
+
+message PublicBackend {
+  int64 id = 1;
+  string name = 2;
+  string target_origin = 3;
+  bool enabled = 4;
+  int64 created_at_unix_millis = 5;
+  int64 updated_at_unix_millis = 6;
+  PublicBackendType backend_type = 7;
+  bool tls_skip_verify = 8;
+  int64 static_status_code = 9;
+  repeated PublicHeader static_response_headers = 10;
+  string static_response_body = 11;
+}
+
+message PublicHeader {
+  string name = 1;
+  string value = 2;
+}
+
+message PublicListener {
+  int64 id = 1;
+  string name = 2;
+  string bind_address = 3;
+  int64 port = 4;
+  PublicListenerProtocol protocol = 5;
+  bool enabled = 6;
+  int64 default_backend_id = 7;
+  int64 created_at_unix_millis = 8;
+  int64 updated_at_unix_millis = 9;
+}
+
+message PublicRoute {
+  int64 id = 1;
+  int64 listener_id = 2;
+  int64 priority = 3;
+  string host_pattern = 4;
+  string path_prefix = 5;
+  int64 backend_id = 6;
+  bool enabled = 7;
+  int64 created_at_unix_millis = 8;
+  int64 updated_at_unix_millis = 9;
+}
+
+message PublicTlsCertificate {
+  int64 id = 1;
+  int64 listener_id = 2;
+  string hostname_pattern = 3;
+  string cert_path = 4;
+  string key_path = 5;
+  bool enabled = 6;
+  int64 created_at_unix_millis = 7;
+  int64 updated_at_unix_millis = 8;
+}
+
+message PublicListenerStatus {
+  int64 listener_id = 1;
+  ProxyState state = 2;
+  string last_error = 3;
+  int64 started_at_unix_millis = 4;
+  int64 stopped_at_unix_millis = 5;
+  string bound_address = 6;
+  bool running = 7;
+  bool disabled = 8;
+}
+
+message GetPublicProxyConfigRequest {
+}
+
+message GetPublicProxyConfigResponse {
+  repeated PublicBackend backends = 1;
+  repeated PublicListener listeners = 2;
+  repeated PublicRoute routes = 3;
+  repeated PublicTlsCertificate tls_certificates = 4;
+  ProxyStatus proxy = 5;
+}
+
+message CreatePublicBackendRequest {
+  string name = 1;
+  string target_origin = 2;
+  bool enabled = 3;
+  PublicBackendType backend_type = 4;
+  bool tls_skip_verify = 5;
+  int64 static_status_code = 6;
+  repeated PublicHeader static_response_headers = 7;
+  string static_response_body = 8;
+}
+
+message CreatePublicBackendResponse {
+  PublicBackend backend = 1;
+}
+
+message UpdatePublicBackendRequest {
+  int64 id = 1;
+  string name = 2;
+  string target_origin = 3;
+  bool enabled = 4;
+  PublicBackendType backend_type = 5;
+  bool tls_skip_verify = 6;
+  int64 static_status_code = 7;
+  repeated PublicHeader static_response_headers = 8;
+  string static_response_body = 9;
+}
+
+message UpdatePublicBackendResponse {
+  PublicBackend backend = 1;
+}
+
+message DeletePublicBackendRequest {
+  int64 id = 1;
+}
+
+message DeletePublicBackendResponse {
+}
+
+message CreatePublicListenerRequest {
+  string name = 1;
+  string bind_address = 2;
+  int64 port = 3;
+  PublicListenerProtocol protocol = 4;
+  bool enabled = 5;
+  int64 default_backend_id = 6;
+}
+
+message CreatePublicListenerResponse {
+  PublicListener listener = 1;
+  PublicListenerStatus status = 2;
+  ProxyStatus proxy = 3;
+}
+
+message UpdatePublicListenerRequest {
+  int64 id = 1;
+  string name = 2;
+  string bind_address = 3;
+  int64 port = 4;
+  PublicListenerProtocol protocol = 5;
+  bool enabled = 6;
+  int64 default_backend_id = 7;
+}
+
+message UpdatePublicListenerResponse {
+  PublicListener listener = 1;
+  PublicListenerStatus status = 2;
+  ProxyStatus proxy = 3;
+}
+
+message DeletePublicListenerRequest {
+  int64 id = 1;
+}
+
+message DeletePublicListenerResponse {
+}
+
+message EnablePublicListenerRequest {
+  int64 id = 1;
+}
+
+message EnablePublicListenerResponse {
+  PublicListener listener = 1;
+  PublicListenerStatus status = 2;
+  ProxyStatus proxy = 3;
+}
+
+message DisablePublicListenerRequest {
+  int64 id = 1;
+}
+
+message DisablePublicListenerResponse {
+  PublicListener listener = 1;
+  PublicListenerStatus status = 2;
+  ProxyStatus proxy = 3;
+}
+
+message StartPublicListenerRequest {
+  int64 id = 1;
+}
+
+message StartPublicListenerResponse {
+  PublicListenerStatus status = 1;
+  ProxyStatus proxy = 2;
+}
+
+message StopPublicListenerRequest {
+  int64 id = 1;
+}
+
+message StopPublicListenerResponse {
+  PublicListenerStatus status = 1;
+  ProxyStatus proxy = 2;
+}
+
+message CreatePublicRouteRequest {
+  int64 listener_id = 1;
+  int64 priority = 2;
+  string host_pattern = 3;
+  string path_prefix = 4;
+  int64 backend_id = 5;
+  bool enabled = 6;
+}
+
+message CreatePublicRouteResponse {
+  PublicRoute route = 1;
+}
+
+message UpdatePublicRouteRequest {
+  int64 id = 1;
+  int64 listener_id = 2;
+  int64 priority = 3;
+  string host_pattern = 4;
+  string path_prefix = 5;
+  int64 backend_id = 6;
+  bool enabled = 7;
+}
+
+message UpdatePublicRouteResponse {
+  PublicRoute route = 1;
+}
+
+message DeletePublicRouteRequest {
+  int64 id = 1;
+}
+
+message DeletePublicRouteResponse {
+}
+
+message CreatePublicTlsCertificateRequest {
+  int64 listener_id = 1;
+  string hostname_pattern = 2;
+  string cert_path = 3;
+  string key_path = 4;
+  bool enabled = 5;
+}
+
+message CreatePublicTlsCertificateResponse {
+  PublicTlsCertificate tls_certificate = 1;
+}
+
+message UpdatePublicTlsCertificateRequest {
+  int64 id = 1;
+  int64 listener_id = 2;
+  string hostname_pattern = 3;
+  string cert_path = 4;
+  string key_path = 5;
+  bool enabled = 6;
+}
+
+message UpdatePublicTlsCertificateResponse {
+  PublicTlsCertificate tls_certificate = 1;
+}
+
+message DeletePublicTlsCertificateRequest {
+  int64 id = 1;
+}
+
+message DeletePublicTlsCertificateResponse {
 }
 
 message GetDashboardRequest {
@@ -176,4 +445,21 @@ service AgentManagementService {
   rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse) {}
   rpc StartProxy(StartProxyRequest) returns (StartProxyResponse) {}
   rpc StopProxy(StopProxyRequest) returns (StopProxyResponse) {}
+  rpc GetPublicProxyConfig(GetPublicProxyConfigRequest) returns (GetPublicProxyConfigResponse) {}
+  rpc CreatePublicBackend(CreatePublicBackendRequest) returns (CreatePublicBackendResponse) {}
+  rpc UpdatePublicBackend(UpdatePublicBackendRequest) returns (UpdatePublicBackendResponse) {}
+  rpc DeletePublicBackend(DeletePublicBackendRequest) returns (DeletePublicBackendResponse) {}
+  rpc CreatePublicListener(CreatePublicListenerRequest) returns (CreatePublicListenerResponse) {}
+  rpc UpdatePublicListener(UpdatePublicListenerRequest) returns (UpdatePublicListenerResponse) {}
+  rpc DeletePublicListener(DeletePublicListenerRequest) returns (DeletePublicListenerResponse) {}
+  rpc EnablePublicListener(EnablePublicListenerRequest) returns (EnablePublicListenerResponse) {}
+  rpc DisablePublicListener(DisablePublicListenerRequest) returns (DisablePublicListenerResponse) {}
+  rpc StartPublicListener(StartPublicListenerRequest) returns (StartPublicListenerResponse) {}
+  rpc StopPublicListener(StopPublicListenerRequest) returns (StopPublicListenerResponse) {}
+  rpc CreatePublicRoute(CreatePublicRouteRequest) returns (CreatePublicRouteResponse) {}
+  rpc UpdatePublicRoute(UpdatePublicRouteRequest) returns (UpdatePublicRouteResponse) {}
+  rpc DeletePublicRoute(DeletePublicRouteRequest) returns (DeletePublicRouteResponse) {}
+  rpc CreatePublicTlsCertificate(CreatePublicTlsCertificateRequest) returns (CreatePublicTlsCertificateResponse) {}
+  rpc UpdatePublicTlsCertificate(UpdatePublicTlsCertificateRequest) returns (UpdatePublicTlsCertificateResponse) {}
+  rpc DeletePublicTlsCertificate(DeletePublicTlsCertificateRequest) returns (DeletePublicTlsCertificateResponse) {}
 }

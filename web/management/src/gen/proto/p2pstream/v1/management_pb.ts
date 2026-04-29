@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto/p2pstream/v1/management.proto.
  */
 export const file_proto_p2pstream_v1_management: GenFile = /*@__PURE__*/
-  fileDesc("CiNwcm90by9wMnBzdHJlYW0vdjEvbWFuYWdlbWVudC5wcm90bxIMcDJwc3RyZWFtLnYxIusBChFBZ2VudFN0YXRzUmVxdWVzdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBSIUChJBZ2VudFN0YXRzUmVzcG9uc2UiSgoEVXNlchIKCgJpZBgBIAEoAxIQCgh1c2VybmFtZRgCIAEoCRIkCgRyb2xlGAMgASgOMhYucDJwc3RyZWFtLnYxLlVzZXJSb2xlIhIKEEdldFN0YXR1c1JlcXVlc3QijQIKEkFnZW50U3RhdHNTbmFwc2hvdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBRIfChdyZXBvcnRlZF9hdF91bml4X21pbGxpcxgKIAEoAyLcAQoRR2V0U3RhdHVzUmVzcG9uc2USFQoNcHJveHlfcnVubmluZxgBIAEoCBIYChBwcm94eV9sYXN0X2Vycm9yGAIgASgJEhcKD2FnZW50X2Nvbm5lY3RlZBgDIAEoCBIVCg10YXJnZXRfb3JpZ2luGAQgASgJEjwKEmxhdGVzdF9hZ2VudF9zdGF0cxgFIAEoCzIgLnAycHN0cmVhbS52MS5BZ2VudFN0YXRzU25hcHNob3QSKAoFcHJveHkYBiABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiigEKC1Byb3h5U3RhdHVzEicKBXN0YXRlGAEgASgOMhgucDJwc3RyZWFtLnYxLlByb3h5U3RhdGUSEgoKbGFzdF9lcnJvchgCIAEoCRIeChZzdGFydGVkX2F0X3VuaXhfbWlsbGlzGAMgASgDEh4KFnN0b3BwZWRfYXRfdW5peF9taWxsaXMYBCABKAMiFQoTR2V0RGFzaGJvYXJkUmVxdWVzdCKoBAoWRGFzaGJvYXJkV2luZG93U3VtbWFyeRINCgVsYWJlbBgBIAEoCRIZChFzaW5jZV91bml4X21pbGxpcxgCIAEoAxIWCg5wcm94eV9yZXF1ZXN0cxgDIAEoAxIVCg1wcm94eV9zdWNjZXNzGAQgASgDEhoKEnByb3h5X2NsaWVudF9lcnJvchgFIAEoAxIaChJwcm94eV9zZXJ2ZXJfZXJyb3IYBiABKAMSHAoUcHJveHlfaW50ZXJuYWxfZXJyb3IYByABKAMSHQoVcHJveHlfYXZnX2R1cmF0aW9uX21zGAggASgDEhUKDWFnZW50X3NhbXBsZXMYCSABKAMSGQoRYWdlbnRfcmVxX3N1Y2Nlc3MYCiABKAMSHgoWYWdlbnRfcmVxX2NsaWVudF9lcnJvchgLIAEoAxIeChZhZ2VudF9yZXFfc2VydmVyX2Vycm9yGAwgASgDEiAKGGFnZW50X3JlcV9pbnRlcm5hbF9lcnJvchgNIAEoAxIcChRhZ2VudF9ieXRlc19yZWNlaXZlZBgOIAEoBBIYChBhZ2VudF9ieXRlc19zZW50GA8gASgEEhsKE2FnZW50X2F2Z19tZW1vcnlfbWIYECABKAMSGwoTYWdlbnRfbWF4X21lbW9yeV9tYhgRIAEoAxIcChRhZ2VudF9hdmdfZ29yb3V0aW5lcxgSIAEoAxIcChRhZ2VudF9tYXhfZ29yb3V0aW5lcxgTIAEoAyLAAQoWQWdlbnRDb25uZWN0aW9uU3VtbWFyeRIRCgljb25uZWN0ZWQYASABKAgSGQoRdG90YWxfY29ubmVjdGlvbnMYAiABKAMSJwofYWN0aXZlX2Nvbm5lY3RlZF9hdF91bml4X21pbGxpcxgDIAEoAxIlCh1sYXN0X2Nvbm5lY3RlZF9hdF91bml4X21pbGxpcxgEIAEoAxIoCiBsYXN0X2Rpc2Nvbm5lY3RlZF9hdF91bml4X21pbGxpcxgFIAEoAyL5AQoUR2V0RGFzaGJvYXJkUmVzcG9uc2USLwoGc3RhdHVzGAEgASgLMh8ucDJwc3RyZWFtLnYxLkdldFN0YXR1c1Jlc3BvbnNlEjUKB3dpbmRvd3MYAiADKAsyJC5wMnBzdHJlYW0udjEuRGFzaGJvYXJkV2luZG93U3VtbWFyeRI/ChFhZ2VudF9jb25uZWN0aW9ucxgDIAEoCzIkLnAycHN0cmVhbS52MS5BZ2VudENvbm5lY3Rpb25TdW1tYXJ5EhYKDnJldGVudGlvbl9kYXlzGAQgASgDEiAKGGdlbmVyYXRlZF9hdF91bml4X21pbGxpcxgFIAEoAyIWChRHZXRTZXR1cFN0YXRlUmVxdWVzdCKQAQoVR2V0U2V0dXBTdGF0ZVJlc3BvbnNlEhYKDnNldHVwX3JlcXVpcmVkGAEgASgIEhcKD3NldHVwX2F2YWlsYWJsZRgCIAEoCBIkChxzZXR1cF9leHBpcmVzX2F0X3VuaXhfbWlsbGlzGAMgASgDEiAKGHNldHVwX3VuYXZhaWxhYmxlX3JlYXNvbhgEIAEoCSI3ChFTZXR1cEFkbWluUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSI2ChJTZXR1cEFkbWluUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLnAycHN0cmVhbS52MS5Vc2VyIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSIxCg1Mb2dpblJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5wMnBzdHJlYW0udjEuVXNlciIPCg1Mb2dvdXRSZXF1ZXN0IhAKDkxvZ291dFJlc3BvbnNlIhcKFUdldEN1cnJlbnRVc2VyUmVxdWVzdCI6ChZHZXRDdXJyZW50VXNlclJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5wMnBzdHJlYW0udjEuVXNlciITChFTdGFydFByb3h5UmVxdWVzdCI+ChJTdGFydFByb3h5UmVzcG9uc2USKAoFcHJveHkYASABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiEgoQU3RvcFByb3h5UmVxdWVzdCI9ChFTdG9wUHJveHlSZXNwb25zZRIoCgVwcm94eRgBIAEoCzIZLnAycHN0cmVhbS52MS5Qcm94eVN0YXR1cyo6CghVc2VyUm9sZRIZChVVU0VSX1JPTEVfVU5TUEVDSUZJRUQQABITCg9VU0VSX1JPTEVfQURNSU4QASqmAQoKUHJveHlTdGF0ZRIbChdQUk9YWV9TVEFURV9VTlNQRUNJRklFRBAAEhcKE1BST1hZX1NUQVRFX1NUT1BQRUQQARIYChRQUk9YWV9TVEFURV9TVEFSVElORxACEhcKE1BST1hZX1NUQVRFX1JVTk5JTkcQAxIYChRQUk9YWV9TVEFURV9TVE9QUElORxAEEhUKEVBST1hZX1NUQVRFX0VSUk9SEAUy0QYKFkFnZW50TWFuYWdlbWVudFNlcnZpY2USUgoLUmVwb3J0U3RhdHMSHy5wMnBzdHJlYW0udjEuQWdlbnRTdGF0c1JlcXVlc3QaIC5wMnBzdHJlYW0udjEuQWdlbnRTdGF0c1Jlc3BvbnNlIgASTgoJR2V0U3RhdHVzEh4ucDJwc3RyZWFtLnYxLkdldFN0YXR1c1JlcXVlc3QaHy5wMnBzdHJlYW0udjEuR2V0U3RhdHVzUmVzcG9uc2UiABJXCgxHZXREYXNoYm9hcmQSIS5wMnBzdHJlYW0udjEuR2V0RGFzaGJvYXJkUmVxdWVzdBoiLnAycHN0cmVhbS52MS5HZXREYXNoYm9hcmRSZXNwb25zZSIAEloKDUdldFNldHVwU3RhdGUSIi5wMnBzdHJlYW0udjEuR2V0U2V0dXBTdGF0ZVJlcXVlc3QaIy5wMnBzdHJlYW0udjEuR2V0U2V0dXBTdGF0ZVJlc3BvbnNlIgASUQoKU2V0dXBBZG1pbhIfLnAycHN0cmVhbS52MS5TZXR1cEFkbWluUmVxdWVzdBogLnAycHN0cmVhbS52MS5TZXR1cEFkbWluUmVzcG9uc2UiABJCCgVMb2dpbhIaLnAycHN0cmVhbS52MS5Mb2dpblJlcXVlc3QaGy5wMnBzdHJlYW0udjEuTG9naW5SZXNwb25zZSIAEkUKBkxvZ291dBIbLnAycHN0cmVhbS52MS5Mb2dvdXRSZXF1ZXN0GhwucDJwc3RyZWFtLnYxLkxvZ291dFJlc3BvbnNlIgASXQoOR2V0Q3VycmVudFVzZXISIy5wMnBzdHJlYW0udjEuR2V0Q3VycmVudFVzZXJSZXF1ZXN0GiQucDJwc3RyZWFtLnYxLkdldEN1cnJlbnRVc2VyUmVzcG9uc2UiABJRCgpTdGFydFByb3h5Eh8ucDJwc3RyZWFtLnYxLlN0YXJ0UHJveHlSZXF1ZXN0GiAucDJwc3RyZWFtLnYxLlN0YXJ0UHJveHlSZXNwb25zZSIAEk4KCVN0b3BQcm94eRIeLnAycHN0cmVhbS52MS5TdG9wUHJveHlSZXF1ZXN0Gh8ucDJwc3RyZWFtLnYxLlN0b3BQcm94eVJlc3BvbnNlIgBCogEKEGNvbS5wMnBzdHJlYW0udjFCD01hbmFnZW1lbnRQcm90b1ABWixwMnBzdHJlYW0vZ2VuL3Byb3RvL3AycHN0cmVhbS92MTtwMnBzdHJlYW12MaICA1BYWKoCDFAycHN0cmVhbS5WMcoCDFAycHN0cmVhbVxWMeICGFAycHN0cmVhbVxWMVxHUEJNZXRhZGF0YeoCDVAycHN0cmVhbTo6VjFiBnByb3RvMw");
+  fileDesc("CiNwcm90by9wMnBzdHJlYW0vdjEvbWFuYWdlbWVudC5wcm90bxIMcDJwc3RyZWFtLnYxIusBChFBZ2VudFN0YXRzUmVxdWVzdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBSIUChJBZ2VudFN0YXRzUmVzcG9uc2UiSgoEVXNlchIKCgJpZBgBIAEoAxIQCgh1c2VybmFtZRgCIAEoCRIkCgRyb2xlGAMgASgOMhYucDJwc3RyZWFtLnYxLlVzZXJSb2xlIhIKEEdldFN0YXR1c1JlcXVlc3QijQIKEkFnZW50U3RhdHNTbmFwc2hvdBIVCg1tZW1vcnlfc3lzX21iGAEgASgDEhUKDW51bV9nb3JvdXRpbmUYAiABKAMSEwoLcmVxX3N1Y2Nlc3MYAyABKAMSGAoQcmVxX2NsaWVudF9lcnJvchgEIAEoAxIYChByZXFfc2VydmVyX2Vycm9yGAUgASgDEhoKEnJlcV9pbnRlcm5hbF9lcnJvchgGIAEoAxIWCg5ieXRlc19yZWNlaXZlZBgHIAEoBBISCgpieXRlc19zZW50GAggASgEEhcKD2FjdGl2ZV9yZXF1ZXN0cxgJIAEoBRIfChdyZXBvcnRlZF9hdF91bml4X21pbGxpcxgKIAEoAyLcAQoRR2V0U3RhdHVzUmVzcG9uc2USFQoNcHJveHlfcnVubmluZxgBIAEoCBIYChBwcm94eV9sYXN0X2Vycm9yGAIgASgJEhcKD2FnZW50X2Nvbm5lY3RlZBgDIAEoCBIVCg10YXJnZXRfb3JpZ2luGAQgASgJEjwKEmxhdGVzdF9hZ2VudF9zdGF0cxgFIAEoCzIgLnAycHN0cmVhbS52MS5BZ2VudFN0YXRzU25hcHNob3QSKAoFcHJveHkYBiABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiwQEKC1Byb3h5U3RhdHVzEicKBXN0YXRlGAEgASgOMhgucDJwc3RyZWFtLnYxLlByb3h5U3RhdGUSEgoKbGFzdF9lcnJvchgCIAEoCRIeChZzdGFydGVkX2F0X3VuaXhfbWlsbGlzGAMgASgDEh4KFnN0b3BwZWRfYXRfdW5peF9taWxsaXMYBCABKAMSNQoJbGlzdGVuZXJzGAUgAygLMiIucDJwc3RyZWFtLnYxLlB1YmxpY0xpc3RlbmVyU3RhdHVzItgCCg1QdWJsaWNCYWNrZW5kEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSFQoNdGFyZ2V0X29yaWdpbhgDIAEoCRIPCgdlbmFibGVkGAQgASgIEh4KFmNyZWF0ZWRfYXRfdW5peF9taWxsaXMYBSABKAMSHgoWdXBkYXRlZF9hdF91bml4X21pbGxpcxgGIAEoAxI1CgxiYWNrZW5kX3R5cGUYByABKA4yHy5wMnBzdHJlYW0udjEuUHVibGljQmFja2VuZFR5cGUSFwoPdGxzX3NraXBfdmVyaWZ5GAggASgIEhoKEnN0YXRpY19zdGF0dXNfY29kZRgJIAEoAxI7ChdzdGF0aWNfcmVzcG9uc2VfaGVhZGVycxgKIAMoCzIaLnAycHN0cmVhbS52MS5QdWJsaWNIZWFkZXISHAoUc3RhdGljX3Jlc3BvbnNlX2JvZHkYCyABKAkiKwoMUHVibGljSGVhZGVyEgwKBG5hbWUYASABKAkSDQoFdmFsdWUYAiABKAki8wEKDlB1YmxpY0xpc3RlbmVyEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSFAoMYmluZF9hZGRyZXNzGAMgASgJEgwKBHBvcnQYBCABKAMSNgoIcHJvdG9jb2wYBSABKA4yJC5wMnBzdHJlYW0udjEuUHVibGljTGlzdGVuZXJQcm90b2NvbBIPCgdlbmFibGVkGAYgASgIEhoKEmRlZmF1bHRfYmFja2VuZF9pZBgHIAEoAxIeChZjcmVhdGVkX2F0X3VuaXhfbWlsbGlzGAggASgDEh4KFnVwZGF0ZWRfYXRfdW5peF9taWxsaXMYCSABKAMi0AEKC1B1YmxpY1JvdXRlEgoKAmlkGAEgASgDEhMKC2xpc3RlbmVyX2lkGAIgASgDEhAKCHByaW9yaXR5GAMgASgDEhQKDGhvc3RfcGF0dGVybhgEIAEoCRITCgtwYXRoX3ByZWZpeBgFIAEoCRISCgpiYWNrZW5kX2lkGAYgASgDEg8KB2VuYWJsZWQYByABKAgSHgoWY3JlYXRlZF9hdF91bml4X21pbGxpcxgIIAEoAxIeChZ1cGRhdGVkX2F0X3VuaXhfbWlsbGlzGAkgASgDIscBChRQdWJsaWNUbHNDZXJ0aWZpY2F0ZRIKCgJpZBgBIAEoAxITCgtsaXN0ZW5lcl9pZBgCIAEoAxIYChBob3N0bmFtZV9wYXR0ZXJuGAMgASgJEhEKCWNlcnRfcGF0aBgEIAEoCRIQCghrZXlfcGF0aBgFIAEoCRIPCgdlbmFibGVkGAYgASgIEh4KFmNyZWF0ZWRfYXRfdW5peF9taWxsaXMYByABKAMSHgoWdXBkYXRlZF9hdF91bml4X21pbGxpcxgIIAEoAyLiAQoUUHVibGljTGlzdGVuZXJTdGF0dXMSEwoLbGlzdGVuZXJfaWQYASABKAMSJwoFc3RhdGUYAiABKA4yGC5wMnBzdHJlYW0udjEuUHJveHlTdGF0ZRISCgpsYXN0X2Vycm9yGAMgASgJEh4KFnN0YXJ0ZWRfYXRfdW5peF9taWxsaXMYBCABKAMSHgoWc3RvcHBlZF9hdF91bml4X21pbGxpcxgFIAEoAxIVCg1ib3VuZF9hZGRyZXNzGAYgASgJEg8KB3J1bm5pbmcYByABKAgSEAoIZGlzYWJsZWQYCCABKAgiHQobR2V0UHVibGljUHJveHlDb25maWdSZXF1ZXN0IpECChxHZXRQdWJsaWNQcm94eUNvbmZpZ1Jlc3BvbnNlEi0KCGJhY2tlbmRzGAEgAygLMhsucDJwc3RyZWFtLnYxLlB1YmxpY0JhY2tlbmQSLwoJbGlzdGVuZXJzGAIgAygLMhwucDJwc3RyZWFtLnYxLlB1YmxpY0xpc3RlbmVyEikKBnJvdXRlcxgDIAMoCzIZLnAycHN0cmVhbS52MS5QdWJsaWNSb3V0ZRI8ChB0bHNfY2VydGlmaWNhdGVzGAQgAygLMiIucDJwc3RyZWFtLnYxLlB1YmxpY1Rsc0NlcnRpZmljYXRlEigKBXByb3h5GAUgASgLMhkucDJwc3RyZWFtLnYxLlByb3h5U3RhdHVzIpkCChpDcmVhdGVQdWJsaWNCYWNrZW5kUmVxdWVzdBIMCgRuYW1lGAEgASgJEhUKDXRhcmdldF9vcmlnaW4YAiABKAkSDwoHZW5hYmxlZBgDIAEoCBI1CgxiYWNrZW5kX3R5cGUYBCABKA4yHy5wMnBzdHJlYW0udjEuUHVibGljQmFja2VuZFR5cGUSFwoPdGxzX3NraXBfdmVyaWZ5GAUgASgIEhoKEnN0YXRpY19zdGF0dXNfY29kZRgGIAEoAxI7ChdzdGF0aWNfcmVzcG9uc2VfaGVhZGVycxgHIAMoCzIaLnAycHN0cmVhbS52MS5QdWJsaWNIZWFkZXISHAoUc3RhdGljX3Jlc3BvbnNlX2JvZHkYCCABKAkiSwobQ3JlYXRlUHVibGljQmFja2VuZFJlc3BvbnNlEiwKB2JhY2tlbmQYASABKAsyGy5wMnBzdHJlYW0udjEuUHVibGljQmFja2VuZCKlAgoaVXBkYXRlUHVibGljQmFja2VuZFJlcXVlc3QSCgoCaWQYASABKAMSDAoEbmFtZRgCIAEoCRIVCg10YXJnZXRfb3JpZ2luGAMgASgJEg8KB2VuYWJsZWQYBCABKAgSNQoMYmFja2VuZF90eXBlGAUgASgOMh8ucDJwc3RyZWFtLnYxLlB1YmxpY0JhY2tlbmRUeXBlEhcKD3Rsc19za2lwX3ZlcmlmeRgGIAEoCBIaChJzdGF0aWNfc3RhdHVzX2NvZGUYByABKAMSOwoXc3RhdGljX3Jlc3BvbnNlX2hlYWRlcnMYCCADKAsyGi5wMnBzdHJlYW0udjEuUHVibGljSGVhZGVyEhwKFHN0YXRpY19yZXNwb25zZV9ib2R5GAkgASgJIksKG1VwZGF0ZVB1YmxpY0JhY2tlbmRSZXNwb25zZRIsCgdiYWNrZW5kGAEgASgLMhsucDJwc3RyZWFtLnYxLlB1YmxpY0JhY2tlbmQiKAoaRGVsZXRlUHVibGljQmFja2VuZFJlcXVlc3QSCgoCaWQYASABKAMiHQobRGVsZXRlUHVibGljQmFja2VuZFJlc3BvbnNlIrQBChtDcmVhdGVQdWJsaWNMaXN0ZW5lclJlcXVlc3QSDAoEbmFtZRgBIAEoCRIUCgxiaW5kX2FkZHJlc3MYAiABKAkSDAoEcG9ydBgDIAEoAxI2Cghwcm90b2NvbBgEIAEoDjIkLnAycHN0cmVhbS52MS5QdWJsaWNMaXN0ZW5lclByb3RvY29sEg8KB2VuYWJsZWQYBSABKAgSGgoSZGVmYXVsdF9iYWNrZW5kX2lkGAYgASgDIqwBChxDcmVhdGVQdWJsaWNMaXN0ZW5lclJlc3BvbnNlEi4KCGxpc3RlbmVyGAEgASgLMhwucDJwc3RyZWFtLnYxLlB1YmxpY0xpc3RlbmVyEjIKBnN0YXR1cxgCIAEoCzIiLnAycHN0cmVhbS52MS5QdWJsaWNMaXN0ZW5lclN0YXR1cxIoCgVwcm94eRgDIAEoCzIZLnAycHN0cmVhbS52MS5Qcm94eVN0YXR1cyLAAQobVXBkYXRlUHVibGljTGlzdGVuZXJSZXF1ZXN0EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSFAoMYmluZF9hZGRyZXNzGAMgASgJEgwKBHBvcnQYBCABKAMSNgoIcHJvdG9jb2wYBSABKA4yJC5wMnBzdHJlYW0udjEuUHVibGljTGlzdGVuZXJQcm90b2NvbBIPCgdlbmFibGVkGAYgASgIEhoKEmRlZmF1bHRfYmFja2VuZF9pZBgHIAEoAyKsAQocVXBkYXRlUHVibGljTGlzdGVuZXJSZXNwb25zZRIuCghsaXN0ZW5lchgBIAEoCzIcLnAycHN0cmVhbS52MS5QdWJsaWNMaXN0ZW5lchIyCgZzdGF0dXMYAiABKAsyIi5wMnBzdHJlYW0udjEuUHVibGljTGlzdGVuZXJTdGF0dXMSKAoFcHJveHkYAyABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiKQobRGVsZXRlUHVibGljTGlzdGVuZXJSZXF1ZXN0EgoKAmlkGAEgASgDIh4KHERlbGV0ZVB1YmxpY0xpc3RlbmVyUmVzcG9uc2UiKQobRW5hYmxlUHVibGljTGlzdGVuZXJSZXF1ZXN0EgoKAmlkGAEgASgDIqwBChxFbmFibGVQdWJsaWNMaXN0ZW5lclJlc3BvbnNlEi4KCGxpc3RlbmVyGAEgASgLMhwucDJwc3RyZWFtLnYxLlB1YmxpY0xpc3RlbmVyEjIKBnN0YXR1cxgCIAEoCzIiLnAycHN0cmVhbS52MS5QdWJsaWNMaXN0ZW5lclN0YXR1cxIoCgVwcm94eRgDIAEoCzIZLnAycHN0cmVhbS52MS5Qcm94eVN0YXR1cyIqChxEaXNhYmxlUHVibGljTGlzdGVuZXJSZXF1ZXN0EgoKAmlkGAEgASgDIq0BCh1EaXNhYmxlUHVibGljTGlzdGVuZXJSZXNwb25zZRIuCghsaXN0ZW5lchgBIAEoCzIcLnAycHN0cmVhbS52MS5QdWJsaWNMaXN0ZW5lchIyCgZzdGF0dXMYAiABKAsyIi5wMnBzdHJlYW0udjEuUHVibGljTGlzdGVuZXJTdGF0dXMSKAoFcHJveHkYAyABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMiKAoaU3RhcnRQdWJsaWNMaXN0ZW5lclJlcXVlc3QSCgoCaWQYASABKAMiewobU3RhcnRQdWJsaWNMaXN0ZW5lclJlc3BvbnNlEjIKBnN0YXR1cxgBIAEoCzIiLnAycHN0cmVhbS52MS5QdWJsaWNMaXN0ZW5lclN0YXR1cxIoCgVwcm94eRgCIAEoCzIZLnAycHN0cmVhbS52MS5Qcm94eVN0YXR1cyInChlTdG9wUHVibGljTGlzdGVuZXJSZXF1ZXN0EgoKAmlkGAEgASgDInoKGlN0b3BQdWJsaWNMaXN0ZW5lclJlc3BvbnNlEjIKBnN0YXR1cxgBIAEoCzIiLnAycHN0cmVhbS52MS5QdWJsaWNMaXN0ZW5lclN0YXR1cxIoCgVwcm94eRgCIAEoCzIZLnAycHN0cmVhbS52MS5Qcm94eVN0YXR1cyKRAQoYQ3JlYXRlUHVibGljUm91dGVSZXF1ZXN0EhMKC2xpc3RlbmVyX2lkGAEgASgDEhAKCHByaW9yaXR5GAIgASgDEhQKDGhvc3RfcGF0dGVybhgDIAEoCRITCgtwYXRoX3ByZWZpeBgEIAEoCRISCgpiYWNrZW5kX2lkGAUgASgDEg8KB2VuYWJsZWQYBiABKAgiRQoZQ3JlYXRlUHVibGljUm91dGVSZXNwb25zZRIoCgVyb3V0ZRgBIAEoCzIZLnAycHN0cmVhbS52MS5QdWJsaWNSb3V0ZSKdAQoYVXBkYXRlUHVibGljUm91dGVSZXF1ZXN0EgoKAmlkGAEgASgDEhMKC2xpc3RlbmVyX2lkGAIgASgDEhAKCHByaW9yaXR5GAMgASgDEhQKDGhvc3RfcGF0dGVybhgEIAEoCRITCgtwYXRoX3ByZWZpeBgFIAEoCRISCgpiYWNrZW5kX2lkGAYgASgDEg8KB2VuYWJsZWQYByABKAgiRQoZVXBkYXRlUHVibGljUm91dGVSZXNwb25zZRIoCgVyb3V0ZRgBIAEoCzIZLnAycHN0cmVhbS52MS5QdWJsaWNSb3V0ZSImChhEZWxldGVQdWJsaWNSb3V0ZVJlcXVlc3QSCgoCaWQYASABKAMiGwoZRGVsZXRlUHVibGljUm91dGVSZXNwb25zZSKIAQohQ3JlYXRlUHVibGljVGxzQ2VydGlmaWNhdGVSZXF1ZXN0EhMKC2xpc3RlbmVyX2lkGAEgASgDEhgKEGhvc3RuYW1lX3BhdHRlcm4YAiABKAkSEQoJY2VydF9wYXRoGAMgASgJEhAKCGtleV9wYXRoGAQgASgJEg8KB2VuYWJsZWQYBSABKAgiYQoiQ3JlYXRlUHVibGljVGxzQ2VydGlmaWNhdGVSZXNwb25zZRI7Cg90bHNfY2VydGlmaWNhdGUYASABKAsyIi5wMnBzdHJlYW0udjEuUHVibGljVGxzQ2VydGlmaWNhdGUilAEKIVVwZGF0ZVB1YmxpY1Rsc0NlcnRpZmljYXRlUmVxdWVzdBIKCgJpZBgBIAEoAxITCgtsaXN0ZW5lcl9pZBgCIAEoAxIYChBob3N0bmFtZV9wYXR0ZXJuGAMgASgJEhEKCWNlcnRfcGF0aBgEIAEoCRIQCghrZXlfcGF0aBgFIAEoCRIPCgdlbmFibGVkGAYgASgIImEKIlVwZGF0ZVB1YmxpY1Rsc0NlcnRpZmljYXRlUmVzcG9uc2USOwoPdGxzX2NlcnRpZmljYXRlGAEgASgLMiIucDJwc3RyZWFtLnYxLlB1YmxpY1Rsc0NlcnRpZmljYXRlIi8KIURlbGV0ZVB1YmxpY1Rsc0NlcnRpZmljYXRlUmVxdWVzdBIKCgJpZBgBIAEoAyIkCiJEZWxldGVQdWJsaWNUbHNDZXJ0aWZpY2F0ZVJlc3BvbnNlIhUKE0dldERhc2hib2FyZFJlcXVlc3QiqAQKFkRhc2hib2FyZFdpbmRvd1N1bW1hcnkSDQoFbGFiZWwYASABKAkSGQoRc2luY2VfdW5peF9taWxsaXMYAiABKAMSFgoOcHJveHlfcmVxdWVzdHMYAyABKAMSFQoNcHJveHlfc3VjY2VzcxgEIAEoAxIaChJwcm94eV9jbGllbnRfZXJyb3IYBSABKAMSGgoScHJveHlfc2VydmVyX2Vycm9yGAYgASgDEhwKFHByb3h5X2ludGVybmFsX2Vycm9yGAcgASgDEh0KFXByb3h5X2F2Z19kdXJhdGlvbl9tcxgIIAEoAxIVCg1hZ2VudF9zYW1wbGVzGAkgASgDEhkKEWFnZW50X3JlcV9zdWNjZXNzGAogASgDEh4KFmFnZW50X3JlcV9jbGllbnRfZXJyb3IYCyABKAMSHgoWYWdlbnRfcmVxX3NlcnZlcl9lcnJvchgMIAEoAxIgChhhZ2VudF9yZXFfaW50ZXJuYWxfZXJyb3IYDSABKAMSHAoUYWdlbnRfYnl0ZXNfcmVjZWl2ZWQYDiABKAQSGAoQYWdlbnRfYnl0ZXNfc2VudBgPIAEoBBIbChNhZ2VudF9hdmdfbWVtb3J5X21iGBAgASgDEhsKE2FnZW50X21heF9tZW1vcnlfbWIYESABKAMSHAoUYWdlbnRfYXZnX2dvcm91dGluZXMYEiABKAMSHAoUYWdlbnRfbWF4X2dvcm91dGluZXMYEyABKAMiwAEKFkFnZW50Q29ubmVjdGlvblN1bW1hcnkSEQoJY29ubmVjdGVkGAEgASgIEhkKEXRvdGFsX2Nvbm5lY3Rpb25zGAIgASgDEicKH2FjdGl2ZV9jb25uZWN0ZWRfYXRfdW5peF9taWxsaXMYAyABKAMSJQodbGFzdF9jb25uZWN0ZWRfYXRfdW5peF9taWxsaXMYBCABKAMSKAogbGFzdF9kaXNjb25uZWN0ZWRfYXRfdW5peF9taWxsaXMYBSABKAMi+QEKFEdldERhc2hib2FyZFJlc3BvbnNlEi8KBnN0YXR1cxgBIAEoCzIfLnAycHN0cmVhbS52MS5HZXRTdGF0dXNSZXNwb25zZRI1Cgd3aW5kb3dzGAIgAygLMiQucDJwc3RyZWFtLnYxLkRhc2hib2FyZFdpbmRvd1N1bW1hcnkSPwoRYWdlbnRfY29ubmVjdGlvbnMYAyABKAsyJC5wMnBzdHJlYW0udjEuQWdlbnRDb25uZWN0aW9uU3VtbWFyeRIWCg5yZXRlbnRpb25fZGF5cxgEIAEoAxIgChhnZW5lcmF0ZWRfYXRfdW5peF9taWxsaXMYBSABKAMiFgoUR2V0U2V0dXBTdGF0ZVJlcXVlc3QikAEKFUdldFNldHVwU3RhdGVSZXNwb25zZRIWCg5zZXR1cF9yZXF1aXJlZBgBIAEoCBIXCg9zZXR1cF9hdmFpbGFibGUYAiABKAgSJAocc2V0dXBfZXhwaXJlc19hdF91bml4X21pbGxpcxgDIAEoAxIgChhzZXR1cF91bmF2YWlsYWJsZV9yZWFzb24YBCABKAkiNwoRU2V0dXBBZG1pblJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiNgoSU2V0dXBBZG1pblJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5wMnBzdHJlYW0udjEuVXNlciIyCgxMb2dpblJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiMQoNTG9naW5SZXNwb25zZRIgCgR1c2VyGAEgASgLMhIucDJwc3RyZWFtLnYxLlVzZXIiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIXChVHZXRDdXJyZW50VXNlclJlcXVlc3QiOgoWR2V0Q3VycmVudFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIucDJwc3RyZWFtLnYxLlVzZXIiEwoRU3RhcnRQcm94eVJlcXVlc3QiPgoSU3RhcnRQcm94eVJlc3BvbnNlEigKBXByb3h5GAEgASgLMhkucDJwc3RyZWFtLnYxLlByb3h5U3RhdHVzIhIKEFN0b3BQcm94eVJlcXVlc3QiPQoRU3RvcFByb3h5UmVzcG9uc2USKAoFcHJveHkYASABKAsyGS5wMnBzdHJlYW0udjEuUHJveHlTdGF0dXMqOgoIVXNlclJvbGUSGQoVVVNFUl9ST0xFX1VOU1BFQ0lGSUVEEAASEwoPVVNFUl9ST0xFX0FETUlOEAEqpgEKClByb3h5U3RhdGUSGwoXUFJPWFlfU1RBVEVfVU5TUEVDSUZJRUQQABIXChNQUk9YWV9TVEFURV9TVE9QUEVEEAESGAoUUFJPWFlfU1RBVEVfU1RBUlRJTkcQAhIXChNQUk9YWV9TVEFURV9SVU5OSU5HEAMSGAoUUFJPWFlfU1RBVEVfU1RPUFBJTkcQBBIVChFQUk9YWV9TVEFURV9FUlJPUhAFKokBChZQdWJsaWNMaXN0ZW5lclByb3RvY29sEigKJFBVQkxJQ19MSVNURU5FUl9QUk9UT0NPTF9VTlNQRUNJRklFRBAAEiEKHVBVQkxJQ19MSVNURU5FUl9QUk9UT0NPTF9IVFRQEAESIgoeUFVCTElDX0xJU1RFTkVSX1BST1RPQ09MX0hUVFBTEAIqfwoRUHVibGljQmFja2VuZFR5cGUSIwofUFVCTElDX0JBQ0tFTkRfVFlQRV9VTlNQRUNJRklFRBAAEiUKIVBVQkxJQ19CQUNLRU5EX1RZUEVfUFJPWFlfRk9SV0FSRBABEh4KGlBVQkxJQ19CQUNLRU5EX1RZUEVfU1RBVElDEAIy4RUKFkFnZW50TWFuYWdlbWVudFNlcnZpY2USUgoLUmVwb3J0U3RhdHMSHy5wMnBzdHJlYW0udjEuQWdlbnRTdGF0c1JlcXVlc3QaIC5wMnBzdHJlYW0udjEuQWdlbnRTdGF0c1Jlc3BvbnNlIgASTgoJR2V0U3RhdHVzEh4ucDJwc3RyZWFtLnYxLkdldFN0YXR1c1JlcXVlc3QaHy5wMnBzdHJlYW0udjEuR2V0U3RhdHVzUmVzcG9uc2UiABJXCgxHZXREYXNoYm9hcmQSIS5wMnBzdHJlYW0udjEuR2V0RGFzaGJvYXJkUmVxdWVzdBoiLnAycHN0cmVhbS52MS5HZXREYXNoYm9hcmRSZXNwb25zZSIAEloKDUdldFNldHVwU3RhdGUSIi5wMnBzdHJlYW0udjEuR2V0U2V0dXBTdGF0ZVJlcXVlc3QaIy5wMnBzdHJlYW0udjEuR2V0U2V0dXBTdGF0ZVJlc3BvbnNlIgASUQoKU2V0dXBBZG1pbhIfLnAycHN0cmVhbS52MS5TZXR1cEFkbWluUmVxdWVzdBogLnAycHN0cmVhbS52MS5TZXR1cEFkbWluUmVzcG9uc2UiABJCCgVMb2dpbhIaLnAycHN0cmVhbS52MS5Mb2dpblJlcXVlc3QaGy5wMnBzdHJlYW0udjEuTG9naW5SZXNwb25zZSIAEkUKBkxvZ291dBIbLnAycHN0cmVhbS52MS5Mb2dvdXRSZXF1ZXN0GhwucDJwc3RyZWFtLnYxLkxvZ291dFJlc3BvbnNlIgASXQoOR2V0Q3VycmVudFVzZXISIy5wMnBzdHJlYW0udjEuR2V0Q3VycmVudFVzZXJSZXF1ZXN0GiQucDJwc3RyZWFtLnYxLkdldEN1cnJlbnRVc2VyUmVzcG9uc2UiABJRCgpTdGFydFByb3h5Eh8ucDJwc3RyZWFtLnYxLlN0YXJ0UHJveHlSZXF1ZXN0GiAucDJwc3RyZWFtLnYxLlN0YXJ0UHJveHlSZXNwb25zZSIAEk4KCVN0b3BQcm94eRIeLnAycHN0cmVhbS52MS5TdG9wUHJveHlSZXF1ZXN0Gh8ucDJwc3RyZWFtLnYxLlN0b3BQcm94eVJlc3BvbnNlIgASbwoUR2V0UHVibGljUHJveHlDb25maWcSKS5wMnBzdHJlYW0udjEuR2V0UHVibGljUHJveHlDb25maWdSZXF1ZXN0GioucDJwc3RyZWFtLnYxLkdldFB1YmxpY1Byb3h5Q29uZmlnUmVzcG9uc2UiABJsChNDcmVhdGVQdWJsaWNCYWNrZW5kEigucDJwc3RyZWFtLnYxLkNyZWF0ZVB1YmxpY0JhY2tlbmRSZXF1ZXN0GikucDJwc3RyZWFtLnYxLkNyZWF0ZVB1YmxpY0JhY2tlbmRSZXNwb25zZSIAEmwKE1VwZGF0ZVB1YmxpY0JhY2tlbmQSKC5wMnBzdHJlYW0udjEuVXBkYXRlUHVibGljQmFja2VuZFJlcXVlc3QaKS5wMnBzdHJlYW0udjEuVXBkYXRlUHVibGljQmFja2VuZFJlc3BvbnNlIgASbAoTRGVsZXRlUHVibGljQmFja2VuZBIoLnAycHN0cmVhbS52MS5EZWxldGVQdWJsaWNCYWNrZW5kUmVxdWVzdBopLnAycHN0cmVhbS52MS5EZWxldGVQdWJsaWNCYWNrZW5kUmVzcG9uc2UiABJvChRDcmVhdGVQdWJsaWNMaXN0ZW5lchIpLnAycHN0cmVhbS52MS5DcmVhdGVQdWJsaWNMaXN0ZW5lclJlcXVlc3QaKi5wMnBzdHJlYW0udjEuQ3JlYXRlUHVibGljTGlzdGVuZXJSZXNwb25zZSIAEm8KFFVwZGF0ZVB1YmxpY0xpc3RlbmVyEikucDJwc3RyZWFtLnYxLlVwZGF0ZVB1YmxpY0xpc3RlbmVyUmVxdWVzdBoqLnAycHN0cmVhbS52MS5VcGRhdGVQdWJsaWNMaXN0ZW5lclJlc3BvbnNlIgASbwoURGVsZXRlUHVibGljTGlzdGVuZXISKS5wMnBzdHJlYW0udjEuRGVsZXRlUHVibGljTGlzdGVuZXJSZXF1ZXN0GioucDJwc3RyZWFtLnYxLkRlbGV0ZVB1YmxpY0xpc3RlbmVyUmVzcG9uc2UiABJvChRFbmFibGVQdWJsaWNMaXN0ZW5lchIpLnAycHN0cmVhbS52MS5FbmFibGVQdWJsaWNMaXN0ZW5lclJlcXVlc3QaKi5wMnBzdHJlYW0udjEuRW5hYmxlUHVibGljTGlzdGVuZXJSZXNwb25zZSIAEnIKFURpc2FibGVQdWJsaWNMaXN0ZW5lchIqLnAycHN0cmVhbS52MS5EaXNhYmxlUHVibGljTGlzdGVuZXJSZXF1ZXN0GisucDJwc3RyZWFtLnYxLkRpc2FibGVQdWJsaWNMaXN0ZW5lclJlc3BvbnNlIgASbAoTU3RhcnRQdWJsaWNMaXN0ZW5lchIoLnAycHN0cmVhbS52MS5TdGFydFB1YmxpY0xpc3RlbmVyUmVxdWVzdBopLnAycHN0cmVhbS52MS5TdGFydFB1YmxpY0xpc3RlbmVyUmVzcG9uc2UiABJpChJTdG9wUHVibGljTGlzdGVuZXISJy5wMnBzdHJlYW0udjEuU3RvcFB1YmxpY0xpc3RlbmVyUmVxdWVzdBooLnAycHN0cmVhbS52MS5TdG9wUHVibGljTGlzdGVuZXJSZXNwb25zZSIAEmYKEUNyZWF0ZVB1YmxpY1JvdXRlEiYucDJwc3RyZWFtLnYxLkNyZWF0ZVB1YmxpY1JvdXRlUmVxdWVzdBonLnAycHN0cmVhbS52MS5DcmVhdGVQdWJsaWNSb3V0ZVJlc3BvbnNlIgASZgoRVXBkYXRlUHVibGljUm91dGUSJi5wMnBzdHJlYW0udjEuVXBkYXRlUHVibGljUm91dGVSZXF1ZXN0GicucDJwc3RyZWFtLnYxLlVwZGF0ZVB1YmxpY1JvdXRlUmVzcG9uc2UiABJmChFEZWxldGVQdWJsaWNSb3V0ZRImLnAycHN0cmVhbS52MS5EZWxldGVQdWJsaWNSb3V0ZVJlcXVlc3QaJy5wMnBzdHJlYW0udjEuRGVsZXRlUHVibGljUm91dGVSZXNwb25zZSIAEoEBChpDcmVhdGVQdWJsaWNUbHNDZXJ0aWZpY2F0ZRIvLnAycHN0cmVhbS52MS5DcmVhdGVQdWJsaWNUbHNDZXJ0aWZpY2F0ZVJlcXVlc3QaMC5wMnBzdHJlYW0udjEuQ3JlYXRlUHVibGljVGxzQ2VydGlmaWNhdGVSZXNwb25zZSIAEoEBChpVcGRhdGVQdWJsaWNUbHNDZXJ0aWZpY2F0ZRIvLnAycHN0cmVhbS52MS5VcGRhdGVQdWJsaWNUbHNDZXJ0aWZpY2F0ZVJlcXVlc3QaMC5wMnBzdHJlYW0udjEuVXBkYXRlUHVibGljVGxzQ2VydGlmaWNhdGVSZXNwb25zZSIAEoEBChpEZWxldGVQdWJsaWNUbHNDZXJ0aWZpY2F0ZRIvLnAycHN0cmVhbS52MS5EZWxldGVQdWJsaWNUbHNDZXJ0aWZpY2F0ZVJlcXVlc3QaMC5wMnBzdHJlYW0udjEuRGVsZXRlUHVibGljVGxzQ2VydGlmaWNhdGVSZXNwb25zZSIAQqIBChBjb20ucDJwc3RyZWFtLnYxQg9NYW5hZ2VtZW50UHJvdG9QAVoscDJwc3RyZWFtL2dlbi9wcm90by9wMnBzdHJlYW0vdjE7cDJwc3RyZWFtdjGiAgNQWFiqAgxQMnBzdHJlYW0uVjHKAgxQMnBzdHJlYW1cVjHiAhhQMnBzdHJlYW1cVjFcR1BCTWV0YWRhdGHqAg1QMnBzdHJlYW06OlYxYgZwcm90bzM");
 
 /**
  * @generated from message p2pstream.v1.AgentStatsRequest
@@ -249,6 +249,11 @@ export type ProxyStatus = Message<"p2pstream.v1.ProxyStatus"> & {
    * @generated from field: int64 stopped_at_unix_millis = 4;
    */
   stoppedAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicListenerStatus listeners = 5;
+   */
+  listeners: PublicListenerStatus[];
 };
 
 /**
@@ -257,6 +262,1171 @@ export type ProxyStatus = Message<"p2pstream.v1.ProxyStatus"> & {
  */
 export const ProxyStatusSchema: GenMessage<ProxyStatus> = /*@__PURE__*/
   messageDesc(file_proto_p2pstream_v1_management, 6);
+
+/**
+ * @generated from message p2pstream.v1.PublicBackend
+ */
+export type PublicBackend = Message<"p2pstream.v1.PublicBackend"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string target_origin = 3;
+   */
+  targetOrigin: string;
+
+  /**
+   * @generated from field: bool enabled = 4;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: int64 created_at_unix_millis = 5;
+   */
+  createdAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 updated_at_unix_millis = 6;
+   */
+  updatedAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicBackendType backend_type = 7;
+   */
+  backendType: PublicBackendType;
+
+  /**
+   * @generated from field: bool tls_skip_verify = 8;
+   */
+  tlsSkipVerify: boolean;
+
+  /**
+   * @generated from field: int64 static_status_code = 9;
+   */
+  staticStatusCode: bigint;
+
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicHeader static_response_headers = 10;
+   */
+  staticResponseHeaders: PublicHeader[];
+
+  /**
+   * @generated from field: string static_response_body = 11;
+   */
+  staticResponseBody: string;
+};
+
+/**
+ * Describes the message p2pstream.v1.PublicBackend.
+ * Use `create(PublicBackendSchema)` to create a new message.
+ */
+export const PublicBackendSchema: GenMessage<PublicBackend> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 7);
+
+/**
+ * @generated from message p2pstream.v1.PublicHeader
+ */
+export type PublicHeader = Message<"p2pstream.v1.PublicHeader"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string value = 2;
+   */
+  value: string;
+};
+
+/**
+ * Describes the message p2pstream.v1.PublicHeader.
+ * Use `create(PublicHeaderSchema)` to create a new message.
+ */
+export const PublicHeaderSchema: GenMessage<PublicHeader> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 8);
+
+/**
+ * @generated from message p2pstream.v1.PublicListener
+ */
+export type PublicListener = Message<"p2pstream.v1.PublicListener"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string bind_address = 3;
+   */
+  bindAddress: string;
+
+  /**
+   * @generated from field: int64 port = 4;
+   */
+  port: bigint;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerProtocol protocol = 5;
+   */
+  protocol: PublicListenerProtocol;
+
+  /**
+   * @generated from field: bool enabled = 6;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: int64 default_backend_id = 7;
+   */
+  defaultBackendId: bigint;
+
+  /**
+   * @generated from field: int64 created_at_unix_millis = 8;
+   */
+  createdAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 updated_at_unix_millis = 9;
+   */
+  updatedAtUnixMillis: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.PublicListener.
+ * Use `create(PublicListenerSchema)` to create a new message.
+ */
+export const PublicListenerSchema: GenMessage<PublicListener> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 9);
+
+/**
+ * @generated from message p2pstream.v1.PublicRoute
+ */
+export type PublicRoute = Message<"p2pstream.v1.PublicRoute"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: int64 listener_id = 2;
+   */
+  listenerId: bigint;
+
+  /**
+   * @generated from field: int64 priority = 3;
+   */
+  priority: bigint;
+
+  /**
+   * @generated from field: string host_pattern = 4;
+   */
+  hostPattern: string;
+
+  /**
+   * @generated from field: string path_prefix = 5;
+   */
+  pathPrefix: string;
+
+  /**
+   * @generated from field: int64 backend_id = 6;
+   */
+  backendId: bigint;
+
+  /**
+   * @generated from field: bool enabled = 7;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: int64 created_at_unix_millis = 8;
+   */
+  createdAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 updated_at_unix_millis = 9;
+   */
+  updatedAtUnixMillis: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.PublicRoute.
+ * Use `create(PublicRouteSchema)` to create a new message.
+ */
+export const PublicRouteSchema: GenMessage<PublicRoute> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 10);
+
+/**
+ * @generated from message p2pstream.v1.PublicTlsCertificate
+ */
+export type PublicTlsCertificate = Message<"p2pstream.v1.PublicTlsCertificate"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: int64 listener_id = 2;
+   */
+  listenerId: bigint;
+
+  /**
+   * @generated from field: string hostname_pattern = 3;
+   */
+  hostnamePattern: string;
+
+  /**
+   * @generated from field: string cert_path = 4;
+   */
+  certPath: string;
+
+  /**
+   * @generated from field: string key_path = 5;
+   */
+  keyPath: string;
+
+  /**
+   * @generated from field: bool enabled = 6;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: int64 created_at_unix_millis = 7;
+   */
+  createdAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 updated_at_unix_millis = 8;
+   */
+  updatedAtUnixMillis: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.PublicTlsCertificate.
+ * Use `create(PublicTlsCertificateSchema)` to create a new message.
+ */
+export const PublicTlsCertificateSchema: GenMessage<PublicTlsCertificate> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 11);
+
+/**
+ * @generated from message p2pstream.v1.PublicListenerStatus
+ */
+export type PublicListenerStatus = Message<"p2pstream.v1.PublicListenerStatus"> & {
+  /**
+   * @generated from field: int64 listener_id = 1;
+   */
+  listenerId: bigint;
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyState state = 2;
+   */
+  state: ProxyState;
+
+  /**
+   * @generated from field: string last_error = 3;
+   */
+  lastError: string;
+
+  /**
+   * @generated from field: int64 started_at_unix_millis = 4;
+   */
+  startedAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: int64 stopped_at_unix_millis = 5;
+   */
+  stoppedAtUnixMillis: bigint;
+
+  /**
+   * @generated from field: string bound_address = 6;
+   */
+  boundAddress: string;
+
+  /**
+   * @generated from field: bool running = 7;
+   */
+  running: boolean;
+
+  /**
+   * @generated from field: bool disabled = 8;
+   */
+  disabled: boolean;
+};
+
+/**
+ * Describes the message p2pstream.v1.PublicListenerStatus.
+ * Use `create(PublicListenerStatusSchema)` to create a new message.
+ */
+export const PublicListenerStatusSchema: GenMessage<PublicListenerStatus> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 12);
+
+/**
+ * @generated from message p2pstream.v1.GetPublicProxyConfigRequest
+ */
+export type GetPublicProxyConfigRequest = Message<"p2pstream.v1.GetPublicProxyConfigRequest"> & {
+};
+
+/**
+ * Describes the message p2pstream.v1.GetPublicProxyConfigRequest.
+ * Use `create(GetPublicProxyConfigRequestSchema)` to create a new message.
+ */
+export const GetPublicProxyConfigRequestSchema: GenMessage<GetPublicProxyConfigRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 13);
+
+/**
+ * @generated from message p2pstream.v1.GetPublicProxyConfigResponse
+ */
+export type GetPublicProxyConfigResponse = Message<"p2pstream.v1.GetPublicProxyConfigResponse"> & {
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicBackend backends = 1;
+   */
+  backends: PublicBackend[];
+
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicListener listeners = 2;
+   */
+  listeners: PublicListener[];
+
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicRoute routes = 3;
+   */
+  routes: PublicRoute[];
+
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicTlsCertificate tls_certificates = 4;
+   */
+  tlsCertificates: PublicTlsCertificate[];
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyStatus proxy = 5;
+   */
+  proxy?: ProxyStatus | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.GetPublicProxyConfigResponse.
+ * Use `create(GetPublicProxyConfigResponseSchema)` to create a new message.
+ */
+export const GetPublicProxyConfigResponseSchema: GenMessage<GetPublicProxyConfigResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 14);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicBackendRequest
+ */
+export type CreatePublicBackendRequest = Message<"p2pstream.v1.CreatePublicBackendRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string target_origin = 2;
+   */
+  targetOrigin: string;
+
+  /**
+   * @generated from field: bool enabled = 3;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicBackendType backend_type = 4;
+   */
+  backendType: PublicBackendType;
+
+  /**
+   * @generated from field: bool tls_skip_verify = 5;
+   */
+  tlsSkipVerify: boolean;
+
+  /**
+   * @generated from field: int64 static_status_code = 6;
+   */
+  staticStatusCode: bigint;
+
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicHeader static_response_headers = 7;
+   */
+  staticResponseHeaders: PublicHeader[];
+
+  /**
+   * @generated from field: string static_response_body = 8;
+   */
+  staticResponseBody: string;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicBackendRequest.
+ * Use `create(CreatePublicBackendRequestSchema)` to create a new message.
+ */
+export const CreatePublicBackendRequestSchema: GenMessage<CreatePublicBackendRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 15);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicBackendResponse
+ */
+export type CreatePublicBackendResponse = Message<"p2pstream.v1.CreatePublicBackendResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicBackend backend = 1;
+   */
+  backend?: PublicBackend | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicBackendResponse.
+ * Use `create(CreatePublicBackendResponseSchema)` to create a new message.
+ */
+export const CreatePublicBackendResponseSchema: GenMessage<CreatePublicBackendResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 16);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicBackendRequest
+ */
+export type UpdatePublicBackendRequest = Message<"p2pstream.v1.UpdatePublicBackendRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string target_origin = 3;
+   */
+  targetOrigin: string;
+
+  /**
+   * @generated from field: bool enabled = 4;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicBackendType backend_type = 5;
+   */
+  backendType: PublicBackendType;
+
+  /**
+   * @generated from field: bool tls_skip_verify = 6;
+   */
+  tlsSkipVerify: boolean;
+
+  /**
+   * @generated from field: int64 static_status_code = 7;
+   */
+  staticStatusCode: bigint;
+
+  /**
+   * @generated from field: repeated p2pstream.v1.PublicHeader static_response_headers = 8;
+   */
+  staticResponseHeaders: PublicHeader[];
+
+  /**
+   * @generated from field: string static_response_body = 9;
+   */
+  staticResponseBody: string;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicBackendRequest.
+ * Use `create(UpdatePublicBackendRequestSchema)` to create a new message.
+ */
+export const UpdatePublicBackendRequestSchema: GenMessage<UpdatePublicBackendRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 17);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicBackendResponse
+ */
+export type UpdatePublicBackendResponse = Message<"p2pstream.v1.UpdatePublicBackendResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicBackend backend = 1;
+   */
+  backend?: PublicBackend | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicBackendResponse.
+ * Use `create(UpdatePublicBackendResponseSchema)` to create a new message.
+ */
+export const UpdatePublicBackendResponseSchema: GenMessage<UpdatePublicBackendResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 18);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicBackendRequest
+ */
+export type DeletePublicBackendRequest = Message<"p2pstream.v1.DeletePublicBackendRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicBackendRequest.
+ * Use `create(DeletePublicBackendRequestSchema)` to create a new message.
+ */
+export const DeletePublicBackendRequestSchema: GenMessage<DeletePublicBackendRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 19);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicBackendResponse
+ */
+export type DeletePublicBackendResponse = Message<"p2pstream.v1.DeletePublicBackendResponse"> & {
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicBackendResponse.
+ * Use `create(DeletePublicBackendResponseSchema)` to create a new message.
+ */
+export const DeletePublicBackendResponseSchema: GenMessage<DeletePublicBackendResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 20);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicListenerRequest
+ */
+export type CreatePublicListenerRequest = Message<"p2pstream.v1.CreatePublicListenerRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string bind_address = 2;
+   */
+  bindAddress: string;
+
+  /**
+   * @generated from field: int64 port = 3;
+   */
+  port: bigint;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerProtocol protocol = 4;
+   */
+  protocol: PublicListenerProtocol;
+
+  /**
+   * @generated from field: bool enabled = 5;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: int64 default_backend_id = 6;
+   */
+  defaultBackendId: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicListenerRequest.
+ * Use `create(CreatePublicListenerRequestSchema)` to create a new message.
+ */
+export const CreatePublicListenerRequestSchema: GenMessage<CreatePublicListenerRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 21);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicListenerResponse
+ */
+export type CreatePublicListenerResponse = Message<"p2pstream.v1.CreatePublicListenerResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicListener listener = 1;
+   */
+  listener?: PublicListener | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerStatus status = 2;
+   */
+  status?: PublicListenerStatus | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyStatus proxy = 3;
+   */
+  proxy?: ProxyStatus | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicListenerResponse.
+ * Use `create(CreatePublicListenerResponseSchema)` to create a new message.
+ */
+export const CreatePublicListenerResponseSchema: GenMessage<CreatePublicListenerResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 22);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicListenerRequest
+ */
+export type UpdatePublicListenerRequest = Message<"p2pstream.v1.UpdatePublicListenerRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string bind_address = 3;
+   */
+  bindAddress: string;
+
+  /**
+   * @generated from field: int64 port = 4;
+   */
+  port: bigint;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerProtocol protocol = 5;
+   */
+  protocol: PublicListenerProtocol;
+
+  /**
+   * @generated from field: bool enabled = 6;
+   */
+  enabled: boolean;
+
+  /**
+   * @generated from field: int64 default_backend_id = 7;
+   */
+  defaultBackendId: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicListenerRequest.
+ * Use `create(UpdatePublicListenerRequestSchema)` to create a new message.
+ */
+export const UpdatePublicListenerRequestSchema: GenMessage<UpdatePublicListenerRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 23);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicListenerResponse
+ */
+export type UpdatePublicListenerResponse = Message<"p2pstream.v1.UpdatePublicListenerResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicListener listener = 1;
+   */
+  listener?: PublicListener | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerStatus status = 2;
+   */
+  status?: PublicListenerStatus | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyStatus proxy = 3;
+   */
+  proxy?: ProxyStatus | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicListenerResponse.
+ * Use `create(UpdatePublicListenerResponseSchema)` to create a new message.
+ */
+export const UpdatePublicListenerResponseSchema: GenMessage<UpdatePublicListenerResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 24);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicListenerRequest
+ */
+export type DeletePublicListenerRequest = Message<"p2pstream.v1.DeletePublicListenerRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicListenerRequest.
+ * Use `create(DeletePublicListenerRequestSchema)` to create a new message.
+ */
+export const DeletePublicListenerRequestSchema: GenMessage<DeletePublicListenerRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 25);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicListenerResponse
+ */
+export type DeletePublicListenerResponse = Message<"p2pstream.v1.DeletePublicListenerResponse"> & {
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicListenerResponse.
+ * Use `create(DeletePublicListenerResponseSchema)` to create a new message.
+ */
+export const DeletePublicListenerResponseSchema: GenMessage<DeletePublicListenerResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 26);
+
+/**
+ * @generated from message p2pstream.v1.EnablePublicListenerRequest
+ */
+export type EnablePublicListenerRequest = Message<"p2pstream.v1.EnablePublicListenerRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.EnablePublicListenerRequest.
+ * Use `create(EnablePublicListenerRequestSchema)` to create a new message.
+ */
+export const EnablePublicListenerRequestSchema: GenMessage<EnablePublicListenerRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 27);
+
+/**
+ * @generated from message p2pstream.v1.EnablePublicListenerResponse
+ */
+export type EnablePublicListenerResponse = Message<"p2pstream.v1.EnablePublicListenerResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicListener listener = 1;
+   */
+  listener?: PublicListener | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerStatus status = 2;
+   */
+  status?: PublicListenerStatus | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyStatus proxy = 3;
+   */
+  proxy?: ProxyStatus | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.EnablePublicListenerResponse.
+ * Use `create(EnablePublicListenerResponseSchema)` to create a new message.
+ */
+export const EnablePublicListenerResponseSchema: GenMessage<EnablePublicListenerResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 28);
+
+/**
+ * @generated from message p2pstream.v1.DisablePublicListenerRequest
+ */
+export type DisablePublicListenerRequest = Message<"p2pstream.v1.DisablePublicListenerRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.DisablePublicListenerRequest.
+ * Use `create(DisablePublicListenerRequestSchema)` to create a new message.
+ */
+export const DisablePublicListenerRequestSchema: GenMessage<DisablePublicListenerRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 29);
+
+/**
+ * @generated from message p2pstream.v1.DisablePublicListenerResponse
+ */
+export type DisablePublicListenerResponse = Message<"p2pstream.v1.DisablePublicListenerResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicListener listener = 1;
+   */
+  listener?: PublicListener | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerStatus status = 2;
+   */
+  status?: PublicListenerStatus | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyStatus proxy = 3;
+   */
+  proxy?: ProxyStatus | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.DisablePublicListenerResponse.
+ * Use `create(DisablePublicListenerResponseSchema)` to create a new message.
+ */
+export const DisablePublicListenerResponseSchema: GenMessage<DisablePublicListenerResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 30);
+
+/**
+ * @generated from message p2pstream.v1.StartPublicListenerRequest
+ */
+export type StartPublicListenerRequest = Message<"p2pstream.v1.StartPublicListenerRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.StartPublicListenerRequest.
+ * Use `create(StartPublicListenerRequestSchema)` to create a new message.
+ */
+export const StartPublicListenerRequestSchema: GenMessage<StartPublicListenerRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 31);
+
+/**
+ * @generated from message p2pstream.v1.StartPublicListenerResponse
+ */
+export type StartPublicListenerResponse = Message<"p2pstream.v1.StartPublicListenerResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerStatus status = 1;
+   */
+  status?: PublicListenerStatus | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyStatus proxy = 2;
+   */
+  proxy?: ProxyStatus | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.StartPublicListenerResponse.
+ * Use `create(StartPublicListenerResponseSchema)` to create a new message.
+ */
+export const StartPublicListenerResponseSchema: GenMessage<StartPublicListenerResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 32);
+
+/**
+ * @generated from message p2pstream.v1.StopPublicListenerRequest
+ */
+export type StopPublicListenerRequest = Message<"p2pstream.v1.StopPublicListenerRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.StopPublicListenerRequest.
+ * Use `create(StopPublicListenerRequestSchema)` to create a new message.
+ */
+export const StopPublicListenerRequestSchema: GenMessage<StopPublicListenerRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 33);
+
+/**
+ * @generated from message p2pstream.v1.StopPublicListenerResponse
+ */
+export type StopPublicListenerResponse = Message<"p2pstream.v1.StopPublicListenerResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicListenerStatus status = 1;
+   */
+  status?: PublicListenerStatus | undefined;
+
+  /**
+   * @generated from field: p2pstream.v1.ProxyStatus proxy = 2;
+   */
+  proxy?: ProxyStatus | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.StopPublicListenerResponse.
+ * Use `create(StopPublicListenerResponseSchema)` to create a new message.
+ */
+export const StopPublicListenerResponseSchema: GenMessage<StopPublicListenerResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 34);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicRouteRequest
+ */
+export type CreatePublicRouteRequest = Message<"p2pstream.v1.CreatePublicRouteRequest"> & {
+  /**
+   * @generated from field: int64 listener_id = 1;
+   */
+  listenerId: bigint;
+
+  /**
+   * @generated from field: int64 priority = 2;
+   */
+  priority: bigint;
+
+  /**
+   * @generated from field: string host_pattern = 3;
+   */
+  hostPattern: string;
+
+  /**
+   * @generated from field: string path_prefix = 4;
+   */
+  pathPrefix: string;
+
+  /**
+   * @generated from field: int64 backend_id = 5;
+   */
+  backendId: bigint;
+
+  /**
+   * @generated from field: bool enabled = 6;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicRouteRequest.
+ * Use `create(CreatePublicRouteRequestSchema)` to create a new message.
+ */
+export const CreatePublicRouteRequestSchema: GenMessage<CreatePublicRouteRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 35);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicRouteResponse
+ */
+export type CreatePublicRouteResponse = Message<"p2pstream.v1.CreatePublicRouteResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicRoute route = 1;
+   */
+  route?: PublicRoute | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicRouteResponse.
+ * Use `create(CreatePublicRouteResponseSchema)` to create a new message.
+ */
+export const CreatePublicRouteResponseSchema: GenMessage<CreatePublicRouteResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 36);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicRouteRequest
+ */
+export type UpdatePublicRouteRequest = Message<"p2pstream.v1.UpdatePublicRouteRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: int64 listener_id = 2;
+   */
+  listenerId: bigint;
+
+  /**
+   * @generated from field: int64 priority = 3;
+   */
+  priority: bigint;
+
+  /**
+   * @generated from field: string host_pattern = 4;
+   */
+  hostPattern: string;
+
+  /**
+   * @generated from field: string path_prefix = 5;
+   */
+  pathPrefix: string;
+
+  /**
+   * @generated from field: int64 backend_id = 6;
+   */
+  backendId: bigint;
+
+  /**
+   * @generated from field: bool enabled = 7;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicRouteRequest.
+ * Use `create(UpdatePublicRouteRequestSchema)` to create a new message.
+ */
+export const UpdatePublicRouteRequestSchema: GenMessage<UpdatePublicRouteRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 37);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicRouteResponse
+ */
+export type UpdatePublicRouteResponse = Message<"p2pstream.v1.UpdatePublicRouteResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicRoute route = 1;
+   */
+  route?: PublicRoute | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicRouteResponse.
+ * Use `create(UpdatePublicRouteResponseSchema)` to create a new message.
+ */
+export const UpdatePublicRouteResponseSchema: GenMessage<UpdatePublicRouteResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 38);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicRouteRequest
+ */
+export type DeletePublicRouteRequest = Message<"p2pstream.v1.DeletePublicRouteRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicRouteRequest.
+ * Use `create(DeletePublicRouteRequestSchema)` to create a new message.
+ */
+export const DeletePublicRouteRequestSchema: GenMessage<DeletePublicRouteRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 39);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicRouteResponse
+ */
+export type DeletePublicRouteResponse = Message<"p2pstream.v1.DeletePublicRouteResponse"> & {
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicRouteResponse.
+ * Use `create(DeletePublicRouteResponseSchema)` to create a new message.
+ */
+export const DeletePublicRouteResponseSchema: GenMessage<DeletePublicRouteResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 40);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicTlsCertificateRequest
+ */
+export type CreatePublicTlsCertificateRequest = Message<"p2pstream.v1.CreatePublicTlsCertificateRequest"> & {
+  /**
+   * @generated from field: int64 listener_id = 1;
+   */
+  listenerId: bigint;
+
+  /**
+   * @generated from field: string hostname_pattern = 2;
+   */
+  hostnamePattern: string;
+
+  /**
+   * @generated from field: string cert_path = 3;
+   */
+  certPath: string;
+
+  /**
+   * @generated from field: string key_path = 4;
+   */
+  keyPath: string;
+
+  /**
+   * @generated from field: bool enabled = 5;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicTlsCertificateRequest.
+ * Use `create(CreatePublicTlsCertificateRequestSchema)` to create a new message.
+ */
+export const CreatePublicTlsCertificateRequestSchema: GenMessage<CreatePublicTlsCertificateRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 41);
+
+/**
+ * @generated from message p2pstream.v1.CreatePublicTlsCertificateResponse
+ */
+export type CreatePublicTlsCertificateResponse = Message<"p2pstream.v1.CreatePublicTlsCertificateResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicTlsCertificate tls_certificate = 1;
+   */
+  tlsCertificate?: PublicTlsCertificate | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.CreatePublicTlsCertificateResponse.
+ * Use `create(CreatePublicTlsCertificateResponseSchema)` to create a new message.
+ */
+export const CreatePublicTlsCertificateResponseSchema: GenMessage<CreatePublicTlsCertificateResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 42);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicTlsCertificateRequest
+ */
+export type UpdatePublicTlsCertificateRequest = Message<"p2pstream.v1.UpdatePublicTlsCertificateRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: int64 listener_id = 2;
+   */
+  listenerId: bigint;
+
+  /**
+   * @generated from field: string hostname_pattern = 3;
+   */
+  hostnamePattern: string;
+
+  /**
+   * @generated from field: string cert_path = 4;
+   */
+  certPath: string;
+
+  /**
+   * @generated from field: string key_path = 5;
+   */
+  keyPath: string;
+
+  /**
+   * @generated from field: bool enabled = 6;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicTlsCertificateRequest.
+ * Use `create(UpdatePublicTlsCertificateRequestSchema)` to create a new message.
+ */
+export const UpdatePublicTlsCertificateRequestSchema: GenMessage<UpdatePublicTlsCertificateRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 43);
+
+/**
+ * @generated from message p2pstream.v1.UpdatePublicTlsCertificateResponse
+ */
+export type UpdatePublicTlsCertificateResponse = Message<"p2pstream.v1.UpdatePublicTlsCertificateResponse"> & {
+  /**
+   * @generated from field: p2pstream.v1.PublicTlsCertificate tls_certificate = 1;
+   */
+  tlsCertificate?: PublicTlsCertificate | undefined;
+};
+
+/**
+ * Describes the message p2pstream.v1.UpdatePublicTlsCertificateResponse.
+ * Use `create(UpdatePublicTlsCertificateResponseSchema)` to create a new message.
+ */
+export const UpdatePublicTlsCertificateResponseSchema: GenMessage<UpdatePublicTlsCertificateResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 44);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicTlsCertificateRequest
+ */
+export type DeletePublicTlsCertificateRequest = Message<"p2pstream.v1.DeletePublicTlsCertificateRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicTlsCertificateRequest.
+ * Use `create(DeletePublicTlsCertificateRequestSchema)` to create a new message.
+ */
+export const DeletePublicTlsCertificateRequestSchema: GenMessage<DeletePublicTlsCertificateRequest> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 45);
+
+/**
+ * @generated from message p2pstream.v1.DeletePublicTlsCertificateResponse
+ */
+export type DeletePublicTlsCertificateResponse = Message<"p2pstream.v1.DeletePublicTlsCertificateResponse"> & {
+};
+
+/**
+ * Describes the message p2pstream.v1.DeletePublicTlsCertificateResponse.
+ * Use `create(DeletePublicTlsCertificateResponseSchema)` to create a new message.
+ */
+export const DeletePublicTlsCertificateResponseSchema: GenMessage<DeletePublicTlsCertificateResponse> = /*@__PURE__*/
+  messageDesc(file_proto_p2pstream_v1_management, 46);
 
 /**
  * @generated from message p2pstream.v1.GetDashboardRequest
@@ -269,7 +1439,7 @@ export type GetDashboardRequest = Message<"p2pstream.v1.GetDashboardRequest"> & 
  * Use `create(GetDashboardRequestSchema)` to create a new message.
  */
 export const GetDashboardRequestSchema: GenMessage<GetDashboardRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 7);
+  messageDesc(file_proto_p2pstream_v1_management, 47);
 
 /**
  * @generated from message p2pstream.v1.DashboardWindowSummary
@@ -376,7 +1546,7 @@ export type DashboardWindowSummary = Message<"p2pstream.v1.DashboardWindowSummar
  * Use `create(DashboardWindowSummarySchema)` to create a new message.
  */
 export const DashboardWindowSummarySchema: GenMessage<DashboardWindowSummary> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 8);
+  messageDesc(file_proto_p2pstream_v1_management, 48);
 
 /**
  * @generated from message p2pstream.v1.AgentConnectionSummary
@@ -413,7 +1583,7 @@ export type AgentConnectionSummary = Message<"p2pstream.v1.AgentConnectionSummar
  * Use `create(AgentConnectionSummarySchema)` to create a new message.
  */
 export const AgentConnectionSummarySchema: GenMessage<AgentConnectionSummary> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 9);
+  messageDesc(file_proto_p2pstream_v1_management, 49);
 
 /**
  * @generated from message p2pstream.v1.GetDashboardResponse
@@ -450,7 +1620,7 @@ export type GetDashboardResponse = Message<"p2pstream.v1.GetDashboardResponse"> 
  * Use `create(GetDashboardResponseSchema)` to create a new message.
  */
 export const GetDashboardResponseSchema: GenMessage<GetDashboardResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 10);
+  messageDesc(file_proto_p2pstream_v1_management, 50);
 
 /**
  * @generated from message p2pstream.v1.GetSetupStateRequest
@@ -463,7 +1633,7 @@ export type GetSetupStateRequest = Message<"p2pstream.v1.GetSetupStateRequest"> 
  * Use `create(GetSetupStateRequestSchema)` to create a new message.
  */
 export const GetSetupStateRequestSchema: GenMessage<GetSetupStateRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 11);
+  messageDesc(file_proto_p2pstream_v1_management, 51);
 
 /**
  * @generated from message p2pstream.v1.GetSetupStateResponse
@@ -495,7 +1665,7 @@ export type GetSetupStateResponse = Message<"p2pstream.v1.GetSetupStateResponse"
  * Use `create(GetSetupStateResponseSchema)` to create a new message.
  */
 export const GetSetupStateResponseSchema: GenMessage<GetSetupStateResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 12);
+  messageDesc(file_proto_p2pstream_v1_management, 52);
 
 /**
  * @generated from message p2pstream.v1.SetupAdminRequest
@@ -517,7 +1687,7 @@ export type SetupAdminRequest = Message<"p2pstream.v1.SetupAdminRequest"> & {
  * Use `create(SetupAdminRequestSchema)` to create a new message.
  */
 export const SetupAdminRequestSchema: GenMessage<SetupAdminRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 13);
+  messageDesc(file_proto_p2pstream_v1_management, 53);
 
 /**
  * @generated from message p2pstream.v1.SetupAdminResponse
@@ -534,7 +1704,7 @@ export type SetupAdminResponse = Message<"p2pstream.v1.SetupAdminResponse"> & {
  * Use `create(SetupAdminResponseSchema)` to create a new message.
  */
 export const SetupAdminResponseSchema: GenMessage<SetupAdminResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 14);
+  messageDesc(file_proto_p2pstream_v1_management, 54);
 
 /**
  * @generated from message p2pstream.v1.LoginRequest
@@ -556,7 +1726,7 @@ export type LoginRequest = Message<"p2pstream.v1.LoginRequest"> & {
  * Use `create(LoginRequestSchema)` to create a new message.
  */
 export const LoginRequestSchema: GenMessage<LoginRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 15);
+  messageDesc(file_proto_p2pstream_v1_management, 55);
 
 /**
  * @generated from message p2pstream.v1.LoginResponse
@@ -573,7 +1743,7 @@ export type LoginResponse = Message<"p2pstream.v1.LoginResponse"> & {
  * Use `create(LoginResponseSchema)` to create a new message.
  */
 export const LoginResponseSchema: GenMessage<LoginResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 16);
+  messageDesc(file_proto_p2pstream_v1_management, 56);
 
 /**
  * @generated from message p2pstream.v1.LogoutRequest
@@ -586,7 +1756,7 @@ export type LogoutRequest = Message<"p2pstream.v1.LogoutRequest"> & {
  * Use `create(LogoutRequestSchema)` to create a new message.
  */
 export const LogoutRequestSchema: GenMessage<LogoutRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 17);
+  messageDesc(file_proto_p2pstream_v1_management, 57);
 
 /**
  * @generated from message p2pstream.v1.LogoutResponse
@@ -599,7 +1769,7 @@ export type LogoutResponse = Message<"p2pstream.v1.LogoutResponse"> & {
  * Use `create(LogoutResponseSchema)` to create a new message.
  */
 export const LogoutResponseSchema: GenMessage<LogoutResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 18);
+  messageDesc(file_proto_p2pstream_v1_management, 58);
 
 /**
  * @generated from message p2pstream.v1.GetCurrentUserRequest
@@ -612,7 +1782,7 @@ export type GetCurrentUserRequest = Message<"p2pstream.v1.GetCurrentUserRequest"
  * Use `create(GetCurrentUserRequestSchema)` to create a new message.
  */
 export const GetCurrentUserRequestSchema: GenMessage<GetCurrentUserRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 19);
+  messageDesc(file_proto_p2pstream_v1_management, 59);
 
 /**
  * @generated from message p2pstream.v1.GetCurrentUserResponse
@@ -629,7 +1799,7 @@ export type GetCurrentUserResponse = Message<"p2pstream.v1.GetCurrentUserRespons
  * Use `create(GetCurrentUserResponseSchema)` to create a new message.
  */
 export const GetCurrentUserResponseSchema: GenMessage<GetCurrentUserResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 20);
+  messageDesc(file_proto_p2pstream_v1_management, 60);
 
 /**
  * @generated from message p2pstream.v1.StartProxyRequest
@@ -642,7 +1812,7 @@ export type StartProxyRequest = Message<"p2pstream.v1.StartProxyRequest"> & {
  * Use `create(StartProxyRequestSchema)` to create a new message.
  */
 export const StartProxyRequestSchema: GenMessage<StartProxyRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 21);
+  messageDesc(file_proto_p2pstream_v1_management, 61);
 
 /**
  * @generated from message p2pstream.v1.StartProxyResponse
@@ -659,7 +1829,7 @@ export type StartProxyResponse = Message<"p2pstream.v1.StartProxyResponse"> & {
  * Use `create(StartProxyResponseSchema)` to create a new message.
  */
 export const StartProxyResponseSchema: GenMessage<StartProxyResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 22);
+  messageDesc(file_proto_p2pstream_v1_management, 62);
 
 /**
  * @generated from message p2pstream.v1.StopProxyRequest
@@ -672,7 +1842,7 @@ export type StopProxyRequest = Message<"p2pstream.v1.StopProxyRequest"> & {
  * Use `create(StopProxyRequestSchema)` to create a new message.
  */
 export const StopProxyRequestSchema: GenMessage<StopProxyRequest> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 23);
+  messageDesc(file_proto_p2pstream_v1_management, 63);
 
 /**
  * @generated from message p2pstream.v1.StopProxyResponse
@@ -689,7 +1859,7 @@ export type StopProxyResponse = Message<"p2pstream.v1.StopProxyResponse"> & {
  * Use `create(StopProxyResponseSchema)` to create a new message.
  */
 export const StopProxyResponseSchema: GenMessage<StopProxyResponse> = /*@__PURE__*/
-  messageDesc(file_proto_p2pstream_v1_management, 24);
+  messageDesc(file_proto_p2pstream_v1_management, 64);
 
 /**
  * @generated from enum p2pstream.v1.UserRole
@@ -752,6 +1922,58 @@ export enum ProxyState {
  */
 export const ProxyStateSchema: GenEnum<ProxyState> = /*@__PURE__*/
   enumDesc(file_proto_p2pstream_v1_management, 1);
+
+/**
+ * @generated from enum p2pstream.v1.PublicListenerProtocol
+ */
+export enum PublicListenerProtocol {
+  /**
+   * @generated from enum value: PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: PUBLIC_LISTENER_PROTOCOL_HTTP = 1;
+   */
+  HTTP = 1,
+
+  /**
+   * @generated from enum value: PUBLIC_LISTENER_PROTOCOL_HTTPS = 2;
+   */
+  HTTPS = 2,
+}
+
+/**
+ * Describes the enum p2pstream.v1.PublicListenerProtocol.
+ */
+export const PublicListenerProtocolSchema: GenEnum<PublicListenerProtocol> = /*@__PURE__*/
+  enumDesc(file_proto_p2pstream_v1_management, 2);
+
+/**
+ * @generated from enum p2pstream.v1.PublicBackendType
+ */
+export enum PublicBackendType {
+  /**
+   * @generated from enum value: PUBLIC_BACKEND_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: PUBLIC_BACKEND_TYPE_PROXY_FORWARD = 1;
+   */
+  PROXY_FORWARD = 1,
+
+  /**
+   * @generated from enum value: PUBLIC_BACKEND_TYPE_STATIC = 2;
+   */
+  STATIC = 2,
+}
+
+/**
+ * Describes the enum p2pstream.v1.PublicBackendType.
+ */
+export const PublicBackendTypeSchema: GenEnum<PublicBackendType> = /*@__PURE__*/
+  enumDesc(file_proto_p2pstream_v1_management, 3);
 
 /**
  * @generated from service p2pstream.v1.AgentManagementService
@@ -836,6 +2058,142 @@ export const AgentManagementService: GenService<{
     methodKind: "unary";
     input: typeof StopProxyRequestSchema;
     output: typeof StopProxyResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.GetPublicProxyConfig
+   */
+  getPublicProxyConfig: {
+    methodKind: "unary";
+    input: typeof GetPublicProxyConfigRequestSchema;
+    output: typeof GetPublicProxyConfigResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicBackend
+   */
+  createPublicBackend: {
+    methodKind: "unary";
+    input: typeof CreatePublicBackendRequestSchema;
+    output: typeof CreatePublicBackendResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicBackend
+   */
+  updatePublicBackend: {
+    methodKind: "unary";
+    input: typeof UpdatePublicBackendRequestSchema;
+    output: typeof UpdatePublicBackendResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicBackend
+   */
+  deletePublicBackend: {
+    methodKind: "unary";
+    input: typeof DeletePublicBackendRequestSchema;
+    output: typeof DeletePublicBackendResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicListener
+   */
+  createPublicListener: {
+    methodKind: "unary";
+    input: typeof CreatePublicListenerRequestSchema;
+    output: typeof CreatePublicListenerResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicListener
+   */
+  updatePublicListener: {
+    methodKind: "unary";
+    input: typeof UpdatePublicListenerRequestSchema;
+    output: typeof UpdatePublicListenerResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicListener
+   */
+  deletePublicListener: {
+    methodKind: "unary";
+    input: typeof DeletePublicListenerRequestSchema;
+    output: typeof DeletePublicListenerResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.EnablePublicListener
+   */
+  enablePublicListener: {
+    methodKind: "unary";
+    input: typeof EnablePublicListenerRequestSchema;
+    output: typeof EnablePublicListenerResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.DisablePublicListener
+   */
+  disablePublicListener: {
+    methodKind: "unary";
+    input: typeof DisablePublicListenerRequestSchema;
+    output: typeof DisablePublicListenerResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.StartPublicListener
+   */
+  startPublicListener: {
+    methodKind: "unary";
+    input: typeof StartPublicListenerRequestSchema;
+    output: typeof StartPublicListenerResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.StopPublicListener
+   */
+  stopPublicListener: {
+    methodKind: "unary";
+    input: typeof StopPublicListenerRequestSchema;
+    output: typeof StopPublicListenerResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicRoute
+   */
+  createPublicRoute: {
+    methodKind: "unary";
+    input: typeof CreatePublicRouteRequestSchema;
+    output: typeof CreatePublicRouteResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicRoute
+   */
+  updatePublicRoute: {
+    methodKind: "unary";
+    input: typeof UpdatePublicRouteRequestSchema;
+    output: typeof UpdatePublicRouteResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicRoute
+   */
+  deletePublicRoute: {
+    methodKind: "unary";
+    input: typeof DeletePublicRouteRequestSchema;
+    output: typeof DeletePublicRouteResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate
+   */
+  createPublicTlsCertificate: {
+    methodKind: "unary";
+    input: typeof CreatePublicTlsCertificateRequestSchema;
+    output: typeof CreatePublicTlsCertificateResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate
+   */
+  updatePublicTlsCertificate: {
+    methodKind: "unary";
+    input: typeof UpdatePublicTlsCertificateRequestSchema;
+    output: typeof UpdatePublicTlsCertificateResponseSchema;
+  },
+  /**
+   * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate
+   */
+  deletePublicTlsCertificate: {
+    methodKind: "unary";
+    input: typeof DeletePublicTlsCertificateRequestSchema;
+    output: typeof DeletePublicTlsCertificateResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_proto_p2pstream_v1_management, 0);

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"time"
 
 	"connectrpc.com/connect"
@@ -89,17 +90,35 @@ func (a *App) GetDashboard(
 }
 
 func (a *App) recordProxyRequestEvent(ctx context.Context, statusCode int, duration time.Duration, errorKind string) {
+	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{})
+}
+
+func (a *App) recordProxyRequestEventWithIDs(
+	ctx context.Context,
+	statusCode int,
+	duration time.Duration,
+	errorKind string,
+	listenerID sql.NullInt64,
+	backendID sql.NullInt64,
+	routeID sql.NullInt64,
+) {
 	if a.DB == nil {
 		return
 	}
 	if duration < 0 {
 		duration = 0
 	}
+	if statusCode == 0 {
+		statusCode = http.StatusInternalServerError
+	}
 
 	if err := a.DB.InsertProxyRequestEvent(ctx, db.InsertProxyRequestEventParams{
 		StatusCode: int64(statusCode),
 		DurationMs: duration.Milliseconds(),
 		ErrorKind:  errorKind,
+		ListenerID: listenerID,
+		BackendID:  backendID,
+		RouteID:    routeID,
 	}); err != nil {
 		log.Warn().Err(err).Msg("Failed to record proxy request event")
 	}

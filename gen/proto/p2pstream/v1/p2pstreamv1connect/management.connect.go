@@ -63,6 +63,57 @@ const (
 	// AgentManagementServiceStopProxyProcedure is the fully-qualified name of the
 	// AgentManagementService's StopProxy RPC.
 	AgentManagementServiceStopProxyProcedure = "/p2pstream.v1.AgentManagementService/StopProxy"
+	// AgentManagementServiceGetPublicProxyConfigProcedure is the fully-qualified name of the
+	// AgentManagementService's GetPublicProxyConfig RPC.
+	AgentManagementServiceGetPublicProxyConfigProcedure = "/p2pstream.v1.AgentManagementService/GetPublicProxyConfig"
+	// AgentManagementServiceCreatePublicBackendProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicBackend RPC.
+	AgentManagementServiceCreatePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicBackend"
+	// AgentManagementServiceUpdatePublicBackendProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicBackend RPC.
+	AgentManagementServiceUpdatePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicBackend"
+	// AgentManagementServiceDeletePublicBackendProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicBackend RPC.
+	AgentManagementServiceDeletePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicBackend"
+	// AgentManagementServiceCreatePublicListenerProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicListener RPC.
+	AgentManagementServiceCreatePublicListenerProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicListener"
+	// AgentManagementServiceUpdatePublicListenerProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicListener RPC.
+	AgentManagementServiceUpdatePublicListenerProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicListener"
+	// AgentManagementServiceDeletePublicListenerProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicListener RPC.
+	AgentManagementServiceDeletePublicListenerProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicListener"
+	// AgentManagementServiceEnablePublicListenerProcedure is the fully-qualified name of the
+	// AgentManagementService's EnablePublicListener RPC.
+	AgentManagementServiceEnablePublicListenerProcedure = "/p2pstream.v1.AgentManagementService/EnablePublicListener"
+	// AgentManagementServiceDisablePublicListenerProcedure is the fully-qualified name of the
+	// AgentManagementService's DisablePublicListener RPC.
+	AgentManagementServiceDisablePublicListenerProcedure = "/p2pstream.v1.AgentManagementService/DisablePublicListener"
+	// AgentManagementServiceStartPublicListenerProcedure is the fully-qualified name of the
+	// AgentManagementService's StartPublicListener RPC.
+	AgentManagementServiceStartPublicListenerProcedure = "/p2pstream.v1.AgentManagementService/StartPublicListener"
+	// AgentManagementServiceStopPublicListenerProcedure is the fully-qualified name of the
+	// AgentManagementService's StopPublicListener RPC.
+	AgentManagementServiceStopPublicListenerProcedure = "/p2pstream.v1.AgentManagementService/StopPublicListener"
+	// AgentManagementServiceCreatePublicRouteProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicRoute RPC.
+	AgentManagementServiceCreatePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicRoute"
+	// AgentManagementServiceUpdatePublicRouteProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicRoute RPC.
+	AgentManagementServiceUpdatePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicRoute"
+	// AgentManagementServiceDeletePublicRouteProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicRoute RPC.
+	AgentManagementServiceDeletePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicRoute"
+	// AgentManagementServiceCreatePublicTlsCertificateProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicTlsCertificate RPC.
+	AgentManagementServiceCreatePublicTlsCertificateProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTlsCertificate"
+	// AgentManagementServiceUpdatePublicTlsCertificateProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicTlsCertificate RPC.
+	AgentManagementServiceUpdatePublicTlsCertificateProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicTlsCertificate"
+	// AgentManagementServiceDeletePublicTlsCertificateProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicTlsCertificate RPC.
+	AgentManagementServiceDeletePublicTlsCertificateProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTlsCertificate"
 )
 
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
@@ -77,6 +128,23 @@ type AgentManagementServiceClient interface {
 	GetCurrentUser(context.Context, *connect.Request[v1.GetCurrentUserRequest]) (*connect.Response[v1.GetCurrentUserResponse], error)
 	StartProxy(context.Context, *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error)
 	StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error)
+	GetPublicProxyConfig(context.Context, *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error)
+	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
+	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
+	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
+	CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error)
+	UpdatePublicListener(context.Context, *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error)
+	DeletePublicListener(context.Context, *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error)
+	EnablePublicListener(context.Context, *connect.Request[v1.EnablePublicListenerRequest]) (*connect.Response[v1.EnablePublicListenerResponse], error)
+	DisablePublicListener(context.Context, *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error)
+	StartPublicListener(context.Context, *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error)
+	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
+	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
+	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
+	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error)
+	UpdatePublicTlsCertificate(context.Context, *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error)
+	DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error)
 }
 
 // NewAgentManagementServiceClient constructs a client for the p2pstream.v1.AgentManagementService
@@ -150,21 +218,140 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("StopProxy")),
 			connect.WithClientOptions(opts...),
 		),
+		getPublicProxyConfig: connect.NewClient[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetPublicProxyConfigProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetPublicProxyConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicBackend: connect.NewClient[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicBackendProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicBackend")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicBackend: connect.NewClient[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicBackendProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicBackend")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicBackend: connect.NewClient[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicBackendProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicBackend")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicListener: connect.NewClient[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicListenerProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicListener: connect.NewClient[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicListenerProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicListener: connect.NewClient[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicListenerProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		enablePublicListener: connect.NewClient[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse](
+			httpClient,
+			baseURL+AgentManagementServiceEnablePublicListenerProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("EnablePublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		disablePublicListener: connect.NewClient[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDisablePublicListenerProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DisablePublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		startPublicListener: connect.NewClient[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse](
+			httpClient,
+			baseURL+AgentManagementServiceStartPublicListenerProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("StartPublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		stopPublicListener: connect.NewClient[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse](
+			httpClient,
+			baseURL+AgentManagementServiceStopPublicListenerProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("StopPublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicRoute: connect.NewClient[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicRouteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicRoute")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicRoute: connect.NewClient[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicRouteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicRoute")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicRoute: connect.NewClient[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicRouteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicTlsCertificate: connect.NewClient[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicTlsCertificateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTlsCertificate")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicTlsCertificate: connect.NewClient[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicTlsCertificateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTlsCertificate")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicTlsCertificate: connect.NewClient[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicTlsCertificateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsCertificate")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentManagementServiceClient implements AgentManagementServiceClient.
 type agentManagementServiceClient struct {
-	reportStats    *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
-	getStatus      *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
-	getDashboard   *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
-	getSetupState  *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
-	setupAdmin     *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
-	login          *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	logout         *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	getCurrentUser *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
-	startProxy     *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
-	stopProxy      *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
+	reportStats                *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
+	getStatus                  *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
+	getDashboard               *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getSetupState              *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
+	setupAdmin                 *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
+	login                      *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout                     *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getCurrentUser             *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
+	startProxy                 *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
+	stopProxy                  *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
+	getPublicProxyConfig       *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
+	createPublicBackend        *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
+	updatePublicBackend        *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
+	deletePublicBackend        *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
+	createPublicListener       *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
+	updatePublicListener       *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
+	deletePublicListener       *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
+	enablePublicListener       *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
+	disablePublicListener      *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
+	startPublicListener        *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
+	stopPublicListener         *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
+	createPublicRoute          *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
+	updatePublicRoute          *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
+	deletePublicRoute          *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
+	createPublicTlsCertificate *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
+	updatePublicTlsCertificate *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
+	deletePublicTlsCertificate *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
@@ -217,6 +404,91 @@ func (c *agentManagementServiceClient) StopProxy(ctx context.Context, req *conne
 	return c.stopProxy.CallUnary(ctx, req)
 }
 
+// GetPublicProxyConfig calls p2pstream.v1.AgentManagementService.GetPublicProxyConfig.
+func (c *agentManagementServiceClient) GetPublicProxyConfig(ctx context.Context, req *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error) {
+	return c.getPublicProxyConfig.CallUnary(ctx, req)
+}
+
+// CreatePublicBackend calls p2pstream.v1.AgentManagementService.CreatePublicBackend.
+func (c *agentManagementServiceClient) CreatePublicBackend(ctx context.Context, req *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error) {
+	return c.createPublicBackend.CallUnary(ctx, req)
+}
+
+// UpdatePublicBackend calls p2pstream.v1.AgentManagementService.UpdatePublicBackend.
+func (c *agentManagementServiceClient) UpdatePublicBackend(ctx context.Context, req *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error) {
+	return c.updatePublicBackend.CallUnary(ctx, req)
+}
+
+// DeletePublicBackend calls p2pstream.v1.AgentManagementService.DeletePublicBackend.
+func (c *agentManagementServiceClient) DeletePublicBackend(ctx context.Context, req *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error) {
+	return c.deletePublicBackend.CallUnary(ctx, req)
+}
+
+// CreatePublicListener calls p2pstream.v1.AgentManagementService.CreatePublicListener.
+func (c *agentManagementServiceClient) CreatePublicListener(ctx context.Context, req *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error) {
+	return c.createPublicListener.CallUnary(ctx, req)
+}
+
+// UpdatePublicListener calls p2pstream.v1.AgentManagementService.UpdatePublicListener.
+func (c *agentManagementServiceClient) UpdatePublicListener(ctx context.Context, req *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error) {
+	return c.updatePublicListener.CallUnary(ctx, req)
+}
+
+// DeletePublicListener calls p2pstream.v1.AgentManagementService.DeletePublicListener.
+func (c *agentManagementServiceClient) DeletePublicListener(ctx context.Context, req *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error) {
+	return c.deletePublicListener.CallUnary(ctx, req)
+}
+
+// EnablePublicListener calls p2pstream.v1.AgentManagementService.EnablePublicListener.
+func (c *agentManagementServiceClient) EnablePublicListener(ctx context.Context, req *connect.Request[v1.EnablePublicListenerRequest]) (*connect.Response[v1.EnablePublicListenerResponse], error) {
+	return c.enablePublicListener.CallUnary(ctx, req)
+}
+
+// DisablePublicListener calls p2pstream.v1.AgentManagementService.DisablePublicListener.
+func (c *agentManagementServiceClient) DisablePublicListener(ctx context.Context, req *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error) {
+	return c.disablePublicListener.CallUnary(ctx, req)
+}
+
+// StartPublicListener calls p2pstream.v1.AgentManagementService.StartPublicListener.
+func (c *agentManagementServiceClient) StartPublicListener(ctx context.Context, req *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error) {
+	return c.startPublicListener.CallUnary(ctx, req)
+}
+
+// StopPublicListener calls p2pstream.v1.AgentManagementService.StopPublicListener.
+func (c *agentManagementServiceClient) StopPublicListener(ctx context.Context, req *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error) {
+	return c.stopPublicListener.CallUnary(ctx, req)
+}
+
+// CreatePublicRoute calls p2pstream.v1.AgentManagementService.CreatePublicRoute.
+func (c *agentManagementServiceClient) CreatePublicRoute(ctx context.Context, req *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error) {
+	return c.createPublicRoute.CallUnary(ctx, req)
+}
+
+// UpdatePublicRoute calls p2pstream.v1.AgentManagementService.UpdatePublicRoute.
+func (c *agentManagementServiceClient) UpdatePublicRoute(ctx context.Context, req *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error) {
+	return c.updatePublicRoute.CallUnary(ctx, req)
+}
+
+// DeletePublicRoute calls p2pstream.v1.AgentManagementService.DeletePublicRoute.
+func (c *agentManagementServiceClient) DeletePublicRoute(ctx context.Context, req *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error) {
+	return c.deletePublicRoute.CallUnary(ctx, req)
+}
+
+// CreatePublicTlsCertificate calls p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate.
+func (c *agentManagementServiceClient) CreatePublicTlsCertificate(ctx context.Context, req *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error) {
+	return c.createPublicTlsCertificate.CallUnary(ctx, req)
+}
+
+// UpdatePublicTlsCertificate calls p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate.
+func (c *agentManagementServiceClient) UpdatePublicTlsCertificate(ctx context.Context, req *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error) {
+	return c.updatePublicTlsCertificate.CallUnary(ctx, req)
+}
+
+// DeletePublicTlsCertificate calls p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate.
+func (c *agentManagementServiceClient) DeletePublicTlsCertificate(ctx context.Context, req *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error) {
+	return c.deletePublicTlsCertificate.CallUnary(ctx, req)
+}
+
 // AgentManagementServiceHandler is an implementation of the p2pstream.v1.AgentManagementService
 // service.
 type AgentManagementServiceHandler interface {
@@ -230,6 +502,23 @@ type AgentManagementServiceHandler interface {
 	GetCurrentUser(context.Context, *connect.Request[v1.GetCurrentUserRequest]) (*connect.Response[v1.GetCurrentUserResponse], error)
 	StartProxy(context.Context, *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error)
 	StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error)
+	GetPublicProxyConfig(context.Context, *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error)
+	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
+	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
+	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
+	CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error)
+	UpdatePublicListener(context.Context, *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error)
+	DeletePublicListener(context.Context, *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error)
+	EnablePublicListener(context.Context, *connect.Request[v1.EnablePublicListenerRequest]) (*connect.Response[v1.EnablePublicListenerResponse], error)
+	DisablePublicListener(context.Context, *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error)
+	StartPublicListener(context.Context, *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error)
+	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
+	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
+	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
+	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error)
+	UpdatePublicTlsCertificate(context.Context, *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error)
+	DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error)
 }
 
 // NewAgentManagementServiceHandler builds an HTTP handler from the service implementation. It
@@ -299,6 +588,108 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("StopProxy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceGetPublicProxyConfigHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetPublicProxyConfigProcedure,
+		svc.GetPublicProxyConfig,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetPublicProxyConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicBackendHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicBackendProcedure,
+		svc.CreatePublicBackend,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicBackend")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicBackendHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicBackendProcedure,
+		svc.UpdatePublicBackend,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicBackend")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicBackendHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicBackendProcedure,
+		svc.DeletePublicBackend,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicBackend")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicListenerHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicListenerProcedure,
+		svc.CreatePublicListener,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicListenerHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicListenerProcedure,
+		svc.UpdatePublicListener,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicListenerHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicListenerProcedure,
+		svc.DeletePublicListener,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceEnablePublicListenerHandler := connect.NewUnaryHandler(
+		AgentManagementServiceEnablePublicListenerProcedure,
+		svc.EnablePublicListener,
+		connect.WithSchema(agentManagementServiceMethods.ByName("EnablePublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDisablePublicListenerHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDisablePublicListenerProcedure,
+		svc.DisablePublicListener,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DisablePublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceStartPublicListenerHandler := connect.NewUnaryHandler(
+		AgentManagementServiceStartPublicListenerProcedure,
+		svc.StartPublicListener,
+		connect.WithSchema(agentManagementServiceMethods.ByName("StartPublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceStopPublicListenerHandler := connect.NewUnaryHandler(
+		AgentManagementServiceStopPublicListenerProcedure,
+		svc.StopPublicListener,
+		connect.WithSchema(agentManagementServiceMethods.ByName("StopPublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicRouteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicRouteProcedure,
+		svc.CreatePublicRoute,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicRoute")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicRouteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicRouteProcedure,
+		svc.UpdatePublicRoute,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicRoute")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicRouteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicRouteProcedure,
+		svc.DeletePublicRoute,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicTlsCertificateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicTlsCertificateProcedure,
+		svc.CreatePublicTlsCertificate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTlsCertificate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicTlsCertificateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicTlsCertificateProcedure,
+		svc.UpdatePublicTlsCertificate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTlsCertificate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicTlsCertificateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicTlsCertificateProcedure,
+		svc.DeletePublicTlsCertificate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsCertificate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/p2pstream.v1.AgentManagementService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentManagementServiceReportStatsProcedure:
@@ -321,6 +712,40 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceStartProxyHandler.ServeHTTP(w, r)
 		case AgentManagementServiceStopProxyProcedure:
 			agentManagementServiceStopProxyHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetPublicProxyConfigProcedure:
+			agentManagementServiceGetPublicProxyConfigHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicBackendProcedure:
+			agentManagementServiceCreatePublicBackendHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicBackendProcedure:
+			agentManagementServiceUpdatePublicBackendHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicBackendProcedure:
+			agentManagementServiceDeletePublicBackendHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicListenerProcedure:
+			agentManagementServiceCreatePublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicListenerProcedure:
+			agentManagementServiceUpdatePublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicListenerProcedure:
+			agentManagementServiceDeletePublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceEnablePublicListenerProcedure:
+			agentManagementServiceEnablePublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDisablePublicListenerProcedure:
+			agentManagementServiceDisablePublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceStartPublicListenerProcedure:
+			agentManagementServiceStartPublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceStopPublicListenerProcedure:
+			agentManagementServiceStopPublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicRouteProcedure:
+			agentManagementServiceCreatePublicRouteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicRouteProcedure:
+			agentManagementServiceUpdatePublicRouteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicRouteProcedure:
+			agentManagementServiceDeletePublicRouteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicTlsCertificateProcedure:
+			agentManagementServiceCreatePublicTlsCertificateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicTlsCertificateProcedure:
+			agentManagementServiceUpdatePublicTlsCertificateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicTlsCertificateProcedure:
+			agentManagementServiceDeletePublicTlsCertificateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -368,4 +793,72 @@ func (UnimplementedAgentManagementServiceHandler) StartProxy(context.Context, *c
 
 func (UnimplementedAgentManagementServiceHandler) StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StopProxy is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetPublicProxyConfig(context.Context, *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetPublicProxyConfig is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicBackend is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicBackend is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicBackend is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicListener(context.Context, *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicListener(context.Context, *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) EnablePublicListener(context.Context, *connect.Request[v1.EnablePublicListenerRequest]) (*connect.Response[v1.EnablePublicListenerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.EnablePublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DisablePublicListener(context.Context, *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DisablePublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) StartPublicListener(context.Context, *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StartPublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StopPublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicRoute is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicRoute is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicRoute is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicTlsCertificate(context.Context, *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate is not implemented"))
 }

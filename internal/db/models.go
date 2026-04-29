@@ -29,11 +29,72 @@ type Connection struct {
 }
 
 type ProxyRequestEvent struct {
-	ID         int64     `json:"id"`
-	OccurredAt time.Time `json:"occurred_at"`
-	StatusCode int64     `json:"status_code"`
-	DurationMs int64     `json:"duration_ms"`
-	ErrorKind  string    `json:"error_kind"`
+	ID         int64         `json:"id"`
+	OccurredAt time.Time     `json:"occurred_at"`
+	StatusCode int64         `json:"status_code"`
+	DurationMs int64         `json:"duration_ms"`
+	ErrorKind  string        `json:"error_kind"`
+	ListenerID sql.NullInt64 `json:"listener_id"`
+	BackendID  sql.NullInt64 `json:"backend_id"`
+	RouteID    sql.NullInt64 `json:"route_id"`
+}
+
+type PublicBackend struct {
+	ID                 int64     `json:"id"`
+	Name               string    `json:"name"`
+	TargetOrigin       string    `json:"target_origin"`
+	BackendType        string    `json:"backend_type"`
+	TlsSkipVerify      int64     `json:"tls_skip_verify"`
+	StaticStatusCode   int64     `json:"static_status_code"`
+	StaticResponseBody string    `json:"static_response_body"`
+	Enabled            int64     `json:"enabled"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type PublicBackendHeader struct {
+	ID        int64     `json:"id"`
+	BackendID int64     `json:"backend_id"`
+	Position  int64     `json:"position"`
+	Name      string    `json:"name"`
+	Value     string    `json:"value"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PublicListener struct {
+	ID               int64     `json:"id"`
+	Name             string    `json:"name"`
+	BindAddress      string    `json:"bind_address"`
+	Port             int64     `json:"port"`
+	Protocol         string    `json:"protocol"`
+	Enabled          int64     `json:"enabled"`
+	DefaultBackendID int64     `json:"default_backend_id"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type PublicRoute struct {
+	ID          int64     `json:"id"`
+	ListenerID  int64     `json:"listener_id"`
+	Priority    int64     `json:"priority"`
+	HostPattern string    `json:"host_pattern"`
+	PathPrefix  string    `json:"path_prefix"`
+	BackendID   int64     `json:"backend_id"`
+	Enabled     int64     `json:"enabled"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type PublicTlsCertificate struct {
+	ID              int64     `json:"id"`
+	ListenerID      int64     `json:"listener_id"`
+	HostnamePattern string    `json:"hostname_pattern"`
+	CertPath        string    `json:"cert_path"`
+	KeyPath         string    `json:"key_path"`
+	Enabled         int64     `json:"enabled"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type Session struct {

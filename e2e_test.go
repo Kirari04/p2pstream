@@ -77,10 +77,12 @@ func TestE2E_ReportStats(t *testing.T) {
 
 func TestE2E_GetStatus(t *testing.T) {
 	targetOrigin := "https://example.com"
+	database := newTestDB(t)
+	seedTestHTTPPublicListener(t, database, targetOrigin)
 	app := server.NewApp(&config.Config{
 		Port:         "0",
 		TargetOrigin: targetOrigin,
-	}, newTestDB(t))
+	}, database)
 	if _, err := app.StartProxyListener(context.Background()); err != nil {
 		t.Fatalf("start proxy listener: %v", err)
 	}

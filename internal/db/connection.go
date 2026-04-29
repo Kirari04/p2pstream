@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,38 +22,34 @@ type DB struct {
 func Open(databaseURL string) (*DB, error) {
 	log.Info().Str("url", databaseURL).Msg("Connecting to SQLite database")
 
-	// Ensure the directory exists if the URL is a local file
-	// We extract the file path if it's not strictly an in-memory DB or URI
-	// Note: For advanced URI parsing we rely on the sqlite3 driver, but we'll attempt a simple directory creation.
-	if len(databaseURL) > 5 && databaseURL[:5] == "file:" {
-		path := databaseURL[5:]
-		if idx := strings.Index(path[1:], "?"); idx != -1 {
-			path = path[:idx+1]
-		}
-		dir := filepath.Dir(path)
-		if dir != "." && dir != "" {
-			_ = os.MkdirAll(dir, 0755)
-		}
+	dsn, err := normalizeSQLiteDSN(databaseURL)
+	if err != nil {
+		return nil, err
 	}
-
-	// For maximum performance and safety with concurrency:
-	// _journal_mode=WAL -> Write-Ahead Logging
-	// _synchronous=NORMAL -> Safe with WAL, much faster than FULL
-	// _busy_timeout=5000 -> Prevents "database is locked" errors
-	// _fk=1 -> Enforce foreign keys
-	dsn := databaseURL
-	if !filepath.IsAbs(dsn) && dsn[:5] != "file:" {
-		// Just append the pragmas if it's a simple file path without params
-		dsn = fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_busy_timeout=5000&_fk=1", dsn)
+	if err := ensureSQLiteDir(dsn); err != nil {
+		return nil, err
 	}
 
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+	db.SetMaxOpenConns(8)
+	db.SetMaxIdleConns(8)
+	db.SetConnMaxLifetime(0)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	if _, err := db.ExecContext(context.Background(), `
+		PRAGMA journal_mode = WAL;
+		PRAGMA synchronous = NORMAL;
+		PRAGMA busy_timeout = 10000;
+		PRAGMA foreign_keys = ON;
+		PRAGMA wal_autocheckpoint = 1000;
+	`); err != nil {
+		return nil, fmt.Errorf("failed to configure SQLite pragmas: %w", err)
 	}
 
 	instance := &DB{
@@ -64,18 +61,69 @@ func Open(databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	// Enforce pragmas for existing connections as a fallback
+	// Enforce pragmas for any connections opened after migration.
 	if _, err := db.ExecContext(context.Background(), `
 		PRAGMA journal_mode = WAL;
 		PRAGMA synchronous = NORMAL;
-		PRAGMA busy_timeout = 5000;
+		PRAGMA busy_timeout = 10000;
 		PRAGMA foreign_keys = ON;
+		PRAGMA wal_autocheckpoint = 1000;
 	`); err != nil {
 		log.Warn().Err(err).Msg("Failed to enforce some SQLite pragmas")
 	}
 
 	log.Info().Msg("Database connected and configured successfully")
 	return instance, nil
+}
+
+func normalizeSQLiteDSN(databaseURL string) (string, error) {
+	databaseURL = strings.TrimSpace(databaseURL)
+	if databaseURL == "" {
+		databaseURL = "file:p2pstream.db?mode=rwc"
+	}
+
+	if strings.HasPrefix(databaseURL, "file:") {
+		prefix, rawQuery, _ := strings.Cut(databaseURL, "?")
+		values, err := url.ParseQuery(rawQuery)
+		if err != nil {
+			return "", fmt.Errorf("invalid sqlite database URL %q: %w", databaseURL, err)
+		}
+		if values.Get("mode") == "" && prefix != "file::memory:" {
+			values.Set("mode", "rwc")
+		}
+		applySQLitePragmas(values)
+		return prefix + "?" + values.Encode(), nil
+	}
+
+	values := url.Values{}
+	values.Set("mode", "rwc")
+	applySQLitePragmas(values)
+	return "file:" + databaseURL + "?" + values.Encode(), nil
+}
+
+func applySQLitePragmas(values url.Values) {
+	values.Set("_journal_mode", "WAL")
+	values.Set("_synchronous", "NORMAL")
+	values.Set("_busy_timeout", "10000")
+	values.Set("_fk", "1")
+	values.Set("cache", "private")
+}
+
+func ensureSQLiteDir(dsn string) error {
+	if !strings.HasPrefix(dsn, "file:") {
+		return nil
+	}
+	prefix, _, _ := strings.Cut(dsn, "?")
+	path := strings.TrimPrefix(prefix, "file:")
+	if path == "" || path == ":memory:" || strings.HasPrefix(path, ":memory:") {
+		return nil
+	}
+	path = filepath.Clean(path)
+	dir := filepath.Dir(path)
+	if dir == "." || dir == "" {
+		return nil
+	}
+	return os.MkdirAll(dir, 0755)
 }
 
 // migrate runs the initial schema setup.
@@ -105,7 +153,70 @@ func (db *DB) migrate() error {
 		occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		status_code INTEGER NOT NULL,
 		duration_ms INTEGER NOT NULL,
-		error_kind TEXT NOT NULL DEFAULT ''
+		error_kind TEXT NOT NULL DEFAULT '',
+		listener_id INTEGER,
+		backend_id INTEGER,
+		route_id INTEGER
+	);
+
+	CREATE TABLE IF NOT EXISTS public_backends (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		target_origin TEXT NOT NULL,
+		backend_type TEXT NOT NULL DEFAULT 'proxy_forward',
+		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+		static_status_code INTEGER NOT NULL DEFAULT 200,
+		static_response_body TEXT NOT NULL DEFAULT '',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_backend_headers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+		position INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		value TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(backend_id, position)
+	);
+
+	CREATE TABLE IF NOT EXISTS public_listeners (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		bind_address TEXT NOT NULL DEFAULT '',
+		port INTEGER NOT NULL,
+		protocol TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		default_backend_id INTEGER NOT NULL REFERENCES public_backends(id),
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(bind_address, port)
+	);
+
+	CREATE TABLE IF NOT EXISTS public_routes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+		priority INTEGER NOT NULL,
+		host_pattern TEXT NOT NULL DEFAULT '',
+		path_prefix TEXT NOT NULL DEFAULT '',
+		backend_id INTEGER NOT NULL REFERENCES public_backends(id),
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_tls_certificates (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+		hostname_pattern TEXT NOT NULL,
+		cert_path TEXT NOT NULL,
+		key_path TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 
 	CREATE TABLE IF NOT EXISTS users (
@@ -131,6 +242,15 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_proxy_request_events_occurred_at
 	ON proxy_request_events (occurred_at);
 
+	CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
+	ON public_routes (listener_id, priority, id);
+
+	CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position
+	ON public_backend_headers (backend_id, position);
+
+	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
+	ON public_tls_certificates (listener_id);
+
 	CREATE INDEX IF NOT EXISTS idx_agent_stats_reported_at
 	ON agent_stats (reported_at);
 
@@ -143,6 +263,39 @@ func (db *DB) migrate() error {
 
 	_, err := db.Exec(`ALTER TABLE agent_stats ADD COLUMN req_internal_error INTEGER NOT NULL DEFAULT 0`)
 	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+	for _, stmt := range []string{
+		`ALTER TABLE proxy_request_events ADD COLUMN listener_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN backend_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN route_id INTEGER`,
+		`ALTER TABLE public_backends ADD COLUMN backend_type TEXT NOT NULL DEFAULT 'proxy_forward'`,
+		`ALTER TABLE public_backends ADD COLUMN tls_skip_verify INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN static_status_code INTEGER NOT NULL DEFAULT 200`,
+		`ALTER TABLE public_backends ADD COLUMN static_response_body TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id ON proxy_request_events (listener_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_backend_headers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			value TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(backend_id, position)
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position ON public_backend_headers (backend_id, position)`); err != nil {
 		return err
 	}
 	return nil

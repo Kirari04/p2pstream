@@ -13,12 +13,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/coder/websocket"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
-	"p2pstream/httpmsg"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/managementui"
@@ -43,12 +41,12 @@ type App struct {
 
 	setupMu sync.Mutex
 
-	proxyMu        sync.Mutex
-	proxySrv       *http.Server
-	proxyState     p2pstreamv1.ProxyState
-	proxyLastError string
-	proxyStartedAt time.Time
-	proxyStoppedAt time.Time
+	proxyMu             sync.Mutex
+	proxyServiceActive  bool
+	proxyState          p2pstreamv1.ProxyState
+	proxyLastError      string
+	publicSnapshot      *publicProxySnapshot
+	publicListenerState map[int64]*publicListenerRuntime
 
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
@@ -59,10 +57,11 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		cfg = &config.Config{}
 	}
 	return &App{
-		Config:     cfg,
-		DB:         database,
-		StartedAt:  time.Now(),
-		proxyState: p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
+		Config:              cfg,
+		DB:                  database,
+		StartedAt:           time.Now(),
+		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
+		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
 }
 
@@ -269,100 +268,6 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Msg("Failed to update disconnection time")
 		}
 	}
-}
-
-func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
-	startedAt := time.Now()
-	statusCode := http.StatusOK
-	errorKind := ""
-	defer func() {
-		a.recordProxyRequestEvent(context.Background(), statusCode, time.Since(startedAt), errorKind)
-	}()
-
-	agent := a.ActiveAgent.Load()
-	if agent == nil {
-		statusCode = http.StatusServiceUnavailable
-		errorKind = "no_agent"
-		http.Error(w, "No agent connected", http.StatusServiceUnavailable)
-		return
-	}
-
-	id, err := uuid.NewV7()
-	if err != nil {
-		statusCode = http.StatusInternalServerError
-		errorKind = "request_id_failed"
-		http.Error(w, "Failed to generate ID", http.StatusInternalServerError)
-		return
-	}
-
-	log.Info().
-		Str("req_id", id.String()).
-		Str("method", r.Method).
-		Str("path", r.URL.Path).
-		Msg("Proxying request")
-
-	respCh := make(chan *msg.Request, 100)
-	a.PendingRequests.Store(id, respCh)
-	defer a.PendingRequests.Delete(id)
-
-	r.URL.Scheme = a.Config.ParsedTargetOrigin.Scheme
-	r.URL.Host = a.Config.ParsedTargetOrigin.Host
-	r.Host = a.Config.ParsedTargetOrigin.Host
-
-	enc := httpmsg.NewRequestEncoder(id, r)
-	for {
-		m, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode request chunk")
-			statusCode = http.StatusInternalServerError
-			errorKind = "request_encode_failed"
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		agent.WriteCh <- m
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	var firstMsg *msg.Request
-	select {
-	case <-timeoutCtx.Done():
-		statusCode = http.StatusGatewayTimeout
-		errorKind = "agent_timeout"
-		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
-		return
-	case firstMsg = <-respCh:
-	}
-
-	stream := &httpmsg.ChannelStream{Ch: respCh}
-	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
-	if err != nil {
-		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
-		statusCode = http.StatusBadGateway
-		errorKind = "response_decode_failed"
-		http.Error(w, "Bad Gateway", http.StatusBadGateway)
-		return
-	}
-
-	statusCode = resp.StatusCode
-
-	for k, vv := range resp.Header {
-		for _, v := range vv {
-			w.Header().Add(k, v)
-		}
-	}
-	w.WriteHeader(resp.StatusCode)
-
-	if resp.Body != nil {
-		defer resp.Body.Close()
-		io.Copy(w, resp.Body)
-	}
-
-	log.Info().Str("req_id", id.String()).Int("status", resp.StatusCode).Msg("Finished proxying request")
 }
 
 func (a *App) validAgentAuthorization(header string) bool {

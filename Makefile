@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev docker-build frontend-build frontend-install generate generate-proto generate-sqlc run sqlc test
+.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test frontend-build frontend-install generate generate-proto generate-sqlc run sqlc test
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -53,7 +53,21 @@ run: build kill
 	wait $$SERVER_PID $$AGENT_PID
 
 docker-build:
-	@docker build -t p2pstream:local .
+	@docker build --target runtime -t p2pstream:local .
+
+docker-test:
+	@docker build --target test -t p2pstream:test .
+
+docker-race-test:
+	@docker build --target race-test -t p2pstream:race-test .
+
+docker-smoke:
+	@echo "Starting Docker smoke test. Dynamic listener ports must be published explicitly; this test publishes 18080, 18081, 18088, and 18443 on the host."
+	@docker compose -f docker-compose.test.yml down -v --remove-orphans
+	@docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from smoke
+
+docker-smoke-clean:
+	@docker compose -f docker-compose.test.yml down -v --remove-orphans
 
 test:
 	@go test ./...

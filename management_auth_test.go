@@ -40,6 +40,31 @@ func newTestDB(t *testing.T) *db.DB {
 	return database
 }
 
+func seedTestHTTPPublicListener(t *testing.T, database *db.DB, targetOrigin string) db.PublicListener {
+	t.Helper()
+
+	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
+		Name:         "test-default",
+		TargetOrigin: targetOrigin,
+		Enabled:      1,
+	})
+	if err != nil {
+		t.Fatalf("seed test backend: %v", err)
+	}
+	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
+		Name:             "test-http",
+		BindAddress:      "127.0.0.1",
+		Port:             0,
+		Protocol:         "http",
+		Enabled:          1,
+		DefaultBackendID: backend.ID,
+	})
+	if err != nil {
+		t.Fatalf("seed test listener: %v", err)
+	}
+	return listener
+}
+
 func newTestManagementClient(
 	t *testing.T,
 	app *server.App,
@@ -273,10 +298,12 @@ func TestProtectedRPCRejectsWithoutSession(t *testing.T) {
 }
 
 func TestProxyStartStopLifecycle(t *testing.T) {
+	database := newTestDB(t)
+	seedTestHTTPPublicListener(t, database, "https://example.com")
 	app := server.NewApp(&config.Config{
 		Port:         "0",
 		TargetOrigin: "https://example.com",
-	}, newTestDB(t))
+	}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 

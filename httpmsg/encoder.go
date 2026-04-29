@@ -11,7 +11,10 @@ import (
 	"p2pstream/msg"
 )
 
-const MaxBodyChunkSize = 60 * 1024
+const (
+	MaxBodyChunkSize      = 60 * 1024
+	MetadataTLSSkipVerify = ":p2pstream-tls-skip-verify"
+)
 
 // Encoder takes an HTTP request or response and yields a sequence of msg.Request chunks.
 type Encoder struct {
@@ -27,6 +30,12 @@ type Encoder struct {
 
 // NewRequestEncoder creates a new encoder from an http.Request.
 func NewRequestEncoder(id uuid.UUID, req *http.Request) *Encoder {
+	return NewRequestEncoderWithMetadata(id, req, nil)
+}
+
+// NewRequestEncoderWithMetadata creates a request encoder with internal
+// colon-prefixed metadata that is consumed by the agent and not forwarded.
+func NewRequestEncoderWithMetadata(id uuid.UUID, req *http.Request, metadata map[string]string) *Encoder {
 	headers := make(map[string]string)
 	headers[":method"] = req.Method
 	if req.URL != nil {
@@ -45,6 +54,11 @@ func NewRequestEncoder(id uuid.UUID, req *http.Request) *Encoder {
 
 	for k, vv := range req.Header {
 		headers[k] = strings.Join(vv, ",")
+	}
+	for k, v := range metadata {
+		if strings.HasPrefix(k, ":") {
+			headers[k] = v
+		}
 	}
 
 	return &Encoder{

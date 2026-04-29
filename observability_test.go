@@ -169,7 +169,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 	}
 
 	columns := proxyRequestEventColumns(t, database)
-	expected := []string{"duration_ms", "error_kind", "id", "occurred_at", "status_code"}
+	expected := []string{"backend_id", "duration_ms", "error_kind", "id", "listener_id", "occurred_at", "route_id", "status_code"}
 	if !equalStringSlices(columns, expected) {
 		t.Fatalf("proxy_request_events columns changed: got %v, want %v", columns, expected)
 	}

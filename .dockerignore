@@ -1,9 +1,9 @@
-.git
-.env
+.git/
 bin/
 tmp/
-*.db
-*-shm
-*-wal
-web/management/node_modules/
 web/management/dist/
+web/management/node_modules/
+p2pstream.db
+p2pstream.db-shm
+p2pstream.db-wal
+*.log

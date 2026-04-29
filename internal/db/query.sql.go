@@ -11,6 +11,53 @@ import (
 	"time"
 )
 
+const countPublicBackendEnabledReferences = `-- name: CountPublicBackendEnabledReferences :one
+SELECT
+  (
+    SELECT COUNT(*)
+    FROM public_listeners
+    WHERE default_backend_id = ? AND enabled = 1
+  ) + (
+    SELECT COUNT(*)
+    FROM public_routes
+    WHERE backend_id = ? AND enabled = 1
+  ) AS references_count
+`
+
+type CountPublicBackendEnabledReferencesParams struct {
+	DefaultBackendID int64 `json:"default_backend_id"`
+	BackendID        int64 `json:"backend_id"`
+}
+
+func (q *Queries) CountPublicBackendEnabledReferences(ctx context.Context, arg CountPublicBackendEnabledReferencesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublicBackendEnabledReferences, arg.DefaultBackendID, arg.BackendID)
+	var references_count int64
+	err := row.Scan(&references_count)
+	return references_count, err
+}
+
+const countPublicBackends = `-- name: CountPublicBackends :one
+SELECT COUNT(*) FROM public_backends
+`
+
+func (q *Queries) CountPublicBackends(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublicBackends)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countPublicListeners = `-- name: CountPublicListeners :one
+SELECT COUNT(*) FROM public_listeners
+`
+
+func (q *Queries) CountPublicListeners(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublicListeners)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
 `
@@ -20,6 +67,204 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createPublicBackend = `-- name: CreatePublicBackend :one
+INSERT INTO public_backends (
+    name,
+    target_origin,
+    backend_type,
+    tls_skip_verify,
+    static_status_code,
+    static_response_body,
+    enabled
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+`
+
+type CreatePublicBackendParams struct {
+	Name               string `json:"name"`
+	TargetOrigin       string `json:"target_origin"`
+	BackendType        string `json:"backend_type"`
+	TlsSkipVerify      int64  `json:"tls_skip_verify"`
+	StaticStatusCode   int64  `json:"static_status_code"`
+	StaticResponseBody string `json:"static_response_body"`
+	Enabled            int64  `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error) {
+	row := q.db.QueryRowContext(ctx, createPublicBackend,
+		arg.Name,
+		arg.TargetOrigin,
+		arg.BackendType,
+		arg.TlsSkipVerify,
+		arg.StaticStatusCode,
+		arg.StaticResponseBody,
+		arg.Enabled,
+	)
+	var i PublicBackend
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.TargetOrigin,
+		&i.BackendType,
+		&i.TlsSkipVerify,
+		&i.StaticStatusCode,
+		&i.StaticResponseBody,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicBackendHeader = `-- name: CreatePublicBackendHeader :one
+INSERT INTO public_backend_headers (backend_id, position, name, value)
+VALUES (?, ?, ?, ?)
+RETURNING id, backend_id, position, name, value, created_at, updated_at
+`
+
+type CreatePublicBackendHeaderParams struct {
+	BackendID int64  `json:"backend_id"`
+	Position  int64  `json:"position"`
+	Name      string `json:"name"`
+	Value     string `json:"value"`
+}
+
+func (q *Queries) CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error) {
+	row := q.db.QueryRowContext(ctx, createPublicBackendHeader,
+		arg.BackendID,
+		arg.Position,
+		arg.Name,
+		arg.Value,
+	)
+	var i PublicBackendHeader
+	err := row.Scan(
+		&i.ID,
+		&i.BackendID,
+		&i.Position,
+		&i.Name,
+		&i.Value,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicListener = `-- name: CreatePublicListener :one
+INSERT INTO public_listeners (name, bind_address, port, protocol, enabled, default_backend_id)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+`
+
+type CreatePublicListenerParams struct {
+	Name             string `json:"name"`
+	BindAddress      string `json:"bind_address"`
+	Port             int64  `json:"port"`
+	Protocol         string `json:"protocol"`
+	Enabled          int64  `json:"enabled"`
+	DefaultBackendID int64  `json:"default_backend_id"`
+}
+
+func (q *Queries) CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error) {
+	row := q.db.QueryRowContext(ctx, createPublicListener,
+		arg.Name,
+		arg.BindAddress,
+		arg.Port,
+		arg.Protocol,
+		arg.Enabled,
+		arg.DefaultBackendID,
+	)
+	var i PublicListener
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.BindAddress,
+		&i.Port,
+		&i.Protocol,
+		&i.Enabled,
+		&i.DefaultBackendID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicRoute = `-- name: CreatePublicRoute :one
+INSERT INTO public_routes (listener_id, priority, host_pattern, path_prefix, backend_id, enabled)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+`
+
+type CreatePublicRouteParams struct {
+	ListenerID  int64  `json:"listener_id"`
+	Priority    int64  `json:"priority"`
+	HostPattern string `json:"host_pattern"`
+	PathPrefix  string `json:"path_prefix"`
+	BackendID   int64  `json:"backend_id"`
+	Enabled     int64  `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error) {
+	row := q.db.QueryRowContext(ctx, createPublicRoute,
+		arg.ListenerID,
+		arg.Priority,
+		arg.HostPattern,
+		arg.PathPrefix,
+		arg.BackendID,
+		arg.Enabled,
+	)
+	var i PublicRoute
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.Priority,
+		&i.HostPattern,
+		&i.PathPrefix,
+		&i.BackendID,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicTlsCertificate = `-- name: CreatePublicTlsCertificate :one
+INSERT INTO public_tls_certificates (listener_id, hostname_pattern, cert_path, key_path, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+`
+
+type CreatePublicTlsCertificateParams struct {
+	ListenerID      int64  `json:"listener_id"`
+	HostnamePattern string `json:"hostname_pattern"`
+	CertPath        string `json:"cert_path"`
+	KeyPath         string `json:"key_path"`
+	Enabled         int64  `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error) {
+	row := q.db.QueryRowContext(ctx, createPublicTlsCertificate,
+		arg.ListenerID,
+		arg.HostnamePattern,
+		arg.CertPath,
+		arg.KeyPath,
+		arg.Enabled,
+	)
+	var i PublicTlsCertificate
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.CertPath,
+		&i.KeyPath,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createSession = `-- name: CreateSession :one
@@ -105,6 +350,56 @@ func (q *Queries) DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt
 	return err
 }
 
+const deletePublicBackend = `-- name: DeletePublicBackend :exec
+DELETE FROM public_backends
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicBackend(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicBackend, id)
+	return err
+}
+
+const deletePublicBackendHeaders = `-- name: DeletePublicBackendHeaders :exec
+DELETE FROM public_backend_headers
+WHERE backend_id = ?
+`
+
+func (q *Queries) DeletePublicBackendHeaders(ctx context.Context, backendID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicBackendHeaders, backendID)
+	return err
+}
+
+const deletePublicListener = `-- name: DeletePublicListener :exec
+DELETE FROM public_listeners
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicListener(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicListener, id)
+	return err
+}
+
+const deletePublicRoute = `-- name: DeletePublicRoute :exec
+DELETE FROM public_routes
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicRoute(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRoute, id)
+	return err
+}
+
+const deletePublicTlsCertificate = `-- name: DeletePublicTlsCertificate :exec
+DELETE FROM public_tls_certificates
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicTlsCertificate(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicTlsCertificate, id)
+	return err
+}
+
 const getActiveConnection = `-- name: GetActiveConnection :one
 SELECT id, connected_at, disconnected_at
 FROM connections
@@ -124,6 +419,7 @@ const getActiveSessionByTokenHash = `-- name: GetActiveSessionByTokenHash :one
 SELECT
     s.id AS session_id,
     s.user_id,
+    s.last_seen_at,
     s.expires_at,
     u.id,
     u.username,
@@ -137,12 +433,13 @@ WHERE s.token_hash = ?
 `
 
 type GetActiveSessionByTokenHashRow struct {
-	SessionID int64     `json:"session_id"`
-	UserID    int64     `json:"user_id"`
-	ExpiresAt time.Time `json:"expires_at"`
-	ID        int64     `json:"id"`
-	Username  string    `json:"username"`
-	Role      string    `json:"role"`
+	SessionID  int64     `json:"session_id"`
+	UserID     int64     `json:"user_id"`
+	LastSeenAt time.Time `json:"last_seen_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	ID         int64     `json:"id"`
+	Username   string    `json:"username"`
+	Role       string    `json:"role"`
 }
 
 func (q *Queries) GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error) {
@@ -151,6 +448,7 @@ func (q *Queries) GetActiveSessionByTokenHash(ctx context.Context, tokenHash str
 	err := row.Scan(
 		&i.SessionID,
 		&i.UserID,
+		&i.LastSeenAt,
 		&i.ExpiresAt,
 		&i.ID,
 		&i.Username,
@@ -290,6 +588,98 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 	return i, err
 }
 
+const getPublicBackend = `-- name: GetPublicBackend :one
+SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+FROM public_backends
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend, error) {
+	row := q.db.QueryRowContext(ctx, getPublicBackend, id)
+	var i PublicBackend
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.TargetOrigin,
+		&i.BackendType,
+		&i.TlsSkipVerify,
+		&i.StaticStatusCode,
+		&i.StaticResponseBody,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicListener = `-- name: GetPublicListener :one
+SELECT id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+FROM public_listeners
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicListener(ctx context.Context, id int64) (PublicListener, error) {
+	row := q.db.QueryRowContext(ctx, getPublicListener, id)
+	var i PublicListener
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.BindAddress,
+		&i.Port,
+		&i.Protocol,
+		&i.Enabled,
+		&i.DefaultBackendID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicRoute = `-- name: GetPublicRoute :one
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+FROM public_routes
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error) {
+	row := q.db.QueryRowContext(ctx, getPublicRoute, id)
+	var i PublicRoute
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.Priority,
+		&i.HostPattern,
+		&i.PathPrefix,
+		&i.BackendID,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicTlsCertificate = `-- name: GetPublicTlsCertificate :one
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+FROM public_tls_certificates
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error) {
+	row := q.db.QueryRowContext(ctx, getPublicTlsCertificate, id)
+	var i PublicTlsCertificate
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.CertPath,
+		&i.KeyPath,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, password_hash, role, created_at, updated_at, disabled_at
 FROM users
@@ -380,21 +770,262 @@ func (q *Queries) InsertConnection(ctx context.Context) (int64, error) {
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id
 ) VALUES (
-    ?, ?, ?
+    ?, ?, ?, ?, ?, ?
 )
 `
 
 type InsertProxyRequestEventParams struct {
-	StatusCode int64  `json:"status_code"`
-	DurationMs int64  `json:"duration_ms"`
-	ErrorKind  string `json:"error_kind"`
+	StatusCode int64         `json:"status_code"`
+	DurationMs int64         `json:"duration_ms"`
+	ErrorKind  string        `json:"error_kind"`
+	ListenerID sql.NullInt64 `json:"listener_id"`
+	BackendID  sql.NullInt64 `json:"backend_id"`
+	RouteID    sql.NullInt64 `json:"route_id"`
 }
 
 func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error {
-	_, err := q.db.ExecContext(ctx, insertProxyRequestEvent, arg.StatusCode, arg.DurationMs, arg.ErrorKind)
+	_, err := q.db.ExecContext(ctx, insertProxyRequestEvent,
+		arg.StatusCode,
+		arg.DurationMs,
+		arg.ErrorKind,
+		arg.ListenerID,
+		arg.BackendID,
+		arg.RouteID,
+	)
 	return err
+}
+
+const listPublicBackendHeaders = `-- name: ListPublicBackendHeaders :many
+SELECT id, backend_id, position, name, value, created_at, updated_at
+FROM public_backend_headers
+ORDER BY backend_id ASC, position ASC, id ASC
+`
+
+func (q *Queries) ListPublicBackendHeaders(ctx context.Context) ([]PublicBackendHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicBackendHeaders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicBackendHeader
+	for rows.Next() {
+		var i PublicBackendHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.BackendID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicBackendHeadersByBackend = `-- name: ListPublicBackendHeadersByBackend :many
+SELECT id, backend_id, position, name, value, created_at, updated_at
+FROM public_backend_headers
+WHERE backend_id = ?
+ORDER BY position ASC, id ASC
+`
+
+func (q *Queries) ListPublicBackendHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicBackendHeadersByBackend, backendID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicBackendHeader
+	for rows.Next() {
+		var i PublicBackendHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.BackendID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicBackends = `-- name: ListPublicBackends :many
+SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+FROM public_backends
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicBackends)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicBackend
+	for rows.Next() {
+		var i PublicBackend
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.TargetOrigin,
+			&i.BackendType,
+			&i.TlsSkipVerify,
+			&i.StaticStatusCode,
+			&i.StaticResponseBody,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicListeners = `-- name: ListPublicListeners :many
+SELECT id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+FROM public_listeners
+ORDER BY port ASC, bind_address ASC, id ASC
+`
+
+func (q *Queries) ListPublicListeners(ctx context.Context) ([]PublicListener, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicListeners)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicListener
+	for rows.Next() {
+		var i PublicListener
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.BindAddress,
+			&i.Port,
+			&i.Protocol,
+			&i.Enabled,
+			&i.DefaultBackendID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicRoutes = `-- name: ListPublicRoutes :many
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+FROM public_routes
+ORDER BY listener_id ASC, priority ASC, id ASC
+`
+
+func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRoutes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRoute
+	for rows.Next() {
+		var i PublicRoute
+		if err := rows.Scan(
+			&i.ID,
+			&i.ListenerID,
+			&i.Priority,
+			&i.HostPattern,
+			&i.PathPrefix,
+			&i.BackendID,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicTlsCertificates = `-- name: ListPublicTlsCertificates :many
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+FROM public_tls_certificates
+ORDER BY listener_id ASC, hostname_pattern ASC, id ASC
+`
+
+func (q *Queries) ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicTlsCertificates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicTlsCertificate
+	for rows.Next() {
+		var i PublicTlsCertificate
+		if err := rows.Scan(
+			&i.ID,
+			&i.ListenerID,
+			&i.HostnamePattern,
+			&i.CertPath,
+			&i.KeyPath,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeSessionByTokenHash = `-- name: RevokeSessionByTokenHash :exec
@@ -408,10 +1039,40 @@ func (q *Queries) RevokeSessionByTokenHash(ctx context.Context, tokenHash string
 	return err
 }
 
+const setPublicListenerEnabled = `-- name: SetPublicListenerEnabled :one
+UPDATE public_listeners
+SET enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+`
+
+type SetPublicListenerEnabledParams struct {
+	Enabled int64 `json:"enabled"`
+	ID      int64 `json:"id"`
+}
+
+func (q *Queries) SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error) {
+	row := q.db.QueryRowContext(ctx, setPublicListenerEnabled, arg.Enabled, arg.ID)
+	var i PublicListener
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.BindAddress,
+		&i.Port,
+		&i.Protocol,
+		&i.Enabled,
+		&i.DefaultBackendID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const touchSession = `-- name: TouchSession :exec
 UPDATE sessions
 SET last_seen_at = CURRENT_TIMESTAMP
 WHERE id = ?
+  AND last_seen_at < datetime('now', '-30 seconds')
 `
 
 func (q *Queries) TouchSession(ctx context.Context, id int64) error {
@@ -428,4 +1089,179 @@ WHERE id = ?
 func (q *Queries) UpdateConnectionDisconnected(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, updateConnectionDisconnected, id)
 	return err
+}
+
+const updatePublicBackend = `-- name: UpdatePublicBackend :one
+UPDATE public_backends
+SET name = ?,
+    target_origin = ?,
+    backend_type = ?,
+    tls_skip_verify = ?,
+    static_status_code = ?,
+    static_response_body = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+`
+
+type UpdatePublicBackendParams struct {
+	Name               string `json:"name"`
+	TargetOrigin       string `json:"target_origin"`
+	BackendType        string `json:"backend_type"`
+	TlsSkipVerify      int64  `json:"tls_skip_verify"`
+	StaticStatusCode   int64  `json:"static_status_code"`
+	StaticResponseBody string `json:"static_response_body"`
+	Enabled            int64  `json:"enabled"`
+	ID                 int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicBackend,
+		arg.Name,
+		arg.TargetOrigin,
+		arg.BackendType,
+		arg.TlsSkipVerify,
+		arg.StaticStatusCode,
+		arg.StaticResponseBody,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i PublicBackend
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.TargetOrigin,
+		&i.BackendType,
+		&i.TlsSkipVerify,
+		&i.StaticStatusCode,
+		&i.StaticResponseBody,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicListener = `-- name: UpdatePublicListener :one
+UPDATE public_listeners
+SET name = ?, bind_address = ?, port = ?, protocol = ?, enabled = ?, default_backend_id = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+`
+
+type UpdatePublicListenerParams struct {
+	Name             string `json:"name"`
+	BindAddress      string `json:"bind_address"`
+	Port             int64  `json:"port"`
+	Protocol         string `json:"protocol"`
+	Enabled          int64  `json:"enabled"`
+	DefaultBackendID int64  `json:"default_backend_id"`
+	ID               int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicListener,
+		arg.Name,
+		arg.BindAddress,
+		arg.Port,
+		arg.Protocol,
+		arg.Enabled,
+		arg.DefaultBackendID,
+		arg.ID,
+	)
+	var i PublicListener
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.BindAddress,
+		&i.Port,
+		&i.Protocol,
+		&i.Enabled,
+		&i.DefaultBackendID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicRoute = `-- name: UpdatePublicRoute :one
+UPDATE public_routes
+SET listener_id = ?, priority = ?, host_pattern = ?, path_prefix = ?, backend_id = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+`
+
+type UpdatePublicRouteParams struct {
+	ListenerID  int64  `json:"listener_id"`
+	Priority    int64  `json:"priority"`
+	HostPattern string `json:"host_pattern"`
+	PathPrefix  string `json:"path_prefix"`
+	BackendID   int64  `json:"backend_id"`
+	Enabled     int64  `json:"enabled"`
+	ID          int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicRoute,
+		arg.ListenerID,
+		arg.Priority,
+		arg.HostPattern,
+		arg.PathPrefix,
+		arg.BackendID,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i PublicRoute
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.Priority,
+		&i.HostPattern,
+		&i.PathPrefix,
+		&i.BackendID,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicTlsCertificate = `-- name: UpdatePublicTlsCertificate :one
+UPDATE public_tls_certificates
+SET listener_id = ?, hostname_pattern = ?, cert_path = ?, key_path = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+`
+
+type UpdatePublicTlsCertificateParams struct {
+	ListenerID      int64  `json:"listener_id"`
+	HostnamePattern string `json:"hostname_pattern"`
+	CertPath        string `json:"cert_path"`
+	KeyPath         string `json:"key_path"`
+	Enabled         int64  `json:"enabled"`
+	ID              int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTlsCertificate,
+		arg.ListenerID,
+		arg.HostnamePattern,
+		arg.CertPath,
+		arg.KeyPath,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i PublicTlsCertificate
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.CertPath,
+		&i.KeyPath,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

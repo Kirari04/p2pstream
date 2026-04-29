@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AgentStatsRequest, AgentStatsResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StopProxyRequest, StopProxyResponse } from "./management_pb";
+import { AgentStatsRequest, AgentStatsResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse } from "./management_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -100,6 +100,159 @@ export const AgentManagementService = {
       name: "StopProxy",
       I: StopProxyRequest,
       O: StopProxyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.GetPublicProxyConfig
+     */
+    getPublicProxyConfig: {
+      name: "GetPublicProxyConfig",
+      I: GetPublicProxyConfigRequest,
+      O: GetPublicProxyConfigResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicBackend
+     */
+    createPublicBackend: {
+      name: "CreatePublicBackend",
+      I: CreatePublicBackendRequest,
+      O: CreatePublicBackendResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicBackend
+     */
+    updatePublicBackend: {
+      name: "UpdatePublicBackend",
+      I: UpdatePublicBackendRequest,
+      O: UpdatePublicBackendResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicBackend
+     */
+    deletePublicBackend: {
+      name: "DeletePublicBackend",
+      I: DeletePublicBackendRequest,
+      O: DeletePublicBackendResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicListener
+     */
+    createPublicListener: {
+      name: "CreatePublicListener",
+      I: CreatePublicListenerRequest,
+      O: CreatePublicListenerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicListener
+     */
+    updatePublicListener: {
+      name: "UpdatePublicListener",
+      I: UpdatePublicListenerRequest,
+      O: UpdatePublicListenerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicListener
+     */
+    deletePublicListener: {
+      name: "DeletePublicListener",
+      I: DeletePublicListenerRequest,
+      O: DeletePublicListenerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.EnablePublicListener
+     */
+    enablePublicListener: {
+      name: "EnablePublicListener",
+      I: EnablePublicListenerRequest,
+      O: EnablePublicListenerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DisablePublicListener
+     */
+    disablePublicListener: {
+      name: "DisablePublicListener",
+      I: DisablePublicListenerRequest,
+      O: DisablePublicListenerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.StartPublicListener
+     */
+    startPublicListener: {
+      name: "StartPublicListener",
+      I: StartPublicListenerRequest,
+      O: StartPublicListenerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.StopPublicListener
+     */
+    stopPublicListener: {
+      name: "StopPublicListener",
+      I: StopPublicListenerRequest,
+      O: StopPublicListenerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicRoute
+     */
+    createPublicRoute: {
+      name: "CreatePublicRoute",
+      I: CreatePublicRouteRequest,
+      O: CreatePublicRouteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicRoute
+     */
+    updatePublicRoute: {
+      name: "UpdatePublicRoute",
+      I: UpdatePublicRouteRequest,
+      O: UpdatePublicRouteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicRoute
+     */
+    deletePublicRoute: {
+      name: "DeletePublicRoute",
+      I: DeletePublicRouteRequest,
+      O: DeletePublicRouteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate
+     */
+    createPublicTlsCertificate: {
+      name: "CreatePublicTlsCertificate",
+      I: CreatePublicTlsCertificateRequest,
+      O: CreatePublicTlsCertificateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate
+     */
+    updatePublicTlsCertificate: {
+      name: "UpdatePublicTlsCertificate",
+      I: UpdatePublicTlsCertificateRequest,
+      O: UpdatePublicTlsCertificateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate
+     */
+    deletePublicTlsCertificate: {
+      name: "DeletePublicTlsCertificate",
+      I: DeletePublicTlsCertificateRequest,
+      O: DeletePublicTlsCertificateResponse,
       kind: MethodKind.Unary,
     },
   }

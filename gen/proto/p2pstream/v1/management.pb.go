@@ -125,6 +125,104 @@ func (ProxyState) EnumDescriptor() ([]byte, []int) {
 	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{1}
 }
 
+type PublicListenerProtocol int32
+
+const (
+	PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED PublicListenerProtocol = 0
+	PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP        PublicListenerProtocol = 1
+	PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS       PublicListenerProtocol = 2
+)
+
+// Enum value maps for PublicListenerProtocol.
+var (
+	PublicListenerProtocol_name = map[int32]string{
+		0: "PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED",
+		1: "PUBLIC_LISTENER_PROTOCOL_HTTP",
+		2: "PUBLIC_LISTENER_PROTOCOL_HTTPS",
+	}
+	PublicListenerProtocol_value = map[string]int32{
+		"PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED": 0,
+		"PUBLIC_LISTENER_PROTOCOL_HTTP":        1,
+		"PUBLIC_LISTENER_PROTOCOL_HTTPS":       2,
+	}
+)
+
+func (x PublicListenerProtocol) Enum() *PublicListenerProtocol {
+	p := new(PublicListenerProtocol)
+	*p = x
+	return p
+}
+
+func (x PublicListenerProtocol) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PublicListenerProtocol) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[2].Descriptor()
+}
+
+func (PublicListenerProtocol) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[2]
+}
+
+func (x PublicListenerProtocol) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PublicListenerProtocol.Descriptor instead.
+func (PublicListenerProtocol) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{2}
+}
+
+type PublicBackendType int32
+
+const (
+	PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED   PublicBackendType = 0
+	PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD PublicBackendType = 1
+	PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC        PublicBackendType = 2
+)
+
+// Enum value maps for PublicBackendType.
+var (
+	PublicBackendType_name = map[int32]string{
+		0: "PUBLIC_BACKEND_TYPE_UNSPECIFIED",
+		1: "PUBLIC_BACKEND_TYPE_PROXY_FORWARD",
+		2: "PUBLIC_BACKEND_TYPE_STATIC",
+	}
+	PublicBackendType_value = map[string]int32{
+		"PUBLIC_BACKEND_TYPE_UNSPECIFIED":   0,
+		"PUBLIC_BACKEND_TYPE_PROXY_FORWARD": 1,
+		"PUBLIC_BACKEND_TYPE_STATIC":        2,
+	}
+)
+
+func (x PublicBackendType) Enum() *PublicBackendType {
+	p := new(PublicBackendType)
+	*p = x
+	return p
+}
+
+func (x PublicBackendType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PublicBackendType) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[3].Descriptor()
+}
+
+func (PublicBackendType) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[3]
+}
+
+func (x PublicBackendType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PublicBackendType.Descriptor instead.
+func (PublicBackendType) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{3}
+}
+
 type AgentStatsRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	MemorySysMb      int64                  `protobuf:"varint,1,opt,name=memory_sys_mb,json=memorySysMb,proto3" json:"memory_sys_mb,omitempty"`
@@ -566,11 +664,12 @@ func (x *GetStatusResponse) GetProxy() *ProxyStatus {
 }
 
 type ProxyStatus struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	State               ProxyState             `protobuf:"varint,1,opt,name=state,proto3,enum=p2pstream.v1.ProxyState" json:"state,omitempty"`
-	LastError           string                 `protobuf:"bytes,2,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
-	StartedAtUnixMillis int64                  `protobuf:"varint,3,opt,name=started_at_unix_millis,json=startedAtUnixMillis,proto3" json:"started_at_unix_millis,omitempty"`
-	StoppedAtUnixMillis int64                  `protobuf:"varint,4,opt,name=stopped_at_unix_millis,json=stoppedAtUnixMillis,proto3" json:"stopped_at_unix_millis,omitempty"`
+	state               protoimpl.MessageState  `protogen:"open.v1"`
+	State               ProxyState              `protobuf:"varint,1,opt,name=state,proto3,enum=p2pstream.v1.ProxyState" json:"state,omitempty"`
+	LastError           string                  `protobuf:"bytes,2,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	StartedAtUnixMillis int64                   `protobuf:"varint,3,opt,name=started_at_unix_millis,json=startedAtUnixMillis,proto3" json:"started_at_unix_millis,omitempty"`
+	StoppedAtUnixMillis int64                   `protobuf:"varint,4,opt,name=stopped_at_unix_millis,json=stoppedAtUnixMillis,proto3" json:"stopped_at_unix_millis,omitempty"`
+	Listeners           []*PublicListenerStatus `protobuf:"bytes,5,rep,name=listeners,proto3" json:"listeners,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -633,6 +732,2541 @@ func (x *ProxyStatus) GetStoppedAtUnixMillis() int64 {
 	return 0
 }
 
+func (x *ProxyStatus) GetListeners() []*PublicListenerStatus {
+	if x != nil {
+		return x.Listeners
+	}
+	return nil
+}
+
+type PublicBackend struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	TargetOrigin          string                 `protobuf:"bytes,3,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
+	Enabled               bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CreatedAtUnixMillis   int64                  `protobuf:"varint,5,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis   int64                  `protobuf:"varint,6,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	BackendType           PublicBackendType      `protobuf:"varint,7,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
+	TlsSkipVerify         bool                   `protobuf:"varint,8,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	StaticStatusCode      int64                  `protobuf:"varint,9,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
+	StaticResponseHeaders []*PublicHeader        `protobuf:"bytes,10,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
+	StaticResponseBody    string                 `protobuf:"bytes,11,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *PublicBackend) Reset() {
+	*x = PublicBackend{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicBackend) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicBackend) ProtoMessage() {}
+
+func (x *PublicBackend) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicBackend.ProtoReflect.Descriptor instead.
+func (*PublicBackend) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PublicBackend) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *PublicBackend) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PublicBackend) GetTargetOrigin() string {
+	if x != nil {
+		return x.TargetOrigin
+	}
+	return ""
+}
+
+func (x *PublicBackend) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *PublicBackend) GetCreatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *PublicBackend) GetUpdatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *PublicBackend) GetBackendType() PublicBackendType {
+	if x != nil {
+		return x.BackendType
+	}
+	return PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED
+}
+
+func (x *PublicBackend) GetTlsSkipVerify() bool {
+	if x != nil {
+		return x.TlsSkipVerify
+	}
+	return false
+}
+
+func (x *PublicBackend) GetStaticStatusCode() int64 {
+	if x != nil {
+		return x.StaticStatusCode
+	}
+	return 0
+}
+
+func (x *PublicBackend) GetStaticResponseHeaders() []*PublicHeader {
+	if x != nil {
+		return x.StaticResponseHeaders
+	}
+	return nil
+}
+
+func (x *PublicBackend) GetStaticResponseBody() string {
+	if x != nil {
+		return x.StaticResponseBody
+	}
+	return ""
+}
+
+type PublicHeader struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PublicHeader) Reset() {
+	*x = PublicHeader{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicHeader) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicHeader) ProtoMessage() {}
+
+func (x *PublicHeader) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicHeader.ProtoReflect.Descriptor instead.
+func (*PublicHeader) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PublicHeader) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PublicHeader) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type PublicListener struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	BindAddress         string                 `protobuf:"bytes,3,opt,name=bind_address,json=bindAddress,proto3" json:"bind_address,omitempty"`
+	Port                int64                  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
+	Protocol            PublicListenerProtocol `protobuf:"varint,5,opt,name=protocol,proto3,enum=p2pstream.v1.PublicListenerProtocol" json:"protocol,omitempty"`
+	Enabled             bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	DefaultBackendId    int64                  `protobuf:"varint,7,opt,name=default_backend_id,json=defaultBackendId,proto3" json:"default_backend_id,omitempty"`
+	CreatedAtUnixMillis int64                  `protobuf:"varint,8,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis int64                  `protobuf:"varint,9,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PublicListener) Reset() {
+	*x = PublicListener{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicListener) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicListener) ProtoMessage() {}
+
+func (x *PublicListener) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicListener.ProtoReflect.Descriptor instead.
+func (*PublicListener) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *PublicListener) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *PublicListener) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PublicListener) GetBindAddress() string {
+	if x != nil {
+		return x.BindAddress
+	}
+	return ""
+}
+
+func (x *PublicListener) GetPort() int64 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *PublicListener) GetProtocol() PublicListenerProtocol {
+	if x != nil {
+		return x.Protocol
+	}
+	return PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED
+}
+
+func (x *PublicListener) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *PublicListener) GetDefaultBackendId() int64 {
+	if x != nil {
+		return x.DefaultBackendId
+	}
+	return 0
+}
+
+func (x *PublicListener) GetCreatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *PublicListener) GetUpdatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMillis
+	}
+	return 0
+}
+
+type PublicRoute struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ListenerId          int64                  `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	Priority            int64                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	HostPattern         string                 `protobuf:"bytes,4,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
+	PathPrefix          string                 `protobuf:"bytes,5,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	BackendId           int64                  `protobuf:"varint,6,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
+	Enabled             bool                   `protobuf:"varint,7,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CreatedAtUnixMillis int64                  `protobuf:"varint,8,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis int64                  `protobuf:"varint,9,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PublicRoute) Reset() {
+	*x = PublicRoute{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicRoute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicRoute) ProtoMessage() {}
+
+func (x *PublicRoute) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicRoute.ProtoReflect.Descriptor instead.
+func (*PublicRoute) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *PublicRoute) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *PublicRoute) GetListenerId() int64 {
+	if x != nil {
+		return x.ListenerId
+	}
+	return 0
+}
+
+func (x *PublicRoute) GetPriority() int64 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *PublicRoute) GetHostPattern() string {
+	if x != nil {
+		return x.HostPattern
+	}
+	return ""
+}
+
+func (x *PublicRoute) GetPathPrefix() string {
+	if x != nil {
+		return x.PathPrefix
+	}
+	return ""
+}
+
+func (x *PublicRoute) GetBackendId() int64 {
+	if x != nil {
+		return x.BackendId
+	}
+	return 0
+}
+
+func (x *PublicRoute) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *PublicRoute) GetCreatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *PublicRoute) GetUpdatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMillis
+	}
+	return 0
+}
+
+type PublicTlsCertificate struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ListenerId          int64                  `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	HostnamePattern     string                 `protobuf:"bytes,3,opt,name=hostname_pattern,json=hostnamePattern,proto3" json:"hostname_pattern,omitempty"`
+	CertPath            string                 `protobuf:"bytes,4,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
+	KeyPath             string                 `protobuf:"bytes,5,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	Enabled             bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CreatedAtUnixMillis int64                  `protobuf:"varint,7,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis int64                  `protobuf:"varint,8,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PublicTlsCertificate) Reset() {
+	*x = PublicTlsCertificate{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicTlsCertificate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicTlsCertificate) ProtoMessage() {}
+
+func (x *PublicTlsCertificate) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicTlsCertificate.ProtoReflect.Descriptor instead.
+func (*PublicTlsCertificate) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *PublicTlsCertificate) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *PublicTlsCertificate) GetListenerId() int64 {
+	if x != nil {
+		return x.ListenerId
+	}
+	return 0
+}
+
+func (x *PublicTlsCertificate) GetHostnamePattern() string {
+	if x != nil {
+		return x.HostnamePattern
+	}
+	return ""
+}
+
+func (x *PublicTlsCertificate) GetCertPath() string {
+	if x != nil {
+		return x.CertPath
+	}
+	return ""
+}
+
+func (x *PublicTlsCertificate) GetKeyPath() string {
+	if x != nil {
+		return x.KeyPath
+	}
+	return ""
+}
+
+func (x *PublicTlsCertificate) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *PublicTlsCertificate) GetCreatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *PublicTlsCertificate) GetUpdatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMillis
+	}
+	return 0
+}
+
+type PublicListenerStatus struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ListenerId          int64                  `protobuf:"varint,1,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	State               ProxyState             `protobuf:"varint,2,opt,name=state,proto3,enum=p2pstream.v1.ProxyState" json:"state,omitempty"`
+	LastError           string                 `protobuf:"bytes,3,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	StartedAtUnixMillis int64                  `protobuf:"varint,4,opt,name=started_at_unix_millis,json=startedAtUnixMillis,proto3" json:"started_at_unix_millis,omitempty"`
+	StoppedAtUnixMillis int64                  `protobuf:"varint,5,opt,name=stopped_at_unix_millis,json=stoppedAtUnixMillis,proto3" json:"stopped_at_unix_millis,omitempty"`
+	BoundAddress        string                 `protobuf:"bytes,6,opt,name=bound_address,json=boundAddress,proto3" json:"bound_address,omitempty"`
+	Running             bool                   `protobuf:"varint,7,opt,name=running,proto3" json:"running,omitempty"`
+	Disabled            bool                   `protobuf:"varint,8,opt,name=disabled,proto3" json:"disabled,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PublicListenerStatus) Reset() {
+	*x = PublicListenerStatus{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicListenerStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicListenerStatus) ProtoMessage() {}
+
+func (x *PublicListenerStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicListenerStatus.ProtoReflect.Descriptor instead.
+func (*PublicListenerStatus) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PublicListenerStatus) GetListenerId() int64 {
+	if x != nil {
+		return x.ListenerId
+	}
+	return 0
+}
+
+func (x *PublicListenerStatus) GetState() ProxyState {
+	if x != nil {
+		return x.State
+	}
+	return ProxyState_PROXY_STATE_UNSPECIFIED
+}
+
+func (x *PublicListenerStatus) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+func (x *PublicListenerStatus) GetStartedAtUnixMillis() int64 {
+	if x != nil {
+		return x.StartedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *PublicListenerStatus) GetStoppedAtUnixMillis() int64 {
+	if x != nil {
+		return x.StoppedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *PublicListenerStatus) GetBoundAddress() string {
+	if x != nil {
+		return x.BoundAddress
+	}
+	return ""
+}
+
+func (x *PublicListenerStatus) GetRunning() bool {
+	if x != nil {
+		return x.Running
+	}
+	return false
+}
+
+func (x *PublicListenerStatus) GetDisabled() bool {
+	if x != nil {
+		return x.Disabled
+	}
+	return false
+}
+
+type GetPublicProxyConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPublicProxyConfigRequest) Reset() {
+	*x = GetPublicProxyConfigRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPublicProxyConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPublicProxyConfigRequest) ProtoMessage() {}
+
+func (x *GetPublicProxyConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPublicProxyConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetPublicProxyConfigRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{13}
+}
+
+type GetPublicProxyConfigResponse struct {
+	state           protoimpl.MessageState  `protogen:"open.v1"`
+	Backends        []*PublicBackend        `protobuf:"bytes,1,rep,name=backends,proto3" json:"backends,omitempty"`
+	Listeners       []*PublicListener       `protobuf:"bytes,2,rep,name=listeners,proto3" json:"listeners,omitempty"`
+	Routes          []*PublicRoute          `protobuf:"bytes,3,rep,name=routes,proto3" json:"routes,omitempty"`
+	TlsCertificates []*PublicTlsCertificate `protobuf:"bytes,4,rep,name=tls_certificates,json=tlsCertificates,proto3" json:"tls_certificates,omitempty"`
+	Proxy           *ProxyStatus            `protobuf:"bytes,5,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetPublicProxyConfigResponse) Reset() {
+	*x = GetPublicProxyConfigResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPublicProxyConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPublicProxyConfigResponse) ProtoMessage() {}
+
+func (x *GetPublicProxyConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPublicProxyConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetPublicProxyConfigResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetPublicProxyConfigResponse) GetBackends() []*PublicBackend {
+	if x != nil {
+		return x.Backends
+	}
+	return nil
+}
+
+func (x *GetPublicProxyConfigResponse) GetListeners() []*PublicListener {
+	if x != nil {
+		return x.Listeners
+	}
+	return nil
+}
+
+func (x *GetPublicProxyConfigResponse) GetRoutes() []*PublicRoute {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+func (x *GetPublicProxyConfigResponse) GetTlsCertificates() []*PublicTlsCertificate {
+	if x != nil {
+		return x.TlsCertificates
+	}
+	return nil
+}
+
+func (x *GetPublicProxyConfigResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type CreatePublicBackendRequest struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Name                  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	TargetOrigin          string                 `protobuf:"bytes,2,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
+	Enabled               bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	BackendType           PublicBackendType      `protobuf:"varint,4,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
+	TlsSkipVerify         bool                   `protobuf:"varint,5,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	StaticStatusCode      int64                  `protobuf:"varint,6,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
+	StaticResponseHeaders []*PublicHeader        `protobuf:"bytes,7,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
+	StaticResponseBody    string                 `protobuf:"bytes,8,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *CreatePublicBackendRequest) Reset() {
+	*x = CreatePublicBackendRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicBackendRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicBackendRequest) ProtoMessage() {}
+
+func (x *CreatePublicBackendRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicBackendRequest.ProtoReflect.Descriptor instead.
+func (*CreatePublicBackendRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CreatePublicBackendRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreatePublicBackendRequest) GetTargetOrigin() string {
+	if x != nil {
+		return x.TargetOrigin
+	}
+	return ""
+}
+
+func (x *CreatePublicBackendRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *CreatePublicBackendRequest) GetBackendType() PublicBackendType {
+	if x != nil {
+		return x.BackendType
+	}
+	return PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED
+}
+
+func (x *CreatePublicBackendRequest) GetTlsSkipVerify() bool {
+	if x != nil {
+		return x.TlsSkipVerify
+	}
+	return false
+}
+
+func (x *CreatePublicBackendRequest) GetStaticStatusCode() int64 {
+	if x != nil {
+		return x.StaticStatusCode
+	}
+	return 0
+}
+
+func (x *CreatePublicBackendRequest) GetStaticResponseHeaders() []*PublicHeader {
+	if x != nil {
+		return x.StaticResponseHeaders
+	}
+	return nil
+}
+
+func (x *CreatePublicBackendRequest) GetStaticResponseBody() string {
+	if x != nil {
+		return x.StaticResponseBody
+	}
+	return ""
+}
+
+type CreatePublicBackendResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Backend       *PublicBackend         `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePublicBackendResponse) Reset() {
+	*x = CreatePublicBackendResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicBackendResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicBackendResponse) ProtoMessage() {}
+
+func (x *CreatePublicBackendResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicBackendResponse.ProtoReflect.Descriptor instead.
+func (*CreatePublicBackendResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *CreatePublicBackendResponse) GetBackend() *PublicBackend {
+	if x != nil {
+		return x.Backend
+	}
+	return nil
+}
+
+type UpdatePublicBackendRequest struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	TargetOrigin          string                 `protobuf:"bytes,3,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
+	Enabled               bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	BackendType           PublicBackendType      `protobuf:"varint,5,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
+	TlsSkipVerify         bool                   `protobuf:"varint,6,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	StaticStatusCode      int64                  `protobuf:"varint,7,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
+	StaticResponseHeaders []*PublicHeader        `protobuf:"bytes,8,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
+	StaticResponseBody    string                 `protobuf:"bytes,9,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *UpdatePublicBackendRequest) Reset() {
+	*x = UpdatePublicBackendRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicBackendRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicBackendRequest) ProtoMessage() {}
+
+func (x *UpdatePublicBackendRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicBackendRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePublicBackendRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UpdatePublicBackendRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdatePublicBackendRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdatePublicBackendRequest) GetTargetOrigin() string {
+	if x != nil {
+		return x.TargetOrigin
+	}
+	return ""
+}
+
+func (x *UpdatePublicBackendRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *UpdatePublicBackendRequest) GetBackendType() PublicBackendType {
+	if x != nil {
+		return x.BackendType
+	}
+	return PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED
+}
+
+func (x *UpdatePublicBackendRequest) GetTlsSkipVerify() bool {
+	if x != nil {
+		return x.TlsSkipVerify
+	}
+	return false
+}
+
+func (x *UpdatePublicBackendRequest) GetStaticStatusCode() int64 {
+	if x != nil {
+		return x.StaticStatusCode
+	}
+	return 0
+}
+
+func (x *UpdatePublicBackendRequest) GetStaticResponseHeaders() []*PublicHeader {
+	if x != nil {
+		return x.StaticResponseHeaders
+	}
+	return nil
+}
+
+func (x *UpdatePublicBackendRequest) GetStaticResponseBody() string {
+	if x != nil {
+		return x.StaticResponseBody
+	}
+	return ""
+}
+
+type UpdatePublicBackendResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Backend       *PublicBackend         `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePublicBackendResponse) Reset() {
+	*x = UpdatePublicBackendResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicBackendResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicBackendResponse) ProtoMessage() {}
+
+func (x *UpdatePublicBackendResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicBackendResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePublicBackendResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UpdatePublicBackendResponse) GetBackend() *PublicBackend {
+	if x != nil {
+		return x.Backend
+	}
+	return nil
+}
+
+type DeletePublicBackendRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicBackendRequest) Reset() {
+	*x = DeletePublicBackendRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicBackendRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicBackendRequest) ProtoMessage() {}
+
+func (x *DeletePublicBackendRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicBackendRequest.ProtoReflect.Descriptor instead.
+func (*DeletePublicBackendRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DeletePublicBackendRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeletePublicBackendResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicBackendResponse) Reset() {
+	*x = DeletePublicBackendResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicBackendResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicBackendResponse) ProtoMessage() {}
+
+func (x *DeletePublicBackendResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicBackendResponse.ProtoReflect.Descriptor instead.
+func (*DeletePublicBackendResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{20}
+}
+
+type CreatePublicListenerRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	BindAddress      string                 `protobuf:"bytes,2,opt,name=bind_address,json=bindAddress,proto3" json:"bind_address,omitempty"`
+	Port             int64                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	Protocol         PublicListenerProtocol `protobuf:"varint,4,opt,name=protocol,proto3,enum=p2pstream.v1.PublicListenerProtocol" json:"protocol,omitempty"`
+	Enabled          bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	DefaultBackendId int64                  `protobuf:"varint,6,opt,name=default_backend_id,json=defaultBackendId,proto3" json:"default_backend_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CreatePublicListenerRequest) Reset() {
+	*x = CreatePublicListenerRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicListenerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicListenerRequest) ProtoMessage() {}
+
+func (x *CreatePublicListenerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicListenerRequest.ProtoReflect.Descriptor instead.
+func (*CreatePublicListenerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CreatePublicListenerRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreatePublicListenerRequest) GetBindAddress() string {
+	if x != nil {
+		return x.BindAddress
+	}
+	return ""
+}
+
+func (x *CreatePublicListenerRequest) GetPort() int64 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *CreatePublicListenerRequest) GetProtocol() PublicListenerProtocol {
+	if x != nil {
+		return x.Protocol
+	}
+	return PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED
+}
+
+func (x *CreatePublicListenerRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *CreatePublicListenerRequest) GetDefaultBackendId() int64 {
+	if x != nil {
+		return x.DefaultBackendId
+	}
+	return 0
+}
+
+type CreatePublicListenerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Listener      *PublicListener        `protobuf:"bytes,1,opt,name=listener,proto3" json:"listener,omitempty"`
+	Status        *PublicListenerStatus  `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,3,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePublicListenerResponse) Reset() {
+	*x = CreatePublicListenerResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicListenerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicListenerResponse) ProtoMessage() {}
+
+func (x *CreatePublicListenerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicListenerResponse.ProtoReflect.Descriptor instead.
+func (*CreatePublicListenerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *CreatePublicListenerResponse) GetListener() *PublicListener {
+	if x != nil {
+		return x.Listener
+	}
+	return nil
+}
+
+func (x *CreatePublicListenerResponse) GetStatus() *PublicListenerStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *CreatePublicListenerResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type UpdatePublicListenerRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	BindAddress      string                 `protobuf:"bytes,3,opt,name=bind_address,json=bindAddress,proto3" json:"bind_address,omitempty"`
+	Port             int64                  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
+	Protocol         PublicListenerProtocol `protobuf:"varint,5,opt,name=protocol,proto3,enum=p2pstream.v1.PublicListenerProtocol" json:"protocol,omitempty"`
+	Enabled          bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	DefaultBackendId int64                  `protobuf:"varint,7,opt,name=default_backend_id,json=defaultBackendId,proto3" json:"default_backend_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpdatePublicListenerRequest) Reset() {
+	*x = UpdatePublicListenerRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicListenerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicListenerRequest) ProtoMessage() {}
+
+func (x *UpdatePublicListenerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicListenerRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePublicListenerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *UpdatePublicListenerRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdatePublicListenerRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdatePublicListenerRequest) GetBindAddress() string {
+	if x != nil {
+		return x.BindAddress
+	}
+	return ""
+}
+
+func (x *UpdatePublicListenerRequest) GetPort() int64 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *UpdatePublicListenerRequest) GetProtocol() PublicListenerProtocol {
+	if x != nil {
+		return x.Protocol
+	}
+	return PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED
+}
+
+func (x *UpdatePublicListenerRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *UpdatePublicListenerRequest) GetDefaultBackendId() int64 {
+	if x != nil {
+		return x.DefaultBackendId
+	}
+	return 0
+}
+
+type UpdatePublicListenerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Listener      *PublicListener        `protobuf:"bytes,1,opt,name=listener,proto3" json:"listener,omitempty"`
+	Status        *PublicListenerStatus  `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,3,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePublicListenerResponse) Reset() {
+	*x = UpdatePublicListenerResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicListenerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicListenerResponse) ProtoMessage() {}
+
+func (x *UpdatePublicListenerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicListenerResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePublicListenerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpdatePublicListenerResponse) GetListener() *PublicListener {
+	if x != nil {
+		return x.Listener
+	}
+	return nil
+}
+
+func (x *UpdatePublicListenerResponse) GetStatus() *PublicListenerStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *UpdatePublicListenerResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type DeletePublicListenerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicListenerRequest) Reset() {
+	*x = DeletePublicListenerRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicListenerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicListenerRequest) ProtoMessage() {}
+
+func (x *DeletePublicListenerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicListenerRequest.ProtoReflect.Descriptor instead.
+func (*DeletePublicListenerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *DeletePublicListenerRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeletePublicListenerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicListenerResponse) Reset() {
+	*x = DeletePublicListenerResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicListenerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicListenerResponse) ProtoMessage() {}
+
+func (x *DeletePublicListenerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicListenerResponse.ProtoReflect.Descriptor instead.
+func (*DeletePublicListenerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{26}
+}
+
+type EnablePublicListenerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnablePublicListenerRequest) Reset() {
+	*x = EnablePublicListenerRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnablePublicListenerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnablePublicListenerRequest) ProtoMessage() {}
+
+func (x *EnablePublicListenerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnablePublicListenerRequest.ProtoReflect.Descriptor instead.
+func (*EnablePublicListenerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *EnablePublicListenerRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type EnablePublicListenerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Listener      *PublicListener        `protobuf:"bytes,1,opt,name=listener,proto3" json:"listener,omitempty"`
+	Status        *PublicListenerStatus  `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,3,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnablePublicListenerResponse) Reset() {
+	*x = EnablePublicListenerResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnablePublicListenerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnablePublicListenerResponse) ProtoMessage() {}
+
+func (x *EnablePublicListenerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnablePublicListenerResponse.ProtoReflect.Descriptor instead.
+func (*EnablePublicListenerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *EnablePublicListenerResponse) GetListener() *PublicListener {
+	if x != nil {
+		return x.Listener
+	}
+	return nil
+}
+
+func (x *EnablePublicListenerResponse) GetStatus() *PublicListenerStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *EnablePublicListenerResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type DisablePublicListenerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DisablePublicListenerRequest) Reset() {
+	*x = DisablePublicListenerRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DisablePublicListenerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DisablePublicListenerRequest) ProtoMessage() {}
+
+func (x *DisablePublicListenerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DisablePublicListenerRequest.ProtoReflect.Descriptor instead.
+func (*DisablePublicListenerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *DisablePublicListenerRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DisablePublicListenerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Listener      *PublicListener        `protobuf:"bytes,1,opt,name=listener,proto3" json:"listener,omitempty"`
+	Status        *PublicListenerStatus  `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,3,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DisablePublicListenerResponse) Reset() {
+	*x = DisablePublicListenerResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DisablePublicListenerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DisablePublicListenerResponse) ProtoMessage() {}
+
+func (x *DisablePublicListenerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DisablePublicListenerResponse.ProtoReflect.Descriptor instead.
+func (*DisablePublicListenerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *DisablePublicListenerResponse) GetListener() *PublicListener {
+	if x != nil {
+		return x.Listener
+	}
+	return nil
+}
+
+func (x *DisablePublicListenerResponse) GetStatus() *PublicListenerStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *DisablePublicListenerResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type StartPublicListenerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartPublicListenerRequest) Reset() {
+	*x = StartPublicListenerRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartPublicListenerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartPublicListenerRequest) ProtoMessage() {}
+
+func (x *StartPublicListenerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartPublicListenerRequest.ProtoReflect.Descriptor instead.
+func (*StartPublicListenerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *StartPublicListenerRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type StartPublicListenerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        *PublicListenerStatus  `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,2,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartPublicListenerResponse) Reset() {
+	*x = StartPublicListenerResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartPublicListenerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartPublicListenerResponse) ProtoMessage() {}
+
+func (x *StartPublicListenerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartPublicListenerResponse.ProtoReflect.Descriptor instead.
+func (*StartPublicListenerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *StartPublicListenerResponse) GetStatus() *PublicListenerStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *StartPublicListenerResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type StopPublicListenerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopPublicListenerRequest) Reset() {
+	*x = StopPublicListenerRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopPublicListenerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopPublicListenerRequest) ProtoMessage() {}
+
+func (x *StopPublicListenerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopPublicListenerRequest.ProtoReflect.Descriptor instead.
+func (*StopPublicListenerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *StopPublicListenerRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type StopPublicListenerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        *PublicListenerStatus  `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,2,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopPublicListenerResponse) Reset() {
+	*x = StopPublicListenerResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopPublicListenerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopPublicListenerResponse) ProtoMessage() {}
+
+func (x *StopPublicListenerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopPublicListenerResponse.ProtoReflect.Descriptor instead.
+func (*StopPublicListenerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *StopPublicListenerResponse) GetStatus() *PublicListenerStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *StopPublicListenerResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type CreatePublicRouteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ListenerId    int64                  `protobuf:"varint,1,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	Priority      int64                  `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
+	HostPattern   string                 `protobuf:"bytes,3,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
+	PathPrefix    string                 `protobuf:"bytes,4,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	BackendId     int64                  `protobuf:"varint,5,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
+	Enabled       bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePublicRouteRequest) Reset() {
+	*x = CreatePublicRouteRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicRouteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicRouteRequest) ProtoMessage() {}
+
+func (x *CreatePublicRouteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicRouteRequest.ProtoReflect.Descriptor instead.
+func (*CreatePublicRouteRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *CreatePublicRouteRequest) GetListenerId() int64 {
+	if x != nil {
+		return x.ListenerId
+	}
+	return 0
+}
+
+func (x *CreatePublicRouteRequest) GetPriority() int64 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *CreatePublicRouteRequest) GetHostPattern() string {
+	if x != nil {
+		return x.HostPattern
+	}
+	return ""
+}
+
+func (x *CreatePublicRouteRequest) GetPathPrefix() string {
+	if x != nil {
+		return x.PathPrefix
+	}
+	return ""
+}
+
+func (x *CreatePublicRouteRequest) GetBackendId() int64 {
+	if x != nil {
+		return x.BackendId
+	}
+	return 0
+}
+
+func (x *CreatePublicRouteRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type CreatePublicRouteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Route         *PublicRoute           `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePublicRouteResponse) Reset() {
+	*x = CreatePublicRouteResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicRouteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicRouteResponse) ProtoMessage() {}
+
+func (x *CreatePublicRouteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicRouteResponse.ProtoReflect.Descriptor instead.
+func (*CreatePublicRouteResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *CreatePublicRouteResponse) GetRoute() *PublicRoute {
+	if x != nil {
+		return x.Route
+	}
+	return nil
+}
+
+type UpdatePublicRouteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ListenerId    int64                  `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	Priority      int64                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	HostPattern   string                 `protobuf:"bytes,4,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
+	PathPrefix    string                 `protobuf:"bytes,5,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	BackendId     int64                  `protobuf:"varint,6,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
+	Enabled       bool                   `protobuf:"varint,7,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePublicRouteRequest) Reset() {
+	*x = UpdatePublicRouteRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicRouteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicRouteRequest) ProtoMessage() {}
+
+func (x *UpdatePublicRouteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicRouteRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePublicRouteRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *UpdatePublicRouteRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdatePublicRouteRequest) GetListenerId() int64 {
+	if x != nil {
+		return x.ListenerId
+	}
+	return 0
+}
+
+func (x *UpdatePublicRouteRequest) GetPriority() int64 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *UpdatePublicRouteRequest) GetHostPattern() string {
+	if x != nil {
+		return x.HostPattern
+	}
+	return ""
+}
+
+func (x *UpdatePublicRouteRequest) GetPathPrefix() string {
+	if x != nil {
+		return x.PathPrefix
+	}
+	return ""
+}
+
+func (x *UpdatePublicRouteRequest) GetBackendId() int64 {
+	if x != nil {
+		return x.BackendId
+	}
+	return 0
+}
+
+func (x *UpdatePublicRouteRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type UpdatePublicRouteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Route         *PublicRoute           `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePublicRouteResponse) Reset() {
+	*x = UpdatePublicRouteResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicRouteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicRouteResponse) ProtoMessage() {}
+
+func (x *UpdatePublicRouteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicRouteResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePublicRouteResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *UpdatePublicRouteResponse) GetRoute() *PublicRoute {
+	if x != nil {
+		return x.Route
+	}
+	return nil
+}
+
+type DeletePublicRouteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicRouteRequest) Reset() {
+	*x = DeletePublicRouteRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicRouteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicRouteRequest) ProtoMessage() {}
+
+func (x *DeletePublicRouteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicRouteRequest.ProtoReflect.Descriptor instead.
+func (*DeletePublicRouteRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *DeletePublicRouteRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeletePublicRouteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicRouteResponse) Reset() {
+	*x = DeletePublicRouteResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicRouteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicRouteResponse) ProtoMessage() {}
+
+func (x *DeletePublicRouteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicRouteResponse.ProtoReflect.Descriptor instead.
+func (*DeletePublicRouteResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{40}
+}
+
+type CreatePublicTlsCertificateRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ListenerId      int64                  `protobuf:"varint,1,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	HostnamePattern string                 `protobuf:"bytes,2,opt,name=hostname_pattern,json=hostnamePattern,proto3" json:"hostname_pattern,omitempty"`
+	CertPath        string                 `protobuf:"bytes,3,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
+	KeyPath         string                 `protobuf:"bytes,4,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	Enabled         bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CreatePublicTlsCertificateRequest) Reset() {
+	*x = CreatePublicTlsCertificateRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicTlsCertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicTlsCertificateRequest) ProtoMessage() {}
+
+func (x *CreatePublicTlsCertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicTlsCertificateRequest.ProtoReflect.Descriptor instead.
+func (*CreatePublicTlsCertificateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *CreatePublicTlsCertificateRequest) GetListenerId() int64 {
+	if x != nil {
+		return x.ListenerId
+	}
+	return 0
+}
+
+func (x *CreatePublicTlsCertificateRequest) GetHostnamePattern() string {
+	if x != nil {
+		return x.HostnamePattern
+	}
+	return ""
+}
+
+func (x *CreatePublicTlsCertificateRequest) GetCertPath() string {
+	if x != nil {
+		return x.CertPath
+	}
+	return ""
+}
+
+func (x *CreatePublicTlsCertificateRequest) GetKeyPath() string {
+	if x != nil {
+		return x.KeyPath
+	}
+	return ""
+}
+
+func (x *CreatePublicTlsCertificateRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type CreatePublicTlsCertificateResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TlsCertificate *PublicTlsCertificate  `protobuf:"bytes,1,opt,name=tls_certificate,json=tlsCertificate,proto3" json:"tls_certificate,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreatePublicTlsCertificateResponse) Reset() {
+	*x = CreatePublicTlsCertificateResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePublicTlsCertificateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePublicTlsCertificateResponse) ProtoMessage() {}
+
+func (x *CreatePublicTlsCertificateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePublicTlsCertificateResponse.ProtoReflect.Descriptor instead.
+func (*CreatePublicTlsCertificateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *CreatePublicTlsCertificateResponse) GetTlsCertificate() *PublicTlsCertificate {
+	if x != nil {
+		return x.TlsCertificate
+	}
+	return nil
+}
+
+type UpdatePublicTlsCertificateRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ListenerId      int64                  `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	HostnamePattern string                 `protobuf:"bytes,3,opt,name=hostname_pattern,json=hostnamePattern,proto3" json:"hostname_pattern,omitempty"`
+	CertPath        string                 `protobuf:"bytes,4,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
+	KeyPath         string                 `protobuf:"bytes,5,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	Enabled         bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UpdatePublicTlsCertificateRequest) Reset() {
+	*x = UpdatePublicTlsCertificateRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicTlsCertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicTlsCertificateRequest) ProtoMessage() {}
+
+func (x *UpdatePublicTlsCertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicTlsCertificateRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePublicTlsCertificateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetListenerId() int64 {
+	if x != nil {
+		return x.ListenerId
+	}
+	return 0
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetHostnamePattern() string {
+	if x != nil {
+		return x.HostnamePattern
+	}
+	return ""
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetCertPath() string {
+	if x != nil {
+		return x.CertPath
+	}
+	return ""
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetKeyPath() string {
+	if x != nil {
+		return x.KeyPath
+	}
+	return ""
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type UpdatePublicTlsCertificateResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TlsCertificate *PublicTlsCertificate  `protobuf:"bytes,1,opt,name=tls_certificate,json=tlsCertificate,proto3" json:"tls_certificate,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UpdatePublicTlsCertificateResponse) Reset() {
+	*x = UpdatePublicTlsCertificateResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePublicTlsCertificateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePublicTlsCertificateResponse) ProtoMessage() {}
+
+func (x *UpdatePublicTlsCertificateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePublicTlsCertificateResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePublicTlsCertificateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *UpdatePublicTlsCertificateResponse) GetTlsCertificate() *PublicTlsCertificate {
+	if x != nil {
+		return x.TlsCertificate
+	}
+	return nil
+}
+
+type DeletePublicTlsCertificateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicTlsCertificateRequest) Reset() {
+	*x = DeletePublicTlsCertificateRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicTlsCertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicTlsCertificateRequest) ProtoMessage() {}
+
+func (x *DeletePublicTlsCertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicTlsCertificateRequest.ProtoReflect.Descriptor instead.
+func (*DeletePublicTlsCertificateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *DeletePublicTlsCertificateRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeletePublicTlsCertificateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePublicTlsCertificateResponse) Reset() {
+	*x = DeletePublicTlsCertificateResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePublicTlsCertificateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePublicTlsCertificateResponse) ProtoMessage() {}
+
+func (x *DeletePublicTlsCertificateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePublicTlsCertificateResponse.ProtoReflect.Descriptor instead.
+func (*DeletePublicTlsCertificateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{46}
+}
+
 type GetDashboardRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -641,7 +3275,7 @@ type GetDashboardRequest struct {
 
 func (x *GetDashboardRequest) Reset() {
 	*x = GetDashboardRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -653,7 +3287,7 @@ func (x *GetDashboardRequest) String() string {
 func (*GetDashboardRequest) ProtoMessage() {}
 
 func (x *GetDashboardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[7]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -666,7 +3300,7 @@ func (x *GetDashboardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardRequest.ProtoReflect.Descriptor instead.
 func (*GetDashboardRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{7}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{47}
 }
 
 type DashboardWindowSummary struct {
@@ -696,7 +3330,7 @@ type DashboardWindowSummary struct {
 
 func (x *DashboardWindowSummary) Reset() {
 	*x = DashboardWindowSummary{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -708,7 +3342,7 @@ func (x *DashboardWindowSummary) String() string {
 func (*DashboardWindowSummary) ProtoMessage() {}
 
 func (x *DashboardWindowSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[8]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -721,7 +3355,7 @@ func (x *DashboardWindowSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DashboardWindowSummary.ProtoReflect.Descriptor instead.
 func (*DashboardWindowSummary) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{8}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *DashboardWindowSummary) GetLabel() string {
@@ -870,7 +3504,7 @@ type AgentConnectionSummary struct {
 
 func (x *AgentConnectionSummary) Reset() {
 	*x = AgentConnectionSummary{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -882,7 +3516,7 @@ func (x *AgentConnectionSummary) String() string {
 func (*AgentConnectionSummary) ProtoMessage() {}
 
 func (x *AgentConnectionSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[9]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -895,7 +3529,7 @@ func (x *AgentConnectionSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentConnectionSummary.ProtoReflect.Descriptor instead.
 func (*AgentConnectionSummary) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{9}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *AgentConnectionSummary) GetConnected() bool {
@@ -946,7 +3580,7 @@ type GetDashboardResponse struct {
 
 func (x *GetDashboardResponse) Reset() {
 	*x = GetDashboardResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -958,7 +3592,7 @@ func (x *GetDashboardResponse) String() string {
 func (*GetDashboardResponse) ProtoMessage() {}
 
 func (x *GetDashboardResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[10]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -971,7 +3605,7 @@ func (x *GetDashboardResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardResponse.ProtoReflect.Descriptor instead.
 func (*GetDashboardResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{10}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetDashboardResponse) GetStatus() *GetStatusResponse {
@@ -1017,7 +3651,7 @@ type GetSetupStateRequest struct {
 
 func (x *GetSetupStateRequest) Reset() {
 	*x = GetSetupStateRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1029,7 +3663,7 @@ func (x *GetSetupStateRequest) String() string {
 func (*GetSetupStateRequest) ProtoMessage() {}
 
 func (x *GetSetupStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[11]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1042,7 +3676,7 @@ func (x *GetSetupStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSetupStateRequest.ProtoReflect.Descriptor instead.
 func (*GetSetupStateRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{11}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{51}
 }
 
 type GetSetupStateResponse struct {
@@ -1057,7 +3691,7 @@ type GetSetupStateResponse struct {
 
 func (x *GetSetupStateResponse) Reset() {
 	*x = GetSetupStateResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1069,7 +3703,7 @@ func (x *GetSetupStateResponse) String() string {
 func (*GetSetupStateResponse) ProtoMessage() {}
 
 func (x *GetSetupStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[12]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1082,7 +3716,7 @@ func (x *GetSetupStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSetupStateResponse.ProtoReflect.Descriptor instead.
 func (*GetSetupStateResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{12}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *GetSetupStateResponse) GetSetupRequired() bool {
@@ -1123,7 +3757,7 @@ type SetupAdminRequest struct {
 
 func (x *SetupAdminRequest) Reset() {
 	*x = SetupAdminRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1135,7 +3769,7 @@ func (x *SetupAdminRequest) String() string {
 func (*SetupAdminRequest) ProtoMessage() {}
 
 func (x *SetupAdminRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[13]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1148,7 +3782,7 @@ func (x *SetupAdminRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetupAdminRequest.ProtoReflect.Descriptor instead.
 func (*SetupAdminRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{13}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *SetupAdminRequest) GetUsername() string {
@@ -1174,7 +3808,7 @@ type SetupAdminResponse struct {
 
 func (x *SetupAdminResponse) Reset() {
 	*x = SetupAdminResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1186,7 +3820,7 @@ func (x *SetupAdminResponse) String() string {
 func (*SetupAdminResponse) ProtoMessage() {}
 
 func (x *SetupAdminResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[14]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1199,7 +3833,7 @@ func (x *SetupAdminResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetupAdminResponse.ProtoReflect.Descriptor instead.
 func (*SetupAdminResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{14}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *SetupAdminResponse) GetUser() *User {
@@ -1219,7 +3853,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1231,7 +3865,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[15]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1244,7 +3878,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{15}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *LoginRequest) GetUsername() string {
@@ -1270,7 +3904,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1282,7 +3916,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[16]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1295,7 +3929,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{16}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *LoginResponse) GetUser() *User {
@@ -1313,7 +3947,7 @@ type LogoutRequest struct {
 
 func (x *LogoutRequest) Reset() {
 	*x = LogoutRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1325,7 +3959,7 @@ func (x *LogoutRequest) String() string {
 func (*LogoutRequest) ProtoMessage() {}
 
 func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[17]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1338,7 +3972,7 @@ func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
 func (*LogoutRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{17}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{57}
 }
 
 type LogoutResponse struct {
@@ -1349,7 +3983,7 @@ type LogoutResponse struct {
 
 func (x *LogoutResponse) Reset() {
 	*x = LogoutResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +3995,7 @@ func (x *LogoutResponse) String() string {
 func (*LogoutResponse) ProtoMessage() {}
 
 func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[18]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +4008,7 @@ func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
 func (*LogoutResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{18}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{58}
 }
 
 type GetCurrentUserRequest struct {
@@ -1385,7 +4019,7 @@ type GetCurrentUserRequest struct {
 
 func (x *GetCurrentUserRequest) Reset() {
 	*x = GetCurrentUserRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1397,7 +4031,7 @@ func (x *GetCurrentUserRequest) String() string {
 func (*GetCurrentUserRequest) ProtoMessage() {}
 
 func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[19]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1410,7 +4044,7 @@ func (x *GetCurrentUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{19}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{59}
 }
 
 type GetCurrentUserResponse struct {
@@ -1422,7 +4056,7 @@ type GetCurrentUserResponse struct {
 
 func (x *GetCurrentUserResponse) Reset() {
 	*x = GetCurrentUserResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1434,7 +4068,7 @@ func (x *GetCurrentUserResponse) String() string {
 func (*GetCurrentUserResponse) ProtoMessage() {}
 
 func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[20]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1447,7 +4081,7 @@ func (x *GetCurrentUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{20}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *GetCurrentUserResponse) GetUser() *User {
@@ -1465,7 +4099,7 @@ type StartProxyRequest struct {
 
 func (x *StartProxyRequest) Reset() {
 	*x = StartProxyRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[21]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1477,7 +4111,7 @@ func (x *StartProxyRequest) String() string {
 func (*StartProxyRequest) ProtoMessage() {}
 
 func (x *StartProxyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[21]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1490,7 +4124,7 @@ func (x *StartProxyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartProxyRequest.ProtoReflect.Descriptor instead.
 func (*StartProxyRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{21}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{61}
 }
 
 type StartProxyResponse struct {
@@ -1502,7 +4136,7 @@ type StartProxyResponse struct {
 
 func (x *StartProxyResponse) Reset() {
 	*x = StartProxyResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[22]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1514,7 +4148,7 @@ func (x *StartProxyResponse) String() string {
 func (*StartProxyResponse) ProtoMessage() {}
 
 func (x *StartProxyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[22]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1527,7 +4161,7 @@ func (x *StartProxyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartProxyResponse.ProtoReflect.Descriptor instead.
 func (*StartProxyResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{22}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *StartProxyResponse) GetProxy() *ProxyStatus {
@@ -1545,7 +4179,7 @@ type StopProxyRequest struct {
 
 func (x *StopProxyRequest) Reset() {
 	*x = StopProxyRequest{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[23]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1557,7 +4191,7 @@ func (x *StopProxyRequest) String() string {
 func (*StopProxyRequest) ProtoMessage() {}
 
 func (x *StopProxyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[23]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1570,7 +4204,7 @@ func (x *StopProxyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopProxyRequest.ProtoReflect.Descriptor instead.
 func (*StopProxyRequest) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{23}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{63}
 }
 
 type StopProxyResponse struct {
@@ -1582,7 +4216,7 @@ type StopProxyResponse struct {
 
 func (x *StopProxyResponse) Reset() {
 	*x = StopProxyResponse{}
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[24]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1594,7 +4228,7 @@ func (x *StopProxyResponse) String() string {
 func (*StopProxyResponse) ProtoMessage() {}
 
 func (x *StopProxyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[24]
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1607,7 +4241,7 @@ func (x *StopProxyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopProxyResponse.ProtoReflect.Descriptor instead.
 func (*StopProxyResponse) Descriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{24}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *StopProxyResponse) GetProxy() *ProxyStatus {
@@ -1660,13 +4294,205 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x0fagent_connected\x18\x03 \x01(\bR\x0eagentConnected\x12#\n" +
 	"\rtarget_origin\x18\x04 \x01(\tR\ftargetOrigin\x12N\n" +
 	"\x12latest_agent_stats\x18\x05 \x01(\v2 .p2pstream.v1.AgentStatsSnapshotR\x10latestAgentStats\x12/\n" +
-	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\xc6\x01\n" +
+	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\x88\x02\n" +
 	"\vProxyStatus\x12.\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x18.p2pstream.v1.ProxyStateR\x05state\x12\x1d\n" +
 	"\n" +
 	"last_error\x18\x02 \x01(\tR\tlastError\x123\n" +
 	"\x16started_at_unix_millis\x18\x03 \x01(\x03R\x13startedAtUnixMillis\x123\n" +
-	"\x16stopped_at_unix_millis\x18\x04 \x01(\x03R\x13stoppedAtUnixMillis\"\x15\n" +
+	"\x16stopped_at_unix_millis\x18\x04 \x01(\x03R\x13stoppedAtUnixMillis\x12@\n" +
+	"\tlisteners\x18\x05 \x03(\v2\".p2pstream.v1.PublicListenerStatusR\tlisteners\"\xfc\x03\n" +
+	"\rPublicBackend\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
+	"\rtarget_origin\x18\x03 \x01(\tR\ftargetOrigin\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x123\n" +
+	"\x16created_at_unix_millis\x18\x05 \x01(\x03R\x13createdAtUnixMillis\x123\n" +
+	"\x16updated_at_unix_millis\x18\x06 \x01(\x03R\x13updatedAtUnixMillis\x12B\n" +
+	"\fbackend_type\x18\a \x01(\x0e2\x1f.p2pstream.v1.PublicBackendTypeR\vbackendType\x12&\n" +
+	"\x0ftls_skip_verify\x18\b \x01(\bR\rtlsSkipVerify\x12,\n" +
+	"\x12static_status_code\x18\t \x01(\x03R\x10staticStatusCode\x12R\n" +
+	"\x17static_response_headers\x18\n" +
+	" \x03(\v2\x1a.p2pstream.v1.PublicHeaderR\x15staticResponseHeaders\x120\n" +
+	"\x14static_response_body\x18\v \x01(\tR\x12staticResponseBody\"8\n" +
+	"\fPublicHeader\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\xdf\x02\n" +
+	"\x0ePublicListener\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
+	"\fbind_address\x18\x03 \x01(\tR\vbindAddress\x12\x12\n" +
+	"\x04port\x18\x04 \x01(\x03R\x04port\x12@\n" +
+	"\bprotocol\x18\x05 \x01(\x0e2$.p2pstream.v1.PublicListenerProtocolR\bprotocol\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12,\n" +
+	"\x12default_backend_id\x18\a \x01(\x03R\x10defaultBackendId\x123\n" +
+	"\x16created_at_unix_millis\x18\b \x01(\x03R\x13createdAtUnixMillis\x123\n" +
+	"\x16updated_at_unix_millis\x18\t \x01(\x03R\x13updatedAtUnixMillis\"\xc1\x02\n" +
+	"\vPublicRoute\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vlistener_id\x18\x02 \x01(\x03R\n" +
+	"listenerId\x12\x1a\n" +
+	"\bpriority\x18\x03 \x01(\x03R\bpriority\x12!\n" +
+	"\fhost_pattern\x18\x04 \x01(\tR\vhostPattern\x12\x1f\n" +
+	"\vpath_prefix\x18\x05 \x01(\tR\n" +
+	"pathPrefix\x12\x1d\n" +
+	"\n" +
+	"backend_id\x18\x06 \x01(\x03R\tbackendId\x12\x18\n" +
+	"\aenabled\x18\a \x01(\bR\aenabled\x123\n" +
+	"\x16created_at_unix_millis\x18\b \x01(\x03R\x13createdAtUnixMillis\x123\n" +
+	"\x16updated_at_unix_millis\x18\t \x01(\x03R\x13updatedAtUnixMillis\"\xae\x02\n" +
+	"\x14PublicTlsCertificate\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vlistener_id\x18\x02 \x01(\x03R\n" +
+	"listenerId\x12)\n" +
+	"\x10hostname_pattern\x18\x03 \x01(\tR\x0fhostnamePattern\x12\x1b\n" +
+	"\tcert_path\x18\x04 \x01(\tR\bcertPath\x12\x19\n" +
+	"\bkey_path\x18\x05 \x01(\tR\akeyPath\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x123\n" +
+	"\x16created_at_unix_millis\x18\a \x01(\x03R\x13createdAtUnixMillis\x123\n" +
+	"\x16updated_at_unix_millis\x18\b \x01(\x03R\x13updatedAtUnixMillis\"\xcb\x02\n" +
+	"\x14PublicListenerStatus\x12\x1f\n" +
+	"\vlistener_id\x18\x01 \x01(\x03R\n" +
+	"listenerId\x12.\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x18.p2pstream.v1.ProxyStateR\x05state\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\x03 \x01(\tR\tlastError\x123\n" +
+	"\x16started_at_unix_millis\x18\x04 \x01(\x03R\x13startedAtUnixMillis\x123\n" +
+	"\x16stopped_at_unix_millis\x18\x05 \x01(\x03R\x13stoppedAtUnixMillis\x12#\n" +
+	"\rbound_address\x18\x06 \x01(\tR\fboundAddress\x12\x18\n" +
+	"\arunning\x18\a \x01(\bR\arunning\x12\x1a\n" +
+	"\bdisabled\x18\b \x01(\bR\bdisabled\"\x1d\n" +
+	"\x1bGetPublicProxyConfigRequest\"\xc6\x02\n" +
+	"\x1cGetPublicProxyConfigResponse\x127\n" +
+	"\bbackends\x18\x01 \x03(\v2\x1b.p2pstream.v1.PublicBackendR\bbackends\x12:\n" +
+	"\tlisteners\x18\x02 \x03(\v2\x1c.p2pstream.v1.PublicListenerR\tlisteners\x121\n" +
+	"\x06routes\x18\x03 \x03(\v2\x19.p2pstream.v1.PublicRouteR\x06routes\x12M\n" +
+	"\x10tls_certificates\x18\x04 \x03(\v2\".p2pstream.v1.PublicTlsCertificateR\x0ftlsCertificates\x12/\n" +
+	"\x05proxy\x18\x05 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\x8f\x03\n" +
+	"\x1aCreatePublicBackendRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rtarget_origin\x18\x02 \x01(\tR\ftargetOrigin\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12B\n" +
+	"\fbackend_type\x18\x04 \x01(\x0e2\x1f.p2pstream.v1.PublicBackendTypeR\vbackendType\x12&\n" +
+	"\x0ftls_skip_verify\x18\x05 \x01(\bR\rtlsSkipVerify\x12,\n" +
+	"\x12static_status_code\x18\x06 \x01(\x03R\x10staticStatusCode\x12R\n" +
+	"\x17static_response_headers\x18\a \x03(\v2\x1a.p2pstream.v1.PublicHeaderR\x15staticResponseHeaders\x120\n" +
+	"\x14static_response_body\x18\b \x01(\tR\x12staticResponseBody\"T\n" +
+	"\x1bCreatePublicBackendResponse\x125\n" +
+	"\abackend\x18\x01 \x01(\v2\x1b.p2pstream.v1.PublicBackendR\abackend\"\x9f\x03\n" +
+	"\x1aUpdatePublicBackendRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
+	"\rtarget_origin\x18\x03 \x01(\tR\ftargetOrigin\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x12B\n" +
+	"\fbackend_type\x18\x05 \x01(\x0e2\x1f.p2pstream.v1.PublicBackendTypeR\vbackendType\x12&\n" +
+	"\x0ftls_skip_verify\x18\x06 \x01(\bR\rtlsSkipVerify\x12,\n" +
+	"\x12static_status_code\x18\a \x01(\x03R\x10staticStatusCode\x12R\n" +
+	"\x17static_response_headers\x18\b \x03(\v2\x1a.p2pstream.v1.PublicHeaderR\x15staticResponseHeaders\x120\n" +
+	"\x14static_response_body\x18\t \x01(\tR\x12staticResponseBody\"T\n" +
+	"\x1bUpdatePublicBackendResponse\x125\n" +
+	"\abackend\x18\x01 \x01(\v2\x1b.p2pstream.v1.PublicBackendR\abackend\",\n" +
+	"\x1aDeletePublicBackendRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1d\n" +
+	"\x1bDeletePublicBackendResponse\"\xf2\x01\n" +
+	"\x1bCreatePublicListenerRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fbind_address\x18\x02 \x01(\tR\vbindAddress\x12\x12\n" +
+	"\x04port\x18\x03 \x01(\x03R\x04port\x12@\n" +
+	"\bprotocol\x18\x04 \x01(\x0e2$.p2pstream.v1.PublicListenerProtocolR\bprotocol\x12\x18\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\x12,\n" +
+	"\x12default_backend_id\x18\x06 \x01(\x03R\x10defaultBackendId\"\xc5\x01\n" +
+	"\x1cCreatePublicListenerResponse\x128\n" +
+	"\blistener\x18\x01 \x01(\v2\x1c.p2pstream.v1.PublicListenerR\blistener\x12:\n" +
+	"\x06status\x18\x02 \x01(\v2\".p2pstream.v1.PublicListenerStatusR\x06status\x12/\n" +
+	"\x05proxy\x18\x03 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\x82\x02\n" +
+	"\x1bUpdatePublicListenerRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
+	"\fbind_address\x18\x03 \x01(\tR\vbindAddress\x12\x12\n" +
+	"\x04port\x18\x04 \x01(\x03R\x04port\x12@\n" +
+	"\bprotocol\x18\x05 \x01(\x0e2$.p2pstream.v1.PublicListenerProtocolR\bprotocol\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12,\n" +
+	"\x12default_backend_id\x18\a \x01(\x03R\x10defaultBackendId\"\xc5\x01\n" +
+	"\x1cUpdatePublicListenerResponse\x128\n" +
+	"\blistener\x18\x01 \x01(\v2\x1c.p2pstream.v1.PublicListenerR\blistener\x12:\n" +
+	"\x06status\x18\x02 \x01(\v2\".p2pstream.v1.PublicListenerStatusR\x06status\x12/\n" +
+	"\x05proxy\x18\x03 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"-\n" +
+	"\x1bDeletePublicListenerRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1e\n" +
+	"\x1cDeletePublicListenerResponse\"-\n" +
+	"\x1bEnablePublicListenerRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xc5\x01\n" +
+	"\x1cEnablePublicListenerResponse\x128\n" +
+	"\blistener\x18\x01 \x01(\v2\x1c.p2pstream.v1.PublicListenerR\blistener\x12:\n" +
+	"\x06status\x18\x02 \x01(\v2\".p2pstream.v1.PublicListenerStatusR\x06status\x12/\n" +
+	"\x05proxy\x18\x03 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\".\n" +
+	"\x1cDisablePublicListenerRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xc6\x01\n" +
+	"\x1dDisablePublicListenerResponse\x128\n" +
+	"\blistener\x18\x01 \x01(\v2\x1c.p2pstream.v1.PublicListenerR\blistener\x12:\n" +
+	"\x06status\x18\x02 \x01(\v2\".p2pstream.v1.PublicListenerStatusR\x06status\x12/\n" +
+	"\x05proxy\x18\x03 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\",\n" +
+	"\x1aStartPublicListenerRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x8a\x01\n" +
+	"\x1bStartPublicListenerResponse\x12:\n" +
+	"\x06status\x18\x01 \x01(\v2\".p2pstream.v1.PublicListenerStatusR\x06status\x12/\n" +
+	"\x05proxy\x18\x02 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"+\n" +
+	"\x19StopPublicListenerRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x89\x01\n" +
+	"\x1aStopPublicListenerResponse\x12:\n" +
+	"\x06status\x18\x01 \x01(\v2\".p2pstream.v1.PublicListenerStatusR\x06status\x12/\n" +
+	"\x05proxy\x18\x02 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\xd4\x01\n" +
+	"\x18CreatePublicRouteRequest\x12\x1f\n" +
+	"\vlistener_id\x18\x01 \x01(\x03R\n" +
+	"listenerId\x12\x1a\n" +
+	"\bpriority\x18\x02 \x01(\x03R\bpriority\x12!\n" +
+	"\fhost_pattern\x18\x03 \x01(\tR\vhostPattern\x12\x1f\n" +
+	"\vpath_prefix\x18\x04 \x01(\tR\n" +
+	"pathPrefix\x12\x1d\n" +
+	"\n" +
+	"backend_id\x18\x05 \x01(\x03R\tbackendId\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\"L\n" +
+	"\x19CreatePublicRouteResponse\x12/\n" +
+	"\x05route\x18\x01 \x01(\v2\x19.p2pstream.v1.PublicRouteR\x05route\"\xe4\x01\n" +
+	"\x18UpdatePublicRouteRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vlistener_id\x18\x02 \x01(\x03R\n" +
+	"listenerId\x12\x1a\n" +
+	"\bpriority\x18\x03 \x01(\x03R\bpriority\x12!\n" +
+	"\fhost_pattern\x18\x04 \x01(\tR\vhostPattern\x12\x1f\n" +
+	"\vpath_prefix\x18\x05 \x01(\tR\n" +
+	"pathPrefix\x12\x1d\n" +
+	"\n" +
+	"backend_id\x18\x06 \x01(\x03R\tbackendId\x12\x18\n" +
+	"\aenabled\x18\a \x01(\bR\aenabled\"L\n" +
+	"\x19UpdatePublicRouteResponse\x12/\n" +
+	"\x05route\x18\x01 \x01(\v2\x19.p2pstream.v1.PublicRouteR\x05route\"*\n" +
+	"\x18DeletePublicRouteRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1b\n" +
+	"\x19DeletePublicRouteResponse\"\xc1\x01\n" +
+	"!CreatePublicTlsCertificateRequest\x12\x1f\n" +
+	"\vlistener_id\x18\x01 \x01(\x03R\n" +
+	"listenerId\x12)\n" +
+	"\x10hostname_pattern\x18\x02 \x01(\tR\x0fhostnamePattern\x12\x1b\n" +
+	"\tcert_path\x18\x03 \x01(\tR\bcertPath\x12\x19\n" +
+	"\bkey_path\x18\x04 \x01(\tR\akeyPath\x12\x18\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\"q\n" +
+	"\"CreatePublicTlsCertificateResponse\x12K\n" +
+	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"\xd1\x01\n" +
+	"!UpdatePublicTlsCertificateRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vlistener_id\x18\x02 \x01(\x03R\n" +
+	"listenerId\x12)\n" +
+	"\x10hostname_pattern\x18\x03 \x01(\tR\x0fhostnamePattern\x12\x1b\n" +
+	"\tcert_path\x18\x04 \x01(\tR\bcertPath\x12\x19\n" +
+	"\bkey_path\x18\x05 \x01(\tR\akeyPath\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\"q\n" +
+	"\"UpdatePublicTlsCertificateResponse\x12K\n" +
+	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"3\n" +
+	"!DeletePublicTlsCertificateRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"$\n" +
+	"\"DeletePublicTlsCertificateResponse\"\x15\n" +
 	"\x13GetDashboardRequest\"\xf9\x06\n" +
 	"\x16DashboardWindowSummary\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12*\n" +
@@ -1738,7 +4564,15 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x14PROXY_STATE_STARTING\x10\x02\x12\x17\n" +
 	"\x13PROXY_STATE_RUNNING\x10\x03\x12\x18\n" +
 	"\x14PROXY_STATE_STOPPING\x10\x04\x12\x15\n" +
-	"\x11PROXY_STATE_ERROR\x10\x052\xd1\x06\n" +
+	"\x11PROXY_STATE_ERROR\x10\x05*\x89\x01\n" +
+	"\x16PublicListenerProtocol\x12(\n" +
+	"$PUBLIC_LISTENER_PROTOCOL_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dPUBLIC_LISTENER_PROTOCOL_HTTP\x10\x01\x12\"\n" +
+	"\x1ePUBLIC_LISTENER_PROTOCOL_HTTPS\x10\x02*\x7f\n" +
+	"\x11PublicBackendType\x12#\n" +
+	"\x1fPUBLIC_BACKEND_TYPE_UNSPECIFIED\x10\x00\x12%\n" +
+	"!PUBLIC_BACKEND_TYPE_PROXY_FORWARD\x10\x01\x12\x1e\n" +
+	"\x1aPUBLIC_BACKEND_TYPE_STATIC\x10\x022\xe1\x15\n" +
 	"\x16AgentManagementService\x12R\n" +
 	"\vReportStats\x12\x1f.p2pstream.v1.AgentStatsRequest\x1a .p2pstream.v1.AgentStatsResponse\"\x00\x12N\n" +
 	"\tGetStatus\x12\x1e.p2pstream.v1.GetStatusRequest\x1a\x1f.p2pstream.v1.GetStatusResponse\"\x00\x12W\n" +
@@ -1751,7 +4585,24 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x0eGetCurrentUser\x12#.p2pstream.v1.GetCurrentUserRequest\x1a$.p2pstream.v1.GetCurrentUserResponse\"\x00\x12Q\n" +
 	"\n" +
 	"StartProxy\x12\x1f.p2pstream.v1.StartProxyRequest\x1a .p2pstream.v1.StartProxyResponse\"\x00\x12N\n" +
-	"\tStopProxy\x12\x1e.p2pstream.v1.StopProxyRequest\x1a\x1f.p2pstream.v1.StopProxyResponse\"\x00B\xa2\x01\n" +
+	"\tStopProxy\x12\x1e.p2pstream.v1.StopProxyRequest\x1a\x1f.p2pstream.v1.StopProxyResponse\"\x00\x12o\n" +
+	"\x14GetPublicProxyConfig\x12).p2pstream.v1.GetPublicProxyConfigRequest\x1a*.p2pstream.v1.GetPublicProxyConfigResponse\"\x00\x12l\n" +
+	"\x13CreatePublicBackend\x12(.p2pstream.v1.CreatePublicBackendRequest\x1a).p2pstream.v1.CreatePublicBackendResponse\"\x00\x12l\n" +
+	"\x13UpdatePublicBackend\x12(.p2pstream.v1.UpdatePublicBackendRequest\x1a).p2pstream.v1.UpdatePublicBackendResponse\"\x00\x12l\n" +
+	"\x13DeletePublicBackend\x12(.p2pstream.v1.DeletePublicBackendRequest\x1a).p2pstream.v1.DeletePublicBackendResponse\"\x00\x12o\n" +
+	"\x14CreatePublicListener\x12).p2pstream.v1.CreatePublicListenerRequest\x1a*.p2pstream.v1.CreatePublicListenerResponse\"\x00\x12o\n" +
+	"\x14UpdatePublicListener\x12).p2pstream.v1.UpdatePublicListenerRequest\x1a*.p2pstream.v1.UpdatePublicListenerResponse\"\x00\x12o\n" +
+	"\x14DeletePublicListener\x12).p2pstream.v1.DeletePublicListenerRequest\x1a*.p2pstream.v1.DeletePublicListenerResponse\"\x00\x12o\n" +
+	"\x14EnablePublicListener\x12).p2pstream.v1.EnablePublicListenerRequest\x1a*.p2pstream.v1.EnablePublicListenerResponse\"\x00\x12r\n" +
+	"\x15DisablePublicListener\x12*.p2pstream.v1.DisablePublicListenerRequest\x1a+.p2pstream.v1.DisablePublicListenerResponse\"\x00\x12l\n" +
+	"\x13StartPublicListener\x12(.p2pstream.v1.StartPublicListenerRequest\x1a).p2pstream.v1.StartPublicListenerResponse\"\x00\x12i\n" +
+	"\x12StopPublicListener\x12'.p2pstream.v1.StopPublicListenerRequest\x1a(.p2pstream.v1.StopPublicListenerResponse\"\x00\x12f\n" +
+	"\x11CreatePublicRoute\x12&.p2pstream.v1.CreatePublicRouteRequest\x1a'.p2pstream.v1.CreatePublicRouteResponse\"\x00\x12f\n" +
+	"\x11UpdatePublicRoute\x12&.p2pstream.v1.UpdatePublicRouteRequest\x1a'.p2pstream.v1.UpdatePublicRouteResponse\"\x00\x12f\n" +
+	"\x11DeletePublicRoute\x12&.p2pstream.v1.DeletePublicRouteRequest\x1a'.p2pstream.v1.DeletePublicRouteResponse\"\x00\x12\x81\x01\n" +
+	"\x1aCreatePublicTlsCertificate\x12/.p2pstream.v1.CreatePublicTlsCertificateRequest\x1a0.p2pstream.v1.CreatePublicTlsCertificateResponse\"\x00\x12\x81\x01\n" +
+	"\x1aUpdatePublicTlsCertificate\x12/.p2pstream.v1.UpdatePublicTlsCertificateRequest\x1a0.p2pstream.v1.UpdatePublicTlsCertificateResponse\"\x00\x12\x81\x01\n" +
+	"\x1aDeletePublicTlsCertificate\x12/.p2pstream.v1.DeletePublicTlsCertificateRequest\x1a0.p2pstream.v1.DeletePublicTlsCertificateResponse\"\x00B\xa2\x01\n" +
 	"\x10com.p2pstream.v1B\x0fManagementProtoP\x01Z,p2pstream/gen/proto/p2pstream/v1;p2pstreamv1\xa2\x02\x03PXX\xaa\x02\fP2pstream.V1\xca\x02\fP2pstream\\V1\xe2\x02\x18P2pstream\\V1\\GPBMetadata\xea\x02\rP2pstream::V1b\x06proto3"
 
 var (
@@ -1766,75 +4617,189 @@ func file_proto_p2pstream_v1_management_proto_rawDescGZIP() []byte {
 	return file_proto_p2pstream_v1_management_proto_rawDescData
 }
 
-var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
 var file_proto_p2pstream_v1_management_proto_goTypes = []any{
-	(UserRole)(0),                  // 0: p2pstream.v1.UserRole
-	(ProxyState)(0),                // 1: p2pstream.v1.ProxyState
-	(*AgentStatsRequest)(nil),      // 2: p2pstream.v1.AgentStatsRequest
-	(*AgentStatsResponse)(nil),     // 3: p2pstream.v1.AgentStatsResponse
-	(*User)(nil),                   // 4: p2pstream.v1.User
-	(*GetStatusRequest)(nil),       // 5: p2pstream.v1.GetStatusRequest
-	(*AgentStatsSnapshot)(nil),     // 6: p2pstream.v1.AgentStatsSnapshot
-	(*GetStatusResponse)(nil),      // 7: p2pstream.v1.GetStatusResponse
-	(*ProxyStatus)(nil),            // 8: p2pstream.v1.ProxyStatus
-	(*GetDashboardRequest)(nil),    // 9: p2pstream.v1.GetDashboardRequest
-	(*DashboardWindowSummary)(nil), // 10: p2pstream.v1.DashboardWindowSummary
-	(*AgentConnectionSummary)(nil), // 11: p2pstream.v1.AgentConnectionSummary
-	(*GetDashboardResponse)(nil),   // 12: p2pstream.v1.GetDashboardResponse
-	(*GetSetupStateRequest)(nil),   // 13: p2pstream.v1.GetSetupStateRequest
-	(*GetSetupStateResponse)(nil),  // 14: p2pstream.v1.GetSetupStateResponse
-	(*SetupAdminRequest)(nil),      // 15: p2pstream.v1.SetupAdminRequest
-	(*SetupAdminResponse)(nil),     // 16: p2pstream.v1.SetupAdminResponse
-	(*LoginRequest)(nil),           // 17: p2pstream.v1.LoginRequest
-	(*LoginResponse)(nil),          // 18: p2pstream.v1.LoginResponse
-	(*LogoutRequest)(nil),          // 19: p2pstream.v1.LogoutRequest
-	(*LogoutResponse)(nil),         // 20: p2pstream.v1.LogoutResponse
-	(*GetCurrentUserRequest)(nil),  // 21: p2pstream.v1.GetCurrentUserRequest
-	(*GetCurrentUserResponse)(nil), // 22: p2pstream.v1.GetCurrentUserResponse
-	(*StartProxyRequest)(nil),      // 23: p2pstream.v1.StartProxyRequest
-	(*StartProxyResponse)(nil),     // 24: p2pstream.v1.StartProxyResponse
-	(*StopProxyRequest)(nil),       // 25: p2pstream.v1.StopProxyRequest
-	(*StopProxyResponse)(nil),      // 26: p2pstream.v1.StopProxyResponse
+	(UserRole)(0),                              // 0: p2pstream.v1.UserRole
+	(ProxyState)(0),                            // 1: p2pstream.v1.ProxyState
+	(PublicListenerProtocol)(0),                // 2: p2pstream.v1.PublicListenerProtocol
+	(PublicBackendType)(0),                     // 3: p2pstream.v1.PublicBackendType
+	(*AgentStatsRequest)(nil),                  // 4: p2pstream.v1.AgentStatsRequest
+	(*AgentStatsResponse)(nil),                 // 5: p2pstream.v1.AgentStatsResponse
+	(*User)(nil),                               // 6: p2pstream.v1.User
+	(*GetStatusRequest)(nil),                   // 7: p2pstream.v1.GetStatusRequest
+	(*AgentStatsSnapshot)(nil),                 // 8: p2pstream.v1.AgentStatsSnapshot
+	(*GetStatusResponse)(nil),                  // 9: p2pstream.v1.GetStatusResponse
+	(*ProxyStatus)(nil),                        // 10: p2pstream.v1.ProxyStatus
+	(*PublicBackend)(nil),                      // 11: p2pstream.v1.PublicBackend
+	(*PublicHeader)(nil),                       // 12: p2pstream.v1.PublicHeader
+	(*PublicListener)(nil),                     // 13: p2pstream.v1.PublicListener
+	(*PublicRoute)(nil),                        // 14: p2pstream.v1.PublicRoute
+	(*PublicTlsCertificate)(nil),               // 15: p2pstream.v1.PublicTlsCertificate
+	(*PublicListenerStatus)(nil),               // 16: p2pstream.v1.PublicListenerStatus
+	(*GetPublicProxyConfigRequest)(nil),        // 17: p2pstream.v1.GetPublicProxyConfigRequest
+	(*GetPublicProxyConfigResponse)(nil),       // 18: p2pstream.v1.GetPublicProxyConfigResponse
+	(*CreatePublicBackendRequest)(nil),         // 19: p2pstream.v1.CreatePublicBackendRequest
+	(*CreatePublicBackendResponse)(nil),        // 20: p2pstream.v1.CreatePublicBackendResponse
+	(*UpdatePublicBackendRequest)(nil),         // 21: p2pstream.v1.UpdatePublicBackendRequest
+	(*UpdatePublicBackendResponse)(nil),        // 22: p2pstream.v1.UpdatePublicBackendResponse
+	(*DeletePublicBackendRequest)(nil),         // 23: p2pstream.v1.DeletePublicBackendRequest
+	(*DeletePublicBackendResponse)(nil),        // 24: p2pstream.v1.DeletePublicBackendResponse
+	(*CreatePublicListenerRequest)(nil),        // 25: p2pstream.v1.CreatePublicListenerRequest
+	(*CreatePublicListenerResponse)(nil),       // 26: p2pstream.v1.CreatePublicListenerResponse
+	(*UpdatePublicListenerRequest)(nil),        // 27: p2pstream.v1.UpdatePublicListenerRequest
+	(*UpdatePublicListenerResponse)(nil),       // 28: p2pstream.v1.UpdatePublicListenerResponse
+	(*DeletePublicListenerRequest)(nil),        // 29: p2pstream.v1.DeletePublicListenerRequest
+	(*DeletePublicListenerResponse)(nil),       // 30: p2pstream.v1.DeletePublicListenerResponse
+	(*EnablePublicListenerRequest)(nil),        // 31: p2pstream.v1.EnablePublicListenerRequest
+	(*EnablePublicListenerResponse)(nil),       // 32: p2pstream.v1.EnablePublicListenerResponse
+	(*DisablePublicListenerRequest)(nil),       // 33: p2pstream.v1.DisablePublicListenerRequest
+	(*DisablePublicListenerResponse)(nil),      // 34: p2pstream.v1.DisablePublicListenerResponse
+	(*StartPublicListenerRequest)(nil),         // 35: p2pstream.v1.StartPublicListenerRequest
+	(*StartPublicListenerResponse)(nil),        // 36: p2pstream.v1.StartPublicListenerResponse
+	(*StopPublicListenerRequest)(nil),          // 37: p2pstream.v1.StopPublicListenerRequest
+	(*StopPublicListenerResponse)(nil),         // 38: p2pstream.v1.StopPublicListenerResponse
+	(*CreatePublicRouteRequest)(nil),           // 39: p2pstream.v1.CreatePublicRouteRequest
+	(*CreatePublicRouteResponse)(nil),          // 40: p2pstream.v1.CreatePublicRouteResponse
+	(*UpdatePublicRouteRequest)(nil),           // 41: p2pstream.v1.UpdatePublicRouteRequest
+	(*UpdatePublicRouteResponse)(nil),          // 42: p2pstream.v1.UpdatePublicRouteResponse
+	(*DeletePublicRouteRequest)(nil),           // 43: p2pstream.v1.DeletePublicRouteRequest
+	(*DeletePublicRouteResponse)(nil),          // 44: p2pstream.v1.DeletePublicRouteResponse
+	(*CreatePublicTlsCertificateRequest)(nil),  // 45: p2pstream.v1.CreatePublicTlsCertificateRequest
+	(*CreatePublicTlsCertificateResponse)(nil), // 46: p2pstream.v1.CreatePublicTlsCertificateResponse
+	(*UpdatePublicTlsCertificateRequest)(nil),  // 47: p2pstream.v1.UpdatePublicTlsCertificateRequest
+	(*UpdatePublicTlsCertificateResponse)(nil), // 48: p2pstream.v1.UpdatePublicTlsCertificateResponse
+	(*DeletePublicTlsCertificateRequest)(nil),  // 49: p2pstream.v1.DeletePublicTlsCertificateRequest
+	(*DeletePublicTlsCertificateResponse)(nil), // 50: p2pstream.v1.DeletePublicTlsCertificateResponse
+	(*GetDashboardRequest)(nil),                // 51: p2pstream.v1.GetDashboardRequest
+	(*DashboardWindowSummary)(nil),             // 52: p2pstream.v1.DashboardWindowSummary
+	(*AgentConnectionSummary)(nil),             // 53: p2pstream.v1.AgentConnectionSummary
+	(*GetDashboardResponse)(nil),               // 54: p2pstream.v1.GetDashboardResponse
+	(*GetSetupStateRequest)(nil),               // 55: p2pstream.v1.GetSetupStateRequest
+	(*GetSetupStateResponse)(nil),              // 56: p2pstream.v1.GetSetupStateResponse
+	(*SetupAdminRequest)(nil),                  // 57: p2pstream.v1.SetupAdminRequest
+	(*SetupAdminResponse)(nil),                 // 58: p2pstream.v1.SetupAdminResponse
+	(*LoginRequest)(nil),                       // 59: p2pstream.v1.LoginRequest
+	(*LoginResponse)(nil),                      // 60: p2pstream.v1.LoginResponse
+	(*LogoutRequest)(nil),                      // 61: p2pstream.v1.LogoutRequest
+	(*LogoutResponse)(nil),                     // 62: p2pstream.v1.LogoutResponse
+	(*GetCurrentUserRequest)(nil),              // 63: p2pstream.v1.GetCurrentUserRequest
+	(*GetCurrentUserResponse)(nil),             // 64: p2pstream.v1.GetCurrentUserResponse
+	(*StartProxyRequest)(nil),                  // 65: p2pstream.v1.StartProxyRequest
+	(*StartProxyResponse)(nil),                 // 66: p2pstream.v1.StartProxyResponse
+	(*StopProxyRequest)(nil),                   // 67: p2pstream.v1.StopProxyRequest
+	(*StopProxyResponse)(nil),                  // 68: p2pstream.v1.StopProxyResponse
 }
 var file_proto_p2pstream_v1_management_proto_depIdxs = []int32{
 	0,  // 0: p2pstream.v1.User.role:type_name -> p2pstream.v1.UserRole
-	6,  // 1: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
-	8,  // 2: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	8,  // 1: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
+	10, // 2: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
 	1,  // 3: p2pstream.v1.ProxyStatus.state:type_name -> p2pstream.v1.ProxyState
-	7,  // 4: p2pstream.v1.GetDashboardResponse.status:type_name -> p2pstream.v1.GetStatusResponse
-	10, // 5: p2pstream.v1.GetDashboardResponse.windows:type_name -> p2pstream.v1.DashboardWindowSummary
-	11, // 6: p2pstream.v1.GetDashboardResponse.agent_connections:type_name -> p2pstream.v1.AgentConnectionSummary
-	4,  // 7: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
-	4,  // 8: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
-	4,  // 9: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
-	8,  // 10: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	8,  // 11: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	2,  // 12: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
-	5,  // 13: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
-	9,  // 14: p2pstream.v1.AgentManagementService.GetDashboard:input_type -> p2pstream.v1.GetDashboardRequest
-	13, // 15: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
-	15, // 16: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
-	17, // 17: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
-	19, // 18: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
-	21, // 19: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
-	23, // 20: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
-	25, // 21: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
-	3,  // 22: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
-	7,  // 23: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
-	12, // 24: p2pstream.v1.AgentManagementService.GetDashboard:output_type -> p2pstream.v1.GetDashboardResponse
-	14, // 25: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
-	16, // 26: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
-	18, // 27: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
-	20, // 28: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
-	22, // 29: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
-	24, // 30: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
-	26, // 31: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
-	22, // [22:32] is the sub-list for method output_type
-	12, // [12:22] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	16, // 4: p2pstream.v1.ProxyStatus.listeners:type_name -> p2pstream.v1.PublicListenerStatus
+	3,  // 5: p2pstream.v1.PublicBackend.backend_type:type_name -> p2pstream.v1.PublicBackendType
+	12, // 6: p2pstream.v1.PublicBackend.static_response_headers:type_name -> p2pstream.v1.PublicHeader
+	2,  // 7: p2pstream.v1.PublicListener.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
+	1,  // 8: p2pstream.v1.PublicListenerStatus.state:type_name -> p2pstream.v1.ProxyState
+	11, // 9: p2pstream.v1.GetPublicProxyConfigResponse.backends:type_name -> p2pstream.v1.PublicBackend
+	13, // 10: p2pstream.v1.GetPublicProxyConfigResponse.listeners:type_name -> p2pstream.v1.PublicListener
+	14, // 11: p2pstream.v1.GetPublicProxyConfigResponse.routes:type_name -> p2pstream.v1.PublicRoute
+	15, // 12: p2pstream.v1.GetPublicProxyConfigResponse.tls_certificates:type_name -> p2pstream.v1.PublicTlsCertificate
+	10, // 13: p2pstream.v1.GetPublicProxyConfigResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	3,  // 14: p2pstream.v1.CreatePublicBackendRequest.backend_type:type_name -> p2pstream.v1.PublicBackendType
+	12, // 15: p2pstream.v1.CreatePublicBackendRequest.static_response_headers:type_name -> p2pstream.v1.PublicHeader
+	11, // 16: p2pstream.v1.CreatePublicBackendResponse.backend:type_name -> p2pstream.v1.PublicBackend
+	3,  // 17: p2pstream.v1.UpdatePublicBackendRequest.backend_type:type_name -> p2pstream.v1.PublicBackendType
+	12, // 18: p2pstream.v1.UpdatePublicBackendRequest.static_response_headers:type_name -> p2pstream.v1.PublicHeader
+	11, // 19: p2pstream.v1.UpdatePublicBackendResponse.backend:type_name -> p2pstream.v1.PublicBackend
+	2,  // 20: p2pstream.v1.CreatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
+	13, // 21: p2pstream.v1.CreatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	16, // 22: p2pstream.v1.CreatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	10, // 23: p2pstream.v1.CreatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	2,  // 24: p2pstream.v1.UpdatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
+	13, // 25: p2pstream.v1.UpdatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	16, // 26: p2pstream.v1.UpdatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	10, // 27: p2pstream.v1.UpdatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	13, // 28: p2pstream.v1.EnablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	16, // 29: p2pstream.v1.EnablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	10, // 30: p2pstream.v1.EnablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	13, // 31: p2pstream.v1.DisablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	16, // 32: p2pstream.v1.DisablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	10, // 33: p2pstream.v1.DisablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	16, // 34: p2pstream.v1.StartPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	10, // 35: p2pstream.v1.StartPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	16, // 36: p2pstream.v1.StopPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	10, // 37: p2pstream.v1.StopPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	14, // 38: p2pstream.v1.CreatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
+	14, // 39: p2pstream.v1.UpdatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
+	15, // 40: p2pstream.v1.CreatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
+	15, // 41: p2pstream.v1.UpdatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
+	9,  // 42: p2pstream.v1.GetDashboardResponse.status:type_name -> p2pstream.v1.GetStatusResponse
+	52, // 43: p2pstream.v1.GetDashboardResponse.windows:type_name -> p2pstream.v1.DashboardWindowSummary
+	53, // 44: p2pstream.v1.GetDashboardResponse.agent_connections:type_name -> p2pstream.v1.AgentConnectionSummary
+	6,  // 45: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
+	6,  // 46: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
+	6,  // 47: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
+	10, // 48: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	10, // 49: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	4,  // 50: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
+	7,  // 51: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
+	51, // 52: p2pstream.v1.AgentManagementService.GetDashboard:input_type -> p2pstream.v1.GetDashboardRequest
+	55, // 53: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
+	57, // 54: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
+	59, // 55: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
+	61, // 56: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
+	63, // 57: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
+	65, // 58: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
+	67, // 59: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
+	17, // 60: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:input_type -> p2pstream.v1.GetPublicProxyConfigRequest
+	19, // 61: p2pstream.v1.AgentManagementService.CreatePublicBackend:input_type -> p2pstream.v1.CreatePublicBackendRequest
+	21, // 62: p2pstream.v1.AgentManagementService.UpdatePublicBackend:input_type -> p2pstream.v1.UpdatePublicBackendRequest
+	23, // 63: p2pstream.v1.AgentManagementService.DeletePublicBackend:input_type -> p2pstream.v1.DeletePublicBackendRequest
+	25, // 64: p2pstream.v1.AgentManagementService.CreatePublicListener:input_type -> p2pstream.v1.CreatePublicListenerRequest
+	27, // 65: p2pstream.v1.AgentManagementService.UpdatePublicListener:input_type -> p2pstream.v1.UpdatePublicListenerRequest
+	29, // 66: p2pstream.v1.AgentManagementService.DeletePublicListener:input_type -> p2pstream.v1.DeletePublicListenerRequest
+	31, // 67: p2pstream.v1.AgentManagementService.EnablePublicListener:input_type -> p2pstream.v1.EnablePublicListenerRequest
+	33, // 68: p2pstream.v1.AgentManagementService.DisablePublicListener:input_type -> p2pstream.v1.DisablePublicListenerRequest
+	35, // 69: p2pstream.v1.AgentManagementService.StartPublicListener:input_type -> p2pstream.v1.StartPublicListenerRequest
+	37, // 70: p2pstream.v1.AgentManagementService.StopPublicListener:input_type -> p2pstream.v1.StopPublicListenerRequest
+	39, // 71: p2pstream.v1.AgentManagementService.CreatePublicRoute:input_type -> p2pstream.v1.CreatePublicRouteRequest
+	41, // 72: p2pstream.v1.AgentManagementService.UpdatePublicRoute:input_type -> p2pstream.v1.UpdatePublicRouteRequest
+	43, // 73: p2pstream.v1.AgentManagementService.DeletePublicRoute:input_type -> p2pstream.v1.DeletePublicRouteRequest
+	45, // 74: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:input_type -> p2pstream.v1.CreatePublicTlsCertificateRequest
+	47, // 75: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:input_type -> p2pstream.v1.UpdatePublicTlsCertificateRequest
+	49, // 76: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:input_type -> p2pstream.v1.DeletePublicTlsCertificateRequest
+	5,  // 77: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
+	9,  // 78: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
+	54, // 79: p2pstream.v1.AgentManagementService.GetDashboard:output_type -> p2pstream.v1.GetDashboardResponse
+	56, // 80: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
+	58, // 81: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
+	60, // 82: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
+	62, // 83: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
+	64, // 84: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
+	66, // 85: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
+	68, // 86: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
+	18, // 87: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:output_type -> p2pstream.v1.GetPublicProxyConfigResponse
+	20, // 88: p2pstream.v1.AgentManagementService.CreatePublicBackend:output_type -> p2pstream.v1.CreatePublicBackendResponse
+	22, // 89: p2pstream.v1.AgentManagementService.UpdatePublicBackend:output_type -> p2pstream.v1.UpdatePublicBackendResponse
+	24, // 90: p2pstream.v1.AgentManagementService.DeletePublicBackend:output_type -> p2pstream.v1.DeletePublicBackendResponse
+	26, // 91: p2pstream.v1.AgentManagementService.CreatePublicListener:output_type -> p2pstream.v1.CreatePublicListenerResponse
+	28, // 92: p2pstream.v1.AgentManagementService.UpdatePublicListener:output_type -> p2pstream.v1.UpdatePublicListenerResponse
+	30, // 93: p2pstream.v1.AgentManagementService.DeletePublicListener:output_type -> p2pstream.v1.DeletePublicListenerResponse
+	32, // 94: p2pstream.v1.AgentManagementService.EnablePublicListener:output_type -> p2pstream.v1.EnablePublicListenerResponse
+	34, // 95: p2pstream.v1.AgentManagementService.DisablePublicListener:output_type -> p2pstream.v1.DisablePublicListenerResponse
+	36, // 96: p2pstream.v1.AgentManagementService.StartPublicListener:output_type -> p2pstream.v1.StartPublicListenerResponse
+	38, // 97: p2pstream.v1.AgentManagementService.StopPublicListener:output_type -> p2pstream.v1.StopPublicListenerResponse
+	40, // 98: p2pstream.v1.AgentManagementService.CreatePublicRoute:output_type -> p2pstream.v1.CreatePublicRouteResponse
+	42, // 99: p2pstream.v1.AgentManagementService.UpdatePublicRoute:output_type -> p2pstream.v1.UpdatePublicRouteResponse
+	44, // 100: p2pstream.v1.AgentManagementService.DeletePublicRoute:output_type -> p2pstream.v1.DeletePublicRouteResponse
+	46, // 101: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:output_type -> p2pstream.v1.CreatePublicTlsCertificateResponse
+	48, // 102: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:output_type -> p2pstream.v1.UpdatePublicTlsCertificateResponse
+	50, // 103: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:output_type -> p2pstream.v1.DeletePublicTlsCertificateResponse
+	77, // [77:104] is the sub-list for method output_type
+	50, // [50:77] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_proto_p2pstream_v1_management_proto_init() }
@@ -1847,8 +4812,8 @@ func file_proto_p2pstream_v1_management_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_p2pstream_v1_management_proto_rawDesc), len(file_proto_p2pstream_v1_management_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   25,
+			NumEnums:      4,
+			NumMessages:   65,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

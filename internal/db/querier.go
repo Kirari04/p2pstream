@@ -11,26 +11,54 @@ import (
 )
 
 type Querier interface {
+	CountPublicBackendEnabledReferences(ctx context.Context, arg CountPublicBackendEnabledReferencesParams) (int64, error)
+	CountPublicBackends(ctx context.Context) (int64, error)
+	CountPublicListeners(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
+	CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error)
+	CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error)
+	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
+	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
+	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	DeleteAgentStatsBefore(ctx context.Context, reportedAt time.Time) error
 	DeleteDisconnectedConnectionsBefore(ctx context.Context, disconnectedAt sql.NullTime) error
 	DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error
+	DeletePublicBackend(ctx context.Context, id int64) error
+	DeletePublicBackendHeaders(ctx context.Context, backendID int64) error
+	DeletePublicListener(ctx context.Context, id int64) error
+	DeletePublicRoute(ctx context.Context, id int64) error
+	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	GetActiveConnection(ctx context.Context) (Connection, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
 	GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error)
 	GetConnectionSummarySince(ctx context.Context, connectedAt time.Time) (GetConnectionSummarySinceRow, error)
 	GetLatestAgentStat(ctx context.Context) (AgentStat, error)
 	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
+	GetPublicBackend(ctx context.Context, id int64) (PublicBackend, error)
+	GetPublicListener(ctx context.Context, id int64) (PublicListener, error)
+	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
+	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error
 	InsertConnection(ctx context.Context) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
+	ListPublicBackendHeaders(ctx context.Context) ([]PublicBackendHeader, error)
+	ListPublicBackendHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendHeader, error)
+	ListPublicBackends(ctx context.Context) ([]PublicBackend, error)
+	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
+	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
+	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
+	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
 	TouchSession(ctx context.Context, id int64) error
 	UpdateConnectionDisconnected(ctx context.Context, id int64) error
+	UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error)
+	UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error)
+	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
+	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 }
 
 var _ Querier = (*Queries)(nil)
