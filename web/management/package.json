@@ -16,7 +16,8 @@
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4",
     "tailwindcss-primeui": "^0.6.1",
-    "vue": "^3.5.33"
+    "vue": "^3.5.33",
+    "vue-router": "4"
   },
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "^2.12.0",

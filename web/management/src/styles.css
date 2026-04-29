@@ -1,177 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 @import "tailwindcss-primeui";
 
-@custom-variant dark (&:where(.app-dark, .app-dark *));
-
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --font-body: "Aptos", "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Aptos Display", "IBM Plex Sans Condensed", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", "Menlo", monospace;
+  --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-  --console-bg: #eef2ef;
-  --console-paper: #fbfcfb;
-  --console-paper-strong: #f6f8f6;
-  --console-line: #cbd5cf;
-  --console-line-strong: #9aa8a1;
-  --console-ink: #16211d;
-  --console-muted: #61706a;
-  --console-subtle: #7b8882;
-  --console-success: #047857;
-  --console-danger: #b91c1c;
-  --console-warn: #b45309;
+  /* Vercel-like Minimalist Dark Theme */
+  --p-surface-0: #000000;
+  --p-surface-50: #0a0a0a;
+  --p-surface-100: #111111;
+  --p-surface-200: #333333;
+  --p-surface-300: #444444;
+  --p-surface-400: #666666;
+  --p-surface-500: #888888;
+  --p-surface-600: #a1a1aa;
+  --p-surface-700: #d4d4d8;
+  --p-surface-800: #e4e4e7;
+  --p-surface-900: #f4f4f5;
+  --p-surface-950: #ffffff;
 
-  --p-primary-50: #ecfdf5;
-  --p-primary-100: #d1fae5;
-  --p-primary-200: #a7f3d0;
-  --p-primary-300: #6ee7b7;
-  --p-primary-400: #34d399;
-  --p-primary-500: #10b981;
-  --p-primary-600: #059669;
-  --p-primary-700: #047857;
-  --p-primary-800: #065f46;
-  --p-primary-900: #064e3b;
-  --p-primary-950: #022c22;
+  --p-primary-color: #ffffff;
+  --p-primary-contrast-color: #000000;
+  --p-primary-hover-color: #f4f4f5;
+  --p-primary-active-color: #e4e4e7;
 
-  --p-surface-0: #ffffff;
-  --p-surface-50: #fafafa;
-  --p-surface-100: #f4f4f5;
-  --p-surface-200: #e4e4e7;
-  --p-surface-300: #d4d4d8;
-  --p-surface-400: #a1a1aa;
-  --p-surface-500: #71717a;
-  --p-surface-600: #52525b;
-  --p-surface-700: #3f3f46;
-  --p-surface-800: #27272a;
-  --p-surface-900: #18181b;
-  --p-surface-950: #09090b;
+  --p-content-border-color: #333333;
+  --p-content-hover-background: #111111;
+  --p-content-hover-color: #ffffff;
 
-  --p-primary-color: var(--p-primary-600);
-  --p-primary-contrast-color: var(--p-surface-0);
-  --p-primary-hover-color: var(--p-primary-700);
-  --p-primary-active-color: var(--p-primary-800);
-  --p-content-border-color: var(--p-surface-200);
-  --p-content-hover-background: var(--p-surface-100);
-  --p-content-hover-color: var(--p-surface-800);
-  --p-highlight-background: var(--p-primary-50);
-  --p-highlight-color: var(--p-primary-800);
-  --p-highlight-focus-background: var(--p-primary-100);
-  --p-highlight-focus-color: var(--p-primary-900);
-  --p-text-color: var(--p-surface-800);
-  --p-text-hover-color: var(--p-surface-900);
-  --p-text-muted-color: var(--p-surface-500);
-  --p-text-hover-muted-color: var(--p-surface-600);
+  --p-text-color: #ededed;
+  --p-text-hover-color: #ffffff;
+  --p-text-muted-color: #888888;
+
   --p-content-border-radius: 6px;
 }
 
 @layer base {
   html {
     font-family: var(--font-body);
-    line-height: 1.5;
-  }
-
-  body {
-    min-width: 320px;
-    min-height: 100vh;
-    margin: 0;
-    background:
-      linear-gradient(rgba(22, 33, 29, 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(22, 33, 29, 0.035) 1px, transparent 1px),
-      var(--console-bg);
-    background-size: 32px 32px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #000000;
     color: var(--p-text-color);
   }
 
-  #app {
+  body {
     min-height: 100vh;
+    margin: 0;
   }
 
-  button,
-  input,
-  textarea,
-  select {
-    font: inherit;
+  /* PrimeVue Overrides for Vercel Feel */
+  .p-card {
+    background-color: #000000 !important;
+    border: 1px solid #333333 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    color: #ededed !important;
+  }
+  .p-button {
+    font-weight: 500 !important;
+    border-radius: 6px !important;
   }
 }
 
-@layer components {
-  .console-shell {
-    color: var(--console-ink);
+@layer utilities {
+  .vercel-card {
+    background-color: #000000;
+    border: 1px solid #333;
+    border-radius: 6px;
+    transition: border-color 0.15s ease;
   }
-
-  .console-panel {
-    border: 1px solid var(--console-line);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.68)),
-      var(--console-paper);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 18px 48px rgba(22, 33, 29, 0.08);
+  .vercel-card:hover {
+    border-color: #444;
   }
-
-  .console-panel-tight {
-    border: 1px solid var(--console-line);
-    background: rgba(251, 252, 251, 0.9);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  .vercel-card-title {
+    font-size: 0.875rem;
+    color: #888;
+    margin-bottom: 0.5rem;
   }
-
-  .console-tile {
-    border: 1px solid rgba(203, 213, 207, 0.9);
-    background: rgba(246, 248, 246, 0.72);
+  .vercel-card-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #ededed;
+    letter-spacing: -0.025em;
   }
-
-  .console-kicker {
-    color: var(--console-muted);
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  .vercel-tabs-list {
+    border-bottom: 1px solid #333;
+    display: flex;
+    gap: 1.5rem;
   }
-
-  .console-title {
-    font-family: var(--font-display);
-    font-weight: 700;
-    letter-spacing: 0;
+  .vercel-tab {
+    padding-bottom: 0.75rem;
+    color: #888;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
-
-  .console-label {
-    color: var(--console-muted);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+  .vercel-tab:hover {
+    color: #ededed;
   }
-
-  .console-number {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0;
+  .vercel-tab.active {
+    color: #ededed;
+    border-bottom-color: #ededed;
   }
-
-  .console-rule {
-    background: linear-gradient(90deg, var(--console-line-strong), transparent);
-    height: 1px;
+  .vercel-input {
+    background: transparent;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #ededed;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+    transition: border-color 0.15s ease;
   }
-
-  .console-dot {
-    display: inline-flex;
-    width: 0.625rem;
-    height: 0.625rem;
-    border-radius: 999px;
-    box-shadow: 0 0 0 3px rgba(22, 33, 29, 0.06);
-  }
-
-  .console-dot-success {
-    background: var(--console-success);
-  }
-
-  .console-dot-danger {
-    background: var(--console-danger);
-  }
-
-  .console-dot-warn {
-    background: var(--console-warn);
+  .vercel-input:focus {
+    outline: none;
+    border-color: #888;
   }
 }
