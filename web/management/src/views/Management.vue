@@ -694,8 +694,14 @@ watch(httpsListeners, () => {
               </DangerButton>
             </div>
           </div>
-          <div v-if="httpsListeners.length && !tlsCertificates.length" class="px-5 py-4 text-sm text-[#888]">
-            HTTPS listeners will use the fallback self-signed certificate.
+          <div v-if="httpsListeners.length && !tlsCertificates.length" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
+            <div class="min-w-0">
+              <div class="flex min-w-0 items-center gap-2">
+                <p class="truncate text-sm font-medium text-white">{{ httpsListeners[0]?.name ?? "HTTPS listener" }} / p2pstream.local</p>
+                <Tag value="Self-signed" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+              </div>
+              <p class="truncate text-xs text-[#888]">Runtime fallback certificate</p>
+            </div>
           </div>
         </div>
       </div>
