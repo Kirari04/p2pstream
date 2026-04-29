@@ -84,15 +84,31 @@ func (s *publicTLSSelector) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Cer
 }
 
 func generateFallbackCertificate() (*tls.Certificate, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	certPEM, keyPEM, err := generateSelfSignedCertificatePEM(24 * time.Hour)
 	if err != nil {
 		return nil, err
+	}
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, err
+	}
+	return &cert, nil
+}
+
+func generateManagedSelfSignedCertificatePEM() ([]byte, []byte, error) {
+	return generateSelfSignedCertificatePEM(10 * 365 * 24 * time.Hour)
+}
+
+func generateSelfSignedCertificatePEM(validFor time.Duration) ([]byte, []byte, error) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serial, err := rand.Int(rand.Reader, serialLimit)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	now := time.Now()
@@ -102,7 +118,7 @@ func generateFallbackCertificate() (*tls.Certificate, error) {
 			CommonName: "p2pstream.local",
 		},
 		NotBefore:             now.Add(-time.Minute),
-		NotAfter:              now.Add(24 * time.Hour),
+		NotAfter:              now.Add(validFor),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -115,14 +131,10 @@ func generateFallbackCertificate() (*tls.Certificate, error) {
 
 	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	cert, err := tls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
-		return nil, err
-	}
-	return &cert, nil
+	return certPEM, keyPEM, nil
 }

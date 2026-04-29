@@ -6,4 +6,5 @@ web/management/node_modules/
 p2pstream.db
 p2pstream.db-shm
 p2pstream.db-wal
+p2pstream-data/
 *.log

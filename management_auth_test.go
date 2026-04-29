@@ -300,10 +300,7 @@ func TestProtectedRPCRejectsWithoutSession(t *testing.T) {
 func TestProxyStartStopLifecycle(t *testing.T) {
 	database := newTestDB(t)
 	seedTestHTTPPublicListener(t, database, "https://example.com")
-	app := server.NewApp(&config.Config{
-		Port:         "0",
-		TargetOrigin: "https://example.com",
-	}, database)
+	app := server.NewApp(&config.Config{}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 

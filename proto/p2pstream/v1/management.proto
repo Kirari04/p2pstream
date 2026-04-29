@@ -312,6 +312,8 @@ message CreatePublicTlsCertificateRequest {
   string cert_path = 3;
   string key_path = 4;
   bool enabled = 5;
+  bytes cert_pem = 6;
+  bytes key_pem = 7;
 }
 
 message CreatePublicTlsCertificateResponse {
@@ -325,6 +327,8 @@ message UpdatePublicTlsCertificateRequest {
   string cert_path = 4;
   string key_path = 5;
   bool enabled = 6;
+  bytes cert_pem = 7;
+  bytes key_pem = 8;
 }
 
 message UpdatePublicTlsCertificateResponse {

@@ -81,20 +81,6 @@ type publicRouteResolution struct {
 	RouteID    sql.NullInt64
 }
 
-func (a *App) proxyHandler(w http.ResponseWriter, r *http.Request) {
-	target := a.legacyTargetOrigin()
-	if target == nil {
-		http.Error(w, "Proxy target origin is not configured", http.StatusBadGateway)
-		return
-	}
-	a.proxyRequest(w, r, publicRouteResolution{
-		Backend: publicBackendConfig{
-			BackendType:  publicBackendTypeProxyForward,
-			ParsedOrigin: target,
-		},
-	})
-}
-
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resolution, err := a.resolvePublicRoute(listenerID, r)
@@ -306,23 +292,6 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		BackendID:  sql.NullInt64{Int64: backendID, Valid: true},
 		RouteID:    routeID,
 	}, nil
-}
-
-func (a *App) legacyTargetOrigin() *url.URL {
-	if a.Config == nil {
-		return nil
-	}
-	if a.Config.ParsedTargetOrigin != nil && a.Config.ParsedTargetOrigin.Scheme != "" && a.Config.ParsedTargetOrigin.Host != "" {
-		return a.Config.ParsedTargetOrigin
-	}
-	if a.Config.TargetOrigin == "" {
-		return nil
-	}
-	parsed, err := url.Parse(a.Config.TargetOrigin)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil
-	}
-	return parsed
 }
 
 func normalizeRequestHost(host string) string {

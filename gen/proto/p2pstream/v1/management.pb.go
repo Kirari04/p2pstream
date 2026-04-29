@@ -2946,6 +2946,8 @@ type CreatePublicTlsCertificateRequest struct {
 	CertPath        string                 `protobuf:"bytes,3,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
 	KeyPath         string                 `protobuf:"bytes,4,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
 	Enabled         bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CertPem         []byte                 `protobuf:"bytes,6,opt,name=cert_pem,json=certPem,proto3" json:"cert_pem,omitempty"`
+	KeyPem          []byte                 `protobuf:"bytes,7,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3015,6 +3017,20 @@ func (x *CreatePublicTlsCertificateRequest) GetEnabled() bool {
 	return false
 }
 
+func (x *CreatePublicTlsCertificateRequest) GetCertPem() []byte {
+	if x != nil {
+		return x.CertPem
+	}
+	return nil
+}
+
+func (x *CreatePublicTlsCertificateRequest) GetKeyPem() []byte {
+	if x != nil {
+		return x.KeyPem
+	}
+	return nil
+}
+
 type CreatePublicTlsCertificateResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TlsCertificate *PublicTlsCertificate  `protobuf:"bytes,1,opt,name=tls_certificate,json=tlsCertificate,proto3" json:"tls_certificate,omitempty"`
@@ -3067,6 +3083,8 @@ type UpdatePublicTlsCertificateRequest struct {
 	CertPath        string                 `protobuf:"bytes,4,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
 	KeyPath         string                 `protobuf:"bytes,5,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
 	Enabled         bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CertPem         []byte                 `protobuf:"bytes,7,opt,name=cert_pem,json=certPem,proto3" json:"cert_pem,omitempty"`
+	KeyPem          []byte                 `protobuf:"bytes,8,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3141,6 +3159,20 @@ func (x *UpdatePublicTlsCertificateRequest) GetEnabled() bool {
 		return x.Enabled
 	}
 	return false
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetCertPem() []byte {
+	if x != nil {
+		return x.CertPem
+	}
+	return nil
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetKeyPem() []byte {
+	if x != nil {
+		return x.KeyPem
+	}
+	return nil
 }
 
 type UpdatePublicTlsCertificateResponse struct {
@@ -4470,16 +4502,18 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x05route\x18\x01 \x01(\v2\x19.p2pstream.v1.PublicRouteR\x05route\"*\n" +
 	"\x18DeletePublicRouteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1b\n" +
-	"\x19DeletePublicRouteResponse\"\xc1\x01\n" +
+	"\x19DeletePublicRouteResponse\"\xf5\x01\n" +
 	"!CreatePublicTlsCertificateRequest\x12\x1f\n" +
 	"\vlistener_id\x18\x01 \x01(\x03R\n" +
 	"listenerId\x12)\n" +
 	"\x10hostname_pattern\x18\x02 \x01(\tR\x0fhostnamePattern\x12\x1b\n" +
 	"\tcert_path\x18\x03 \x01(\tR\bcertPath\x12\x19\n" +
 	"\bkey_path\x18\x04 \x01(\tR\akeyPath\x12\x18\n" +
-	"\aenabled\x18\x05 \x01(\bR\aenabled\"q\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\x12\x19\n" +
+	"\bcert_pem\x18\x06 \x01(\fR\acertPem\x12\x17\n" +
+	"\akey_pem\x18\a \x01(\fR\x06keyPem\"q\n" +
 	"\"CreatePublicTlsCertificateResponse\x12K\n" +
-	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"\xd1\x01\n" +
+	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"\x85\x02\n" +
 	"!UpdatePublicTlsCertificateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vlistener_id\x18\x02 \x01(\x03R\n" +
@@ -4487,7 +4521,9 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x10hostname_pattern\x18\x03 \x01(\tR\x0fhostnamePattern\x12\x1b\n" +
 	"\tcert_path\x18\x04 \x01(\tR\bcertPath\x12\x19\n" +
 	"\bkey_path\x18\x05 \x01(\tR\akeyPath\x12\x18\n" +
-	"\aenabled\x18\x06 \x01(\bR\aenabled\"q\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x19\n" +
+	"\bcert_pem\x18\a \x01(\fR\acertPem\x12\x17\n" +
+	"\akey_pem\x18\b \x01(\fR\x06keyPem\"q\n" +
 	"\"UpdatePublicTlsCertificateResponse\x12K\n" +
 	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"3\n" +
 	"!DeletePublicTlsCertificateRequest\x12\x0e\n" +

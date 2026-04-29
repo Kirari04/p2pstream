@@ -65,11 +65,6 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 	}
 }
 
-// RegisterProxyRoutes attaches the standard proxy to the given mux (Port 80/443).
-func (a *App) RegisterProxyRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/", a.proxyHandler)
-}
-
 // RegisterManagementRoutes attaches the WebSocket and ConnectRPC APIs (Port 8081).
 func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws", a.wsHandler)
@@ -152,7 +147,6 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 		ProxyRunning:   a.ProxyIsRunning.Load(),
 		ProxyLastError: proxyLastError,
 		AgentConnected: a.ActiveAgent.Load() != nil,
-		TargetOrigin:   a.Config.TargetOrigin,
 		Proxy:          a.proxyStatus(),
 	}
 

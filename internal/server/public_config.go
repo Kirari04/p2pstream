@@ -2,25 +2,29 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 )
 
 const (
 	defaultPublicTargetOrigin     = "https://httpbin.org"
+	defaultPublicHTTPPort         = int64(80)
+	defaultSelfSignedTLSHost      = "p2pstream.local"
 	publicBackendTypeProxyForward = "proxy_forward"
 	publicBackendTypeStatic       = "static"
 	defaultStaticStatusCode       = int64(http.StatusOK)
@@ -505,17 +509,33 @@ func (a *App) CreatePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicTLSCertificateInput(ctx, req.Msg.ListenerId, req.Msg.HostnamePattern, req.Msg.CertPath, req.Msg.KeyPath, req.Msg.Enabled)
+	params, hasUpload, err := a.validatePublicTLSCertificateInput(
+		ctx,
+		req.Msg.ListenerId,
+		req.Msg.HostnamePattern,
+		req.Msg.CertPath,
+		req.Msg.KeyPath,
+		req.Msg.CertPem,
+		req.Msg.KeyPem,
+		req.Msg.Enabled,
+		false,
+	)
 	if err != nil {
 		return nil, err
 	}
-	cert, err := a.DB.CreatePublicTlsCertificate(ctx, db.CreatePublicTlsCertificateParams{
-		ListenerID:      params.ListenerID,
-		HostnamePattern: params.HostnamePattern,
-		CertPath:        params.CertPath,
-		KeyPath:         params.KeyPath,
-		Enabled:         params.Enabled,
-	})
+
+	var cert db.PublicTlsCertificate
+	if hasUpload {
+		cert, err = a.createUploadedPublicTLSCertificate(ctx, params, req.Msg.CertPem, req.Msg.KeyPem)
+	} else {
+		cert, err = a.DB.CreatePublicTlsCertificate(ctx, db.CreatePublicTlsCertificateParams{
+			ListenerID:      params.ListenerID,
+			HostnamePattern: params.HostnamePattern,
+			CertPath:        params.CertPath,
+			KeyPath:         params.KeyPath,
+			Enabled:         params.Enabled,
+		})
+	}
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -533,17 +553,44 @@ func (a *App) UpdatePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicTLSCertificateInput(ctx, req.Msg.ListenerId, req.Msg.HostnamePattern, req.Msg.CertPath, req.Msg.KeyPath, req.Msg.Enabled)
+	existing, err := a.DB.GetPublicTlsCertificate(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	params, hasUpload, err := a.validatePublicTLSCertificateInput(
+		ctx,
+		req.Msg.ListenerId,
+		req.Msg.HostnamePattern,
+		req.Msg.CertPath,
+		req.Msg.KeyPath,
+		req.Msg.CertPem,
+		req.Msg.KeyPem,
+		req.Msg.Enabled,
+		true,
+	)
 	if err != nil {
 		return nil, err
 	}
 	params.ID = req.Msg.Id
-	cert, err := a.DB.UpdatePublicTlsCertificate(ctx, params)
+	if params.CertPath == "" && params.KeyPath == "" {
+		params.CertPath = existing.CertPath
+		params.KeyPath = existing.KeyPath
+	}
+
+	var cert db.PublicTlsCertificate
+	if hasUpload {
+		cert, err = a.updateUploadedPublicTLSCertificate(ctx, params, req.Msg.CertPem, req.Msg.KeyPem)
+	} else {
+		cert, err = a.DB.UpdatePublicTlsCertificate(ctx, params)
+	}
 	if err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
+	}
+	if existing.ListenerID != cert.ListenerID {
+		_, _ = a.restartTLSListenerIfActive(ctx, existing.ListenerID)
 	}
 	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
@@ -568,6 +615,93 @@ func (a *App) DeletePublicTlsCertificate(
 	}
 	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	return connect.NewResponse(&p2pstreamv1.DeletePublicTlsCertificateResponse{}), nil
+}
+
+func (a *App) createUploadedPublicTLSCertificate(
+	ctx context.Context,
+	params db.UpdatePublicTlsCertificateParams,
+	certPEM []byte,
+	keyPEM []byte,
+) (db.PublicTlsCertificate, error) {
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return db.PublicTlsCertificate{}, err
+	}
+	defer tx.Rollback()
+
+	qtx := a.DB.WithTx(tx)
+	cert, err := qtx.CreatePublicTlsCertificate(ctx, db.CreatePublicTlsCertificateParams{
+		ListenerID:      params.ListenerID,
+		HostnamePattern: params.HostnamePattern,
+		CertPath:        "",
+		KeyPath:         "",
+		Enabled:         params.Enabled,
+	})
+	if err != nil {
+		return db.PublicTlsCertificate{}, err
+	}
+
+	certPath, keyPath, err := a.writePublicTLSCertificateFiles(params.ListenerID, cert.ID, certPEM, keyPEM)
+	if err != nil {
+		return db.PublicTlsCertificate{}, err
+	}
+	cleanupOnError := true
+	defer func() {
+		if cleanupOnError {
+			_ = os.Remove(certPath)
+			_ = os.Remove(keyPath)
+		}
+	}()
+
+	cert, err = qtx.UpdatePublicTlsCertificate(ctx, db.UpdatePublicTlsCertificateParams{
+		ID:              cert.ID,
+		ListenerID:      params.ListenerID,
+		HostnamePattern: params.HostnamePattern,
+		CertPath:        certPath,
+		KeyPath:         keyPath,
+		Enabled:         params.Enabled,
+	})
+	if err != nil {
+		return db.PublicTlsCertificate{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return db.PublicTlsCertificate{}, err
+	}
+	cleanupOnError = false
+	return cert, nil
+}
+
+func (a *App) updateUploadedPublicTLSCertificate(
+	ctx context.Context,
+	params db.UpdatePublicTlsCertificateParams,
+	certPEM []byte,
+	keyPEM []byte,
+) (db.PublicTlsCertificate, error) {
+	certPath, keyPath, err := a.writePublicTLSCertificateFiles(params.ListenerID, params.ID, certPEM, keyPEM)
+	if err != nil {
+		return db.PublicTlsCertificate{}, err
+	}
+
+	cert, err := a.DB.UpdatePublicTlsCertificate(ctx, db.UpdatePublicTlsCertificateParams{
+		ID:              params.ID,
+		ListenerID:      params.ListenerID,
+		HostnamePattern: params.HostnamePattern,
+		CertPath:        certPath,
+		KeyPath:         keyPath,
+		Enabled:         params.Enabled,
+	})
+	if err != nil {
+		return db.PublicTlsCertificate{}, err
+	}
+	return cert, nil
+}
+
+func (a *App) writePublicTLSCertificateFiles(listenerID, mappingID int64, certPEM, keyPEM []byte) (string, string, error) {
+	cfg := a.Config
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
+	return cfg.WritePublicTLSCertificateFiles(listenerID, mappingID, certPEM, keyPEM)
 }
 
 func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPublicProxyConfigResponse, error) {
@@ -664,10 +798,9 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		return nil
 	}
 
-	targetOrigin := a.seedTargetOrigin()
 	backend, err := a.DB.CreatePublicBackend(ctx, db.CreatePublicBackendParams{
 		Name:               "default",
-		TargetOrigin:       targetOrigin,
+		TargetOrigin:       defaultPublicTargetOrigin,
 		BackendType:        publicBackendTypeProxyForward,
 		TlsSkipVerify:      0,
 		StaticStatusCode:   defaultStaticStatusCode,
@@ -681,7 +814,7 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 	if _, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
 		Name:             "public-http",
 		BindAddress:      "",
-		Port:             a.seedPublicPort(),
+		Port:             defaultPublicHTTPPort,
 		Protocol:         publicListenerProtocolHTTP,
 		Enabled:          1,
 		DefaultBackendID: backend.ID,
@@ -689,42 +822,30 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		return publicDBError(err)
 	}
 
-	if _, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
+	httpsListener, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
 		Name:             "public-https",
 		BindAddress:      "",
 		Port:             443,
 		Protocol:         publicListenerProtocolHTTPS,
 		Enabled:          1,
 		DefaultBackendID: backend.ID,
-	}); err != nil {
+	})
+	if err != nil {
+		return publicDBError(err)
+	}
+
+	certPEM, keyPEM, err := generateManagedSelfSignedCertificatePEM()
+	if err != nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	if _, err := a.createUploadedPublicTLSCertificate(ctx, db.UpdatePublicTlsCertificateParams{
+		ListenerID:      httpsListener.ID,
+		HostnamePattern: defaultSelfSignedTLSHost,
+		Enabled:         1,
+	}, certPEM, keyPEM); err != nil {
 		return publicDBError(err)
 	}
 	return nil
-}
-
-func (a *App) seedTargetOrigin() string {
-	if a.Config == nil {
-		return defaultPublicTargetOrigin
-	}
-	target := strings.TrimSpace(a.Config.TargetOrigin)
-	if _, err := parsePublicTargetOrigin(target); err == nil {
-		return target
-	}
-	a.Config.TargetOrigin = defaultPublicTargetOrigin
-	parsed, _ := url.Parse(defaultPublicTargetOrigin)
-	a.Config.ParsedTargetOrigin = parsed
-	return defaultPublicTargetOrigin
-}
-
-func (a *App) seedPublicPort() int64 {
-	if a.Config == nil || strings.TrimSpace(a.Config.Port) == "" {
-		return 80
-	}
-	port, err := strconv.ParseInt(strings.TrimSpace(a.Config.Port), 10, 64)
-	if err != nil || port < 0 || port > 65535 {
-		return 80
-	}
-	return port
 }
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
@@ -983,23 +1104,49 @@ func (a *App) validatePublicTLSCertificateInput(
 	hostnamePattern string,
 	certPath string,
 	keyPath string,
+	certPEM []byte,
+	keyPEM []byte,
 	enabled bool,
-) (db.UpdatePublicTlsCertificateParams, error) {
+	allowMissingMaterial bool,
+) (db.UpdatePublicTlsCertificateParams, bool, error) {
 	listener, err := a.DB.GetPublicListener(ctx, listenerID)
 	if err != nil {
-		return db.UpdatePublicTlsCertificateParams{}, publicDBError(err)
+		return db.UpdatePublicTlsCertificateParams{}, false, publicDBError(err)
 	}
 	if listener.Protocol != publicListenerProtocolHTTPS {
-		return db.UpdatePublicTlsCertificateParams{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("TLS certificates can only be configured on HTTPS listeners"))
+		return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("TLS certificates can only be configured on HTTPS listeners"))
 	}
 	hostnamePattern = normalizeHostPattern(hostnamePattern)
 	if err := validateHostPattern(hostnamePattern); err != nil {
-		return db.UpdatePublicTlsCertificateParams{}, err
+		return db.UpdatePublicTlsCertificateParams{}, false, err
 	}
 	certPath = strings.TrimSpace(certPath)
 	keyPath = strings.TrimSpace(keyPath)
+	hasCertUpload := len(certPEM) > 0
+	hasKeyUpload := len(keyPEM) > 0
+	if hasCertUpload || hasKeyUpload {
+		if !hasCertUpload || !hasKeyUpload {
+			return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and private key uploads are both required"))
+		}
+		if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
+			return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("certificate and private key must be a valid PEM pair: %w", err))
+		}
+		return db.UpdatePublicTlsCertificateParams{
+			ListenerID:      listenerID,
+			HostnamePattern: hostnamePattern,
+			Enabled:         boolInt(enabled),
+		}, true, nil
+	}
+
+	if certPath == "" && keyPath == "" && allowMissingMaterial {
+		return db.UpdatePublicTlsCertificateParams{
+			ListenerID:      listenerID,
+			HostnamePattern: hostnamePattern,
+			Enabled:         boolInt(enabled),
+		}, false, nil
+	}
 	if certPath == "" || keyPath == "" {
-		return db.UpdatePublicTlsCertificateParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and key paths are required"))
+		return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and key paths are required"))
 	}
 	return db.UpdatePublicTlsCertificateParams{
 		ListenerID:      listenerID,
@@ -1007,7 +1154,7 @@ func (a *App) validatePublicTLSCertificateInput(
 		CertPath:        certPath,
 		KeyPath:         keyPath,
 		Enabled:         boolInt(enabled),
-	}, nil
+	}, false, nil
 }
 
 func normalizePublicName(name string) (string, error) {

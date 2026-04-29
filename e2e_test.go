@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -79,10 +78,7 @@ func TestE2E_GetStatus(t *testing.T) {
 	targetOrigin := "https://example.com"
 	database := newTestDB(t)
 	seedTestHTTPPublicListener(t, database, targetOrigin)
-	app := server.NewApp(&config.Config{
-		Port:         "0",
-		TargetOrigin: targetOrigin,
-	}, database)
+	app := server.NewApp(&config.Config{}, database)
 	if _, err := app.StartProxyListener(context.Background()); err != nil {
 		t.Fatalf("start proxy listener: %v", err)
 	}
@@ -129,9 +125,6 @@ func TestE2E_GetStatus(t *testing.T) {
 	}
 	if !status.AgentConnected {
 		t.Error("Expected agent to be connected")
-	}
-	if status.TargetOrigin != targetOrigin {
-		t.Errorf("Expected target origin %q, got %q", targetOrigin, status.TargetOrigin)
 	}
 	if status.Proxy == nil {
 		t.Fatal("Expected proxy status")
@@ -266,24 +259,20 @@ func TestE2E_RoundTrip(t *testing.T) {
 	targetSrv := httptest.NewServer(targetMux)
 	defer targetSrv.Close()
 
-	// Parse the target URL to configure the proxy handler
-	targetOrigin, err := url.Parse(targetSrv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// 2. Setup Server with App architecture
-	cfg := &config.Config{
-		TargetOrigin:       targetSrv.URL,
-		ParsedTargetOrigin: targetOrigin,
+	database := newTestDB(t)
+	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
+	app := server.NewApp(&config.Config{}, database)
+	status, err := app.StartProxyListener(context.Background())
+	if err != nil {
+		t.Fatalf("start proxy listener: %v", err)
 	}
-	// No DB provided for testing core proxying logic
-	app := server.NewApp(cfg, nil)
-
-	proxyMux := http.NewServeMux()
-	app.RegisterProxyRoutes(proxyMux)
-	proxySrv := httptest.NewServer(proxyMux)
-	defer proxySrv.Close()
+	proxyURL := "http://" + publicListenerBoundAddress(t, status, listener.ID)
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _ = app.StopProxyListener(shutdownCtx)
+	})
 
 	mgmtMux := http.NewServeMux()
 	app.RegisterManagementRoutes(mgmtMux)
@@ -314,7 +303,7 @@ func TestE2E_RoundTrip(t *testing.T) {
 
 	// 4. Make HTTP request through Proxy
 	bodyData := bytes.Repeat([]byte("test_e2e_data_"), 1000) // ~14KB
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, proxySrv.URL+"/test-e2e-path", bytes.NewReader(bodyData))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, proxyURL+"/test-e2e-path", bytes.NewReader(bodyData))
 	req.Header.Set("X-E2E-Custom", "Hello")
 
 	resp, err := http.DefaultClient.Do(req)

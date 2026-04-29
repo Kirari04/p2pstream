@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"sort"
 	"testing"
 	"time"
@@ -32,7 +31,6 @@ func TestE2E_GetDashboardSummaries(t *testing.T) {
 	database := newTestDB(t)
 	app := server.NewApp(&config.Config{
 		ObservabilityRetentionDays: 30,
-		TargetOrigin:               "https://example.com",
 	}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
@@ -109,21 +107,19 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 	targetSrv := httptest.NewServer(targetMux)
 	defer targetSrv.Close()
 
-	targetOrigin, err := url.Parse(targetSrv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	database := newTestDB(t)
-	app := server.NewApp(&config.Config{
-		TargetOrigin:       targetSrv.URL,
-		ParsedTargetOrigin: targetOrigin,
-	}, database)
-
-	proxyMux := http.NewServeMux()
-	app.RegisterProxyRoutes(proxyMux)
-	proxySrv := httptest.NewServer(proxyMux)
-	defer proxySrv.Close()
+	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
+	app := server.NewApp(&config.Config{}, database)
+	status, err := app.StartProxyListener(context.Background())
+	if err != nil {
+		t.Fatalf("start proxy listener: %v", err)
+	}
+	proxyURL := "http://" + publicListenerBoundAddress(t, status, listener.ID)
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _ = app.StopProxyListener(shutdownCtx)
+	})
 
 	mgmtMux := http.NewServeMux()
 	app.RegisterManagementRoutes(mgmtMux)
@@ -147,7 +143,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, proxySrv.URL+"/request-event", bytes.NewReader([]byte("payload")))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, proxyURL+"/request-event", bytes.NewReader([]byte("payload")))
 	if err != nil {
 		t.Fatal(err)
 	}

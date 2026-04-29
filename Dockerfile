@@ -56,6 +56,8 @@ COPY --from=frontend /app/web/management/dist /app/web/management/dist
 ENV MANAGEMENT_UI_DIST_DIR=/app/web/management/dist
 ENV MANAGEMENT_PORT=8081
 ENV PORT=80
+ENV CONFIG_DIR=/data
 
+VOLUME /data
 EXPOSE 80 443 8081
 CMD ["/app/p2pstream", "server"]

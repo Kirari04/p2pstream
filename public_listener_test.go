@@ -2,9 +2,18 @@ package main_test
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"fmt"
 	"io"
+	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -18,9 +27,10 @@ import (
 )
 
 func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
+	configDir := t.TempDir()
 	app := server.NewApp(&config.Config{
-		Port:         "8080",
-		TargetOrigin: "https://example.com",
+		ConfigDir: configDir,
+		CertsDir:  filepath.Join(configDir, "certs"),
 	}, newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
@@ -29,7 +39,7 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	if len(cfg.Backends) != 1 {
 		t.Fatalf("expected one seeded backend, got %d", len(cfg.Backends))
 	}
-	if cfg.Backends[0].Name != "default" || cfg.Backends[0].TargetOrigin != "https://example.com" || !cfg.Backends[0].Enabled {
+	if cfg.Backends[0].Name != "default" || cfg.Backends[0].TargetOrigin != "https://httpbin.org" || !cfg.Backends[0].Enabled {
 		t.Fatalf("unexpected seeded backend: %+v", cfg.Backends[0])
 	}
 	if cfg.Backends[0].GetBackendType() != p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD || cfg.Backends[0].GetTlsSkipVerify() {
@@ -37,7 +47,7 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	}
 
 	httpListener := publicListenerByName(t, cfg, "public-http")
-	if httpListener.Port != 8080 || httpListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP || !httpListener.Enabled {
+	if httpListener.Port != 80 || httpListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP || !httpListener.Enabled {
 		t.Fatalf("unexpected seeded HTTP listener: %+v", httpListener)
 	}
 
@@ -45,10 +55,24 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	if httpsListener.Port != 443 || httpsListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS || !httpsListener.Enabled {
 		t.Fatalf("unexpected seeded HTTPS listener: %+v", httpsListener)
 	}
+	if len(cfg.TlsCertificates) != 1 {
+		t.Fatalf("expected one seeded TLS certificate, got %d", len(cfg.TlsCertificates))
+	}
+	seededCert := cfg.TlsCertificates[0]
+	if seededCert.GetListenerId() != httpsListener.GetId() || seededCert.GetHostnamePattern() != "p2pstream.local" || !seededCert.GetEnabled() {
+		t.Fatalf("unexpected seeded TLS certificate: %+v", seededCert)
+	}
+	wantCertPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", httpsListener.GetId()), fmt.Sprintf("tls-%d.crt.pem", seededCert.GetId()))
+	wantKeyPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", httpsListener.GetId()), fmt.Sprintf("tls-%d.key.pem", seededCert.GetId()))
+	if seededCert.GetCertPath() != wantCertPath || seededCert.GetKeyPath() != wantKeyPath {
+		t.Fatalf("unexpected seeded TLS paths: cert=%q key=%q", seededCert.GetCertPath(), seededCert.GetKeyPath())
+	}
+	assertFileMode(t, seededCert.GetCertPath(), 0600)
+	assertFileMode(t, seededCert.GetKeyPath(), 0600)
 
 	cfgAgain := getPublicProxyConfig(t, client, cookie)
-	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.Backends) != 1 {
-		t.Fatalf("expected idempotent seed, got %d listeners and %d backends", len(cfgAgain.Listeners), len(cfgAgain.Backends))
+	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.Backends) != 1 || len(cfgAgain.TlsCertificates) != 1 {
+		t.Fatalf("expected idempotent seed, got %d listeners, %d backends, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.Backends), len(cfgAgain.TlsCertificates))
 	}
 }
 
@@ -92,7 +116,7 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 		t.Fatalf("seed static listener: %v", err)
 	}
 
-	app := server.NewApp(&config.Config{TargetOrigin: "https://example.com"}, database)
+	app := server.NewApp(&config.Config{}, database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -139,7 +163,7 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 }
 
 func TestPublicBackendStaticConfigValidationAndReadback(t *testing.T) {
-	app := server.NewApp(&config.Config{TargetOrigin: "https://example.com"}, newTestDB(t))
+	app := server.NewApp(&config.Config{}, newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -204,7 +228,7 @@ func TestPublicBackendStaticConfigValidationAndReadback(t *testing.T) {
 func TestPublicListenerDisablePersistsAndReenableRestarts(t *testing.T) {
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, "https://example.com")
-	app := server.NewApp(&config.Config{TargetOrigin: "https://example.com"}, database)
+	app := server.NewApp(&config.Config{}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -242,7 +266,7 @@ func TestPublicListenerDisablePersistsAndReenableRestarts(t *testing.T) {
 		t.Fatal("expected disabled listener to remain visible in config")
 	}
 
-	restartedApp := server.NewApp(&config.Config{TargetOrigin: "https://example.com"}, database)
+	restartedApp := server.NewApp(&config.Config{}, database)
 	if status, err := restartedApp.StartProxyListener(context.Background()); err != nil {
 		t.Fatalf("restart app proxy: %v", err)
 	} else if status.GetState() != p2pstreamv1.ProxyState_PROXY_STATE_STOPPED {
@@ -282,7 +306,7 @@ func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 		t.Fatalf("seed https listener: %v", err)
 	}
 
-	app := server.NewApp(&config.Config{TargetOrigin: "https://example.com"}, database)
+	app := server.NewApp(&config.Config{}, database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -320,6 +344,86 @@ func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 	_, _ = io.Copy(io.Discard, resp.Body)
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("expected TLS handshake then no-agent response 503, got %d", resp.StatusCode)
+	}
+}
+
+func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
+	database := newTestDB(t)
+	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
+		Name:             "upload-default",
+		TargetOrigin:     "https://example.com",
+		BackendType:      "proxy_forward",
+		StaticStatusCode: http.StatusOK,
+		Enabled:          1,
+	})
+	if err != nil {
+		t.Fatalf("seed backend: %v", err)
+	}
+	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
+		Name:             "upload-https",
+		BindAddress:      "127.0.0.1",
+		Port:             0,
+		Protocol:         "https",
+		Enabled:          1,
+		DefaultBackendID: backend.ID,
+	})
+	if err != nil {
+		t.Fatalf("seed https listener: %v", err)
+	}
+
+	configDir := t.TempDir()
+	app := server.NewApp(&config.Config{
+		ConfigDir: configDir,
+		CertsDir:  filepath.Join(configDir, "certs"),
+	}, database)
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+	certPEM, keyPEM := testTLSKeyPair(t, "upload.example.com")
+
+	req := connect.NewRequest(&p2pstreamv1.CreatePublicTlsCertificateRequest{
+		ListenerId:      listener.ID,
+		HostnamePattern: "Upload.Example.COM",
+		Enabled:         true,
+		CertPem:         certPEM,
+		KeyPem:          keyPEM,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.CreatePublicTlsCertificate(context.Background(), req)
+	if err != nil {
+		t.Fatalf("create uploaded TLS certificate: %v", err)
+	}
+	cert := resp.Msg.GetTlsCertificate()
+	if cert.GetHostnamePattern() != "upload.example.com" {
+		t.Fatalf("hostname pattern = %q, want normalized upload.example.com", cert.GetHostnamePattern())
+	}
+
+	wantCertPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", listener.ID), fmt.Sprintf("tls-%d.crt.pem", cert.GetId()))
+	wantKeyPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", listener.ID), fmt.Sprintf("tls-%d.key.pem", cert.GetId()))
+	if cert.GetCertPath() != wantCertPath {
+		t.Fatalf("cert path = %q, want %q", cert.GetCertPath(), wantCertPath)
+	}
+	if cert.GetKeyPath() != wantKeyPath {
+		t.Fatalf("key path = %q, want %q", cert.GetKeyPath(), wantKeyPath)
+	}
+	assertFileBytes(t, wantCertPath, certPEM)
+	assertFileBytes(t, wantKeyPath, keyPEM)
+	assertFileMode(t, wantCertPath, 0600)
+	assertFileMode(t, wantKeyPath, 0600)
+
+	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicTlsCertificateRequest{
+		Id:              cert.GetId(),
+		ListenerId:      listener.ID,
+		HostnamePattern: "renamed.example.com",
+		Enabled:         false,
+	})
+	updateReq.Header().Set("Cookie", cookie)
+	updateResp, err := client.UpdatePublicTlsCertificate(context.Background(), updateReq)
+	if err != nil {
+		t.Fatalf("update uploaded TLS certificate without re-upload: %v", err)
+	}
+	updated := updateResp.Msg.GetTlsCertificate()
+	if updated.GetCertPath() != wantCertPath || updated.GetKeyPath() != wantKeyPath {
+		t.Fatalf("update should preserve managed paths, got cert=%q key=%q", updated.GetCertPath(), updated.GetKeyPath())
 	}
 }
 
@@ -373,4 +477,54 @@ func publicListenerBoundAddress(t *testing.T, status *p2pstreamv1.ProxyStatus, l
 	}
 	t.Fatalf("listener %d not found in status %+v", listenerID, status)
 	return ""
+}
+
+func testTLSKeyPair(t *testing.T, hostname string) ([]byte, []byte) {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate test TLS key: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: hostname,
+		},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{hostname},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create test TLS certificate: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	return certPEM, keyPEM
+}
+
+func assertFileBytes(t *testing.T, path string, want []byte) {
+	t.Helper()
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("%s contents did not match uploaded bytes", path)
+	}
+}
+
+func assertFileMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Fatalf("%s mode = %o, want %o", path, got, want)
+	}
 }
