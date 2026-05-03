@@ -346,12 +346,16 @@ func TestProxyStartStopLifecycle(t *testing.T) {
 }
 
 func TestAgentTokenProtectsStatsAndWebSocket(t *testing.T) {
-	app := server.NewApp(&config.Config{AgentToken: "agent-secret"}, nil)
+	app := server.NewApp(&config.Config{
+		BootstrapAgentID:    "auth-agent",
+		BootstrapAgentName:  "Auth Agent",
+		BootstrapAgentToken: "agent-secret",
+	}, newTestDB(t))
 
 	_, err := app.ReportStats(context.Background(), connect.NewRequest(&p2pstreamv1.AgentStatsRequest{}))
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
 
-	statsReq := connect.NewRequest(&p2pstreamv1.AgentStatsRequest{ReqInternalError: 1})
+	statsReq := connect.NewRequest(&p2pstreamv1.AgentStatsRequest{ReqInternalError: 1, AgentPublicId: "auth-agent"})
 	statsReq.Header().Set("Authorization", "Bearer agent-secret")
 	if _, err := app.ReportStats(context.Background(), statsReq); err != nil {
 		t.Fatalf("report stats with token: %v", err)
@@ -367,7 +371,8 @@ func TestAgentTokenProtectsStatsAndWebSocket(t *testing.T) {
 
 	c, _, err := websocket.Dial(context.Background(), wsURL, &websocket.DialOptions{
 		HTTPHeader: http.Header{
-			"Authorization": []string{"Bearer agent-secret"},
+			"Authorization":        []string{"Bearer agent-secret"},
+			"X-P2PStream-Agent-ID": []string{"auth-agent"},
 		},
 	})
 	if err != nil {

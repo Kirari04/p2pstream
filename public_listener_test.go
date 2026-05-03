@@ -287,9 +287,11 @@ func TestPublicListenerDisablePersistsAndReenableRestarts(t *testing.T) {
 func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 	database := newTestDB(t)
 	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:         "https-default",
-		TargetOrigin: "https://example.com",
-		Enabled:      1,
+		Name:               "https-default",
+		BackendType:        "static",
+		StaticStatusCode:   http.StatusNoContent,
+		StaticResponseBody: "",
+		Enabled:            1,
 	})
 	if err != nil {
 		t.Fatalf("seed backend: %v", err)
@@ -342,8 +344,8 @@ func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
-	if resp.StatusCode != http.StatusServiceUnavailable {
-		t.Fatalf("expected TLS handshake then no-agent response 503, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected TLS handshake then static response 204, got %d", resp.StatusCode)
 	}
 }
 

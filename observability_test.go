@@ -109,7 +109,11 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(&config.Config{
+		BootstrapAgentID:    "observability-agent",
+		BootstrapAgentName:  "Observability Agent",
+		BootstrapAgentToken: "observability-token",
+	}, database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy listener: %v", err)
@@ -137,7 +141,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 
 	agentDone := make(chan struct{})
 	go func() {
-		_ = runAgent(ctx, "ws"+mgmtSrv.URL[4:]+"/ws")
+		_ = runAgent(ctx, "ws"+mgmtSrv.URL[4:]+"/ws", "observability-agent", "observability-token")
 		close(agentDone)
 	}()
 
@@ -165,7 +169,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 	}
 
 	columns := proxyRequestEventColumns(t, database)
-	expected := []string{"backend_id", "duration_ms", "error_kind", "id", "listener_id", "occurred_at", "route_id", "status_code"}
+	expected := []string{"agent_id", "backend_id", "duration_ms", "error_kind", "id", "listener_id", "occurred_at", "route_id", "status_code"}
 	if !equalStringSlices(columns, expected) {
 		t.Fatalf("proxy_request_events columns changed: got %v, want %v", columns, expected)
 	}

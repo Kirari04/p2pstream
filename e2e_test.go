@@ -25,7 +25,11 @@ import (
 
 func TestE2E_ReportStats(t *testing.T) {
 	// Setup Management Server
-	app := server.NewApp(&config.Config{}, nil)
+	app := server.NewApp(&config.Config{
+		BootstrapAgentID:    "test-agent",
+		BootstrapAgentName:  "Test Agent",
+		BootstrapAgentToken: "test-token",
+	}, newTestDB(t))
 	mgmtMux := http.NewServeMux()
 	app.RegisterManagementRoutes(mgmtMux)
 
@@ -50,9 +54,12 @@ func TestE2E_ReportStats(t *testing.T) {
 		ActiveRequests:   2,
 		ReqSuccess:       10,
 		ReqInternalError: 3,
+		AgentPublicId:    "test-agent",
 	}
 
-	_, err := client.ReportStats(context.Background(), connect.NewRequest(req))
+	connectReq := connect.NewRequest(req)
+	connectReq.Header().Set("Authorization", "Bearer test-token")
+	_, err := client.ReportStats(context.Background(), connectReq)
 	if err != nil {
 		t.Fatalf("Failed to report stats via ConnectRPC: %v", err)
 	}
@@ -92,7 +99,6 @@ func TestE2E_GetStatus(t *testing.T) {
 
 	lastError := "proxy failed previously"
 	app.ProxyLastError.Store(&lastError)
-	app.ActiveAgent.Store(&server.AgentConn{})
 	app.LatestAgentStats.Store(&stats.AgentStats{
 		Timestamp:        time.UnixMilli(1700000000123),
 		NumGoroutine:     7,
@@ -123,8 +129,8 @@ func TestE2E_GetStatus(t *testing.T) {
 	if status.ProxyLastError != lastError {
 		t.Errorf("Expected proxy last error %q, got %q", lastError, status.ProxyLastError)
 	}
-	if !status.AgentConnected {
-		t.Error("Expected agent to be connected")
+	if status.AgentConnected {
+		t.Error("Expected no agent connection in this status test")
 	}
 	if status.Proxy == nil {
 		t.Fatal("Expected proxy status")
@@ -148,11 +154,13 @@ func TestE2E_GetStatus(t *testing.T) {
 
 // --- MOCK AGENT LOGIC ---
 
-var agentWriteCh chan *msg.Request
-var incomingRequests sync.Map
-
-func runAgent(ctx context.Context, wsURL string) error {
-	c, _, err := websocket.Dial(ctx, wsURL, nil)
+func runAgent(ctx context.Context, wsURL string, agentID string, token string) error {
+	c, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: http.Header{
+			"Authorization":        []string{"Bearer " + token},
+			"X-P2PStream-Agent-ID": []string{agentID},
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -160,7 +168,8 @@ func runAgent(ctx context.Context, wsURL string) error {
 
 	c.SetReadLimit(128 * 1024)
 
-	agentWriteCh = make(chan *msg.Request, 100)
+	agentWriteCh := make(chan *msg.Request, 100)
+	var incomingRequests sync.Map
 
 	go func() {
 		for {
@@ -195,7 +204,7 @@ func runAgent(ctx context.Context, wsURL string) error {
 				reqCh := make(chan *msg.Request, 100)
 				incomingRequests.Store(m.ID, reqCh)
 				reqCh <- m
-				go handleAgentRequest(m.ID, reqCh)
+				go handleAgentRequest(m.ID, reqCh, agentWriteCh, &incomingRequests, agentID)
 			} else {
 				if ch, ok := incomingRequests.Load(m.ID); ok {
 					ch.(chan *msg.Request) <- m
@@ -205,7 +214,7 @@ func runAgent(ctx context.Context, wsURL string) error {
 	}
 }
 
-func handleAgentRequest(id uuid.UUID, reqCh chan *msg.Request) {
+func handleAgentRequest(id uuid.UUID, reqCh chan *msg.Request, agentWriteCh chan<- *msg.Request, incomingRequests *sync.Map, agentID string) {
 	defer incomingRequests.Delete(id)
 
 	stream := &httpmsg.ChannelStream{Ch: reqCh}
@@ -232,6 +241,7 @@ func handleAgentRequest(id uuid.UUID, reqCh chan *msg.Request) {
 			ContentLength: int64(len(err.Error())),
 		}
 	}
+	resp.Header.Set("X-Mock-Agent", agentID)
 
 	enc := httpmsg.NewResponseEncoder(id, resp)
 	for {
@@ -262,7 +272,11 @@ func TestE2E_RoundTrip(t *testing.T) {
 	// 2. Setup Server with App architecture
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(&config.Config{
+		BootstrapAgentID:    "roundtrip-agent",
+		BootstrapAgentName:  "Roundtrip Agent",
+		BootstrapAgentToken: "roundtrip-token",
+	}, database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy listener: %v", err)
@@ -294,7 +308,7 @@ func TestE2E_RoundTrip(t *testing.T) {
 
 	agentDone := make(chan struct{})
 	go func() {
-		_ = runAgent(ctx, wsURL)
+		_ = runAgent(ctx, wsURL, "roundtrip-agent", "roundtrip-token")
 		close(agentDone)
 	}()
 
