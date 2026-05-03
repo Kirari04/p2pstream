@@ -36,18 +36,18 @@ build: frontend-build backend-build
 dev: frontend-install generate-proto kill
 	@echo "Starting p2pstream development mode..."
 	@cd web/management && bun run dev & FRONTEND_PID=$$!; \
-	MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
+	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
 	sleep 2; \
-	go run main.go agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} go run main.go agent & AGENT_PID=$$!; \
 	echo "Management UI: http://localhost:$${MANAGEMENT_PORT:-8081}"; \
 	trap "kill $$FRONTEND_PID $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$FRONTEND_PID $$SERVER_PID $$AGENT_PID
 
 run: build kill
 	@echo "Starting server and agent..."
-	@./bin/p2pstream server & SERVER_PID=$$!; \
+	@BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} ./bin/p2pstream server & SERVER_PID=$$!; \
 	sleep 1; \
-	./bin/p2pstream agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} ./bin/p2pstream agent & AGENT_PID=$$!; \
 	echo "Management UI: http://localhost:$${MANAGEMENT_PORT:-8081}"; \
 	trap "kill $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$SERVER_PID $$AGENT_PID
@@ -62,7 +62,7 @@ docker-race-test:
 	@docker build --target race-test -t p2pstream:race-test .
 
 docker-smoke:
-	@echo "Starting Docker smoke test. Dynamic listener ports must be published explicitly; this test publishes 18080, 18081, 18088, and 18443 on the host."
+	@echo "Starting Docker smoke test. Dynamic listener ports must be published explicitly; this test publishes 18080, 18081, 18088, 18089, and 18443 on the host."
 	@docker compose -f docker-compose.test.yml down -v --remove-orphans
 	@docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from smoke
 

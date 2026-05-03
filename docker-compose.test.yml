@@ -17,11 +17,14 @@ services:
       PORT: "8080"
       TARGET_ORIGIN: "http://upstream:9000"
       CONFIG_DIR: "/data"
-      AGENT_TOKEN: "docker-smoke-token"
+      BOOTSTRAP_AGENT_ID: "docker-agent"
+      BOOTSTRAP_AGENT_NAME: "Docker Smoke Agent"
+      BOOTSTRAP_AGENT_TOKEN: "docker-smoke-token"
       MANAGEMENT_COOKIE_SECURE: "false"
     ports:
       - "18081:8081"
       - "18080:8080"
+      - "18089:8089"
       - "18088:8088"
       - "18443:443"
     volumes:
@@ -35,6 +38,7 @@ services:
     command: ["/app/p2pstream", "agent"]
     environment:
       MANAGEMENT_URL: "http://server:8081"
+      AGENT_ID: "docker-agent"
       AGENT_TOKEN: "docker-smoke-token"
     depends_on:
       - server
@@ -49,6 +53,7 @@ services:
     environment:
       MANAGEMENT_URL: "http://server:8081"
       PUBLIC_DEFAULT_URL: "http://server:8080"
+      PUBLIC_AGENT_URL: "http://server:8089"
       PUBLIC_STATIC_URL: "http://server:8088"
       PUBLIC_HTTPS_URL: "https://server:443"
       UPSTREAM_URL: "http://upstream:9000"
