@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AgentStatsRequest, AgentStatsResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse } from "./management_pb";
+import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, DeleteAgentRequest, DeleteAgentResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, UpdateAgentRequest, UpdateAgentResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse } from "./management_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -136,6 +136,42 @@ export const AgentManagementService = {
       name: "DeletePublicBackend",
       I: DeletePublicBackendRequest,
       O: DeletePublicBackendResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreateAgent
+     */
+    createAgent: {
+      name: "CreateAgent",
+      I: CreateAgentRequest,
+      O: CreateAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdateAgent
+     */
+    updateAgent: {
+      name: "UpdateAgent",
+      I: UpdateAgentRequest,
+      O: UpdateAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeleteAgent
+     */
+    deleteAgent: {
+      name: "DeleteAgent",
+      I: DeleteAgentRequest,
+      O: DeleteAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.RotateAgentToken
+     */
+    rotateAgentToken: {
+      name: "RotateAgentToken",
+      I: RotateAgentTokenRequest,
+      O: RotateAgentTokenResponse,
       kind: MethodKind.Unary,
     },
     /**

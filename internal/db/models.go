@@ -9,23 +9,37 @@ import (
 	"time"
 )
 
+type Agent struct {
+	ID                 int64        `json:"id"`
+	PublicID           string       `json:"public_id"`
+	Name               string       `json:"name"`
+	TokenHash          string       `json:"token_hash"`
+	Enabled            int64        `json:"enabled"`
+	LastConnectedAt    sql.NullTime `json:"last_connected_at"`
+	LastDisconnectedAt sql.NullTime `json:"last_disconnected_at"`
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+}
+
 type AgentStat struct {
-	ID               int64     `json:"id"`
-	ReportedAt       time.Time `json:"reported_at"`
-	MemoryMb         int64     `json:"memory_mb"`
-	Goroutines       int64     `json:"goroutines"`
-	ReqSuccess       int64     `json:"req_success"`
-	ReqClientError   int64     `json:"req_client_error"`
-	ReqServerError   int64     `json:"req_server_error"`
-	ReqInternalError int64     `json:"req_internal_error"`
-	BytesRx          int64     `json:"bytes_rx"`
-	BytesTx          int64     `json:"bytes_tx"`
+	ID               int64         `json:"id"`
+	AgentID          sql.NullInt64 `json:"agent_id"`
+	ReportedAt       time.Time     `json:"reported_at"`
+	MemoryMb         int64         `json:"memory_mb"`
+	Goroutines       int64         `json:"goroutines"`
+	ReqSuccess       int64         `json:"req_success"`
+	ReqClientError   int64         `json:"req_client_error"`
+	ReqServerError   int64         `json:"req_server_error"`
+	ReqInternalError int64         `json:"req_internal_error"`
+	BytesRx          int64         `json:"bytes_rx"`
+	BytesTx          int64         `json:"bytes_tx"`
 }
 
 type Connection struct {
-	ID             int64        `json:"id"`
-	ConnectedAt    time.Time    `json:"connected_at"`
-	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+	ID             int64         `json:"id"`
+	AgentID        sql.NullInt64 `json:"agent_id"`
+	ConnectedAt    time.Time     `json:"connected_at"`
+	DisconnectedAt sql.NullTime  `json:"disconnected_at"`
 }
 
 type ProxyRequestEvent struct {
@@ -37,6 +51,7 @@ type ProxyRequestEvent struct {
 	ListenerID sql.NullInt64 `json:"listener_id"`
 	BackendID  sql.NullInt64 `json:"backend_id"`
 	RouteID    sql.NullInt64 `json:"route_id"`
+	AgentID    sql.NullInt64 `json:"agent_id"`
 }
 
 type PublicBackend struct {
@@ -44,12 +59,24 @@ type PublicBackend struct {
 	Name               string    `json:"name"`
 	TargetOrigin       string    `json:"target_origin"`
 	BackendType        string    `json:"backend_type"`
+	ForwardMode        string    `json:"forward_mode"`
+	LoadBalancing      string    `json:"load_balancing"`
 	TlsSkipVerify      int64     `json:"tls_skip_verify"`
 	StaticStatusCode   int64     `json:"static_status_code"`
 	StaticResponseBody string    `json:"static_response_body"`
 	Enabled            int64     `json:"enabled"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type PublicBackendAgent struct {
+	BackendID int64     `json:"backend_id"`
+	AgentID   int64     `json:"agent_id"`
+	Position  int64     `json:"position"`
+	Weight    int64     `json:"weight"`
+	Enabled   int64     `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type PublicBackendHeader struct {

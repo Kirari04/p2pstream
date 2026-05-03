@@ -75,6 +75,18 @@ const (
 	// AgentManagementServiceDeletePublicBackendProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicBackend RPC.
 	AgentManagementServiceDeletePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicBackend"
+	// AgentManagementServiceCreateAgentProcedure is the fully-qualified name of the
+	// AgentManagementService's CreateAgent RPC.
+	AgentManagementServiceCreateAgentProcedure = "/p2pstream.v1.AgentManagementService/CreateAgent"
+	// AgentManagementServiceUpdateAgentProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdateAgent RPC.
+	AgentManagementServiceUpdateAgentProcedure = "/p2pstream.v1.AgentManagementService/UpdateAgent"
+	// AgentManagementServiceDeleteAgentProcedure is the fully-qualified name of the
+	// AgentManagementService's DeleteAgent RPC.
+	AgentManagementServiceDeleteAgentProcedure = "/p2pstream.v1.AgentManagementService/DeleteAgent"
+	// AgentManagementServiceRotateAgentTokenProcedure is the fully-qualified name of the
+	// AgentManagementService's RotateAgentToken RPC.
+	AgentManagementServiceRotateAgentTokenProcedure = "/p2pstream.v1.AgentManagementService/RotateAgentToken"
 	// AgentManagementServiceCreatePublicListenerProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicListener RPC.
 	AgentManagementServiceCreatePublicListenerProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicListener"
@@ -132,6 +144,10 @@ type AgentManagementServiceClient interface {
 	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
 	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
 	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
+	CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error)
+	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
+	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
+	RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error)
 	CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error)
 	UpdatePublicListener(context.Context, *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error)
 	DeletePublicListener(context.Context, *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error)
@@ -242,6 +258,30 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicBackend")),
 			connect.WithClientOptions(opts...),
 		),
+		createAgent: connect.NewClient[v1.CreateAgentRequest, v1.CreateAgentResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreateAgentProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreateAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		updateAgent: connect.NewClient[v1.UpdateAgentRequest, v1.UpdateAgentResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdateAgentProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdateAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAgent: connect.NewClient[v1.DeleteAgentRequest, v1.DeleteAgentResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeleteAgentProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeleteAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		rotateAgentToken: connect.NewClient[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRotateAgentTokenProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RotateAgentToken")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicListener: connect.NewClient[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicListenerProcedure,
@@ -339,6 +379,10 @@ type agentManagementServiceClient struct {
 	createPublicBackend        *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
 	updatePublicBackend        *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
 	deletePublicBackend        *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
+	createAgent                *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
+	updateAgent                *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
+	deleteAgent                *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
+	rotateAgentToken           *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
 	createPublicListener       *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
 	updatePublicListener       *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
 	deletePublicListener       *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
@@ -424,6 +468,26 @@ func (c *agentManagementServiceClient) DeletePublicBackend(ctx context.Context, 
 	return c.deletePublicBackend.CallUnary(ctx, req)
 }
 
+// CreateAgent calls p2pstream.v1.AgentManagementService.CreateAgent.
+func (c *agentManagementServiceClient) CreateAgent(ctx context.Context, req *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error) {
+	return c.createAgent.CallUnary(ctx, req)
+}
+
+// UpdateAgent calls p2pstream.v1.AgentManagementService.UpdateAgent.
+func (c *agentManagementServiceClient) UpdateAgent(ctx context.Context, req *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error) {
+	return c.updateAgent.CallUnary(ctx, req)
+}
+
+// DeleteAgent calls p2pstream.v1.AgentManagementService.DeleteAgent.
+func (c *agentManagementServiceClient) DeleteAgent(ctx context.Context, req *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error) {
+	return c.deleteAgent.CallUnary(ctx, req)
+}
+
+// RotateAgentToken calls p2pstream.v1.AgentManagementService.RotateAgentToken.
+func (c *agentManagementServiceClient) RotateAgentToken(ctx context.Context, req *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error) {
+	return c.rotateAgentToken.CallUnary(ctx, req)
+}
+
 // CreatePublicListener calls p2pstream.v1.AgentManagementService.CreatePublicListener.
 func (c *agentManagementServiceClient) CreatePublicListener(ctx context.Context, req *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error) {
 	return c.createPublicListener.CallUnary(ctx, req)
@@ -506,6 +570,10 @@ type AgentManagementServiceHandler interface {
 	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
 	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
 	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
+	CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error)
+	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
+	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
+	RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error)
 	CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error)
 	UpdatePublicListener(context.Context, *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error)
 	DeletePublicListener(context.Context, *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error)
@@ -610,6 +678,30 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceDeletePublicBackendProcedure,
 		svc.DeletePublicBackend,
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicBackend")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreateAgentHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreateAgentProcedure,
+		svc.CreateAgent,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreateAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdateAgentHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdateAgentProcedure,
+		svc.UpdateAgent,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdateAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeleteAgentHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeleteAgentProcedure,
+		svc.DeleteAgent,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeleteAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRotateAgentTokenHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRotateAgentTokenProcedure,
+		svc.RotateAgentToken,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RotateAgentToken")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceCreatePublicListenerHandler := connect.NewUnaryHandler(
@@ -720,6 +812,14 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicBackendHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicBackendProcedure:
 			agentManagementServiceDeletePublicBackendHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreateAgentProcedure:
+			agentManagementServiceCreateAgentHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdateAgentProcedure:
+			agentManagementServiceUpdateAgentHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeleteAgentProcedure:
+			agentManagementServiceDeleteAgentHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRotateAgentTokenProcedure:
+			agentManagementServiceRotateAgentTokenHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicListenerProcedure:
 			agentManagementServiceCreatePublicListenerHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicListenerProcedure:
@@ -809,6 +909,22 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicBackend(context.Co
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicBackend is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreateAgent is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdateAgent is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeleteAgent is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RotateAgentToken is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error) {

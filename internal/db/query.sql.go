@@ -11,6 +11,33 @@ import (
 	"time"
 )
 
+const countEnabledAgentPoolBackendsWhereAgentIsLast = `-- name: CountEnabledAgentPoolBackendsWhereAgentIsLast :one
+SELECT COUNT(*)
+FROM public_backend_agents pba
+JOIN public_backends pb ON pb.id = pba.backend_id
+WHERE pba.agent_id = ?
+  AND pba.enabled = 1
+  AND pb.enabled = 1
+  AND pb.backend_type = 'proxy_forward'
+  AND pb.forward_mode = 'agent_pool'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public_backend_agents other
+    JOIN agents a ON a.id = other.agent_id
+    WHERE other.backend_id = pba.backend_id
+      AND other.agent_id != pba.agent_id
+      AND other.enabled = 1
+      AND a.enabled = 1
+  )
+`
+
+func (q *Queries) CountEnabledAgentPoolBackendsWhereAgentIsLast(ctx context.Context, agentID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countEnabledAgentPoolBackendsWhereAgentIsLast, agentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countPublicBackendEnabledReferences = `-- name: CountPublicBackendEnabledReferences :one
 SELECT
   (
@@ -69,25 +96,64 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const createAgent = `-- name: CreateAgent :one
+INSERT INTO agents (public_id, name, token_hash, enabled)
+VALUES (?, ?, ?, ?)
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+`
+
+type CreateAgentParams struct {
+	PublicID  string `json:"public_id"`
+	Name      string `json:"name"`
+	TokenHash string `json:"token_hash"`
+	Enabled   int64  `json:"enabled"`
+}
+
+func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, createAgent,
+		arg.PublicID,
+		arg.Name,
+		arg.TokenHash,
+		arg.Enabled,
+	)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Enabled,
+		&i.LastConnectedAt,
+		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createPublicBackend = `-- name: CreatePublicBackend :one
 INSERT INTO public_backends (
     name,
     target_origin,
     backend_type,
+    forward_mode,
+    load_balancing,
     tls_skip_verify,
     static_status_code,
     static_response_body,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
 `
 
 type CreatePublicBackendParams struct {
 	Name               string `json:"name"`
 	TargetOrigin       string `json:"target_origin"`
 	BackendType        string `json:"backend_type"`
+	ForwardMode        string `json:"forward_mode"`
+	LoadBalancing      string `json:"load_balancing"`
 	TlsSkipVerify      int64  `json:"tls_skip_verify"`
 	StaticStatusCode   int64  `json:"static_status_code"`
 	StaticResponseBody string `json:"static_response_body"`
@@ -99,6 +165,8 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		arg.Name,
 		arg.TargetOrigin,
 		arg.BackendType,
+		arg.ForwardMode,
+		arg.LoadBalancing,
 		arg.TlsSkipVerify,
 		arg.StaticStatusCode,
 		arg.StaticResponseBody,
@@ -110,9 +178,46 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		&i.Name,
 		&i.TargetOrigin,
 		&i.BackendType,
+		&i.ForwardMode,
+		&i.LoadBalancing,
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicBackendAgent = `-- name: CreatePublicBackendAgent :one
+INSERT INTO public_backend_agents (backend_id, agent_id, position, weight, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING backend_id, agent_id, position, weight, enabled, created_at, updated_at
+`
+
+type CreatePublicBackendAgentParams struct {
+	BackendID int64 `json:"backend_id"`
+	AgentID   int64 `json:"agent_id"`
+	Position  int64 `json:"position"`
+	Weight    int64 `json:"weight"`
+	Enabled   int64 `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicBackendAgent(ctx context.Context, arg CreatePublicBackendAgentParams) (PublicBackendAgent, error) {
+	row := q.db.QueryRowContext(ctx, createPublicBackendAgent,
+		arg.BackendID,
+		arg.AgentID,
+		arg.Position,
+		arg.Weight,
+		arg.Enabled,
+	)
+	var i PublicBackendAgent
+	err := row.Scan(
+		&i.BackendID,
+		&i.AgentID,
+		&i.Position,
+		&i.Weight,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -319,6 +424,16 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 	return i, err
 }
 
+const deleteAgent = `-- name: DeleteAgent :exec
+DELETE FROM agents
+WHERE id = ?
+`
+
+func (q *Queries) DeleteAgent(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteAgent, id)
+	return err
+}
+
 const deleteAgentStatsBefore = `-- name: DeleteAgentStatsBefore :exec
 DELETE FROM agent_stats
 WHERE reported_at < ?
@@ -357,6 +472,16 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicBackend(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicBackend, id)
+	return err
+}
+
+const deletePublicBackendAgents = `-- name: DeletePublicBackendAgents :exec
+DELETE FROM public_backend_agents
+WHERE backend_id = ?
+`
+
+func (q *Queries) DeletePublicBackendAgents(ctx context.Context, backendID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicBackendAgents, backendID)
 	return err
 }
 
@@ -408,9 +533,15 @@ ORDER BY connected_at DESC
 LIMIT 1
 `
 
-func (q *Queries) GetActiveConnection(ctx context.Context) (Connection, error) {
+type GetActiveConnectionRow struct {
+	ID             int64        `json:"id"`
+	ConnectedAt    time.Time    `json:"connected_at"`
+	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+}
+
+func (q *Queries) GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error) {
 	row := q.db.QueryRowContext(ctx, getActiveConnection)
-	var i Connection
+	var i GetActiveConnectionRow
 	err := row.Scan(&i.ID, &i.ConnectedAt, &i.DisconnectedAt)
 	return i, err
 }
@@ -453,6 +584,52 @@ func (q *Queries) GetActiveSessionByTokenHash(ctx context.Context, tokenHash str
 		&i.ID,
 		&i.Username,
 		&i.Role,
+	)
+	return i, err
+}
+
+const getAgent = `-- name: GetAgent :one
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+FROM agents
+WHERE id = ?
+`
+
+func (q *Queries) GetAgent(ctx context.Context, id int64) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, getAgent, id)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Enabled,
+		&i.LastConnectedAt,
+		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAgentByPublicID = `-- name: GetAgentByPublicID :one
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+FROM agents
+WHERE public_id = ?
+`
+
+func (q *Queries) GetAgentByPublicID(ctx context.Context, publicID string) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, getAgentByPublicID, publicID)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Enabled,
+		&i.LastConnectedAt,
+		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -530,7 +707,7 @@ func (q *Queries) GetConnectionSummarySince(ctx context.Context, connectedAt tim
 }
 
 const getLatestAgentStat = `-- name: GetLatestAgentStat :one
-SELECT id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx FROM agent_stats
+SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx FROM agent_stats
 ORDER BY id DESC
 LIMIT 1
 `
@@ -540,6 +717,34 @@ func (q *Queries) GetLatestAgentStat(ctx context.Context) (AgentStat, error) {
 	var i AgentStat
 	err := row.Scan(
 		&i.ID,
+		&i.AgentID,
+		&i.ReportedAt,
+		&i.MemoryMb,
+		&i.Goroutines,
+		&i.ReqSuccess,
+		&i.ReqClientError,
+		&i.ReqServerError,
+		&i.ReqInternalError,
+		&i.BytesRx,
+		&i.BytesTx,
+	)
+	return i, err
+}
+
+const getLatestAgentStatByAgent = `-- name: GetLatestAgentStatByAgent :one
+SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+FROM agent_stats
+WHERE agent_id = ?
+ORDER BY id DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestAgentStatByAgent(ctx context.Context, agentID sql.NullInt64) (AgentStat, error) {
+	row := q.db.QueryRowContext(ctx, getLatestAgentStatByAgent, agentID)
+	var i AgentStat
+	err := row.Scan(
+		&i.ID,
+		&i.AgentID,
 		&i.ReportedAt,
 		&i.MemoryMb,
 		&i.Goroutines,
@@ -589,7 +794,7 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 }
 
 const getPublicBackend = `-- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?
 `
@@ -602,6 +807,8 @@ func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend
 		&i.Name,
 		&i.TargetOrigin,
 		&i.BackendType,
+		&i.ForwardMode,
+		&i.LoadBalancing,
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
@@ -724,25 +931,27 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 
 const insertAgentStat = `-- name: InsertAgentStat :exec
 INSERT INTO agent_stats (
-    memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+    agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
 type InsertAgentStatParams struct {
-	MemoryMb         int64 `json:"memory_mb"`
-	Goroutines       int64 `json:"goroutines"`
-	ReqSuccess       int64 `json:"req_success"`
-	ReqClientError   int64 `json:"req_client_error"`
-	ReqServerError   int64 `json:"req_server_error"`
-	ReqInternalError int64 `json:"req_internal_error"`
-	BytesRx          int64 `json:"bytes_rx"`
-	BytesTx          int64 `json:"bytes_tx"`
+	AgentID          sql.NullInt64 `json:"agent_id"`
+	MemoryMb         int64         `json:"memory_mb"`
+	Goroutines       int64         `json:"goroutines"`
+	ReqSuccess       int64         `json:"req_success"`
+	ReqClientError   int64         `json:"req_client_error"`
+	ReqServerError   int64         `json:"req_server_error"`
+	ReqInternalError int64         `json:"req_internal_error"`
+	BytesRx          int64         `json:"bytes_rx"`
+	BytesTx          int64         `json:"bytes_tx"`
 }
 
 func (q *Queries) InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error {
 	_, err := q.db.ExecContext(ctx, insertAgentStat,
+		arg.AgentID,
 		arg.MemoryMb,
 		arg.Goroutines,
 		arg.ReqSuccess,
@@ -756,13 +965,13 @@ func (q *Queries) InsertAgentStat(ctx context.Context, arg InsertAgentStatParams
 }
 
 const insertConnection = `-- name: InsertConnection :one
-INSERT INTO connections (connected_at)
-VALUES (CURRENT_TIMESTAMP)
+INSERT INTO connections (agent_id, connected_at)
+VALUES (?, CURRENT_TIMESTAMP)
 RETURNING id
 `
 
-func (q *Queries) InsertConnection(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, insertConnection)
+func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertConnection, agentID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -770,9 +979,9 @@ func (q *Queries) InsertConnection(ctx context.Context) (int64, error) {
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -783,6 +992,7 @@ type InsertProxyRequestEventParams struct {
 	ListenerID sql.NullInt64 `json:"listener_id"`
 	BackendID  sql.NullInt64 `json:"backend_id"`
 	RouteID    sql.NullInt64 `json:"route_id"`
+	AgentID    sql.NullInt64 `json:"agent_id"`
 }
 
 func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error {
@@ -793,8 +1003,123 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.ListenerID,
 		arg.BackendID,
 		arg.RouteID,
+		arg.AgentID,
 	)
 	return err
+}
+
+const listAgents = `-- name: ListAgents :many
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+FROM agents
+ORDER BY name ASC, public_id ASC, id ASC
+`
+
+func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
+	rows, err := q.db.QueryContext(ctx, listAgents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Agent
+	for rows.Next() {
+		var i Agent
+		if err := rows.Scan(
+			&i.ID,
+			&i.PublicID,
+			&i.Name,
+			&i.TokenHash,
+			&i.Enabled,
+			&i.LastConnectedAt,
+			&i.LastDisconnectedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicBackendAgents = `-- name: ListPublicBackendAgents :many
+SELECT backend_id, agent_id, position, weight, enabled, created_at, updated_at
+FROM public_backend_agents
+ORDER BY backend_id ASC, position ASC, agent_id ASC
+`
+
+func (q *Queries) ListPublicBackendAgents(ctx context.Context) ([]PublicBackendAgent, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicBackendAgents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicBackendAgent
+	for rows.Next() {
+		var i PublicBackendAgent
+		if err := rows.Scan(
+			&i.BackendID,
+			&i.AgentID,
+			&i.Position,
+			&i.Weight,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicBackendAgentsByBackend = `-- name: ListPublicBackendAgentsByBackend :many
+SELECT backend_id, agent_id, position, weight, enabled, created_at, updated_at
+FROM public_backend_agents
+WHERE backend_id = ?
+ORDER BY position ASC, agent_id ASC
+`
+
+func (q *Queries) ListPublicBackendAgentsByBackend(ctx context.Context, backendID int64) ([]PublicBackendAgent, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicBackendAgentsByBackend, backendID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicBackendAgent
+	for rows.Next() {
+		var i PublicBackendAgent
+		if err := rows.Scan(
+			&i.BackendID,
+			&i.AgentID,
+			&i.Position,
+			&i.Weight,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPublicBackendHeaders = `-- name: ListPublicBackendHeaders :many
@@ -873,7 +1198,7 @@ func (q *Queries) ListPublicBackendHeadersByBackend(ctx context.Context, backend
 }
 
 const listPublicBackends = `-- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC
 `
@@ -892,6 +1217,8 @@ func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, erro
 			&i.Name,
 			&i.TargetOrigin,
 			&i.BackendType,
+			&i.ForwardMode,
+			&i.LoadBalancing,
 			&i.TlsSkipVerify,
 			&i.StaticStatusCode,
 			&i.StaticResponseBody,
@@ -1028,6 +1355,30 @@ func (q *Queries) ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCer
 	return items, nil
 }
 
+const markAgentConnected = `-- name: MarkAgentConnected :exec
+UPDATE agents
+SET last_connected_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+func (q *Queries) MarkAgentConnected(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markAgentConnected, id)
+	return err
+}
+
+const markAgentDisconnected = `-- name: MarkAgentDisconnected :exec
+UPDATE agents
+SET last_disconnected_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+func (q *Queries) MarkAgentDisconnected(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markAgentDisconnected, id)
+	return err
+}
+
 const revokeSessionByTokenHash = `-- name: RevokeSessionByTokenHash :exec
 UPDATE sessions
 SET revoked_at = CURRENT_TIMESTAMP
@@ -1080,6 +1431,68 @@ func (q *Queries) TouchSession(ctx context.Context, id int64) error {
 	return err
 }
 
+const updateAgent = `-- name: UpdateAgent :one
+UPDATE agents
+SET name = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+`
+
+type UpdateAgentParams struct {
+	Name    string `json:"name"`
+	Enabled int64  `json:"enabled"`
+	ID      int64  `json:"id"`
+}
+
+func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, updateAgent, arg.Name, arg.Enabled, arg.ID)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Enabled,
+		&i.LastConnectedAt,
+		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateAgentToken = `-- name: UpdateAgentToken :one
+UPDATE agents
+SET token_hash = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+`
+
+type UpdateAgentTokenParams struct {
+	TokenHash string `json:"token_hash"`
+	ID        int64  `json:"id"`
+}
+
+func (q *Queries) UpdateAgentToken(ctx context.Context, arg UpdateAgentTokenParams) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, updateAgentToken, arg.TokenHash, arg.ID)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Enabled,
+		&i.LastConnectedAt,
+		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateConnectionDisconnected = `-- name: UpdateConnectionDisconnected :exec
 UPDATE connections
 SET disconnected_at = CURRENT_TIMESTAMP
@@ -1096,19 +1509,23 @@ UPDATE public_backends
 SET name = ?,
     target_origin = ?,
     backend_type = ?,
+    forward_mode = ?,
+    load_balancing = ?,
     tls_skip_verify = ?,
     static_status_code = ?,
     static_response_body = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
 `
 
 type UpdatePublicBackendParams struct {
 	Name               string `json:"name"`
 	TargetOrigin       string `json:"target_origin"`
 	BackendType        string `json:"backend_type"`
+	ForwardMode        string `json:"forward_mode"`
+	LoadBalancing      string `json:"load_balancing"`
 	TlsSkipVerify      int64  `json:"tls_skip_verify"`
 	StaticStatusCode   int64  `json:"static_status_code"`
 	StaticResponseBody string `json:"static_response_body"`
@@ -1121,6 +1538,8 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		arg.Name,
 		arg.TargetOrigin,
 		arg.BackendType,
+		arg.ForwardMode,
+		arg.LoadBalancing,
 		arg.TlsSkipVerify,
 		arg.StaticStatusCode,
 		arg.StaticResponseBody,
@@ -1133,6 +1552,8 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		&i.Name,
 		&i.TargetOrigin,
 		&i.BackendType,
+		&i.ForwardMode,
+		&i.LoadBalancing,
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
@@ -1260,6 +1681,40 @@ func (q *Queries) UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePubl
 		&i.CertPath,
 		&i.KeyPath,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertBootstrapAgent = `-- name: UpsertBootstrapAgent :one
+INSERT INTO agents (public_id, name, token_hash, enabled)
+VALUES (?, ?, ?, 1)
+ON CONFLICT(public_id) DO UPDATE SET
+    name = excluded.name,
+    token_hash = excluded.token_hash,
+    enabled = 1,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+`
+
+type UpsertBootstrapAgentParams struct {
+	PublicID  string `json:"public_id"`
+	Name      string `json:"name"`
+	TokenHash string `json:"token_hash"`
+}
+
+func (q *Queries) UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapAgentParams) (Agent, error) {
+	row := q.db.QueryRowContext(ctx, upsertBootstrapAgent, arg.PublicID, arg.Name, arg.TokenHash)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Enabled,
+		&i.LastConnectedAt,
+		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

@@ -129,14 +129,28 @@ func ensureSQLiteDir(dsn string) error {
 // migrate runs the initial schema setup.
 func (db *DB) migrate() error {
 	schema := `
+	CREATE TABLE IF NOT EXISTS agents (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL,
+		token_hash TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		last_connected_at DATETIME,
+		last_disconnected_at DATETIME,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS connections (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		agent_id INTEGER REFERENCES agents(id),
 		connected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		disconnected_at DATETIME
 	);
 
 	CREATE TABLE IF NOT EXISTS agent_stats (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		agent_id INTEGER REFERENCES agents(id),
 		reported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		memory_mb INTEGER NOT NULL,
 		goroutines INTEGER NOT NULL,
@@ -156,7 +170,8 @@ func (db *DB) migrate() error {
 		error_kind TEXT NOT NULL DEFAULT '',
 		listener_id INTEGER,
 		backend_id INTEGER,
-		route_id INTEGER
+		route_id INTEGER,
+		agent_id INTEGER REFERENCES agents(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS public_backends (
@@ -164,6 +179,8 @@ func (db *DB) migrate() error {
 		name TEXT NOT NULL UNIQUE,
 		target_origin TEXT NOT NULL,
 		backend_type TEXT NOT NULL DEFAULT 'proxy_forward',
+		forward_mode TEXT NOT NULL DEFAULT 'direct',
+		load_balancing TEXT NOT NULL DEFAULT 'round_robin',
 		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
 		static_status_code INTEGER NOT NULL DEFAULT 200,
 		static_response_body TEXT NOT NULL DEFAULT '',
@@ -180,6 +197,18 @@ func (db *DB) migrate() error {
 		value TEXT NOT NULL,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(backend_id, position)
+	);
+
+	CREATE TABLE IF NOT EXISTS public_backend_agents (
+		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+		agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+		position INTEGER NOT NULL,
+		weight INTEGER NOT NULL DEFAULT 100,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (backend_id, agent_id),
 		UNIQUE(backend_id, position)
 	);
 
@@ -248,6 +277,12 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position
 	ON public_backend_headers (backend_id, position);
 
+	CREATE INDEX IF NOT EXISTS idx_public_backend_agents_backend_position
+	ON public_backend_agents (backend_id, position);
+
+	CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id
+	ON public_backend_agents (agent_id);
+
 	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 	ON public_tls_certificates (listener_id);
 
@@ -266,10 +301,15 @@ func (db *DB) migrate() error {
 		return err
 	}
 	for _, stmt := range []string{
+		`ALTER TABLE connections ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
+		`ALTER TABLE agent_stats ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
 		`ALTER TABLE proxy_request_events ADD COLUMN listener_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN backend_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN route_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
 		`ALTER TABLE public_backends ADD COLUMN backend_type TEXT NOT NULL DEFAULT 'proxy_forward'`,
+		`ALTER TABLE public_backends ADD COLUMN forward_mode TEXT NOT NULL DEFAULT 'direct'`,
+		`ALTER TABLE public_backends ADD COLUMN load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
 		`ALTER TABLE public_backends ADD COLUMN tls_skip_verify INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN static_status_code INTEGER NOT NULL DEFAULT 200`,
 		`ALTER TABLE public_backends ADD COLUMN static_response_body TEXT NOT NULL DEFAULT ''`,
@@ -279,6 +319,12 @@ func (db *DB) migrate() error {
 		}
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id ON proxy_request_events (listener_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_agent_stats_agent_id ON agent_stats (agent_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_connections_agent_id ON connections (agent_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`
@@ -296,6 +342,27 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position ON public_backend_headers (backend_id, position)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_backend_agents (
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			weight INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (backend_id, agent_id),
+			UNIQUE(backend_id, position)
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_agents_backend_position ON public_backend_agents (backend_id, position)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id ON public_backend_agents (agent_id)`); err != nil {
 		return err
 	}
 	return nil

@@ -28,6 +28,22 @@ enum PublicBackendType {
   PUBLIC_BACKEND_TYPE_STATIC = 2;
 }
 
+enum PublicBackendForwardMode {
+  PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED = 0;
+  PUBLIC_BACKEND_FORWARD_MODE_DIRECT = 1;
+  PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL = 2;
+}
+
+enum PublicBackendLoadBalancing {
+  PUBLIC_BACKEND_LOAD_BALANCING_UNSPECIFIED = 0;
+  PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN = 1;
+  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN = 2;
+  PUBLIC_BACKEND_LOAD_BALANCING_RANDOM = 3;
+  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM = 4;
+  PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS = 5;
+  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
+}
+
 message AgentStatsRequest {
   int64 memory_sys_mb = 1;
   int64 num_goroutine = 2;
@@ -38,6 +54,7 @@ message AgentStatsRequest {
   uint64 bytes_received = 7;
   uint64 bytes_sent = 8;
   int32 active_requests = 9;
+  string agent_public_id = 10;
 }
 
 message AgentStatsResponse {
@@ -94,11 +111,36 @@ message PublicBackend {
   int64 static_status_code = 9;
   repeated PublicHeader static_response_headers = 10;
   string static_response_body = 11;
+  PublicBackendForwardMode forward_mode = 12;
+  PublicBackendLoadBalancing load_balancing = 13;
+  repeated PublicBackendAgent agent_assignments = 14;
 }
 
 message PublicHeader {
   string name = 1;
   string value = 2;
+}
+
+message Agent {
+  int64 id = 1;
+  string public_id = 2;
+  string name = 3;
+  bool enabled = 4;
+  bool connected = 5;
+  int64 active_requests = 6;
+  int64 created_at_unix_millis = 7;
+  int64 updated_at_unix_millis = 8;
+  int64 last_connected_at_unix_millis = 9;
+  int64 last_disconnected_at_unix_millis = 10;
+  AgentStatsSnapshot latest_stats = 11;
+}
+
+message PublicBackendAgent {
+  int64 backend_id = 1;
+  int64 agent_id = 2;
+  int64 position = 3;
+  int64 weight = 4;
+  bool enabled = 5;
 }
 
 message PublicListener {
@@ -156,6 +198,8 @@ message GetPublicProxyConfigResponse {
   repeated PublicRoute routes = 3;
   repeated PublicTlsCertificate tls_certificates = 4;
   ProxyStatus proxy = 5;
+  repeated Agent agents = 6;
+  repeated PublicBackendAgent backend_agents = 7;
 }
 
 message CreatePublicBackendRequest {
@@ -167,6 +211,9 @@ message CreatePublicBackendRequest {
   int64 static_status_code = 6;
   repeated PublicHeader static_response_headers = 7;
   string static_response_body = 8;
+  PublicBackendForwardMode forward_mode = 9;
+  PublicBackendLoadBalancing load_balancing = 10;
+  repeated PublicBackendAgent agent_assignments = 11;
 }
 
 message CreatePublicBackendResponse {
@@ -183,6 +230,9 @@ message UpdatePublicBackendRequest {
   int64 static_status_code = 7;
   repeated PublicHeader static_response_headers = 8;
   string static_response_body = 9;
+  PublicBackendForwardMode forward_mode = 10;
+  PublicBackendLoadBalancing load_balancing = 11;
+  repeated PublicBackendAgent agent_assignments = 12;
 }
 
 message UpdatePublicBackendResponse {
@@ -194,6 +244,44 @@ message DeletePublicBackendRequest {
 }
 
 message DeletePublicBackendResponse {
+}
+
+message CreateAgentRequest {
+  string public_id = 1 [deprecated = true];
+  string name = 2;
+  bool enabled = 3;
+}
+
+message CreateAgentResponse {
+  Agent agent = 1;
+  string token = 2;
+}
+
+message UpdateAgentRequest {
+  int64 id = 1;
+  string public_id = 2 [deprecated = true];
+  string name = 3;
+  bool enabled = 4;
+}
+
+message UpdateAgentResponse {
+  Agent agent = 1;
+}
+
+message DeleteAgentRequest {
+  int64 id = 1;
+}
+
+message DeleteAgentResponse {
+}
+
+message RotateAgentTokenRequest {
+  int64 id = 1;
+}
+
+message RotateAgentTokenResponse {
+  Agent agent = 1;
+  string token = 2;
 }
 
 message CreatePublicListenerRequest {
@@ -453,6 +541,10 @@ service AgentManagementService {
   rpc CreatePublicBackend(CreatePublicBackendRequest) returns (CreatePublicBackendResponse) {}
   rpc UpdatePublicBackend(UpdatePublicBackendRequest) returns (UpdatePublicBackendResponse) {}
   rpc DeletePublicBackend(DeletePublicBackendRequest) returns (DeletePublicBackendResponse) {}
+  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse) {}
+  rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse) {}
+  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse) {}
+  rpc RotateAgentToken(RotateAgentTokenRequest) returns (RotateAgentTokenResponse) {}
   rpc CreatePublicListener(CreatePublicListenerRequest) returns (CreatePublicListenerResponse) {}
   rpc UpdatePublicListener(UpdatePublicListenerRequest) returns (UpdatePublicListenerResponse) {}
   rpc DeletePublicListener(DeletePublicListenerRequest) returns (DeletePublicListenerResponse) {}

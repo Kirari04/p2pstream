@@ -1,6 +1,6 @@
 -- name: InsertConnection :one
-INSERT INTO connections (connected_at)
-VALUES (CURRENT_TIMESTAMP)
+INSERT INTO connections (agent_id, connected_at)
+VALUES (?, CURRENT_TIMESTAMP)
 RETURNING id;
 
 -- name: UpdateConnectionDisconnected :exec
@@ -10,9 +10,9 @@ WHERE id = ?;
 
 -- name: InsertAgentStat :exec
 INSERT INTO agent_stats (
-    memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+    agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetLatestAgentStat :one
@@ -22,9 +22,9 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetProxyRequestSummarySince :one
@@ -67,6 +67,93 @@ SELECT id, connected_at, disconnected_at
 FROM connections
 WHERE disconnected_at IS NULL
 ORDER BY connected_at DESC
+LIMIT 1;
+
+-- name: ListAgents :many
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+FROM agents
+ORDER BY name ASC, public_id ASC, id ASC;
+
+-- name: GetAgent :one
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+FROM agents
+WHERE id = ?;
+
+-- name: GetAgentByPublicID :one
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+FROM agents
+WHERE public_id = ?;
+
+-- name: CreateAgent :one
+INSERT INTO agents (public_id, name, token_hash, enabled)
+VALUES (?, ?, ?, ?)
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+
+-- name: UpdateAgent :one
+UPDATE agents
+SET name = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+
+-- name: UpdateAgentToken :one
+UPDATE agents
+SET token_hash = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+
+-- name: UpsertBootstrapAgent :one
+INSERT INTO agents (public_id, name, token_hash, enabled)
+VALUES (?, ?, ?, 1)
+ON CONFLICT(public_id) DO UPDATE SET
+    name = excluded.name,
+    token_hash = excluded.token_hash,
+    enabled = 1,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+
+-- name: MarkAgentConnected :exec
+UPDATE agents
+SET last_connected_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+
+-- name: MarkAgentDisconnected :exec
+UPDATE agents
+SET last_disconnected_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+
+-- name: DeleteAgent :exec
+DELETE FROM agents
+WHERE id = ?;
+
+-- name: CountEnabledAgentPoolBackendsWhereAgentIsLast :one
+SELECT COUNT(*)
+FROM public_backend_agents pba
+JOIN public_backends pb ON pb.id = pba.backend_id
+WHERE pba.agent_id = ?
+  AND pba.enabled = 1
+  AND pb.enabled = 1
+  AND pb.backend_type = 'proxy_forward'
+  AND pb.forward_mode = 'agent_pool'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public_backend_agents other
+    JOIN agents a ON a.id = other.agent_id
+    WHERE other.backend_id = pba.backend_id
+      AND other.agent_id != pba.agent_id
+      AND other.enabled = 1
+      AND a.enabled = 1
+  );
+
+-- name: GetLatestAgentStatByAgent :one
+SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+FROM agent_stats
+WHERE agent_id = ?
+ORDER BY id DESC
 LIMIT 1;
 
 -- name: DeleteProxyRequestEventsBefore :exec
@@ -143,22 +230,24 @@ INSERT INTO public_backends (
     name,
     target_origin,
     backend_type,
+    forward_mode,
+    load_balancing,
     tls_skip_verify,
     static_status_code,
     static_response_body,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
 
 -- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC;
 
 -- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?;
 
@@ -167,13 +256,15 @@ UPDATE public_backends
 SET name = ?,
     target_origin = ?,
     backend_type = ?,
+    forward_mode = ?,
+    load_balancing = ?,
     tls_skip_verify = ?,
     static_status_code = ?,
     static_response_body = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
 
 -- name: DeletePublicBackend :exec
 DELETE FROM public_backends
@@ -197,6 +288,26 @@ RETURNING id, backend_id, position, name, value, created_at, updated_at;
 
 -- name: DeletePublicBackendHeaders :exec
 DELETE FROM public_backend_headers
+WHERE backend_id = ?;
+
+-- name: ListPublicBackendAgents :many
+SELECT backend_id, agent_id, position, weight, enabled, created_at, updated_at
+FROM public_backend_agents
+ORDER BY backend_id ASC, position ASC, agent_id ASC;
+
+-- name: ListPublicBackendAgentsByBackend :many
+SELECT backend_id, agent_id, position, weight, enabled, created_at, updated_at
+FROM public_backend_agents
+WHERE backend_id = ?
+ORDER BY position ASC, agent_id ASC;
+
+-- name: CreatePublicBackendAgent :one
+INSERT INTO public_backend_agents (backend_id, agent_id, position, weight, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING backend_id, agent_id, position, weight, enabled, created_at, updated_at;
+
+-- name: DeletePublicBackendAgents :exec
+DELETE FROM public_backend_agents
 WHERE backend_id = ?;
 
 -- name: CountPublicBackendEnabledReferences :one
