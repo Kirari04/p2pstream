@@ -31,6 +31,9 @@ type Config struct {
 	ManagementUIDistDir        string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
 	ManagementCookieSecure     bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
 	AgentToken                 string `env:"AGENT_TOKEN"`
+	BootstrapAgentID           string `env:"BOOTSTRAP_AGENT_ID"`
+	BootstrapAgentName         string `env:"BOOTSTRAP_AGENT_NAME"`
+	BootstrapAgentToken        string `env:"BOOTSTRAP_AGENT_TOKEN"`
 	ObservabilityRetentionDays int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
 
 	ParsedTargetOrigin *url.URL `env:"-"`

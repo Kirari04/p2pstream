@@ -90,7 +90,7 @@ func (a *App) GetDashboard(
 }
 
 func (a *App) recordProxyRequestEvent(ctx context.Context, statusCode int, duration time.Duration, errorKind string) {
-	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{})
+	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{})
 }
 
 func (a *App) recordProxyRequestEventWithIDs(
@@ -101,6 +101,7 @@ func (a *App) recordProxyRequestEventWithIDs(
 	listenerID sql.NullInt64,
 	backendID sql.NullInt64,
 	routeID sql.NullInt64,
+	agentID sql.NullInt64,
 ) {
 	if a.DB == nil {
 		return
@@ -119,6 +120,7 @@ func (a *App) recordProxyRequestEventWithIDs(
 		ListenerID: listenerID,
 		BackendID:  backendID,
 		RouteID:    routeID,
+		AgentID:    agentID,
 	}); err != nil {
 		log.Warn().Err(err).Msg("Failed to record proxy request event")
 	}
@@ -164,7 +166,7 @@ func (a *App) agentConnectionSummary(ctx context.Context, now time.Time) (*p2pst
 	}
 
 	resp := &p2pstreamv1.AgentConnectionSummary{
-		Connected:                    a.ActiveAgent.Load() != nil,
+		Connected:                    a.AgentHub.connectedCount() > 0,
 		TotalConnections:             summary.TotalConnections,
 		LastConnectedAtUnixMillis:    sqliteTimeUnixMillis(summary.LastConnectedAt),
 		LastDisconnectedAtUnixMillis: sqliteTimeUnixMillis(summary.LastDisconnectedAt),

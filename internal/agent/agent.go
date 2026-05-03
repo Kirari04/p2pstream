@@ -41,15 +41,15 @@ var (
 )
 
 // Run is the main entry point to start the agent loop
-func Run(mgmtURL string, agentToken string) {
-	go startStatsReporter(mgmtURL, agentToken)
+func Run(mgmtURL string, agentPublicID string, agentName string, agentToken string) {
+	go startStatsReporter(mgmtURL, agentPublicID, agentToken)
 
 	wsURL := strings.Replace(mgmtURL, "http", "ws", 1) + "/ws"
 
 	for {
 		log.Info().Str("ws_url", wsURL).Msg("Attempting to connect to management server...")
 
-		err := connectAndServe(wsURL, agentToken)
+		err := connectAndServe(wsURL, agentPublicID, agentName, agentToken)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
@@ -58,15 +58,14 @@ func Run(mgmtURL string, agentToken string) {
 	}
 }
 
-func connectAndServe(wsURL string, agentToken string) error {
+func connectAndServe(wsURL string, agentPublicID string, agentName string, agentToken string) error {
 	ctx := context.Background()
-	var opts *websocket.DialOptions
-	if agentToken != "" {
-		opts = &websocket.DialOptions{
-			HTTPHeader: http.Header{
-				"Authorization": []string{"Bearer " + agentToken},
-			},
-		}
+	opts := &websocket.DialOptions{
+		HTTPHeader: http.Header{
+			"Authorization":          []string{"Bearer " + agentToken},
+			"X-P2PStream-Agent-ID":   []string{agentPublicID},
+			"X-P2PStream-Agent-Name": []string{agentName},
+		},
 	}
 
 	c, _, err := websocket.Dial(ctx, wsURL, opts)
@@ -220,7 +219,7 @@ func tlsSkipVerifyTransport() http.RoundTripper {
 	return transport
 }
 
-func startStatsReporter(mgmtURL string, agentToken string) {
+func startStatsReporter(mgmtURL string, agentPublicID string, agentToken string) {
 	client := p2pstreamv1connect.NewAgentManagementServiceClient(
 		http.DefaultClient,
 		mgmtURL,
@@ -244,12 +243,11 @@ func startStatsReporter(mgmtURL string, agentToken string) {
 			ReqInternalError: int64(reqInternalError.Swap(0)),
 			BytesReceived:    bytesReceived.Swap(0),
 			BytesSent:        bytesSent.Swap(0),
+			AgentPublicId:    agentPublicID,
 		}
 
 		connectReq := connect.NewRequest(req)
-		if agentToken != "" {
-			connectReq.Header().Set("Authorization", "Bearer "+agentToken)
-		}
+		connectReq.Header().Set("Authorization", "Bearer "+agentToken)
 
 		_, err := client.ReportStats(context.Background(), connectReq)
 		if err != nil {

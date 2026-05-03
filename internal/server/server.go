@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
-	"errors"
+	"database/sql"
 	"io"
 	"net/http"
 	"strings"
@@ -25,16 +25,24 @@ import (
 )
 
 type AgentConn struct {
-	WriteCh chan *msg.Request
+	AgentID        int64
+	PublicID       string
+	Name           string
+	WriteCh        chan *msg.Request
+	Done           chan struct{}
+	ActiveRequests atomic.Int64
+	ConnectedAt    time.Time
+	ConnectionDBID int64
 }
 
 type App struct {
 	Config           *config.Config
 	DB               *db.DB
 	StartedAt        time.Time
-	ActiveAgent      atomic.Pointer[AgentConn]
 	PendingRequests  sync.Map // map[uuid.UUID]chan *msg.Request
 	LatestAgentStats atomic.Pointer[stats.AgentStats]
+	AgentHub         *agentHub
+	LoadBalancers    *loadBalancerRegistry
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -56,13 +64,19 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
-	return &App{
+	app := &App{
 		Config:              cfg,
 		DB:                  database,
 		StartedAt:           time.Now(),
+		AgentHub:            newAgentHub(),
+		LoadBalancers:       newLoadBalancerRegistry(),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
+	if database != nil {
+		app.ensureBootstrapAgent(context.Background())
+	}
+	return app
 }
 
 // RegisterManagementRoutes attaches the WebSocket and ConnectRPC APIs (Port 8081).
@@ -78,8 +92,9 @@ func (a *App) ReportStats(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.AgentStatsRequest],
 ) (*connect.Response[p2pstreamv1.AgentStatsResponse], error) {
-	if !a.validAgentAuthorization(req.Header().Get("Authorization")) {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("agent token required"))
+	agentRow, err := a.authenticateAgent(ctx, req.Msg.AgentPublicId, req.Header().Get("Authorization"))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 
 	payload := req.Msg
@@ -100,6 +115,7 @@ func (a *App) ReportStats(
 	a.LatestAgentStats.Store(&s)
 
 	log.Debug().
+		Str("agent", agentRow.PublicID).
 		Int64("mem_mb", payload.MemorySysMb).
 		Int64("goroutines", payload.NumGoroutine).
 		Int64("req_success", payload.ReqSuccess).
@@ -108,6 +124,7 @@ func (a *App) ReportStats(
 
 	if a.DB != nil {
 		err := a.DB.InsertAgentStat(ctx, db.InsertAgentStatParams{
+			AgentID:          sql.NullInt64{Int64: agentRow.ID, Valid: true},
 			MemoryMb:         payload.MemorySysMb,
 			Goroutines:       payload.NumGoroutine,
 			ReqSuccess:       payload.ReqSuccess,
@@ -146,7 +163,7 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 	resp := &p2pstreamv1.GetStatusResponse{
 		ProxyRunning:   a.ProxyIsRunning.Load(),
 		ProxyLastError: proxyLastError,
-		AgentConnected: a.ActiveAgent.Load() != nil,
+		AgentConnected: a.AgentHub.connectedCount() > 0,
 		Proxy:          a.proxyStatus(),
 	}
 
@@ -169,8 +186,9 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 }
 
 func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
-	if !a.validAgentAuthorization(r.Header.Get("Authorization")) {
-		http.Error(w, "agent token required", http.StatusUnauthorized)
+	agentRow, err := a.authenticateAgent(r.Context(), r.Header.Get("X-P2PStream-Agent-ID"), r.Header.Get("Authorization"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -184,34 +202,48 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 	c.SetReadLimit(128 * 1024)
 	ctx := context.Background()
 
-	// Log connection to DB
 	var connID int64
 	if a.DB != nil {
-		id, err := a.DB.InsertConnection(ctx)
+		id, err := a.DB.InsertConnection(ctx, sql.NullInt64{Int64: agentRow.ID, Valid: true})
 		if err == nil {
 			connID = id
+			if err := a.DB.MarkAgentConnected(ctx, agentRow.ID); err != nil {
+				log.Warn().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to update agent connected timestamp")
+			}
 		} else {
 			log.Warn().Err(err).Msg("Failed to insert connection into DB")
 		}
 	}
 
 	agent := &AgentConn{
-		WriteCh: make(chan *msg.Request, 100),
+		AgentID:        agentRow.ID,
+		PublicID:       agentRow.PublicID,
+		Name:           agentRow.Name,
+		WriteCh:        make(chan *msg.Request, 100),
+		Done:           make(chan struct{}),
+		ConnectedAt:    time.Now(),
+		ConnectionDBID: connID,
 	}
 
-	if swapped := a.ActiveAgent.CompareAndSwap(nil, agent); !swapped {
-		log.Warn().Msg("Another agent is already connected, rejecting new connection")
-		c.Close(websocket.StatusPolicyViolation, "an agent is already connected")
+	if err := a.AgentHub.connect(agent); err != nil {
+		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Rejecting duplicate agent connection")
+		c.Close(websocket.StatusPolicyViolation, err.Error())
 		return
 	}
-	defer a.ActiveAgent.CompareAndSwap(agent, nil)
+	defer func() {
+		a.AgentHub.disconnect(agent)
+		a.failPendingRequestsForAgent(agent.AgentID, errAgentDisconnected)
+	}()
 
-	log.Info().Str("remote_addr", r.RemoteAddr).Msg("Agent connected successfully")
+	log.Info().
+		Str("remote_addr", r.RemoteAddr).
+		Str("agent", agent.PublicID).
+		Msg("Agent connected successfully")
 
 	go func() {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-agent.Done:
 				return
 			case m := <-agent.WriteCh:
 				cw, err := c.Writer(ctx, websocket.MessageBinary)
@@ -249,28 +281,37 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if ch, ok := a.PendingRequests.Load(m.ID); ok {
-			ch.(chan *msg.Request) <- m
+		if pendingValue, ok := a.PendingRequests.Load(m.ID); ok {
+			pending := pendingValue.(*pendingAgentRequest)
+			if pending.AgentID != agent.AgentID {
+				log.Warn().
+					Str("req_id", m.ID.String()).
+					Str("from_agent", agent.PublicID).
+					Str("expected_agent", pending.AgentPublicID).
+					Msg("Received response from wrong agent")
+				continue
+			}
+			pending.ResponseCh <- m
 		} else {
 			log.Warn().Str("req_id", m.ID.String()).Msg("Received message for unknown request")
 		}
 	}
 
-	log.Info().Msg("Agent disconnected")
+	log.Info().Str("agent", agent.PublicID).Msg("Agent disconnected")
 	if a.DB != nil && connID > 0 {
 		if err := a.DB.UpdateConnectionDisconnected(context.Background(), connID); err != nil {
 			log.Warn().Err(err).Msg("Failed to update disconnection time")
 		}
+		if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
+			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
+		}
 	}
 }
 
-func (a *App) validAgentAuthorization(header string) bool {
-	if a.Config == nil || a.Config.AgentToken == "" {
-		return true
-	}
+func bearerToken(header string) string {
 	const prefix = "Bearer "
 	if !strings.HasPrefix(header, prefix) {
-		return false
+		return ""
 	}
-	return strings.TrimSpace(strings.TrimPrefix(header, prefix)) == a.Config.AgentToken
+	return strings.TrimSpace(strings.TrimPrefix(header, prefix))
 }

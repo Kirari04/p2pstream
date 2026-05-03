@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -24,13 +25,31 @@ var agentCmd = &cobra.Command{
 		if agentToken == "" {
 			agentToken = os.Getenv("AGENT_TOKEN")
 		}
+		agentID, _ := cmd.Flags().GetString("agent-id")
+		if agentID == "" {
+			agentID = os.Getenv("AGENT_ID")
+		}
+		agentName, _ := cmd.Flags().GetString("agent-name")
+		if agentName == "" {
+			agentName = os.Getenv("AGENT_NAME")
+		}
+		if agentID == "" {
+			fmt.Fprintln(os.Stderr, "agent id required: set --agent-id or AGENT_ID from the management UI setup instructions")
+			os.Exit(1)
+		}
+		if agentToken == "" {
+			fmt.Fprintln(os.Stderr, "agent token required: set --agent-token or AGENT_TOKEN from the management UI setup instructions")
+			os.Exit(1)
+		}
 
-		agent.Run(mgmtURL, agentToken)
+		agent.Run(mgmtURL, agentID, agentName, agentToken)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(agentCmd)
 	agentCmd.Flags().String("management-url", "", "The HTTP URL of the p2pstream management server")
-	agentCmd.Flags().String("agent-token", "", "Bearer token required by the management server for agent connections")
+	agentCmd.Flags().String("agent-token", "", "Bearer token from the management UI setup instructions")
+	agentCmd.Flags().String("agent-id", "", "Generated registered agent id from the management UI setup instructions")
+	agentCmd.Flags().String("agent-name", "", "Optional agent display name")
 }

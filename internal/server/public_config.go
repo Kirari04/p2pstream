@@ -22,12 +22,20 @@ import (
 )
 
 const (
-	defaultPublicTargetOrigin     = "https://httpbin.org"
-	defaultPublicHTTPPort         = int64(80)
-	defaultSelfSignedTLSHost      = "p2pstream.local"
-	publicBackendTypeProxyForward = "proxy_forward"
-	publicBackendTypeStatic       = "static"
-	defaultStaticStatusCode       = int64(http.StatusOK)
+	defaultPublicTargetOrigin                             = "https://httpbin.org"
+	defaultPublicHTTPPort                                 = int64(80)
+	defaultSelfSignedTLSHost                              = "p2pstream.local"
+	publicBackendTypeProxyForward                         = "proxy_forward"
+	publicBackendTypeStatic                               = "static"
+	publicBackendForwardModeDirect                        = "direct"
+	publicBackendForwardModeAgentPool                     = "agent_pool"
+	publicBackendLoadBalancingRoundRobin                  = "round_robin"
+	publicBackendLoadBalancingWeightedRoundRobin          = "weighted_round_robin"
+	publicBackendLoadBalancingRandom                      = "random"
+	publicBackendLoadBalancingWeightedRandom              = "weighted_random"
+	publicBackendLoadBalancingLeastActiveRequests         = "least_active_requests"
+	publicBackendLoadBalancingWeightedLeastActiveRequests = "weighted_least_active_requests"
+	defaultStaticStatusCode                               = int64(http.StatusOK)
 )
 
 var publicNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
@@ -35,6 +43,8 @@ var publicNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 type publicConfigRows struct {
 	Backends        []db.PublicBackend
 	BackendHeaders  []db.PublicBackendHeader
+	BackendAgents   []db.PublicBackendAgent
+	Agents          []db.Agent
 	Listeners       []db.PublicListener
 	Routes          []db.PublicRoute
 	TLSCertificates []db.PublicTlsCertificate
@@ -49,11 +59,21 @@ type publicBackendMutationInput struct {
 	Name               string
 	TargetOrigin       string
 	BackendType        string
+	ForwardMode        string
+	LoadBalancing      string
 	TLSSkipVerify      int64
 	StaticStatusCode   int64
 	StaticResponseBody string
 	Enabled            int64
 	Headers            []publicBackendHeaderInput
+	Agents             []publicBackendAgentInput
+}
+
+type publicBackendAgentInput struct {
+	AgentID  int64
+	Position int64
+	Weight   int64
+	Enabled  int64
 }
 
 func (a *App) GetPublicProxyConfig(
@@ -77,11 +97,15 @@ func (a *App) CreatePublicBackend(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, headers, err := validatePublicBackendInput(
+	params, headers, agents, err := a.validatePublicBackendInput(
+		ctx,
 		req.Msg.Name,
 		req.Msg.TargetOrigin,
 		req.Msg.Enabled,
 		req.Msg.BackendType,
+		req.Msg.ForwardMode,
+		req.Msg.LoadBalancing,
+		req.Msg.AgentAssignments,
 		req.Msg.TlsSkipVerify,
 		req.Msg.StaticStatusCode,
 		req.Msg.StaticResponseHeaders,
@@ -90,14 +114,14 @@ func (a *App) CreatePublicBackend(
 	if err != nil {
 		return nil, err
 	}
-	backend, storedHeaders, err := a.createPublicBackendWithHeaders(ctx, params, headers)
+	backend, storedHeaders, storedAgents, err := a.createPublicBackendWithDetails(ctx, params, headers, agents)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&p2pstreamv1.CreatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders)}), nil
+	return connect.NewResponse(&p2pstreamv1.CreatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders, storedAgents)}), nil
 }
 
 func (a *App) UpdatePublicBackend(
@@ -107,11 +131,15 @@ func (a *App) UpdatePublicBackend(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, headers, err := validatePublicBackendInput(
+	params, headers, agents, err := a.validatePublicBackendInput(
+		ctx,
 		req.Msg.Name,
 		req.Msg.TargetOrigin,
 		req.Msg.Enabled,
 		req.Msg.BackendType,
+		req.Msg.ForwardMode,
+		req.Msg.LoadBalancing,
+		req.Msg.AgentAssignments,
 		req.Msg.TlsSkipVerify,
 		req.Msg.StaticStatusCode,
 		req.Msg.StaticResponseHeaders,
@@ -132,14 +160,14 @@ func (a *App) UpdatePublicBackend(
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("backend is referenced by enabled public config"))
 		}
 	}
-	backend, storedHeaders, err := a.updatePublicBackendWithHeaders(ctx, req.Msg.Id, params, headers)
+	backend, storedHeaders, storedAgents, err := a.updatePublicBackendWithDetails(ctx, req.Msg.Id, params, headers, agents)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&p2pstreamv1.UpdatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders)}), nil
+	return connect.NewResponse(&p2pstreamv1.UpdatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders, storedAgents)}), nil
 }
 
 func (a *App) DeletePublicBackend(
@@ -168,14 +196,15 @@ func (a *App) DeletePublicBackend(
 	return connect.NewResponse(&p2pstreamv1.DeletePublicBackendResponse{}), nil
 }
 
-func (a *App) createPublicBackendWithHeaders(
+func (a *App) createPublicBackendWithDetails(
 	ctx context.Context,
 	params publicBackendMutationInput,
 	headers []publicBackendHeaderInput,
-) (db.PublicBackend, []db.PublicBackendHeader, error) {
+	agents []publicBackendAgentInput,
+) (db.PublicBackend, []db.PublicBackendHeader, []db.PublicBackendAgent, error) {
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
 	}
 	defer tx.Rollback()
 
@@ -184,33 +213,40 @@ func (a *App) createPublicBackendWithHeaders(
 		Name:               params.Name,
 		TargetOrigin:       params.TargetOrigin,
 		BackendType:        params.BackendType,
+		ForwardMode:        params.ForwardMode,
+		LoadBalancing:      params.LoadBalancing,
 		TlsSkipVerify:      params.TLSSkipVerify,
 		StaticStatusCode:   params.StaticStatusCode,
 		StaticResponseBody: params.StaticResponseBody,
 		Enabled:            params.Enabled,
 	})
 	if err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
 	}
 	storedHeaders, err := insertPublicBackendHeaders(ctx, qtx, backend.ID, headers)
 	if err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
+	}
+	storedAgents, err := insertPublicBackendAgents(ctx, qtx, backend.ID, agents)
+	if err != nil {
+		return db.PublicBackend{}, nil, nil, err
 	}
 	if err := tx.Commit(); err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
 	}
-	return backend, storedHeaders, nil
+	return backend, storedHeaders, storedAgents, nil
 }
 
-func (a *App) updatePublicBackendWithHeaders(
+func (a *App) updatePublicBackendWithDetails(
 	ctx context.Context,
 	id int64,
 	params publicBackendMutationInput,
 	headers []publicBackendHeaderInput,
-) (db.PublicBackend, []db.PublicBackendHeader, error) {
+	agents []publicBackendAgentInput,
+) (db.PublicBackend, []db.PublicBackendHeader, []db.PublicBackendAgent, error) {
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
 	}
 	defer tx.Rollback()
 
@@ -220,25 +256,34 @@ func (a *App) updatePublicBackendWithHeaders(
 		Name:               params.Name,
 		TargetOrigin:       params.TargetOrigin,
 		BackendType:        params.BackendType,
+		ForwardMode:        params.ForwardMode,
+		LoadBalancing:      params.LoadBalancing,
 		TlsSkipVerify:      params.TLSSkipVerify,
 		StaticStatusCode:   params.StaticStatusCode,
 		StaticResponseBody: params.StaticResponseBody,
 		Enabled:            params.Enabled,
 	})
 	if err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
 	}
 	if err := qtx.DeletePublicBackendHeaders(ctx, id); err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
+	}
+	if err := qtx.DeletePublicBackendAgents(ctx, id); err != nil {
+		return db.PublicBackend{}, nil, nil, err
 	}
 	storedHeaders, err := insertPublicBackendHeaders(ctx, qtx, id, headers)
 	if err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
+	}
+	storedAgents, err := insertPublicBackendAgents(ctx, qtx, id, agents)
+	if err != nil {
+		return db.PublicBackend{}, nil, nil, err
 	}
 	if err := tx.Commit(); err != nil {
-		return db.PublicBackend{}, nil, err
+		return db.PublicBackend{}, nil, nil, err
 	}
-	return backend, storedHeaders, nil
+	return backend, storedHeaders, storedAgents, nil
 }
 
 func insertPublicBackendHeaders(
@@ -261,6 +306,29 @@ func insertPublicBackendHeaders(
 		storedHeaders = append(storedHeaders, stored)
 	}
 	return storedHeaders, nil
+}
+
+func insertPublicBackendAgents(
+	ctx context.Context,
+	queries *db.Queries,
+	backendID int64,
+	agents []publicBackendAgentInput,
+) ([]db.PublicBackendAgent, error) {
+	storedAgents := make([]db.PublicBackendAgent, 0, len(agents))
+	for idx, agent := range agents {
+		stored, err := queries.CreatePublicBackendAgent(ctx, db.CreatePublicBackendAgentParams{
+			BackendID: backendID,
+			AgentID:   agent.AgentID,
+			Position:  int64(idx),
+			Weight:    agent.Weight,
+			Enabled:   agent.Enabled,
+		})
+		if err != nil {
+			return nil, err
+		}
+		storedAgents = append(storedAgents, stored)
+	}
+	return storedAgents, nil
 }
 
 func (a *App) CreatePublicListener(
@@ -718,13 +786,16 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	a.ensureListenerStatesLocked(snap)
 	proxy := a.proxyStatusLocked()
 	a.proxyMu.Unlock()
+	a.LoadBalancers.reconcile(snap)
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
-		Backends:        publicBackendsToProto(rows.Backends, rows.BackendHeaders),
+		Backends:        publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendAgents),
 		Listeners:       publicListenersToProto(rows.Listeners),
 		Routes:          publicRoutesToProto(rows.Routes),
 		TlsCertificates: publicTLSCertificatesToProto(rows.TLSCertificates),
 		Proxy:           proxy,
+		Agents:          a.publicAgentsToProto(ctx, rows.Agents),
+		BackendAgents:   publicBackendAgentsToProto(rows.BackendAgents),
 	}, nil
 }
 
@@ -738,6 +809,7 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	a.ensureListenerStatesLocked(snap)
 	a.proxyStatusLocked()
 	a.proxyMu.Unlock()
+	a.LoadBalancers.reconcile(snap)
 	return nil
 }
 
@@ -764,6 +836,14 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
+	backendAgents, err := a.DB.ListPublicBackendAgents(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	agents, err := a.DB.ListAgents(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	listeners, err := a.DB.ListPublicListeners(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
@@ -779,6 +859,8 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	return publicConfigRows{
 		Backends:        backends,
 		BackendHeaders:  backendHeaders,
+		BackendAgents:   backendAgents,
+		Agents:          agents,
 		Listeners:       listeners,
 		Routes:          routes,
 		TLSCertificates: certs,
@@ -802,6 +884,8 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		Name:               "default",
 		TargetOrigin:       defaultPublicTargetOrigin,
 		BackendType:        publicBackendTypeProxyForward,
+		ForwardMode:        publicBackendForwardModeDirect,
+		LoadBalancing:      publicBackendLoadBalancingRoundRobin,
 		TlsSkipVerify:      0,
 		StaticStatusCode:   defaultStaticStatusCode,
 		StaticResponseBody: "",
@@ -851,14 +935,18 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
 	snap := &publicProxySnapshot{
 		Backends:         make(map[int64]publicBackendConfig),
+		Agents:           make(map[int64]publicAgentConfig),
 		Listeners:        make(map[int64]publicListenerConfig),
 		RoutesByListener: make(map[int64][]publicRouteConfig),
 		CertsByListener:  make(map[int64][]publicTLSCertificateConfig),
 	}
 
 	headersByBackend := publicBackendHeadersByBackend(rows.BackendHeaders)
+	agentsByBackend := publicBackendAgentsByBackend(rows.BackendAgents)
 	for _, backend := range rows.Backends {
 		backendType := normalizePublicBackendType(backend.BackendType)
+		forwardMode := normalizePublicBackendForwardMode(backend.ForwardMode)
+		loadBalancing := normalizePublicBackendLoadBalancing(backend.LoadBalancing)
 		var parsed *url.URL
 		if backendType == publicBackendTypeProxyForward {
 			var err error
@@ -872,12 +960,23 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			Name:                  backend.Name,
 			TargetOrigin:          backend.TargetOrigin,
 			BackendType:           backendType,
+			ForwardMode:           forwardMode,
+			LoadBalancing:         loadBalancing,
 			TLSSkipVerify:         backend.TlsSkipVerify != 0,
 			StaticStatusCode:      int(backend.StaticStatusCode),
 			StaticResponseHeaders: publicBackendHeaderRowsToConfig(headersByBackend[backend.ID]),
 			StaticResponseBody:    backend.StaticResponseBody,
 			Enabled:               backend.Enabled != 0,
 			ParsedOrigin:          parsed,
+			AgentAssignments:      publicBackendAgentRowsToConfig(agentsByBackend[backend.ID]),
+		}
+	}
+	for _, agent := range rows.Agents {
+		snap.Agents[agent.ID] = publicAgentConfig{
+			ID:       agent.ID,
+			PublicID: agent.PublicID,
+			Name:     agent.Name,
+			Enabled:  agent.Enabled != 0,
 		}
 	}
 	for _, listener := range rows.Listeners {
@@ -953,63 +1052,137 @@ func (a *App) restartTLSListenerIfActive(ctx context.Context, listenerID int64) 
 	return a.restartPublicListenerRuntime(ctx, listenerID)
 }
 
-func validatePublicBackendInput(
+func (a *App) validatePublicBackendInput(
+	ctx context.Context,
 	name string,
 	targetOrigin string,
 	enabled bool,
 	backendType p2pstreamv1.PublicBackendType,
+	forwardMode p2pstreamv1.PublicBackendForwardMode,
+	loadBalancing p2pstreamv1.PublicBackendLoadBalancing,
+	agentAssignments []*p2pstreamv1.PublicBackendAgent,
 	tlsSkipVerify bool,
 	staticStatusCode int64,
 	staticResponseHeaders []*p2pstreamv1.PublicHeader,
 	staticResponseBody string,
-) (publicBackendMutationInput, []publicBackendHeaderInput, error) {
+) (publicBackendMutationInput, []publicBackendHeaderInput, []publicBackendAgentInput, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
-		return publicBackendMutationInput{}, nil, err
+		return publicBackendMutationInput{}, nil, nil, err
 	}
 
 	backendTypeString, err := backendTypeStringFromProto(backendType)
 	if err != nil {
-		return publicBackendMutationInput{}, nil, err
+		return publicBackendMutationInput{}, nil, nil, err
 	}
 
 	params := publicBackendMutationInput{
 		Name:               name,
 		BackendType:        backendTypeString,
+		ForwardMode:        publicBackendForwardModeDirect,
+		LoadBalancing:      publicBackendLoadBalancingRoundRobin,
 		StaticStatusCode:   defaultStaticStatusCode,
 		StaticResponseBody: "",
 		Enabled:            boolInt(enabled),
 	}
 
 	if backendTypeString == publicBackendTypeProxyForward {
+		forwardModeString, err := forwardModeStringFromProto(forwardMode)
+		if err != nil {
+			return publicBackendMutationInput{}, nil, nil, err
+		}
+		loadBalancingString, err := loadBalancingStringFromProto(loadBalancing)
+		if err != nil {
+			return publicBackendMutationInput{}, nil, nil, err
+		}
 		targetOrigin = strings.TrimSpace(targetOrigin)
 		if _, err := parsePublicTargetOrigin(targetOrigin); err != nil {
-			return publicBackendMutationInput{}, nil, connect.NewError(connect.CodeInvalidArgument, err)
+			return publicBackendMutationInput{}, nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		var agents []publicBackendAgentInput
+		if forwardModeString == publicBackendForwardModeAgentPool {
+			agents, err = a.validatePublicBackendAgentAssignments(ctx, agentAssignments)
+			if err != nil {
+				return publicBackendMutationInput{}, nil, nil, err
+			}
 		}
 		params.TargetOrigin = targetOrigin
+		params.ForwardMode = forwardModeString
+		params.LoadBalancing = loadBalancingString
 		params.TLSSkipVerify = boolInt(tlsSkipVerify)
-		return params, nil, nil
+		return params, nil, agents, nil
 	}
 
 	if staticStatusCode == 0 {
 		staticStatusCode = defaultStaticStatusCode
 	}
 	if staticStatusCode < 100 || staticStatusCode > 599 {
-		return publicBackendMutationInput{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("static status code must be between 100 and 599"))
+		return publicBackendMutationInput{}, nil, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("static status code must be between 100 and 599"))
 	}
 	if !utf8.ValidString(staticResponseBody) {
-		return publicBackendMutationInput{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("static response body must be valid UTF-8"))
+		return publicBackendMutationInput{}, nil, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("static response body must be valid UTF-8"))
 	}
 	headers, err := validatePublicStaticHeaders(staticResponseHeaders)
 	if err != nil {
-		return publicBackendMutationInput{}, nil, err
+		return publicBackendMutationInput{}, nil, nil, err
 	}
 
 	params.TargetOrigin = ""
 	params.TLSSkipVerify = 0
+	params.ForwardMode = publicBackendForwardModeDirect
+	params.LoadBalancing = publicBackendLoadBalancingRoundRobin
 	params.StaticStatusCode = staticStatusCode
 	params.StaticResponseBody = staticResponseBody
-	return params, headers, nil
+	return params, headers, nil, nil
+}
+
+func (a *App) validatePublicBackendAgentAssignments(ctx context.Context, assignments []*p2pstreamv1.PublicBackendAgent) ([]publicBackendAgentInput, error) {
+	if len(assignments) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("agent backend requires at least one agent assignment"))
+	}
+	seenAgents := make(map[int64]struct{}, len(assignments))
+	resp := make([]publicBackendAgentInput, 0, len(assignments))
+	enabledAgents := 0
+	for idx, assignment := range assignments {
+		if assignment == nil {
+			continue
+		}
+		agentID := assignment.AgentId
+		if agentID <= 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("agent assignment requires an agent id"))
+		}
+		if _, ok := seenAgents[agentID]; ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("agent assignments must not include the same agent twice"))
+		}
+		seenAgents[agentID] = struct{}{}
+		weight := assignment.Weight
+		if weight == 0 {
+			weight = 100
+		}
+		if weight < 1 || weight > 1000 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("agent assignment weight must be between 1 and 1000"))
+		}
+		agent, err := a.DB.GetAgent(ctx, agentID)
+		if err != nil {
+			return nil, publicDBError(err)
+		}
+		if assignment.Enabled {
+			if agent.Enabled == 0 {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("enabled backend assignment requires an enabled agent"))
+			}
+			enabledAgents++
+		}
+		resp = append(resp, publicBackendAgentInput{
+			AgentID:  agentID,
+			Position: int64(idx),
+			Weight:   weight,
+			Enabled:  boolInt(assignment.Enabled),
+		})
+	}
+	if enabledAgents == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("agent backend requires at least one enabled agent assignment"))
+	}
+	return resp, nil
 }
 
 func (a *App) validatePublicListenerInput(
@@ -1290,6 +1463,38 @@ func backendTypeStringFromProto(backendType p2pstreamv1.PublicBackendType) (stri
 	}
 }
 
+func forwardModeStringFromProto(forwardMode p2pstreamv1.PublicBackendForwardMode) (string, error) {
+	switch forwardMode {
+	case p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED,
+		p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_DIRECT:
+		return publicBackendForwardModeDirect, nil
+	case p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL:
+		return publicBackendForwardModeAgentPool, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("backend forward mode must be direct or agent_pool"))
+	}
+}
+
+func loadBalancingStringFromProto(loadBalancing p2pstreamv1.PublicBackendLoadBalancing) (string, error) {
+	switch loadBalancing {
+	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_UNSPECIFIED,
+		p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN:
+		return publicBackendLoadBalancingRoundRobin, nil
+	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN:
+		return publicBackendLoadBalancingWeightedRoundRobin, nil
+	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_RANDOM:
+		return publicBackendLoadBalancingRandom, nil
+	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM:
+		return publicBackendLoadBalancingWeightedRandom, nil
+	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS:
+		return publicBackendLoadBalancingLeastActiveRequests, nil
+	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS:
+		return publicBackendLoadBalancingWeightedLeastActiveRequests, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported backend load balancing algorithm"))
+	}
+}
+
 func normalizePublicBackendType(backendType string) string {
 	switch strings.TrimSpace(strings.ToLower(backendType)) {
 	case "", publicBackendTypeProxyForward:
@@ -1301,6 +1506,36 @@ func normalizePublicBackendType(backendType string) string {
 	}
 }
 
+func normalizePublicBackendForwardMode(forwardMode string) string {
+	switch strings.TrimSpace(strings.ToLower(forwardMode)) {
+	case "", publicBackendForwardModeDirect:
+		return publicBackendForwardModeDirect
+	case publicBackendForwardModeAgentPool:
+		return publicBackendForwardModeAgentPool
+	default:
+		return strings.TrimSpace(strings.ToLower(forwardMode))
+	}
+}
+
+func normalizePublicBackendLoadBalancing(loadBalancing string) string {
+	switch strings.TrimSpace(strings.ToLower(loadBalancing)) {
+	case "", publicBackendLoadBalancingRoundRobin:
+		return publicBackendLoadBalancingRoundRobin
+	case publicBackendLoadBalancingWeightedRoundRobin:
+		return publicBackendLoadBalancingWeightedRoundRobin
+	case publicBackendLoadBalancingRandom:
+		return publicBackendLoadBalancingRandom
+	case publicBackendLoadBalancingWeightedRandom:
+		return publicBackendLoadBalancingWeightedRandom
+	case publicBackendLoadBalancingLeastActiveRequests:
+		return publicBackendLoadBalancingLeastActiveRequests
+	case publicBackendLoadBalancingWeightedLeastActiveRequests:
+		return publicBackendLoadBalancingWeightedLeastActiveRequests
+	default:
+		return strings.TrimSpace(strings.ToLower(loadBalancing))
+	}
+}
+
 func protoBackendTypeFromString(backendType string) p2pstreamv1.PublicBackendType {
 	switch normalizePublicBackendType(backendType) {
 	case publicBackendTypeProxyForward:
@@ -1309,6 +1544,36 @@ func protoBackendTypeFromString(backendType string) p2pstreamv1.PublicBackendTyp
 		return p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC
 	default:
 		return p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED
+	}
+}
+
+func protoForwardModeFromString(forwardMode string) p2pstreamv1.PublicBackendForwardMode {
+	switch normalizePublicBackendForwardMode(forwardMode) {
+	case publicBackendForwardModeAgentPool:
+		return p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL
+	case publicBackendForwardModeDirect:
+		return p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_DIRECT
+	default:
+		return p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED
+	}
+}
+
+func protoLoadBalancingFromString(loadBalancing string) p2pstreamv1.PublicBackendLoadBalancing {
+	switch normalizePublicBackendLoadBalancing(loadBalancing) {
+	case publicBackendLoadBalancingWeightedRoundRobin:
+		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN
+	case publicBackendLoadBalancingRandom:
+		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_RANDOM
+	case publicBackendLoadBalancingWeightedRandom:
+		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM
+	case publicBackendLoadBalancingLeastActiveRequests:
+		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS
+	case publicBackendLoadBalancingWeightedLeastActiveRequests:
+		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS
+	case publicBackendLoadBalancingRoundRobin:
+		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN
+	default:
+		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_UNSPECIFIED
 	}
 }
 
@@ -1358,7 +1623,7 @@ func publicDBError(err error) error {
 	return connect.NewError(connect.CodeInternal, err)
 }
 
-func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHeader) *p2pstreamv1.PublicBackend {
+func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHeader, agents []db.PublicBackendAgent) *p2pstreamv1.PublicBackend {
 	return &p2pstreamv1.PublicBackend{
 		Id:                    backend.ID,
 		Name:                  backend.Name,
@@ -1367,18 +1632,22 @@ func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHe
 		CreatedAtUnixMillis:   backend.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:   backend.UpdatedAt.UnixMilli(),
 		BackendType:           protoBackendTypeFromString(backend.BackendType),
+		ForwardMode:           protoForwardModeFromString(backend.ForwardMode),
+		LoadBalancing:         protoLoadBalancingFromString(backend.LoadBalancing),
 		TlsSkipVerify:         backend.TlsSkipVerify != 0,
 		StaticStatusCode:      backend.StaticStatusCode,
 		StaticResponseHeaders: publicBackendHeaderRowsToProto(headers),
 		StaticResponseBody:    backend.StaticResponseBody,
+		AgentAssignments:      publicBackendAgentsToProto(agents),
 	}
 }
 
-func publicBackendsToProto(backends []db.PublicBackend, headers []db.PublicBackendHeader) []*p2pstreamv1.PublicBackend {
+func publicBackendsToProto(backends []db.PublicBackend, headers []db.PublicBackendHeader, agents []db.PublicBackendAgent) []*p2pstreamv1.PublicBackend {
 	headersByBackend := publicBackendHeadersByBackend(headers)
+	agentsByBackend := publicBackendAgentsByBackend(agents)
 	resp := make([]*p2pstreamv1.PublicBackend, 0, len(backends))
 	for _, backend := range backends {
-		resp = append(resp, publicBackendToProto(backend, headersByBackend[backend.ID]))
+		resp = append(resp, publicBackendToProto(backend, headersByBackend[backend.ID], agentsByBackend[backend.ID]))
 	}
 	return resp
 }
@@ -1403,6 +1672,50 @@ func publicBackendHeaderRowsToConfig(headers []db.PublicBackendHeader) []publicR
 	resp := make([]publicResponseHeader, 0, len(headers))
 	for _, header := range headers {
 		resp = append(resp, publicResponseHeader{Name: header.Name, Value: header.Value})
+	}
+	return resp
+}
+
+func publicBackendAgentsByBackend(agents []db.PublicBackendAgent) map[int64][]db.PublicBackendAgent {
+	resp := make(map[int64][]db.PublicBackendAgent)
+	for _, agent := range agents {
+		resp[agent.BackendID] = append(resp[agent.BackendID], agent)
+	}
+	return resp
+}
+
+func publicBackendAgentsToProto(agents []db.PublicBackendAgent) []*p2pstreamv1.PublicBackendAgent {
+	resp := make([]*p2pstreamv1.PublicBackendAgent, 0, len(agents))
+	for _, agent := range agents {
+		resp = append(resp, &p2pstreamv1.PublicBackendAgent{
+			BackendId: agent.BackendID,
+			AgentId:   agent.AgentID,
+			Position:  agent.Position,
+			Weight:    agent.Weight,
+			Enabled:   agent.Enabled != 0,
+		})
+	}
+	return resp
+}
+
+func publicBackendAgentRowsToConfig(agents []db.PublicBackendAgent) []publicBackendAgentConfig {
+	resp := make([]publicBackendAgentConfig, 0, len(agents))
+	for _, agent := range agents {
+		resp = append(resp, publicBackendAgentConfig{
+			BackendID: agent.BackendID,
+			AgentID:   agent.AgentID,
+			Position:  agent.Position,
+			Weight:    agent.Weight,
+			Enabled:   agent.Enabled != 0,
+		})
+	}
+	return resp
+}
+
+func (a *App) publicAgentsToProto(ctx context.Context, agents []db.Agent) []*p2pstreamv1.Agent {
+	resp := make([]*p2pstreamv1.Agent, 0, len(agents))
+	for _, agent := range agents {
+		resp = append(resp, a.agentToProto(ctx, agent))
 	}
 	return resp
 }

@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"sort"
 	"strconv"
@@ -25,12 +27,30 @@ type publicBackendConfig struct {
 	Name                  string
 	TargetOrigin          string
 	BackendType           string
+	ForwardMode           string
+	LoadBalancing         string
 	TLSSkipVerify         bool
 	StaticStatusCode      int
 	StaticResponseHeaders []publicResponseHeader
 	StaticResponseBody    string
 	Enabled               bool
 	ParsedOrigin          *url.URL
+	AgentAssignments      []publicBackendAgentConfig
+}
+
+type publicAgentConfig struct {
+	ID       int64
+	PublicID string
+	Name     string
+	Enabled  bool
+}
+
+type publicBackendAgentConfig struct {
+	BackendID int64
+	AgentID   int64
+	Position  int64
+	Weight    int64
+	Enabled   bool
 }
 
 type publicResponseHeader struct {
@@ -69,6 +89,7 @@ type publicTLSCertificateConfig struct {
 
 type publicProxySnapshot struct {
 	Backends         map[int64]publicBackendConfig
+	Agents           map[int64]publicAgentConfig
 	Listeners        map[int64]publicListenerConfig
 	RoutesByListener map[int64][]publicRouteConfig
 	CertsByListener  map[int64][]publicTLSCertificateConfig
@@ -79,6 +100,7 @@ type publicRouteResolution struct {
 	ListenerID sql.NullInt64
 	BackendID  sql.NullInt64
 	RouteID    sql.NullInt64
+	AgentID    sql.NullInt64
 }
 
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
@@ -93,6 +115,7 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 				sql.NullInt64{Int64: listenerID, Valid: true},
 				sql.NullInt64{},
 				sql.NullInt64{},
+				sql.NullInt64{},
 			)
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -101,7 +124,11 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			a.staticBackendResponse(w, r, resolution)
 			return
 		}
-		a.proxyRequest(w, r, resolution)
+		if resolution.Backend.ForwardMode == publicBackendForwardModeAgentPool {
+			a.proxyAgentRequest(w, r, resolution)
+			return
+		}
+		a.proxyDirectRequest(w, r, resolution)
 	}
 }
 
@@ -121,6 +148,7 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 			resolution.ListenerID,
 			resolution.BackendID,
 			resolution.RouteID,
+			sql.NullInt64{},
 		)
 	}()
 
@@ -134,7 +162,7 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 	_, _ = io.WriteString(w, resolution.Backend.StaticResponseBody)
 }
 
-func (a *App) proxyRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution) {
+func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -147,16 +175,68 @@ func (a *App) proxyRequest(w http.ResponseWriter, r *http.Request, resolution pu
 			resolution.ListenerID,
 			resolution.BackendID,
 			resolution.RouteID,
+			sql.NullInt64{},
 		)
 	}()
 
-	agent := a.ActiveAgent.Load()
-	if agent == nil {
-		statusCode = http.StatusServiceUnavailable
-		errorKind = "no_agent"
-		http.Error(w, "No agent connected", http.StatusServiceUnavailable)
+	targetOrigin := resolution.Backend.ParsedOrigin
+	if targetOrigin == nil {
+		statusCode = http.StatusBadGateway
+		errorKind = "backend_unavailable"
+		http.Error(w, "Selected backend is unavailable", http.StatusBadGateway)
 		return
 	}
+
+	proxy := &httputil.ReverseProxy{
+		Director: func(out *http.Request) {
+			out.URL.Scheme = targetOrigin.Scheme
+			out.URL.Host = targetOrigin.Host
+			out.Host = targetOrigin.Host
+			out.RequestURI = ""
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			statusCode = resp.StatusCode
+			return nil
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			log.Error().Err(err).Str("backend", resolution.Backend.Name).Msg("Direct proxy failed")
+			statusCode = http.StatusBadGateway
+			errorKind = "direct_proxy_failed"
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		},
+		Transport: directProxyTransport(resolution.Backend.TLSSkipVerify),
+	}
+	proxy.ServeHTTP(w, r)
+}
+
+func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution) {
+	startedAt := time.Now()
+	statusCode := http.StatusOK
+	errorKind := ""
+	var selectedAgentID sql.NullInt64
+	defer func() {
+		a.recordProxyRequestEventWithIDs(
+			context.Background(),
+			statusCode,
+			time.Since(startedAt),
+			errorKind,
+			resolution.ListenerID,
+			resolution.BackendID,
+			resolution.RouteID,
+			selectedAgentID,
+		)
+	}()
+
+	agent := a.selectBackendAgent(resolution.Backend)
+	if agent == nil {
+		statusCode = http.StatusServiceUnavailable
+		errorKind = "no_backend_agent"
+		http.Error(w, "No assigned backend agent connected", http.StatusServiceUnavailable)
+		return
+	}
+	selectedAgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
+	agent.ActiveRequests.Add(1)
+	defer agent.ActiveRequests.Add(-1)
 
 	id, err := uuid.NewV7()
 	if err != nil {
@@ -180,8 +260,13 @@ func (a *App) proxyRequest(w http.ResponseWriter, r *http.Request, resolution pu
 		Str("path", r.URL.Path).
 		Msg("Proxying request")
 
-	respCh := make(chan *msg.Request, 100)
-	a.PendingRequests.Store(id, respCh)
+	pending := &pendingAgentRequest{
+		AgentID:       agent.AgentID,
+		AgentPublicID: agent.PublicID,
+		ResponseCh:    make(chan *msg.Request, 100),
+		ErrorCh:       make(chan error, 1),
+	}
+	a.PendingRequests.Store(id, pending)
 	defer a.PendingRequests.Delete(id)
 
 	r.URL.Scheme = targetOrigin.Scheme
@@ -203,10 +288,21 @@ func (a *App) proxyRequest(w http.ResponseWriter, r *http.Request, resolution pu
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		agent.WriteCh <- m
+		select {
+		case agent.WriteCh <- m:
+		case <-agent.Done:
+			statusCode = http.StatusBadGateway
+			errorKind = "agent_disconnected"
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			return
+		case <-r.Context().Done():
+			statusCode = http.StatusGatewayTimeout
+			errorKind = "client_cancelled"
+			return
+		}
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
 	var firstMsg *msg.Request
@@ -216,10 +312,25 @@ func (a *App) proxyRequest(w http.ResponseWriter, r *http.Request, resolution pu
 		errorKind = "agent_timeout"
 		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 		return
-	case firstMsg = <-respCh:
+	case err := <-pending.ErrorCh:
+		statusCode = http.StatusBadGateway
+		if errors.Is(err, errAgentDisconnected) {
+			errorKind = "agent_disconnected"
+		} else {
+			errorKind = "agent_failed"
+		}
+		http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		return
+	case firstMsg = <-pending.ResponseCh:
+		if firstMsg == nil {
+			statusCode = http.StatusBadGateway
+			errorKind = "agent_disconnected"
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			return
+		}
 	}
 
-	stream := &httpmsg.ChannelStream{Ch: respCh}
+	stream := &httpmsg.ChannelStream{Ch: pending.ResponseCh}
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
@@ -244,6 +355,35 @@ func (a *App) proxyRequest(w http.ResponseWriter, r *http.Request, resolution pu
 	}
 
 	log.Info().Str("req_id", id.String()).Int("status", resp.StatusCode).Msg("Finished proxying request")
+}
+
+func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
+	candidates := make([]backendAgentCandidate, 0, len(backend.AgentAssignments))
+	a.proxyMu.Lock()
+	snap := a.publicSnapshot
+	a.proxyMu.Unlock()
+	for _, assignment := range backend.AgentAssignments {
+		if !assignment.Enabled {
+			continue
+		}
+		if snap != nil {
+			agentConfig, ok := snap.Agents[assignment.AgentID]
+			if !ok || !agentConfig.Enabled {
+				continue
+			}
+		}
+		conn := a.AgentHub.connectedByID(assignment.AgentID)
+		if conn == nil {
+			continue
+		}
+		candidates = append(candidates, backendAgentCandidate{
+			Conn:     conn,
+			AgentID:  assignment.AgentID,
+			Position: assignment.Position,
+			Weight:   assignment.Weight,
+		})
+	}
+	return a.LoadBalancers.selectAgent(backend, candidates)
 }
 
 func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRouteResolution, error) {
@@ -309,6 +449,23 @@ func normalizeRequestHost(host string) string {
 		return host[:idx]
 	}
 	return strings.TrimSuffix(host, ".")
+}
+
+func directProxyTransport(tlsSkipVerify bool) http.RoundTripper {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	transport := base.Clone()
+	if tlsSkipVerify {
+		if transport.TLSClientConfig == nil {
+			transport.TLSClientConfig = &tls.Config{}
+		} else {
+			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+		}
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	}
+	return transport
 }
 
 func hostMatchesPattern(host string, pattern string) bool {
