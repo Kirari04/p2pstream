@@ -40,17 +40,28 @@ var serverCmd = &cobra.Command{
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()
 		app.RegisterManagementRoutes(mgmtMux)
+		mgmtHandler := server.ManagementClientCertificateMiddleware(mgmtMux)
 
-		// Setup h2c for ConnectRPC to support HTTP/2 without TLS
+		mgmtTLSConfig, managementTLS, err := server.NewManagementTLSConfig(cfg)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize management TLS")
+		}
+
 		p := new(http.Protocols)
 		p.SetHTTP1(true)
-		p.SetUnencryptedHTTP2(true)
+		if managementTLS {
+			p.SetHTTP2(true)
+		} else {
+			// Setup h2c for ConnectRPC to support HTTP/2 without TLS in dev mode.
+			p.SetUnencryptedHTTP2(true)
+		}
 
 		mgmtAddr := ":" + cfg.ManagementPort
 		mgmtSrv := &http.Server{
 			Addr:      mgmtAddr,
-			Handler:   mgmtMux,
+			Handler:   mgmtHandler,
 			Protocols: p,
+			TLSConfig: mgmtTLSConfig,
 		}
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -62,11 +73,23 @@ var serverCmd = &cobra.Command{
 
 		// Start Management Listener
 		go func() {
+			scheme := "http"
+			wsScheme := "ws"
+			if managementTLS {
+				scheme = "https"
+				wsScheme = "wss"
+			}
 			log.Info().
-				Str("url", "http://localhost"+mgmtAddr).
-				Str("ws", "ws://localhost"+mgmtAddr+"/ws").
+				Str("url", scheme+"://localhost"+mgmtAddr).
+				Str("ws", wsScheme+"://localhost"+mgmtAddr+"/ws").
 				Msg("Management server listening")
-			if err := mgmtSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			var err error
+			if managementTLS {
+				err = mgmtSrv.ListenAndServeTLS("", "")
+			} else {
+				err = mgmtSrv.ListenAndServe()
+			}
+			if err != nil && err != http.ErrServerClosed {
 				log.Fatal().Err(err).Msg("Management server failed to start - application cannot continue")
 			}
 		}()

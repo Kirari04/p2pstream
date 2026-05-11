@@ -167,6 +167,9 @@ func (a *App) authenticateAgent(ctx context.Context, publicID string, authorizat
 	if hashAgentToken(token) != agent.TokenHash {
 		return db.Agent{}, errors.New("invalid agent token")
 	}
+	if err := a.requireAgentClientCertificate(ctx, publicID); err != nil {
+		return db.Agent{}, err
+	}
 	return agent, nil
 }
 

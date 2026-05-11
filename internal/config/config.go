@@ -30,6 +30,9 @@ type Config struct {
 	ManagementUIDevProxy       string `env:"MANAGEMENT_UI_DEV_PROXY"`
 	ManagementUIDistDir        string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
 	ManagementCookieSecure     bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
+	ManagementTLSCertFile      string `env:"MANAGEMENT_TLS_CERT_FILE"`
+	ManagementTLSKeyFile       string `env:"MANAGEMENT_TLS_KEY_FILE"`
+	ManagementTLSClientCAFile  string `env:"MANAGEMENT_TLS_CLIENT_CA_FILE"`
 	AgentToken                 string `env:"AGENT_TOKEN"`
 	BootstrapAgentID           string `env:"BOOTSTRAP_AGENT_ID"`
 	BootstrapAgentName         string `env:"BOOTSTRAP_AGENT_NAME"`
@@ -50,6 +53,9 @@ func Load() (*Config, error) {
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
+	}
+	if err := validateManagementTLSConfig(cfg); err != nil {
+		return nil, err
 	}
 
 	if strings.TrimSpace(cfg.ConfigDir) == "" {
@@ -77,6 +83,22 @@ func Load() (*Config, error) {
 	cfg.ParsedTargetOrigin = parsed
 
 	return cfg, nil
+}
+
+func validateManagementTLSConfig(cfg *Config) error {
+	cfg.ManagementTLSCertFile = strings.TrimSpace(cfg.ManagementTLSCertFile)
+	cfg.ManagementTLSKeyFile = strings.TrimSpace(cfg.ManagementTLSKeyFile)
+	cfg.ManagementTLSClientCAFile = strings.TrimSpace(cfg.ManagementTLSClientCAFile)
+
+	hasCert := cfg.ManagementTLSCertFile != ""
+	hasKey := cfg.ManagementTLSKeyFile != ""
+	if hasCert != hasKey {
+		return errors.New("MANAGEMENT_TLS_CERT_FILE and MANAGEMENT_TLS_KEY_FILE must be set together")
+	}
+	if cfg.ManagementTLSClientCAFile != "" && (!hasCert || !hasKey) {
+		return errors.New("MANAGEMENT_TLS_CLIENT_CA_FILE requires MANAGEMENT_TLS_CERT_FILE and MANAGEMENT_TLS_KEY_FILE")
+	}
+	return nil
 }
 
 func prepareConfigDir(configDir, certsDir string) error {

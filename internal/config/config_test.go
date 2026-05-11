@@ -132,6 +132,44 @@ func TestWritePublicTLSCertificateFilesUsesConfigCertsDir(t *testing.T) {
 	assertMode(t, keyPath, 0600)
 }
 
+func TestLoadValidatesManagementTLSFiles(t *testing.T) {
+	t.Run("cert and key pair accepted", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("MANAGEMENT_TLS_CERT_FILE", filepath.Join(workDir, "management.crt.pem"))
+		t.Setenv("MANAGEMENT_TLS_KEY_FILE", filepath.Join(workDir, "management.key.pem"))
+		t.Setenv("MANAGEMENT_TLS_CLIENT_CA_FILE", filepath.Join(workDir, "agents-ca.pem"))
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.ManagementTLSCertFile == "" || cfg.ManagementTLSKeyFile == "" || cfg.ManagementTLSClientCAFile == "" {
+			t.Fatalf("expected management TLS fields to be populated: %+v", cfg)
+		}
+	})
+
+	t.Run("partial cert and key rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("MANAGEMENT_TLS_CERT_FILE", filepath.Join(workDir, "management.crt.pem"))
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected partial management TLS config to fail")
+		}
+	})
+
+	t.Run("client CA requires management TLS", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("MANAGEMENT_TLS_CLIENT_CA_FILE", filepath.Join(workDir, "agents-ca.pem"))
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected management client CA without cert/key to fail")
+		}
+	})
+}
+
 func isolatedConfigTestDir(t *testing.T) string {
 	t.Helper()
 	workDir := t.TempDir()

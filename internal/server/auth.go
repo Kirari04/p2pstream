@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -37,6 +38,65 @@ type authenticatedUser struct {
 	Role      p2pstreamv1.UserRole
 	SessionID int64
 	TokenHash string
+}
+
+type managementClientCertificateContextKey struct{}
+
+const agentCertificateURIPrefix = "spiffe://p2pstream/agent/"
+
+// ManagementClientCertificateMiddleware stores the verified client certificate
+// from the TLS handshake in the request context for agent-authenticated routes.
+func ManagementClientCertificateMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if cert := verifiedManagementClientCertificate(r); cert != nil {
+			ctx := context.WithValue(r.Context(), managementClientCertificateContextKey{}, cert)
+			r = r.WithContext(ctx)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func verifiedManagementClientCertificate(r *http.Request) *x509.Certificate {
+	if r == nil || r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.VerifiedChains[0]) == 0 {
+		return nil
+	}
+	return r.TLS.VerifiedChains[0][0]
+}
+
+func managementClientCertificateFromContext(ctx context.Context) (*x509.Certificate, bool) {
+	cert, ok := ctx.Value(managementClientCertificateContextKey{}).(*x509.Certificate)
+	return cert, ok && cert != nil
+}
+
+func (a *App) requireAgentClientCertificate(ctx context.Context, publicID string) error {
+	if a == nil || a.Config == nil || strings.TrimSpace(a.Config.ManagementTLSClientCAFile) == "" {
+		return nil
+	}
+	cert, ok := managementClientCertificateFromContext(ctx)
+	if !ok {
+		return errors.New("agent client certificate required")
+	}
+	if !agentCertificateMatchesPublicID(cert, publicID) {
+		return errors.New("agent client certificate does not match agent id")
+	}
+	return nil
+}
+
+func agentCertificateMatchesPublicID(cert *x509.Certificate, publicID string) bool {
+	if cert == nil {
+		return false
+	}
+	want := agentCertificateURI(publicID)
+	for _, uri := range cert.URIs {
+		if uri.String() == want {
+			return true
+		}
+	}
+	return false
+}
+
+func agentCertificateURI(publicID string) string {
+	return agentCertificateURIPrefix + publicID
 }
 
 func (a *App) GetSetupState(
