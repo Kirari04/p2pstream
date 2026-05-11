@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -40,16 +43,36 @@ var (
 	tlsSkipVerifyForwardClient = &http.Client{Transport: tlsSkipVerifyTransport()}
 )
 
-// Run is the main entry point to start the agent loop
-func Run(mgmtURL string, agentPublicID string, agentName string, agentToken string) {
-	go startStatsReporter(mgmtURL, agentPublicID, agentToken)
+type Options struct {
+	ManagementURL    string
+	PublicID         string
+	Name             string
+	Token            string
+	ManagementCAFile string
+	TLSCertFile      string
+	TLSKeyFile       string
+}
 
-	wsURL := strings.Replace(mgmtURL, "http", "ws", 1) + "/ws"
+// Run is the main entry point to start the agent loop
+func Run(opts Options) error {
+	if err := validateOptions(opts); err != nil {
+		return err
+	}
+	managementClient, err := managementHTTPClient(opts)
+	if err != nil {
+		return err
+	}
+	wsURL, err := managementWebSocketURL(opts.ManagementURL)
+	if err != nil {
+		return err
+	}
+
+	go startStatsReporter(managementClient, opts.ManagementURL, opts.PublicID, opts.Token)
 
 	for {
 		log.Info().Str("ws_url", wsURL).Msg("Attempting to connect to management server...")
 
-		err := connectAndServe(wsURL, agentPublicID, agentName, agentToken)
+		err := connectAndServe(managementClient, wsURL, opts.PublicID, opts.Name, opts.Token)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
@@ -58,9 +81,95 @@ func Run(mgmtURL string, agentPublicID string, agentName string, agentToken stri
 	}
 }
 
-func connectAndServe(wsURL string, agentPublicID string, agentName string, agentToken string) error {
+func validateOptions(opts Options) error {
+	if strings.TrimSpace(opts.ManagementURL) == "" {
+		return fmt.Errorf("management URL is required")
+	}
+	parsed, err := url.Parse(strings.TrimSpace(opts.ManagementURL))
+	if err != nil {
+		return fmt.Errorf("invalid management URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("unsupported management URL scheme %q", parsed.Scheme)
+	}
+	hasClientCert := strings.TrimSpace(opts.TLSCertFile) != ""
+	hasClientKey := strings.TrimSpace(opts.TLSKeyFile) != ""
+	if hasClientCert != hasClientKey {
+		return fmt.Errorf("AGENT_TLS_CERT_FILE and AGENT_TLS_KEY_FILE must be set together")
+	}
+	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "") {
+		return fmt.Errorf("agent TLS files require an https management URL")
+	}
+	return nil
+}
+
+func managementWebSocketURL(mgmtURL string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(mgmtURL))
+	if err != nil {
+		return "", fmt.Errorf("invalid management URL: %w", err)
+	}
+	switch parsed.Scheme {
+	case "http":
+		parsed.Scheme = "ws"
+	case "https":
+		parsed.Scheme = "wss"
+	default:
+		return "", fmt.Errorf("unsupported management URL scheme %q", parsed.Scheme)
+	}
+	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/ws"
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String(), nil
+}
+
+func managementHTTPClient(opts Options) (*http.Client, error) {
+	if err := validateOptions(opts); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(opts.ManagementCAFile) == "" &&
+		strings.TrimSpace(opts.TLSCertFile) == "" &&
+		strings.TrimSpace(opts.TLSKeyFile) == "" {
+		return http.DefaultClient, nil
+	}
+
+	baseTransport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("default transport is %T, want *http.Transport", http.DefaultTransport)
+	}
+	transport := baseTransport.Clone()
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+
+	if caFile := strings.TrimSpace(opts.ManagementCAFile); caFile != "" {
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil {
+			rootCAs = x509.NewCertPool()
+		}
+		caPEM, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("read management CA file: %w", err)
+		}
+		if !rootCAs.AppendCertsFromPEM(caPEM) {
+			return nil, fmt.Errorf("no PEM certificates found in management CA file %q", caFile)
+		}
+		tlsConfig.RootCAs = rootCAs
+	}
+
+	if certFile := strings.TrimSpace(opts.TLSCertFile); certFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, strings.TrimSpace(opts.TLSKeyFile))
+		if err != nil {
+			return nil, fmt.Errorf("load agent TLS certificate: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	transport.TLSClientConfig = tlsConfig
+	return &http.Client{Transport: transport}, nil
+}
+
+func connectAndServe(client *http.Client, wsURL string, agentPublicID string, agentName string, agentToken string) error {
 	ctx := context.Background()
 	opts := &websocket.DialOptions{
+		HTTPClient: client,
 		HTTPHeader: http.Header{
 			"Authorization":          []string{"Bearer " + agentToken},
 			"X-P2PStream-Agent-ID":   []string{agentPublicID},
@@ -219,9 +328,9 @@ func tlsSkipVerifyTransport() http.RoundTripper {
 	return transport
 }
 
-func startStatsReporter(mgmtURL string, agentPublicID string, agentToken string) {
+func startStatsReporter(httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string) {
 	client := p2pstreamv1connect.NewAgentManagementServiceClient(
-		http.DefaultClient,
+		httpClient,
 		mgmtURL,
 		connect.WithGRPC(), // We can use gRPC or Connect protocol, let's use default Connect or GRPC
 	)

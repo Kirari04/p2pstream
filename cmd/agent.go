@@ -42,7 +42,31 @@ var agentCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		agent.Run(mgmtURL, agentID, agentName, agentToken)
+		managementCAFile, _ := cmd.Flags().GetString("management-ca-file")
+		if managementCAFile == "" {
+			managementCAFile = os.Getenv("MANAGEMENT_CA_FILE")
+		}
+		tlsCertFile, _ := cmd.Flags().GetString("tls-cert-file")
+		if tlsCertFile == "" {
+			tlsCertFile = os.Getenv("AGENT_TLS_CERT_FILE")
+		}
+		tlsKeyFile, _ := cmd.Flags().GetString("tls-key-file")
+		if tlsKeyFile == "" {
+			tlsKeyFile = os.Getenv("AGENT_TLS_KEY_FILE")
+		}
+
+		if err := agent.Run(agent.Options{
+			ManagementURL:    mgmtURL,
+			PublicID:         agentID,
+			Name:             agentName,
+			Token:            agentToken,
+			ManagementCAFile: managementCAFile,
+			TLSCertFile:      tlsCertFile,
+			TLSKeyFile:       tlsKeyFile,
+		}); err != nil {
+			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
+			os.Exit(1)
+		}
 	},
 }
 
@@ -52,4 +76,7 @@ func init() {
 	agentCmd.Flags().String("agent-token", "", "Bearer token from the management UI setup instructions")
 	agentCmd.Flags().String("agent-id", "", "Generated registered agent id from the management UI setup instructions")
 	agentCmd.Flags().String("agent-name", "", "Optional agent display name")
+	agentCmd.Flags().String("management-ca-file", "", "PEM CA bundle used to verify the HTTPS management server")
+	agentCmd.Flags().String("tls-cert-file", "", "PEM client certificate for management mTLS")
+	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 }
