@@ -380,25 +380,50 @@ DELETE FROM public_listeners
 WHERE id = ?;
 
 -- name: CreatePublicRoute :one
-INSERT INTO public_routes (listener_id, priority, host_pattern, path_prefix, backend_id, enabled)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at;
+INSERT INTO public_routes (
+    listener_id,
+    priority,
+    host_pattern,
+    path_prefix,
+    backend_id,
+    action,
+    redirect_target_mode,
+    redirect_target,
+    redirect_status_code,
+    redirect_preserve_path_suffix,
+    redirect_preserve_query,
+    enabled
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
 
 -- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC;
 
 -- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?;
 
 -- name: UpdatePublicRoute :one
 UPDATE public_routes
-SET listener_id = ?, priority = ?, host_pattern = ?, path_prefix = ?, backend_id = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+SET listener_id = ?,
+    priority = ?,
+    host_pattern = ?,
+    path_prefix = ?,
+    backend_id = ?,
+    action = ?,
+    redirect_target_mode = ?,
+    redirect_target = ?,
+    redirect_status_code = ?,
+    redirect_preserve_path_suffix = ?,
+    redirect_preserve_query = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at;
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
 
 -- name: DeletePublicRoute :exec
 DELETE FROM public_routes

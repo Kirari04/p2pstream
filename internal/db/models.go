@@ -116,15 +116,21 @@ type PublicListener struct {
 }
 
 type PublicRoute struct {
-	ID          int64     `json:"id"`
-	ListenerID  int64     `json:"listener_id"`
-	Priority    int64     `json:"priority"`
-	HostPattern string    `json:"host_pattern"`
-	PathPrefix  string    `json:"path_prefix"`
-	BackendID   int64     `json:"backend_id"`
-	Enabled     int64     `json:"enabled"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID                         int64         `json:"id"`
+	ListenerID                 int64         `json:"listener_id"`
+	Priority                   int64         `json:"priority"`
+	HostPattern                string        `json:"host_pattern"`
+	PathPrefix                 string        `json:"path_prefix"`
+	BackendID                  sql.NullInt64 `json:"backend_id"`
+	Action                     string        `json:"action"`
+	RedirectTargetMode         string        `json:"redirect_target_mode"`
+	RedirectTarget             string        `json:"redirect_target"`
+	RedirectStatusCode         int64         `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
+	Enabled                    int64         `json:"enabled"`
+	CreatedAt                  time.Time     `json:"created_at"`
+	UpdatedAt                  time.Time     `json:"updated_at"`
 }
 
 type PublicTlsCertificate struct {

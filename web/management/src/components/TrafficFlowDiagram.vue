@@ -8,6 +8,7 @@ import {
   type Edge,
   type EdgeTypesObject,
   type Node,
+  type NodeMouseEvent,
   type NodeTypesObject,
 } from "@vue-flow/core";
 import TrafficFlowEdge from "@/components/TrafficFlowEdge.vue";
@@ -15,10 +16,14 @@ import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
 import {
   PublicBackendForwardMode,
   PublicBackendType,
+  PublicRouteAction,
+  PublicRouteRedirectTargetMode,
   TrafficTraceStage,
   type GetPublicProxyConfigResponse,
+  type PublicRoute,
   type TrafficTraceEvent,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
@@ -53,12 +58,13 @@ type TraceRequest = {
   events: TrafficTraceEvent[];
 };
 
-export type TrafficNodeKind = "ingress" | "listener" | "route" | "backend" | "agent" | "upstream" | "response";
+export type TrafficNodeKind = "ingress" | "listener" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
 
 export type TrafficNodeData = {
   label: string;
   subLabel: string;
   kind: TrafficNodeKind;
+  editTargets: TrafficFlowEditTarget[];
 };
 
 type DiagramNode = TrafficNodeData & {
@@ -67,8 +73,11 @@ type DiagramNode = TrafficNodeData & {
   x: number;
   y: number;
 };
+type DiagramNodeInput = Omit<DiagramNode, "x" | "y" | "editTargets"> & {
+  editTargets?: TrafficFlowEditTarget[];
+};
 
-type DiagramEdgeRoute = "default" | "agent-bypass";
+type DiagramEdgeRoute = "default" | "agent-bypass" | "intermediate-bypass";
 type DiagramEdge = {
   from: string;
   to: string;
@@ -126,6 +135,7 @@ const emit = defineEmits<{
   (event: "select", request: TraceRequest): void;
   (event: "active-change", count: number): void;
   (event: "skipped-change", count: number): void;
+  (event: "edit-node", request: TrafficFlowEditRequest): void;
 }>();
 
 const NODE_WIDTH = 152;
@@ -170,16 +180,24 @@ const layout = computed(() => {
   const nodes = new Map<string, Omit<DiagramNode, "x" | "y">>();
   const edges: DiagramEdge[] = [];
 
-  const addNode = (node: Omit<DiagramNode, "x" | "y">) => {
-    if (!nodes.has(node.key)) nodes.set(node.key, node);
+  const addNode = (node: DiagramNodeInput) => {
+    const existing = nodes.get(node.key);
+    if (!existing) {
+      nodes.set(node.key, { ...node, editTargets: dedupeEditTargets(node.editTargets ?? []) });
+      return;
+    }
+    nodes.set(node.key, {
+      ...existing,
+      editTargets: dedupeEditTargets([...existing.editTargets, ...(node.editTargets ?? [])]),
+    });
   };
   const addEdge = (from: string, to: string, route: DiagramEdgeRoute = "default") => {
     if (!from || !to || from === to) return;
     edges.push({ from, to, route });
   };
 
-  addNode({ key: "ingress", label: "Ingress", subLabel: "Public request", column: 0, kind: "ingress" });
-  addNode({ key: "response", label: "Response", subLabel: "Client", column: 6, kind: "response" });
+  addNode({ key: "ingress", label: "Ingress", subLabel: "Public request", column: 0, kind: "ingress", editTargets: [] });
+  addNode({ key: "response", label: "Response", subLabel: "Client", column: 6, kind: "response", editTargets: [] });
 
   const listeners = props.config?.listeners ?? [];
   const routes = props.config?.routes ?? [];
@@ -195,6 +213,7 @@ const layout = computed(() => {
       subLabel: `${listener.bindAddress || "*"}:${listener.port.toString()}`,
       column: 1,
       kind: "listener",
+      editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, `${listener.bindAddress || "*"}:${listener.port.toString()}`)],
     });
     addEdge("ingress", listenerNodeKey);
 
@@ -204,6 +223,7 @@ const layout = computed(() => {
       subLabel: "Listener fallbacks",
       column: 2,
       kind: "route",
+      editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, "Default backend")],
     });
     addEdge(listenerNodeKey, DEFAULT_ROUTE_KEY);
     addEdge(DEFAULT_ROUTE_KEY, backendKey(listener.defaultBackendId));
@@ -216,9 +236,16 @@ const layout = computed(() => {
         subLabel: `P${route.priority.toString()}`,
         column: 2,
         kind: "route",
+        editTargets: [routeEditTarget(route)],
       });
       addEdge(listenerNodeKey, key);
-      addEdge(key, backendKey(route.backendId));
+      if (isRedirectRoute(route)) {
+        addRedirectNode(route, addNode);
+        addEdge(key, redirectKey(route.id));
+        addEdge(redirectKey(route.id), "response", "intermediate-bypass");
+      } else {
+        addEdge(key, backendKey(route.backendId));
+      }
     }
   }
 
@@ -232,10 +259,11 @@ const layout = computed(() => {
       subLabel: isStatic ? "Static" : isAgentPool ? "Agent pool" : "Direct",
       column: 3,
       kind: "backend",
+      editTargets: [backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, isStatic ? "Static" : isAgentPool ? "Agent pool" : "Direct")],
     });
 
     if (isStatic) {
-      addStaticNode(addNode);
+      addStaticNode(addNode, backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, "Static"));
       addEdge(key, "static-response", "agent-bypass");
       addEdge("static-response", "response");
       continue;
@@ -257,8 +285,9 @@ const layout = computed(() => {
             subLabel: agent?.publicId || `x${assignment.weight.toString()}`,
             column: 4,
             kind: "agent",
+            editTargets: [agentEditTarget(assignment.agentId, agent?.name || `Agent ${assignment.agentId.toString()}`, agent?.publicId || "")],
           });
-          addUpstreamNode(addNode);
+          addUpstreamNode(addNode, backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, "Agent pool"));
           addEdge(key, agentNodeKey);
           addEdge(agentNodeKey, "upstream");
           addEdge("upstream", "response");
@@ -269,7 +298,7 @@ const layout = computed(() => {
       continue;
     }
 
-    addUpstreamNode(addNode);
+    addUpstreamNode(addNode, backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, "Direct"));
     addEdge(key, "upstream", "agent-bypass");
     addEdge("upstream", "response");
   }
@@ -327,6 +356,7 @@ const flowNodes = computed<Node<TrafficNodeData>[]>(() =>
       label: node.label,
       subLabel: node.subLabel,
       kind: node.kind,
+      editTargets: node.editTargets,
     },
   })),
 );
@@ -339,7 +369,7 @@ const flowEdges = computed<Edge[]>(() =>
       id: key,
       source: edge.from,
       target: edge.to,
-      type: edge.route === "agent-bypass" ? "trafficBypass" : "default",
+      type: edge.route === "default" ? "default" : "trafficBypass",
       animated: props.tracingEnabled,
       selectable: false,
       focusable: false,
@@ -362,7 +392,6 @@ const flowEdges = computed<Edge[]>(() =>
 
 const edgeRoutes = computed(() => {
   const routes = new Map<string, EdgeRouteGeometry>();
-  const agentBounds = boundsForNodes(layout.value.nodes.filter((node) => node.kind === "agent"));
   for (const edge of layout.value.edges) {
     const sourceNode = layout.value.nodeByKey.get(edge.from);
     const targetNode = layout.value.nodeByKey.get(edge.to);
@@ -370,9 +399,10 @@ const edgeRoutes = computed(() => {
 
     const source = sourceHandlePoint(sourceNode);
     const target = targetHandlePoint(targetNode);
+    const bypassBounds = bypassBoundsForEdge(edge);
     const route =
-      edge.route === "agent-bypass" && agentBounds
-        ? buildAgentBypassRoute(edge, source, target, agentBounds)
+      edge.route !== "default" && bypassBounds
+        ? buildBypassRoute(edge, source, target, bypassBounds)
         : buildDefaultBezierRoute(edge, source, target);
     routes.set(
       edgeKey(edge.from, edge.to),
@@ -632,6 +662,7 @@ function tokenOpacity(token: VisualToken, now: number): number {
 }
 
 function routeForRequestSegment(request: TraceRequest, from: string, to: string): DiagramEdgeRoute {
+  if (from.startsWith("redirect:") && to === "response") return "intermediate-bypass";
   const backendNode = request.backendId > 0n ? backendKey(request.backendId) : "";
   if (from !== backendNode) return "default";
   if (request.agentId > 0n) return "default";
@@ -679,10 +710,23 @@ function buildDefaultBezierRoute(edge: DiagramEdge, source: Point, target: Point
   ]);
 }
 
-function buildAgentBypassRoute(edge: DiagramEdge, source: Point, target: Point, agentBounds: Bounds): EdgeRouteGeometry {
-  const laneY = bypassLaneY(source, target, agentBounds);
-  const entryX = agentBounds.left - BYPASS_X_GAP;
-  const exitX = agentBounds.right + BYPASS_X_GAP;
+function bypassBoundsForEdge(edge: DiagramEdge): Bounds | null {
+  if (edge.route === "agent-bypass") {
+    return boundsForNodes(layout.value.nodes.filter((node) => node.kind === "agent" && node.key !== edge.from && node.key !== edge.to));
+  }
+  if (edge.route === "intermediate-bypass") {
+    return boundsForNodes(layout.value.nodes.filter((node) => {
+      if (node.key === edge.from || node.key === edge.to) return false;
+      return node.kind === "backend" || node.kind === "redirect" || node.kind === "agent" || node.kind === "upstream";
+    }));
+  }
+  return null;
+}
+
+function buildBypassRoute(edge: DiagramEdge, source: Point, target: Point, obstacleBounds: Bounds): EdgeRouteGeometry {
+  const laneY = bypassLaneY(source, target, obstacleBounds);
+  const entryX = obstacleBounds.left - BYPASS_X_GAP;
+  const exitX = obstacleBounds.right + BYPASS_X_GAP;
   const laneEntry = { x: entryX, y: laneY };
   const laneExit = { x: exitX, y: laneY };
 
@@ -854,6 +898,17 @@ function fitDiagram(duration = 240) {
   void fitView({ padding: 0.18, duration, maxZoom: 1.1 });
 }
 
+function handleNodeClick(event: NodeMouseEvent) {
+  const data = event.node.data as TrafficNodeData | undefined;
+  const targets = data?.editTargets ?? [];
+  if (!targets.length) return;
+  emit("edit-node", {
+    nodeKey: event.node.id,
+    nodeLabel: data?.label || event.node.id,
+    targets,
+  });
+}
+
 function buildRequestPath(request: TraceRequest): string[] {
   const path = ["ingress"];
 
@@ -865,6 +920,13 @@ function buildRequestPath(request: TraceRequest): string[] {
     path.push(routeKey(request.routeId));
   } else if (request.defaultRoute && request.listenerId > 0n) {
     path.push(DEFAULT_ROUTE_KEY);
+  }
+
+  const redirectNodeKey = redirectKeyForRequest(request);
+  if (redirectNodeKey) {
+    path.push(redirectNodeKey);
+    path.push("response");
+    return dedupeConsecutive(path);
   }
 
   if (request.backendId > 0n) {
@@ -920,7 +982,7 @@ function nodeKeyForStage(request: TraceRequest): string {
 
 function addObservedNodes(
   request: TraceRequest,
-  addNode: (node: Omit<DiagramNode, "x" | "y">) => void,
+  addNode: (node: DiagramNodeInput) => void,
 ) {
   if (request.listenerId > 0n) {
     addNode({
@@ -929,6 +991,7 @@ function addObservedNodes(
       subLabel: "Observed",
       column: 1,
       kind: "listener",
+      editTargets: [listenerEditTarget(request.listenerId, request.listenerName || `Listener ${request.listenerId.toString()}`, "Observed")],
     });
   }
 
@@ -939,7 +1002,12 @@ function addObservedNodes(
       subLabel: "Observed",
       column: 2,
       kind: "route",
+      editTargets: [routeEditTargetByID(request.routeId, request.routeLabel || `Route ${request.routeId.toString()}`, "Observed")],
     });
+    const route = routeConfigForRequest(request);
+    if (route && isRedirectRoute(route)) {
+      addRedirectNode(route, addNode);
+    }
   } else if (request.defaultRoute && request.listenerId > 0n) {
     addNode({
       key: DEFAULT_ROUTE_KEY,
@@ -947,6 +1015,9 @@ function addObservedNodes(
       subLabel: "Observed fallback",
       column: 2,
       kind: "route",
+      editTargets: request.listenerId > 0n
+        ? [listenerEditTarget(request.listenerId, request.listenerName || `Listener ${request.listenerId.toString()}`, "Default backend")]
+        : [],
     });
   }
 
@@ -957,13 +1028,14 @@ function addObservedNodes(
       subLabel: backendTypeLabel(request),
       column: 3,
       kind: "backend",
+      editTargets: [backendEditTarget(request.backendId, request.backendName || `Backend ${request.backendId.toString()}`, backendTypeLabel(request))],
     });
   }
 
   if (request.backendType === PublicBackendType.STATIC) {
-    addStaticNode(addNode);
+    addStaticNode(addNode, request.backendId > 0n ? backendEditTarget(request.backendId, request.backendName || `Backend ${request.backendId.toString()}`, "Static") : undefined);
   } else if (request.backendId > 0n && request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
-    addUpstreamNode(addNode);
+    addUpstreamNode(addNode, backendEditTarget(request.backendId, request.backendName || `Backend ${request.backendId.toString()}`, "Direct"));
   }
 
   if (request.agentId > 0n) {
@@ -973,17 +1045,29 @@ function addObservedNodes(
       subLabel: request.agentPublicId || "Observed",
       column: 4,
       kind: "agent",
+      editTargets: [agentEditTarget(request.agentId, request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`, request.agentPublicId || "Observed")],
     });
-    addUpstreamNode(addNode);
+    addUpstreamNode(addNode, request.backendId > 0n ? backendEditTarget(request.backendId, request.backendName || `Backend ${request.backendId.toString()}`, "Agent pool") : undefined);
   }
 }
 
-function addStaticNode(addNode: (node: Omit<DiagramNode, "x" | "y">) => void) {
-  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 5, kind: "upstream" });
+function addStaticNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
+  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 5, kind: "upstream", editTargets: target ? [target] : [] });
 }
 
-function addUpstreamNode(addNode: (node: Omit<DiagramNode, "x" | "y">) => void) {
-  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 5, kind: "upstream" });
+function addUpstreamNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
+  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 5, kind: "upstream", editTargets: target ? [target] : [] });
+}
+
+function addRedirectNode(route: PublicRoute, addNode: (node: DiagramNodeInput) => void) {
+  addNode({
+    key: redirectKey(route.id),
+    label: "Redirect",
+    subLabel: redirectNodeSubLabel(route),
+    column: 3,
+    kind: "redirect",
+    editTargets: [routeEditTarget(route)],
+  });
 }
 
 function yPosition(index: number, total: number): number {
@@ -998,15 +1082,31 @@ function dedupeEdges(edges: DiagramEdge[]): DiagramEdge[] {
   for (const edge of edges) {
     const key = edgeKey(edge.from, edge.to);
     const existing = byKey.get(key);
-    if (!existing || edge.route === "agent-bypass") {
+    if (!existing || edgeRoutePriority(edge.route) > edgeRoutePriority(existing.route)) {
       byKey.set(key, edge);
     }
   }
   return [...byKey.values()];
 }
 
+function edgeRoutePriority(route: DiagramEdgeRoute): number {
+  switch (route) {
+    case "intermediate-bypass": return 2;
+    case "agent-bypass": return 1;
+    default: return 0;
+  }
+}
+
 function edgeKey(from: string, to: string): string {
   return `${from}->${to}`;
+}
+
+function dedupeEditTargets(targets: TrafficFlowEditTarget[]): TrafficFlowEditTarget[] {
+  const byKey = new Map<string, TrafficFlowEditTarget>();
+  for (const target of targets) {
+    byKey.set(`${target.kind}:${target.id}`, target);
+  }
+  return [...byKey.values()];
 }
 
 function dedupeConsecutive(values: string[]): string[] {
@@ -1051,6 +1151,7 @@ function kindOrder(kind: TrafficNodeKind): number {
     case "listener": return 1;
     case "route": return 2;
     case "backend": return 3;
+    case "redirect": return 3;
     case "agent": return 4;
     case "upstream": return 5;
     case "response": return 6;
@@ -1070,6 +1171,10 @@ function backendKey(id: bigint | string | number): string {
   return `backend:${id.toString()}`;
 }
 
+function redirectKey(id: bigint | string | number): string {
+  return `redirect:${id.toString()}`;
+}
+
 function agentKey(id: bigint | string | number): string {
   return `agent:${id.toString()}`;
 }
@@ -1079,10 +1184,62 @@ function routeLabel(hostPattern: string, pathPrefix: string, id: bigint): string
   return parts.length ? parts.join(" ") : `Route ${id.toString()}`;
 }
 
+function listenerEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "listener", id: id.toString(), label, subLabel };
+}
+
+function routeEditTarget(route: PublicRoute): TrafficFlowEditTarget {
+  return routeEditTargetByID(route.id, routeLabel(route.hostPattern, route.pathPrefix, route.id), `P${route.priority.toString()}`);
+}
+
+function routeEditTargetByID(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "route", id: id.toString(), label, subLabel };
+}
+
+function backendEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "backend", id: id.toString(), label, subLabel };
+}
+
+function agentEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "agent", id: id.toString(), label, subLabel };
+}
+
 function backendTypeLabel(request: TraceRequest): string {
   if (request.backendType === PublicBackendType.STATIC) return "Static";
   if (request.forwardMode === PublicBackendForwardMode.AGENT_POOL) return "Agent pool";
   return "Direct";
+}
+
+function isRedirectRoute(route: PublicRoute): boolean {
+  return route.action === PublicRouteAction.REDIRECT;
+}
+
+function routeConfigForRequest(request: TraceRequest): PublicRoute | undefined {
+  if (request.routeId <= 0n) return undefined;
+  return props.config?.routes.find((route) => route.id === request.routeId);
+}
+
+function redirectKeyForRequest(request: TraceRequest): string {
+  const route = routeConfigForRequest(request);
+  return route && isRedirectRoute(route) ? redirectKey(route.id) : "";
+}
+
+function redirectNodeSubLabel(route: PublicRoute): string {
+  const status = Number(route.redirectStatusCode || 302);
+  return `${status} ${redirectModeShortLabel(route.redirectTargetMode)}`;
+}
+
+function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
+  switch (mode) {
+    case PublicRouteRedirectTargetMode.EXTERNAL_ORIGIN_KEEP_PATH:
+      return "origin";
+    case PublicRouteRedirectTargetMode.ABSOLUTE_URL:
+      return "url";
+    case PublicRouteRedirectTargetMode.SAME_HOST_PATH:
+      return "same-host";
+    default:
+      return "redirect";
+  }
 }
 </script>
 
@@ -1114,6 +1271,7 @@ function backendTypeLabel(request: TraceRequest): string {
       :delete-key-code="null"
       :selection-key-code="null"
       :multi-selection-key-code="null"
+      @node-click="handleNodeClick"
     />
 
     <div class="traffic-token-layer">

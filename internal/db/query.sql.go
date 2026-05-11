@@ -52,8 +52,8 @@ SELECT
 `
 
 type CountPublicBackendEnabledReferencesParams struct {
-	DefaultBackendID int64 `json:"default_backend_id"`
-	BackendID        int64 `json:"backend_id"`
+	DefaultBackendID int64         `json:"default_backend_id"`
+	BackendID        sql.NullInt64 `json:"backend_id"`
 }
 
 func (q *Queries) CountPublicBackendEnabledReferences(ctx context.Context, arg CountPublicBackendEnabledReferencesParams) (int64, error) {
@@ -346,18 +346,37 @@ func (q *Queries) CreatePublicListener(ctx context.Context, arg CreatePublicList
 }
 
 const createPublicRoute = `-- name: CreatePublicRoute :one
-INSERT INTO public_routes (listener_id, priority, host_pattern, path_prefix, backend_id, enabled)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+INSERT INTO public_routes (
+    listener_id,
+    priority,
+    host_pattern,
+    path_prefix,
+    backend_id,
+    action,
+    redirect_target_mode,
+    redirect_target,
+    redirect_status_code,
+    redirect_preserve_path_suffix,
+    redirect_preserve_query,
+    enabled
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type CreatePublicRouteParams struct {
-	ListenerID  int64  `json:"listener_id"`
-	Priority    int64  `json:"priority"`
-	HostPattern string `json:"host_pattern"`
-	PathPrefix  string `json:"path_prefix"`
-	BackendID   int64  `json:"backend_id"`
-	Enabled     int64  `json:"enabled"`
+	ListenerID                 int64         `json:"listener_id"`
+	Priority                   int64         `json:"priority"`
+	HostPattern                string        `json:"host_pattern"`
+	PathPrefix                 string        `json:"path_prefix"`
+	BackendID                  sql.NullInt64 `json:"backend_id"`
+	Action                     string        `json:"action"`
+	RedirectTargetMode         string        `json:"redirect_target_mode"`
+	RedirectTarget             string        `json:"redirect_target"`
+	RedirectStatusCode         int64         `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
+	Enabled                    int64         `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error) {
@@ -367,6 +386,12 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		arg.HostPattern,
 		arg.PathPrefix,
 		arg.BackendID,
+		arg.Action,
+		arg.RedirectTargetMode,
+		arg.RedirectTarget,
+		arg.RedirectStatusCode,
+		arg.RedirectPreservePathSuffix,
+		arg.RedirectPreserveQuery,
 		arg.Enabled,
 	)
 	var i PublicRoute
@@ -377,6 +402,12 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.HostPattern,
 		&i.PathPrefix,
 		&i.BackendID,
+		&i.Action,
+		&i.RedirectTargetMode,
+		&i.RedirectTarget,
+		&i.RedirectStatusCode,
+		&i.RedirectPreservePathSuffix,
+		&i.RedirectPreserveQuery,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -904,7 +935,7 @@ func (q *Queries) GetPublicListener(ctx context.Context, id int64) (PublicListen
 }
 
 const getPublicRoute = `-- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?
 `
@@ -919,6 +950,12 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.HostPattern,
 		&i.PathPrefix,
 		&i.BackendID,
+		&i.Action,
+		&i.RedirectTargetMode,
+		&i.RedirectTarget,
+		&i.RedirectStatusCode,
+		&i.RedirectPreservePathSuffix,
+		&i.RedirectPreserveQuery,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1420,7 +1457,7 @@ func (q *Queries) ListPublicListeners(ctx context.Context) ([]PublicListener, er
 }
 
 const listPublicRoutes = `-- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC
 `
@@ -1441,6 +1478,12 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 			&i.HostPattern,
 			&i.PathPrefix,
 			&i.BackendID,
+			&i.Action,
+			&i.RedirectTargetMode,
+			&i.RedirectTarget,
+			&i.RedirectStatusCode,
+			&i.RedirectPreservePathSuffix,
+			&i.RedirectPreserveQuery,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -1761,19 +1804,37 @@ func (q *Queries) UpdatePublicListener(ctx context.Context, arg UpdatePublicList
 
 const updatePublicRoute = `-- name: UpdatePublicRoute :one
 UPDATE public_routes
-SET listener_id = ?, priority = ?, host_pattern = ?, path_prefix = ?, backend_id = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+SET listener_id = ?,
+    priority = ?,
+    host_pattern = ?,
+    path_prefix = ?,
+    backend_id = ?,
+    action = ?,
+    redirect_target_mode = ?,
+    redirect_target = ?,
+    redirect_status_code = ?,
+    redirect_preserve_path_suffix = ?,
+    redirect_preserve_query = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, enabled, created_at, updated_at
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type UpdatePublicRouteParams struct {
-	ListenerID  int64  `json:"listener_id"`
-	Priority    int64  `json:"priority"`
-	HostPattern string `json:"host_pattern"`
-	PathPrefix  string `json:"path_prefix"`
-	BackendID   int64  `json:"backend_id"`
-	Enabled     int64  `json:"enabled"`
-	ID          int64  `json:"id"`
+	ListenerID                 int64         `json:"listener_id"`
+	Priority                   int64         `json:"priority"`
+	HostPattern                string        `json:"host_pattern"`
+	PathPrefix                 string        `json:"path_prefix"`
+	BackendID                  sql.NullInt64 `json:"backend_id"`
+	Action                     string        `json:"action"`
+	RedirectTargetMode         string        `json:"redirect_target_mode"`
+	RedirectTarget             string        `json:"redirect_target"`
+	RedirectStatusCode         int64         `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
+	Enabled                    int64         `json:"enabled"`
+	ID                         int64         `json:"id"`
 }
 
 func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error) {
@@ -1783,6 +1844,12 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		arg.HostPattern,
 		arg.PathPrefix,
 		arg.BackendID,
+		arg.Action,
+		arg.RedirectTargetMode,
+		arg.RedirectTarget,
+		arg.RedirectStatusCode,
+		arg.RedirectPreservePathSuffix,
+		arg.RedirectPreserveQuery,
 		arg.Enabled,
 		arg.ID,
 	)
@@ -1794,6 +1861,12 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.HostPattern,
 		&i.PathPrefix,
 		&i.BackendID,
+		&i.Action,
+		&i.RedirectTargetMode,
+		&i.RedirectTarget,
+		&i.RedirectStatusCode,
+		&i.RedirectPreservePathSuffix,
+		&i.RedirectPreserveQuery,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,

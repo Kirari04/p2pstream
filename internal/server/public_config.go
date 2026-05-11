@@ -35,7 +35,13 @@ const (
 	publicBackendLoadBalancingWeightedRandom              = "weighted_random"
 	publicBackendLoadBalancingLeastActiveRequests         = "least_active_requests"
 	publicBackendLoadBalancingWeightedLeastActiveRequests = "weighted_least_active_requests"
+	publicRouteActionForward                              = "forward"
+	publicRouteActionRedirect                             = "redirect"
+	publicRouteRedirectTargetModeSameHostPath             = "same_host_path"
+	publicRouteRedirectTargetModeExternalOriginKeepPath   = "external_origin_keep_path"
+	publicRouteRedirectTargetModeAbsoluteURL              = "absolute_url"
 	defaultStaticStatusCode                               = int64(http.StatusOK)
+	defaultRedirectStatusCode                             = int64(http.StatusFound)
 	maxUpstreamHeaderValueBytes                           = 8192
 )
 
@@ -169,7 +175,7 @@ func (a *App) UpdatePublicBackend(
 	if !req.Msg.Enabled {
 		refs, err := a.DB.CountPublicBackendEnabledReferences(ctx, db.CountPublicBackendEnabledReferencesParams{
 			DefaultBackendID: req.Msg.Id,
-			BackendID:        req.Msg.Id,
+			BackendID:        sql.NullInt64{Int64: req.Msg.Id, Valid: true},
 		})
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
@@ -197,7 +203,7 @@ func (a *App) DeletePublicBackend(
 	}
 	refs, err := a.DB.CountPublicBackendEnabledReferences(ctx, db.CountPublicBackendEnabledReferencesParams{
 		DefaultBackendID: req.Msg.Id,
-		BackendID:        req.Msg.Id,
+		BackendID:        sql.NullInt64{Int64: req.Msg.Id, Valid: true},
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -571,17 +577,37 @@ func (a *App) CreatePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicRouteInput(ctx, req.Msg.ListenerId, req.Msg.Priority, req.Msg.HostPattern, req.Msg.PathPrefix, req.Msg.BackendId, req.Msg.Enabled)
+	params, err := a.validatePublicRouteInput(
+		ctx,
+		req.Msg.ListenerId,
+		req.Msg.Priority,
+		req.Msg.HostPattern,
+		req.Msg.PathPrefix,
+		req.Msg.BackendId,
+		req.Msg.Enabled,
+		req.Msg.Action,
+		req.Msg.RedirectTargetMode,
+		req.Msg.RedirectTarget,
+		req.Msg.RedirectStatusCode,
+		req.Msg.RedirectPreservePathSuffix,
+		req.Msg.RedirectPreserveQuery,
+	)
 	if err != nil {
 		return nil, err
 	}
 	route, err := a.DB.CreatePublicRoute(ctx, db.CreatePublicRouteParams{
-		ListenerID:  params.ListenerID,
-		Priority:    params.Priority,
-		HostPattern: params.HostPattern,
-		PathPrefix:  params.PathPrefix,
-		BackendID:   params.BackendID,
-		Enabled:     params.Enabled,
+		ListenerID:                 params.ListenerID,
+		Priority:                   params.Priority,
+		HostPattern:                params.HostPattern,
+		PathPrefix:                 params.PathPrefix,
+		BackendID:                  params.BackendID,
+		Action:                     params.Action,
+		RedirectTargetMode:         params.RedirectTargetMode,
+		RedirectTarget:             params.RedirectTarget,
+		RedirectStatusCode:         params.RedirectStatusCode,
+		RedirectPreservePathSuffix: params.RedirectPreservePathSuffix,
+		RedirectPreserveQuery:      params.RedirectPreserveQuery,
+		Enabled:                    params.Enabled,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -599,7 +625,21 @@ func (a *App) UpdatePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicRouteInput(ctx, req.Msg.ListenerId, req.Msg.Priority, req.Msg.HostPattern, req.Msg.PathPrefix, req.Msg.BackendId, req.Msg.Enabled)
+	params, err := a.validatePublicRouteInput(
+		ctx,
+		req.Msg.ListenerId,
+		req.Msg.Priority,
+		req.Msg.HostPattern,
+		req.Msg.PathPrefix,
+		req.Msg.BackendId,
+		req.Msg.Enabled,
+		req.Msg.Action,
+		req.Msg.RedirectTargetMode,
+		req.Msg.RedirectTarget,
+		req.Msg.RedirectStatusCode,
+		req.Msg.RedirectPreservePathSuffix,
+		req.Msg.RedirectPreserveQuery,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1066,14 +1106,24 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		}
 	}
 	for _, route := range rows.Routes {
+		backendID := int64(0)
+		if route.BackendID.Valid {
+			backendID = route.BackendID.Int64
+		}
 		snap.RoutesByListener[route.ListenerID] = append(snap.RoutesByListener[route.ListenerID], publicRouteConfig{
-			ID:          route.ID,
-			ListenerID:  route.ListenerID,
-			Priority:    route.Priority,
-			HostPattern: normalizeHostPattern(route.HostPattern),
-			PathPrefix:  route.PathPrefix,
-			BackendID:   route.BackendID,
-			Enabled:     route.Enabled != 0,
+			ID:                         route.ID,
+			ListenerID:                 route.ListenerID,
+			Priority:                   route.Priority,
+			HostPattern:                normalizeHostPattern(route.HostPattern),
+			PathPrefix:                 route.PathPrefix,
+			BackendID:                  backendID,
+			Action:                     normalizePublicRouteAction(route.Action),
+			RedirectTargetMode:         normalizePublicRouteRedirectTargetMode(route.RedirectTargetMode),
+			RedirectTarget:             route.RedirectTarget,
+			RedirectStatusCode:         route.RedirectStatusCode,
+			RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
+			RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
+			Enabled:                    route.Enabled != 0,
 		})
 	}
 	for listenerID, routes := range snap.RoutesByListener {
@@ -1329,16 +1379,15 @@ func (a *App) validatePublicRouteInput(
 	pathPrefix string,
 	backendID int64,
 	enabled bool,
+	action p2pstreamv1.PublicRouteAction,
+	redirectTargetMode p2pstreamv1.PublicRouteRedirectTargetMode,
+	redirectTarget string,
+	redirectStatusCode int64,
+	redirectPreservePathSuffix bool,
+	redirectPreserveQuery bool,
 ) (db.UpdatePublicRouteParams, error) {
 	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
 		return db.UpdatePublicRouteParams{}, publicDBError(err)
-	}
-	backend, err := a.DB.GetPublicBackend(ctx, backendID)
-	if err != nil {
-		return db.UpdatePublicRouteParams{}, publicDBError(err)
-	}
-	if enabled && backend.Enabled == 0 {
-		return db.UpdatePublicRouteParams{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("enabled route requires an enabled backend"))
 	}
 	hostPattern = normalizeHostPattern(hostPattern)
 	pathPrefix = strings.TrimSpace(pathPrefix)
@@ -1353,13 +1402,56 @@ func (a *App) validatePublicRouteInput(
 	if pathPrefix != "" && !strings.HasPrefix(pathPrefix, "/") {
 		return db.UpdatePublicRouteParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("path prefix must start with /"))
 	}
+	actionString, err := routeActionStringFromProto(action)
+	if err != nil {
+		return db.UpdatePublicRouteParams{}, err
+	}
+	backendIDParam := sql.NullInt64{}
+	redirectMode := ""
+	redirectTarget = strings.TrimSpace(redirectTarget)
+	if redirectStatusCode == 0 {
+		redirectStatusCode = defaultRedirectStatusCode
+	}
+	if actionString == publicRouteActionForward {
+		backend, err := a.DB.GetPublicBackend(ctx, backendID)
+		if err != nil {
+			return db.UpdatePublicRouteParams{}, publicDBError(err)
+		}
+		if enabled && backend.Enabled == 0 {
+			return db.UpdatePublicRouteParams{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("enabled route requires an enabled backend"))
+		}
+		backendIDParam = sql.NullInt64{Int64: backendID, Valid: true}
+		redirectStatusCode = defaultRedirectStatusCode
+		redirectPreservePathSuffix = true
+		redirectPreserveQuery = true
+	} else {
+		redirectMode, err = routeRedirectTargetModeStringFromProto(redirectTargetMode)
+		if err != nil {
+			return db.UpdatePublicRouteParams{}, err
+		}
+		if err := validateRouteRedirectTarget(redirectMode, redirectTarget); err != nil {
+			return db.UpdatePublicRouteParams{}, err
+		}
+		if !validRedirectStatusCode(redirectStatusCode) {
+			return db.UpdatePublicRouteParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("redirect status must be 301, 302, 307, or 308"))
+		}
+		if redirectMode == publicRouteRedirectTargetModeExternalOriginKeepPath {
+			redirectPreservePathSuffix = false
+		}
+	}
 	return db.UpdatePublicRouteParams{
-		ListenerID:  listenerID,
-		Priority:    priority,
-		HostPattern: hostPattern,
-		PathPrefix:  pathPrefix,
-		BackendID:   backendID,
-		Enabled:     boolInt(enabled),
+		ListenerID:                 listenerID,
+		Priority:                   priority,
+		HostPattern:                hostPattern,
+		PathPrefix:                 pathPrefix,
+		BackendID:                  backendIDParam,
+		Action:                     actionString,
+		RedirectTargetMode:         redirectMode,
+		RedirectTarget:             redirectTarget,
+		RedirectStatusCode:         redirectStatusCode,
+		RedirectPreservePathSuffix: boolInt(redirectPreservePathSuffix),
+		RedirectPreserveQuery:      boolInt(redirectPreserveQuery),
+		Enabled:                    boolInt(enabled),
 	}, nil
 }
 
@@ -1692,6 +1784,31 @@ func backendTypeStringFromProto(backendType p2pstreamv1.PublicBackendType) (stri
 	}
 }
 
+func routeActionStringFromProto(action p2pstreamv1.PublicRouteAction) (string, error) {
+	switch action {
+	case p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_UNSPECIFIED,
+		p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD:
+		return publicRouteActionForward, nil
+	case p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_REDIRECT:
+		return publicRouteActionRedirect, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("route action must be forward or redirect"))
+	}
+}
+
+func routeRedirectTargetModeStringFromProto(mode p2pstreamv1.PublicRouteRedirectTargetMode) (string, error) {
+	switch mode {
+	case p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH:
+		return publicRouteRedirectTargetModeSameHostPath, nil
+	case p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH:
+		return publicRouteRedirectTargetModeExternalOriginKeepPath, nil
+	case p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL:
+		return publicRouteRedirectTargetModeAbsoluteURL, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("redirect target mode is required"))
+	}
+}
+
 func forwardModeStringFromProto(forwardMode p2pstreamv1.PublicBackendForwardMode) (string, error) {
 	switch forwardMode {
 	case p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED,
@@ -1701,6 +1818,49 @@ func forwardModeStringFromProto(forwardMode p2pstreamv1.PublicBackendForwardMode
 		return publicBackendForwardModeAgentPool, nil
 	default:
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("backend forward mode must be direct or agent_pool"))
+	}
+}
+
+func validateRouteRedirectTarget(mode string, target string) error {
+	if strings.TrimSpace(target) == "" {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("redirect target is required"))
+	}
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid redirect target: %w", err))
+	}
+	switch mode {
+	case publicRouteRedirectTargetModeSameHostPath:
+		if parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(target, "/") || strings.HasPrefix(target, "//") {
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("same-host redirect target must be a root-relative path"))
+		}
+	case publicRouteRedirectTargetModeExternalOriginKeepPath:
+		if !isHTTPURL(parsed) || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("external-origin redirect target must be an http or https origin"))
+		}
+	case publicRouteRedirectTargetModeAbsoluteURL:
+		if !isHTTPURL(parsed) {
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("absolute redirect target must be an http or https URL"))
+		}
+	default:
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported redirect target mode"))
+	}
+	return nil
+}
+
+func isHTTPURL(value *url.URL) bool {
+	if value == nil || value.Host == "" {
+		return false
+	}
+	return value.Scheme == "http" || value.Scheme == "https"
+}
+
+func validRedirectStatusCode(statusCode int64) bool {
+	switch statusCode {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1765,6 +1925,30 @@ func normalizePublicBackendLoadBalancing(loadBalancing string) string {
 	}
 }
 
+func normalizePublicRouteAction(action string) string {
+	switch strings.TrimSpace(strings.ToLower(action)) {
+	case "", publicRouteActionForward:
+		return publicRouteActionForward
+	case publicRouteActionRedirect:
+		return publicRouteActionRedirect
+	default:
+		return strings.TrimSpace(strings.ToLower(action))
+	}
+}
+
+func normalizePublicRouteRedirectTargetMode(mode string) string {
+	switch strings.TrimSpace(strings.ToLower(mode)) {
+	case publicRouteRedirectTargetModeSameHostPath:
+		return publicRouteRedirectTargetModeSameHostPath
+	case publicRouteRedirectTargetModeExternalOriginKeepPath:
+		return publicRouteRedirectTargetModeExternalOriginKeepPath
+	case publicRouteRedirectTargetModeAbsoluteURL:
+		return publicRouteRedirectTargetModeAbsoluteURL
+	default:
+		return strings.TrimSpace(strings.ToLower(mode))
+	}
+}
+
 func protoBackendTypeFromString(backendType string) p2pstreamv1.PublicBackendType {
 	switch normalizePublicBackendType(backendType) {
 	case publicBackendTypeProxyForward:
@@ -1773,6 +1957,30 @@ func protoBackendTypeFromString(backendType string) p2pstreamv1.PublicBackendTyp
 		return p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC
 	default:
 		return p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED
+	}
+}
+
+func protoRouteActionFromString(action string) p2pstreamv1.PublicRouteAction {
+	switch normalizePublicRouteAction(action) {
+	case publicRouteActionRedirect:
+		return p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_REDIRECT
+	case publicRouteActionForward:
+		return p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD
+	default:
+		return p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_UNSPECIFIED
+	}
+}
+
+func protoRouteRedirectTargetModeFromString(mode string) p2pstreamv1.PublicRouteRedirectTargetMode {
+	switch normalizePublicRouteRedirectTargetMode(mode) {
+	case publicRouteRedirectTargetModeSameHostPath:
+		return p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH
+	case publicRouteRedirectTargetModeExternalOriginKeepPath:
+		return p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH
+	case publicRouteRedirectTargetModeAbsoluteURL:
+		return p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL
+	default:
+		return p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED
 	}
 }
 
@@ -2023,16 +2231,26 @@ func publicListenersToProto(listeners []db.PublicListener) []*p2pstreamv1.Public
 }
 
 func publicRouteToProto(route db.PublicRoute) *p2pstreamv1.PublicRoute {
+	backendID := int64(0)
+	if route.BackendID.Valid {
+		backendID = route.BackendID.Int64
+	}
 	return &p2pstreamv1.PublicRoute{
-		Id:                  route.ID,
-		ListenerId:          route.ListenerID,
-		Priority:            route.Priority,
-		HostPattern:         route.HostPattern,
-		PathPrefix:          route.PathPrefix,
-		BackendId:           route.BackendID,
-		Enabled:             route.Enabled != 0,
-		CreatedAtUnixMillis: route.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis: route.UpdatedAt.UnixMilli(),
+		Id:                         route.ID,
+		ListenerId:                 route.ListenerID,
+		Priority:                   route.Priority,
+		HostPattern:                route.HostPattern,
+		PathPrefix:                 route.PathPrefix,
+		BackendId:                  backendID,
+		Enabled:                    route.Enabled != 0,
+		CreatedAtUnixMillis:        route.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:        route.UpdatedAt.UnixMilli(),
+		Action:                     protoRouteActionFromString(route.Action),
+		RedirectTargetMode:         protoRouteRedirectTargetModeFromString(route.RedirectTargetMode),
+		RedirectTarget:             route.RedirectTarget,
+		RedirectStatusCode:         route.RedirectStatusCode,
+		RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
+		RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
 	}
 }
 

@@ -44,6 +44,19 @@ enum PublicBackendLoadBalancing {
   PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
 }
 
+enum PublicRouteAction {
+  PUBLIC_ROUTE_ACTION_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_ACTION_FORWARD = 1;
+  PUBLIC_ROUTE_ACTION_REDIRECT = 2;
+}
+
+enum PublicRouteRedirectTargetMode {
+  PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH = 1;
+  PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH = 2;
+  PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL = 3;
+}
+
 enum TrafficTraceLevel {
   TRAFFIC_TRACE_LEVEL_UNSPECIFIED = 0;
   TRAFFIC_TRACE_LEVEL_BASIC = 1;
@@ -204,6 +217,12 @@ message PublicRoute {
   bool enabled = 7;
   int64 created_at_unix_millis = 8;
   int64 updated_at_unix_millis = 9;
+  PublicRouteAction action = 10;
+  PublicRouteRedirectTargetMode redirect_target_mode = 11;
+  string redirect_target = 12;
+  int64 redirect_status_code = 13;
+  bool redirect_preserve_path_suffix = 14;
+  bool redirect_preserve_query = 15;
 }
 
 message PublicTlsCertificate {
@@ -410,6 +429,12 @@ message CreatePublicRouteRequest {
   string path_prefix = 4;
   int64 backend_id = 5;
   bool enabled = 6;
+  PublicRouteAction action = 10;
+  PublicRouteRedirectTargetMode redirect_target_mode = 11;
+  string redirect_target = 12;
+  int64 redirect_status_code = 13;
+  bool redirect_preserve_path_suffix = 14;
+  bool redirect_preserve_query = 15;
 }
 
 message CreatePublicRouteResponse {
@@ -424,6 +449,12 @@ message UpdatePublicRouteRequest {
   string path_prefix = 5;
   int64 backend_id = 6;
   bool enabled = 7;
+  PublicRouteAction action = 10;
+  PublicRouteRedirectTargetMode redirect_target_mode = 11;
+  string redirect_target = 12;
+  int64 redirect_status_code = 13;
+  bool redirect_preserve_path_suffix = 14;
+  bool redirect_preserve_query = 15;
 }
 
 message UpdatePublicRouteResponse {

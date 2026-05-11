@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, reactive, ref } from "vue";
+import { computed, inject, ref } from "vue";
 import type { ComputedRef } from "vue";
 import BanIcon from "@primevue/icons/ban";
 import CheckIcon from "@primevue/icons/check";
@@ -8,6 +8,7 @@ import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
+import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
@@ -27,11 +28,12 @@ const runManagementAction = inject<Runner>("runManagementAction");
 const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const status = computed(() => dashboard?.value?.status ?? null);
+const config = computed(() => publicProxyConfig?.value ?? null);
 const agents = computed(() => publicProxyConfig?.value?.agents ?? []);
 const oneHourWindow = computed(() => dashboard?.value?.windows.find((w) => w.label === "1h"));
 const dayWindow = computed(() => dashboard?.value?.windows.find((w) => w.label === "24h"));
 
-const isAgentModalOpen = ref(false);
+const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rotateAgentToConfirm = ref<Agent | null>(null);
 const issuedToken = ref("");
 const issuedAgent = ref<Agent | null>(null);
@@ -40,12 +42,6 @@ const setupDockerImage = ref("p2pstream:local");
 const setupTab = ref<"systemd" | "docker" | "cli">("systemd");
 const setupCopyLabel = ref("Copy");
 let setupCopyReset: number | undefined;
-
-const agentForm = reactive({
-  id: "",
-  name: "",
-  enabled: true,
-});
 
 const normalizedManagementUrl = computed(() => setupManagementUrl.value.trim().replace(/\/+$/, ""));
 const setupSnippet = computed(() => {
@@ -70,46 +66,17 @@ function formatDate(value: bigint | undefined): string {
   return new Date(Number(value)).toLocaleString();
 }
 
-function resetAgentForm() {
-  agentForm.id = "";
-  agentForm.name = "";
-  agentForm.enabled = true;
-}
-
 function openAddAgentModal() {
-  resetAgentForm();
-  isAgentModalOpen.value = true;
+  agentEditor.value?.openCreate();
 }
 
 function editAgent(agent: Agent) {
-  agentForm.id = agent.id.toString();
-  agentForm.name = agent.name;
-  agentForm.enabled = agent.enabled;
-  isAgentModalOpen.value = true;
+  agentEditor.value?.openEdit(agent.id);
 }
 
 async function run(action: () => Promise<void>): Promise<boolean> {
   if (!runManagementAction) return false;
   return runManagementAction(action);
-}
-
-async function submitAgent() {
-  await run(async () => {
-    if (agentForm.id) {
-      await managementClient.updateAgent({
-        id: BigInt(agentForm.id),
-        name: agentForm.name,
-        enabled: agentForm.enabled,
-      });
-    } else {
-      const resp = await managementClient.createAgent({
-        name: agentForm.name,
-        enabled: agentForm.enabled,
-      });
-      openSetupModal(resp.agent ?? null, resp.token);
-    }
-    isAgentModalOpen.value = false;
-  });
 }
 
 async function setAgentEnabled(agent: Agent, enabled: boolean) {
@@ -163,6 +130,10 @@ function openSetupModal(agent: Agent | null, token: string) {
   setupDockerImage.value = "p2pstream:local";
   setupTab.value = "systemd";
   setupCopyLabel.value = "Copy";
+}
+
+function handleAgentCreated(payload: { agent: Agent | null; token: string }) {
+  openSetupModal(payload.agent, payload.token);
 }
 
 function defaultManagementUrl(): string {
@@ -379,22 +350,12 @@ async function copySetupSnippet() {
       </div>
     </div>
 
-    <Modal v-model="isAgentModalOpen" :title="agentForm.id ? 'Edit Agent' : 'Add Agent'" max-width="32rem">
-      <form @submit.prevent="submitAgent" class="grid gap-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-          Name
-          <input v-model="agentForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
-        </label>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="agentForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
-          Enabled
-        </label>
-        <div class="mt-4 flex justify-end gap-3">
-          <SecondaryButton type="button" label="Cancel" @click="isAgentModalOpen = false" />
-          <Button class="!bg-white !text-black !border-white" :label="agentForm.id ? 'Save Changes' : 'Create Agent'" type="submit" :disabled="isBusy" />
-        </div>
-      </form>
-    </Modal>
+    <AgentEditorModal
+      ref="agentEditor"
+      :config="config"
+      allow-create
+      @created-agent="handleAgentCreated"
+    />
 
     <Modal :model-value="Boolean(rotateAgentToConfirm)" title="Rotate Agent Token" max-width="34rem" @update:model-value="closeRotateAgentModal">
       <div v-if="rotateAgentToConfirm" class="grid gap-5">

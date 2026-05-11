@@ -148,6 +148,85 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	}
 }
 
+func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-routes.db")
+	raw, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open raw legacy db: %v", err)
+	}
+	legacySchema := `
+	CREATE TABLE public_backends (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		target_origin TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE public_listeners (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		bind_address TEXT NOT NULL DEFAULT '',
+		port INTEGER NOT NULL,
+		protocol TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		default_backend_id INTEGER NOT NULL REFERENCES public_backends(id),
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(bind_address, port)
+	);
+	CREATE TABLE public_routes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+		priority INTEGER NOT NULL,
+		host_pattern TEXT NOT NULL DEFAULT '',
+		path_prefix TEXT NOT NULL DEFAULT '',
+		backend_id INTEGER NOT NULL REFERENCES public_backends(id),
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX idx_public_routes_listener_priority
+	ON public_routes (listener_id, priority, id);
+	INSERT INTO public_backends (name, target_origin) VALUES ('legacy-backend', 'https://example.com');
+	INSERT INTO public_listeners (name, port, protocol, default_backend_id) VALUES ('legacy-listener', 8080, 'http', 1);
+	INSERT INTO public_routes (listener_id, priority, path_prefix, backend_id, enabled) VALUES (1, 10, '/legacy', 1, 1);
+	`
+	if _, err := raw.ExecContext(context.Background(), legacySchema); err != nil {
+		t.Fatalf("create legacy route schema: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close raw legacy db: %v", err)
+	}
+
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated legacy db: %v", err)
+	}
+	defer database.Close()
+
+	routes, err := database.ListPublicRoutes(context.Background())
+	if err != nil {
+		t.Fatalf("list migrated routes: %v", err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("got %d routes, want 1", len(routes))
+	}
+	route := routes[0]
+	if !route.BackendID.Valid || route.BackendID.Int64 != 1 {
+		t.Fatalf("migrated backend id = %+v, want 1", route.BackendID)
+	}
+	if route.Action != "forward" || route.RedirectStatusCode != 302 || route.RedirectPreservePathSuffix != 1 || route.RedirectPreserveQuery != 1 {
+		t.Fatalf("unexpected migrated redirect defaults: %+v", route)
+	}
+	if publicRoutesColumnNotNull(t, database, "backend_id") {
+		t.Fatal("public_routes.backend_id should be nullable after redirect migration")
+	}
+	if !indexExists(t, database, "idx_public_routes_listener_priority") {
+		t.Fatal("expected idx_public_routes_listener_priority after route migration")
+	}
+}
+
 func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
 	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-test.db"))
 	if err != nil {
@@ -209,6 +288,34 @@ func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
 	if len(empty) != 0 {
 		t.Fatalf("expected deleted upstream headers, got %+v", empty)
 	}
+}
+
+func publicRoutesColumnNotNull(t *testing.T, database *DB, column string) bool {
+	t.Helper()
+	rows, err := database.QueryContext(context.Background(), `PRAGMA table_info(public_routes)`)
+	if err != nil {
+		t.Fatalf("pragma table_info(public_routes): %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int64
+		var name string
+		var columnType string
+		var notNull int64
+		var defaultValue sql.NullString
+		var primaryKey int64
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			t.Fatalf("scan public_routes table_info: %v", err)
+		}
+		if name == column {
+			return notNull != 0
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("read public_routes table_info: %v", err)
+	}
+	t.Fatalf("public_routes missing column %s", column)
+	return false
 }
 
 func tableColumns(t *testing.T, database *DB, table string) []string {

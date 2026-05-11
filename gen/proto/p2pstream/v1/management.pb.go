@@ -333,6 +333,107 @@ func (PublicBackendLoadBalancing) EnumDescriptor() ([]byte, []int) {
 	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{5}
 }
 
+type PublicRouteAction int32
+
+const (
+	PublicRouteAction_PUBLIC_ROUTE_ACTION_UNSPECIFIED PublicRouteAction = 0
+	PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD     PublicRouteAction = 1
+	PublicRouteAction_PUBLIC_ROUTE_ACTION_REDIRECT    PublicRouteAction = 2
+)
+
+// Enum value maps for PublicRouteAction.
+var (
+	PublicRouteAction_name = map[int32]string{
+		0: "PUBLIC_ROUTE_ACTION_UNSPECIFIED",
+		1: "PUBLIC_ROUTE_ACTION_FORWARD",
+		2: "PUBLIC_ROUTE_ACTION_REDIRECT",
+	}
+	PublicRouteAction_value = map[string]int32{
+		"PUBLIC_ROUTE_ACTION_UNSPECIFIED": 0,
+		"PUBLIC_ROUTE_ACTION_FORWARD":     1,
+		"PUBLIC_ROUTE_ACTION_REDIRECT":    2,
+	}
+)
+
+func (x PublicRouteAction) Enum() *PublicRouteAction {
+	p := new(PublicRouteAction)
+	*p = x
+	return p
+}
+
+func (x PublicRouteAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PublicRouteAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[6].Descriptor()
+}
+
+func (PublicRouteAction) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[6]
+}
+
+func (x PublicRouteAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PublicRouteAction.Descriptor instead.
+func (PublicRouteAction) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{6}
+}
+
+type PublicRouteRedirectTargetMode int32
+
+const (
+	PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED               PublicRouteRedirectTargetMode = 0
+	PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH            PublicRouteRedirectTargetMode = 1
+	PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH PublicRouteRedirectTargetMode = 2
+	PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL              PublicRouteRedirectTargetMode = 3
+)
+
+// Enum value maps for PublicRouteRedirectTargetMode.
+var (
+	PublicRouteRedirectTargetMode_name = map[int32]string{
+		0: "PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED",
+		1: "PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH",
+		2: "PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH",
+		3: "PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL",
+	}
+	PublicRouteRedirectTargetMode_value = map[string]int32{
+		"PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED":               0,
+		"PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH":            1,
+		"PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH": 2,
+		"PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL":              3,
+	}
+)
+
+func (x PublicRouteRedirectTargetMode) Enum() *PublicRouteRedirectTargetMode {
+	p := new(PublicRouteRedirectTargetMode)
+	*p = x
+	return p
+}
+
+func (x PublicRouteRedirectTargetMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PublicRouteRedirectTargetMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[7].Descriptor()
+}
+
+func (PublicRouteRedirectTargetMode) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[7]
+}
+
+func (x PublicRouteRedirectTargetMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PublicRouteRedirectTargetMode.Descriptor instead.
+func (PublicRouteRedirectTargetMode) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{7}
+}
+
 type TrafficTraceLevel int32
 
 const (
@@ -372,11 +473,11 @@ func (x TrafficTraceLevel) String() string {
 }
 
 func (TrafficTraceLevel) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_p2pstream_v1_management_proto_enumTypes[6].Descriptor()
+	return file_proto_p2pstream_v1_management_proto_enumTypes[8].Descriptor()
 }
 
 func (TrafficTraceLevel) Type() protoreflect.EnumType {
-	return &file_proto_p2pstream_v1_management_proto_enumTypes[6]
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[8]
 }
 
 func (x TrafficTraceLevel) Number() protoreflect.EnumNumber {
@@ -385,7 +486,7 @@ func (x TrafficTraceLevel) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TrafficTraceLevel.Descriptor instead.
 func (TrafficTraceLevel) EnumDescriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{6}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{8}
 }
 
 type TrafficTraceStage int32
@@ -439,11 +540,11 @@ func (x TrafficTraceStage) String() string {
 }
 
 func (TrafficTraceStage) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_p2pstream_v1_management_proto_enumTypes[7].Descriptor()
+	return file_proto_p2pstream_v1_management_proto_enumTypes[9].Descriptor()
 }
 
 func (TrafficTraceStage) Type() protoreflect.EnumType {
-	return &file_proto_p2pstream_v1_management_proto_enumTypes[7]
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[9]
 }
 
 func (x TrafficTraceStage) Number() protoreflect.EnumNumber {
@@ -452,7 +553,7 @@ func (x TrafficTraceStage) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TrafficTraceStage.Descriptor instead.
 func (TrafficTraceStage) EnumDescriptor() ([]byte, []int) {
-	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{7}
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{9}
 }
 
 type AgentStatsRequest struct {
@@ -1664,18 +1765,24 @@ func (x *PublicListener) GetUpdatedAtUnixMillis() int64 {
 }
 
 type PublicRoute struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Id                  int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	ListenerId          int64                  `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
-	Priority            int64                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
-	HostPattern         string                 `protobuf:"bytes,4,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
-	PathPrefix          string                 `protobuf:"bytes,5,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
-	BackendId           int64                  `protobuf:"varint,6,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
-	Enabled             bool                   `protobuf:"varint,7,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	CreatedAtUnixMillis int64                  `protobuf:"varint,8,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
-	UpdatedAtUnixMillis int64                  `protobuf:"varint,9,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                      protoimpl.MessageState        `protogen:"open.v1"`
+	Id                         int64                         `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ListenerId                 int64                         `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	Priority                   int64                         `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	HostPattern                string                        `protobuf:"bytes,4,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
+	PathPrefix                 string                        `protobuf:"bytes,5,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	BackendId                  int64                         `protobuf:"varint,6,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
+	Enabled                    bool                          `protobuf:"varint,7,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CreatedAtUnixMillis        int64                         `protobuf:"varint,8,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis        int64                         `protobuf:"varint,9,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	Action                     PublicRouteAction             `protobuf:"varint,10,opt,name=action,proto3,enum=p2pstream.v1.PublicRouteAction" json:"action,omitempty"`
+	RedirectTargetMode         PublicRouteRedirectTargetMode `protobuf:"varint,11,opt,name=redirect_target_mode,json=redirectTargetMode,proto3,enum=p2pstream.v1.PublicRouteRedirectTargetMode" json:"redirect_target_mode,omitempty"`
+	RedirectTarget             string                        `protobuf:"bytes,12,opt,name=redirect_target,json=redirectTarget,proto3" json:"redirect_target,omitempty"`
+	RedirectStatusCode         int64                         `protobuf:"varint,13,opt,name=redirect_status_code,json=redirectStatusCode,proto3" json:"redirect_status_code,omitempty"`
+	RedirectPreservePathSuffix bool                          `protobuf:"varint,14,opt,name=redirect_preserve_path_suffix,json=redirectPreservePathSuffix,proto3" json:"redirect_preserve_path_suffix,omitempty"`
+	RedirectPreserveQuery      bool                          `protobuf:"varint,15,opt,name=redirect_preserve_query,json=redirectPreserveQuery,proto3" json:"redirect_preserve_query,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *PublicRoute) Reset() {
@@ -1769,6 +1876,48 @@ func (x *PublicRoute) GetUpdatedAtUnixMillis() int64 {
 		return x.UpdatedAtUnixMillis
 	}
 	return 0
+}
+
+func (x *PublicRoute) GetAction() PublicRouteAction {
+	if x != nil {
+		return x.Action
+	}
+	return PublicRouteAction_PUBLIC_ROUTE_ACTION_UNSPECIFIED
+}
+
+func (x *PublicRoute) GetRedirectTargetMode() PublicRouteRedirectTargetMode {
+	if x != nil {
+		return x.RedirectTargetMode
+	}
+	return PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED
+}
+
+func (x *PublicRoute) GetRedirectTarget() string {
+	if x != nil {
+		return x.RedirectTarget
+	}
+	return ""
+}
+
+func (x *PublicRoute) GetRedirectStatusCode() int64 {
+	if x != nil {
+		return x.RedirectStatusCode
+	}
+	return 0
+}
+
+func (x *PublicRoute) GetRedirectPreservePathSuffix() bool {
+	if x != nil {
+		return x.RedirectPreservePathSuffix
+	}
+	return false
+}
+
+func (x *PublicRoute) GetRedirectPreserveQuery() bool {
+	if x != nil {
+		return x.RedirectPreserveQuery
+	}
+	return false
 }
 
 type PublicTlsCertificate struct {
@@ -3736,15 +3885,21 @@ func (x *StopPublicListenerResponse) GetProxy() *ProxyStatus {
 }
 
 type CreatePublicRouteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ListenerId    int64                  `protobuf:"varint,1,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
-	Priority      int64                  `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
-	HostPattern   string                 `protobuf:"bytes,3,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
-	PathPrefix    string                 `protobuf:"bytes,4,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
-	BackendId     int64                  `protobuf:"varint,5,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
-	Enabled       bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                      protoimpl.MessageState        `protogen:"open.v1"`
+	ListenerId                 int64                         `protobuf:"varint,1,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	Priority                   int64                         `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
+	HostPattern                string                        `protobuf:"bytes,3,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
+	PathPrefix                 string                        `protobuf:"bytes,4,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	BackendId                  int64                         `protobuf:"varint,5,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
+	Enabled                    bool                          `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Action                     PublicRouteAction             `protobuf:"varint,10,opt,name=action,proto3,enum=p2pstream.v1.PublicRouteAction" json:"action,omitempty"`
+	RedirectTargetMode         PublicRouteRedirectTargetMode `protobuf:"varint,11,opt,name=redirect_target_mode,json=redirectTargetMode,proto3,enum=p2pstream.v1.PublicRouteRedirectTargetMode" json:"redirect_target_mode,omitempty"`
+	RedirectTarget             string                        `protobuf:"bytes,12,opt,name=redirect_target,json=redirectTarget,proto3" json:"redirect_target,omitempty"`
+	RedirectStatusCode         int64                         `protobuf:"varint,13,opt,name=redirect_status_code,json=redirectStatusCode,proto3" json:"redirect_status_code,omitempty"`
+	RedirectPreservePathSuffix bool                          `protobuf:"varint,14,opt,name=redirect_preserve_path_suffix,json=redirectPreservePathSuffix,proto3" json:"redirect_preserve_path_suffix,omitempty"`
+	RedirectPreserveQuery      bool                          `protobuf:"varint,15,opt,name=redirect_preserve_query,json=redirectPreserveQuery,proto3" json:"redirect_preserve_query,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *CreatePublicRouteRequest) Reset() {
@@ -3819,6 +3974,48 @@ func (x *CreatePublicRouteRequest) GetEnabled() bool {
 	return false
 }
 
+func (x *CreatePublicRouteRequest) GetAction() PublicRouteAction {
+	if x != nil {
+		return x.Action
+	}
+	return PublicRouteAction_PUBLIC_ROUTE_ACTION_UNSPECIFIED
+}
+
+func (x *CreatePublicRouteRequest) GetRedirectTargetMode() PublicRouteRedirectTargetMode {
+	if x != nil {
+		return x.RedirectTargetMode
+	}
+	return PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED
+}
+
+func (x *CreatePublicRouteRequest) GetRedirectTarget() string {
+	if x != nil {
+		return x.RedirectTarget
+	}
+	return ""
+}
+
+func (x *CreatePublicRouteRequest) GetRedirectStatusCode() int64 {
+	if x != nil {
+		return x.RedirectStatusCode
+	}
+	return 0
+}
+
+func (x *CreatePublicRouteRequest) GetRedirectPreservePathSuffix() bool {
+	if x != nil {
+		return x.RedirectPreservePathSuffix
+	}
+	return false
+}
+
+func (x *CreatePublicRouteRequest) GetRedirectPreserveQuery() bool {
+	if x != nil {
+		return x.RedirectPreserveQuery
+	}
+	return false
+}
+
 type CreatePublicRouteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Route         *PublicRoute           `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
@@ -3864,16 +4061,22 @@ func (x *CreatePublicRouteResponse) GetRoute() *PublicRoute {
 }
 
 type UpdatePublicRouteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	ListenerId    int64                  `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
-	Priority      int64                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
-	HostPattern   string                 `protobuf:"bytes,4,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
-	PathPrefix    string                 `protobuf:"bytes,5,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
-	BackendId     int64                  `protobuf:"varint,6,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
-	Enabled       bool                   `protobuf:"varint,7,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                      protoimpl.MessageState        `protogen:"open.v1"`
+	Id                         int64                         `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ListenerId                 int64                         `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	Priority                   int64                         `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	HostPattern                string                        `protobuf:"bytes,4,opt,name=host_pattern,json=hostPattern,proto3" json:"host_pattern,omitempty"`
+	PathPrefix                 string                        `protobuf:"bytes,5,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	BackendId                  int64                         `protobuf:"varint,6,opt,name=backend_id,json=backendId,proto3" json:"backend_id,omitempty"`
+	Enabled                    bool                          `protobuf:"varint,7,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Action                     PublicRouteAction             `protobuf:"varint,10,opt,name=action,proto3,enum=p2pstream.v1.PublicRouteAction" json:"action,omitempty"`
+	RedirectTargetMode         PublicRouteRedirectTargetMode `protobuf:"varint,11,opt,name=redirect_target_mode,json=redirectTargetMode,proto3,enum=p2pstream.v1.PublicRouteRedirectTargetMode" json:"redirect_target_mode,omitempty"`
+	RedirectTarget             string                        `protobuf:"bytes,12,opt,name=redirect_target,json=redirectTarget,proto3" json:"redirect_target,omitempty"`
+	RedirectStatusCode         int64                         `protobuf:"varint,13,opt,name=redirect_status_code,json=redirectStatusCode,proto3" json:"redirect_status_code,omitempty"`
+	RedirectPreservePathSuffix bool                          `protobuf:"varint,14,opt,name=redirect_preserve_path_suffix,json=redirectPreservePathSuffix,proto3" json:"redirect_preserve_path_suffix,omitempty"`
+	RedirectPreserveQuery      bool                          `protobuf:"varint,15,opt,name=redirect_preserve_query,json=redirectPreserveQuery,proto3" json:"redirect_preserve_query,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *UpdatePublicRouteRequest) Reset() {
@@ -3951,6 +4154,48 @@ func (x *UpdatePublicRouteRequest) GetBackendId() int64 {
 func (x *UpdatePublicRouteRequest) GetEnabled() bool {
 	if x != nil {
 		return x.Enabled
+	}
+	return false
+}
+
+func (x *UpdatePublicRouteRequest) GetAction() PublicRouteAction {
+	if x != nil {
+		return x.Action
+	}
+	return PublicRouteAction_PUBLIC_ROUTE_ACTION_UNSPECIFIED
+}
+
+func (x *UpdatePublicRouteRequest) GetRedirectTargetMode() PublicRouteRedirectTargetMode {
+	if x != nil {
+		return x.RedirectTargetMode
+	}
+	return PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED
+}
+
+func (x *UpdatePublicRouteRequest) GetRedirectTarget() string {
+	if x != nil {
+		return x.RedirectTarget
+	}
+	return ""
+}
+
+func (x *UpdatePublicRouteRequest) GetRedirectStatusCode() int64 {
+	if x != nil {
+		return x.RedirectStatusCode
+	}
+	return 0
+}
+
+func (x *UpdatePublicRouteRequest) GetRedirectPreservePathSuffix() bool {
+	if x != nil {
+		return x.RedirectPreservePathSuffix
+	}
+	return false
+}
+
+func (x *UpdatePublicRouteRequest) GetRedirectPreserveQuery() bool {
+	if x != nil {
+		return x.RedirectPreserveQuery
 	}
 	return false
 }
@@ -6180,7 +6425,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\aenabled\x18\x06 \x01(\bR\aenabled\x12,\n" +
 	"\x12default_backend_id\x18\a \x01(\x03R\x10defaultBackendId\x123\n" +
 	"\x16created_at_unix_millis\x18\b \x01(\x03R\x13createdAtUnixMillis\x123\n" +
-	"\x16updated_at_unix_millis\x18\t \x01(\x03R\x13updatedAtUnixMillis\"\xc1\x02\n" +
+	"\x16updated_at_unix_millis\x18\t \x01(\x03R\x13updatedAtUnixMillis\"\xaf\x05\n" +
 	"\vPublicRoute\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vlistener_id\x18\x02 \x01(\x03R\n" +
@@ -6193,7 +6438,14 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"backend_id\x18\x06 \x01(\x03R\tbackendId\x12\x18\n" +
 	"\aenabled\x18\a \x01(\bR\aenabled\x123\n" +
 	"\x16created_at_unix_millis\x18\b \x01(\x03R\x13createdAtUnixMillis\x123\n" +
-	"\x16updated_at_unix_millis\x18\t \x01(\x03R\x13updatedAtUnixMillis\"\xae\x02\n" +
+	"\x16updated_at_unix_millis\x18\t \x01(\x03R\x13updatedAtUnixMillis\x127\n" +
+	"\x06action\x18\n" +
+	" \x01(\x0e2\x1f.p2pstream.v1.PublicRouteActionR\x06action\x12]\n" +
+	"\x14redirect_target_mode\x18\v \x01(\x0e2+.p2pstream.v1.PublicRouteRedirectTargetModeR\x12redirectTargetMode\x12'\n" +
+	"\x0fredirect_target\x18\f \x01(\tR\x0eredirectTarget\x120\n" +
+	"\x14redirect_status_code\x18\r \x01(\x03R\x12redirectStatusCode\x12A\n" +
+	"\x1dredirect_preserve_path_suffix\x18\x0e \x01(\bR\x1aredirectPreservePathSuffix\x126\n" +
+	"\x17redirect_preserve_query\x18\x0f \x01(\bR\x15redirectPreserveQuery\"\xae\x02\n" +
 	"\x14PublicTlsCertificate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vlistener_id\x18\x02 \x01(\x03R\n" +
@@ -6331,7 +6583,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x89\x01\n" +
 	"\x1aStopPublicListenerResponse\x12:\n" +
 	"\x06status\x18\x01 \x01(\v2\".p2pstream.v1.PublicListenerStatusR\x06status\x12/\n" +
-	"\x05proxy\x18\x02 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\xd4\x01\n" +
+	"\x05proxy\x18\x02 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\xc2\x04\n" +
 	"\x18CreatePublicRouteRequest\x12\x1f\n" +
 	"\vlistener_id\x18\x01 \x01(\x03R\n" +
 	"listenerId\x12\x1a\n" +
@@ -6341,9 +6593,16 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"pathPrefix\x12\x1d\n" +
 	"\n" +
 	"backend_id\x18\x05 \x01(\x03R\tbackendId\x12\x18\n" +
-	"\aenabled\x18\x06 \x01(\bR\aenabled\"L\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x127\n" +
+	"\x06action\x18\n" +
+	" \x01(\x0e2\x1f.p2pstream.v1.PublicRouteActionR\x06action\x12]\n" +
+	"\x14redirect_target_mode\x18\v \x01(\x0e2+.p2pstream.v1.PublicRouteRedirectTargetModeR\x12redirectTargetMode\x12'\n" +
+	"\x0fredirect_target\x18\f \x01(\tR\x0eredirectTarget\x120\n" +
+	"\x14redirect_status_code\x18\r \x01(\x03R\x12redirectStatusCode\x12A\n" +
+	"\x1dredirect_preserve_path_suffix\x18\x0e \x01(\bR\x1aredirectPreservePathSuffix\x126\n" +
+	"\x17redirect_preserve_query\x18\x0f \x01(\bR\x15redirectPreserveQuery\"L\n" +
 	"\x19CreatePublicRouteResponse\x12/\n" +
-	"\x05route\x18\x01 \x01(\v2\x19.p2pstream.v1.PublicRouteR\x05route\"\xe4\x01\n" +
+	"\x05route\x18\x01 \x01(\v2\x19.p2pstream.v1.PublicRouteR\x05route\"\xd2\x04\n" +
 	"\x18UpdatePublicRouteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vlistener_id\x18\x02 \x01(\x03R\n" +
@@ -6354,7 +6613,14 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"pathPrefix\x12\x1d\n" +
 	"\n" +
 	"backend_id\x18\x06 \x01(\x03R\tbackendId\x12\x18\n" +
-	"\aenabled\x18\a \x01(\bR\aenabled\"L\n" +
+	"\aenabled\x18\a \x01(\bR\aenabled\x127\n" +
+	"\x06action\x18\n" +
+	" \x01(\x0e2\x1f.p2pstream.v1.PublicRouteActionR\x06action\x12]\n" +
+	"\x14redirect_target_mode\x18\v \x01(\x0e2+.p2pstream.v1.PublicRouteRedirectTargetModeR\x12redirectTargetMode\x12'\n" +
+	"\x0fredirect_target\x18\f \x01(\tR\x0eredirectTarget\x120\n" +
+	"\x14redirect_status_code\x18\r \x01(\x03R\x12redirectStatusCode\x12A\n" +
+	"\x1dredirect_preserve_path_suffix\x18\x0e \x01(\bR\x1aredirectPreservePathSuffix\x126\n" +
+	"\x17redirect_preserve_query\x18\x0f \x01(\bR\x15redirectPreserveQuery\"L\n" +
 	"\x19UpdatePublicRouteResponse\x12/\n" +
 	"\x05route\x18\x01 \x01(\v2\x19.p2pstream.v1.PublicRouteR\x05route\"*\n" +
 	"\x18DeletePublicRouteRequest\x12\x0e\n" +
@@ -6547,7 +6813,16 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"$PUBLIC_BACKEND_LOAD_BALANCING_RANDOM\x10\x03\x121\n" +
 	"-PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM\x10\x04\x127\n" +
 	"3PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS\x10\x05\x12@\n" +
-	"<PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS\x10\x06*\xb9\x01\n" +
+	"<PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS\x10\x06*{\n" +
+	"\x11PublicRouteAction\x12#\n" +
+	"\x1fPUBLIC_ROUTE_ACTION_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bPUBLIC_ROUTE_ACTION_FORWARD\x10\x01\x12 \n" +
+	"\x1cPUBLIC_ROUTE_ACTION_REDIRECT\x10\x02*\xfd\x01\n" +
+	"\x1dPublicRouteRedirectTargetMode\x121\n" +
+	"-PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED\x10\x00\x124\n" +
+	"0PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH\x10\x01\x12?\n" +
+	";PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH\x10\x02\x122\n" +
+	".PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL\x10\x03*\xb9\x01\n" +
 	"\x11TrafficTraceLevel\x12#\n" +
 	"\x1fTRAFFIC_TRACE_LEVEL_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19TRAFFIC_TRACE_LEVEL_BASIC\x10\x01\x12 \n" +
@@ -6615,7 +6890,7 @@ func file_proto_p2pstream_v1_management_proto_rawDescGZIP() []byte {
 	return file_proto_p2pstream_v1_management_proto_rawDescData
 }
 
-var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
 var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 88)
 var file_proto_p2pstream_v1_management_proto_goTypes = []any{
 	(UserRole)(0),                              // 0: p2pstream.v1.UserRole
@@ -6624,254 +6899,262 @@ var file_proto_p2pstream_v1_management_proto_goTypes = []any{
 	(PublicBackendType)(0),                     // 3: p2pstream.v1.PublicBackendType
 	(PublicBackendForwardMode)(0),              // 4: p2pstream.v1.PublicBackendForwardMode
 	(PublicBackendLoadBalancing)(0),            // 5: p2pstream.v1.PublicBackendLoadBalancing
-	(TrafficTraceLevel)(0),                     // 6: p2pstream.v1.TrafficTraceLevel
-	(TrafficTraceStage)(0),                     // 7: p2pstream.v1.TrafficTraceStage
-	(*AgentStatsRequest)(nil),                  // 8: p2pstream.v1.AgentStatsRequest
-	(*AgentStatsResponse)(nil),                 // 9: p2pstream.v1.AgentStatsResponse
-	(*User)(nil),                               // 10: p2pstream.v1.User
-	(*GetStatusRequest)(nil),                   // 11: p2pstream.v1.GetStatusRequest
-	(*AgentStatsSnapshot)(nil),                 // 12: p2pstream.v1.AgentStatsSnapshot
-	(*GetStatusResponse)(nil),                  // 13: p2pstream.v1.GetStatusResponse
-	(*ProxyStatus)(nil),                        // 14: p2pstream.v1.ProxyStatus
-	(*PublicBackend)(nil),                      // 15: p2pstream.v1.PublicBackend
-	(*PublicHeader)(nil),                       // 16: p2pstream.v1.PublicHeader
-	(*PublicBackendUpstreamHeader)(nil),        // 17: p2pstream.v1.PublicBackendUpstreamHeader
-	(*PublicBackendBasicAuth)(nil),             // 18: p2pstream.v1.PublicBackendBasicAuth
-	(*Agent)(nil),                              // 19: p2pstream.v1.Agent
-	(*PublicBackendAgent)(nil),                 // 20: p2pstream.v1.PublicBackendAgent
-	(*PublicListener)(nil),                     // 21: p2pstream.v1.PublicListener
-	(*PublicRoute)(nil),                        // 22: p2pstream.v1.PublicRoute
-	(*PublicTlsCertificate)(nil),               // 23: p2pstream.v1.PublicTlsCertificate
-	(*PublicListenerStatus)(nil),               // 24: p2pstream.v1.PublicListenerStatus
-	(*GetPublicProxyConfigRequest)(nil),        // 25: p2pstream.v1.GetPublicProxyConfigRequest
-	(*GetPublicProxyConfigResponse)(nil),       // 26: p2pstream.v1.GetPublicProxyConfigResponse
-	(*CreatePublicBackendRequest)(nil),         // 27: p2pstream.v1.CreatePublicBackendRequest
-	(*CreatePublicBackendResponse)(nil),        // 28: p2pstream.v1.CreatePublicBackendResponse
-	(*UpdatePublicBackendRequest)(nil),         // 29: p2pstream.v1.UpdatePublicBackendRequest
-	(*UpdatePublicBackendResponse)(nil),        // 30: p2pstream.v1.UpdatePublicBackendResponse
-	(*DeletePublicBackendRequest)(nil),         // 31: p2pstream.v1.DeletePublicBackendRequest
-	(*DeletePublicBackendResponse)(nil),        // 32: p2pstream.v1.DeletePublicBackendResponse
-	(*CreateAgentRequest)(nil),                 // 33: p2pstream.v1.CreateAgentRequest
-	(*CreateAgentResponse)(nil),                // 34: p2pstream.v1.CreateAgentResponse
-	(*UpdateAgentRequest)(nil),                 // 35: p2pstream.v1.UpdateAgentRequest
-	(*UpdateAgentResponse)(nil),                // 36: p2pstream.v1.UpdateAgentResponse
-	(*DeleteAgentRequest)(nil),                 // 37: p2pstream.v1.DeleteAgentRequest
-	(*DeleteAgentResponse)(nil),                // 38: p2pstream.v1.DeleteAgentResponse
-	(*RotateAgentTokenRequest)(nil),            // 39: p2pstream.v1.RotateAgentTokenRequest
-	(*RotateAgentTokenResponse)(nil),           // 40: p2pstream.v1.RotateAgentTokenResponse
-	(*CreatePublicListenerRequest)(nil),        // 41: p2pstream.v1.CreatePublicListenerRequest
-	(*CreatePublicListenerResponse)(nil),       // 42: p2pstream.v1.CreatePublicListenerResponse
-	(*UpdatePublicListenerRequest)(nil),        // 43: p2pstream.v1.UpdatePublicListenerRequest
-	(*UpdatePublicListenerResponse)(nil),       // 44: p2pstream.v1.UpdatePublicListenerResponse
-	(*DeletePublicListenerRequest)(nil),        // 45: p2pstream.v1.DeletePublicListenerRequest
-	(*DeletePublicListenerResponse)(nil),       // 46: p2pstream.v1.DeletePublicListenerResponse
-	(*EnablePublicListenerRequest)(nil),        // 47: p2pstream.v1.EnablePublicListenerRequest
-	(*EnablePublicListenerResponse)(nil),       // 48: p2pstream.v1.EnablePublicListenerResponse
-	(*DisablePublicListenerRequest)(nil),       // 49: p2pstream.v1.DisablePublicListenerRequest
-	(*DisablePublicListenerResponse)(nil),      // 50: p2pstream.v1.DisablePublicListenerResponse
-	(*StartPublicListenerRequest)(nil),         // 51: p2pstream.v1.StartPublicListenerRequest
-	(*StartPublicListenerResponse)(nil),        // 52: p2pstream.v1.StartPublicListenerResponse
-	(*StopPublicListenerRequest)(nil),          // 53: p2pstream.v1.StopPublicListenerRequest
-	(*StopPublicListenerResponse)(nil),         // 54: p2pstream.v1.StopPublicListenerResponse
-	(*CreatePublicRouteRequest)(nil),           // 55: p2pstream.v1.CreatePublicRouteRequest
-	(*CreatePublicRouteResponse)(nil),          // 56: p2pstream.v1.CreatePublicRouteResponse
-	(*UpdatePublicRouteRequest)(nil),           // 57: p2pstream.v1.UpdatePublicRouteRequest
-	(*UpdatePublicRouteResponse)(nil),          // 58: p2pstream.v1.UpdatePublicRouteResponse
-	(*DeletePublicRouteRequest)(nil),           // 59: p2pstream.v1.DeletePublicRouteRequest
-	(*DeletePublicRouteResponse)(nil),          // 60: p2pstream.v1.DeletePublicRouteResponse
-	(*CreatePublicTlsCertificateRequest)(nil),  // 61: p2pstream.v1.CreatePublicTlsCertificateRequest
-	(*CreatePublicTlsCertificateResponse)(nil), // 62: p2pstream.v1.CreatePublicTlsCertificateResponse
-	(*UpdatePublicTlsCertificateRequest)(nil),  // 63: p2pstream.v1.UpdatePublicTlsCertificateRequest
-	(*UpdatePublicTlsCertificateResponse)(nil), // 64: p2pstream.v1.UpdatePublicTlsCertificateResponse
-	(*DeletePublicTlsCertificateRequest)(nil),  // 65: p2pstream.v1.DeletePublicTlsCertificateRequest
-	(*DeletePublicTlsCertificateResponse)(nil), // 66: p2pstream.v1.DeletePublicTlsCertificateResponse
-	(*GetDashboardRequest)(nil),                // 67: p2pstream.v1.GetDashboardRequest
-	(*DashboardWindowSummary)(nil),             // 68: p2pstream.v1.DashboardWindowSummary
-	(*AgentConnectionSummary)(nil),             // 69: p2pstream.v1.AgentConnectionSummary
-	(*GetDashboardResponse)(nil),               // 70: p2pstream.v1.GetDashboardResponse
-	(*TrafficTraceSettings)(nil),               // 71: p2pstream.v1.TrafficTraceSettings
-	(*GetTrafficTraceSettingsRequest)(nil),     // 72: p2pstream.v1.GetTrafficTraceSettingsRequest
-	(*GetTrafficTraceSettingsResponse)(nil),    // 73: p2pstream.v1.GetTrafficTraceSettingsResponse
-	(*SetTrafficTraceSettingsRequest)(nil),     // 74: p2pstream.v1.SetTrafficTraceSettingsRequest
-	(*SetTrafficTraceSettingsResponse)(nil),    // 75: p2pstream.v1.SetTrafficTraceSettingsResponse
-	(*StreamTrafficTraceEventsRequest)(nil),    // 76: p2pstream.v1.StreamTrafficTraceEventsRequest
-	(*TrafficTraceEvent)(nil),                  // 77: p2pstream.v1.TrafficTraceEvent
-	(*StreamTrafficTraceEventsResponse)(nil),   // 78: p2pstream.v1.StreamTrafficTraceEventsResponse
-	(*GetSetupStateRequest)(nil),               // 79: p2pstream.v1.GetSetupStateRequest
-	(*GetSetupStateResponse)(nil),              // 80: p2pstream.v1.GetSetupStateResponse
-	(*SetupAdminRequest)(nil),                  // 81: p2pstream.v1.SetupAdminRequest
-	(*SetupAdminResponse)(nil),                 // 82: p2pstream.v1.SetupAdminResponse
-	(*LoginRequest)(nil),                       // 83: p2pstream.v1.LoginRequest
-	(*LoginResponse)(nil),                      // 84: p2pstream.v1.LoginResponse
-	(*LogoutRequest)(nil),                      // 85: p2pstream.v1.LogoutRequest
-	(*LogoutResponse)(nil),                     // 86: p2pstream.v1.LogoutResponse
-	(*GetCurrentUserRequest)(nil),              // 87: p2pstream.v1.GetCurrentUserRequest
-	(*GetCurrentUserResponse)(nil),             // 88: p2pstream.v1.GetCurrentUserResponse
-	(*StartProxyRequest)(nil),                  // 89: p2pstream.v1.StartProxyRequest
-	(*StartProxyResponse)(nil),                 // 90: p2pstream.v1.StartProxyResponse
-	(*StopProxyRequest)(nil),                   // 91: p2pstream.v1.StopProxyRequest
-	(*StopProxyResponse)(nil),                  // 92: p2pstream.v1.StopProxyResponse
-	nil,                                        // 93: p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
-	nil,                                        // 94: p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
-	nil,                                        // 95: p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
+	(PublicRouteAction)(0),                     // 6: p2pstream.v1.PublicRouteAction
+	(PublicRouteRedirectTargetMode)(0),         // 7: p2pstream.v1.PublicRouteRedirectTargetMode
+	(TrafficTraceLevel)(0),                     // 8: p2pstream.v1.TrafficTraceLevel
+	(TrafficTraceStage)(0),                     // 9: p2pstream.v1.TrafficTraceStage
+	(*AgentStatsRequest)(nil),                  // 10: p2pstream.v1.AgentStatsRequest
+	(*AgentStatsResponse)(nil),                 // 11: p2pstream.v1.AgentStatsResponse
+	(*User)(nil),                               // 12: p2pstream.v1.User
+	(*GetStatusRequest)(nil),                   // 13: p2pstream.v1.GetStatusRequest
+	(*AgentStatsSnapshot)(nil),                 // 14: p2pstream.v1.AgentStatsSnapshot
+	(*GetStatusResponse)(nil),                  // 15: p2pstream.v1.GetStatusResponse
+	(*ProxyStatus)(nil),                        // 16: p2pstream.v1.ProxyStatus
+	(*PublicBackend)(nil),                      // 17: p2pstream.v1.PublicBackend
+	(*PublicHeader)(nil),                       // 18: p2pstream.v1.PublicHeader
+	(*PublicBackendUpstreamHeader)(nil),        // 19: p2pstream.v1.PublicBackendUpstreamHeader
+	(*PublicBackendBasicAuth)(nil),             // 20: p2pstream.v1.PublicBackendBasicAuth
+	(*Agent)(nil),                              // 21: p2pstream.v1.Agent
+	(*PublicBackendAgent)(nil),                 // 22: p2pstream.v1.PublicBackendAgent
+	(*PublicListener)(nil),                     // 23: p2pstream.v1.PublicListener
+	(*PublicRoute)(nil),                        // 24: p2pstream.v1.PublicRoute
+	(*PublicTlsCertificate)(nil),               // 25: p2pstream.v1.PublicTlsCertificate
+	(*PublicListenerStatus)(nil),               // 26: p2pstream.v1.PublicListenerStatus
+	(*GetPublicProxyConfigRequest)(nil),        // 27: p2pstream.v1.GetPublicProxyConfigRequest
+	(*GetPublicProxyConfigResponse)(nil),       // 28: p2pstream.v1.GetPublicProxyConfigResponse
+	(*CreatePublicBackendRequest)(nil),         // 29: p2pstream.v1.CreatePublicBackendRequest
+	(*CreatePublicBackendResponse)(nil),        // 30: p2pstream.v1.CreatePublicBackendResponse
+	(*UpdatePublicBackendRequest)(nil),         // 31: p2pstream.v1.UpdatePublicBackendRequest
+	(*UpdatePublicBackendResponse)(nil),        // 32: p2pstream.v1.UpdatePublicBackendResponse
+	(*DeletePublicBackendRequest)(nil),         // 33: p2pstream.v1.DeletePublicBackendRequest
+	(*DeletePublicBackendResponse)(nil),        // 34: p2pstream.v1.DeletePublicBackendResponse
+	(*CreateAgentRequest)(nil),                 // 35: p2pstream.v1.CreateAgentRequest
+	(*CreateAgentResponse)(nil),                // 36: p2pstream.v1.CreateAgentResponse
+	(*UpdateAgentRequest)(nil),                 // 37: p2pstream.v1.UpdateAgentRequest
+	(*UpdateAgentResponse)(nil),                // 38: p2pstream.v1.UpdateAgentResponse
+	(*DeleteAgentRequest)(nil),                 // 39: p2pstream.v1.DeleteAgentRequest
+	(*DeleteAgentResponse)(nil),                // 40: p2pstream.v1.DeleteAgentResponse
+	(*RotateAgentTokenRequest)(nil),            // 41: p2pstream.v1.RotateAgentTokenRequest
+	(*RotateAgentTokenResponse)(nil),           // 42: p2pstream.v1.RotateAgentTokenResponse
+	(*CreatePublicListenerRequest)(nil),        // 43: p2pstream.v1.CreatePublicListenerRequest
+	(*CreatePublicListenerResponse)(nil),       // 44: p2pstream.v1.CreatePublicListenerResponse
+	(*UpdatePublicListenerRequest)(nil),        // 45: p2pstream.v1.UpdatePublicListenerRequest
+	(*UpdatePublicListenerResponse)(nil),       // 46: p2pstream.v1.UpdatePublicListenerResponse
+	(*DeletePublicListenerRequest)(nil),        // 47: p2pstream.v1.DeletePublicListenerRequest
+	(*DeletePublicListenerResponse)(nil),       // 48: p2pstream.v1.DeletePublicListenerResponse
+	(*EnablePublicListenerRequest)(nil),        // 49: p2pstream.v1.EnablePublicListenerRequest
+	(*EnablePublicListenerResponse)(nil),       // 50: p2pstream.v1.EnablePublicListenerResponse
+	(*DisablePublicListenerRequest)(nil),       // 51: p2pstream.v1.DisablePublicListenerRequest
+	(*DisablePublicListenerResponse)(nil),      // 52: p2pstream.v1.DisablePublicListenerResponse
+	(*StartPublicListenerRequest)(nil),         // 53: p2pstream.v1.StartPublicListenerRequest
+	(*StartPublicListenerResponse)(nil),        // 54: p2pstream.v1.StartPublicListenerResponse
+	(*StopPublicListenerRequest)(nil),          // 55: p2pstream.v1.StopPublicListenerRequest
+	(*StopPublicListenerResponse)(nil),         // 56: p2pstream.v1.StopPublicListenerResponse
+	(*CreatePublicRouteRequest)(nil),           // 57: p2pstream.v1.CreatePublicRouteRequest
+	(*CreatePublicRouteResponse)(nil),          // 58: p2pstream.v1.CreatePublicRouteResponse
+	(*UpdatePublicRouteRequest)(nil),           // 59: p2pstream.v1.UpdatePublicRouteRequest
+	(*UpdatePublicRouteResponse)(nil),          // 60: p2pstream.v1.UpdatePublicRouteResponse
+	(*DeletePublicRouteRequest)(nil),           // 61: p2pstream.v1.DeletePublicRouteRequest
+	(*DeletePublicRouteResponse)(nil),          // 62: p2pstream.v1.DeletePublicRouteResponse
+	(*CreatePublicTlsCertificateRequest)(nil),  // 63: p2pstream.v1.CreatePublicTlsCertificateRequest
+	(*CreatePublicTlsCertificateResponse)(nil), // 64: p2pstream.v1.CreatePublicTlsCertificateResponse
+	(*UpdatePublicTlsCertificateRequest)(nil),  // 65: p2pstream.v1.UpdatePublicTlsCertificateRequest
+	(*UpdatePublicTlsCertificateResponse)(nil), // 66: p2pstream.v1.UpdatePublicTlsCertificateResponse
+	(*DeletePublicTlsCertificateRequest)(nil),  // 67: p2pstream.v1.DeletePublicTlsCertificateRequest
+	(*DeletePublicTlsCertificateResponse)(nil), // 68: p2pstream.v1.DeletePublicTlsCertificateResponse
+	(*GetDashboardRequest)(nil),                // 69: p2pstream.v1.GetDashboardRequest
+	(*DashboardWindowSummary)(nil),             // 70: p2pstream.v1.DashboardWindowSummary
+	(*AgentConnectionSummary)(nil),             // 71: p2pstream.v1.AgentConnectionSummary
+	(*GetDashboardResponse)(nil),               // 72: p2pstream.v1.GetDashboardResponse
+	(*TrafficTraceSettings)(nil),               // 73: p2pstream.v1.TrafficTraceSettings
+	(*GetTrafficTraceSettingsRequest)(nil),     // 74: p2pstream.v1.GetTrafficTraceSettingsRequest
+	(*GetTrafficTraceSettingsResponse)(nil),    // 75: p2pstream.v1.GetTrafficTraceSettingsResponse
+	(*SetTrafficTraceSettingsRequest)(nil),     // 76: p2pstream.v1.SetTrafficTraceSettingsRequest
+	(*SetTrafficTraceSettingsResponse)(nil),    // 77: p2pstream.v1.SetTrafficTraceSettingsResponse
+	(*StreamTrafficTraceEventsRequest)(nil),    // 78: p2pstream.v1.StreamTrafficTraceEventsRequest
+	(*TrafficTraceEvent)(nil),                  // 79: p2pstream.v1.TrafficTraceEvent
+	(*StreamTrafficTraceEventsResponse)(nil),   // 80: p2pstream.v1.StreamTrafficTraceEventsResponse
+	(*GetSetupStateRequest)(nil),               // 81: p2pstream.v1.GetSetupStateRequest
+	(*GetSetupStateResponse)(nil),              // 82: p2pstream.v1.GetSetupStateResponse
+	(*SetupAdminRequest)(nil),                  // 83: p2pstream.v1.SetupAdminRequest
+	(*SetupAdminResponse)(nil),                 // 84: p2pstream.v1.SetupAdminResponse
+	(*LoginRequest)(nil),                       // 85: p2pstream.v1.LoginRequest
+	(*LoginResponse)(nil),                      // 86: p2pstream.v1.LoginResponse
+	(*LogoutRequest)(nil),                      // 87: p2pstream.v1.LogoutRequest
+	(*LogoutResponse)(nil),                     // 88: p2pstream.v1.LogoutResponse
+	(*GetCurrentUserRequest)(nil),              // 89: p2pstream.v1.GetCurrentUserRequest
+	(*GetCurrentUserResponse)(nil),             // 90: p2pstream.v1.GetCurrentUserResponse
+	(*StartProxyRequest)(nil),                  // 91: p2pstream.v1.StartProxyRequest
+	(*StartProxyResponse)(nil),                 // 92: p2pstream.v1.StartProxyResponse
+	(*StopProxyRequest)(nil),                   // 93: p2pstream.v1.StopProxyRequest
+	(*StopProxyResponse)(nil),                  // 94: p2pstream.v1.StopProxyResponse
+	nil,                                        // 95: p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
+	nil,                                        // 96: p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
+	nil,                                        // 97: p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
 }
 var file_proto_p2pstream_v1_management_proto_depIdxs = []int32{
 	0,   // 0: p2pstream.v1.User.role:type_name -> p2pstream.v1.UserRole
-	12,  // 1: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
-	14,  // 2: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	14,  // 1: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
+	16,  // 2: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
 	1,   // 3: p2pstream.v1.ProxyStatus.state:type_name -> p2pstream.v1.ProxyState
-	24,  // 4: p2pstream.v1.ProxyStatus.listeners:type_name -> p2pstream.v1.PublicListenerStatus
+	26,  // 4: p2pstream.v1.ProxyStatus.listeners:type_name -> p2pstream.v1.PublicListenerStatus
 	3,   // 5: p2pstream.v1.PublicBackend.backend_type:type_name -> p2pstream.v1.PublicBackendType
-	16,  // 6: p2pstream.v1.PublicBackend.static_response_headers:type_name -> p2pstream.v1.PublicHeader
+	18,  // 6: p2pstream.v1.PublicBackend.static_response_headers:type_name -> p2pstream.v1.PublicHeader
 	4,   // 7: p2pstream.v1.PublicBackend.forward_mode:type_name -> p2pstream.v1.PublicBackendForwardMode
 	5,   // 8: p2pstream.v1.PublicBackend.load_balancing:type_name -> p2pstream.v1.PublicBackendLoadBalancing
-	20,  // 9: p2pstream.v1.PublicBackend.agent_assignments:type_name -> p2pstream.v1.PublicBackendAgent
-	17,  // 10: p2pstream.v1.PublicBackend.upstream_request_headers:type_name -> p2pstream.v1.PublicBackendUpstreamHeader
-	18,  // 11: p2pstream.v1.PublicBackend.upstream_basic_auth:type_name -> p2pstream.v1.PublicBackendBasicAuth
-	12,  // 12: p2pstream.v1.Agent.latest_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
+	22,  // 9: p2pstream.v1.PublicBackend.agent_assignments:type_name -> p2pstream.v1.PublicBackendAgent
+	19,  // 10: p2pstream.v1.PublicBackend.upstream_request_headers:type_name -> p2pstream.v1.PublicBackendUpstreamHeader
+	20,  // 11: p2pstream.v1.PublicBackend.upstream_basic_auth:type_name -> p2pstream.v1.PublicBackendBasicAuth
+	14,  // 12: p2pstream.v1.Agent.latest_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
 	2,   // 13: p2pstream.v1.PublicListener.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
-	1,   // 14: p2pstream.v1.PublicListenerStatus.state:type_name -> p2pstream.v1.ProxyState
-	15,  // 15: p2pstream.v1.GetPublicProxyConfigResponse.backends:type_name -> p2pstream.v1.PublicBackend
-	21,  // 16: p2pstream.v1.GetPublicProxyConfigResponse.listeners:type_name -> p2pstream.v1.PublicListener
-	22,  // 17: p2pstream.v1.GetPublicProxyConfigResponse.routes:type_name -> p2pstream.v1.PublicRoute
-	23,  // 18: p2pstream.v1.GetPublicProxyConfigResponse.tls_certificates:type_name -> p2pstream.v1.PublicTlsCertificate
-	14,  // 19: p2pstream.v1.GetPublicProxyConfigResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	19,  // 20: p2pstream.v1.GetPublicProxyConfigResponse.agents:type_name -> p2pstream.v1.Agent
-	20,  // 21: p2pstream.v1.GetPublicProxyConfigResponse.backend_agents:type_name -> p2pstream.v1.PublicBackendAgent
-	3,   // 22: p2pstream.v1.CreatePublicBackendRequest.backend_type:type_name -> p2pstream.v1.PublicBackendType
-	16,  // 23: p2pstream.v1.CreatePublicBackendRequest.static_response_headers:type_name -> p2pstream.v1.PublicHeader
-	4,   // 24: p2pstream.v1.CreatePublicBackendRequest.forward_mode:type_name -> p2pstream.v1.PublicBackendForwardMode
-	5,   // 25: p2pstream.v1.CreatePublicBackendRequest.load_balancing:type_name -> p2pstream.v1.PublicBackendLoadBalancing
-	20,  // 26: p2pstream.v1.CreatePublicBackendRequest.agent_assignments:type_name -> p2pstream.v1.PublicBackendAgent
-	17,  // 27: p2pstream.v1.CreatePublicBackendRequest.upstream_request_headers:type_name -> p2pstream.v1.PublicBackendUpstreamHeader
-	18,  // 28: p2pstream.v1.CreatePublicBackendRequest.upstream_basic_auth:type_name -> p2pstream.v1.PublicBackendBasicAuth
-	15,  // 29: p2pstream.v1.CreatePublicBackendResponse.backend:type_name -> p2pstream.v1.PublicBackend
-	3,   // 30: p2pstream.v1.UpdatePublicBackendRequest.backend_type:type_name -> p2pstream.v1.PublicBackendType
-	16,  // 31: p2pstream.v1.UpdatePublicBackendRequest.static_response_headers:type_name -> p2pstream.v1.PublicHeader
-	4,   // 32: p2pstream.v1.UpdatePublicBackendRequest.forward_mode:type_name -> p2pstream.v1.PublicBackendForwardMode
-	5,   // 33: p2pstream.v1.UpdatePublicBackendRequest.load_balancing:type_name -> p2pstream.v1.PublicBackendLoadBalancing
-	20,  // 34: p2pstream.v1.UpdatePublicBackendRequest.agent_assignments:type_name -> p2pstream.v1.PublicBackendAgent
-	17,  // 35: p2pstream.v1.UpdatePublicBackendRequest.upstream_request_headers:type_name -> p2pstream.v1.PublicBackendUpstreamHeader
-	18,  // 36: p2pstream.v1.UpdatePublicBackendRequest.upstream_basic_auth:type_name -> p2pstream.v1.PublicBackendBasicAuth
-	15,  // 37: p2pstream.v1.UpdatePublicBackendResponse.backend:type_name -> p2pstream.v1.PublicBackend
-	19,  // 38: p2pstream.v1.CreateAgentResponse.agent:type_name -> p2pstream.v1.Agent
-	19,  // 39: p2pstream.v1.UpdateAgentResponse.agent:type_name -> p2pstream.v1.Agent
-	19,  // 40: p2pstream.v1.RotateAgentTokenResponse.agent:type_name -> p2pstream.v1.Agent
-	2,   // 41: p2pstream.v1.CreatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
-	21,  // 42: p2pstream.v1.CreatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	24,  // 43: p2pstream.v1.CreatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	14,  // 44: p2pstream.v1.CreatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	2,   // 45: p2pstream.v1.UpdatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
-	21,  // 46: p2pstream.v1.UpdatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	24,  // 47: p2pstream.v1.UpdatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	14,  // 48: p2pstream.v1.UpdatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	21,  // 49: p2pstream.v1.EnablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	24,  // 50: p2pstream.v1.EnablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	14,  // 51: p2pstream.v1.EnablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	21,  // 52: p2pstream.v1.DisablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	24,  // 53: p2pstream.v1.DisablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	14,  // 54: p2pstream.v1.DisablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	24,  // 55: p2pstream.v1.StartPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	14,  // 56: p2pstream.v1.StartPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	24,  // 57: p2pstream.v1.StopPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	14,  // 58: p2pstream.v1.StopPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	22,  // 59: p2pstream.v1.CreatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
-	22,  // 60: p2pstream.v1.UpdatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
-	23,  // 61: p2pstream.v1.CreatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
-	23,  // 62: p2pstream.v1.UpdatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
-	13,  // 63: p2pstream.v1.GetDashboardResponse.status:type_name -> p2pstream.v1.GetStatusResponse
-	68,  // 64: p2pstream.v1.GetDashboardResponse.windows:type_name -> p2pstream.v1.DashboardWindowSummary
-	69,  // 65: p2pstream.v1.GetDashboardResponse.agent_connections:type_name -> p2pstream.v1.AgentConnectionSummary
-	6,   // 66: p2pstream.v1.TrafficTraceSettings.level:type_name -> p2pstream.v1.TrafficTraceLevel
-	71,  // 67: p2pstream.v1.GetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
-	6,   // 68: p2pstream.v1.SetTrafficTraceSettingsRequest.level:type_name -> p2pstream.v1.TrafficTraceLevel
-	71,  // 69: p2pstream.v1.SetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
-	7,   // 70: p2pstream.v1.TrafficTraceEvent.stage:type_name -> p2pstream.v1.TrafficTraceStage
-	3,   // 71: p2pstream.v1.TrafficTraceEvent.backend_type:type_name -> p2pstream.v1.PublicBackendType
-	4,   // 72: p2pstream.v1.TrafficTraceEvent.forward_mode:type_name -> p2pstream.v1.PublicBackendForwardMode
-	93,  // 73: p2pstream.v1.TrafficTraceEvent.request_headers:type_name -> p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
-	94,  // 74: p2pstream.v1.TrafficTraceEvent.response_headers:type_name -> p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
-	95,  // 75: p2pstream.v1.TrafficTraceEvent.debug_attributes:type_name -> p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
-	71,  // 76: p2pstream.v1.StreamTrafficTraceEventsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
-	77,  // 77: p2pstream.v1.StreamTrafficTraceEventsResponse.event:type_name -> p2pstream.v1.TrafficTraceEvent
-	10,  // 78: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
-	10,  // 79: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
-	10,  // 80: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
-	14,  // 81: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	14,  // 82: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	8,   // 83: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
-	11,  // 84: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
-	67,  // 85: p2pstream.v1.AgentManagementService.GetDashboard:input_type -> p2pstream.v1.GetDashboardRequest
-	72,  // 86: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:input_type -> p2pstream.v1.GetTrafficTraceSettingsRequest
-	74,  // 87: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:input_type -> p2pstream.v1.SetTrafficTraceSettingsRequest
-	76,  // 88: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:input_type -> p2pstream.v1.StreamTrafficTraceEventsRequest
-	79,  // 89: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
-	81,  // 90: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
-	83,  // 91: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
-	85,  // 92: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
-	87,  // 93: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
-	89,  // 94: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
-	91,  // 95: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
-	25,  // 96: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:input_type -> p2pstream.v1.GetPublicProxyConfigRequest
-	27,  // 97: p2pstream.v1.AgentManagementService.CreatePublicBackend:input_type -> p2pstream.v1.CreatePublicBackendRequest
-	29,  // 98: p2pstream.v1.AgentManagementService.UpdatePublicBackend:input_type -> p2pstream.v1.UpdatePublicBackendRequest
-	31,  // 99: p2pstream.v1.AgentManagementService.DeletePublicBackend:input_type -> p2pstream.v1.DeletePublicBackendRequest
-	33,  // 100: p2pstream.v1.AgentManagementService.CreateAgent:input_type -> p2pstream.v1.CreateAgentRequest
-	35,  // 101: p2pstream.v1.AgentManagementService.UpdateAgent:input_type -> p2pstream.v1.UpdateAgentRequest
-	37,  // 102: p2pstream.v1.AgentManagementService.DeleteAgent:input_type -> p2pstream.v1.DeleteAgentRequest
-	39,  // 103: p2pstream.v1.AgentManagementService.RotateAgentToken:input_type -> p2pstream.v1.RotateAgentTokenRequest
-	41,  // 104: p2pstream.v1.AgentManagementService.CreatePublicListener:input_type -> p2pstream.v1.CreatePublicListenerRequest
-	43,  // 105: p2pstream.v1.AgentManagementService.UpdatePublicListener:input_type -> p2pstream.v1.UpdatePublicListenerRequest
-	45,  // 106: p2pstream.v1.AgentManagementService.DeletePublicListener:input_type -> p2pstream.v1.DeletePublicListenerRequest
-	47,  // 107: p2pstream.v1.AgentManagementService.EnablePublicListener:input_type -> p2pstream.v1.EnablePublicListenerRequest
-	49,  // 108: p2pstream.v1.AgentManagementService.DisablePublicListener:input_type -> p2pstream.v1.DisablePublicListenerRequest
-	51,  // 109: p2pstream.v1.AgentManagementService.StartPublicListener:input_type -> p2pstream.v1.StartPublicListenerRequest
-	53,  // 110: p2pstream.v1.AgentManagementService.StopPublicListener:input_type -> p2pstream.v1.StopPublicListenerRequest
-	55,  // 111: p2pstream.v1.AgentManagementService.CreatePublicRoute:input_type -> p2pstream.v1.CreatePublicRouteRequest
-	57,  // 112: p2pstream.v1.AgentManagementService.UpdatePublicRoute:input_type -> p2pstream.v1.UpdatePublicRouteRequest
-	59,  // 113: p2pstream.v1.AgentManagementService.DeletePublicRoute:input_type -> p2pstream.v1.DeletePublicRouteRequest
-	61,  // 114: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:input_type -> p2pstream.v1.CreatePublicTlsCertificateRequest
-	63,  // 115: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:input_type -> p2pstream.v1.UpdatePublicTlsCertificateRequest
-	65,  // 116: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:input_type -> p2pstream.v1.DeletePublicTlsCertificateRequest
-	9,   // 117: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
-	13,  // 118: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
-	70,  // 119: p2pstream.v1.AgentManagementService.GetDashboard:output_type -> p2pstream.v1.GetDashboardResponse
-	73,  // 120: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:output_type -> p2pstream.v1.GetTrafficTraceSettingsResponse
-	75,  // 121: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:output_type -> p2pstream.v1.SetTrafficTraceSettingsResponse
-	78,  // 122: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:output_type -> p2pstream.v1.StreamTrafficTraceEventsResponse
-	80,  // 123: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
-	82,  // 124: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
-	84,  // 125: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
-	86,  // 126: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
-	88,  // 127: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
-	90,  // 128: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
-	92,  // 129: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
-	26,  // 130: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:output_type -> p2pstream.v1.GetPublicProxyConfigResponse
-	28,  // 131: p2pstream.v1.AgentManagementService.CreatePublicBackend:output_type -> p2pstream.v1.CreatePublicBackendResponse
-	30,  // 132: p2pstream.v1.AgentManagementService.UpdatePublicBackend:output_type -> p2pstream.v1.UpdatePublicBackendResponse
-	32,  // 133: p2pstream.v1.AgentManagementService.DeletePublicBackend:output_type -> p2pstream.v1.DeletePublicBackendResponse
-	34,  // 134: p2pstream.v1.AgentManagementService.CreateAgent:output_type -> p2pstream.v1.CreateAgentResponse
-	36,  // 135: p2pstream.v1.AgentManagementService.UpdateAgent:output_type -> p2pstream.v1.UpdateAgentResponse
-	38,  // 136: p2pstream.v1.AgentManagementService.DeleteAgent:output_type -> p2pstream.v1.DeleteAgentResponse
-	40,  // 137: p2pstream.v1.AgentManagementService.RotateAgentToken:output_type -> p2pstream.v1.RotateAgentTokenResponse
-	42,  // 138: p2pstream.v1.AgentManagementService.CreatePublicListener:output_type -> p2pstream.v1.CreatePublicListenerResponse
-	44,  // 139: p2pstream.v1.AgentManagementService.UpdatePublicListener:output_type -> p2pstream.v1.UpdatePublicListenerResponse
-	46,  // 140: p2pstream.v1.AgentManagementService.DeletePublicListener:output_type -> p2pstream.v1.DeletePublicListenerResponse
-	48,  // 141: p2pstream.v1.AgentManagementService.EnablePublicListener:output_type -> p2pstream.v1.EnablePublicListenerResponse
-	50,  // 142: p2pstream.v1.AgentManagementService.DisablePublicListener:output_type -> p2pstream.v1.DisablePublicListenerResponse
-	52,  // 143: p2pstream.v1.AgentManagementService.StartPublicListener:output_type -> p2pstream.v1.StartPublicListenerResponse
-	54,  // 144: p2pstream.v1.AgentManagementService.StopPublicListener:output_type -> p2pstream.v1.StopPublicListenerResponse
-	56,  // 145: p2pstream.v1.AgentManagementService.CreatePublicRoute:output_type -> p2pstream.v1.CreatePublicRouteResponse
-	58,  // 146: p2pstream.v1.AgentManagementService.UpdatePublicRoute:output_type -> p2pstream.v1.UpdatePublicRouteResponse
-	60,  // 147: p2pstream.v1.AgentManagementService.DeletePublicRoute:output_type -> p2pstream.v1.DeletePublicRouteResponse
-	62,  // 148: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:output_type -> p2pstream.v1.CreatePublicTlsCertificateResponse
-	64,  // 149: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:output_type -> p2pstream.v1.UpdatePublicTlsCertificateResponse
-	66,  // 150: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:output_type -> p2pstream.v1.DeletePublicTlsCertificateResponse
-	117, // [117:151] is the sub-list for method output_type
-	83,  // [83:117] is the sub-list for method input_type
-	83,  // [83:83] is the sub-list for extension type_name
-	83,  // [83:83] is the sub-list for extension extendee
-	0,   // [0:83] is the sub-list for field type_name
+	6,   // 14: p2pstream.v1.PublicRoute.action:type_name -> p2pstream.v1.PublicRouteAction
+	7,   // 15: p2pstream.v1.PublicRoute.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
+	1,   // 16: p2pstream.v1.PublicListenerStatus.state:type_name -> p2pstream.v1.ProxyState
+	17,  // 17: p2pstream.v1.GetPublicProxyConfigResponse.backends:type_name -> p2pstream.v1.PublicBackend
+	23,  // 18: p2pstream.v1.GetPublicProxyConfigResponse.listeners:type_name -> p2pstream.v1.PublicListener
+	24,  // 19: p2pstream.v1.GetPublicProxyConfigResponse.routes:type_name -> p2pstream.v1.PublicRoute
+	25,  // 20: p2pstream.v1.GetPublicProxyConfigResponse.tls_certificates:type_name -> p2pstream.v1.PublicTlsCertificate
+	16,  // 21: p2pstream.v1.GetPublicProxyConfigResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	21,  // 22: p2pstream.v1.GetPublicProxyConfigResponse.agents:type_name -> p2pstream.v1.Agent
+	22,  // 23: p2pstream.v1.GetPublicProxyConfigResponse.backend_agents:type_name -> p2pstream.v1.PublicBackendAgent
+	3,   // 24: p2pstream.v1.CreatePublicBackendRequest.backend_type:type_name -> p2pstream.v1.PublicBackendType
+	18,  // 25: p2pstream.v1.CreatePublicBackendRequest.static_response_headers:type_name -> p2pstream.v1.PublicHeader
+	4,   // 26: p2pstream.v1.CreatePublicBackendRequest.forward_mode:type_name -> p2pstream.v1.PublicBackendForwardMode
+	5,   // 27: p2pstream.v1.CreatePublicBackendRequest.load_balancing:type_name -> p2pstream.v1.PublicBackendLoadBalancing
+	22,  // 28: p2pstream.v1.CreatePublicBackendRequest.agent_assignments:type_name -> p2pstream.v1.PublicBackendAgent
+	19,  // 29: p2pstream.v1.CreatePublicBackendRequest.upstream_request_headers:type_name -> p2pstream.v1.PublicBackendUpstreamHeader
+	20,  // 30: p2pstream.v1.CreatePublicBackendRequest.upstream_basic_auth:type_name -> p2pstream.v1.PublicBackendBasicAuth
+	17,  // 31: p2pstream.v1.CreatePublicBackendResponse.backend:type_name -> p2pstream.v1.PublicBackend
+	3,   // 32: p2pstream.v1.UpdatePublicBackendRequest.backend_type:type_name -> p2pstream.v1.PublicBackendType
+	18,  // 33: p2pstream.v1.UpdatePublicBackendRequest.static_response_headers:type_name -> p2pstream.v1.PublicHeader
+	4,   // 34: p2pstream.v1.UpdatePublicBackendRequest.forward_mode:type_name -> p2pstream.v1.PublicBackendForwardMode
+	5,   // 35: p2pstream.v1.UpdatePublicBackendRequest.load_balancing:type_name -> p2pstream.v1.PublicBackendLoadBalancing
+	22,  // 36: p2pstream.v1.UpdatePublicBackendRequest.agent_assignments:type_name -> p2pstream.v1.PublicBackendAgent
+	19,  // 37: p2pstream.v1.UpdatePublicBackendRequest.upstream_request_headers:type_name -> p2pstream.v1.PublicBackendUpstreamHeader
+	20,  // 38: p2pstream.v1.UpdatePublicBackendRequest.upstream_basic_auth:type_name -> p2pstream.v1.PublicBackendBasicAuth
+	17,  // 39: p2pstream.v1.UpdatePublicBackendResponse.backend:type_name -> p2pstream.v1.PublicBackend
+	21,  // 40: p2pstream.v1.CreateAgentResponse.agent:type_name -> p2pstream.v1.Agent
+	21,  // 41: p2pstream.v1.UpdateAgentResponse.agent:type_name -> p2pstream.v1.Agent
+	21,  // 42: p2pstream.v1.RotateAgentTokenResponse.agent:type_name -> p2pstream.v1.Agent
+	2,   // 43: p2pstream.v1.CreatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
+	23,  // 44: p2pstream.v1.CreatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	26,  // 45: p2pstream.v1.CreatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	16,  // 46: p2pstream.v1.CreatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	2,   // 47: p2pstream.v1.UpdatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
+	23,  // 48: p2pstream.v1.UpdatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	26,  // 49: p2pstream.v1.UpdatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	16,  // 50: p2pstream.v1.UpdatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	23,  // 51: p2pstream.v1.EnablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	26,  // 52: p2pstream.v1.EnablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	16,  // 53: p2pstream.v1.EnablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	23,  // 54: p2pstream.v1.DisablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	26,  // 55: p2pstream.v1.DisablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	16,  // 56: p2pstream.v1.DisablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	26,  // 57: p2pstream.v1.StartPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	16,  // 58: p2pstream.v1.StartPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	26,  // 59: p2pstream.v1.StopPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	16,  // 60: p2pstream.v1.StopPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	6,   // 61: p2pstream.v1.CreatePublicRouteRequest.action:type_name -> p2pstream.v1.PublicRouteAction
+	7,   // 62: p2pstream.v1.CreatePublicRouteRequest.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
+	24,  // 63: p2pstream.v1.CreatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
+	6,   // 64: p2pstream.v1.UpdatePublicRouteRequest.action:type_name -> p2pstream.v1.PublicRouteAction
+	7,   // 65: p2pstream.v1.UpdatePublicRouteRequest.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
+	24,  // 66: p2pstream.v1.UpdatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
+	25,  // 67: p2pstream.v1.CreatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
+	25,  // 68: p2pstream.v1.UpdatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
+	15,  // 69: p2pstream.v1.GetDashboardResponse.status:type_name -> p2pstream.v1.GetStatusResponse
+	70,  // 70: p2pstream.v1.GetDashboardResponse.windows:type_name -> p2pstream.v1.DashboardWindowSummary
+	71,  // 71: p2pstream.v1.GetDashboardResponse.agent_connections:type_name -> p2pstream.v1.AgentConnectionSummary
+	8,   // 72: p2pstream.v1.TrafficTraceSettings.level:type_name -> p2pstream.v1.TrafficTraceLevel
+	73,  // 73: p2pstream.v1.GetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
+	8,   // 74: p2pstream.v1.SetTrafficTraceSettingsRequest.level:type_name -> p2pstream.v1.TrafficTraceLevel
+	73,  // 75: p2pstream.v1.SetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
+	9,   // 76: p2pstream.v1.TrafficTraceEvent.stage:type_name -> p2pstream.v1.TrafficTraceStage
+	3,   // 77: p2pstream.v1.TrafficTraceEvent.backend_type:type_name -> p2pstream.v1.PublicBackendType
+	4,   // 78: p2pstream.v1.TrafficTraceEvent.forward_mode:type_name -> p2pstream.v1.PublicBackendForwardMode
+	95,  // 79: p2pstream.v1.TrafficTraceEvent.request_headers:type_name -> p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
+	96,  // 80: p2pstream.v1.TrafficTraceEvent.response_headers:type_name -> p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
+	97,  // 81: p2pstream.v1.TrafficTraceEvent.debug_attributes:type_name -> p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
+	73,  // 82: p2pstream.v1.StreamTrafficTraceEventsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
+	79,  // 83: p2pstream.v1.StreamTrafficTraceEventsResponse.event:type_name -> p2pstream.v1.TrafficTraceEvent
+	12,  // 84: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
+	12,  // 85: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
+	12,  // 86: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
+	16,  // 87: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	16,  // 88: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	10,  // 89: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
+	13,  // 90: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
+	69,  // 91: p2pstream.v1.AgentManagementService.GetDashboard:input_type -> p2pstream.v1.GetDashboardRequest
+	74,  // 92: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:input_type -> p2pstream.v1.GetTrafficTraceSettingsRequest
+	76,  // 93: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:input_type -> p2pstream.v1.SetTrafficTraceSettingsRequest
+	78,  // 94: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:input_type -> p2pstream.v1.StreamTrafficTraceEventsRequest
+	81,  // 95: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
+	83,  // 96: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
+	85,  // 97: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
+	87,  // 98: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
+	89,  // 99: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
+	91,  // 100: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
+	93,  // 101: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
+	27,  // 102: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:input_type -> p2pstream.v1.GetPublicProxyConfigRequest
+	29,  // 103: p2pstream.v1.AgentManagementService.CreatePublicBackend:input_type -> p2pstream.v1.CreatePublicBackendRequest
+	31,  // 104: p2pstream.v1.AgentManagementService.UpdatePublicBackend:input_type -> p2pstream.v1.UpdatePublicBackendRequest
+	33,  // 105: p2pstream.v1.AgentManagementService.DeletePublicBackend:input_type -> p2pstream.v1.DeletePublicBackendRequest
+	35,  // 106: p2pstream.v1.AgentManagementService.CreateAgent:input_type -> p2pstream.v1.CreateAgentRequest
+	37,  // 107: p2pstream.v1.AgentManagementService.UpdateAgent:input_type -> p2pstream.v1.UpdateAgentRequest
+	39,  // 108: p2pstream.v1.AgentManagementService.DeleteAgent:input_type -> p2pstream.v1.DeleteAgentRequest
+	41,  // 109: p2pstream.v1.AgentManagementService.RotateAgentToken:input_type -> p2pstream.v1.RotateAgentTokenRequest
+	43,  // 110: p2pstream.v1.AgentManagementService.CreatePublicListener:input_type -> p2pstream.v1.CreatePublicListenerRequest
+	45,  // 111: p2pstream.v1.AgentManagementService.UpdatePublicListener:input_type -> p2pstream.v1.UpdatePublicListenerRequest
+	47,  // 112: p2pstream.v1.AgentManagementService.DeletePublicListener:input_type -> p2pstream.v1.DeletePublicListenerRequest
+	49,  // 113: p2pstream.v1.AgentManagementService.EnablePublicListener:input_type -> p2pstream.v1.EnablePublicListenerRequest
+	51,  // 114: p2pstream.v1.AgentManagementService.DisablePublicListener:input_type -> p2pstream.v1.DisablePublicListenerRequest
+	53,  // 115: p2pstream.v1.AgentManagementService.StartPublicListener:input_type -> p2pstream.v1.StartPublicListenerRequest
+	55,  // 116: p2pstream.v1.AgentManagementService.StopPublicListener:input_type -> p2pstream.v1.StopPublicListenerRequest
+	57,  // 117: p2pstream.v1.AgentManagementService.CreatePublicRoute:input_type -> p2pstream.v1.CreatePublicRouteRequest
+	59,  // 118: p2pstream.v1.AgentManagementService.UpdatePublicRoute:input_type -> p2pstream.v1.UpdatePublicRouteRequest
+	61,  // 119: p2pstream.v1.AgentManagementService.DeletePublicRoute:input_type -> p2pstream.v1.DeletePublicRouteRequest
+	63,  // 120: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:input_type -> p2pstream.v1.CreatePublicTlsCertificateRequest
+	65,  // 121: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:input_type -> p2pstream.v1.UpdatePublicTlsCertificateRequest
+	67,  // 122: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:input_type -> p2pstream.v1.DeletePublicTlsCertificateRequest
+	11,  // 123: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
+	15,  // 124: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
+	72,  // 125: p2pstream.v1.AgentManagementService.GetDashboard:output_type -> p2pstream.v1.GetDashboardResponse
+	75,  // 126: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:output_type -> p2pstream.v1.GetTrafficTraceSettingsResponse
+	77,  // 127: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:output_type -> p2pstream.v1.SetTrafficTraceSettingsResponse
+	80,  // 128: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:output_type -> p2pstream.v1.StreamTrafficTraceEventsResponse
+	82,  // 129: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
+	84,  // 130: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
+	86,  // 131: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
+	88,  // 132: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
+	90,  // 133: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
+	92,  // 134: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
+	94,  // 135: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
+	28,  // 136: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:output_type -> p2pstream.v1.GetPublicProxyConfigResponse
+	30,  // 137: p2pstream.v1.AgentManagementService.CreatePublicBackend:output_type -> p2pstream.v1.CreatePublicBackendResponse
+	32,  // 138: p2pstream.v1.AgentManagementService.UpdatePublicBackend:output_type -> p2pstream.v1.UpdatePublicBackendResponse
+	34,  // 139: p2pstream.v1.AgentManagementService.DeletePublicBackend:output_type -> p2pstream.v1.DeletePublicBackendResponse
+	36,  // 140: p2pstream.v1.AgentManagementService.CreateAgent:output_type -> p2pstream.v1.CreateAgentResponse
+	38,  // 141: p2pstream.v1.AgentManagementService.UpdateAgent:output_type -> p2pstream.v1.UpdateAgentResponse
+	40,  // 142: p2pstream.v1.AgentManagementService.DeleteAgent:output_type -> p2pstream.v1.DeleteAgentResponse
+	42,  // 143: p2pstream.v1.AgentManagementService.RotateAgentToken:output_type -> p2pstream.v1.RotateAgentTokenResponse
+	44,  // 144: p2pstream.v1.AgentManagementService.CreatePublicListener:output_type -> p2pstream.v1.CreatePublicListenerResponse
+	46,  // 145: p2pstream.v1.AgentManagementService.UpdatePublicListener:output_type -> p2pstream.v1.UpdatePublicListenerResponse
+	48,  // 146: p2pstream.v1.AgentManagementService.DeletePublicListener:output_type -> p2pstream.v1.DeletePublicListenerResponse
+	50,  // 147: p2pstream.v1.AgentManagementService.EnablePublicListener:output_type -> p2pstream.v1.EnablePublicListenerResponse
+	52,  // 148: p2pstream.v1.AgentManagementService.DisablePublicListener:output_type -> p2pstream.v1.DisablePublicListenerResponse
+	54,  // 149: p2pstream.v1.AgentManagementService.StartPublicListener:output_type -> p2pstream.v1.StartPublicListenerResponse
+	56,  // 150: p2pstream.v1.AgentManagementService.StopPublicListener:output_type -> p2pstream.v1.StopPublicListenerResponse
+	58,  // 151: p2pstream.v1.AgentManagementService.CreatePublicRoute:output_type -> p2pstream.v1.CreatePublicRouteResponse
+	60,  // 152: p2pstream.v1.AgentManagementService.UpdatePublicRoute:output_type -> p2pstream.v1.UpdatePublicRouteResponse
+	62,  // 153: p2pstream.v1.AgentManagementService.DeletePublicRoute:output_type -> p2pstream.v1.DeletePublicRouteResponse
+	64,  // 154: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:output_type -> p2pstream.v1.CreatePublicTlsCertificateResponse
+	66,  // 155: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:output_type -> p2pstream.v1.UpdatePublicTlsCertificateResponse
+	68,  // 156: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:output_type -> p2pstream.v1.DeletePublicTlsCertificateResponse
+	123, // [123:157] is the sub-list for method output_type
+	89,  // [89:123] is the sub-list for method input_type
+	89,  // [89:89] is the sub-list for extension type_name
+	89,  // [89:89] is the sub-list for extension extendee
+	0,   // [0:89] is the sub-list for field type_name
 }
 
 func init() { file_proto_p2pstream_v1_management_proto_init() }
@@ -6884,7 +7167,7 @@ func file_proto_p2pstream_v1_management_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_p2pstream_v1_management_proto_rawDesc), len(file_proto_p2pstream_v1_management_proto_rawDesc)),
-			NumEnums:      8,
+			NumEnums:      10,
 			NumMessages:   88,
 			NumExtensions: 0,
 			NumServices:   1,

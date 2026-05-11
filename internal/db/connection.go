@@ -246,7 +246,13 @@ func (db *DB) migrate() error {
 		priority INTEGER NOT NULL,
 		host_pattern TEXT NOT NULL DEFAULT '',
 		path_prefix TEXT NOT NULL DEFAULT '',
-		backend_id INTEGER NOT NULL REFERENCES public_backends(id),
+		backend_id INTEGER REFERENCES public_backends(id),
+		action TEXT NOT NULL DEFAULT 'forward',
+		redirect_target_mode TEXT NOT NULL DEFAULT '',
+		redirect_target TEXT NOT NULL DEFAULT '',
+		redirect_status_code INTEGER NOT NULL DEFAULT 302,
+		redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
+		redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -339,6 +345,9 @@ func (db *DB) migrate() error {
 			return err
 		}
 	}
+	if err := db.migratePublicRoutesRedirectSchema(); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id ON proxy_request_events (listener_id)`); err != nil {
 		return err
 	}
@@ -405,4 +414,152 @@ func (db *DB) migrate() error {
 		return err
 	}
 	return nil
+}
+
+type sqliteTableColumn struct {
+	Name    string
+	NotNull bool
+}
+
+func (db *DB) migratePublicRoutesRedirectSchema() error {
+	columns, err := db.sqliteTableColumns("public_routes")
+	if err != nil {
+		return err
+	}
+	backendColumn, hasBackend := columns["backend_id"]
+	if !hasBackend {
+		return nil
+	}
+	requiredColumns := []string{
+		"action",
+		"redirect_target_mode",
+		"redirect_target",
+		"redirect_status_code",
+		"redirect_preserve_path_suffix",
+		"redirect_preserve_query",
+	}
+	needsRebuild := backendColumn.NotNull
+	for _, column := range requiredColumns {
+		if _, ok := columns[column]; !ok {
+			needsRebuild = true
+			break
+		}
+	}
+	if !needsRebuild {
+		return nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+		CREATE TABLE public_routes_new (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+			priority INTEGER NOT NULL,
+			host_pattern TEXT NOT NULL DEFAULT '',
+			path_prefix TEXT NOT NULL DEFAULT '',
+			backend_id INTEGER REFERENCES public_backends(id),
+			action TEXT NOT NULL DEFAULT 'forward',
+			redirect_target_mode TEXT NOT NULL DEFAULT '',
+			redirect_target TEXT NOT NULL DEFAULT '',
+			redirect_status_code INTEGER NOT NULL DEFAULT 302,
+			redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
+			redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+
+	columnExpr := func(name string, fallback string) string {
+		if _, ok := columns[name]; ok {
+			return name
+		}
+		return fallback
+	}
+	copySQL := fmt.Sprintf(`
+		INSERT INTO public_routes_new (
+			id,
+			listener_id,
+			priority,
+			host_pattern,
+			path_prefix,
+			backend_id,
+			action,
+			redirect_target_mode,
+			redirect_target,
+			redirect_status_code,
+			redirect_preserve_path_suffix,
+			redirect_preserve_query,
+			enabled,
+			created_at,
+			updated_at
+		)
+		SELECT
+			id,
+			listener_id,
+			priority,
+			host_pattern,
+			path_prefix,
+			backend_id,
+			%s,
+			%s,
+			%s,
+			%s,
+			%s,
+			%s,
+			enabled,
+			created_at,
+			updated_at
+		FROM public_routes
+	`,
+		columnExpr("action", "'forward'"),
+		columnExpr("redirect_target_mode", "''"),
+		columnExpr("redirect_target", "''"),
+		columnExpr("redirect_status_code", "302"),
+		columnExpr("redirect_preserve_path_suffix", "1"),
+		columnExpr("redirect_preserve_query", "1"),
+	)
+	if _, err := tx.Exec(copySQL); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DROP TABLE public_routes`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`ALTER TABLE public_routes_new RENAME TO public_routes`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority ON public_routes (listener_id, priority, id)`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (db *DB) sqliteTableColumns(tableName string) (map[string]sqliteTableColumn, error) {
+	rows, err := db.Query(`PRAGMA table_info(` + tableName + `)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns := map[string]sqliteTableColumn{}
+	for rows.Next() {
+		var cid int64
+		var name string
+		var columnType string
+		var notNull int64
+		var defaultValue sql.NullString
+		var primaryKey int64
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return nil, err
+		}
+		columns[name] = sqliteTableColumn{Name: name, NotNull: notNull != 0}
+	}
+	return columns, rows.Err()
 }

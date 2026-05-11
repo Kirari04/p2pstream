@@ -84,13 +84,19 @@ type publicListenerConfig struct {
 }
 
 type publicRouteConfig struct {
-	ID          int64
-	ListenerID  int64
-	Priority    int64
-	HostPattern string
-	PathPrefix  string
-	BackendID   int64
-	Enabled     bool
+	ID                         int64
+	ListenerID                 int64
+	Priority                   int64
+	HostPattern                string
+	PathPrefix                 string
+	BackendID                  int64
+	Action                     string
+	RedirectTargetMode         string
+	RedirectTarget             string
+	RedirectStatusCode         int64
+	RedirectPreservePathSuffix bool
+	RedirectPreserveQuery      bool
+	Enabled                    bool
 }
 
 type publicTLSCertificateConfig struct {
@@ -114,6 +120,7 @@ type publicRouteResolution struct {
 	Backend      publicBackendConfig
 	Listener     publicListenerConfig
 	Route        publicRouteConfig
+	Action       string
 	DefaultRoute bool
 	ListenerID   sql.NullInt64
 	BackendID    sql.NullInt64
@@ -162,6 +169,12 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 		}
 		if trace != nil {
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ROUTE_RESOLVED, &resolution, nil, 0, "", nil, nil)
+		}
+		if resolution.Action == publicRouteActionRedirect {
+			a.redirectRouteResponse(responseWriter, r, resolution, trace)
+			return
+		}
+		if trace != nil {
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, nil)
 		}
 		if resolution.Backend.BackendType == publicBackendTypeStatic {
@@ -174,6 +187,51 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 		}
 		a.proxyDirectRequest(responseWriter, r, resolution, trace)
 	}
+}
+
+func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
+	startedAt := time.Now()
+	statusCode := int(resolution.Route.RedirectStatusCode)
+	if statusCode == 0 {
+		statusCode = int(defaultRedirectStatusCode)
+	}
+	errorKind := ""
+	location, err := redirectLocationForRequest(r, resolution.Route)
+	if err != nil {
+		statusCode = http.StatusInternalServerError
+		errorKind = "redirect_failed"
+		http.Error(w, "Redirect configuration is invalid", http.StatusInternalServerError)
+	} else {
+		w.Header().Set("Location", location)
+		w.WriteHeader(statusCode)
+	}
+	defer func() {
+		attributes := map[string]string{
+			"handler":              "redirect",
+			"route_action":         publicRouteActionRedirect,
+			"redirect_target_mode": resolution.Route.RedirectTargetMode,
+		}
+		if location != "" {
+			attributes["redirect_location"] = location
+		}
+		if trace != nil {
+			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
+			if errorKind != "" {
+				stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
+			}
+			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), attributes)
+		}
+		a.recordProxyRequestEventWithIDs(
+			context.Background(),
+			statusCode,
+			time.Since(startedAt),
+			errorKind,
+			resolution.ListenerID,
+			sql.NullInt64{},
+			resolution.RouteID,
+			sql.NullInt64{},
+		)
+	}()
 }
 
 func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
@@ -549,6 +607,7 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 	backendID := listener.DefaultBackendID
 	var routeID sql.NullInt64
 	var matchedRoute publicRouteConfig
+	action := publicRouteActionForward
 	defaultRoute := true
 	for _, route := range snap.RoutesByListener[listenerID] {
 		if !route.Enabled {
@@ -560,10 +619,21 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		if route.PathPrefix != "" && !strings.HasPrefix(r.URL.Path, route.PathPrefix) {
 			continue
 		}
-		backendID = route.BackendID
 		routeID = sql.NullInt64{Int64: route.ID, Valid: true}
 		matchedRoute = route
+		action = normalizePublicRouteAction(route.Action)
 		defaultRoute = false
+		if action == publicRouteActionRedirect {
+			return publicRouteResolution{
+				Listener:     listener,
+				Route:        matchedRoute,
+				Action:       publicRouteActionRedirect,
+				DefaultRoute: defaultRoute,
+				ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
+				RouteID:      routeID,
+			}, nil
+		}
+		backendID = route.BackendID
 		break
 	}
 
@@ -579,6 +649,7 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		Backend:      backend,
 		Listener:     listener,
 		Route:        matchedRoute,
+		Action:       publicRouteActionForward,
 		DefaultRoute: defaultRoute,
 		ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
 		BackendID:    sql.NullInt64{Int64: backendID, Valid: true},
@@ -601,6 +672,92 @@ func normalizeRequestHost(host string) string {
 		return host[:idx]
 	}
 	return strings.TrimSuffix(host, ".")
+}
+
+func redirectLocationForRequest(r *http.Request, route publicRouteConfig) (string, error) {
+	mode := normalizePublicRouteRedirectTargetMode(route.RedirectTargetMode)
+	switch mode {
+	case publicRouteRedirectTargetModeSameHostPath, publicRouteRedirectTargetModeAbsoluteURL:
+		target, err := url.Parse(route.RedirectTarget)
+		if err != nil {
+			return "", err
+		}
+		if route.RedirectPreservePathSuffix {
+			target.Path = joinRedirectPath(target.Path, redirectPathSuffix(r, route.PathPrefix))
+			target.RawPath = ""
+		}
+		target.RawQuery = mergeRedirectQuery(target.RawQuery, r.URL.RawQuery, route.RedirectPreserveQuery)
+		return target.String(), nil
+	case publicRouteRedirectTargetModeExternalOriginKeepPath:
+		target, err := url.Parse(route.RedirectTarget)
+		if err != nil {
+			return "", err
+		}
+		target.Path = r.URL.Path
+		target.RawPath = r.URL.RawPath
+		if target.Path == "" {
+			target.Path = "/"
+		}
+		target.RawQuery = ""
+		target.RawQuery = mergeRedirectQuery(target.RawQuery, r.URL.RawQuery, route.RedirectPreserveQuery)
+		return target.String(), nil
+	default:
+		return "", errors.New("unsupported redirect target mode")
+	}
+}
+
+func redirectPathSuffix(r *http.Request, pathPrefix string) string {
+	if r == nil || r.URL == nil {
+		return ""
+	}
+	requestPath := r.URL.Path
+	if requestPath == "" {
+		requestPath = "/"
+	}
+	pathPrefix = strings.TrimSpace(pathPrefix)
+	if pathPrefix == "" || pathPrefix == "/" {
+		return requestPath
+	}
+	if !strings.HasPrefix(requestPath, pathPrefix) {
+		return ""
+	}
+	suffix := strings.TrimPrefix(requestPath, pathPrefix)
+	if suffix == "" {
+		return ""
+	}
+	if !strings.HasPrefix(suffix, "/") {
+		return "/" + suffix
+	}
+	return suffix
+}
+
+func joinRedirectPath(basePath string, suffix string) string {
+	if suffix == "" {
+		if basePath == "" {
+			return "/"
+		}
+		return basePath
+	}
+	if basePath == "" {
+		basePath = "/"
+	}
+	if !strings.HasPrefix(suffix, "/") {
+		suffix = "/" + suffix
+	}
+	if basePath == "/" {
+		return suffix
+	}
+	return strings.TrimRight(basePath, "/") + "/" + strings.TrimLeft(suffix, "/")
+}
+
+func mergeRedirectQuery(configuredQuery string, incomingQuery string, preserveIncoming bool) string {
+	if !preserveIncoming || incomingQuery == "" {
+		return configuredQuery
+	}
+	if configuredQuery == "" {
+		return incomingQuery
+	}
+	return configuredQuery + "&" + incomingQuery
 }
 
 func directProxyTransport(tlsSkipVerify bool) http.RoundTripper {

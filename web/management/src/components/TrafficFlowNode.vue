@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
+import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 
 type TrafficNodeData = {
   label: string;
   subLabel: string;
-  kind: "ingress" | "listener" | "route" | "backend" | "agent" | "upstream" | "response";
+  kind: "ingress" | "listener" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+  editTargets: TrafficFlowEditTarget[];
 };
 
 defineProps<NodeProps<TrafficNodeData>>();
 </script>
 
 <template>
-  <div class="traffic-flow-node" :class="`traffic-flow-node-${data.kind}`">
+  <div
+    class="traffic-flow-node"
+    :class="[`traffic-flow-node-${data.kind}`, data.editTargets.length ? 'traffic-flow-node-clickable' : '']"
+  >
     <Handle type="target" :position="Position.Left" class="traffic-handle" />
     <div class="node-label" :title="data.label">{{ data.label || "-" }}</div>
     <div class="node-sub-label" :title="data.subLabel">{{ data.subLabel || "-" }}</div>
@@ -30,6 +35,17 @@ defineProps<NodeProps<TrafficNodeData>>();
   padding: 9px 12px;
   color: #ededed;
   box-shadow: 0 8px 22px rgb(0 0 0 / 26%);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.traffic-flow-node-clickable {
+  cursor: pointer;
+}
+
+.traffic-flow-node-clickable:hover {
+  border-color: #e4e4e7;
+  background: #0a0a0a;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 34%);
 }
 
 .traffic-flow-node-ingress,
@@ -51,6 +67,10 @@ defineProps<NodeProps<TrafficNodeData>>();
 
 .traffic-flow-node-backend {
   border-color: #71717a;
+}
+
+.traffic-flow-node-redirect {
+  border-color: #0f766e;
 }
 
 .node-label,

@@ -2,9 +2,12 @@
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { managementClient } from "@/api/managementClient";
+import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
+import TrafficFlowEditTargetChooser from "@/components/editors/TrafficFlowEditTargetChooser.vue";
 import TrafficFlowDiagram from "@/components/TrafficFlowDiagram.vue";
 import TrafficTraceDetailsModal from "@/components/TrafficTraceDetailsModal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
+import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type {
   DashboardWindowSummary,
   GetDashboardResponse,
@@ -66,6 +69,9 @@ const selectedRequest = ref<TraceRequest | null>(null);
 const isDetailsOpen = ref(false);
 const lastSequence = ref<bigint>(0n);
 const renderedTokenCount = ref(0);
+const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
+const pendingEditRequest = ref<TrafficFlowEditRequest | null>(null);
+const isEditChooserOpen = ref(false);
 
 let streamController: AbortController | null = null;
 let retryTimer: number | null = null;
@@ -304,6 +310,21 @@ function openTraceDetails(request: TraceRequest) {
   isDetailsOpen.value = true;
 }
 
+function handleFlowEditRequest(request: TrafficFlowEditRequest) {
+  if (request.targets.length === 1) {
+    openEditTarget(request.targets[0]);
+    return;
+  }
+  pendingEditRequest.value = request;
+  isEditChooserOpen.value = true;
+}
+
+function openEditTarget(target: TrafficFlowEditTarget) {
+  isEditChooserOpen.value = false;
+  pendingEditRequest.value = null;
+  editorHost.value?.openTarget(target);
+}
+
 function proxyErrors(window: DashboardWindowSummary): bigint {
   return window.proxyClientError + window.proxyServerError + window.proxyInternalError;
 }
@@ -449,6 +470,7 @@ onBeforeUnmount(() => {
         :tracing-enabled="tracingEnabled"
         @select="openTraceDetails"
         @active-change="renderedTokenCount = $event"
+        @edit-node="handleFlowEditRequest"
       />
 
       <div class="vercel-card overflow-hidden">
@@ -550,6 +572,12 @@ onBeforeUnmount(() => {
       v-model="isDetailsOpen"
       :request="selectedRequest"
       :level="selectedTraceLevel"
+    />
+    <PublicProxyEditorHost ref="editorHost" :config="config" />
+    <TrafficFlowEditTargetChooser
+      v-model="isEditChooserOpen"
+      :request="pendingEditRequest"
+      @select="openEditTarget"
     />
   </div>
 </template>

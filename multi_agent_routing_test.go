@@ -3,6 +3,7 @@ package main_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -191,7 +192,7 @@ func TestAgentPoolBackendsRouteOnlyToAssignedAgents(t *testing.T) {
 		ListenerID: listener.ID,
 		Priority:   1,
 		PathPrefix: "/b",
-		BackendID:  backendB.ID,
+		BackendID:  sql.NullInt64{Int64: backendB.ID, Valid: true},
 		Enabled:    1,
 	}); err != nil {
 		t.Fatalf("create backend-b route: %v", err)
