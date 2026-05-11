@@ -18,6 +18,7 @@ import type {
 import {
   PublicBackendForwardMode,
   PublicBackendType,
+  PublicRateLimitAlgorithm,
   TrafficTraceLevel,
   TrafficTraceStage,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -47,6 +48,9 @@ type TraceRequest = {
   agentPublicId: string;
   requestBytes: bigint;
   responseBytes: bigint;
+  rateLimitRuleId: bigint;
+  rateLimitRuleName: string;
+  rateLimitAlgorithm: PublicRateLimitAlgorithm;
   visible: boolean;
   completedAt: number | null;
   latestEvent: TrafficTraceEvent | null;
@@ -245,8 +249,11 @@ function mergeTraceEvent(event: TrafficTraceEvent) {
   request.agentPublicId = event.agentPublicId || request.agentPublicId;
   request.requestBytes = event.requestBytes || request.requestBytes;
   request.responseBytes = event.responseBytes || request.responseBytes;
+  request.rateLimitRuleId = event.rateLimitRuleId || request.rateLimitRuleId;
+  request.rateLimitRuleName = event.rateLimitRuleName || request.rateLimitRuleName;
+  request.rateLimitAlgorithm = event.rateLimitAlgorithm || request.rateLimitAlgorithm;
 
-  if (event.stage === TrafficTraceStage.RESPONSE_SENT || event.stage === TrafficTraceStage.FAILED) {
+  if (event.stage === TrafficTraceStage.RESPONSE_SENT || event.stage === TrafficTraceStage.FAILED || event.stage === TrafficTraceStage.RATE_LIMITED) {
     request.completedAt = Date.now();
     queueHideRequest(request.requestId);
   }
@@ -283,6 +290,9 @@ function newTraceRequest(requestId: string): TraceRequest {
     agentPublicId: "",
     requestBytes: 0n,
     responseBytes: 0n,
+    rateLimitRuleId: 0n,
+    rateLimitRuleName: "",
+    rateLimitAlgorithm: PublicRateLimitAlgorithm.UNSPECIFIED,
     visible: true,
     completedAt: null,
     latestEvent: null,
@@ -359,17 +369,36 @@ function traceStageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Responded";
     case TrafficTraceStage.RESPONSE_SENT: return "Done";
     case TrafficTraceStage.FAILED: return "Failed";
+    case TrafficTraceStage.RATE_LIMITED: return "Rate limited";
     default: return "Waiting";
   }
 }
 
 function requestStatusClass(request: TraceRequest): string {
   if (request.stage === TrafficTraceStage.FAILED) return "text-red-400";
+  if (request.stage === TrafficTraceStage.RATE_LIMITED) return "text-amber-400";
   const status = Number(request.statusCode);
   if (status >= 500) return "text-red-400";
   if (status >= 400) return "text-amber-400";
   if (status >= 200) return "text-green-400";
   return "text-[#888]";
+}
+
+function traceFlowLabel(request: TraceRequest): string {
+  const parts = [request.listenerName || "Listener"];
+  if (request.rateLimitRuleName || request.stage === TrafficTraceStage.RATE_LIMITED) {
+    parts.push(request.rateLimitRuleName ? `Rate limit: ${request.rateLimitRuleName}` : "Rate limit");
+  }
+  if (request.routeLabel || request.defaultRoute) {
+    parts.push(request.routeLabel || "Default route");
+  }
+  if (request.backendName) {
+    parts.push(request.backendName);
+  }
+  if (request.agentName || request.agentPublicId) {
+    parts.push(request.agentName || request.agentPublicId);
+  }
+  return parts.join(" -> ");
 }
 
 function streamStateLabel(): string {
@@ -514,7 +543,7 @@ onBeforeUnmount(() => {
                 </td>
                 <td class="px-5 py-3">
                   <p class="text-xs text-[#d4d4d8]">
-                    {{ request.listenerName || "Listener" }} -> {{ request.backendName || "Backend" }}<span v-if="request.agentName || request.agentPublicId"> -> {{ request.agentName || request.agentPublicId }}</span>
+                    {{ traceFlowLabel(request) }}
                   </p>
                   <p class="mt-1 text-[0.7rem] text-[#888]">{{ traceStageLabel(request.stage) }}</p>
                 </td>

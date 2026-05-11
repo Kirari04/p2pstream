@@ -16,6 +16,7 @@ import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
 import {
   PublicBackendForwardMode,
   PublicBackendType,
+  PublicRateLimitAlgorithm,
   PublicRouteAction,
   PublicRouteRedirectTargetMode,
   TrafficTraceStage,
@@ -53,13 +54,16 @@ type TraceRequest = {
   agentPublicId: string;
   requestBytes: bigint;
   responseBytes: bigint;
+  rateLimitRuleId: bigint;
+  rateLimitRuleName: string;
+  rateLimitAlgorithm: PublicRateLimitAlgorithm;
   visible: boolean;
   completedAt: number | null;
   latestEvent: TrafficTraceEvent | null;
   events: TrafficTraceEvent[];
 };
 
-export type TrafficNodeKind = "ingress" | "listener" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+export type TrafficNodeKind = "ingress" | "listener" | "rate-limit" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
 type AgentNodeStatus = {
   state: "connected" | "offline" | "disabled" | "unknown";
   label: string;
@@ -146,11 +150,12 @@ const emit = defineEmits<{
 
 const NODE_WIDTH = 152;
 const NODE_HEIGHT = 58;
-const COLUMN_X = [0, 200, 400, 600, 800, 1000, 1200];
+const COLUMN_X = [0, 200, 400, 600, 800, 1000, 1200, 1400];
 const ROW_GAP = 92;
 const MIN_CENTER_Y = 92;
 const FLOW_ID = "traffic-flow-diagram";
 const DEFAULT_ROUTE_KEY = "route:default";
+const RATE_LIMIT_KEY = "rate-limit";
 const EDGE_CURVATURE = 0.25;
 const BEZIER_LENGTH_SAMPLES = 32;
 const BYPASS_LANE_GAP = 54;
@@ -204,16 +209,30 @@ const layout = computed(() => {
   };
 
   addNode({ key: "ingress", label: "Ingress", subLabel: "Public request", column: 0, kind: "ingress", editTargets: [] });
-  addNode({ key: "response", label: "Response", subLabel: "Client", column: 6, kind: "response", editTargets: [] });
+  addNode({ key: "response", label: "Response", subLabel: "Client", column: 7, kind: "response", editTargets: [] });
 
   const listeners = props.config?.listeners ?? [];
   const routes = props.config?.routes ?? [];
   const backends = props.config?.backends ?? [];
   const agents = props.config?.agents ?? [];
   const backendAgents = props.config?.backendAgents ?? [];
+  const enabledRateLimitRules = props.config?.rateLimitRules.filter((rule) => rule.enabled) ?? [];
+  const showRateLimitNode = enabledRateLimitRules.length > 0 || props.requests.some((request) => request.rateLimitRuleId > 0n || request.stage === TrafficTraceStage.RATE_LIMITED);
+
+  if (showRateLimitNode) {
+    addNode({
+      key: RATE_LIMIT_KEY,
+      label: "Rate limit",
+      subLabel: enabledRateLimitRules.length ? `${enabledRateLimitRules.length.toString()} enabled` : "Observed",
+      column: 2,
+      kind: "rate-limit",
+      editTargets: [],
+    });
+  }
 
   for (const listener of listeners) {
     const listenerNodeKey = listenerKey(listener.id);
+    const routeEntryKey = showRateLimitNode ? RATE_LIMIT_KEY : listenerNodeKey;
     addNode({
       key: listenerNodeKey,
       label: listener.name || `Listener ${listener.id.toString()}`,
@@ -223,16 +242,19 @@ const layout = computed(() => {
       editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, `${listener.bindAddress || "*"}:${listener.port.toString()}`)],
     });
     addEdge("ingress", listenerNodeKey);
+    if (showRateLimitNode) {
+      addEdge(listenerNodeKey, RATE_LIMIT_KEY);
+    }
 
     addNode({
       key: DEFAULT_ROUTE_KEY,
       label: "Default route",
       subLabel: "Listener fallbacks",
-      column: 2,
+      column: 3,
       kind: "route",
       editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, "Default backend")],
     });
-    addEdge(listenerNodeKey, DEFAULT_ROUTE_KEY);
+    addEdge(routeEntryKey, DEFAULT_ROUTE_KEY);
     addEdge(DEFAULT_ROUTE_KEY, backendKey(listener.defaultBackendId));
 
     for (const route of routes.filter((item) => item.listenerId === listener.id)) {
@@ -241,11 +263,11 @@ const layout = computed(() => {
         key,
         label: routeLabel(route.hostPattern, route.pathPrefix, route.id),
         subLabel: `P${route.priority.toString()}`,
-        column: 2,
+        column: 3,
         kind: "route",
         editTargets: [routeEditTarget(route)],
       });
-      addEdge(listenerNodeKey, key);
+      addEdge(routeEntryKey, key);
       if (isRedirectRoute(route)) {
         addRedirectNode(route, addNode);
         addEdge(key, redirectKey(route.id));
@@ -264,7 +286,7 @@ const layout = computed(() => {
       key,
       label: backend.name || `Backend ${backend.id.toString()}`,
       subLabel: isStatic ? "Static" : isAgentPool ? "Agent pool" : "Direct",
-      column: 3,
+      column: 4,
       kind: "backend",
       editTargets: [backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, isStatic ? "Static" : isAgentPool ? "Agent pool" : "Direct")],
     });
@@ -290,7 +312,7 @@ const layout = computed(() => {
             key: agentNodeKey,
             label: agent?.name || `Agent ${assignment.agentId.toString()}`,
             subLabel: agent?.publicId || `x${assignment.weight.toString()}`,
-            column: 4,
+            column: 5,
             kind: "agent",
             agentStatus: agentNodeStatus(agent),
             editTargets: [agentEditTarget(assignment.agentId, agent?.name || `Agent ${assignment.agentId.toString()}`, agent?.publicId || "")],
@@ -319,7 +341,10 @@ const layout = computed(() => {
     }
   }
 
-  if (!listeners.length && !props.requests.length) {
+  if (!listeners.length && !props.requests.length && showRateLimitNode) {
+    addEdge("ingress", RATE_LIMIT_KEY);
+    addEdge(RATE_LIMIT_KEY, "response", "intermediate-bypass");
+  } else if (!listeners.length && !props.requests.length) {
     addEdge("ingress", "response");
   }
 
@@ -672,6 +697,7 @@ function tokenOpacity(token: VisualToken, now: number): number {
 
 function routeForRequestSegment(request: TraceRequest, from: string, to: string): DiagramEdgeRoute {
   if (from.startsWith("redirect:") && to === "response") return "intermediate-bypass";
+  if (from === RATE_LIMIT_KEY && to === "response") return "intermediate-bypass";
   const backendNode = request.backendId > 0n ? backendKey(request.backendId) : "";
   if (from !== backendNode) return "default";
   if (request.agentId > 0n) return "default";
@@ -726,7 +752,7 @@ function bypassBoundsForEdge(edge: DiagramEdge): Bounds | null {
   if (edge.route === "intermediate-bypass") {
     return boundsForNodes(layout.value.nodes.filter((node) => {
       if (node.key === edge.from || node.key === edge.to) return false;
-      return node.kind === "backend" || node.kind === "redirect" || node.kind === "agent" || node.kind === "upstream";
+      return node.kind === "route" || node.kind === "backend" || node.kind === "redirect" || node.kind === "agent" || node.kind === "upstream";
     }));
   }
   return null;
@@ -925,6 +951,15 @@ function buildRequestPath(request: TraceRequest): string[] {
     path.push(listenerKey(request.listenerId));
   }
 
+  if (requestUsesRateLimitNode(request)) {
+    path.push(RATE_LIMIT_KEY);
+  }
+
+  if (request.stage === TrafficTraceStage.RATE_LIMITED) {
+    path.push("response");
+    return dedupeConsecutive(path);
+  }
+
   if (request.routeId > 0n) {
     path.push(routeKey(request.routeId));
   } else if (request.defaultRoute && request.listenerId > 0n) {
@@ -981,6 +1016,8 @@ function nodeKeyForStage(request: TraceRequest): string {
       return request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TrafficTraceStage.UPSTREAM_RESPONDED:
       return request.backendType === PublicBackendType.STATIC ? "static-response" : "upstream";
+    case TrafficTraceStage.RATE_LIMITED:
+      return "response";
     case TrafficTraceStage.RESPONSE_SENT:
     case TrafficTraceStage.FAILED:
       return "response";
@@ -993,6 +1030,17 @@ function addObservedNodes(
   request: TraceRequest,
   addNode: (node: DiagramNodeInput) => void,
 ) {
+  if (requestUsesRateLimitNode(request)) {
+    addNode({
+      key: RATE_LIMIT_KEY,
+      label: "Rate limit",
+      subLabel: request.rateLimitRuleName || "Observed",
+      column: 2,
+      kind: "rate-limit",
+      editTargets: [],
+    });
+  }
+
   if (request.listenerId > 0n) {
     addNode({
       key: listenerKey(request.listenerId),
@@ -1009,7 +1057,7 @@ function addObservedNodes(
       key: routeKey(request.routeId),
       label: request.routeLabel || `Route ${request.routeId.toString()}`,
       subLabel: "Observed",
-      column: 2,
+      column: 3,
       kind: "route",
       editTargets: [routeEditTargetByID(request.routeId, request.routeLabel || `Route ${request.routeId.toString()}`, "Observed")],
     });
@@ -1022,7 +1070,7 @@ function addObservedNodes(
       key: DEFAULT_ROUTE_KEY,
       label: "Default route",
       subLabel: "Observed fallback",
-      column: 2,
+      column: 3,
       kind: "route",
       editTargets: request.listenerId > 0n
         ? [listenerEditTarget(request.listenerId, request.listenerName || `Listener ${request.listenerId.toString()}`, "Default backend")]
@@ -1035,7 +1083,7 @@ function addObservedNodes(
       key: backendKey(request.backendId),
       label: request.backendName || `Backend ${request.backendId.toString()}`,
       subLabel: backendTypeLabel(request),
-      column: 3,
+      column: 4,
       kind: "backend",
       editTargets: [backendEditTarget(request.backendId, request.backendName || `Backend ${request.backendId.toString()}`, backendTypeLabel(request))],
     });
@@ -1053,7 +1101,7 @@ function addObservedNodes(
       key: agentKey(request.agentId),
       label: request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`,
       subLabel: request.agentPublicId || "Observed",
-      column: 4,
+      column: 5,
       kind: "agent",
       agentStatus: agentNodeStatus(agent),
       editTargets: [agentEditTarget(request.agentId, request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`, request.agentPublicId || "Observed")],
@@ -1063,11 +1111,11 @@ function addObservedNodes(
 }
 
 function addStaticNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
-  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 5, kind: "upstream", editTargets: target ? [target] : [] });
+  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 6, kind: "upstream", editTargets: target ? [target] : [] });
 }
 
 function addUpstreamNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
-  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 5, kind: "upstream", editTargets: target ? [target] : [] });
+  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 6, kind: "upstream", editTargets: target ? [target] : [] });
 }
 
 function addRedirectNode(route: PublicRoute, addNode: (node: DiagramNodeInput) => void) {
@@ -1075,7 +1123,7 @@ function addRedirectNode(route: PublicRoute, addNode: (node: DiagramNodeInput) =
     key: redirectKey(route.id),
     label: "Redirect",
     subLabel: redirectNodeSubLabel(route),
-    column: 3,
+    column: 4,
     kind: "redirect",
     editTargets: [routeEditTarget(route)],
   });
@@ -1159,7 +1207,9 @@ function tokenColorClass(status: VisualTokenStatus): string {
 }
 
 function isTerminal(request: TraceRequest): boolean {
-  return request.stage === TrafficTraceStage.RESPONSE_SENT || request.stage === TrafficTraceStage.FAILED;
+  return request.stage === TrafficTraceStage.RESPONSE_SENT ||
+    request.stage === TrafficTraceStage.FAILED ||
+    request.stage === TrafficTraceStage.RATE_LIMITED;
 }
 
 function easeInOutCubic(value: number): number {
@@ -1174,12 +1224,13 @@ function kindOrder(kind: TrafficNodeKind): number {
   switch (kind) {
     case "ingress": return 0;
     case "listener": return 1;
-    case "route": return 2;
-    case "backend": return 3;
-    case "redirect": return 3;
-    case "agent": return 4;
-    case "upstream": return 5;
-    case "response": return 6;
+    case "rate-limit": return 2;
+    case "route": return 3;
+    case "backend": return 4;
+    case "redirect": return 4;
+    case "agent": return 5;
+    case "upstream": return 6;
+    case "response": return 7;
     default: return 99;
   }
 }
@@ -1242,6 +1293,11 @@ function isRedirectRoute(route: PublicRoute): boolean {
 function routeConfigForRequest(request: TraceRequest): PublicRoute | undefined {
   if (request.routeId <= 0n) return undefined;
   return props.config?.routes.find((route) => route.id === request.routeId);
+}
+
+function requestUsesRateLimitNode(request: TraceRequest): boolean {
+  if (request.rateLimitRuleId > 0n || request.stage === TrafficTraceStage.RATE_LIMITED) return true;
+  return (props.config?.rateLimitRules ?? []).some((rule) => rule.enabled);
 }
 
 function redirectKeyForRequest(request: TraceRequest): string {

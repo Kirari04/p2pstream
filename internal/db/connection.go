@@ -413,6 +413,32 @@ func (db *DB) migrate() error {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id ON public_backend_agents (agent_id)`); err != nil {
 		return err
 	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_rate_limit_rules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			priority INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			algorithm TEXT NOT NULL,
+			limit_count INTEGER NOT NULL,
+			window_millis INTEGER NOT NULL,
+			burst INTEGER NOT NULL DEFAULT 0,
+			match_json TEXT NOT NULL DEFAULT '{}',
+			key_parts_json TEXT NOT NULL DEFAULT '[]',
+			response_status_code INTEGER NOT NULL DEFAULT 429,
+			response_body TEXT NOT NULL DEFAULT 'Rate limit exceeded
+',
+			response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
+			response_headers_json TEXT NOT NULL DEFAULT '[]',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_priority ON public_rate_limit_rules (priority, id)`); err != nil {
+		return err
+	}
 	return nil
 }
 

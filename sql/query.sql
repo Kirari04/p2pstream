@@ -453,3 +453,56 @@ RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, creat
 -- name: DeletePublicTlsCertificate :exec
 DELETE FROM public_tls_certificates
 WHERE id = ?;
+
+-- name: ListPublicRateLimitRules :many
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+FROM public_rate_limit_rules
+ORDER BY priority ASC, id ASC;
+
+-- name: GetPublicRateLimitRule :one
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+FROM public_rate_limit_rules
+WHERE id = ?;
+
+-- name: CreatePublicRateLimitRule :one
+INSERT INTO public_rate_limit_rules (
+    name,
+    priority,
+    enabled,
+    algorithm,
+    limit_count,
+    window_millis,
+    burst,
+    match_json,
+    key_parts_json,
+    response_status_code,
+    response_body,
+    response_content_type,
+    response_headers_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at;
+
+-- name: UpdatePublicRateLimitRule :one
+UPDATE public_rate_limit_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    algorithm = ?,
+    limit_count = ?,
+    window_millis = ?,
+    burst = ?,
+    match_json = ?,
+    key_parts_json = ?,
+    response_status_code = ?,
+    response_body = ?,
+    response_content_type = ?,
+    response_headers_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at;
+
+-- name: DeletePublicRateLimitRule :exec
+DELETE FROM public_rate_limit_rules
+WHERE id = ?;

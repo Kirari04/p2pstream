@@ -40,6 +40,10 @@ const (
 	publicRouteRedirectTargetModeSameHostPath             = "same_host_path"
 	publicRouteRedirectTargetModeExternalOriginKeepPath   = "external_origin_keep_path"
 	publicRouteRedirectTargetModeAbsoluteURL              = "absolute_url"
+	publicRateLimitAlgorithmFixedWindow                   = "fixed_window"
+	publicRateLimitAlgorithmSlidingWindow                 = "sliding_window"
+	publicRateLimitAlgorithmTokenBucket                   = "token_bucket"
+	publicRateLimitAlgorithmLeakyBucket                   = "leaky_bucket"
 	defaultStaticStatusCode                               = int64(http.StatusOK)
 	defaultRedirectStatusCode                             = int64(http.StatusFound)
 	maxUpstreamHeaderValueBytes                           = 8192
@@ -56,6 +60,7 @@ type publicConfigRows struct {
 	Listeners              []db.PublicListener
 	Routes                 []db.PublicRoute
 	TLSCertificates        []db.PublicTlsCertificate
+	RateLimitRules         []db.PublicRateLimitRule
 }
 
 type publicBackendHeaderInput struct {
@@ -887,6 +892,9 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	proxy := a.proxyStatusLocked()
 	a.proxyMu.Unlock()
 	a.LoadBalancers.reconcile(snap)
+	if a.RateLimiter != nil {
+		a.RateLimiter.reconcile(snap)
+	}
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
 		Backends:        publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents),
@@ -896,6 +904,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		Proxy:           proxy,
 		Agents:          a.publicAgentsToProto(ctx, rows.Agents),
 		BackendAgents:   publicBackendAgentsToProto(rows.BackendAgents),
+		RateLimitRules:  publicRateLimitRulesToProto(rows.RateLimitRules),
 	}, nil
 }
 
@@ -910,6 +919,9 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	a.proxyStatusLocked()
 	a.proxyMu.Unlock()
 	a.LoadBalancers.reconcile(snap)
+	if a.RateLimiter != nil {
+		a.RateLimiter.reconcile(snap)
+	}
 	return nil
 }
 
@@ -960,6 +972,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
+	rateLimitRules, err := a.DB.ListPublicRateLimitRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	return publicConfigRows{
 		Backends:               backends,
 		BackendHeaders:         backendHeaders,
@@ -969,6 +985,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		Listeners:              listeners,
 		Routes:                 routes,
 		TLSCertificates:        certs,
+		RateLimitRules:         rateLimitRules,
 	}, nil
 }
 
@@ -1139,6 +1156,13 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			KeyPath:         cert.KeyPath,
 			Enabled:         cert.Enabled != 0,
 		})
+	}
+	for _, row := range rows.RateLimitRules {
+		rule, err := publicRateLimitRuleRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("rate limit rule %q is invalid: %w", row.Name, err))
+		}
+		snap.RateLimitRules = append(snap.RateLimitRules, rule)
 	}
 	return snap, nil
 }

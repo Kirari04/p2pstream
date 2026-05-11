@@ -138,6 +138,26 @@ CREATE TABLE IF NOT EXISTS public_tls_certificates (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS public_rate_limit_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    priority INTEGER NOT NULL DEFAULT 100,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    algorithm TEXT NOT NULL,
+    limit_count INTEGER NOT NULL,
+    window_millis INTEGER NOT NULL,
+    burst INTEGER NOT NULL DEFAULT 0,
+    match_json TEXT NOT NULL DEFAULT '{}',
+    key_parts_json TEXT NOT NULL DEFAULT '[]',
+    response_status_code INTEGER NOT NULL DEFAULT 429,
+    response_body TEXT NOT NULL DEFAULT 'Rate limit exceeded
+',
+    response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
+    response_headers_json TEXT NOT NULL DEFAULT '[]',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -181,6 +201,9 @@ ON public_backend_agents (agent_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 ON public_tls_certificates (listener_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_priority
+ON public_rate_limit_rules (priority, id);
 
 CREATE INDEX IF NOT EXISTS idx_agent_stats_reported_at
 ON agent_stats (reported_at);

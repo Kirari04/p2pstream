@@ -345,6 +345,81 @@ func (q *Queries) CreatePublicListener(ctx context.Context, arg CreatePublicList
 	return i, err
 }
 
+const createPublicRateLimitRule = `-- name: CreatePublicRateLimitRule :one
+INSERT INTO public_rate_limit_rules (
+    name,
+    priority,
+    enabled,
+    algorithm,
+    limit_count,
+    window_millis,
+    burst,
+    match_json,
+    key_parts_json,
+    response_status_code,
+    response_body,
+    response_content_type,
+    response_headers_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+`
+
+type CreatePublicRateLimitRuleParams struct {
+	Name                string `json:"name"`
+	Priority            int64  `json:"priority"`
+	Enabled             int64  `json:"enabled"`
+	Algorithm           string `json:"algorithm"`
+	LimitCount          int64  `json:"limit_count"`
+	WindowMillis        int64  `json:"window_millis"`
+	Burst               int64  `json:"burst"`
+	MatchJson           string `json:"match_json"`
+	KeyPartsJson        string `json:"key_parts_json"`
+	ResponseStatusCode  int64  `json:"response_status_code"`
+	ResponseBody        string `json:"response_body"`
+	ResponseContentType string `json:"response_content_type"`
+	ResponseHeadersJson string `json:"response_headers_json"`
+}
+
+func (q *Queries) CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error) {
+	row := q.db.QueryRowContext(ctx, createPublicRateLimitRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.Algorithm,
+		arg.LimitCount,
+		arg.WindowMillis,
+		arg.Burst,
+		arg.MatchJson,
+		arg.KeyPartsJson,
+		arg.ResponseStatusCode,
+		arg.ResponseBody,
+		arg.ResponseContentType,
+		arg.ResponseHeadersJson,
+	)
+	var i PublicRateLimitRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.Algorithm,
+		&i.LimitCount,
+		&i.WindowMillis,
+		&i.Burst,
+		&i.MatchJson,
+		&i.KeyPartsJson,
+		&i.ResponseStatusCode,
+		&i.ResponseBody,
+		&i.ResponseContentType,
+		&i.ResponseHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createPublicRoute = `-- name: CreatePublicRoute :one
 INSERT INTO public_routes (
     listener_id,
@@ -591,6 +666,16 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicListener(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicListener, id)
+	return err
+}
+
+const deletePublicRateLimitRule = `-- name: DeletePublicRateLimitRule :exec
+DELETE FROM public_rate_limit_rules
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicRateLimitRule(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRateLimitRule, id)
 	return err
 }
 
@@ -928,6 +1013,36 @@ func (q *Queries) GetPublicListener(ctx context.Context, id int64) (PublicListen
 		&i.Protocol,
 		&i.Enabled,
 		&i.DefaultBackendID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicRateLimitRule = `-- name: GetPublicRateLimitRule :one
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+FROM public_rate_limit_rules
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicRateLimitRule(ctx context.Context, id int64) (PublicRateLimitRule, error) {
+	row := q.db.QueryRowContext(ctx, getPublicRateLimitRule, id)
+	var i PublicRateLimitRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.Algorithm,
+		&i.LimitCount,
+		&i.WindowMillis,
+		&i.Burst,
+		&i.MatchJson,
+		&i.KeyPartsJson,
+		&i.ResponseStatusCode,
+		&i.ResponseBody,
+		&i.ResponseContentType,
+		&i.ResponseHeadersJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1456,6 +1571,52 @@ func (q *Queries) ListPublicListeners(ctx context.Context) ([]PublicListener, er
 	return items, nil
 }
 
+const listPublicRateLimitRules = `-- name: ListPublicRateLimitRules :many
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+FROM public_rate_limit_rules
+ORDER BY priority ASC, id ASC
+`
+
+func (q *Queries) ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRateLimitRules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRateLimitRule
+	for rows.Next() {
+		var i PublicRateLimitRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Priority,
+			&i.Enabled,
+			&i.Algorithm,
+			&i.LimitCount,
+			&i.WindowMillis,
+			&i.Burst,
+			&i.MatchJson,
+			&i.KeyPartsJson,
+			&i.ResponseStatusCode,
+			&i.ResponseBody,
+			&i.ResponseContentType,
+			&i.ResponseHeadersJson,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicRoutes = `-- name: ListPublicRoutes :many
 SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
@@ -1796,6 +1957,82 @@ func (q *Queries) UpdatePublicListener(ctx context.Context, arg UpdatePublicList
 		&i.Protocol,
 		&i.Enabled,
 		&i.DefaultBackendID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicRateLimitRule = `-- name: UpdatePublicRateLimitRule :one
+UPDATE public_rate_limit_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    algorithm = ?,
+    limit_count = ?,
+    window_millis = ?,
+    burst = ?,
+    match_json = ?,
+    key_parts_json = ?,
+    response_status_code = ?,
+    response_body = ?,
+    response_content_type = ?,
+    response_headers_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+`
+
+type UpdatePublicRateLimitRuleParams struct {
+	Name                string `json:"name"`
+	Priority            int64  `json:"priority"`
+	Enabled             int64  `json:"enabled"`
+	Algorithm           string `json:"algorithm"`
+	LimitCount          int64  `json:"limit_count"`
+	WindowMillis        int64  `json:"window_millis"`
+	Burst               int64  `json:"burst"`
+	MatchJson           string `json:"match_json"`
+	KeyPartsJson        string `json:"key_parts_json"`
+	ResponseStatusCode  int64  `json:"response_status_code"`
+	ResponseBody        string `json:"response_body"`
+	ResponseContentType string `json:"response_content_type"`
+	ResponseHeadersJson string `json:"response_headers_json"`
+	ID                  int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicRateLimitRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.Algorithm,
+		arg.LimitCount,
+		arg.WindowMillis,
+		arg.Burst,
+		arg.MatchJson,
+		arg.KeyPartsJson,
+		arg.ResponseStatusCode,
+		arg.ResponseBody,
+		arg.ResponseContentType,
+		arg.ResponseHeadersJson,
+		arg.ID,
+	)
+	var i PublicRateLimitRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.Algorithm,
+		&i.LimitCount,
+		&i.WindowMillis,
+		&i.Burst,
+		&i.MatchJson,
+		&i.KeyPartsJson,
+		&i.ResponseStatusCode,
+		&i.ResponseBody,
+		&i.ResponseContentType,
+		&i.ResponseHeadersJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

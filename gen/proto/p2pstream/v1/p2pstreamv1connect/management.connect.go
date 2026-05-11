@@ -135,6 +135,15 @@ const (
 	// AgentManagementServiceDeletePublicTlsCertificateProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicTlsCertificate RPC.
 	AgentManagementServiceDeletePublicTlsCertificateProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTlsCertificate"
+	// AgentManagementServiceCreatePublicRateLimitRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicRateLimitRule RPC.
+	AgentManagementServiceCreatePublicRateLimitRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicRateLimitRule"
+	// AgentManagementServiceUpdatePublicRateLimitRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicRateLimitRule RPC.
+	AgentManagementServiceUpdatePublicRateLimitRuleProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicRateLimitRule"
+	// AgentManagementServiceDeletePublicRateLimitRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicRateLimitRule RPC.
+	AgentManagementServiceDeletePublicRateLimitRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicRateLimitRule"
 )
 
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
@@ -173,6 +182,9 @@ type AgentManagementServiceClient interface {
 	CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error)
 	UpdatePublicTlsCertificate(context.Context, *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error)
 	DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error)
+	CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error)
+	UpdatePublicRateLimitRule(context.Context, *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error)
+	DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error)
 }
 
 // NewAgentManagementServiceClient constructs a client for the p2pstream.v1.AgentManagementService
@@ -390,6 +402,24 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsCertificate")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicRateLimitRule: connect.NewClient[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicRateLimitRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicRateLimitRule")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicRateLimitRule: connect.NewClient[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicRateLimitRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicRateLimitRule")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicRateLimitRule: connect.NewClient[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicRateLimitRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRateLimitRule")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -429,6 +459,9 @@ type agentManagementServiceClient struct {
 	createPublicTlsCertificate *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
 	updatePublicTlsCertificate *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
 	deletePublicTlsCertificate *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
+	createPublicRateLimitRule  *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
+	updatePublicRateLimitRule  *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
+	deletePublicRateLimitRule  *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
@@ -601,6 +634,21 @@ func (c *agentManagementServiceClient) DeletePublicTlsCertificate(ctx context.Co
 	return c.deletePublicTlsCertificate.CallUnary(ctx, req)
 }
 
+// CreatePublicRateLimitRule calls p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule.
+func (c *agentManagementServiceClient) CreatePublicRateLimitRule(ctx context.Context, req *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error) {
+	return c.createPublicRateLimitRule.CallUnary(ctx, req)
+}
+
+// UpdatePublicRateLimitRule calls p2pstream.v1.AgentManagementService.UpdatePublicRateLimitRule.
+func (c *agentManagementServiceClient) UpdatePublicRateLimitRule(ctx context.Context, req *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error) {
+	return c.updatePublicRateLimitRule.CallUnary(ctx, req)
+}
+
+// DeletePublicRateLimitRule calls p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule.
+func (c *agentManagementServiceClient) DeletePublicRateLimitRule(ctx context.Context, req *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error) {
+	return c.deletePublicRateLimitRule.CallUnary(ctx, req)
+}
+
 // AgentManagementServiceHandler is an implementation of the p2pstream.v1.AgentManagementService
 // service.
 type AgentManagementServiceHandler interface {
@@ -638,6 +686,9 @@ type AgentManagementServiceHandler interface {
 	CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error)
 	UpdatePublicTlsCertificate(context.Context, *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error)
 	DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error)
+	CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error)
+	UpdatePublicRateLimitRule(context.Context, *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error)
+	DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error)
 }
 
 // NewAgentManagementServiceHandler builds an HTTP handler from the service implementation. It
@@ -851,6 +902,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsCertificate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicRateLimitRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicRateLimitRuleProcedure,
+		svc.CreatePublicRateLimitRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicRateLimitRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicRateLimitRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicRateLimitRuleProcedure,
+		svc.UpdatePublicRateLimitRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicRateLimitRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicRateLimitRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicRateLimitRuleProcedure,
+		svc.DeletePublicRateLimitRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRateLimitRule")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/p2pstream.v1.AgentManagementService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentManagementServiceReportStatsProcedure:
@@ -921,6 +990,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicTlsCertificateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicTlsCertificateProcedure:
 			agentManagementServiceDeletePublicTlsCertificateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicRateLimitRuleProcedure:
+			agentManagementServiceCreatePublicRateLimitRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicRateLimitRuleProcedure:
+			agentManagementServiceUpdatePublicRateLimitRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicRateLimitRuleProcedure:
+			agentManagementServiceDeletePublicRateLimitRuleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1064,4 +1139,16 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicTlsCertificate(con
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicRateLimitRule(context.Context, *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicRateLimitRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule is not implemented"))
 }

@@ -10,6 +10,7 @@ import TimesIcon from "@primevue/icons/times";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
+import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
@@ -21,6 +22,8 @@ import {
   PublicBackendLoadBalancing,
   PublicBackendType,
   PublicListenerProtocol,
+  PublicRateLimitAlgorithm,
+  PublicRateLimitKeySource,
   PublicRouteAction,
   PublicRouteRedirectTargetMode,
   type GetDashboardResponse,
@@ -29,6 +32,7 @@ import {
   type PublicBackendAgent,
   type PublicListener,
   type PublicListenerStatus,
+  type PublicRateLimitRule,
   type PublicRoute,
   type PublicTlsCertificate,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -53,12 +57,14 @@ const backends = computed(() => config.value?.backends ?? []);
 const agents = computed(() => config.value?.agents ?? []);
 const backendAgents = computed(() => config.value?.backendAgents ?? []);
 const routes = computed(() => config.value?.routes ?? []);
+const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
 const tlsCertificates = computed(() => config.value?.tlsCertificates ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const httpsListeners = computed(() => listeners.value.filter((listener) => listener.protocol === PublicListenerProtocol.HTTPS));
 
 const isTlsModalOpen = ref(false);
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
+const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
 
 const tlsForm = reactive({
   id: "" as string,
@@ -184,6 +190,63 @@ function loadBalancingLabel(algorithm: PublicBackendLoadBalancing): string {
   }
 }
 
+function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
+  switch (algorithm) {
+    case PublicRateLimitAlgorithm.SLIDING_WINDOW: return "Sliding window";
+    case PublicRateLimitAlgorithm.TOKEN_BUCKET: return "Token bucket";
+    case PublicRateLimitAlgorithm.LEAKY_BUCKET: return "Leaky bucket";
+    default: return "Fixed window";
+  }
+}
+
+function rateLimitWindowLabel(windowMillis: bigint): string {
+  const seconds = Math.max(1, Math.round(Number(windowMillis || 0n) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  return `${Math.round(seconds / 3600)}h`;
+}
+
+function rateLimitRuleSummary(rule: PublicRateLimitRule): string {
+  const burst = rule.algorithm === PublicRateLimitAlgorithm.TOKEN_BUCKET || rule.algorithm === PublicRateLimitAlgorithm.LEAKY_BUCKET
+    ? `, burst ${Number(rule.burst || rule.limit).toString()}`
+    : "";
+  return `${Number(rule.limit).toString()} / ${rateLimitWindowLabel(rule.windowMillis)}${burst}`;
+}
+
+function rateLimitMatchSummary(rule: PublicRateLimitRule): string {
+  const match = rule.match;
+  if (!match) return "Any request";
+  const parts: string[] = [];
+  if (match.methods.length) parts.push(match.methods.join(","));
+  if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
+  if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
+  if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
+  if (matcherCount) parts.push(`${matcherCount} value matcher${matcherCount === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" / ") : "Any request";
+}
+
+function rateLimitKeySummary(rule: PublicRateLimitRule): string {
+  const parts = rule.keyParts.length ? rule.keyParts : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
+  return parts.map((part) => {
+    const label = rateLimitKeySourceLabel(part.source);
+    return part.name ? `${label}:${part.name}` : label;
+  }).join(" + ");
+}
+
+function rateLimitKeySourceLabel(source: PublicRateLimitKeySource): string {
+  switch (source) {
+    case PublicRateLimitKeySource.HOST: return "host";
+    case PublicRateLimitKeySource.METHOD: return "method";
+    case PublicRateLimitKeySource.PATH: return "path";
+    case PublicRateLimitKeySource.PROTOCOL: return "protocol";
+    case PublicRateLimitKeySource.HEADER: return "header";
+    case PublicRateLimitKeySource.COOKIE: return "cookie";
+    case PublicRateLimitKeySource.QUERY_PARAM: return "query";
+    default: return "ip";
+  }
+}
+
 function backendSummary(backend: PublicBackend): string {
   if (backend.backendType === PublicBackendType.STATIC) {
     const body = backend.staticResponseBody.trim();
@@ -241,6 +304,14 @@ function openAddRouteModal() {
 
 function editRoute(routeId: bigint) {
   editorHost.value?.openRoute(routeId);
+}
+
+function openAddRateLimitRuleModal() {
+  rateLimitEditor.value?.openCreate();
+}
+
+function editRateLimitRule(id: bigint) {
+  rateLimitEditor.value?.openEdit(id);
 }
 
 function openAddTlsModal() {
@@ -343,6 +414,13 @@ async function deleteRoute(id: bigint) {
   if (!window.confirm("Delete this route?")) return;
   await run(async () => {
     await managementClient.deletePublicRoute({ id });
+  });
+}
+
+async function deleteRateLimitRule(id: bigint) {
+  if (!window.confirm("Delete this rate-limit rule?")) return;
+  await run(async () => {
+    await managementClient.deletePublicRateLimitRule({ id });
   });
 }
 
@@ -555,6 +633,41 @@ watch(httpsListeners, () => {
       </div>
     </section>
 
+    <!-- Rate Limits List -->
+    <section class="vercel-card overflow-hidden">
+      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Rate Limits</h4>
+        <SecondaryButton size="small" label="Add Rule" @click="openAddRateLimitRuleModal">
+          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+        </SecondaryButton>
+      </div>
+      <div class="divide-y divide-[#1f1f1f]">
+        <div v-for="rule in rateLimitRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+          <div class="min-w-0">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <Tag :value="rateLimitAlgorithmLabel(rule.algorithm)" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
+              <Tag :value="`P${rule.priority.toString()}`" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+            </div>
+            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ rateLimitRuleSummary(rule) }} / key {{ rateLimitKeySummary(rule) }}</p>
+            <p class="mt-1 truncate text-xs text-[#666]">{{ rateLimitMatchSummary(rule) }} / response {{ rule.responseStatusCode.toString() }}</p>
+          </div>
+          <div class="flex gap-2 lg:justify-end">
+            <SecondaryButton size="small" aria-label="Edit rate-limit rule" title="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
+              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <DangerButton size="small" aria-label="Delete rate-limit rule" title="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            </DangerButton>
+          </div>
+        </div>
+        <div v-if="!rateLimitRules.length" class="px-5 py-8 text-center text-sm text-[#888]">
+          No rate-limit rules configured.
+        </div>
+      </div>
+    </section>
+
     <!-- Routes and TLS Section -->
     <section class="grid gap-6 lg:grid-cols-2">
       <!-- Routes List -->
@@ -637,6 +750,7 @@ watch(httpsListeners, () => {
     </section>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
+    <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" />
 
     <Modal v-model="isTlsModalOpen" :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'" max-width="36rem">
       <form @submit.prevent="submitTlsCertificate" class="grid gap-4">

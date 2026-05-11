@@ -197,6 +197,11 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 	if resolution.AgentID.Valid && event.AgentId == 0 {
 		event.AgentId = resolution.AgentID.Int64
 	}
+	if resolution.RateLimitRuleID != 0 {
+		event.RateLimitRuleId = resolution.RateLimitRuleID
+		event.RateLimitRuleName = resolution.RateLimitRuleName
+		event.RateLimitAlgorithm = protoRateLimitAlgorithmFromString(resolution.RateLimitAlgorithm)
+	}
 }
 
 func traceRouteLabel(resolution publicRouteResolution) string {

@@ -4,6 +4,7 @@ import Modal from "@/volt/Modal.vue";
 import {
   PublicBackendForwardMode,
   PublicBackendType,
+  PublicRateLimitAlgorithm,
   TrafficTraceLevel,
   TrafficTraceStage,
   type TrafficTraceEvent,
@@ -34,6 +35,9 @@ type TraceRequest = {
   agentPublicId: string;
   requestBytes: bigint;
   responseBytes: bigint;
+  rateLimitRuleId: bigint;
+  rateLimitRuleName: string;
+  rateLimitAlgorithm: PublicRateLimitAlgorithm;
   latestEvent: TrafficTraceEvent | null;
   events: TrafficTraceEvent[];
 };
@@ -60,6 +64,7 @@ const showDebug = computed(() => props.level >= TrafficTraceLevel.DEBUG);
 
 function statusClass(status: bigint, stage: TrafficTraceStage): string {
   if (stage === TrafficTraceStage.FAILED) return "text-red-400";
+  if (stage === TrafficTraceStage.RATE_LIMITED) return "text-amber-400";
   const code = Number(status);
   if (code >= 500) return "text-red-400";
   if (code >= 400) return "text-amber-400";
@@ -77,7 +82,18 @@ function stageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Upstream responded";
     case TrafficTraceStage.RESPONSE_SENT: return "Response sent";
     case TrafficTraceStage.FAILED: return "Failed";
+    case TrafficTraceStage.RATE_LIMITED: return "Rate limited";
     default: return "Unknown";
+  }
+}
+
+function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
+  switch (algorithm) {
+    case PublicRateLimitAlgorithm.SLIDING_WINDOW: return "Sliding window";
+    case PublicRateLimitAlgorithm.TOKEN_BUCKET: return "Token bucket";
+    case PublicRateLimitAlgorithm.LEAKY_BUCKET: return "Leaky bucket";
+    case PublicRateLimitAlgorithm.FIXED_WINDOW: return "Fixed window";
+    default: return "-";
   }
 }
 
@@ -165,6 +181,13 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
         <div class="trace-field">
           <span>Agent</span>
           <strong>{{ request.agentName || request.agentPublicId || "-" }}</strong>
+        </div>
+        <div v-if="request.rateLimitRuleId" class="trace-field sm:col-span-2">
+          <span>Rate limit</span>
+          <strong>
+            {{ request.rateLimitRuleName || `#${request.rateLimitRuleId.toString()}` }}
+            <span class="text-[#888]">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
+          </strong>
         </div>
       </section>
 

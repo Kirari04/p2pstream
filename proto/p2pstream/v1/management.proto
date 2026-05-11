@@ -57,6 +57,35 @@ enum PublicRouteRedirectTargetMode {
   PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL = 3;
 }
 
+enum PublicRateLimitAlgorithm {
+  PUBLIC_RATE_LIMIT_ALGORITHM_UNSPECIFIED = 0;
+  PUBLIC_RATE_LIMIT_ALGORITHM_FIXED_WINDOW = 1;
+  PUBLIC_RATE_LIMIT_ALGORITHM_SLIDING_WINDOW = 2;
+  PUBLIC_RATE_LIMIT_ALGORITHM_TOKEN_BUCKET = 3;
+  PUBLIC_RATE_LIMIT_ALGORITHM_LEAKY_BUCKET = 4;
+}
+
+enum PublicRateLimitKeySource {
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_UNSPECIFIED = 0;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_REMOTE_IP = 1;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_HOST = 2;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_METHOD = 3;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_PATH = 4;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_PROTOCOL = 5;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER = 6;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_COOKIE = 7;
+  PUBLIC_RATE_LIMIT_KEY_SOURCE_QUERY_PARAM = 8;
+}
+
+enum PublicRateLimitMatchOperator {
+  PUBLIC_RATE_LIMIT_MATCH_OPERATOR_UNSPECIFIED = 0;
+  PUBLIC_RATE_LIMIT_MATCH_OPERATOR_PRESENT = 1;
+  PUBLIC_RATE_LIMIT_MATCH_OPERATOR_EQUALS = 2;
+  PUBLIC_RATE_LIMIT_MATCH_OPERATOR_PREFIX = 3;
+  PUBLIC_RATE_LIMIT_MATCH_OPERATOR_SUFFIX = 4;
+  PUBLIC_RATE_LIMIT_MATCH_OPERATOR_CONTAINS = 5;
+}
+
 enum TrafficTraceLevel {
   TRAFFIC_TRACE_LEVEL_UNSPECIFIED = 0;
   TRAFFIC_TRACE_LEVEL_BASIC = 1;
@@ -75,6 +104,7 @@ enum TrafficTraceStage {
   TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED = 6;
   TRAFFIC_TRACE_STAGE_RESPONSE_SENT = 7;
   TRAFFIC_TRACE_STAGE_FAILED = 8;
+  TRAFFIC_TRACE_STAGE_RATE_LIMITED = 9;
 }
 
 message AgentStatsRequest {
@@ -236,6 +266,51 @@ message PublicTlsCertificate {
   int64 updated_at_unix_millis = 8;
 }
 
+message PublicRateLimitKeyPart {
+  PublicRateLimitKeySource source = 1;
+  string name = 2;
+}
+
+message PublicRateLimitValueMatcher {
+  string name = 1;
+  PublicRateLimitMatchOperator operator = 2;
+  string value = 3;
+}
+
+message PublicRateLimitMatch {
+  repeated string methods = 1;
+  repeated PublicListenerProtocol protocols = 2;
+  repeated string host_patterns = 3;
+  repeated string path_prefixes = 4;
+  repeated PublicRateLimitValueMatcher headers = 5;
+  repeated PublicRateLimitValueMatcher cookies = 6;
+  repeated PublicRateLimitValueMatcher query_params = 7;
+}
+
+message PublicRateLimitResponseHeader {
+  string name = 1;
+  string value = 2;
+}
+
+message PublicRateLimitRule {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicRateLimitAlgorithm algorithm = 5;
+  int64 limit = 6;
+  int64 window_millis = 7;
+  int64 burst = 8;
+  PublicRateLimitMatch match = 9;
+  repeated PublicRateLimitKeyPart key_parts = 10;
+  int64 response_status_code = 11;
+  string response_body = 12;
+  string response_content_type = 13;
+  repeated PublicRateLimitResponseHeader response_headers = 14;
+  int64 created_at_unix_millis = 15;
+  int64 updated_at_unix_millis = 16;
+}
+
 message PublicListenerStatus {
   int64 listener_id = 1;
   ProxyState state = 2;
@@ -258,6 +333,7 @@ message GetPublicProxyConfigResponse {
   ProxyStatus proxy = 5;
   repeated Agent agents = 6;
   repeated PublicBackendAgent backend_agents = 7;
+  repeated PublicRateLimitRule rate_limit_rules = 8;
 }
 
 message CreatePublicBackendRequest {
@@ -504,6 +580,54 @@ message DeletePublicTlsCertificateRequest {
 message DeletePublicTlsCertificateResponse {
 }
 
+message CreatePublicRateLimitRuleRequest {
+  string name = 1;
+  int64 priority = 2;
+  bool enabled = 3;
+  PublicRateLimitAlgorithm algorithm = 4;
+  int64 limit = 5;
+  int64 window_millis = 6;
+  int64 burst = 7;
+  PublicRateLimitMatch match = 8;
+  repeated PublicRateLimitKeyPart key_parts = 9;
+  int64 response_status_code = 10;
+  string response_body = 11;
+  string response_content_type = 12;
+  repeated PublicRateLimitResponseHeader response_headers = 13;
+}
+
+message CreatePublicRateLimitRuleResponse {
+  PublicRateLimitRule rule = 1;
+}
+
+message UpdatePublicRateLimitRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicRateLimitAlgorithm algorithm = 5;
+  int64 limit = 6;
+  int64 window_millis = 7;
+  int64 burst = 8;
+  PublicRateLimitMatch match = 9;
+  repeated PublicRateLimitKeyPart key_parts = 10;
+  int64 response_status_code = 11;
+  string response_body = 12;
+  string response_content_type = 13;
+  repeated PublicRateLimitResponseHeader response_headers = 14;
+}
+
+message UpdatePublicRateLimitRuleResponse {
+  PublicRateLimitRule rule = 1;
+}
+
+message DeletePublicRateLimitRuleRequest {
+  int64 id = 1;
+}
+
+message DeletePublicRateLimitRuleResponse {
+}
+
 message GetDashboardRequest {
 }
 
@@ -605,6 +729,9 @@ message TrafficTraceEvent {
   uint64 request_bytes = 27;
   uint64 response_bytes = 28;
   map<string, string> debug_attributes = 29;
+  int64 rate_limit_rule_id = 30;
+  string rate_limit_rule_name = 31;
+  PublicRateLimitAlgorithm rate_limit_algorithm = 32;
 }
 
 message StreamTrafficTraceEventsResponse {
@@ -703,4 +830,7 @@ service AgentManagementService {
   rpc CreatePublicTlsCertificate(CreatePublicTlsCertificateRequest) returns (CreatePublicTlsCertificateResponse) {}
   rpc UpdatePublicTlsCertificate(UpdatePublicTlsCertificateRequest) returns (UpdatePublicTlsCertificateResponse) {}
   rpc DeletePublicTlsCertificate(DeletePublicTlsCertificateRequest) returns (DeletePublicTlsCertificateResponse) {}
+  rpc CreatePublicRateLimitRule(CreatePublicRateLimitRuleRequest) returns (CreatePublicRateLimitRuleResponse) {}
+  rpc UpdatePublicRateLimitRule(UpdatePublicRateLimitRuleRequest) returns (UpdatePublicRateLimitRuleResponse) {}
+  rpc DeletePublicRateLimitRule(DeletePublicRateLimitRuleRequest) returns (DeletePublicRateLimitRuleResponse) {}
 }

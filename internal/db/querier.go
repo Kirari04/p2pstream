@@ -22,6 +22,7 @@ type Querier interface {
 	CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error)
 	CreatePublicBackendUpstreamHeader(ctx context.Context, arg CreatePublicBackendUpstreamHeaderParams) (PublicBackendUpstreamHeader, error)
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
+	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
@@ -35,6 +36,7 @@ type Querier interface {
 	DeletePublicBackendHeaders(ctx context.Context, backendID int64) error
 	DeletePublicBackendUpstreamHeaders(ctx context.Context, backendID int64) error
 	DeletePublicListener(ctx context.Context, id int64) error
+	DeletePublicRateLimitRule(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
@@ -48,6 +50,7 @@ type Querier interface {
 	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
 	GetPublicBackend(ctx context.Context, id int64) (PublicBackend, error)
 	GetPublicListener(ctx context.Context, id int64) (PublicListener, error)
+	GetPublicRateLimitRule(ctx context.Context, id int64) (PublicRateLimitRule, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
@@ -64,6 +67,7 @@ type Querier interface {
 	ListPublicBackendUpstreamHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendUpstreamHeader, error)
 	ListPublicBackends(ctx context.Context) ([]PublicBackend, error)
 	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
+	ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	MarkAgentConnected(ctx context.Context, id int64) error
@@ -76,6 +80,7 @@ type Querier interface {
 	UpdateConnectionDisconnected(ctx context.Context, id int64) error
 	UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error)
 	UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error)
+	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapAgentParams) (Agent, error)

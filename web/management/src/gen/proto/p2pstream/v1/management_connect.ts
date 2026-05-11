@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, DeleteAgentRequest, DeleteAgentResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse } from "./management_pb";
+import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRateLimitRuleRequest, CreatePublicRateLimitRuleResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, DeleteAgentRequest, DeleteAgentResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRateLimitRuleRequest, DeletePublicRateLimitRuleResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRateLimitRuleRequest, UpdatePublicRateLimitRuleResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse } from "./management_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -316,6 +316,33 @@ export const AgentManagementService = {
       name: "DeletePublicTlsCertificate",
       I: DeletePublicTlsCertificateRequest,
       O: DeletePublicTlsCertificateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule
+     */
+    createPublicRateLimitRule: {
+      name: "CreatePublicRateLimitRule",
+      I: CreatePublicRateLimitRuleRequest,
+      O: CreatePublicRateLimitRuleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicRateLimitRule
+     */
+    updatePublicRateLimitRule: {
+      name: "UpdatePublicRateLimitRule",
+      I: UpdatePublicRateLimitRuleRequest,
+      O: UpdatePublicRateLimitRuleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule
+     */
+    deletePublicRateLimitRule: {
+      name: "DeletePublicRateLimitRule",
+      I: DeletePublicRateLimitRuleRequest,
+      O: DeletePublicRateLimitRuleResponse,
       kind: MethodKind.Unary,
     },
   }

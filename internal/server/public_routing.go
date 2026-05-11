@@ -114,22 +114,27 @@ type publicProxySnapshot struct {
 	Listeners        map[int64]publicListenerConfig
 	RoutesByListener map[int64][]publicRouteConfig
 	CertsByListener  map[int64][]publicTLSCertificateConfig
+	RateLimitRules   []publicRateLimitRuleConfig
 }
 
 type publicRouteResolution struct {
-	Backend      publicBackendConfig
-	Listener     publicListenerConfig
-	Route        publicRouteConfig
-	Action       string
-	DefaultRoute bool
-	ListenerID   sql.NullInt64
-	BackendID    sql.NullInt64
-	RouteID      sql.NullInt64
-	AgentID      sql.NullInt64
+	Backend            publicBackendConfig
+	Listener           publicListenerConfig
+	Route              publicRouteConfig
+	Action             string
+	DefaultRoute       bool
+	ListenerID         sql.NullInt64
+	BackendID          sql.NullInt64
+	RouteID            sql.NullInt64
+	AgentID            sql.NullInt64
+	RateLimitRuleID    int64
+	RateLimitRuleName  string
+	RateLimitAlgorithm string
 }
 
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		requestStartedAt := time.Now()
 		responseWriter := w
 		var recorder *traceResponseRecorder
 		if _, ok := a.TrafficTracer.enabledLevel(); ok {
@@ -139,6 +144,44 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 		trace := a.newTrafficRequestTrace(r, recorder)
 		if trace != nil {
 			trace.emitReceived(listenerID)
+		}
+
+		if decision, allowed := a.checkPublicRateLimits(listenerID, r); !allowed {
+			writeRateLimitResponse(responseWriter, decision)
+			if trace != nil {
+				resolution := publicRouteResolution{
+					Listener:           decision.Listener,
+					ListenerID:         sql.NullInt64{Int64: listenerID, Valid: true},
+					RateLimitRuleID:    decision.Rule.ID,
+					RateLimitRuleName:  decision.Rule.Name,
+					RateLimitAlgorithm: decision.Rule.Algorithm,
+				}
+				trace.emit(
+					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RATE_LIMITED,
+					&resolution,
+					nil,
+					decision.StatusCode,
+					"rate_limited",
+					responseWriter.Header(),
+					map[string]string{
+						"handler":              "rate_limit",
+						"rate_limit_rule_id":   strconv.FormatInt(decision.Rule.ID, 10),
+						"rate_limit_rule_name": decision.Rule.Name,
+						"rate_limit_algorithm": decision.Rule.Algorithm,
+					},
+				)
+			}
+			a.recordProxyRequestEventWithIDs(
+				context.Background(),
+				decision.StatusCode,
+				time.Since(requestStartedAt),
+				"",
+				sql.NullInt64{Int64: listenerID, Valid: true},
+				sql.NullInt64{},
+				sql.NullInt64{},
+				sql.NullInt64{},
+			)
+			return
 		}
 
 		resolution, err := a.resolvePublicRoute(listenerID, r)

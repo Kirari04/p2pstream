@@ -115,6 +115,25 @@ type PublicListener struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type PublicRateLimitRule struct {
+	ID                  int64     `json:"id"`
+	Name                string    `json:"name"`
+	Priority            int64     `json:"priority"`
+	Enabled             int64     `json:"enabled"`
+	Algorithm           string    `json:"algorithm"`
+	LimitCount          int64     `json:"limit_count"`
+	WindowMillis        int64     `json:"window_millis"`
+	Burst               int64     `json:"burst"`
+	MatchJson           string    `json:"match_json"`
+	KeyPartsJson        string    `json:"key_parts_json"`
+	ResponseStatusCode  int64     `json:"response_status_code"`
+	ResponseBody        string    `json:"response_body"`
+	ResponseContentType string    `json:"response_content_type"`
+	ResponseHeadersJson string    `json:"response_headers_json"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
 type PublicRoute struct {
 	ID                         int64         `json:"id"`
 	ListenerID                 int64         `json:"listener_id"`
