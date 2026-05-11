@@ -19,6 +19,7 @@ import {
   PublicRouteAction,
   PublicRouteRedirectTargetMode,
   TrafficTraceStage,
+  type Agent,
   type GetPublicProxyConfigResponse,
   type PublicRoute,
   type TrafficTraceEvent,
@@ -59,12 +60,17 @@ type TraceRequest = {
 };
 
 export type TrafficNodeKind = "ingress" | "listener" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+type AgentNodeStatus = {
+  state: "connected" | "offline" | "disabled" | "unknown";
+  label: string;
+};
 
 export type TrafficNodeData = {
   label: string;
   subLabel: string;
   kind: TrafficNodeKind;
   editTargets: TrafficFlowEditTarget[];
+  agentStatus?: AgentNodeStatus;
 };
 
 type DiagramNode = TrafficNodeData & {
@@ -189,6 +195,7 @@ const layout = computed(() => {
     nodes.set(node.key, {
       ...existing,
       editTargets: dedupeEditTargets([...existing.editTargets, ...(node.editTargets ?? [])]),
+      agentStatus: mergeAgentStatus(existing.agentStatus, node.agentStatus),
     });
   };
   const addEdge = (from: string, to: string, route: DiagramEdgeRoute = "default") => {
@@ -285,6 +292,7 @@ const layout = computed(() => {
             subLabel: agent?.publicId || `x${assignment.weight.toString()}`,
             column: 4,
             kind: "agent",
+            agentStatus: agentNodeStatus(agent),
             editTargets: [agentEditTarget(assignment.agentId, agent?.name || `Agent ${assignment.agentId.toString()}`, agent?.publicId || "")],
           });
           addUpstreamNode(addNode, backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, "Agent pool"));
@@ -357,6 +365,7 @@ const flowNodes = computed<Node<TrafficNodeData>[]>(() =>
       subLabel: node.subLabel,
       kind: node.kind,
       editTargets: node.editTargets,
+      agentStatus: node.agentStatus,
     },
   })),
 );
@@ -1039,12 +1048,14 @@ function addObservedNodes(
   }
 
   if (request.agentId > 0n) {
+    const agent = props.config?.agents.find((item) => item.id === request.agentId);
     addNode({
       key: agentKey(request.agentId),
       label: request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`,
       subLabel: request.agentPublicId || "Observed",
       column: 4,
       kind: "agent",
+      agentStatus: agentNodeStatus(agent),
       editTargets: [agentEditTarget(request.agentId, request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`, request.agentPublicId || "Observed")],
     });
     addUpstreamNode(addNode, request.backendId > 0n ? backendEditTarget(request.backendId, request.backendName || `Backend ${request.backendId.toString()}`, "Agent pool") : undefined);
@@ -1107,6 +1118,20 @@ function dedupeEditTargets(targets: TrafficFlowEditTarget[]): TrafficFlowEditTar
     byKey.set(`${target.kind}:${target.id}`, target);
   }
   return [...byKey.values()];
+}
+
+function agentNodeStatus(agent: Agent | undefined): AgentNodeStatus {
+  if (!agent) return { state: "unknown", label: "Unknown" };
+  if (!agent.enabled) return { state: "disabled", label: "Disabled" };
+  if (agent.connected) return { state: "connected", label: "Connected" };
+  return { state: "offline", label: "Offline" };
+}
+
+function mergeAgentStatus(existing: AgentNodeStatus | undefined, next: AgentNodeStatus | undefined): AgentNodeStatus | undefined {
+  if (!existing) return next;
+  if (!next) return existing;
+  if (existing.state === "unknown" && next.state !== "unknown") return next;
+  return existing;
 }
 
 function dedupeConsecutive(values: string[]): string[] {

@@ -3,11 +3,17 @@ import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 
+type AgentNodeStatus = {
+  state: "connected" | "offline" | "disabled" | "unknown";
+  label: string;
+};
+
 type TrafficNodeData = {
   label: string;
   subLabel: string;
   kind: "ingress" | "listener" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
   editTargets: TrafficFlowEditTarget[];
+  agentStatus?: AgentNodeStatus;
 };
 
 defineProps<NodeProps<TrafficNodeData>>();
@@ -20,7 +26,17 @@ defineProps<NodeProps<TrafficNodeData>>();
   >
     <Handle type="target" :position="Position.Left" class="traffic-handle" />
     <div class="node-label" :title="data.label">{{ data.label || "-" }}</div>
-    <div class="node-sub-label" :title="data.subLabel">{{ data.subLabel || "-" }}</div>
+    <div class="node-meta">
+      <div class="node-sub-label" :title="data.subLabel">{{ data.subLabel || "-" }}</div>
+      <span
+        v-if="data.kind === 'agent' && data.agentStatus"
+        class="node-status"
+        :class="`node-status-${data.agentStatus.state}`"
+      >
+        <span class="node-status-dot" />
+        <span class="node-status-label">{{ data.agentStatus.label }}</span>
+      </span>
+    </div>
     <Handle type="source" :position="Position.Right" class="traffic-handle" />
   </div>
 </template>
@@ -87,12 +103,68 @@ defineProps<NodeProps<TrafficNodeData>>();
   line-height: 1.25;
 }
 
-.node-sub-label {
+.node-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
   margin-top: 4px;
+}
+
+.node-sub-label {
+  flex: 1 1 auto;
   color: #888;
   font-family: var(--font-mono);
   font-size: 0.66rem;
   line-height: 1.2;
+}
+
+.node-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  max-width: 76px;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 5px;
+  background: rgb(255 255 255 / 3%);
+  font-size: 0.58rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.node-status-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.node-status-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-status-connected {
+  color: #22c55e;
+}
+
+.node-status-offline {
+  color: #f59e0b;
+}
+
+.node-status-disabled {
+  color: #a1a1aa;
+}
+
+.node-status-unknown {
+  color: #71717a;
 }
 
 :deep(.traffic-handle) {
