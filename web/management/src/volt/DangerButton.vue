@@ -22,7 +22,7 @@ defineProps<Props>();
 
 const theme = ref<ButtonPassThroughOptions>({
     root: `inline-flex cursor-pointer select-none items-center justify-center overflow-hidden relative
-        px-3 py-2 gap-2 rounded-md disabled:pointer-events-none disabled:opacity-60 transition-colors duration-200
+        px-3 py-2 gap-2 rounded-md disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 disabled:saturate-0 disabled:shadow-none transition-colors duration-200
         bg-red-500 enabled:hover:bg-red-600 enabled:active:bg-red-700
         border border-red-500 enabled:hover:border-red-600 enabled:active:border-red-700
         text-white enabled:hover:text-white enabled:active:text-white

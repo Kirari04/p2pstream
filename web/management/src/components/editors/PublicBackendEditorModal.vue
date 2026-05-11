@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import TimesIcon from "@primevue/icons/times";
+import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
@@ -56,11 +58,19 @@ const backendForm = reactive({
   enabled: true,
 });
 
-const backendSubmitDisabled = computed(() => {
-  if (isBusy?.value) return true;
-  if (backendForm.backendType !== PublicBackendType.PROXY_FORWARD) return false;
-  if (backendForm.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return false;
-  return !backendForm.agentAssignments.some((assignment) => assignment.enabled && assignment.agentId);
+const backendSubmitDisabledReason = computed(() => {
+  if (isBusy?.value) return BUSY_REASON;
+  if (backendForm.backendType !== PublicBackendType.PROXY_FORWARD) return "";
+  if (backendForm.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "";
+  return backendForm.agentAssignments.some((assignment) => assignment.enabled && assignment.agentId)
+    ? ""
+    : "Assign at least one enabled agent.";
+});
+const backendSubmitDisabled = computed(() => Boolean(backendSubmitDisabledReason.value));
+const addBackendAgentDisabledReason = computed(() => {
+  if (!agents.value.length) return "Create an agent before assigning one to this backend.";
+  if (backendForm.agentAssignments.length >= agents.value.length) return "All registered agents are already assigned.";
+  return "";
 });
 
 function assignmentsForBackend(backend: PublicBackend) {
@@ -299,7 +309,7 @@ defineExpose({ openCreate, openEdit, close });
               Secret
             </label>
             <DangerButton size="small" aria-label="Remove upstream header" title="Remove upstream header" type="button" @click="removeUpstreamHeader(index)">
-              <template #icon><TimesIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
             </DangerButton>
           </div>
         </div>
@@ -339,7 +349,15 @@ defineExpose({ openCreate, openEdit, close });
           <div class="grid gap-2">
             <div class="flex items-center justify-between gap-3">
               <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Agents</p>
-              <SecondaryButton size="small" label="Add Agent" type="button" :disabled="backendForm.agentAssignments.length >= agents.length" @click="addBackendAgentAssignment" />
+              <DisabledHint :disabled="Boolean(addBackendAgentDisabledReason)" :reason="addBackendAgentDisabledReason">
+                <SecondaryButton
+                  size="small"
+                  label="Add Agent"
+                  type="button"
+                  :disabled="Boolean(addBackendAgentDisabledReason)"
+                  @click="addBackendAgentAssignment"
+                />
+              </DisabledHint>
             </div>
             <div v-if="!agents.length" class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs text-[#888]">
               Create an agent in Agent Health before using agent forwarding.
@@ -356,7 +374,7 @@ defineExpose({ openCreate, openEdit, close });
                 On
               </label>
               <DangerButton size="small" aria-label="Remove agent" title="Remove agent" type="button" @click="removeBackendAgentAssignment(index)">
-                <template #icon><TimesIcon class="h-3.5 w-3.5" /></template>
+                <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
               </DangerButton>
             </div>
           </div>
@@ -380,7 +398,7 @@ defineExpose({ openCreate, openEdit, close });
             <input v-model="header.name" class="vercel-input text-sm normal-case tracking-normal" placeholder="Content-Type" />
             <input v-model="header.value" class="vercel-input text-sm normal-case tracking-normal" placeholder="text/plain" />
             <DangerButton size="small" aria-label="Remove header" title="Remove header" type="button" @click="removeStaticHeader(index)">
-              <template #icon><TimesIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
             </DangerButton>
           </div>
         </div>
@@ -391,7 +409,9 @@ defineExpose({ openCreate, openEdit, close });
       </label>
       <div class="mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
-        <Button class="!bg-white !text-black !border-white" :label="backendForm.id ? 'Save Changes' : 'Create Backend'" type="submit" :disabled="backendSubmitDisabled" />
+        <DisabledHint :disabled="Boolean(backendSubmitDisabledReason)" :reason="backendSubmitDisabledReason">
+          <Button class="!bg-white !text-black !border-white" :label="backendForm.id ? 'Save Changes' : 'Create Backend'" type="submit" :disabled="backendSubmitDisabled" />
+        </DisabledHint>
       </div>
     </form>
   </Modal>

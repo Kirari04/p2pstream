@@ -2,6 +2,8 @@
 import { computed, inject, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
@@ -26,6 +28,11 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 const isOpen = ref(false);
 const listeners = computed(() => props.config?.listeners ?? []);
 const backends = computed(() => props.config?.backends ?? []);
+const listenerSubmitDisabledReason = computed(() => {
+  if (isBusy?.value) return BUSY_REASON;
+  if (!backends.value.length) return "Create a backend before creating a listener.";
+  return "";
+});
 
 const listenerForm = reactive({
   id: "",
@@ -140,7 +147,14 @@ defineExpose({ openCreate, openEdit, close });
       </label>
       <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
-        <Button class="!bg-white !text-black !border-white" :label="listenerForm.id ? 'Save Changes' : 'Create Listener'" type="submit" :disabled="isBusy || !backends.length" />
+        <DisabledHint :disabled="Boolean(listenerSubmitDisabledReason)" :reason="listenerSubmitDisabledReason">
+          <Button
+            class="!bg-white !text-black !border-white"
+            :label="listenerForm.id ? 'Save Changes' : 'Create Listener'"
+            type="submit"
+            :disabled="Boolean(listenerSubmitDisabledReason)"
+          />
+        </DisabledHint>
       </div>
     </form>
   </Modal>

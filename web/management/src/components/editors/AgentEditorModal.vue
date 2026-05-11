@@ -2,6 +2,8 @@
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
@@ -24,6 +26,7 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
 const agents = computed(() => props.config?.agents ?? []);
+const agentSubmitDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 
 const agentForm = reactive({
   id: "",
@@ -104,7 +107,9 @@ defineExpose({ openCreate, openEdit, close });
       </label>
       <div class="mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
-        <Button class="!bg-white !text-black !border-white" :label="agentForm.id ? 'Save Changes' : 'Create Agent'" type="submit" :disabled="isBusy" />
+        <DisabledHint :disabled="Boolean(agentSubmitDisabledReason)" :reason="agentSubmitDisabledReason">
+          <Button class="!bg-white !text-black !border-white" :label="agentForm.id ? 'Save Changes' : 'Create Agent'" type="submit" :disabled="Boolean(agentSubmitDisabledReason)" />
+        </DisabledHint>
       </div>
     </form>
   </Modal>

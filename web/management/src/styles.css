@@ -123,4 +123,18 @@
     outline: none;
     border-color: #888;
   }
+  .vercel-input:disabled,
+  .vercel-input[aria-disabled="true"] {
+    border-color: #252525;
+    background: #080808;
+    color: #777;
+    cursor: not-allowed;
+    opacity: 1;
+  }
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled,
+  select:disabled,
+  button:disabled {
+    cursor: not-allowed;
+  }
 }

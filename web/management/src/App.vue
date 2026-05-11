@@ -2,6 +2,8 @@
 import RefreshIcon from "@primevue/icons/refresh";
 import { computed, onBeforeUnmount, onMounted, ref, provide } from "vue";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import Message from "@/volt/Message.vue";
@@ -34,6 +36,12 @@ const tabs = [
 
 const setupForm = ref({ username: "admin", password: "" });
 const loginForm = ref({ username: "admin", password: "" });
+const refreshDisabledReason = computed(() => {
+  if (isRefreshing.value) return "Dashboard refresh is already running.";
+  if (isBusy.value) return BUSY_REASON;
+  return "";
+});
+const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
 
 // Provide state to views
 provide('dashboard', computed(() => dashboard.value));
@@ -243,28 +251,30 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="flex items-center gap-3">
-            <SecondaryButton
-              v-if="currentUser"
-              size="small"
-              class="!bg-transparent !border-[#333] hover:!border-[#666] !text-[#ededed] h-8"
-              :loading="isRefreshing"
-              :disabled="isRefreshing || isBusy"
-              aria-label="Refresh dashboard"
-              title="Refresh dashboard"
-              @click="loadDashboard"
-            >
-              <template #icon>
-                <RefreshIcon class="h-3.5 w-3.5" />
-              </template>
-            </SecondaryButton>
-            <SecondaryButton
-              v-if="currentUser"
-              label="Log out"
-              size="small"
-              class="!bg-transparent !border-[#333] hover:!border-[#666] !text-[#888] h-8"
-              :disabled="isBusy"
-              @click="requestLogout"
-            />
+            <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
+              <SecondaryButton
+                size="small"
+                class="!bg-transparent !border-[#333] hover:!border-[#666] !text-[#ededed] h-8"
+                :loading="isRefreshing"
+                :disabled="Boolean(refreshDisabledReason)"
+                aria-label="Refresh dashboard"
+                title="Refresh dashboard"
+                @click="loadDashboard"
+              >
+                <template #icon>
+                  <RefreshIcon class="h-3.5 w-3.5" />
+                </template>
+              </SecondaryButton>
+            </DisabledHint>
+            <DisabledHint v-if="currentUser" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+              <SecondaryButton
+                label="Log out"
+                size="small"
+                class="!bg-transparent !border-[#333] hover:!border-[#666] !text-[#888] h-8"
+                :disabled="Boolean(busyDisabledReason)"
+                @click="requestLogout"
+              />
+            </DisabledHint>
           </div>
         </div>
       </div>
@@ -393,19 +403,23 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <SecondaryButton
-            label="Stay logged in"
-            class="!border-[#333] !bg-transparent !text-[#ededed] hover:!border-[#666]"
-            :disabled="isBusy"
-            @click="cancelLogout"
-          />
-          <DangerButton
-            label="Log out"
-            class="!border-red-600 !bg-red-600 !text-white hover:!border-red-500 hover:!bg-red-500"
-            :loading="isBusy"
-            :disabled="isBusy"
-            @click="confirmLogout"
-          />
+          <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+            <SecondaryButton
+              label="Stay logged in"
+              class="!border-[#333] !bg-transparent !text-[#ededed] hover:!border-[#666]"
+              :disabled="Boolean(busyDisabledReason)"
+              @click="cancelLogout"
+            />
+          </DisabledHint>
+          <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+            <DangerButton
+              label="Log out"
+              class="!border-red-600 !bg-red-600 !text-white hover:!border-red-500 hover:!bg-red-500"
+              :loading="isBusy"
+              :disabled="Boolean(busyDisabledReason)"
+              @click="confirmLogout"
+            />
+          </DisabledHint>
         </div>
       </section>
     </div>

@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
+import PlusIcon from "@primevue/icons/plus";
+import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
 import PublicRateLimitPreview from "@/components/editors/PublicRateLimitPreview.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
+import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import {
@@ -20,6 +25,7 @@ type MatcherForm = {
   operator: PublicRateLimitMatchOperator;
   value: string;
 };
+type MatcherGroupKey = "headers" | "cookies" | "queryParams";
 type KeyPartForm = {
   source: PublicRateLimitKeySource;
   name: string;
@@ -42,6 +48,7 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
 const rules = computed(() => props.config?.rateLimitRules ?? []);
+const activeMatcherGroup = ref<MatcherGroupKey>("headers");
 
 const form = reactive({
   id: "",
@@ -80,6 +87,26 @@ const matcherOperatorOptions = [
   { label: "Suffix", value: PublicRateLimitMatchOperator.SUFFIX },
   { label: "Contains", value: PublicRateLimitMatchOperator.CONTAINS },
 ];
+const matcherGroups = [
+  {
+    key: "headers",
+    label: "Headers",
+    singular: "header",
+    namePlaceholder: "Header",
+  },
+  {
+    key: "cookies",
+    label: "Cookies",
+    singular: "cookie",
+    namePlaceholder: "Cookie",
+  },
+  {
+    key: "queryParams",
+    label: "Query params",
+    singular: "query param",
+    namePlaceholder: "Param",
+  },
+] as const;
 const keySourceOptions = [
   { label: "Remote IP", value: PublicRateLimitKeySource.REMOTE_IP },
   { label: "Host", value: PublicRateLimitKeySource.HOST },
@@ -95,12 +122,16 @@ const usesBurst = computed(() =>
   form.algorithm === PublicRateLimitAlgorithm.TOKEN_BUCKET ||
   form.algorithm === PublicRateLimitAlgorithm.LEAKY_BUCKET,
 );
-const submitDisabled = computed(() => {
-  if (isBusy?.value) return true;
-  if (!form.name.trim()) return true;
-  if (form.limit < 1 || form.windowSeconds < 1) return true;
-  return !form.keyParts.length;
+const burstDisabledReason = computed(() => usesBurst.value ? "" : "Burst only applies to token bucket and leaky bucket algorithms.");
+const rateLimitSubmitDisabledReason = computed(() => {
+  if (isBusy?.value) return BUSY_REASON;
+  if (!form.name.trim()) return "Enter a rule name.";
+  if (form.limit < 1) return "Limit must be at least 1.";
+  if (form.windowSeconds < 1) return "Window must be at least 1 second.";
+  if (!form.keyParts.length) return "Add at least one key part.";
+  return "";
 });
+const submitDisabled = computed(() => Boolean(rateLimitSubmitDisabledReason.value));
 
 function resetForm() {
   form.id = "";
@@ -123,6 +154,7 @@ function resetForm() {
   form.responseContentType = "text/plain; charset=utf-8";
   form.responseBody = "Rate limit exceeded\n";
   form.responseHeaders = [];
+  activeMatcherGroup.value = "headers";
 }
 
 function nextRuleName(): string {
@@ -164,6 +196,7 @@ function openEdit(ruleId: bigint | string) {
   form.responseContentType = rule.responseContentType || "text/plain; charset=utf-8";
   form.responseBody = rule.responseBody || "Rate limit exceeded\n";
   form.responseHeaders = rule.responseHeaders.map((header) => ({ name: header.name, value: header.value }));
+  setInitialMatcherTab();
   isOpen.value = true;
 }
 
@@ -203,6 +236,45 @@ function removeMatcher(target: MatcherForm[], index: number) {
   target.splice(index, 1);
 }
 
+function matchersForGroup(group: MatcherGroupKey): MatcherForm[] {
+  switch (group) {
+    case "cookies":
+      return form.cookies;
+    case "queryParams":
+      return form.queryParams;
+    default:
+      return form.headers;
+  }
+}
+
+function activeMatcherGroupConfig() {
+  return matcherGroups.find((group) => group.key === activeMatcherGroup.value) ?? matcherGroups[0];
+}
+
+function activeMatchers(): MatcherForm[] {
+  return matchersForGroup(activeMatcherGroup.value);
+}
+
+function matcherCount(group: MatcherGroupKey): number {
+  return matchersForGroup(group).length;
+}
+
+function addActiveMatcher() {
+  addMatcher(activeMatchers());
+}
+
+function removeActiveMatcher(index: number) {
+  removeMatcher(activeMatchers(), index);
+}
+
+function setInitialMatcherTab() {
+  activeMatcherGroup.value =
+    form.headers.length ? "headers" :
+      form.cookies.length ? "cookies" :
+        form.queryParams.length ? "queryParams" :
+          "headers";
+}
+
 function addKeyPart() {
   form.keyParts.push({ source: PublicRateLimitKeySource.REMOTE_IP, name: "" });
 }
@@ -216,6 +288,20 @@ function keyPartNeedsName(source: PublicRateLimitKeySource): boolean {
   return source === PublicRateLimitKeySource.HEADER ||
     source === PublicRateLimitKeySource.COOKIE ||
     source === PublicRateLimitKeySource.QUERY_PARAM;
+}
+
+function matcherValueDisabledReason(matcher: MatcherForm): string {
+  return matcher.operator === PublicRateLimitMatchOperator.PRESENT
+    ? "Present only checks that the value exists, so no comparison value is used."
+    : "";
+}
+
+function keyPartNameDisabledReason(source: PublicRateLimitKeySource): string {
+  return keyPartNeedsName(source) ? "" : "This key source does not need a name.";
+}
+
+function removeKeyPartDisabledReason(): string {
+  return form.keyParts.length <= 1 ? "At least one key part is required." : "";
 }
 
 function addResponseHeader() {
@@ -332,7 +418,15 @@ defineExpose({ openCreate, openEdit, close });
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Burst
-            <input v-model.number="form.burst" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" :disabled="!usesBurst" />
+            <DisabledHint full-width :disabled="Boolean(burstDisabledReason)" :reason="burstDisabledReason">
+              <input
+                v-model.number="form.burst"
+                type="number"
+                min="0"
+                class="vercel-input text-sm normal-case tracking-normal"
+                :disabled="Boolean(burstDisabledReason)"
+              />
+            </DisabledHint>
           </label>
         </div>
       </section>
@@ -396,47 +490,84 @@ defineExpose({ openCreate, openEdit, close });
           </label>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-3">
-          <div class="matcher-panel">
-            <div class="matcher-title">
-              <span>Headers</span>
-              <button type="button" @click="addMatcher(form.headers)">Add</button>
+        <div class="matcher-editor">
+          <div class="matcher-editor-header">
+            <div>
+              <p class="matcher-eyebrow">Request attributes</p>
+              <h5 class="matcher-heading">{{ activeMatcherGroupConfig().label }}</h5>
             </div>
-            <div v-for="(matcher, index) in form.headers" :key="`h-${index}`" class="matcher-row">
-              <input v-model="matcher.name" class="vercel-input" placeholder="Header" />
-              <select v-model="matcher.operator" class="vercel-input">
-                <option v-for="option in matcherOperatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-              </select>
-              <input v-model="matcher.value" class="vercel-input" placeholder="Value" :disabled="matcher.operator === PublicRateLimitMatchOperator.PRESENT" />
-              <button type="button" @click="removeMatcher(form.headers, index)">Remove</button>
-            </div>
+
+            <button type="button" class="matcher-add-button" @click="addActiveMatcher">
+              <PlusIcon class="h-3.5 w-3.5" />
+              <span>Add {{ activeMatcherGroupConfig().singular }}</span>
+            </button>
           </div>
-          <div class="matcher-panel">
-            <div class="matcher-title">
-              <span>Cookies</span>
-              <button type="button" @click="addMatcher(form.cookies)">Add</button>
-            </div>
-            <div v-for="(matcher, index) in form.cookies" :key="`c-${index}`" class="matcher-row">
-              <input v-model="matcher.name" class="vercel-input" placeholder="Cookie" />
-              <select v-model="matcher.operator" class="vercel-input">
-                <option v-for="option in matcherOperatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-              </select>
-              <input v-model="matcher.value" class="vercel-input" placeholder="Value" :disabled="matcher.operator === PublicRateLimitMatchOperator.PRESENT" />
-              <button type="button" @click="removeMatcher(form.cookies, index)">Remove</button>
-            </div>
+
+          <div class="matcher-tabs" role="tablist" aria-label="Matcher type">
+            <button
+              v-for="group in matcherGroups"
+              :key="group.key"
+              type="button"
+              role="tab"
+              class="matcher-tab"
+              :class="{ 'matcher-tab-active': activeMatcherGroup === group.key }"
+              :aria-selected="activeMatcherGroup === group.key"
+              @click="activeMatcherGroup = group.key"
+            >
+              <span>{{ group.label }}</span>
+              <span class="matcher-tab-count">{{ matcherCount(group.key) }}</span>
+            </button>
           </div>
-          <div class="matcher-panel">
-            <div class="matcher-title">
-              <span>Query params</span>
-              <button type="button" @click="addMatcher(form.queryParams)">Add</button>
+
+          <div class="matcher-list-shell">
+            <div v-if="!activeMatchers().length" class="matcher-empty">
+              <p>No {{ activeMatcherGroupConfig().singular }} matchers configured.</p>
+              <button type="button" @click="addActiveMatcher">
+                <PlusIcon class="h-3.5 w-3.5" />
+                <span>Add {{ activeMatcherGroupConfig().singular }}</span>
+              </button>
             </div>
-            <div v-for="(matcher, index) in form.queryParams" :key="`q-${index}`" class="matcher-row">
-              <input v-model="matcher.name" class="vercel-input" placeholder="Param" />
-              <select v-model="matcher.operator" class="vercel-input">
-                <option v-for="option in matcherOperatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-              </select>
-              <input v-model="matcher.value" class="vercel-input" placeholder="Value" :disabled="matcher.operator === PublicRateLimitMatchOperator.PRESENT" />
-              <button type="button" @click="removeMatcher(form.queryParams, index)">Remove</button>
+
+            <div v-else class="matcher-list">
+              <div class="matcher-row matcher-row-head" aria-hidden="true">
+                <span>Name</span>
+                <span>Operator</span>
+                <span>Value</span>
+                <span />
+              </div>
+
+              <div
+                v-for="(matcher, index) in activeMatchers()"
+                :key="`${activeMatcherGroup}-${index}`"
+                class="matcher-row"
+              >
+                <input
+                  v-model="matcher.name"
+                  class="vercel-input matcher-input"
+                  :placeholder="activeMatcherGroupConfig().namePlaceholder"
+                />
+                <select v-model="matcher.operator" class="vercel-input matcher-input">
+                  <option v-for="option in matcherOperatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                </select>
+                <DisabledHint full-width :disabled="Boolean(matcherValueDisabledReason(matcher))" :reason="matcherValueDisabledReason(matcher)">
+                  <input
+                    v-model="matcher.value"
+                    class="vercel-input matcher-input"
+                    :placeholder="matcher.operator === PublicRateLimitMatchOperator.PRESENT ? 'Ignored for Present' : 'Value'"
+                    :disabled="Boolean(matcherValueDisabledReason(matcher))"
+                  />
+                </DisabledHint>
+                <DangerButton
+                  size="small"
+                  class="row-remove-button"
+                  type="button"
+                  :aria-label="`Remove ${activeMatcherGroupConfig().singular} matcher`"
+                  :title="`Remove ${activeMatcherGroupConfig().singular} matcher`"
+                  @click="removeActiveMatcher(index)"
+                >
+                  <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                </DangerButton>
+              </div>
             </div>
           </div>
         </div>
@@ -452,8 +583,22 @@ defineExpose({ openCreate, openEdit, close });
             <select v-model="part.source" class="vercel-input text-sm">
               <option v-for="option in keySourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
-            <input v-model="part.name" class="vercel-input text-sm" placeholder="Name" :disabled="!keyPartNeedsName(part.source)" />
-            <button type="button" class="small-link" @click="removeKeyPart(index)">Remove</button>
+            <DisabledHint full-width :disabled="Boolean(keyPartNameDisabledReason(part.source))" :reason="keyPartNameDisabledReason(part.source)">
+              <input v-model="part.name" class="vercel-input text-sm" placeholder="Name" :disabled="Boolean(keyPartNameDisabledReason(part.source))" />
+            </DisabledHint>
+            <DisabledHint :disabled="Boolean(removeKeyPartDisabledReason())" :reason="removeKeyPartDisabledReason()">
+              <DangerButton
+                size="small"
+                class="row-remove-button"
+                aria-label="Remove key part"
+                title="Remove key part"
+                type="button"
+                :disabled="Boolean(removeKeyPartDisabledReason())"
+                @click="removeKeyPart(index)"
+              >
+                <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+              </DangerButton>
+            </DisabledHint>
           </div>
         </div>
       </section>
@@ -482,61 +627,222 @@ defineExpose({ openCreate, openEdit, close });
           <div v-for="(header, index) in form.responseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <input v-model="header.name" class="vercel-input text-sm" placeholder="Name" />
             <input v-model="header.value" class="vercel-input text-sm" placeholder="Value" />
-            <button type="button" class="small-link" @click="removeResponseHeader(index)">Remove</button>
+            <DangerButton
+              size="small"
+              class="row-remove-button"
+              aria-label="Remove response header"
+              title="Remove response header"
+              type="button"
+              @click="removeResponseHeader(index)"
+            >
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            </DangerButton>
           </div>
         </div>
       </section>
 
       <div class="flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
-        <Button class="!bg-white !text-black !border-white" :label="form.id ? 'Save Changes' : 'Create Rule'" type="submit" :disabled="submitDisabled" />
+        <DisabledHint :disabled="Boolean(rateLimitSubmitDisabledReason)" :reason="rateLimitSubmitDisabledReason">
+          <Button class="!bg-white !text-black !border-white" :label="form.id ? 'Save Changes' : 'Create Rule'" type="submit" :disabled="submitDisabled" />
+        </DisabledHint>
       </div>
     </form>
   </Modal>
 </template>
 
 <style scoped>
-.matcher-panel {
+.matcher-editor {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.85rem;
   min-width: 0;
+  border: 1px solid #222;
+  border-radius: 6px;
+  background: #080808;
+  padding: 0.85rem;
 }
 
-.matcher-title {
+.matcher-editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  color: #888;
-  font-size: 0.72rem;
+}
+
+.matcher-eyebrow {
+  color: #777;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.matcher-title button,
-.small-link {
-  border: 1px solid #333;
-  border-radius: 5px;
-  background: #050505;
-  padding: 0.45rem 0.55rem;
-  color: #d4d4d8;
-  font-size: 0.72rem;
+.matcher-heading {
+  margin-top: 0.15rem;
+  color: #fff;
+  font-size: 0.92rem;
   font-weight: 650;
 }
 
-.matcher-title button:hover,
-.small-link:hover {
-  border-color: #666;
+.matcher-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #050505;
+  padding: 0.2rem;
+}
+
+.matcher-tab {
+  display: flex;
+  min-width: 0;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 4px;
+  color: #a1a1aa;
+  font-size: 0.78rem;
+  font-weight: 650;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.matcher-tab:hover {
+  background: #141414;
   color: #fff;
+}
+
+.matcher-tab-active {
+  background: #fff;
+  color: #000;
+}
+
+.matcher-tab-count {
+  min-width: 1.25rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  padding: 0.1rem 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.matcher-tab-active .matcher-tab-count {
+  background: rgb(0 0 0 / 12%);
+}
+
+.matcher-list-shell {
+  min-height: 13.5rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #222;
+  border-radius: 6px;
+  background: #030303;
+}
+
+.matcher-list {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.6rem;
 }
 
 .matcher-row {
   display: grid;
-  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr) 9rem minmax(0, 1.15fr) 2.25rem;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 2.5rem;
 }
 
-.matcher-row .vercel-input {
+.matcher-row-head {
+  min-height: 1.4rem;
+  color: #666;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.matcher-input {
+  min-width: 0;
+  height: 2.25rem;
   font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.matcher-add-button,
+.matcher-empty button {
+  border: 1px solid #333;
+  border-radius: 5px;
+  background: #050505;
+  color: #d4d4d8;
+  font-size: 0.72rem;
+  font-weight: 650;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+
+.matcher-add-button,
+.matcher-empty button {
+  display: inline-flex;
+  height: 2rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.65rem;
+}
+
+.row-remove-button {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 !important;
+}
+
+.matcher-add-button:hover,
+.matcher-empty button:hover {
+  border-color: #666;
+  background: #0f0f0f;
+  color: #fff;
+}
+
+.matcher-empty {
+  display: grid;
+  min-height: 13.5rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.75rem;
+  color: #777;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .matcher-editor-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .matcher-add-button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .matcher-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .matcher-row,
+  .matcher-row-head {
+    grid-template-columns: 1fr;
+  }
+
+  .matcher-row-head {
+    display: none;
+  }
+
+  .row-remove-button {
+    width: 100%;
+  }
 }
 </style>

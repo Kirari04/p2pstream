@@ -9,7 +9,9 @@ import RefreshIcon from "@primevue/icons/refresh";
 import TimesIcon from "@primevue/icons/times";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
@@ -78,11 +80,15 @@ const tlsUploadError = ref("");
 
 const proxySeverity = computed(() => severityForState(proxyState.value));
 const tlsHasPartialUpload = computed(() => Boolean(tlsForm.certPem) !== Boolean(tlsForm.keyPem));
-const tlsSubmitDisabled = computed(() => {
-  if (isBusy?.value || !httpsListeners.value.length) return true;
-  if (!tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) return true;
-  return tlsHasPartialUpload.value;
+const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
+const tlsSubmitDisabledReason = computed(() => {
+  if (isBusy?.value) return BUSY_REASON;
+  if (!httpsListeners.value.length) return "Create an HTTPS listener before adding a TLS mapping.";
+  if (!tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) return "Upload both the certificate and private key files.";
+  if (tlsHasPartialUpload.value) return "Upload both files to replace the certificate.";
+  return "";
 });
+const tlsSubmitDisabled = computed(() => Boolean(tlsSubmitDisabledReason.value));
 
 function proxyStateLabel(state: ProxyState): string {
   switch (state) {
@@ -113,6 +119,12 @@ function listenerState(listener: PublicListener): ProxyState {
 function listenerStateLabel(listener: PublicListener): string {
   if (!listener.enabled || listenerStatus(listener)?.disabled) return "Disabled";
   return proxyStateLabel(listenerState(listener));
+}
+
+function listenerRunningDisabledReason(listener: PublicListener): string {
+  if (isBusy?.value) return BUSY_REASON;
+  if (!listener.enabled) return "Enable this listener before starting it.";
+  return "";
 }
 
 function backendName(id: bigint): string {
@@ -473,25 +485,27 @@ watch(httpsListeners, () => {
       </div>
       <div class="flex items-center gap-3">
         <Tag :severity="proxySeverity" :value="proxyStateLabel(proxyState)" class="!bg-[#111] !border-[#333] !text-white" />
-        <Button
-          v-if="!proxyIsRunning"
-          label="Start Proxy"
-          class="!bg-white !text-black !border-white"
-          :loading="isBusy && !proxyIsRunning"
-          :disabled="isBusy"
-          @click="setProxyRunning?.(true)"
-        >
-          <template #icon><PlusIcon class="h-4 w-4" /></template>
-        </Button>
-        <DangerButton
-          v-else
-          label="Stop Proxy"
-          :loading="isBusy && proxyIsRunning"
-          :disabled="isBusy"
-          @click="setProxyRunning?.(false)"
-        >
-          <template #icon><BanIcon class="h-4 w-4" /></template>
-        </DangerButton>
+        <DisabledHint v-if="!proxyIsRunning" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+          <Button
+            label="Start Proxy"
+            class="!bg-white !text-black !border-white"
+            :loading="isBusy && !proxyIsRunning"
+            :disabled="Boolean(busyDisabledReason)"
+            @click="setProxyRunning?.(true)"
+          >
+            <template #icon><PlusIcon class="h-4 w-4" /></template>
+          </Button>
+        </DisabledHint>
+        <DisabledHint v-else :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+          <DangerButton
+            label="Stop Proxy"
+            :loading="isBusy && proxyIsRunning"
+            :disabled="Boolean(busyDisabledReason)"
+            @click="setProxyRunning?.(false)"
+          >
+            <template #icon><BanIcon class="h-4 w-4" /></template>
+          </DangerButton>
+        </DisabledHint>
       </div>
     </div>
 
@@ -539,36 +553,44 @@ watch(httpsListeners, () => {
               </td>
               <td class="px-5 py-4">
                 <div class="flex justify-end gap-2">
-                  <SecondaryButton
-                    size="small"
-                    :aria-label="listener.enabled ? 'Disable listener' : 'Enable listener'"
-                    :title="listener.enabled ? 'Disable listener' : 'Enable listener'"
-                    :disabled="isBusy"
-                    @click="setListenerEnabled(listener, !listener.enabled)"
-                  >
-                    <template #icon>
-                      <BanIcon v-if="listener.enabled" class="h-3.5 w-3.5" />
-                      <CheckIcon v-else class="h-3.5 w-3.5" />
-                    </template>
-                  </SecondaryButton>
-                  <SecondaryButton
-                    size="small"
-                    :aria-label="listenerStatus(listener)?.running ? 'Stop listener' : 'Start listener'"
-                    :title="listenerStatus(listener)?.running ? 'Stop listener' : 'Start listener'"
-                    :disabled="isBusy || !listener.enabled"
-                    @click="setListenerRunning(listener, !listenerStatus(listener)?.running)"
-                  >
-                    <template #icon>
-                      <TimesIcon v-if="listenerStatus(listener)?.running" class="h-3.5 w-3.5" />
-                      <RefreshIcon v-else class="h-3.5 w-3.5" />
-                    </template>
-                  </SecondaryButton>
-                  <SecondaryButton size="small" aria-label="Edit listener" title="Edit listener" :disabled="isBusy" @click="editListener(listener)">
-                    <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <DangerButton size="small" aria-label="Delete listener" title="Delete listener" :disabled="isBusy" @click="deleteListener(listener.id)">
-                    <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                  </DangerButton>
+                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+                    <SecondaryButton
+                      size="small"
+                      :aria-label="listener.enabled ? 'Disable listener' : 'Enable listener'"
+                      :title="listener.enabled ? 'Disable listener' : 'Enable listener'"
+                      :disabled="Boolean(busyDisabledReason)"
+                      @click="setListenerEnabled(listener, !listener.enabled)"
+                    >
+                      <template #icon>
+                        <BanIcon v-if="listener.enabled" class="h-3.5 w-3.5" />
+                        <CheckIcon v-else class="h-3.5 w-3.5" />
+                      </template>
+                    </SecondaryButton>
+                  </DisabledHint>
+                  <DisabledHint :disabled="Boolean(listenerRunningDisabledReason(listener))" :reason="listenerRunningDisabledReason(listener)">
+                    <SecondaryButton
+                      size="small"
+                      :aria-label="listenerStatus(listener)?.running ? 'Stop listener' : 'Start listener'"
+                      :title="listenerStatus(listener)?.running ? 'Stop listener' : 'Start listener'"
+                      :disabled="Boolean(listenerRunningDisabledReason(listener))"
+                      @click="setListenerRunning(listener, !listenerStatus(listener)?.running)"
+                    >
+                      <template #icon>
+                        <TimesIcon v-if="listenerStatus(listener)?.running" class="h-3.5 w-3.5" />
+                        <RefreshIcon v-else class="h-3.5 w-3.5" />
+                      </template>
+                    </SecondaryButton>
+                  </DisabledHint>
+                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+                    <SecondaryButton size="small" aria-label="Edit listener" title="Edit listener" :disabled="Boolean(busyDisabledReason)" @click="editListener(listener)">
+                      <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+                    </SecondaryButton>
+                  </DisabledHint>
+                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+                    <DangerButton size="small" aria-label="Delete listener" title="Delete listener" :disabled="Boolean(busyDisabledReason)" @click="deleteListener(listener.id)">
+                      <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                    </DangerButton>
+                  </DisabledHint>
                 </div>
               </td>
             </tr>
@@ -797,7 +819,9 @@ watch(httpsListeners, () => {
         </label>
         <div class="mt-4 flex justify-end gap-3">
           <SecondaryButton type="button" label="Cancel" @click="isTlsModalOpen = false" />
-          <Button class="!bg-white !text-black !border-white" :label="tlsForm.id ? 'Save Changes' : 'Create TLS Mapping'" type="submit" :disabled="tlsSubmitDisabled" />
+          <DisabledHint :disabled="Boolean(tlsSubmitDisabledReason)" :reason="tlsSubmitDisabledReason">
+            <Button class="!bg-white !text-black !border-white" :label="tlsForm.id ? 'Save Changes' : 'Create TLS Mapping'" type="submit" :disabled="tlsSubmitDisabled" />
+          </DisabledHint>
         </div>
       </form>
     </Modal>

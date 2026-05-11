@@ -2,10 +2,12 @@
 import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { ComputedRef } from "vue";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
 import TrafficFlowEditTargetChooser from "@/components/editors/TrafficFlowEditTargetChooser.vue";
 import TrafficFlowDiagram from "@/components/TrafficFlowDiagram.vue";
 import TrafficTraceDetailsModal from "@/components/TrafficTraceDetailsModal.vue";
+import { NO_TRACES_REASON, TRACE_BUSY_REASON } from "@/lib/disabledReasons";
 import { TrafficTraceStore, formatDuration, traceStreamRequestForSequence } from "@/lib/trafficTraceStore";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
@@ -59,6 +61,8 @@ const traceLevelOptions = [
 ];
 
 const tracingEnabled = computed(() => traceSettings.value?.enabled === true);
+const traceBusyDisabledReason = computed(() => isTraceBusy.value ? TRACE_BUSY_REASON : "");
+const clearTracesDisabledReason = computed(() => renderStats.value.retainedRequests ? "" : NO_TRACES_REASON);
 const traceTableSummary = computed(() => {
   const stats = renderStats.value;
   if (stats.sampledEvents || stats.sampledRequests) {
@@ -283,29 +287,40 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label class="flex h-10 items-center gap-3 rounded-md border border-[#333] bg-black px-3 text-sm text-[#ededed]">
-            <input
-              type="checkbox"
-              class="h-4 w-4 accent-white"
-              :checked="tracingEnabled"
-              :disabled="isTraceBusy"
-              @change="setTracingEnabled(($event.target as HTMLInputElement).checked)"
-            />
-            <span>Tracing</span>
-          </label>
+          <DisabledHint :disabled="Boolean(traceBusyDisabledReason)" :reason="traceBusyDisabledReason">
+            <label class="flex h-10 items-center gap-3 rounded-md border border-[#333] bg-black px-3 text-sm text-[#ededed]">
+              <input
+                type="checkbox"
+                class="h-4 w-4 accent-white"
+                :checked="tracingEnabled"
+                :disabled="Boolean(traceBusyDisabledReason)"
+                @change="setTracingEnabled(($event.target as HTMLInputElement).checked)"
+              />
+              <span>Tracing</span>
+            </label>
+          </DisabledHint>
 
           <div class="grid grid-cols-4 overflow-hidden rounded-md border border-[#333]">
-            <button
-              v-for="option in traceLevelOptions"
+            <DisabledHint
+              v-for="(option, index) in traceLevelOptions"
               :key="option.value"
-              type="button"
-              class="h-10 border-r border-[#333] px-3 text-xs font-medium text-[#888] transition last:border-r-0 hover:bg-[#111] hover:text-white disabled:opacity-50"
-              :class="selectedTraceLevel === option.value ? 'bg-white text-black hover:bg-white hover:text-black' : 'bg-black'"
-              :disabled="isTraceBusy"
-              @click="setTraceLevel(option.value)"
+              full-width
+              :disabled="Boolean(traceBusyDisabledReason)"
+              :reason="traceBusyDisabledReason"
             >
-              {{ option.label }}
-            </button>
+              <button
+                type="button"
+                class="h-10 w-full px-3 text-xs font-medium text-[#888] transition hover:bg-[#111] hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 disabled:saturate-0"
+                :class="[
+                  selectedTraceLevel === option.value ? 'bg-white text-black hover:bg-white hover:text-black' : 'bg-black',
+                  index === traceLevelOptions.length - 1 ? '' : 'border-r border-[#333]',
+                ]"
+                :disabled="Boolean(traceBusyDisabledReason)"
+                @click="setTraceLevel(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </DisabledHint>
           </div>
         </div>
       </div>
@@ -364,13 +379,15 @@ onBeforeUnmount(() => {
             <h4 class="font-semibold">Recent traces</h4>
             <p class="text-xs text-[#888]">{{ traceTableSummary }}</p>
           </div>
-          <SecondaryButton
-            label="Clear"
-            size="small"
-            class="!border-[#333] !bg-transparent !text-[#888] hover:!border-[#666]"
-            :disabled="!renderStats.retainedRequests"
-            @click="clearTraceRequests"
-          />
+          <DisabledHint :disabled="Boolean(clearTracesDisabledReason)" :reason="clearTracesDisabledReason">
+            <SecondaryButton
+              label="Clear"
+              size="small"
+              class="!border-[#333] !bg-transparent !text-[#888] hover:!border-[#666]"
+              :disabled="Boolean(clearTracesDisabledReason)"
+              @click="clearTraceRequests"
+            />
+          </DisabledHint>
         </div>
 
         <div class="overflow-x-auto">

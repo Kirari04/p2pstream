@@ -2,6 +2,8 @@
 import { computed, inject, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
@@ -47,11 +49,15 @@ const routeForm = reactive({
 });
 
 const routeIsRedirect = computed(() => routeForm.action === PublicRouteAction.REDIRECT);
-const routeSubmitDisabled = computed(() => {
-  if (isBusy?.value || !listeners.value.length) return true;
-  if (routeIsRedirect.value) return routeForm.redirectTarget.trim() === "";
-  return !backends.value.length || !routeForm.backendId;
+const routeSubmitDisabledReason = computed(() => {
+  if (isBusy?.value) return BUSY_REASON;
+  if (!listeners.value.length) return "Create a listener before creating a route.";
+  if (routeIsRedirect.value && routeForm.redirectTarget.trim() === "") return "Enter a redirect target.";
+  if (!routeIsRedirect.value && !backends.value.length) return "Create a backend before creating a forwarding route.";
+  if (!routeIsRedirect.value && !routeForm.backendId) return "Select a backend.";
+  return "";
 });
+const routeSubmitDisabled = computed(() => Boolean(routeSubmitDisabledReason.value));
 
 function routeAction(route: PublicRoute): PublicRouteAction {
   return route.action === PublicRouteAction.REDIRECT ? PublicRouteAction.REDIRECT : PublicRouteAction.FORWARD;
@@ -275,7 +281,9 @@ defineExpose({ openCreate, openEdit, close });
       </label>
       <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
-        <Button class="!bg-white !text-black !border-white" :label="routeForm.id ? 'Save Changes' : 'Create Route'" type="submit" :disabled="routeSubmitDisabled" />
+        <DisabledHint :disabled="Boolean(routeSubmitDisabledReason)" :reason="routeSubmitDisabledReason">
+          <Button class="!bg-white !text-black !border-white" :label="routeForm.id ? 'Save Changes' : 'Create Route'" type="submit" :disabled="routeSubmitDisabled" />
+        </DisabledHint>
       </div>
     </form>
   </Modal>

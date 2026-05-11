@@ -8,7 +8,9 @@ import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
+import DisabledHint from "@/components/DisabledHint.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
+import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
@@ -43,6 +45,7 @@ const setupTab = ref<"systemd" | "docker" | "cli">("systemd");
 const setupCopyLabel = ref("Copy");
 let setupCopyReset: number | undefined;
 
+const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => setupManagementUrl.value.trim().replace(/\/+$/, ""));
 const setupSnippet = computed(() => {
   if (!issuedAgent.value) return "";
@@ -72,6 +75,12 @@ function openAddAgentModal() {
 
 function editAgent(agent: Agent) {
   agentEditor.value?.openEdit(agent.id);
+}
+
+function deleteAgentDisabledReason(agent: Agent): string {
+  if (isBusy?.value) return BUSY_REASON;
+  if (agent.connected) return "Disconnect this agent before deleting it.";
+  return "";
 }
 
 async function run(action: () => Promise<void>): Promise<boolean> {
@@ -228,9 +237,11 @@ async function copySetupSnippet() {
         <h3 class="text-xl font-bold mb-2">Agent Health</h3>
         <p class="text-[#888] text-sm">Registered agents, connection state, and recent runtime metrics.</p>
       </div>
-      <SecondaryButton size="small" label="Add Agent" :disabled="isBusy" @click="openAddAgentModal">
-        <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-      </SecondaryButton>
+      <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+        <SecondaryButton size="small" label="Add Agent" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
+          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+        </SecondaryButton>
+      </DisabledHint>
     </div>
 
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -296,27 +307,35 @@ async function copySetupSnippet() {
               </td>
               <td class="px-5 py-4">
                 <div class="flex justify-end gap-2">
-                  <SecondaryButton
-                    size="small"
-                    :aria-label="agent.enabled ? 'Disable agent' : 'Enable agent'"
-                    :title="agent.enabled ? 'Disable agent' : 'Enable agent'"
-                    :disabled="isBusy"
-                    @click="setAgentEnabled(agent, !agent.enabled)"
-                  >
-                    <template #icon>
-                      <BanIcon v-if="agent.enabled" class="h-3.5 w-3.5" />
-                      <CheckIcon v-else class="h-3.5 w-3.5" />
-                    </template>
-                  </SecondaryButton>
-                  <SecondaryButton size="small" aria-label="Rotate token" title="Rotate token" :disabled="isBusy" @click="rotateAgentToken(agent)">
-                    <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <SecondaryButton size="small" aria-label="Edit agent" title="Edit agent" :disabled="isBusy" @click="editAgent(agent)">
-                    <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <DangerButton size="small" aria-label="Delete agent" title="Delete agent" :disabled="isBusy || agent.connected" @click="deleteAgent(agent)">
-                    <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                  </DangerButton>
+                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+                    <SecondaryButton
+                      size="small"
+                      :aria-label="agent.enabled ? 'Disable agent' : 'Enable agent'"
+                      :title="agent.enabled ? 'Disable agent' : 'Enable agent'"
+                      :disabled="Boolean(busyDisabledReason)"
+                      @click="setAgentEnabled(agent, !agent.enabled)"
+                    >
+                      <template #icon>
+                        <BanIcon v-if="agent.enabled" class="h-3.5 w-3.5" />
+                        <CheckIcon v-else class="h-3.5 w-3.5" />
+                      </template>
+                    </SecondaryButton>
+                  </DisabledHint>
+                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+                    <SecondaryButton size="small" aria-label="Rotate token" title="Rotate token" :disabled="Boolean(busyDisabledReason)" @click="rotateAgentToken(agent)">
+                      <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
+                    </SecondaryButton>
+                  </DisabledHint>
+                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+                    <SecondaryButton size="small" aria-label="Edit agent" title="Edit agent" :disabled="Boolean(busyDisabledReason)" @click="editAgent(agent)">
+                      <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+                    </SecondaryButton>
+                  </DisabledHint>
+                  <DisabledHint :disabled="Boolean(deleteAgentDisabledReason(agent))" :reason="deleteAgentDisabledReason(agent)">
+                    <DangerButton size="small" aria-label="Delete agent" title="Delete agent" :disabled="Boolean(deleteAgentDisabledReason(agent))" @click="deleteAgent(agent)">
+                      <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                    </DangerButton>
+                  </DisabledHint>
                 </div>
               </td>
             </tr>
@@ -370,8 +389,12 @@ async function copySetupSnippet() {
           <code class="block overflow-x-auto font-mono text-xs text-white">{{ rotateAgentToConfirm.publicId }}</code>
         </div>
         <div class="flex justify-end gap-3">
-          <SecondaryButton type="button" label="Cancel" :disabled="isBusy" @click="closeRotateAgentModal" />
-          <DangerButton type="button" label="Rotate Token" :disabled="isBusy" @click="confirmRotateAgentToken" />
+          <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+            <SecondaryButton type="button" label="Cancel" :disabled="Boolean(busyDisabledReason)" @click="closeRotateAgentModal" />
+          </DisabledHint>
+          <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+            <DangerButton type="button" label="Rotate Token" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken" />
+          </DisabledHint>
         </div>
       </div>
     </Modal>
