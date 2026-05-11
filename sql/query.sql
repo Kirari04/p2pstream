@@ -429,26 +429,108 @@ RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, acti
 DELETE FROM public_routes
 WHERE id = ?;
 
--- name: CreatePublicTlsCertificate :one
-INSERT INTO public_tls_certificates (listener_id, hostname_pattern, cert_path, key_path, enabled)
+-- name: CreatePublicTlsDnsCredential :one
+INSERT INTO public_tls_dns_credentials (name, provider, cloudflare_zone_id, api_token, enabled)
 VALUES (?, ?, ?, ?, ?)
-RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at;
+RETURNING id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at;
+
+-- name: ListPublicTlsDnsCredentials :many
+SELECT id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at
+FROM public_tls_dns_credentials
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicTlsDnsCredential :one
+SELECT id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at
+FROM public_tls_dns_credentials
+WHERE id = ?;
+
+-- name: UpdatePublicTlsDnsCredential :one
+UPDATE public_tls_dns_credentials
+SET name = ?, provider = ?, cloudflare_zone_id = ?, api_token = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at;
+
+-- name: DeletePublicTlsDnsCredential :exec
+DELETE FROM public_tls_dns_credentials
+WHERE id = ?;
+
+-- name: CreatePublicTlsCertificate :one
+INSERT INTO public_tls_certificates (
+    listener_id,
+    hostname_pattern,
+    cert_path,
+    key_path,
+    enabled,
+    source,
+    acme_challenge_type,
+    acme_ca,
+    acme_email,
+    dns_credential_id,
+    status,
+    last_error,
+    issued_at,
+    expires_at,
+    next_renewal_at,
+    last_renewal_attempt_at
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at;
 
 -- name: ListPublicTlsCertificates :many
-SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
 FROM public_tls_certificates
 ORDER BY listener_id ASC, hostname_pattern ASC, id ASC;
 
 -- name: GetPublicTlsCertificate :one
-SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
 FROM public_tls_certificates
 WHERE id = ?;
 
 -- name: UpdatePublicTlsCertificate :one
 UPDATE public_tls_certificates
-SET listener_id = ?, hostname_pattern = ?, cert_path = ?, key_path = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+SET listener_id = ?,
+    hostname_pattern = ?,
+    cert_path = ?,
+    key_path = ?,
+    enabled = ?,
+    source = ?,
+    acme_challenge_type = ?,
+    acme_ca = ?,
+    acme_email = ?,
+    dns_credential_id = ?,
+    status = ?,
+    last_error = ?,
+    issued_at = ?,
+    expires_at = ?,
+    next_renewal_at = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at;
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at;
+
+-- name: UpdatePublicTlsCertificateIssueState :one
+UPDATE public_tls_certificates
+SET cert_path = ?,
+    key_path = ?,
+    status = ?,
+    last_error = ?,
+    issued_at = ?,
+    expires_at = ?,
+    next_renewal_at = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at;
+
+-- name: UpdatePublicTlsCertificateStatus :one
+UPDATE public_tls_certificates
+SET status = ?,
+    last_error = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at;
 
 -- name: DeletePublicTlsCertificate :exec
 DELETE FROM public_tls_certificates

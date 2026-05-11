@@ -258,6 +258,17 @@ func (db *DB) migrate() error {
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS public_tls_dns_credentials (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider TEXT NOT NULL,
+		cloudflare_zone_id TEXT NOT NULL,
+		api_token TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS public_tls_certificates (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
@@ -265,6 +276,17 @@ func (db *DB) migrate() error {
 		cert_path TEXT NOT NULL,
 		key_path TEXT NOT NULL,
 		enabled INTEGER NOT NULL DEFAULT 1,
+		source TEXT NOT NULL DEFAULT 'manual',
+		acme_challenge_type TEXT NOT NULL DEFAULT '',
+		acme_ca TEXT NOT NULL DEFAULT '',
+		acme_email TEXT NOT NULL DEFAULT '',
+		dns_credential_id INTEGER REFERENCES public_tls_dns_credentials(id),
+		status TEXT NOT NULL DEFAULT 'ready',
+		last_error TEXT NOT NULL DEFAULT '',
+		issued_at DATETIME,
+		expires_at DATETIME,
+		next_renewal_at DATETIME,
+		last_renewal_attempt_at DATETIME,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -310,6 +332,9 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 	ON public_tls_certificates (listener_id);
 
+	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_dns_credential_id
+	ON public_tls_certificates (dns_credential_id);
+
 	CREATE INDEX IF NOT EXISTS idx_agent_stats_reported_at
 	ON agent_stats (reported_at);
 
@@ -340,10 +365,35 @@ func (db *DB) migrate() error {
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN acme_challenge_type TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN acme_ca TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN acme_email TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN dns_credential_id INTEGER REFERENCES public_tls_dns_credentials(id)`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN status TEXT NOT NULL DEFAULT 'ready'`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN last_error TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN issued_at DATETIME`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN expires_at DATETIME`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN next_renewal_at DATETIME`,
+		`ALTER TABLE public_tls_certificates ADD COLUMN last_renewal_attempt_at DATETIME`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
 		}
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_tls_dns_credentials (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider TEXT NOT NULL,
+			cloudflare_zone_id TEXT NOT NULL,
+			api_token TEXT NOT NULL,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
 	}
 	if err := db.migratePublicRoutesRedirectSchema(); err != nil {
 		return err
@@ -355,6 +405,9 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_connections_agent_id ON connections (agent_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_dns_credential_id ON public_tls_certificates (dns_credential_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`

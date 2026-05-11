@@ -46,6 +46,7 @@ type App struct {
 	TrafficTracer    *trafficTracer
 	RateLimiter      *publicRateLimiter
 	TrafficShaper    *publicTrafficShaper
+	PublicACME       *publicACMEManager
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -79,6 +80,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
+	app.PublicACME = newPublicACMEManager(app)
 	if database != nil {
 		app.ensureBootstrapAgent(context.Background())
 	}

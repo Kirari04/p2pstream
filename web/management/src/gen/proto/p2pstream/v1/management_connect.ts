@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRateLimitRuleRequest, CreatePublicRateLimitRuleResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, CreatePublicTrafficShaperRuleRequest, CreatePublicTrafficShaperRuleResponse, DeleteAgentRequest, DeleteAgentResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRateLimitRuleRequest, DeletePublicRateLimitRuleResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DeletePublicTrafficShaperRuleRequest, DeletePublicTrafficShaperRuleResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRateLimitRuleRequest, UpdatePublicRateLimitRuleResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse, UpdatePublicTrafficShaperRuleRequest, UpdatePublicTrafficShaperRuleResponse } from "./management_pb";
+import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRateLimitRuleRequest, CreatePublicRateLimitRuleResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, CreatePublicTlsDnsCredentialRequest, CreatePublicTlsDnsCredentialResponse, CreatePublicTrafficShaperRuleRequest, CreatePublicTrafficShaperRuleResponse, DeleteAgentRequest, DeleteAgentResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRateLimitRuleRequest, DeletePublicRateLimitRuleResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DeletePublicTlsDnsCredentialRequest, DeletePublicTlsDnsCredentialResponse, DeletePublicTrafficShaperRuleRequest, DeletePublicTrafficShaperRuleResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, RenewPublicTlsCertificateRequest, RenewPublicTlsCertificateResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRateLimitRuleRequest, UpdatePublicRateLimitRuleResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse, UpdatePublicTlsDnsCredentialRequest, UpdatePublicTlsDnsCredentialResponse, UpdatePublicTrafficShaperRuleRequest, UpdatePublicTrafficShaperRuleResponse } from "./management_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -292,6 +292,33 @@ export const AgentManagementService = {
       kind: MethodKind.Unary,
     },
     /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential
+     */
+    createPublicTlsDnsCredential: {
+      name: "CreatePublicTlsDnsCredential",
+      I: CreatePublicTlsDnsCredentialRequest,
+      O: CreatePublicTlsDnsCredentialResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicTlsDnsCredential
+     */
+    updatePublicTlsDnsCredential: {
+      name: "UpdatePublicTlsDnsCredential",
+      I: UpdatePublicTlsDnsCredentialRequest,
+      O: UpdatePublicTlsDnsCredentialResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicTlsDnsCredential
+     */
+    deletePublicTlsDnsCredential: {
+      name: "DeletePublicTlsDnsCredential",
+      I: DeletePublicTlsDnsCredentialRequest,
+      O: DeletePublicTlsDnsCredentialResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate
      */
     createPublicTlsCertificate: {
@@ -316,6 +343,15 @@ export const AgentManagementService = {
       name: "DeletePublicTlsCertificate",
       I: DeletePublicTlsCertificateRequest,
       O: DeletePublicTlsCertificateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.RenewPublicTlsCertificate
+     */
+    renewPublicTlsCertificate: {
+      name: "RenewPublicTlsCertificate",
+      I: RenewPublicTlsCertificateRequest,
+      O: RenewPublicTlsCertificateResponse,
       kind: MethodKind.Unary,
     },
     /**

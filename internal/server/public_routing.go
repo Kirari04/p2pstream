@@ -100,12 +100,15 @@ type publicRouteConfig struct {
 }
 
 type publicTLSCertificateConfig struct {
-	ID              int64
-	ListenerID      int64
-	HostnamePattern string
-	CertPath        string
-	KeyPath         string
-	Enabled         bool
+	ID                int64
+	ListenerID        int64
+	HostnamePattern   string
+	CertPath          string
+	KeyPath           string
+	Enabled           bool
+	Source            string
+	ACMEChallengeType string
+	Status            string
 }
 
 type publicProxySnapshot struct {
@@ -152,6 +155,24 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 		trace := a.newTrafficRequestTrace(r, recorder)
 		if trace != nil {
 			trace.emitReceived(listenerID)
+		}
+
+		if a.PublicACME != nil && a.PublicACME.ServeHTTPChallenge(responseWriter, r) {
+			statusCode := http.StatusOK
+			if recorder != nil && recorder.statusCode != 0 {
+				statusCode = recorder.statusCode
+			}
+			a.recordProxyRequestEventWithIDs(
+				context.Background(),
+				statusCode,
+				time.Since(requestStartedAt),
+				"",
+				sql.NullInt64{Int64: listenerID, Valid: true},
+				sql.NullInt64{},
+				sql.NullInt64{},
+				sql.NullInt64{},
+			)
+			return
 		}
 
 		if decision, allowed := a.checkPublicRateLimits(listenerID, r); !allowed {

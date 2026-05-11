@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -44,6 +46,18 @@ const (
 	publicRateLimitAlgorithmSlidingWindow                 = "sliding_window"
 	publicRateLimitAlgorithmTokenBucket                   = "token_bucket"
 	publicRateLimitAlgorithmLeakyBucket                   = "leaky_bucket"
+	publicTLSCertificateSourceManual                      = "manual"
+	publicTLSCertificateSourceACME                        = "acme"
+	publicACMEChallengeHTTP01                             = "http_01"
+	publicACMEChallengeTLSALPN01                          = "tls_alpn_01"
+	publicACMEChallengeDNS01                              = "dns_01"
+	publicACMECAProduction                                = "letsencrypt_production"
+	publicACMECAStaging                                   = "letsencrypt_staging"
+	publicDNSProviderCloudflare                           = "cloudflare"
+	publicTLSCertificateStatusPending                     = "pending"
+	publicTLSCertificateStatusReady                       = "ready"
+	publicTLSCertificateStatusRenewing                    = "renewing"
+	publicTLSCertificateStatusError                       = "error"
 	defaultStaticStatusCode                               = int64(http.StatusOK)
 	defaultRedirectStatusCode                             = int64(http.StatusFound)
 	maxUpstreamHeaderValueBytes                           = 8192
@@ -60,6 +74,7 @@ type publicConfigRows struct {
 	Listeners              []db.PublicListener
 	Routes                 []db.PublicRoute
 	TLSCertificates        []db.PublicTlsCertificate
+	TLSDNSCredentials      []db.PublicTlsDnsCredential
 	RateLimitRules         []db.PublicRateLimitRule
 	TrafficShaperRules     []db.PublicTrafficShaperRule
 }
@@ -98,6 +113,26 @@ type publicBackendAgentInput struct {
 	Position int64
 	Weight   int64
 	Enabled  int64
+}
+
+type publicTLSCertificateMutationInput struct {
+	ID                   int64
+	ListenerID           int64
+	HostnamePattern      string
+	CertPath             string
+	KeyPath              string
+	Enabled              int64
+	Source               string
+	ACMEChallengeType    string
+	ACMECA               string
+	ACMEEmail            string
+	DNSCredentialID      sql.NullInt64
+	Status               string
+	LastError            string
+	IssuedAt             sql.NullTime
+	ExpiresAt            sql.NullTime
+	NextRenewalAt        sql.NullTime
+	LastRenewalAttemptAt sql.NullTime
 }
 
 func (a *App) GetPublicProxyConfig(
@@ -676,6 +711,88 @@ func (a *App) DeletePublicRoute(
 	return connect.NewResponse(&p2pstreamv1.DeletePublicRouteResponse{}), nil
 }
 
+func (a *App) CreatePublicTlsDnsCredential(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.CreatePublicTlsDnsCredentialRequest],
+) (*connect.Response[p2pstreamv1.CreatePublicTlsDnsCredentialResponse], error) {
+	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	params, err := a.validatePublicTLSDNSCredentialInput(
+		req.Msg.Name,
+		req.Msg.Provider,
+		req.Msg.CloudflareZoneId,
+		req.Msg.ApiToken,
+		req.Msg.Enabled,
+		nil,
+		req.Msg.ApiToken != "",
+	)
+	if err != nil {
+		return nil, err
+	}
+	credential, err := a.DB.CreatePublicTlsDnsCredential(ctx, db.CreatePublicTlsDnsCredentialParams{
+		Name:             params.Name,
+		Provider:         params.Provider,
+		CloudflareZoneID: params.CloudflareZoneID,
+		ApiToken:         params.ApiToken,
+		Enabled:          params.Enabled,
+	})
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	return connect.NewResponse(&p2pstreamv1.CreatePublicTlsDnsCredentialResponse{Credential: publicTLSDNSCredentialToProto(credential)}), nil
+}
+
+func (a *App) UpdatePublicTlsDnsCredential(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.UpdatePublicTlsDnsCredentialRequest],
+) (*connect.Response[p2pstreamv1.UpdatePublicTlsDnsCredentialResponse], error) {
+	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	existing, err := a.DB.GetPublicTlsDnsCredential(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	params, err := a.validatePublicTLSDNSCredentialInput(
+		req.Msg.Name,
+		req.Msg.Provider,
+		req.Msg.CloudflareZoneId,
+		req.Msg.ApiToken,
+		req.Msg.Enabled,
+		&existing,
+		req.Msg.ApiTokenSet || req.Msg.ApiToken != "",
+	)
+	if err != nil {
+		return nil, err
+	}
+	params.ID = req.Msg.Id
+	credential, err := a.DB.UpdatePublicTlsDnsCredential(ctx, params)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&p2pstreamv1.UpdatePublicTlsDnsCredentialResponse{Credential: publicTLSDNSCredentialToProto(credential)}), nil
+}
+
+func (a *App) DeletePublicTlsDnsCredential(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.DeletePublicTlsDnsCredentialRequest],
+) (*connect.Response[p2pstreamv1.DeletePublicTlsDnsCredentialResponse], error) {
+	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	if err := a.DB.DeletePublicTlsDnsCredential(ctx, req.Msg.Id); err != nil {
+		return nil, publicDBError(err)
+	}
+	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&p2pstreamv1.DeletePublicTlsDnsCredentialResponse{}), nil
+}
+
 func (a *App) CreatePublicTlsCertificate(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.CreatePublicTlsCertificateRequest],
@@ -692,6 +809,12 @@ func (a *App) CreatePublicTlsCertificate(
 		req.Msg.CertPem,
 		req.Msg.KeyPem,
 		req.Msg.Enabled,
+		req.Msg.Source,
+		req.Msg.AcmeChallengeType,
+		req.Msg.AcmeCa,
+		req.Msg.AcmeEmail,
+		req.Msg.DnsCredentialId,
+		nil,
 		false,
 	)
 	if err != nil {
@@ -702,13 +825,7 @@ func (a *App) CreatePublicTlsCertificate(
 	if hasUpload {
 		cert, err = a.createUploadedPublicTLSCertificate(ctx, params, req.Msg.CertPem, req.Msg.KeyPem)
 	} else {
-		cert, err = a.DB.CreatePublicTlsCertificate(ctx, db.CreatePublicTlsCertificateParams{
-			ListenerID:      params.ListenerID,
-			HostnamePattern: params.HostnamePattern,
-			CertPath:        params.CertPath,
-			KeyPath:         params.KeyPath,
-			Enabled:         params.Enabled,
-		})
+		cert, err = a.DB.CreatePublicTlsCertificate(ctx, publicTLSCertificateCreateParams(params))
 	}
 	if err != nil {
 		return nil, publicDBError(err)
@@ -717,6 +834,7 @@ func (a *App) CreatePublicTlsCertificate(
 		return nil, err
 	}
 	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
+	a.queuePublicACMECertificateIssue(cert)
 	return connect.NewResponse(&p2pstreamv1.CreatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
 
@@ -740,13 +858,23 @@ func (a *App) UpdatePublicTlsCertificate(
 		req.Msg.CertPem,
 		req.Msg.KeyPem,
 		req.Msg.Enabled,
+		req.Msg.Source,
+		req.Msg.AcmeChallengeType,
+		req.Msg.AcmeCa,
+		req.Msg.AcmeEmail,
+		req.Msg.DnsCredentialId,
+		&existing,
 		true,
 	)
 	if err != nil {
 		return nil, err
 	}
 	params.ID = req.Msg.Id
-	if params.CertPath == "" && params.KeyPath == "" {
+	if params.CertPath == "" && params.KeyPath == "" && params.Source == publicTLSCertificateSourceManual {
+		params.CertPath = existing.CertPath
+		params.KeyPath = existing.KeyPath
+	}
+	if params.Source == publicTLSCertificateSourceACME && params.CertPath == "" && params.KeyPath == "" {
 		params.CertPath = existing.CertPath
 		params.KeyPath = existing.KeyPath
 	}
@@ -755,7 +883,7 @@ func (a *App) UpdatePublicTlsCertificate(
 	if hasUpload {
 		cert, err = a.updateUploadedPublicTLSCertificate(ctx, params, req.Msg.CertPem, req.Msg.KeyPem)
 	} else {
-		cert, err = a.DB.UpdatePublicTlsCertificate(ctx, params)
+		cert, err = a.DB.UpdatePublicTlsCertificate(ctx, publicTLSCertificateUpdateParams(params))
 	}
 	if err != nil {
 		return nil, publicDBError(err)
@@ -767,6 +895,7 @@ func (a *App) UpdatePublicTlsCertificate(
 		_, _ = a.restartTLSListenerIfActive(ctx, existing.ListenerID)
 	}
 	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
+	a.queuePublicACMECertificateIssue(cert)
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
 
@@ -791,9 +920,36 @@ func (a *App) DeletePublicTlsCertificate(
 	return connect.NewResponse(&p2pstreamv1.DeletePublicTlsCertificateResponse{}), nil
 }
 
+func (a *App) RenewPublicTlsCertificate(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.RenewPublicTlsCertificateRequest],
+) (*connect.Response[p2pstreamv1.RenewPublicTlsCertificateResponse], error) {
+	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	cert, err := a.DB.GetPublicTlsCertificate(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("only ACME certificates can be renewed"))
+	}
+	cert, err = a.DB.UpdatePublicTlsCertificateStatus(ctx, db.UpdatePublicTlsCertificateStatusParams{
+		ID:                   cert.ID,
+		Status:               publicTLSCertificateStatusRenewing,
+		LastError:            "",
+		LastRenewalAttemptAt: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	})
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	a.queuePublicACMECertificateIssue(cert)
+	return connect.NewResponse(&p2pstreamv1.RenewPublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
+}
+
 func (a *App) createUploadedPublicTLSCertificate(
 	ctx context.Context,
-	params db.UpdatePublicTlsCertificateParams,
+	params publicTLSCertificateMutationInput,
 	certPEM []byte,
 	keyPEM []byte,
 ) (db.PublicTlsCertificate, error) {
@@ -805,11 +961,22 @@ func (a *App) createUploadedPublicTLSCertificate(
 
 	qtx := a.DB.WithTx(tx)
 	cert, err := qtx.CreatePublicTlsCertificate(ctx, db.CreatePublicTlsCertificateParams{
-		ListenerID:      params.ListenerID,
-		HostnamePattern: params.HostnamePattern,
-		CertPath:        "",
-		KeyPath:         "",
-		Enabled:         params.Enabled,
+		ListenerID:           params.ListenerID,
+		HostnamePattern:      params.HostnamePattern,
+		CertPath:             "",
+		KeyPath:              "",
+		Enabled:              params.Enabled,
+		Source:               publicTLSCertificateSourceManual,
+		AcmeChallengeType:    "",
+		AcmeCa:               "",
+		AcmeEmail:            "",
+		DnsCredentialID:      sql.NullInt64{},
+		Status:               publicTLSCertificateStatusReady,
+		LastError:            "",
+		IssuedAt:             sql.NullTime{},
+		ExpiresAt:            sql.NullTime{},
+		NextRenewalAt:        sql.NullTime{},
+		LastRenewalAttemptAt: sql.NullTime{},
 	})
 	if err != nil {
 		return db.PublicTlsCertificate{}, err
@@ -827,14 +994,10 @@ func (a *App) createUploadedPublicTLSCertificate(
 		}
 	}()
 
-	cert, err = qtx.UpdatePublicTlsCertificate(ctx, db.UpdatePublicTlsCertificateParams{
-		ID:              cert.ID,
-		ListenerID:      params.ListenerID,
-		HostnamePattern: params.HostnamePattern,
-		CertPath:        certPath,
-		KeyPath:         keyPath,
-		Enabled:         params.Enabled,
-	})
+	params.ID = cert.ID
+	params.CertPath = certPath
+	params.KeyPath = keyPath
+	cert, err = qtx.UpdatePublicTlsCertificate(ctx, publicTLSCertificateUpdateParams(params))
 	if err != nil {
 		return db.PublicTlsCertificate{}, err
 	}
@@ -847,7 +1010,7 @@ func (a *App) createUploadedPublicTLSCertificate(
 
 func (a *App) updateUploadedPublicTLSCertificate(
 	ctx context.Context,
-	params db.UpdatePublicTlsCertificateParams,
+	params publicTLSCertificateMutationInput,
 	certPEM []byte,
 	keyPEM []byte,
 ) (db.PublicTlsCertificate, error) {
@@ -856,14 +1019,9 @@ func (a *App) updateUploadedPublicTLSCertificate(
 		return db.PublicTlsCertificate{}, err
 	}
 
-	cert, err := a.DB.UpdatePublicTlsCertificate(ctx, db.UpdatePublicTlsCertificateParams{
-		ID:              params.ID,
-		ListenerID:      params.ListenerID,
-		HostnamePattern: params.HostnamePattern,
-		CertPath:        certPath,
-		KeyPath:         keyPath,
-		Enabled:         params.Enabled,
-	})
+	params.CertPath = certPath
+	params.KeyPath = keyPath
+	cert, err := a.DB.UpdatePublicTlsCertificate(ctx, publicTLSCertificateUpdateParams(params))
 	if err != nil {
 		return db.PublicTlsCertificate{}, err
 	}
@@ -910,6 +1068,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		BackendAgents:      publicBackendAgentsToProto(rows.BackendAgents),
 		RateLimitRules:     publicRateLimitRulesToProto(rows.RateLimitRules),
 		TrafficShaperRules: publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
+		TlsDnsCredentials:  publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
 	}, nil
 }
 
@@ -980,6 +1139,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
+	tlsDNSCredentials, err := a.DB.ListPublicTlsDnsCredentials(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	rateLimitRules, err := a.DB.ListPublicRateLimitRules(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
@@ -997,6 +1160,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		Listeners:              listeners,
 		Routes:                 routes,
 		TLSCertificates:        certs,
+		TLSDNSCredentials:      tlsDNSCredentials,
 		RateLimitRules:         rateLimitRules,
 		TrafficShaperRules:     trafficShaperRules,
 	}, nil
@@ -1060,10 +1224,12 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 	if err != nil {
 		return connect.NewError(connect.CodeInternal, err)
 	}
-	if _, err := a.createUploadedPublicTLSCertificate(ctx, db.UpdatePublicTlsCertificateParams{
+	if _, err := a.createUploadedPublicTLSCertificate(ctx, publicTLSCertificateMutationInput{
 		ListenerID:      httpsListener.ID,
 		HostnamePattern: defaultSelfSignedTLSHost,
 		Enabled:         1,
+		Source:          publicTLSCertificateSourceManual,
+		Status:          publicTLSCertificateStatusReady,
 	}, certPEM, keyPEM); err != nil {
 		return publicDBError(err)
 	}
@@ -1162,12 +1328,15 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 	}
 	for _, cert := range rows.TLSCertificates {
 		snap.CertsByListener[cert.ListenerID] = append(snap.CertsByListener[cert.ListenerID], publicTLSCertificateConfig{
-			ID:              cert.ID,
-			ListenerID:      cert.ListenerID,
-			HostnamePattern: normalizeHostPattern(cert.HostnamePattern),
-			CertPath:        cert.CertPath,
-			KeyPath:         cert.KeyPath,
-			Enabled:         cert.Enabled != 0,
+			ID:                cert.ID,
+			ListenerID:        cert.ListenerID,
+			HostnamePattern:   normalizeHostPattern(cert.HostnamePattern),
+			CertPath:          cert.CertPath,
+			KeyPath:           cert.KeyPath,
+			Enabled:           cert.Enabled != 0,
+			Source:            normalizePublicTLSCertificateSource(cert.Source),
+			ACMEChallengeType: normalizePublicACMEChallengeType(cert.AcmeChallengeType),
+			Status:            normalizePublicTLSCertificateStatus(cert.Status),
 		})
 	}
 	for _, row := range rows.RateLimitRules {
@@ -1508,54 +1677,262 @@ func (a *App) validatePublicTLSCertificateInput(
 	certPEM []byte,
 	keyPEM []byte,
 	enabled bool,
+	sourceProto p2pstreamv1.PublicTlsCertificateSource,
+	challengeProto p2pstreamv1.PublicAcmeChallengeType,
+	caProto p2pstreamv1.PublicAcmeCa,
+	acmeEmail string,
+	dnsCredentialID int64,
+	existing *db.PublicTlsCertificate,
 	allowMissingMaterial bool,
-) (db.UpdatePublicTlsCertificateParams, bool, error) {
+) (publicTLSCertificateMutationInput, bool, error) {
 	listener, err := a.DB.GetPublicListener(ctx, listenerID)
 	if err != nil {
-		return db.UpdatePublicTlsCertificateParams{}, false, publicDBError(err)
+		return publicTLSCertificateMutationInput{}, false, publicDBError(err)
 	}
 	if listener.Protocol != publicListenerProtocolHTTPS {
-		return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("TLS certificates can only be configured on HTTPS listeners"))
+		return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("TLS certificates can only be configured on HTTPS listeners"))
 	}
 	hostnamePattern = normalizeHostPattern(hostnamePattern)
 	if err := validateHostPattern(hostnamePattern); err != nil {
-		return db.UpdatePublicTlsCertificateParams{}, false, err
+		return publicTLSCertificateMutationInput{}, false, err
 	}
+
+	source, err := tlsCertificateSourceStringFromProto(sourceProto)
+	if err != nil {
+		return publicTLSCertificateMutationInput{}, false, err
+	}
+	if sourceProto == p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_UNSPECIFIED && existing != nil {
+		source = normalizePublicTLSCertificateSource(existing.Source)
+	}
+
 	certPath = strings.TrimSpace(certPath)
 	keyPath = strings.TrimSpace(keyPath)
 	hasCertUpload := len(certPEM) > 0
 	hasKeyUpload := len(keyPEM) > 0
+
+	if source == publicTLSCertificateSourceACME {
+		if hasCertUpload || hasKeyUpload || certPath != "" || keyPath != "" {
+			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates manage certificate material automatically"))
+		}
+		challengeType, err := acmeChallengeTypeStringFromProto(challengeProto)
+		if err != nil {
+			return publicTLSCertificateMutationInput{}, false, err
+		}
+		ca, err := acmeCAStringFromProto(caProto)
+		if err != nil {
+			return publicTLSCertificateMutationInput{}, false, err
+		}
+		acmeEmail = strings.TrimSpace(strings.ToLower(acmeEmail))
+		if _, err := mail.ParseAddress(acmeEmail); err != nil {
+			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("ACME email must be a valid email address"))
+		}
+		if err := validateACMEHostPattern(hostnamePattern, challengeType); err != nil {
+			return publicTLSCertificateMutationInput{}, false, err
+		}
+		var credentialID sql.NullInt64
+		if challengeType == publicACMEChallengeDNS01 {
+			if dnsCredentialID <= 0 {
+				return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("DNS-01 requires a DNS credential"))
+			}
+			credential, err := a.DB.GetPublicTlsDnsCredential(ctx, dnsCredentialID)
+			if err != nil {
+				return publicTLSCertificateMutationInput{}, false, publicDBError(err)
+			}
+			if credential.Enabled == 0 {
+				return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("DNS-01 requires an enabled DNS credential"))
+			}
+			if normalizePublicDNSProvider(credential.Provider) != publicDNSProviderCloudflare {
+				return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("DNS-01 currently supports Cloudflare credentials only"))
+			}
+			credentialID = sql.NullInt64{Int64: dnsCredentialID, Valid: true}
+		}
+		status := publicTLSCertificateStatusPending
+		if existing != nil && existing.CertPath != "" && existing.KeyPath != "" && normalizePublicTLSCertificateStatus(existing.Status) == publicTLSCertificateStatusReady {
+			status = publicTLSCertificateStatusReady
+		}
+		return publicTLSCertificateMutationInput{
+			ListenerID:           listenerID,
+			HostnamePattern:      hostnamePattern,
+			Enabled:              boolInt(enabled),
+			Source:               publicTLSCertificateSourceACME,
+			ACMEChallengeType:    challengeType,
+			ACMECA:               ca,
+			ACMEEmail:            acmeEmail,
+			DNSCredentialID:      credentialID,
+			Status:               status,
+			LastError:            "",
+			IssuedAt:             nullTimeFromExisting(existing, "issued_at"),
+			ExpiresAt:            nullTimeFromExisting(existing, "expires_at"),
+			NextRenewalAt:        nullTimeFromExisting(existing, "next_renewal_at"),
+			LastRenewalAttemptAt: nullTimeFromExisting(existing, "last_renewal_attempt_at"),
+		}, false, nil
+	}
+
 	if hasCertUpload || hasKeyUpload {
 		if !hasCertUpload || !hasKeyUpload {
-			return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and private key uploads are both required"))
+			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and private key uploads are both required"))
 		}
 		if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
-			return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("certificate and private key must be a valid PEM pair: %w", err))
+			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("certificate and private key must be a valid PEM pair: %w", err))
 		}
-		return db.UpdatePublicTlsCertificateParams{
+		return publicTLSCertificateMutationInput{
 			ListenerID:      listenerID,
 			HostnamePattern: hostnamePattern,
 			Enabled:         boolInt(enabled),
+			Source:          publicTLSCertificateSourceManual,
+			Status:          publicTLSCertificateStatusReady,
 		}, true, nil
 	}
 
 	if certPath == "" && keyPath == "" && allowMissingMaterial {
-		return db.UpdatePublicTlsCertificateParams{
+		return publicTLSCertificateMutationInput{
 			ListenerID:      listenerID,
 			HostnamePattern: hostnamePattern,
 			Enabled:         boolInt(enabled),
+			Source:          publicTLSCertificateSourceManual,
+			Status:          publicTLSCertificateStatusReady,
 		}, false, nil
 	}
 	if certPath == "" || keyPath == "" {
-		return db.UpdatePublicTlsCertificateParams{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and key paths are required"))
+		return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and key paths are required"))
 	}
-	return db.UpdatePublicTlsCertificateParams{
+	return publicTLSCertificateMutationInput{
 		ListenerID:      listenerID,
 		HostnamePattern: hostnamePattern,
 		CertPath:        certPath,
 		KeyPath:         keyPath,
 		Enabled:         boolInt(enabled),
+		Source:          publicTLSCertificateSourceManual,
+		Status:          publicTLSCertificateStatusReady,
 	}, false, nil
+}
+
+func (a *App) validatePublicTLSDNSCredentialInput(
+	name string,
+	providerProto p2pstreamv1.PublicDnsProvider,
+	cloudflareZoneID string,
+	apiToken string,
+	enabled bool,
+	existing *db.PublicTlsDnsCredential,
+	replaceToken bool,
+) (db.UpdatePublicTlsDnsCredentialParams, error) {
+	name, err := normalizePublicName(name)
+	if err != nil {
+		return db.UpdatePublicTlsDnsCredentialParams{}, err
+	}
+	provider, err := dnsProviderStringFromProto(providerProto)
+	if err != nil {
+		return db.UpdatePublicTlsDnsCredentialParams{}, err
+	}
+	cloudflareZoneID = strings.TrimSpace(cloudflareZoneID)
+	if cloudflareZoneID == "" || strings.ContainsAny(cloudflareZoneID, " /\r\n\t") {
+		return db.UpdatePublicTlsDnsCredentialParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("Cloudflare zone ID is required"))
+	}
+	apiToken = strings.TrimSpace(apiToken)
+	if replaceToken {
+		if apiToken == "" {
+			return db.UpdatePublicTlsDnsCredentialParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("Cloudflare API token is required"))
+		}
+		if strings.ContainsAny(apiToken, "\r\n") || !utf8.ValidString(apiToken) {
+			return db.UpdatePublicTlsDnsCredentialParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("Cloudflare API token must be valid UTF-8 without CR or LF"))
+		}
+	} else if existing != nil {
+		apiToken = existing.ApiToken
+	} else {
+		return db.UpdatePublicTlsDnsCredentialParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("Cloudflare API token is required"))
+	}
+	return db.UpdatePublicTlsDnsCredentialParams{
+		Name:             name,
+		Provider:         provider,
+		CloudflareZoneID: cloudflareZoneID,
+		ApiToken:         apiToken,
+		Enabled:          boolInt(enabled),
+	}, nil
+}
+
+func publicTLSCertificateCreateParams(input publicTLSCertificateMutationInput) db.CreatePublicTlsCertificateParams {
+	return db.CreatePublicTlsCertificateParams{
+		ListenerID:           input.ListenerID,
+		HostnamePattern:      input.HostnamePattern,
+		CertPath:             input.CertPath,
+		KeyPath:              input.KeyPath,
+		Enabled:              input.Enabled,
+		Source:               input.Source,
+		AcmeChallengeType:    input.ACMEChallengeType,
+		AcmeCa:               input.ACMECA,
+		AcmeEmail:            input.ACMEEmail,
+		DnsCredentialID:      input.DNSCredentialID,
+		Status:               input.Status,
+		LastError:            input.LastError,
+		IssuedAt:             input.IssuedAt,
+		ExpiresAt:            input.ExpiresAt,
+		NextRenewalAt:        input.NextRenewalAt,
+		LastRenewalAttemptAt: input.LastRenewalAttemptAt,
+	}
+}
+
+func publicTLSCertificateUpdateParams(input publicTLSCertificateMutationInput) db.UpdatePublicTlsCertificateParams {
+	return db.UpdatePublicTlsCertificateParams{
+		ID:                   input.ID,
+		ListenerID:           input.ListenerID,
+		HostnamePattern:      input.HostnamePattern,
+		CertPath:             input.CertPath,
+		KeyPath:              input.KeyPath,
+		Enabled:              input.Enabled,
+		Source:               input.Source,
+		AcmeChallengeType:    input.ACMEChallengeType,
+		AcmeCa:               input.ACMECA,
+		AcmeEmail:            input.ACMEEmail,
+		DnsCredentialID:      input.DNSCredentialID,
+		Status:               input.Status,
+		LastError:            input.LastError,
+		IssuedAt:             input.IssuedAt,
+		ExpiresAt:            input.ExpiresAt,
+		NextRenewalAt:        input.NextRenewalAt,
+		LastRenewalAttemptAt: input.LastRenewalAttemptAt,
+	}
+}
+
+func nullTimeFromExisting(existing *db.PublicTlsCertificate, field string) sql.NullTime {
+	if existing == nil {
+		return sql.NullTime{}
+	}
+	switch field {
+	case "issued_at":
+		return existing.IssuedAt
+	case "expires_at":
+		return existing.ExpiresAt
+	case "next_renewal_at":
+		return existing.NextRenewalAt
+	case "last_renewal_attempt_at":
+		return existing.LastRenewalAttemptAt
+	default:
+		return sql.NullTime{}
+	}
+}
+
+func validateACMEHostPattern(pattern string, challengeType string) error {
+	if pattern == defaultSelfSignedTLSHost || pattern == "localhost" {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates require a public DNS hostname"))
+	}
+	host := strings.TrimPrefix(pattern, "*.")
+	if net.ParseIP(host) != nil {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates require a DNS hostname, not an IP address"))
+	}
+	if !strings.Contains(host, ".") {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates require a fully-qualified DNS hostname"))
+	}
+	if strings.HasPrefix(pattern, "*.") && challengeType != publicACMEChallengeDNS01 {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("wildcard ACME certificates require DNS-01"))
+	}
+	return nil
+}
+
+func (a *App) queuePublicACMECertificateIssue(cert db.PublicTlsCertificate) {
+	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME || cert.Enabled == 0 || a.PublicACME == nil {
+		return
+	}
+	a.PublicACME.QueueIssue(cert.ID)
 }
 
 func normalizePublicName(name string) (string, error) {
@@ -2058,6 +2435,167 @@ func protoLoadBalancingFromString(loadBalancing string) p2pstreamv1.PublicBacken
 	}
 }
 
+func tlsCertificateSourceStringFromProto(source p2pstreamv1.PublicTlsCertificateSource) (string, error) {
+	switch source {
+	case p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_UNSPECIFIED,
+		p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_MANUAL:
+		return publicTLSCertificateSourceManual, nil
+	case p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_ACME:
+		return publicTLSCertificateSourceACME, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("TLS certificate source must be manual or ACME"))
+	}
+}
+
+func acmeChallengeTypeStringFromProto(challengeType p2pstreamv1.PublicAcmeChallengeType) (string, error) {
+	switch challengeType {
+	case p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_HTTP_01:
+		return publicACMEChallengeHTTP01, nil
+	case p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_TLS_ALPN_01:
+		return publicACMEChallengeTLSALPN01, nil
+	case p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_DNS_01:
+		return publicACMEChallengeDNS01, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("ACME challenge type is required"))
+	}
+}
+
+func acmeCAStringFromProto(ca p2pstreamv1.PublicAcmeCa) (string, error) {
+	switch ca {
+	case p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_UNSPECIFIED,
+		p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_PRODUCTION:
+		return publicACMECAProduction, nil
+	case p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING:
+		return publicACMECAStaging, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("ACME CA must be Let's Encrypt production or staging"))
+	}
+}
+
+func dnsProviderStringFromProto(provider p2pstreamv1.PublicDnsProvider) (string, error) {
+	switch provider {
+	case p2pstreamv1.PublicDnsProvider_PUBLIC_DNS_PROVIDER_UNSPECIFIED,
+		p2pstreamv1.PublicDnsProvider_PUBLIC_DNS_PROVIDER_CLOUDFLARE:
+		return publicDNSProviderCloudflare, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("DNS provider must be Cloudflare"))
+	}
+}
+
+func normalizePublicTLSCertificateSource(source string) string {
+	switch strings.TrimSpace(strings.ToLower(source)) {
+	case "", publicTLSCertificateSourceManual:
+		return publicTLSCertificateSourceManual
+	case publicTLSCertificateSourceACME:
+		return publicTLSCertificateSourceACME
+	default:
+		return strings.TrimSpace(strings.ToLower(source))
+	}
+}
+
+func normalizePublicACMEChallengeType(challengeType string) string {
+	switch strings.TrimSpace(strings.ToLower(challengeType)) {
+	case publicACMEChallengeHTTP01, "http-01":
+		return publicACMEChallengeHTTP01
+	case publicACMEChallengeTLSALPN01, "tls-alpn-01":
+		return publicACMEChallengeTLSALPN01
+	case publicACMEChallengeDNS01, "dns-01":
+		return publicACMEChallengeDNS01
+	default:
+		return strings.TrimSpace(strings.ToLower(challengeType))
+	}
+}
+
+func normalizePublicACMECA(ca string) string {
+	switch strings.TrimSpace(strings.ToLower(ca)) {
+	case "", publicACMECAProduction:
+		return publicACMECAProduction
+	case publicACMECAStaging:
+		return publicACMECAStaging
+	default:
+		return strings.TrimSpace(strings.ToLower(ca))
+	}
+}
+
+func normalizePublicDNSProvider(provider string) string {
+	switch strings.TrimSpace(strings.ToLower(provider)) {
+	case "", publicDNSProviderCloudflare:
+		return publicDNSProviderCloudflare
+	default:
+		return strings.TrimSpace(strings.ToLower(provider))
+	}
+}
+
+func normalizePublicTLSCertificateStatus(status string) string {
+	switch strings.TrimSpace(strings.ToLower(status)) {
+	case "", publicTLSCertificateStatusReady:
+		return publicTLSCertificateStatusReady
+	case publicTLSCertificateStatusPending, publicTLSCertificateStatusRenewing, publicTLSCertificateStatusError:
+		return strings.TrimSpace(strings.ToLower(status))
+	default:
+		return strings.TrimSpace(strings.ToLower(status))
+	}
+}
+
+func protoTLSCertificateSourceFromString(source string) p2pstreamv1.PublicTlsCertificateSource {
+	switch normalizePublicTLSCertificateSource(source) {
+	case publicTLSCertificateSourceACME:
+		return p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_ACME
+	case publicTLSCertificateSourceManual:
+		return p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_MANUAL
+	default:
+		return p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_UNSPECIFIED
+	}
+}
+
+func protoACMEChallengeTypeFromString(challengeType string) p2pstreamv1.PublicAcmeChallengeType {
+	switch normalizePublicACMEChallengeType(challengeType) {
+	case publicACMEChallengeHTTP01:
+		return p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_HTTP_01
+	case publicACMEChallengeTLSALPN01:
+		return p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_TLS_ALPN_01
+	case publicACMEChallengeDNS01:
+		return p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_DNS_01
+	default:
+		return p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_UNSPECIFIED
+	}
+}
+
+func protoACMECAFromString(ca string) p2pstreamv1.PublicAcmeCa {
+	switch normalizePublicACMECA(ca) {
+	case publicACMECAStaging:
+		return p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING
+	case publicACMECAProduction:
+		return p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_PRODUCTION
+	default:
+		return p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_UNSPECIFIED
+	}
+}
+
+func protoDNSProviderFromString(provider string) p2pstreamv1.PublicDnsProvider {
+	switch normalizePublicDNSProvider(provider) {
+	case publicDNSProviderCloudflare:
+		return p2pstreamv1.PublicDnsProvider_PUBLIC_DNS_PROVIDER_CLOUDFLARE
+	default:
+		return p2pstreamv1.PublicDnsProvider_PUBLIC_DNS_PROVIDER_UNSPECIFIED
+	}
+}
+
+func protoTLSCertificateStatusFromString(status string) p2pstreamv1.PublicTlsCertificateStatus {
+	switch normalizePublicTLSCertificateStatus(status) {
+	case publicTLSCertificateStatusPending:
+		return p2pstreamv1.PublicTlsCertificateStatus_PUBLIC_TLS_CERTIFICATE_STATUS_PENDING
+	case publicTLSCertificateStatusRenewing:
+		return p2pstreamv1.PublicTlsCertificateStatus_PUBLIC_TLS_CERTIFICATE_STATUS_RENEWING
+	case publicTLSCertificateStatusError:
+		return p2pstreamv1.PublicTlsCertificateStatus_PUBLIC_TLS_CERTIFICATE_STATUS_ERROR
+	case publicTLSCertificateStatusReady:
+		return p2pstreamv1.PublicTlsCertificateStatus_PUBLIC_TLS_CERTIFICATE_STATUS_READY
+	default:
+		return p2pstreamv1.PublicTlsCertificateStatus_PUBLIC_TLS_CERTIFICATE_STATUS_UNSPECIFIED
+	}
+}
+
 func protocolStringFromProto(protocol p2pstreamv1.PublicListenerProtocol) (string, error) {
 	switch protocol {
 	case p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP:
@@ -2308,14 +2846,25 @@ func publicRoutesToProto(routes []db.PublicRoute) []*p2pstreamv1.PublicRoute {
 
 func publicTLSCertificateToProto(cert db.PublicTlsCertificate) *p2pstreamv1.PublicTlsCertificate {
 	return &p2pstreamv1.PublicTlsCertificate{
-		Id:                  cert.ID,
-		ListenerId:          cert.ListenerID,
-		HostnamePattern:     cert.HostnamePattern,
-		CertPath:            cert.CertPath,
-		KeyPath:             cert.KeyPath,
-		Enabled:             cert.Enabled != 0,
-		CreatedAtUnixMillis: cert.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis: cert.UpdatedAt.UnixMilli(),
+		Id:                             cert.ID,
+		ListenerId:                     cert.ListenerID,
+		HostnamePattern:                cert.HostnamePattern,
+		CertPath:                       cert.CertPath,
+		KeyPath:                        cert.KeyPath,
+		Enabled:                        cert.Enabled != 0,
+		CreatedAtUnixMillis:            cert.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:            cert.UpdatedAt.UnixMilli(),
+		Source:                         protoTLSCertificateSourceFromString(cert.Source),
+		AcmeChallengeType:              protoACMEChallengeTypeFromString(cert.AcmeChallengeType),
+		AcmeCa:                         protoACMECAFromString(cert.AcmeCa),
+		AcmeEmail:                      cert.AcmeEmail,
+		DnsCredentialId:                nullInt64Value(cert.DnsCredentialID),
+		Status:                         protoTLSCertificateStatusFromString(cert.Status),
+		LastError:                      cert.LastError,
+		IssuedAtUnixMillis:             nullTimeUnixMillis(cert.IssuedAt),
+		ExpiresAtUnixMillis:            nullTimeUnixMillis(cert.ExpiresAt),
+		NextRenewalAtUnixMillis:        nullTimeUnixMillis(cert.NextRenewalAt),
+		LastRenewalAttemptAtUnixMillis: nullTimeUnixMillis(cert.LastRenewalAttemptAt),
 	}
 }
 
@@ -2325,4 +2874,32 @@ func publicTLSCertificatesToProto(certs []db.PublicTlsCertificate) []*p2pstreamv
 		resp = append(resp, publicTLSCertificateToProto(cert))
 	}
 	return resp
+}
+
+func publicTLSDNSCredentialToProto(credential db.PublicTlsDnsCredential) *p2pstreamv1.PublicTlsDnsCredential {
+	return &p2pstreamv1.PublicTlsDnsCredential{
+		Id:                  credential.ID,
+		Name:                credential.Name,
+		Provider:            protoDNSProviderFromString(credential.Provider),
+		CloudflareZoneId:    credential.CloudflareZoneID,
+		ApiTokenSet:         credential.ApiToken != "",
+		Enabled:             credential.Enabled != 0,
+		CreatedAtUnixMillis: credential.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis: credential.UpdatedAt.UnixMilli(),
+	}
+}
+
+func publicTLSDNSCredentialsToProto(credentials []db.PublicTlsDnsCredential) []*p2pstreamv1.PublicTlsDnsCredential {
+	resp := make([]*p2pstreamv1.PublicTlsDnsCredential, 0, len(credentials))
+	for _, credential := range credentials {
+		resp = append(resp, publicTLSDNSCredentialToProto(credential))
+	}
+	return resp
+}
+
+func nullInt64Value(value sql.NullInt64) int64 {
+	if !value.Valid {
+		return 0
+	}
+	return value.Int64
 }

@@ -7,17 +7,22 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"net"
+	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/acme"
 )
 
 type publicTLSSelector struct {
 	exact    map[string]*tls.Certificate
 	wildcard []publicWildcardCertificate
 	fallback *tls.Certificate
+	acme     *publicACMEManager
 }
 
 type publicWildcardCertificate struct {
@@ -26,9 +31,10 @@ type publicWildcardCertificate struct {
 	cert    *tls.Certificate
 }
 
-func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot) (*tls.Config, error) {
+func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) (*tls.Config, error) {
 	selector := &publicTLSSelector{
 		exact: make(map[string]*tls.Certificate),
+		acme:  acmeManager,
 	}
 
 	for _, certConfig := range snap.CertsByListener[listenerID] {
@@ -37,6 +43,9 @@ func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot) (*tls.Confi
 		}
 		cert, err := tls.LoadX509KeyPair(certConfig.CertPath, certConfig.KeyPath)
 		if err != nil {
+			if certConfig.Source == publicTLSCertificateSourceACME && (errors.Is(err, os.ErrNotExist) || certConfig.CertPath == "" || certConfig.KeyPath == "") {
+				continue
+			}
 			return nil, err
 		}
 		pattern := normalizeHostPattern(certConfig.HostnamePattern)
@@ -63,12 +72,18 @@ func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot) (*tls.Confi
 
 	return &tls.Config{
 		MinVersion:     tls.VersionTLS12,
+		NextProtos:     []string{acme.ALPNProto, "h2", "http/1.1"},
 		GetCertificate: selector.GetCertificate,
 	}, nil
 }
 
 func (s *publicTLSSelector) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	serverName := normalizeHostPattern(hello.ServerName)
+	if s.acme != nil && serverName != "" && clientSupportsALPN(hello, acme.ALPNProto) {
+		if cert := s.acme.TLSALPNCertificate(serverName); cert != nil {
+			return cert, nil
+		}
+	}
 	if serverName != "" {
 		if cert := s.exact[serverName]; cert != nil {
 			return cert, nil
@@ -81,6 +96,15 @@ func (s *publicTLSSelector) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Cer
 		}
 	}
 	return s.fallback, nil
+}
+
+func clientSupportsALPN(hello *tls.ClientHelloInfo, proto string) bool {
+	for _, supported := range hello.SupportedProtos {
+		if supported == proto {
+			return true
+		}
+	}
+	return false
 }
 
 func generateFallbackCertificate() (*tls.Certificate, error) {

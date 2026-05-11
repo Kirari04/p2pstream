@@ -92,6 +92,38 @@ enum PublicTrafficShaperBudgetScope {
   PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST = 2;
 }
 
+enum PublicTlsCertificateSource {
+  PUBLIC_TLS_CERTIFICATE_SOURCE_UNSPECIFIED = 0;
+  PUBLIC_TLS_CERTIFICATE_SOURCE_MANUAL = 1;
+  PUBLIC_TLS_CERTIFICATE_SOURCE_ACME = 2;
+}
+
+enum PublicAcmeChallengeType {
+  PUBLIC_ACME_CHALLENGE_TYPE_UNSPECIFIED = 0;
+  PUBLIC_ACME_CHALLENGE_TYPE_HTTP_01 = 1;
+  PUBLIC_ACME_CHALLENGE_TYPE_TLS_ALPN_01 = 2;
+  PUBLIC_ACME_CHALLENGE_TYPE_DNS_01 = 3;
+}
+
+enum PublicAcmeCa {
+  PUBLIC_ACME_CA_UNSPECIFIED = 0;
+  PUBLIC_ACME_CA_LETS_ENCRYPT_PRODUCTION = 1;
+  PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING = 2;
+}
+
+enum PublicDnsProvider {
+  PUBLIC_DNS_PROVIDER_UNSPECIFIED = 0;
+  PUBLIC_DNS_PROVIDER_CLOUDFLARE = 1;
+}
+
+enum PublicTlsCertificateStatus {
+  PUBLIC_TLS_CERTIFICATE_STATUS_UNSPECIFIED = 0;
+  PUBLIC_TLS_CERTIFICATE_STATUS_PENDING = 1;
+  PUBLIC_TLS_CERTIFICATE_STATUS_READY = 2;
+  PUBLIC_TLS_CERTIFICATE_STATUS_RENEWING = 3;
+  PUBLIC_TLS_CERTIFICATE_STATUS_ERROR = 4;
+}
+
 enum TrafficTraceLevel {
   TRAFFIC_TRACE_LEVEL_UNSPECIFIED = 0;
   TRAFFIC_TRACE_LEVEL_BASIC = 1;
@@ -271,6 +303,28 @@ message PublicTlsCertificate {
   bool enabled = 6;
   int64 created_at_unix_millis = 7;
   int64 updated_at_unix_millis = 8;
+  PublicTlsCertificateSource source = 9;
+  PublicAcmeChallengeType acme_challenge_type = 10;
+  PublicAcmeCa acme_ca = 11;
+  string acme_email = 12;
+  int64 dns_credential_id = 13;
+  PublicTlsCertificateStatus status = 14;
+  string last_error = 15;
+  int64 issued_at_unix_millis = 16;
+  int64 expires_at_unix_millis = 17;
+  int64 next_renewal_at_unix_millis = 18;
+  int64 last_renewal_attempt_at_unix_millis = 19;
+}
+
+message PublicTlsDnsCredential {
+  int64 id = 1;
+  string name = 2;
+  PublicDnsProvider provider = 3;
+  string cloudflare_zone_id = 4;
+  bool api_token_set = 5;
+  bool enabled = 6;
+  int64 created_at_unix_millis = 7;
+  int64 updated_at_unix_millis = 8;
 }
 
 message PublicRateLimitKeyPart {
@@ -359,6 +413,7 @@ message GetPublicProxyConfigResponse {
   repeated PublicBackendAgent backend_agents = 7;
   repeated PublicRateLimitRule rate_limit_rules = 8;
   repeated PublicTrafficShaperRule traffic_shaper_rules = 9;
+  repeated PublicTlsDnsCredential tls_dns_credentials = 10;
 }
 
 message CreatePublicBackendRequest {
@@ -569,6 +624,39 @@ message DeletePublicRouteRequest {
 message DeletePublicRouteResponse {
 }
 
+message CreatePublicTlsDnsCredentialRequest {
+  string name = 1;
+  PublicDnsProvider provider = 2;
+  string cloudflare_zone_id = 3;
+  string api_token = 4;
+  bool enabled = 5;
+}
+
+message CreatePublicTlsDnsCredentialResponse {
+  PublicTlsDnsCredential credential = 1;
+}
+
+message UpdatePublicTlsDnsCredentialRequest {
+  int64 id = 1;
+  string name = 2;
+  PublicDnsProvider provider = 3;
+  string cloudflare_zone_id = 4;
+  string api_token = 5;
+  bool api_token_set = 6;
+  bool enabled = 7;
+}
+
+message UpdatePublicTlsDnsCredentialResponse {
+  PublicTlsDnsCredential credential = 1;
+}
+
+message DeletePublicTlsDnsCredentialRequest {
+  int64 id = 1;
+}
+
+message DeletePublicTlsDnsCredentialResponse {
+}
+
 message CreatePublicTlsCertificateRequest {
   int64 listener_id = 1;
   string hostname_pattern = 2;
@@ -577,6 +665,11 @@ message CreatePublicTlsCertificateRequest {
   bool enabled = 5;
   bytes cert_pem = 6;
   bytes key_pem = 7;
+  PublicTlsCertificateSource source = 8;
+  PublicAcmeChallengeType acme_challenge_type = 9;
+  PublicAcmeCa acme_ca = 10;
+  string acme_email = 11;
+  int64 dns_credential_id = 12;
 }
 
 message CreatePublicTlsCertificateResponse {
@@ -592,6 +685,11 @@ message UpdatePublicTlsCertificateRequest {
   bool enabled = 6;
   bytes cert_pem = 7;
   bytes key_pem = 8;
+  PublicTlsCertificateSource source = 9;
+  PublicAcmeChallengeType acme_challenge_type = 10;
+  PublicAcmeCa acme_ca = 11;
+  string acme_email = 12;
+  int64 dns_credential_id = 13;
 }
 
 message UpdatePublicTlsCertificateResponse {
@@ -603,6 +701,14 @@ message DeletePublicTlsCertificateRequest {
 }
 
 message DeletePublicTlsCertificateResponse {
+}
+
+message RenewPublicTlsCertificateRequest {
+  int64 id = 1;
+}
+
+message RenewPublicTlsCertificateResponse {
+  PublicTlsCertificate tls_certificate = 1;
 }
 
 message CreatePublicRateLimitRuleRequest {
@@ -903,9 +1009,13 @@ service AgentManagementService {
   rpc CreatePublicRoute(CreatePublicRouteRequest) returns (CreatePublicRouteResponse) {}
   rpc UpdatePublicRoute(UpdatePublicRouteRequest) returns (UpdatePublicRouteResponse) {}
   rpc DeletePublicRoute(DeletePublicRouteRequest) returns (DeletePublicRouteResponse) {}
+  rpc CreatePublicTlsDnsCredential(CreatePublicTlsDnsCredentialRequest) returns (CreatePublicTlsDnsCredentialResponse) {}
+  rpc UpdatePublicTlsDnsCredential(UpdatePublicTlsDnsCredentialRequest) returns (UpdatePublicTlsDnsCredentialResponse) {}
+  rpc DeletePublicTlsDnsCredential(DeletePublicTlsDnsCredentialRequest) returns (DeletePublicTlsDnsCredentialResponse) {}
   rpc CreatePublicTlsCertificate(CreatePublicTlsCertificateRequest) returns (CreatePublicTlsCertificateResponse) {}
   rpc UpdatePublicTlsCertificate(UpdatePublicTlsCertificateRequest) returns (UpdatePublicTlsCertificateResponse) {}
   rpc DeletePublicTlsCertificate(DeletePublicTlsCertificateRequest) returns (DeletePublicTlsCertificateResponse) {}
+  rpc RenewPublicTlsCertificate(RenewPublicTlsCertificateRequest) returns (RenewPublicTlsCertificateResponse) {}
   rpc CreatePublicRateLimitRule(CreatePublicRateLimitRuleRequest) returns (CreatePublicRateLimitRuleResponse) {}
   rpc UpdatePublicRateLimitRule(UpdatePublicRateLimitRuleRequest) returns (UpdatePublicRateLimitRuleResponse) {}
   rpc DeletePublicRateLimitRule(DeletePublicRateLimitRuleRequest) returns (DeletePublicRateLimitRuleResponse) {}

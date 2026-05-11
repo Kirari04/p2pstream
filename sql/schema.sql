@@ -127,6 +127,17 @@ CREATE TABLE IF NOT EXISTS public_routes (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS public_tls_dns_credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    provider TEXT NOT NULL,
+    cloudflare_zone_id TEXT NOT NULL,
+    api_token TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS public_tls_certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
@@ -134,6 +145,17 @@ CREATE TABLE IF NOT EXISTS public_tls_certificates (
     cert_path TEXT NOT NULL,
     key_path TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL DEFAULT 'manual',
+    acme_challenge_type TEXT NOT NULL DEFAULT '',
+    acme_ca TEXT NOT NULL DEFAULT '',
+    acme_email TEXT NOT NULL DEFAULT '',
+    dns_credential_id INTEGER REFERENCES public_tls_dns_credentials(id),
+    status TEXT NOT NULL DEFAULT 'ready',
+    last_error TEXT NOT NULL DEFAULT '',
+    issued_at DATETIME,
+    expires_at DATETIME,
+    next_renewal_at DATETIME,
+    last_renewal_attempt_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -218,6 +240,9 @@ ON public_backend_agents (agent_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 ON public_tls_certificates (listener_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_dns_credential_id
+ON public_tls_certificates (dns_credential_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_priority
 ON public_rate_limit_rules (priority, id);

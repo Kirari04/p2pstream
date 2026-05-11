@@ -126,6 +126,15 @@ const (
 	// AgentManagementServiceDeletePublicRouteProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicRoute RPC.
 	AgentManagementServiceDeletePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicRoute"
+	// AgentManagementServiceCreatePublicTlsDnsCredentialProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicTlsDnsCredential RPC.
+	AgentManagementServiceCreatePublicTlsDnsCredentialProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTlsDnsCredential"
+	// AgentManagementServiceUpdatePublicTlsDnsCredentialProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicTlsDnsCredential RPC.
+	AgentManagementServiceUpdatePublicTlsDnsCredentialProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicTlsDnsCredential"
+	// AgentManagementServiceDeletePublicTlsDnsCredentialProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicTlsDnsCredential RPC.
+	AgentManagementServiceDeletePublicTlsDnsCredentialProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTlsDnsCredential"
 	// AgentManagementServiceCreatePublicTlsCertificateProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicTlsCertificate RPC.
 	AgentManagementServiceCreatePublicTlsCertificateProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTlsCertificate"
@@ -135,6 +144,9 @@ const (
 	// AgentManagementServiceDeletePublicTlsCertificateProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicTlsCertificate RPC.
 	AgentManagementServiceDeletePublicTlsCertificateProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTlsCertificate"
+	// AgentManagementServiceRenewPublicTlsCertificateProcedure is the fully-qualified name of the
+	// AgentManagementService's RenewPublicTlsCertificate RPC.
+	AgentManagementServiceRenewPublicTlsCertificateProcedure = "/p2pstream.v1.AgentManagementService/RenewPublicTlsCertificate"
 	// AgentManagementServiceCreatePublicRateLimitRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicRateLimitRule RPC.
 	AgentManagementServiceCreatePublicRateLimitRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicRateLimitRule"
@@ -188,9 +200,13 @@ type AgentManagementServiceClient interface {
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error)
+	UpdatePublicTlsDnsCredential(context.Context, *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error)
+	DeletePublicTlsDnsCredential(context.Context, *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error)
 	CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error)
 	UpdatePublicTlsCertificate(context.Context, *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error)
 	DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error)
+	RenewPublicTlsCertificate(context.Context, *connect.Request[v1.RenewPublicTlsCertificateRequest]) (*connect.Response[v1.RenewPublicTlsCertificateResponse], error)
 	CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error)
 	UpdatePublicRateLimitRule(context.Context, *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error)
 	DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error)
@@ -396,6 +412,24 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicTlsDnsCredential: connect.NewClient[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicTlsDnsCredentialProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTlsDnsCredential")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicTlsDnsCredential: connect.NewClient[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicTlsDnsCredentialProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTlsDnsCredential")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicTlsDnsCredential: connect.NewClient[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicTlsDnsCredentialProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsDnsCredential")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicTlsCertificate: connect.NewClient[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicTlsCertificateProcedure,
@@ -412,6 +446,12 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceDeletePublicTlsCertificateProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsCertificate")),
+			connect.WithClientOptions(opts...),
+		),
+		renewPublicTlsCertificate: connect.NewClient[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRenewPublicTlsCertificateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RenewPublicTlsCertificate")),
 			connect.WithClientOptions(opts...),
 		),
 		createPublicRateLimitRule: connect.NewClient[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse](
@@ -486,9 +526,13 @@ type agentManagementServiceClient struct {
 	createPublicRoute             *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
 	updatePublicRoute             *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
 	deletePublicRoute             *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
+	createPublicTlsDnsCredential  *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
+	updatePublicTlsDnsCredential  *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
+	deletePublicTlsDnsCredential  *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
 	createPublicTlsCertificate    *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
 	updatePublicTlsCertificate    *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
 	deletePublicTlsCertificate    *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
+	renewPublicTlsCertificate     *connect.Client[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse]
 	createPublicRateLimitRule     *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
 	updatePublicRateLimitRule     *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
 	deletePublicRateLimitRule     *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
@@ -652,6 +696,24 @@ func (c *agentManagementServiceClient) DeletePublicRoute(ctx context.Context, re
 	return c.deletePublicRoute.CallUnary(ctx, req)
 }
 
+// CreatePublicTlsDnsCredential calls
+// p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential.
+func (c *agentManagementServiceClient) CreatePublicTlsDnsCredential(ctx context.Context, req *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error) {
+	return c.createPublicTlsDnsCredential.CallUnary(ctx, req)
+}
+
+// UpdatePublicTlsDnsCredential calls
+// p2pstream.v1.AgentManagementService.UpdatePublicTlsDnsCredential.
+func (c *agentManagementServiceClient) UpdatePublicTlsDnsCredential(ctx context.Context, req *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error) {
+	return c.updatePublicTlsDnsCredential.CallUnary(ctx, req)
+}
+
+// DeletePublicTlsDnsCredential calls
+// p2pstream.v1.AgentManagementService.DeletePublicTlsDnsCredential.
+func (c *agentManagementServiceClient) DeletePublicTlsDnsCredential(ctx context.Context, req *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error) {
+	return c.deletePublicTlsDnsCredential.CallUnary(ctx, req)
+}
+
 // CreatePublicTlsCertificate calls p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate.
 func (c *agentManagementServiceClient) CreatePublicTlsCertificate(ctx context.Context, req *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error) {
 	return c.createPublicTlsCertificate.CallUnary(ctx, req)
@@ -665,6 +727,11 @@ func (c *agentManagementServiceClient) UpdatePublicTlsCertificate(ctx context.Co
 // DeletePublicTlsCertificate calls p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate.
 func (c *agentManagementServiceClient) DeletePublicTlsCertificate(ctx context.Context, req *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error) {
 	return c.deletePublicTlsCertificate.CallUnary(ctx, req)
+}
+
+// RenewPublicTlsCertificate calls p2pstream.v1.AgentManagementService.RenewPublicTlsCertificate.
+func (c *agentManagementServiceClient) RenewPublicTlsCertificate(ctx context.Context, req *connect.Request[v1.RenewPublicTlsCertificateRequest]) (*connect.Response[v1.RenewPublicTlsCertificateResponse], error) {
+	return c.renewPublicTlsCertificate.CallUnary(ctx, req)
 }
 
 // CreatePublicRateLimitRule calls p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule.
@@ -734,9 +801,13 @@ type AgentManagementServiceHandler interface {
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error)
+	UpdatePublicTlsDnsCredential(context.Context, *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error)
+	DeletePublicTlsDnsCredential(context.Context, *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error)
 	CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error)
 	UpdatePublicTlsCertificate(context.Context, *connect.Request[v1.UpdatePublicTlsCertificateRequest]) (*connect.Response[v1.UpdatePublicTlsCertificateResponse], error)
 	DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error)
+	RenewPublicTlsCertificate(context.Context, *connect.Request[v1.RenewPublicTlsCertificateRequest]) (*connect.Response[v1.RenewPublicTlsCertificateResponse], error)
 	CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error)
 	UpdatePublicRateLimitRule(context.Context, *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error)
 	DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error)
@@ -938,6 +1009,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicTlsDnsCredentialHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicTlsDnsCredentialProcedure,
+		svc.CreatePublicTlsDnsCredential,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTlsDnsCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicTlsDnsCredentialHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicTlsDnsCredentialProcedure,
+		svc.UpdatePublicTlsDnsCredential,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTlsDnsCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicTlsDnsCredentialHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicTlsDnsCredentialProcedure,
+		svc.DeletePublicTlsDnsCredential,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsDnsCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreatePublicTlsCertificateHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreatePublicTlsCertificateProcedure,
 		svc.CreatePublicTlsCertificate,
@@ -954,6 +1043,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceDeletePublicTlsCertificateProcedure,
 		svc.DeletePublicTlsCertificate,
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTlsCertificate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRenewPublicTlsCertificateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRenewPublicTlsCertificateProcedure,
+		svc.RenewPublicTlsCertificate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RenewPublicTlsCertificate")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceCreatePublicRateLimitRuleHandler := connect.NewUnaryHandler(
@@ -1056,12 +1151,20 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicRouteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicRouteProcedure:
 			agentManagementServiceDeletePublicRouteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicTlsDnsCredentialProcedure:
+			agentManagementServiceCreatePublicTlsDnsCredentialHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicTlsDnsCredentialProcedure:
+			agentManagementServiceUpdatePublicTlsDnsCredentialHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicTlsDnsCredentialProcedure:
+			agentManagementServiceDeletePublicTlsDnsCredentialHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicTlsCertificateProcedure:
 			agentManagementServiceCreatePublicTlsCertificateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicTlsCertificateProcedure:
 			agentManagementServiceUpdatePublicTlsCertificateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicTlsCertificateProcedure:
 			agentManagementServiceDeletePublicTlsCertificateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRenewPublicTlsCertificateProcedure:
+			agentManagementServiceRenewPublicTlsCertificateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicRateLimitRuleProcedure:
 			agentManagementServiceCreatePublicRateLimitRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicRateLimitRuleProcedure:
@@ -1207,6 +1310,18 @@ func (UnimplementedAgentManagementServiceHandler) DeletePublicRoute(context.Cont
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicRoute is not implemented"))
 }
 
+func (UnimplementedAgentManagementServiceHandler) CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicTlsDnsCredential(context.Context, *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicTlsDnsCredential is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicTlsDnsCredential(context.Context, *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTlsDnsCredential is not implemented"))
+}
+
 func (UnimplementedAgentManagementServiceHandler) CreatePublicTlsCertificate(context.Context, *connect.Request[v1.CreatePublicTlsCertificateRequest]) (*connect.Response[v1.CreatePublicTlsCertificateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate is not implemented"))
 }
@@ -1217,6 +1332,10 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicTlsCertificate(con
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicTlsCertificate(context.Context, *connect.Request[v1.DeletePublicTlsCertificateRequest]) (*connect.Response[v1.DeletePublicTlsCertificateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RenewPublicTlsCertificate(context.Context, *connect.Request[v1.RenewPublicTlsCertificateRequest]) (*connect.Response[v1.RenewPublicTlsCertificateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RenewPublicTlsCertificate is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error) {

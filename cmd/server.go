@@ -67,6 +67,10 @@ var serverCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
+		if app.PublicACME != nil {
+			app.PublicACME.Start(ctx)
+		}
+
 		if _, err := app.StartProxyListener(context.Background()); err != nil {
 			log.Error().Err(err).Msg("Proxy server failed to start")
 		}

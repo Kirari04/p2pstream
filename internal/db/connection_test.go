@@ -57,6 +57,17 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 			t.Fatalf("public_backends missing column %s in %v", column, backendColumns)
 		}
 	}
+	tlsColumns := tableColumns(t, database, "public_tls_certificates")
+	for _, column := range []string{"source", "acme_challenge_type", "acme_ca", "acme_email", "dns_credential_id", "status", "last_error", "issued_at", "expires_at", "next_renewal_at", "last_renewal_attempt_at"} {
+		if !containsString(tlsColumns, column) {
+			t.Fatalf("public_tls_certificates missing column %s in %v", column, tlsColumns)
+		}
+	}
+	rows, err := database.QueryContext(context.Background(), `SELECT id, name, provider, cloudflare_zone_id, api_token, enabled FROM public_tls_dns_credentials LIMIT 0`)
+	if err != nil {
+		t.Fatalf("expected public_tls_dns_credentials table: %v", err)
+	}
+	rows.Close()
 	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_backends (name, target_origin) VALUES ('legacy-default', 'http://example.com')`); err != nil {
 		t.Fatalf("insert default backend: %v", err)
 	}
@@ -145,6 +156,15 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	}
 	if !indexExists(t, database, "idx_public_backend_upstream_headers_backend_position") {
 		t.Fatal("expected idx_public_backend_upstream_headers_backend_position after migration")
+	}
+	tlsColumns := tableColumns(t, database, "public_tls_certificates")
+	for _, column := range []string{"source", "status", "expires_at", "last_renewal_attempt_at"} {
+		if !containsString(tlsColumns, column) {
+			t.Fatalf("public_tls_certificates missing column %s after migration; columns=%v", column, tlsColumns)
+		}
+	}
+	if !indexExists(t, database, "idx_public_tls_certificates_dns_credential_id") {
+		t.Fatal("expected idx_public_tls_certificates_dns_credential_id after migration")
 	}
 }
 

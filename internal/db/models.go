@@ -153,14 +153,36 @@ type PublicRoute struct {
 }
 
 type PublicTlsCertificate struct {
-	ID              int64     `json:"id"`
-	ListenerID      int64     `json:"listener_id"`
-	HostnamePattern string    `json:"hostname_pattern"`
-	CertPath        string    `json:"cert_path"`
-	KeyPath         string    `json:"key_path"`
-	Enabled         int64     `json:"enabled"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                   int64         `json:"id"`
+	ListenerID           int64         `json:"listener_id"`
+	HostnamePattern      string        `json:"hostname_pattern"`
+	CertPath             string        `json:"cert_path"`
+	KeyPath              string        `json:"key_path"`
+	Enabled              int64         `json:"enabled"`
+	Source               string        `json:"source"`
+	AcmeChallengeType    string        `json:"acme_challenge_type"`
+	AcmeCa               string        `json:"acme_ca"`
+	AcmeEmail            string        `json:"acme_email"`
+	DnsCredentialID      sql.NullInt64 `json:"dns_credential_id"`
+	Status               string        `json:"status"`
+	LastError            string        `json:"last_error"`
+	IssuedAt             sql.NullTime  `json:"issued_at"`
+	ExpiresAt            sql.NullTime  `json:"expires_at"`
+	NextRenewalAt        sql.NullTime  `json:"next_renewal_at"`
+	LastRenewalAttemptAt sql.NullTime  `json:"last_renewal_attempt_at"`
+	CreatedAt            time.Time     `json:"created_at"`
+	UpdatedAt            time.Time     `json:"updated_at"`
+}
+
+type PublicTlsDnsCredential struct {
+	ID               int64     `json:"id"`
+	Name             string    `json:"name"`
+	Provider         string    `json:"provider"`
+	CloudflareZoneID string    `json:"cloudflare_zone_id"`
+	ApiToken         string    `json:"api_token"`
+	Enabled          int64     `json:"enabled"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type PublicTrafficShaperRule struct {

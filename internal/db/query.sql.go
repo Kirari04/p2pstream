@@ -491,17 +491,46 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 }
 
 const createPublicTlsCertificate = `-- name: CreatePublicTlsCertificate :one
-INSERT INTO public_tls_certificates (listener_id, hostname_pattern, cert_path, key_path, enabled)
-VALUES (?, ?, ?, ?, ?)
-RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+INSERT INTO public_tls_certificates (
+    listener_id,
+    hostname_pattern,
+    cert_path,
+    key_path,
+    enabled,
+    source,
+    acme_challenge_type,
+    acme_ca,
+    acme_email,
+    dns_credential_id,
+    status,
+    last_error,
+    issued_at,
+    expires_at,
+    next_renewal_at,
+    last_renewal_attempt_at
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
 `
 
 type CreatePublicTlsCertificateParams struct {
-	ListenerID      int64  `json:"listener_id"`
-	HostnamePattern string `json:"hostname_pattern"`
-	CertPath        string `json:"cert_path"`
-	KeyPath         string `json:"key_path"`
-	Enabled         int64  `json:"enabled"`
+	ListenerID           int64         `json:"listener_id"`
+	HostnamePattern      string        `json:"hostname_pattern"`
+	CertPath             string        `json:"cert_path"`
+	KeyPath              string        `json:"key_path"`
+	Enabled              int64         `json:"enabled"`
+	Source               string        `json:"source"`
+	AcmeChallengeType    string        `json:"acme_challenge_type"`
+	AcmeCa               string        `json:"acme_ca"`
+	AcmeEmail            string        `json:"acme_email"`
+	DnsCredentialID      sql.NullInt64 `json:"dns_credential_id"`
+	Status               string        `json:"status"`
+	LastError            string        `json:"last_error"`
+	IssuedAt             sql.NullTime  `json:"issued_at"`
+	ExpiresAt            sql.NullTime  `json:"expires_at"`
+	NextRenewalAt        sql.NullTime  `json:"next_renewal_at"`
+	LastRenewalAttemptAt sql.NullTime  `json:"last_renewal_attempt_at"`
 }
 
 func (q *Queries) CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error) {
@@ -511,6 +540,17 @@ func (q *Queries) CreatePublicTlsCertificate(ctx context.Context, arg CreatePubl
 		arg.CertPath,
 		arg.KeyPath,
 		arg.Enabled,
+		arg.Source,
+		arg.AcmeChallengeType,
+		arg.AcmeCa,
+		arg.AcmeEmail,
+		arg.DnsCredentialID,
+		arg.Status,
+		arg.LastError,
+		arg.IssuedAt,
+		arg.ExpiresAt,
+		arg.NextRenewalAt,
+		arg.LastRenewalAttemptAt,
 	)
 	var i PublicTlsCertificate
 	err := row.Scan(
@@ -519,6 +559,53 @@ func (q *Queries) CreatePublicTlsCertificate(ctx context.Context, arg CreatePubl
 		&i.HostnamePattern,
 		&i.CertPath,
 		&i.KeyPath,
+		&i.Enabled,
+		&i.Source,
+		&i.AcmeChallengeType,
+		&i.AcmeCa,
+		&i.AcmeEmail,
+		&i.DnsCredentialID,
+		&i.Status,
+		&i.LastError,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.NextRenewalAt,
+		&i.LastRenewalAttemptAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicTlsDnsCredential = `-- name: CreatePublicTlsDnsCredential :one
+INSERT INTO public_tls_dns_credentials (name, provider, cloudflare_zone_id, api_token, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at
+`
+
+type CreatePublicTlsDnsCredentialParams struct {
+	Name             string `json:"name"`
+	Provider         string `json:"provider"`
+	CloudflareZoneID string `json:"cloudflare_zone_id"`
+	ApiToken         string `json:"api_token"`
+	Enabled          int64  `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error) {
+	row := q.db.QueryRowContext(ctx, createPublicTlsDnsCredential,
+		arg.Name,
+		arg.Provider,
+		arg.CloudflareZoneID,
+		arg.ApiToken,
+		arg.Enabled,
+	)
+	var i PublicTlsDnsCredential
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.CloudflareZoneID,
+		&i.ApiToken,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -763,6 +850,16 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicTlsCertificate(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicTlsCertificate, id)
+	return err
+}
+
+const deletePublicTlsDnsCredential = `-- name: DeletePublicTlsDnsCredential :exec
+DELETE FROM public_tls_dns_credentials
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicTlsDnsCredential(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicTlsDnsCredential, id)
 	return err
 }
 
@@ -1156,7 +1253,7 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 }
 
 const getPublicTlsCertificate = `-- name: GetPublicTlsCertificate :one
-SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
 FROM public_tls_certificates
 WHERE id = ?
 `
@@ -1170,6 +1267,39 @@ func (q *Queries) GetPublicTlsCertificate(ctx context.Context, id int64) (Public
 		&i.HostnamePattern,
 		&i.CertPath,
 		&i.KeyPath,
+		&i.Enabled,
+		&i.Source,
+		&i.AcmeChallengeType,
+		&i.AcmeCa,
+		&i.AcmeEmail,
+		&i.DnsCredentialID,
+		&i.Status,
+		&i.LastError,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.NextRenewalAt,
+		&i.LastRenewalAttemptAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicTlsDnsCredential = `-- name: GetPublicTlsDnsCredential :one
+SELECT id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at
+FROM public_tls_dns_credentials
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error) {
+	row := q.db.QueryRowContext(ctx, getPublicTlsDnsCredential, id)
+	var i PublicTlsDnsCredential
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.CloudflareZoneID,
+		&i.ApiToken,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1768,7 +1898,7 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 }
 
 const listPublicTlsCertificates = `-- name: ListPublicTlsCertificates :many
-SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+SELECT id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
 FROM public_tls_certificates
 ORDER BY listener_id ASC, hostname_pattern ASC, id ASC
 `
@@ -1788,6 +1918,55 @@ func (q *Queries) ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCer
 			&i.HostnamePattern,
 			&i.CertPath,
 			&i.KeyPath,
+			&i.Enabled,
+			&i.Source,
+			&i.AcmeChallengeType,
+			&i.AcmeCa,
+			&i.AcmeEmail,
+			&i.DnsCredentialID,
+			&i.Status,
+			&i.LastError,
+			&i.IssuedAt,
+			&i.ExpiresAt,
+			&i.NextRenewalAt,
+			&i.LastRenewalAttemptAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicTlsDnsCredentials = `-- name: ListPublicTlsDnsCredentials :many
+SELECT id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at
+FROM public_tls_dns_credentials
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicTlsDnsCredentials)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicTlsDnsCredential
+	for rows.Next() {
+		var i PublicTlsDnsCredential
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Provider,
+			&i.CloudflareZoneID,
+			&i.ApiToken,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -2262,18 +2441,45 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 
 const updatePublicTlsCertificate = `-- name: UpdatePublicTlsCertificate :one
 UPDATE public_tls_certificates
-SET listener_id = ?, hostname_pattern = ?, cert_path = ?, key_path = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+SET listener_id = ?,
+    hostname_pattern = ?,
+    cert_path = ?,
+    key_path = ?,
+    enabled = ?,
+    source = ?,
+    acme_challenge_type = ?,
+    acme_ca = ?,
+    acme_email = ?,
+    dns_credential_id = ?,
+    status = ?,
+    last_error = ?,
+    issued_at = ?,
+    expires_at = ?,
+    next_renewal_at = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, created_at, updated_at
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
 `
 
 type UpdatePublicTlsCertificateParams struct {
-	ListenerID      int64  `json:"listener_id"`
-	HostnamePattern string `json:"hostname_pattern"`
-	CertPath        string `json:"cert_path"`
-	KeyPath         string `json:"key_path"`
-	Enabled         int64  `json:"enabled"`
-	ID              int64  `json:"id"`
+	ListenerID           int64         `json:"listener_id"`
+	HostnamePattern      string        `json:"hostname_pattern"`
+	CertPath             string        `json:"cert_path"`
+	KeyPath              string        `json:"key_path"`
+	Enabled              int64         `json:"enabled"`
+	Source               string        `json:"source"`
+	AcmeChallengeType    string        `json:"acme_challenge_type"`
+	AcmeCa               string        `json:"acme_ca"`
+	AcmeEmail            string        `json:"acme_email"`
+	DnsCredentialID      sql.NullInt64 `json:"dns_credential_id"`
+	Status               string        `json:"status"`
+	LastError            string        `json:"last_error"`
+	IssuedAt             sql.NullTime  `json:"issued_at"`
+	ExpiresAt            sql.NullTime  `json:"expires_at"`
+	NextRenewalAt        sql.NullTime  `json:"next_renewal_at"`
+	LastRenewalAttemptAt sql.NullTime  `json:"last_renewal_attempt_at"`
+	ID                   int64         `json:"id"`
 }
 
 func (q *Queries) UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error) {
@@ -2283,6 +2489,17 @@ func (q *Queries) UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePubl
 		arg.CertPath,
 		arg.KeyPath,
 		arg.Enabled,
+		arg.Source,
+		arg.AcmeChallengeType,
+		arg.AcmeCa,
+		arg.AcmeEmail,
+		arg.DnsCredentialID,
+		arg.Status,
+		arg.LastError,
+		arg.IssuedAt,
+		arg.ExpiresAt,
+		arg.NextRenewalAt,
+		arg.LastRenewalAttemptAt,
 		arg.ID,
 	)
 	var i PublicTlsCertificate
@@ -2292,6 +2509,169 @@ func (q *Queries) UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePubl
 		&i.HostnamePattern,
 		&i.CertPath,
 		&i.KeyPath,
+		&i.Enabled,
+		&i.Source,
+		&i.AcmeChallengeType,
+		&i.AcmeCa,
+		&i.AcmeEmail,
+		&i.DnsCredentialID,
+		&i.Status,
+		&i.LastError,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.NextRenewalAt,
+		&i.LastRenewalAttemptAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicTlsCertificateIssueState = `-- name: UpdatePublicTlsCertificateIssueState :one
+UPDATE public_tls_certificates
+SET cert_path = ?,
+    key_path = ?,
+    status = ?,
+    last_error = ?,
+    issued_at = ?,
+    expires_at = ?,
+    next_renewal_at = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
+`
+
+type UpdatePublicTlsCertificateIssueStateParams struct {
+	CertPath             string       `json:"cert_path"`
+	KeyPath              string       `json:"key_path"`
+	Status               string       `json:"status"`
+	LastError            string       `json:"last_error"`
+	IssuedAt             sql.NullTime `json:"issued_at"`
+	ExpiresAt            sql.NullTime `json:"expires_at"`
+	NextRenewalAt        sql.NullTime `json:"next_renewal_at"`
+	LastRenewalAttemptAt sql.NullTime `json:"last_renewal_attempt_at"`
+	ID                   int64        `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTlsCertificateIssueState,
+		arg.CertPath,
+		arg.KeyPath,
+		arg.Status,
+		arg.LastError,
+		arg.IssuedAt,
+		arg.ExpiresAt,
+		arg.NextRenewalAt,
+		arg.LastRenewalAttemptAt,
+		arg.ID,
+	)
+	var i PublicTlsCertificate
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.CertPath,
+		&i.KeyPath,
+		&i.Enabled,
+		&i.Source,
+		&i.AcmeChallengeType,
+		&i.AcmeCa,
+		&i.AcmeEmail,
+		&i.DnsCredentialID,
+		&i.Status,
+		&i.LastError,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.NextRenewalAt,
+		&i.LastRenewalAttemptAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicTlsCertificateStatus = `-- name: UpdatePublicTlsCertificateStatus :one
+UPDATE public_tls_certificates
+SET status = ?,
+    last_error = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
+`
+
+type UpdatePublicTlsCertificateStatusParams struct {
+	Status               string       `json:"status"`
+	LastError            string       `json:"last_error"`
+	LastRenewalAttemptAt sql.NullTime `json:"last_renewal_attempt_at"`
+	ID                   int64        `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTlsCertificateStatus(ctx context.Context, arg UpdatePublicTlsCertificateStatusParams) (PublicTlsCertificate, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTlsCertificateStatus,
+		arg.Status,
+		arg.LastError,
+		arg.LastRenewalAttemptAt,
+		arg.ID,
+	)
+	var i PublicTlsCertificate
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.CertPath,
+		&i.KeyPath,
+		&i.Enabled,
+		&i.Source,
+		&i.AcmeChallengeType,
+		&i.AcmeCa,
+		&i.AcmeEmail,
+		&i.DnsCredentialID,
+		&i.Status,
+		&i.LastError,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.NextRenewalAt,
+		&i.LastRenewalAttemptAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicTlsDnsCredential = `-- name: UpdatePublicTlsDnsCredential :one
+UPDATE public_tls_dns_credentials
+SET name = ?, provider = ?, cloudflare_zone_id = ?, api_token = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, cloudflare_zone_id, api_token, enabled, created_at, updated_at
+`
+
+type UpdatePublicTlsDnsCredentialParams struct {
+	Name             string `json:"name"`
+	Provider         string `json:"provider"`
+	CloudflareZoneID string `json:"cloudflare_zone_id"`
+	ApiToken         string `json:"api_token"`
+	Enabled          int64  `json:"enabled"`
+	ID               int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTlsDnsCredential(ctx context.Context, arg UpdatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTlsDnsCredential,
+		arg.Name,
+		arg.Provider,
+		arg.CloudflareZoneID,
+		arg.ApiToken,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i PublicTlsDnsCredential
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.CloudflareZoneID,
+		&i.ApiToken,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,

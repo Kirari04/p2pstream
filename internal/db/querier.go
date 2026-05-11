@@ -25,6 +25,7 @@ type Querier interface {
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
+	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
@@ -40,6 +41,7 @@ type Querier interface {
 	DeletePublicRateLimitRule(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
+	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
@@ -55,6 +57,7 @@ type Querier interface {
 	GetPublicRateLimitRule(ctx context.Context, id int64) (PublicRateLimitRule, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
+	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
 	GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
@@ -73,6 +76,7 @@ type Querier interface {
 	ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
+	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
@@ -87,6 +91,9 @@ type Querier interface {
 	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
+	UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error)
+	UpdatePublicTlsCertificateStatus(ctx context.Context, arg UpdatePublicTlsCertificateStatusParams) (PublicTlsCertificate, error)
+	UpdatePublicTlsDnsCredential(ctx context.Context, arg UpdatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
 	UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapAgentParams) (Agent, error)
 }

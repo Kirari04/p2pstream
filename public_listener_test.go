@@ -429,6 +429,50 @@ func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
 	}
 }
 
+func TestPublicTLSDNSCredentialHidesAndPreservesToken(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicTlsDnsCredentialRequest{
+		Name:             "cf",
+		Provider:         p2pstreamv1.PublicDnsProvider_PUBLIC_DNS_PROVIDER_CLOUDFLARE,
+		CloudflareZoneId: "zone-id",
+		ApiToken:         "secret-token",
+		Enabled:          true,
+	})
+	createReq.Header().Set("Cookie", cookie)
+	createResp, err := client.CreatePublicTlsDnsCredential(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("create DNS credential: %v", err)
+	}
+	credential := createResp.Msg.GetCredential()
+	if !credential.GetApiTokenSet() {
+		t.Fatalf("expected token set flag in create response: %+v", credential)
+	}
+
+	cfg := getPublicProxyConfig(t, client, cookie)
+	if len(cfg.GetTlsDnsCredentials()) != 1 || !cfg.GetTlsDnsCredentials()[0].GetApiTokenSet() {
+		t.Fatalf("unexpected DNS credentials in config: %+v", cfg.GetTlsDnsCredentials())
+	}
+
+	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicTlsDnsCredentialRequest{
+		Id:               credential.GetId(),
+		Name:             "cf-renamed",
+		Provider:         p2pstreamv1.PublicDnsProvider_PUBLIC_DNS_PROVIDER_CLOUDFLARE,
+		CloudflareZoneId: "zone-id-2",
+		Enabled:          true,
+	})
+	updateReq.Header().Set("Cookie", cookie)
+	updateResp, err := client.UpdatePublicTlsDnsCredential(context.Background(), updateReq)
+	if err != nil {
+		t.Fatalf("update DNS credential: %v", err)
+	}
+	if !updateResp.Msg.GetCredential().GetApiTokenSet() {
+		t.Fatalf("expected token to be preserved: %+v", updateResp.Msg.GetCredential())
+	}
+}
+
 func getPublicProxyConfig(
 	t *testing.T,
 	client p2pstreamv1connect.AgentManagementServiceClient,
