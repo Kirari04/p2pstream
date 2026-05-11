@@ -26,8 +26,13 @@ import {
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
   PublicTrafficShaperBudgetScope,
+  PublicAcmeCa,
+  PublicAcmeChallengeType,
+  PublicDnsProvider,
   PublicRouteAction,
   PublicRouteRedirectTargetMode,
+  PublicTlsCertificateSource,
+  PublicTlsCertificateStatus,
   type GetDashboardResponse,
   type GetPublicProxyConfigResponse,
   type PublicBackend,
@@ -38,10 +43,19 @@ import {
   type PublicTrafficShaperRule,
   type PublicRoute,
   type PublicTlsCertificate,
+  type PublicTlsDnsCredential,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type TlsFileField = "cert" | "key";
+type TlsMethod = "manual" | "http_01" | "tls_alpn_01" | "dns_01";
+
+const tlsMethodOptions: Array<{ value: TlsMethod; label: string }> = [
+  { value: "manual", label: "Manual" },
+  { value: "http_01", label: "HTTP-01" },
+  { value: "tls_alpn_01", label: "TLS-ALPN" },
+  { value: "dns_01", label: "DNS-01" },
+];
 
 const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
 const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
@@ -63,16 +77,22 @@ const routes = computed(() => config.value?.routes ?? []);
 const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
 const trafficShaperRules = computed(() => config.value?.trafficShaperRules ?? []);
 const tlsCertificates = computed(() => config.value?.tlsCertificates ?? []);
+const tlsDnsCredentials = computed(() => config.value?.tlsDnsCredentials ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const httpsListeners = computed(() => listeners.value.filter((listener) => listener.protocol === PublicListenerProtocol.HTTPS));
 
 const isTlsModalOpen = ref(false);
+const isTlsCredentialModalOpen = ref(false);
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
 
 const tlsForm = reactive({
   id: "" as string,
   listenerId: "",
   hostnamePattern: "",
+  method: "manual" as TlsMethod,
+  acmeEmail: "",
+  acmeCa: PublicAcmeCa.LETS_ENCRYPT_PRODUCTION,
+  dnsCredentialId: "",
   certPem: null as Uint8Array | null,
   keyPem: null as Uint8Array | null,
   certFileName: "",
@@ -80,6 +100,15 @@ const tlsForm = reactive({
   enabled: true,
 });
 const tlsUploadError = ref("");
+const tlsCredentialForm = reactive({
+  id: "",
+  name: "",
+  cloudflareZoneId: "",
+  apiToken: "",
+  apiTokenSaved: false,
+  enabled: true,
+});
+const tlsCredentialError = ref("");
 
 const proxySeverity = computed(() => severityForState(proxyState.value));
 const tlsHasPartialUpload = computed(() => Boolean(tlsForm.certPem) !== Boolean(tlsForm.keyPem));
@@ -87,11 +116,24 @@ const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const tlsSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (!httpsListeners.value.length) return "Create an HTTPS listener before adding a TLS mapping.";
-  if (!tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) return "Upload both the certificate and private key files.";
-  if (tlsHasPartialUpload.value) return "Upload both files to replace the certificate.";
+  if (tlsForm.method === "manual") {
+    if (!tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) return "Upload both the certificate and private key files.";
+    if (tlsHasPartialUpload.value) return "Upload both files to replace the certificate.";
+    return "";
+  }
+  if (!tlsForm.acmeEmail.trim()) return "Enter the ACME account email.";
+  if (tlsForm.hostnamePattern.trim().startsWith("*.") && tlsForm.method !== "dns_01") return "Wildcard certificates require DNS-01.";
+  if (tlsForm.method === "dns_01" && !tlsForm.dnsCredentialId) return "Select a Cloudflare DNS credential.";
   return "";
 });
 const tlsSubmitDisabled = computed(() => Boolean(tlsSubmitDisabledReason.value));
+const tlsCredentialSubmitDisabledReason = computed(() => {
+  if (isBusy?.value) return BUSY_REASON;
+  if (!tlsCredentialForm.name.trim()) return "Enter a credential name.";
+  if (!tlsCredentialForm.cloudflareZoneId.trim()) return "Enter the Cloudflare zone ID.";
+  if (!tlsCredentialForm.id && !tlsCredentialForm.apiToken.trim()) return "Enter the Cloudflare API token.";
+  return "";
+});
 
 function proxyStateLabel(state: ProxyState): string {
   switch (state) {
@@ -345,7 +387,69 @@ function isDefaultSelfSignedCertificate(cert: PublicTlsCertificate): boolean {
 }
 
 function tlsCertificateSummary(cert: PublicTlsCertificate): string {
-  return isDefaultSelfSignedCertificate(cert) ? "Default self-signed certificate" : "Uploaded certificate";
+  if (isDefaultSelfSignedCertificate(cert)) return "Default self-signed certificate";
+  if (cert.source === PublicTlsCertificateSource.ACME) {
+    const expiry = formatUnixMillis(cert.expiresAtUnixMillis);
+    const renewal = formatUnixMillis(cert.nextRenewalAtUnixMillis);
+    if (expiry && renewal) return `Expires ${expiry} / renews ${renewal}`;
+    if (expiry) return `Expires ${expiry}`;
+    return "Managed by Let's Encrypt";
+  }
+  return "Uploaded certificate";
+}
+
+function tlsMethodForCertificate(cert: PublicTlsCertificate): TlsMethod {
+  if (cert.source !== PublicTlsCertificateSource.ACME) return "manual";
+  if (cert.acmeChallengeType === PublicAcmeChallengeType.TLS_ALPN_01) return "tls_alpn_01";
+  if (cert.acmeChallengeType === PublicAcmeChallengeType.DNS_01) return "dns_01";
+  return "http_01";
+}
+
+function tlsSourceLabel(cert: PublicTlsCertificate): string {
+  switch (tlsMethodForCertificate(cert)) {
+    case "http_01": return "HTTP-01";
+    case "tls_alpn_01": return "TLS-ALPN-01";
+    case "dns_01": return "DNS-01";
+    default: return "Manual";
+  }
+}
+
+function tlsStatusLabel(cert: PublicTlsCertificate): string {
+  if (!cert.enabled) return "Disabled";
+  switch (cert.status) {
+    case PublicTlsCertificateStatus.PENDING: return "Pending";
+    case PublicTlsCertificateStatus.RENEWING: return "Renewing";
+    case PublicTlsCertificateStatus.ERROR: return "Error";
+    case PublicTlsCertificateStatus.READY: return "Ready";
+    default: return cert.source === PublicTlsCertificateSource.ACME ? "Pending" : "Ready";
+  }
+}
+
+function tlsStatusSeverity(cert: PublicTlsCertificate): string {
+  if (!cert.enabled) return "warn";
+  if (cert.status === PublicTlsCertificateStatus.ERROR) return "danger";
+  if (cert.status === PublicTlsCertificateStatus.PENDING || cert.status === PublicTlsCertificateStatus.RENEWING) return "warn";
+  return "success";
+}
+
+function acmeChallengeTypeForMethod(method: TlsMethod): PublicAcmeChallengeType {
+  if (method === "tls_alpn_01") return PublicAcmeChallengeType.TLS_ALPN_01;
+  if (method === "dns_01") return PublicAcmeChallengeType.DNS_01;
+  return PublicAcmeChallengeType.HTTP_01;
+}
+
+function tlsSourceForMethod(method: TlsMethod): PublicTlsCertificateSource {
+  return method === "manual" ? PublicTlsCertificateSource.MANUAL : PublicTlsCertificateSource.ACME;
+}
+
+function dnsCredentialName(id: bigint): string {
+  if (id === 0n) return "None";
+  return tlsDnsCredentials.value.find((credential) => credential.id === id)?.name ?? `#${id.toString()}`;
+}
+
+function formatUnixMillis(value: bigint): string {
+  if (!value || value === 0n) return "";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(Number(value)));
 }
 
 function editBackend(backend: PublicBackend) {
@@ -397,6 +501,10 @@ function resetTlsForm() {
   tlsForm.id = "";
   tlsForm.listenerId = httpsListeners.value[0]?.id.toString() ?? "";
   tlsForm.hostnamePattern = "";
+  tlsForm.method = "manual";
+  tlsForm.acmeEmail = "";
+  tlsForm.acmeCa = PublicAcmeCa.LETS_ENCRYPT_PRODUCTION;
+  tlsForm.dnsCredentialId = tlsDnsCredentials.value[0]?.id.toString() ?? "";
   tlsForm.certPem = null;
   tlsForm.keyPem = null;
   tlsForm.certFileName = "";
@@ -411,6 +519,10 @@ function editTlsCertificate(certId: bigint) {
   tlsForm.id = cert.id.toString();
   tlsForm.listenerId = cert.listenerId.toString();
   tlsForm.hostnamePattern = cert.hostnamePattern;
+  tlsForm.method = tlsMethodForCertificate(cert);
+  tlsForm.acmeEmail = cert.acmeEmail;
+  tlsForm.acmeCa = cert.acmeCa || PublicAcmeCa.LETS_ENCRYPT_PRODUCTION;
+  tlsForm.dnsCredentialId = cert.dnsCredentialId ? cert.dnsCredentialId.toString() : (tlsDnsCredentials.value[0]?.id.toString() ?? "");
   tlsForm.certPem = null;
   tlsForm.keyPem = null;
   tlsForm.certFileName = "";
@@ -418,6 +530,32 @@ function editTlsCertificate(certId: bigint) {
   tlsForm.enabled = cert.enabled;
   tlsUploadError.value = "";
   isTlsModalOpen.value = true;
+}
+
+function openAddTlsCredentialModal() {
+  resetTlsCredentialForm();
+  isTlsCredentialModalOpen.value = true;
+}
+
+function resetTlsCredentialForm() {
+  tlsCredentialForm.id = "";
+  tlsCredentialForm.name = "";
+  tlsCredentialForm.cloudflareZoneId = "";
+  tlsCredentialForm.apiToken = "";
+  tlsCredentialForm.apiTokenSaved = false;
+  tlsCredentialForm.enabled = true;
+  tlsCredentialError.value = "";
+}
+
+function editTlsCredential(credential: PublicTlsDnsCredential) {
+  tlsCredentialForm.id = credential.id.toString();
+  tlsCredentialForm.name = credential.name;
+  tlsCredentialForm.cloudflareZoneId = credential.cloudflareZoneId;
+  tlsCredentialForm.apiToken = "";
+  tlsCredentialForm.apiTokenSaved = credential.apiTokenSet;
+  tlsCredentialForm.enabled = credential.enabled;
+  tlsCredentialError.value = "";
+  isTlsCredentialModalOpen.value = true;
 }
 
 async function handleTlsFileChange(field: TlsFileField, event: Event) {
@@ -507,22 +645,32 @@ async function deleteTrafficShaperRule(id: bigint) {
 
 async function submitTlsCertificate() {
   tlsUploadError.value = "";
-  if (!tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) {
+  if (tlsForm.method === "manual" && !tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) {
     tlsUploadError.value = "Upload both the certificate and private key.";
     return;
   }
-  if (tlsHasPartialUpload.value) {
+  if (tlsForm.method === "manual" && tlsHasPartialUpload.value) {
     tlsUploadError.value = "Upload both files to replace the certificate.";
+    return;
+  }
+  if (tlsForm.method !== "manual" && tlsForm.method !== "dns_01" && tlsForm.hostnamePattern.trim().startsWith("*.")) {
+    tlsUploadError.value = "Wildcard certificates require DNS-01.";
     return;
   }
 
   await run(async () => {
+    const isManual = tlsForm.method === "manual";
     const payload = {
       listenerId: BigInt(tlsForm.listenerId || "0"),
       hostnamePattern: tlsForm.hostnamePattern,
       enabled: tlsForm.enabled,
-      certPem: tlsForm.certPem ?? new Uint8Array(),
-      keyPem: tlsForm.keyPem ?? new Uint8Array(),
+      certPem: isManual ? (tlsForm.certPem ?? new Uint8Array()) : new Uint8Array(),
+      keyPem: isManual ? (tlsForm.keyPem ?? new Uint8Array()) : new Uint8Array(),
+      source: tlsSourceForMethod(tlsForm.method),
+      acmeChallengeType: isManual ? PublicAcmeChallengeType.UNSPECIFIED : acmeChallengeTypeForMethod(tlsForm.method),
+      acmeCa: isManual ? PublicAcmeCa.UNSPECIFIED : tlsForm.acmeCa,
+      acmeEmail: isManual ? "" : tlsForm.acmeEmail,
+      dnsCredentialId: !isManual && tlsForm.method === "dns_01" ? BigInt(tlsForm.dnsCredentialId || "0") : 0n,
     };
     if (tlsForm.id) {
       await managementClient.updatePublicTlsCertificate({ id: BigInt(tlsForm.id), ...payload });
@@ -533,6 +681,12 @@ async function submitTlsCertificate() {
   });
 }
 
+async function renewTlsCertificate(id: bigint) {
+  await run(async () => {
+    await managementClient.renewPublicTlsCertificate({ id });
+  });
+}
+
 async function deleteTlsCertificate(id: bigint) {
   if (!window.confirm("Delete this TLS certificate?")) return;
   await run(async () => {
@@ -540,9 +694,46 @@ async function deleteTlsCertificate(id: bigint) {
   });
 }
 
+async function submitTlsCredential() {
+  tlsCredentialError.value = "";
+  if (!tlsCredentialForm.id && !tlsCredentialForm.apiToken.trim()) {
+    tlsCredentialError.value = "Enter the Cloudflare API token.";
+    return;
+  }
+  await run(async () => {
+    const payload = {
+      name: tlsCredentialForm.name,
+      provider: PublicDnsProvider.CLOUDFLARE,
+      cloudflareZoneId: tlsCredentialForm.cloudflareZoneId,
+      apiToken: tlsCredentialForm.apiToken,
+      apiTokenSet: tlsCredentialForm.apiToken.trim() !== "",
+      enabled: tlsCredentialForm.enabled,
+    };
+    if (tlsCredentialForm.id) {
+      await managementClient.updatePublicTlsDnsCredential({ id: BigInt(tlsCredentialForm.id), ...payload });
+    } else {
+      await managementClient.createPublicTlsDnsCredential(payload);
+    }
+    isTlsCredentialModalOpen.value = false;
+  });
+}
+
+async function deleteTlsCredential(id: bigint) {
+  if (!window.confirm("Delete this DNS credential?")) return;
+  await run(async () => {
+    await managementClient.deletePublicTlsDnsCredential({ id });
+  });
+}
+
 watch(httpsListeners, () => {
   if (!tlsForm.listenerId && httpsListeners.value[0]) {
     tlsForm.listenerId = httpsListeners.value[0].id.toString();
+  }
+}, { immediate: true });
+
+watch(tlsDnsCredentials, () => {
+  if (!tlsForm.dnsCredentialId && tlsDnsCredentials.value[0]) {
+    tlsForm.dnsCredentialId = tlsDnsCredentials.value[0].id.toString();
   }
 }, { immediate: true });
 </script>
@@ -839,9 +1030,14 @@ watch(httpsListeners, () => {
       <div class="vercel-card overflow-hidden h-fit">
         <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">TLS Certificates</h4>
-          <SecondaryButton size="small" label="Add TLS Mapping" @click="openAddTlsModal">
-            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-          </SecondaryButton>
+          <div class="flex flex-wrap justify-end gap-2">
+            <SecondaryButton size="small" label="DNS Credentials" @click="openAddTlsCredentialModal">
+              <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <SecondaryButton size="small" label="Add Certificate" @click="openAddTlsModal">
+              <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+          </div>
         </div>
         <div class="divide-y divide-[#1f1f1f]">
           <div v-for="cert in tlsCertificates" :key="cert.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
@@ -849,11 +1045,26 @@ watch(httpsListeners, () => {
               <div class="flex min-w-0 items-center gap-2">
                 <p class="truncate text-sm font-medium text-white">{{ listenerName(cert.listenerId) }} / {{ cert.hostnamePattern }}</p>
                 <Tag v-if="isDefaultSelfSignedCertificate(cert)" value="Self-signed" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
-                <Tag v-if="!cert.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
+                <Tag v-else :value="tlsSourceLabel(cert)" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+                <Tag :value="tlsStatusLabel(cert)" :severity="tlsStatusSeverity(cert)" class="!bg-[#111] !border-[#333] !text-white" />
               </div>
               <p class="truncate text-xs text-[#888]">{{ tlsCertificateSummary(cert) }}</p>
+              <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="truncate text-xs text-[#666]">
+                Cloudflare / {{ dnsCredentialName(cert.dnsCredentialId) }}
+              </p>
+              <p v-if="cert.lastError" class="truncate text-xs text-red-400">{{ cert.lastError }}</p>
             </div>
             <div class="flex gap-2">
+              <SecondaryButton
+                v-if="cert.source === PublicTlsCertificateSource.ACME"
+                size="small"
+                aria-label="Renew TLS certificate"
+                title="Renew TLS certificate"
+                :disabled="Boolean(busyDisabledReason)"
+                @click="renewTlsCertificate(cert.id)"
+              >
+                <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
+              </SecondaryButton>
               <SecondaryButton size="small" aria-label="Edit TLS mapping" title="Edit TLS mapping" @click="editTlsCertificate(cert.id)">
                 <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
               </SecondaryButton>
@@ -871,6 +1082,27 @@ watch(httpsListeners, () => {
               <p class="truncate text-xs text-[#888]">Runtime fallback certificate</p>
             </div>
           </div>
+          <div v-if="tlsDnsCredentials.length" class="border-t border-[#333]">
+            <div class="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-[#666]">DNS Credentials</div>
+            <div v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" class="grid gap-3 px-5 py-3 sm:grid-cols-[1fr_auto]">
+              <div class="min-w-0">
+                <div class="flex min-w-0 items-center gap-2">
+                  <p class="truncate text-sm font-medium text-white">{{ credential.name }}</p>
+                  <Tag value="Cloudflare" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+                  <Tag v-if="!credential.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
+                </div>
+                <p class="truncate font-mono text-xs text-[#888]">{{ credential.cloudflareZoneId }}</p>
+              </div>
+              <div class="flex gap-2">
+                <SecondaryButton size="small" aria-label="Edit DNS credential" title="Edit DNS credential" @click="editTlsCredential(credential)">
+                  <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+                </SecondaryButton>
+                <DangerButton size="small" aria-label="Delete DNS credential" title="Delete DNS credential" @click="deleteTlsCredential(credential.id)">
+                  <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                </DangerButton>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -879,6 +1111,21 @@ watch(httpsListeners, () => {
 
     <Modal v-model="isTlsModalOpen" :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'" max-width="36rem">
       <form @submit.prevent="submitTlsCertificate" class="grid gap-4">
+        <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          Method
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              v-for="method in tlsMethodOptions"
+              :key="method.value"
+              type="button"
+              class="rounded-md border px-2.5 py-2 text-xs font-semibold normal-case tracking-normal transition"
+              :class="tlsForm.method === method.value ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555]'"
+              @click="tlsForm.method = method.value"
+            >
+              {{ method.label }}
+            </button>
+          </div>
+        </div>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           HTTPS listener
           <select v-model="tlsForm.listenerId" class="vercel-input text-sm normal-case tracking-normal" required>
@@ -889,7 +1136,29 @@ watch(httpsListeners, () => {
           Hostname pattern
           <input v-model="tlsForm.hostnamePattern" class="vercel-input text-sm normal-case tracking-normal" placeholder="app.example.com" required />
         </label>
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div v-if="tlsForm.method !== 'manual'" class="grid gap-3">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              ACME email
+              <input v-model="tlsForm.acmeEmail" class="vercel-input text-sm normal-case tracking-normal" type="email" placeholder="admin@example.com" required />
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              CA environment
+              <select v-model="tlsForm.acmeCa" class="vercel-input text-sm normal-case tracking-normal">
+                <option :value="PublicAcmeCa.LETS_ENCRYPT_PRODUCTION">Let's Encrypt production</option>
+                <option :value="PublicAcmeCa.LETS_ENCRYPT_STAGING">Let's Encrypt staging</option>
+              </select>
+            </label>
+          </div>
+          <label v-if="tlsForm.method === 'dns_01'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Cloudflare credential
+            <select v-model="tlsForm.dnsCredentialId" class="vercel-input text-sm normal-case tracking-normal" required>
+              <option value="">Select credential</option>
+              <option v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" :value="credential.id.toString()">{{ credential.name }}</option>
+            </select>
+          </label>
+        </div>
+        <div v-if="tlsForm.method === 'manual'" class="grid gap-3 sm:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Certificate file
             <input
@@ -913,7 +1182,7 @@ watch(httpsListeners, () => {
             <span v-if="tlsForm.keyFileName" class="truncate text-xs normal-case tracking-normal text-[#d4d4d8]">{{ tlsForm.keyFileName }}</span>
           </label>
         </div>
-        <p v-if="tlsForm.id" class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs text-[#888]">
+        <p v-if="tlsForm.id && tlsForm.method === 'manual'" class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs text-[#888]">
           Current certificate is stored in the app config directory.
         </p>
         <p v-if="tlsUploadError" class="rounded-md border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-400">
@@ -927,6 +1196,43 @@ watch(httpsListeners, () => {
           <SecondaryButton type="button" label="Cancel" @click="isTlsModalOpen = false" />
           <DisabledHint :disabled="Boolean(tlsSubmitDisabledReason)" :reason="tlsSubmitDisabledReason">
             <Button class="!bg-white !text-black !border-white" :label="tlsForm.id ? 'Save Changes' : 'Create TLS Mapping'" type="submit" :disabled="tlsSubmitDisabled" />
+          </DisabledHint>
+        </div>
+      </form>
+    </Modal>
+
+    <Modal v-model="isTlsCredentialModalOpen" :title="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'" max-width="32rem">
+      <form @submit.prevent="submitTlsCredential" class="grid gap-4">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          Name
+          <input v-model="tlsCredentialForm.name" class="vercel-input text-sm normal-case tracking-normal" placeholder="cloudflare-prod" required />
+        </label>
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          Cloudflare zone ID
+          <input v-model="tlsCredentialForm.cloudflareZoneId" class="vercel-input font-mono text-sm normal-case tracking-normal" required />
+        </label>
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          API token
+          <input
+            v-model="tlsCredentialForm.apiToken"
+            class="vercel-input text-sm normal-case tracking-normal"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="tlsCredentialForm.apiTokenSaved ? 'Saved token' : 'Cloudflare API token'"
+            :required="!tlsCredentialForm.id"
+          />
+        </label>
+        <p v-if="tlsCredentialError" class="rounded-md border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-400">
+          {{ tlsCredentialError }}
+        </p>
+        <label class="flex items-center gap-2 text-sm text-[#d4d4d8] mt-2">
+          <input v-model="tlsCredentialForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+          Enabled
+        </label>
+        <div class="mt-4 flex justify-end gap-3">
+          <SecondaryButton type="button" label="Cancel" @click="isTlsCredentialModalOpen = false" />
+          <DisabledHint :disabled="Boolean(tlsCredentialSubmitDisabledReason)" :reason="tlsCredentialSubmitDisabledReason">
+            <Button class="!bg-white !text-black !border-white" :label="tlsCredentialForm.id ? 'Save Credential' : 'Create Credential'" type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)" />
           </DisabledHint>
         </div>
       </form>
