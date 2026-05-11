@@ -171,7 +171,9 @@ func (db *DB) migrate() error {
 		listener_id INTEGER,
 		backend_id INTEGER,
 		route_id INTEGER,
-		agent_id INTEGER REFERENCES agents(id)
+		agent_id INTEGER REFERENCES agents(id),
+		request_bytes INTEGER NOT NULL DEFAULT 0,
+		response_bytes INTEGER NOT NULL DEFAULT 0
 	);
 
 	CREATE TABLE IF NOT EXISTS public_backends (
@@ -356,6 +358,8 @@ func (db *DB) migrate() error {
 		`ALTER TABLE proxy_request_events ADD COLUMN backend_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN route_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
+		`ALTER TABLE proxy_request_events ADD COLUMN request_bytes INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE proxy_request_events ADD COLUMN response_bytes INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN backend_type TEXT NOT NULL DEFAULT 'proxy_forward'`,
 		`ALTER TABLE public_backends ADD COLUMN forward_mode TEXT NOT NULL DEFAULT 'direct'`,
 		`ALTER TABLE public_backends ADD COLUMN load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
@@ -399,6 +403,15 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id ON proxy_request_events (listener_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_backend_id ON proxy_request_events (backend_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id ON proxy_request_events (route_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id ON proxy_request_events (agent_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_agent_stats_agent_id ON agent_stats (agent_id)`); err != nil {

@@ -43,15 +43,17 @@ type Connection struct {
 }
 
 type ProxyRequestEvent struct {
-	ID         int64         `json:"id"`
-	OccurredAt time.Time     `json:"occurred_at"`
-	StatusCode int64         `json:"status_code"`
-	DurationMs int64         `json:"duration_ms"`
-	ErrorKind  string        `json:"error_kind"`
-	ListenerID sql.NullInt64 `json:"listener_id"`
-	BackendID  sql.NullInt64 `json:"backend_id"`
-	RouteID    sql.NullInt64 `json:"route_id"`
-	AgentID    sql.NullInt64 `json:"agent_id"`
+	ID            int64         `json:"id"`
+	OccurredAt    time.Time     `json:"occurred_at"`
+	StatusCode    int64         `json:"status_code"`
+	DurationMs    int64         `json:"duration_ms"`
+	ErrorKind     string        `json:"error_kind"`
+	ListenerID    sql.NullInt64 `json:"listener_id"`
+	BackendID     sql.NullInt64 `json:"backend_id"`
+	RouteID       sql.NullInt64 `json:"route_id"`
+	AgentID       sql.NullInt64 `json:"agent_id"`
+	RequestBytes  int64         `json:"request_bytes"`
+	ResponseBytes int64         `json:"response_bytes"`
 }
 
 type PublicBackend struct {

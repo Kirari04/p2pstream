@@ -22,9 +22,9 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id, request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetProxyRequestSummarySince :one
@@ -34,9 +34,154 @@ SELECT
     CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
     CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
     CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
-    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
+    CAST(COALESCE(SUM(request_bytes + response_bytes), 0) AS INTEGER) AS total_bytes,
+    CAST(COALESCE(AVG(request_bytes), 0) AS INTEGER) AS avg_request_bytes,
+    CAST(COALESCE(AVG(response_bytes), 0) AS INTEGER) AS avg_response_bytes,
+    CAST(COALESCE(MAX(duration_ms), 0) AS INTEGER) AS max_duration_ms,
+    CAST(COALESCE(SUM(CASE WHEN duration_ms >= 1000 THEN 1 ELSE 0 END), 0) AS INTEGER) AS slow_requests
 FROM proxy_request_events
 WHERE occurred_at >= ?;
+
+-- name: ListTopProxyListenersSince :many
+SELECT
+    CAST(COALESCE(pre.listener_id, 0) AS INTEGER) AS id,
+    COALESCE(pl.name, CASE WHEN pre.listener_id IS NULL THEN 'unknown listener' ELSE 'listener #' || pre.listener_id END) AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
+WHERE pre.occurred_at >= ?
+GROUP BY pre.listener_id, pl.name
+ORDER BY requests DESC, id ASC
+LIMIT 5;
+
+-- name: ListTopProxyBackendsSince :many
+SELECT
+    CAST(COALESCE(pre.backend_id, 0) AS INTEGER) AS id,
+    COALESCE(pb.name, CASE WHEN pre.backend_id IS NULL THEN 'unknown backend' ELSE 'backend #' || pre.backend_id END) AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN public_backends pb ON pb.id = pre.backend_id
+WHERE pre.occurred_at >= ?
+GROUP BY pre.backend_id, pb.name
+ORDER BY requests DESC, id ASC
+LIMIT 5;
+
+-- name: ListTopProxyRoutesSince :many
+SELECT
+    CAST(COALESCE(pre.route_id, 0) AS INTEGER) AS id,
+    CASE
+        WHEN pre.route_id IS NULL THEN 'Default route'
+        WHEN pr.id IS NULL THEN 'route #' || pre.route_id
+        WHEN pr.host_pattern != '' AND pr.path_prefix != '' THEN pr.host_pattern || ' ' || pr.path_prefix
+        WHEN pr.host_pattern != '' THEN pr.host_pattern
+        WHEN pr.path_prefix != '' THEN pr.path_prefix
+        ELSE 'route #' || pr.id
+    END AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN public_routes pr ON pr.id = pre.route_id
+WHERE pre.occurred_at >= ?
+GROUP BY pre.route_id, pr.id, pr.host_pattern, pr.path_prefix
+ORDER BY requests DESC, id ASC
+LIMIT 5;
+
+-- name: ListTopProxyAgentsSince :many
+SELECT
+    CAST(pre.agent_id AS INTEGER) AS id,
+    COALESCE(a.name, 'agent #' || pre.agent_id) AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN agents a ON a.id = pre.agent_id
+WHERE pre.occurred_at >= ?
+  AND pre.agent_id IS NOT NULL
+GROUP BY pre.agent_id, a.name
+ORDER BY requests DESC, id ASC
+LIMIT 5;
+
+-- name: ListTopProxyErrorKindsSince :many
+SELECT
+    CAST(0 AS INTEGER) AS id,
+    error_kind AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events
+WHERE occurred_at >= ?
+  AND error_kind != ''
+GROUP BY error_kind
+ORDER BY requests DESC, label ASC
+LIMIT 5;
+
+-- name: ListProxyStatusClassesSince :many
+SELECT
+    CAST(status_code / 100 AS INTEGER) AS id,
+    CAST(CAST(status_code / 100 AS INTEGER) AS TEXT) || 'xx' AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events
+WHERE occurred_at >= ?
+  AND status_code >= 200
+  AND status_code < 600
+GROUP BY CAST(status_code / 100 AS INTEGER)
+ORDER BY id ASC;
+
+-- name: ListProxyTrafficBucketsSince :many
+SELECT
+    CAST((unixepoch(occurred_at) / CAST(sqlc.arg(bucket_seconds) AS INTEGER)) * CAST(sqlc.arg(bucket_seconds) AS INTEGER) * 1000 AS INTEGER) AS bucket_unix_millis,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms
+FROM proxy_request_events
+WHERE occurred_at >= sqlc.arg(since)
+GROUP BY bucket_unix_millis
+ORDER BY bucket_unix_millis ASC;
 
 -- name: GetAgentStatsSummarySince :one
 SELECT

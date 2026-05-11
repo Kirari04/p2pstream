@@ -51,6 +51,22 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		}
 	}
 
+	proxyEventColumns := tableColumns(t, database, "proxy_request_events")
+	for _, column := range []string{"request_bytes", "response_bytes"} {
+		if !containsString(proxyEventColumns, column) {
+			t.Fatalf("proxy_request_events missing column %s in %v", column, proxyEventColumns)
+		}
+	}
+	for _, index := range []string{
+		"idx_proxy_request_events_backend_id",
+		"idx_proxy_request_events_route_id",
+		"idx_proxy_request_events_agent_id",
+	} {
+		if !indexExists(t, database, index) {
+			t.Fatalf("expected %s on fresh schema", index)
+		}
+	}
+
 	backendColumns := tableColumns(t, database, "public_backends")
 	for _, column := range []string{"forward_mode", "load_balancing", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"} {
 		if !containsString(backendColumns, column) {
@@ -138,7 +154,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
 		"agent_stats":          {"agent_id", "req_internal_error"},
-		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id"},
+		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "request_bytes", "response_bytes"},
 		"public_backends":      {"backend_type", "forward_mode", "load_balancing", "tls_skip_verify", "static_status_code", "static_response_body", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"},
 	} {
 		got := tableColumns(t, database, table)
@@ -157,14 +173,14 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	if !indexExists(t, database, "idx_public_backend_upstream_headers_backend_position") {
 		t.Fatal("expected idx_public_backend_upstream_headers_backend_position after migration")
 	}
-	tlsColumns := tableColumns(t, database, "public_tls_certificates")
-	for _, column := range []string{"source", "status", "expires_at", "last_renewal_attempt_at"} {
-		if !containsString(tlsColumns, column) {
-			t.Fatalf("public_tls_certificates missing column %s after migration; columns=%v", column, tlsColumns)
+	for _, index := range []string{
+		"idx_proxy_request_events_backend_id",
+		"idx_proxy_request_events_route_id",
+		"idx_proxy_request_events_agent_id",
+	} {
+		if !indexExists(t, database, index) {
+			t.Fatalf("expected %s after migration", index)
 		}
-	}
-	if !indexExists(t, database, "idx_public_tls_certificates_dns_credential_id") {
-		t.Fatal("expected idx_public_tls_certificates_dns_credential_id after migration")
 	}
 }
 

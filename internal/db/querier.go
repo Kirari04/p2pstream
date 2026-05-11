@@ -65,6 +65,8 @@ type Querier interface {
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
 	ListAgents(ctx context.Context) ([]Agent, error)
+	ListProxyStatusClassesSince(ctx context.Context, occurredAt time.Time) ([]ListProxyStatusClassesSinceRow, error)
+	ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error)
 	ListPublicBackendAgents(ctx context.Context) ([]PublicBackendAgent, error)
 	ListPublicBackendAgentsByBackend(ctx context.Context, backendID int64) ([]PublicBackendAgent, error)
 	ListPublicBackendHeaders(ctx context.Context) ([]PublicBackendHeader, error)
@@ -78,6 +80,11 @@ type Querier interface {
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
+	ListTopProxyAgentsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyAgentsSinceRow, error)
+	ListTopProxyBackendsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyBackendsSinceRow, error)
+	ListTopProxyErrorKindsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyErrorKindsSinceRow, error)
+	ListTopProxyListenersSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyListenersSinceRow, error)
+	ListTopProxyRoutesSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRoutesSinceRow, error)
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error

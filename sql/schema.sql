@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS proxy_request_events (
     listener_id INTEGER,
     backend_id INTEGER,
     route_id INTEGER,
-    agent_id INTEGER REFERENCES agents(id)
+    agent_id INTEGER REFERENCES agents(id),
+    request_bytes INTEGER NOT NULL DEFAULT 0,
+    response_bytes INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS public_backends (
@@ -222,6 +224,15 @@ ON proxy_request_events (occurred_at);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id
 ON proxy_request_events (listener_id);
+
+CREATE INDEX IF NOT EXISTS idx_proxy_request_events_backend_id
+ON proxy_request_events (backend_id);
+
+CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id
+ON proxy_request_events (route_id);
+
+CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id
+ON proxy_request_events (agent_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
 ON public_routes (listener_id, priority, id);

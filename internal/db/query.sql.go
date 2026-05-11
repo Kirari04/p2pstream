@@ -1113,18 +1113,32 @@ SELECT
     CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
     CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
     CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
-    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
+    CAST(COALESCE(SUM(request_bytes + response_bytes), 0) AS INTEGER) AS total_bytes,
+    CAST(COALESCE(AVG(request_bytes), 0) AS INTEGER) AS avg_request_bytes,
+    CAST(COALESCE(AVG(response_bytes), 0) AS INTEGER) AS avg_response_bytes,
+    CAST(COALESCE(MAX(duration_ms), 0) AS INTEGER) AS max_duration_ms,
+    CAST(COALESCE(SUM(CASE WHEN duration_ms >= 1000 THEN 1 ELSE 0 END), 0) AS INTEGER) AS slow_requests
 FROM proxy_request_events
 WHERE occurred_at >= ?
 `
 
 type GetProxyRequestSummarySinceRow struct {
-	TotalRequests int64 `json:"total_requests"`
-	Success       int64 `json:"success"`
-	ClientError   int64 `json:"client_error"`
-	ServerError   int64 `json:"server_error"`
-	InternalError int64 `json:"internal_error"`
-	AvgDurationMs int64 `json:"avg_duration_ms"`
+	TotalRequests    int64 `json:"total_requests"`
+	Success          int64 `json:"success"`
+	ClientError      int64 `json:"client_error"`
+	ServerError      int64 `json:"server_error"`
+	InternalError    int64 `json:"internal_error"`
+	AvgDurationMs    int64 `json:"avg_duration_ms"`
+	RequestBytes     int64 `json:"request_bytes"`
+	ResponseBytes    int64 `json:"response_bytes"`
+	TotalBytes       int64 `json:"total_bytes"`
+	AvgRequestBytes  int64 `json:"avg_request_bytes"`
+	AvgResponseBytes int64 `json:"avg_response_bytes"`
+	MaxDurationMs    int64 `json:"max_duration_ms"`
+	SlowRequests     int64 `json:"slow_requests"`
 }
 
 func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error) {
@@ -1137,6 +1151,13 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 		&i.ServerError,
 		&i.InternalError,
 		&i.AvgDurationMs,
+		&i.RequestBytes,
+		&i.ResponseBytes,
+		&i.TotalBytes,
+		&i.AvgRequestBytes,
+		&i.AvgResponseBytes,
+		&i.MaxDurationMs,
+		&i.SlowRequests,
 	)
 	return i, err
 }
@@ -1427,20 +1448,22 @@ func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id, request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
 type InsertProxyRequestEventParams struct {
-	StatusCode int64         `json:"status_code"`
-	DurationMs int64         `json:"duration_ms"`
-	ErrorKind  string        `json:"error_kind"`
-	ListenerID sql.NullInt64 `json:"listener_id"`
-	BackendID  sql.NullInt64 `json:"backend_id"`
-	RouteID    sql.NullInt64 `json:"route_id"`
-	AgentID    sql.NullInt64 `json:"agent_id"`
+	StatusCode    int64         `json:"status_code"`
+	DurationMs    int64         `json:"duration_ms"`
+	ErrorKind     string        `json:"error_kind"`
+	ListenerID    sql.NullInt64 `json:"listener_id"`
+	BackendID     sql.NullInt64 `json:"backend_id"`
+	RouteID       sql.NullInt64 `json:"route_id"`
+	AgentID       sql.NullInt64 `json:"agent_id"`
+	RequestBytes  int64         `json:"request_bytes"`
+	ResponseBytes int64         `json:"response_bytes"`
 }
 
 func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error {
@@ -1452,6 +1475,8 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.BackendID,
 		arg.RouteID,
 		arg.AgentID,
+		arg.RequestBytes,
+		arg.ResponseBytes,
 	)
 	return err
 }
@@ -1481,6 +1506,140 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.LastDisconnectedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProxyStatusClassesSince = `-- name: ListProxyStatusClassesSince :many
+SELECT
+    CAST(status_code / 100 AS INTEGER) AS id,
+    CAST(CAST(status_code / 100 AS INTEGER) AS TEXT) || 'xx' AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events
+WHERE occurred_at >= ?
+  AND status_code >= 200
+  AND status_code < 600
+GROUP BY CAST(status_code / 100 AS INTEGER)
+ORDER BY id ASC
+`
+
+type ListProxyStatusClassesSinceRow struct {
+	ID            int64       `json:"id"`
+	Label         interface{} `json:"label"`
+	Requests      int64       `json:"requests"`
+	Success       int64       `json:"success"`
+	ClientError   int64       `json:"client_error"`
+	ServerError   int64       `json:"server_error"`
+	InternalError int64       `json:"internal_error"`
+	AvgDurationMs int64       `json:"avg_duration_ms"`
+	RequestBytes  int64       `json:"request_bytes"`
+	ResponseBytes int64       `json:"response_bytes"`
+}
+
+func (q *Queries) ListProxyStatusClassesSince(ctx context.Context, occurredAt time.Time) ([]ListProxyStatusClassesSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyStatusClassesSince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyStatusClassesSinceRow
+	for rows.Next() {
+		var i ListProxyStatusClassesSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProxyTrafficBucketsSince = `-- name: ListProxyTrafficBucketsSince :many
+SELECT
+    CAST((unixepoch(occurred_at) / CAST(?1 AS INTEGER)) * CAST(?1 AS INTEGER) * 1000 AS INTEGER) AS bucket_unix_millis,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms
+FROM proxy_request_events
+WHERE occurred_at >= ?2
+GROUP BY bucket_unix_millis
+ORDER BY bucket_unix_millis ASC
+`
+
+type ListProxyTrafficBucketsSinceParams struct {
+	BucketSeconds int64     `json:"bucket_seconds"`
+	Since         time.Time `json:"since"`
+}
+
+type ListProxyTrafficBucketsSinceRow struct {
+	BucketUnixMillis int64 `json:"bucket_unix_millis"`
+	Requests         int64 `json:"requests"`
+	Success          int64 `json:"success"`
+	ClientError      int64 `json:"client_error"`
+	ServerError      int64 `json:"server_error"`
+	InternalError    int64 `json:"internal_error"`
+	RequestBytes     int64 `json:"request_bytes"`
+	ResponseBytes    int64 `json:"response_bytes"`
+	AvgDurationMs    int64 `json:"avg_duration_ms"`
+}
+
+func (q *Queries) ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyTrafficBucketsSince, arg.BucketSeconds, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyTrafficBucketsSinceRow
+	for rows.Next() {
+		var i ListProxyTrafficBucketsSinceRow
+		if err := rows.Scan(
+			&i.BucketUnixMillis,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+			&i.AvgDurationMs,
 		); err != nil {
 			return nil, err
 		}
@@ -2014,6 +2173,349 @@ func (q *Queries) ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTra
 			&i.KeyPartsJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopProxyAgentsSince = `-- name: ListTopProxyAgentsSince :many
+SELECT
+    CAST(pre.agent_id AS INTEGER) AS id,
+    COALESCE(a.name, 'agent #' || pre.agent_id) AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN agents a ON a.id = pre.agent_id
+WHERE pre.occurred_at >= ?
+  AND pre.agent_id IS NOT NULL
+GROUP BY pre.agent_id, a.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyAgentsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyAgentsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyAgentsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyAgentsSince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyAgentsSinceRow
+	for rows.Next() {
+		var i ListTopProxyAgentsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopProxyBackendsSince = `-- name: ListTopProxyBackendsSince :many
+SELECT
+    CAST(COALESCE(pre.backend_id, 0) AS INTEGER) AS id,
+    COALESCE(pb.name, CASE WHEN pre.backend_id IS NULL THEN 'unknown backend' ELSE 'backend #' || pre.backend_id END) AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN public_backends pb ON pb.id = pre.backend_id
+WHERE pre.occurred_at >= ?
+GROUP BY pre.backend_id, pb.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyBackendsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyBackendsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyBackendsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyBackendsSince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyBackendsSinceRow
+	for rows.Next() {
+		var i ListTopProxyBackendsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopProxyErrorKindsSince = `-- name: ListTopProxyErrorKindsSince :many
+SELECT
+    CAST(0 AS INTEGER) AS id,
+    error_kind AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events
+WHERE occurred_at >= ?
+  AND error_kind != ''
+GROUP BY error_kind
+ORDER BY requests DESC, label ASC
+LIMIT 5
+`
+
+type ListTopProxyErrorKindsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyErrorKindsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyErrorKindsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyErrorKindsSince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyErrorKindsSinceRow
+	for rows.Next() {
+		var i ListTopProxyErrorKindsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopProxyListenersSince = `-- name: ListTopProxyListenersSince :many
+SELECT
+    CAST(COALESCE(pre.listener_id, 0) AS INTEGER) AS id,
+    COALESCE(pl.name, CASE WHEN pre.listener_id IS NULL THEN 'unknown listener' ELSE 'listener #' || pre.listener_id END) AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
+WHERE pre.occurred_at >= ?
+GROUP BY pre.listener_id, pl.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyListenersSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyListenersSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyListenersSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyListenersSince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyListenersSinceRow
+	for rows.Next() {
+		var i ListTopProxyListenersSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopProxyRoutesSince = `-- name: ListTopProxyRoutesSince :many
+SELECT
+    CAST(COALESCE(pre.route_id, 0) AS INTEGER) AS id,
+    CASE
+        WHEN pre.route_id IS NULL THEN 'Default route'
+        WHEN pr.id IS NULL THEN 'route #' || pre.route_id
+        WHEN pr.host_pattern != '' AND pr.path_prefix != '' THEN pr.host_pattern || ' ' || pr.path_prefix
+        WHEN pr.host_pattern != '' THEN pr.host_pattern
+        WHEN pr.path_prefix != '' THEN pr.path_prefix
+        ELSE 'route #' || pr.id
+    END AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events pre
+LEFT JOIN public_routes pr ON pr.id = pre.route_id
+WHERE pre.occurred_at >= ?
+GROUP BY pre.route_id, pr.id, pr.host_pattern, pr.path_prefix
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyRoutesSinceRow struct {
+	ID            int64       `json:"id"`
+	Label         interface{} `json:"label"`
+	Requests      int64       `json:"requests"`
+	Success       int64       `json:"success"`
+	ClientError   int64       `json:"client_error"`
+	ServerError   int64       `json:"server_error"`
+	InternalError int64       `json:"internal_error"`
+	AvgDurationMs int64       `json:"avg_duration_ms"`
+	RequestBytes  int64       `json:"request_bytes"`
+	ResponseBytes int64       `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyRoutesSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRoutesSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyRoutesSince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyRoutesSinceRow
+	for rows.Next() {
+		var i ListTopProxyRoutesSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
 		); err != nil {
 			return nil, err
 		}

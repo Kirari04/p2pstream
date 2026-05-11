@@ -826,6 +826,49 @@ message DashboardWindowSummary {
   int64 agent_max_memory_mb = 17;
   int64 agent_avg_goroutines = 18;
   int64 agent_max_goroutines = 19;
+  uint64 proxy_request_bytes = 20;
+  uint64 proxy_response_bytes = 21;
+  uint64 proxy_total_bytes = 22;
+  uint64 proxy_avg_request_bytes = 23;
+  uint64 proxy_avg_response_bytes = 24;
+  int64 proxy_max_duration_ms = 25;
+  int64 proxy_slow_requests = 26;
+}
+
+enum DashboardProxyDimension {
+  DASHBOARD_PROXY_DIMENSION_UNSPECIFIED = 0;
+  DASHBOARD_PROXY_DIMENSION_LISTENER = 1;
+  DASHBOARD_PROXY_DIMENSION_BACKEND = 2;
+  DASHBOARD_PROXY_DIMENSION_ROUTE = 3;
+  DASHBOARD_PROXY_DIMENSION_AGENT = 4;
+  DASHBOARD_PROXY_DIMENSION_ERROR_KIND = 5;
+  DASHBOARD_PROXY_DIMENSION_STATUS_CLASS = 6;
+}
+
+message DashboardProxyDimensionSummary {
+  DashboardProxyDimension dimension = 1;
+  int64 id = 2;
+  string label = 3;
+  int64 requests = 4;
+  int64 success = 5;
+  int64 client_error = 6;
+  int64 server_error = 7;
+  int64 internal_error = 8;
+  int64 avg_duration_ms = 9;
+  uint64 request_bytes = 10;
+  uint64 response_bytes = 11;
+}
+
+message DashboardTrafficBucket {
+  int64 bucket_unix_millis = 1;
+  int64 requests = 2;
+  int64 success = 3;
+  int64 client_error = 4;
+  int64 server_error = 5;
+  int64 internal_error = 6;
+  uint64 request_bytes = 7;
+  uint64 response_bytes = 8;
+  int64 avg_duration_ms = 9;
 }
 
 message AgentConnectionSummary {
@@ -842,6 +885,13 @@ message GetDashboardResponse {
   AgentConnectionSummary agent_connections = 3;
   int64 retention_days = 4;
   int64 generated_at_unix_millis = 5;
+  repeated DashboardProxyDimensionSummary top_listeners = 6;
+  repeated DashboardProxyDimensionSummary top_backends = 7;
+  repeated DashboardProxyDimensionSummary top_routes = 8;
+  repeated DashboardProxyDimensionSummary top_agents = 9;
+  repeated DashboardProxyDimensionSummary top_error_kinds = 10;
+  repeated DashboardProxyDimensionSummary status_classes = 11;
+  repeated DashboardTrafficBucket traffic_buckets = 12;
 }
 
 message TrafficTraceSettings {
