@@ -334,9 +334,6 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 	ON public_tls_certificates (listener_id);
 
-	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_dns_credential_id
-	ON public_tls_certificates (dns_credential_id);
-
 	CREATE INDEX IF NOT EXISTS idx_agent_stats_reported_at
 	ON agent_stats (reported_at);
 

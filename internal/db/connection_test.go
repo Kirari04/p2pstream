@@ -184,6 +184,57 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	}
 }
 
+func TestMigrationUpgradesLegacyTLSCertificateSchema(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-tls.db")
+	raw, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open raw legacy db: %v", err)
+	}
+	legacySchema := `
+	CREATE TABLE public_tls_certificates (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		listener_id INTEGER NOT NULL,
+		hostname_pattern TEXT NOT NULL,
+		cert_path TEXT NOT NULL,
+		key_path TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	INSERT INTO public_tls_certificates (listener_id, hostname_pattern, cert_path, key_path, enabled)
+	VALUES (1, 'example.com', '/tmp/cert.pem', '/tmp/key.pem', 1);
+	`
+	if _, err := raw.ExecContext(context.Background(), legacySchema); err != nil {
+		t.Fatalf("create legacy TLS schema: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close raw legacy db: %v", err)
+	}
+
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated legacy db: %v", err)
+	}
+	defer database.Close()
+
+	tlsColumns := tableColumns(t, database, "public_tls_certificates")
+	for _, column := range []string{"source", "acme_challenge_type", "acme_ca", "acme_email", "dns_credential_id", "status", "last_error", "issued_at", "expires_at", "next_renewal_at", "last_renewal_attempt_at"} {
+		if !containsString(tlsColumns, column) {
+			t.Fatalf("public_tls_certificates missing column %s after migration; columns=%v", column, tlsColumns)
+		}
+	}
+	if !indexExists(t, database, "idx_public_tls_certificates_dns_credential_id") {
+		t.Fatal("expected idx_public_tls_certificates_dns_credential_id after migration")
+	}
+	cert, err := database.GetPublicTlsCertificate(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("get migrated cert: %v", err)
+	}
+	if cert.Source != "manual" || cert.Status != "ready" {
+		t.Fatalf("migrated cert source/status = %q/%q, want manual/ready", cert.Source, cert.Status)
+	}
+}
+
 func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "legacy-routes.db")
 	raw, err := sql.Open("sqlite3", dbPath)
