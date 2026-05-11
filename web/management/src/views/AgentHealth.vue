@@ -40,6 +40,9 @@ const rotateAgentToConfirm = ref<Agent | null>(null);
 const issuedToken = ref("");
 const issuedAgent = ref<Agent | null>(null);
 const setupManagementUrl = ref(defaultManagementUrl());
+const setupManagementCAFile = ref("/etc/p2pstream/management-ca.pem");
+const setupAgentTLSCertFile = ref("/etc/p2pstream/agent.crt.pem");
+const setupAgentTLSKeyFile = ref("/etc/p2pstream/agent.key.pem");
 const setupDockerImage = ref("p2pstream:local");
 const setupTab = ref<"systemd" | "docker" | "cli">("systemd");
 const setupCopyLabel = ref("Copy");
@@ -47,6 +50,7 @@ let setupCopyReset: number | undefined;
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => setupManagementUrl.value.trim().replace(/\/+$/, ""));
+const managementUsesTLS = computed(() => normalizedManagementUrl.value.toLowerCase().startsWith("https://"));
 const setupSnippet = computed(() => {
   if (!issuedAgent.value) return "";
   switch (setupTab.value) {
@@ -136,6 +140,9 @@ function openSetupModal(agent: Agent | null, token: string) {
   issuedAgent.value = agent;
   issuedToken.value = token;
   setupManagementUrl.value = defaultManagementUrl();
+  setupManagementCAFile.value = "/etc/p2pstream/management-ca.pem";
+  setupAgentTLSCertFile.value = "/etc/p2pstream/agent.crt.pem";
+  setupAgentTLSKeyFile.value = "/etc/p2pstream/agent.key.pem";
   setupDockerImage.value = "p2pstream:local";
   setupTab.value = "systemd";
   setupCopyLabel.value = "Copy";
@@ -171,6 +178,7 @@ function systemdSnippet(): string {
   return `sudo install -d -m 0755 /etc/p2pstream
 sudo tee /etc/p2pstream/agent.env >/dev/null <<'EOF'
 MANAGEMENT_URL=${envQuote(normalizedManagementUrl.value)}
+${systemdTLSLines()}
 AGENT_ID=${envQuote(issuedAgent.value.publicId)}
 AGENT_TOKEN=${envQuote(issuedToken.value)}
 EOF
@@ -204,14 +212,51 @@ function dockerComposeSnippet(): string {
     command: ["/app/p2pstream", "agent"]
     environment:
       MANAGEMENT_URL: ${yamlQuote(normalizedManagementUrl.value)}
+${dockerTLSLines()}
       AGENT_ID: ${yamlQuote(issuedAgent.value.publicId)}
       AGENT_TOKEN: ${yamlQuote(issuedToken.value)}
+${dockerTLSVolumes()}
     restart: unless-stopped`;
 }
 
 function cliSnippet(): string {
   if (!issuedAgent.value) return "";
-  return `MANAGEMENT_URL=${shellQuote(normalizedManagementUrl.value)} AGENT_ID=${shellQuote(issuedAgent.value.publicId)} AGENT_TOKEN=${shellQuote(issuedToken.value)} p2pstream agent`;
+  const parts = [
+    `MANAGEMENT_URL=${shellQuote(normalizedManagementUrl.value)}`,
+    ...cliTLSParts(),
+    `AGENT_ID=${shellQuote(issuedAgent.value.publicId)}`,
+    `AGENT_TOKEN=${shellQuote(issuedToken.value)}`,
+  ];
+  return `${parts.join(" ")} p2pstream agent`;
+}
+
+function systemdTLSLines(): string {
+  if (!managementUsesTLS.value) return "";
+  return `MANAGEMENT_CA_FILE=${envQuote(setupManagementCAFile.value.trim())}
+AGENT_TLS_CERT_FILE=${envQuote(setupAgentTLSCertFile.value.trim())}
+AGENT_TLS_KEY_FILE=${envQuote(setupAgentTLSKeyFile.value.trim())}`;
+}
+
+function dockerTLSLines(): string {
+  if (!managementUsesTLS.value) return "";
+  return `      MANAGEMENT_CA_FILE: ${yamlQuote(setupManagementCAFile.value.trim())}
+      AGENT_TLS_CERT_FILE: ${yamlQuote(setupAgentTLSCertFile.value.trim())}
+      AGENT_TLS_KEY_FILE: ${yamlQuote(setupAgentTLSKeyFile.value.trim())}`;
+}
+
+function dockerTLSVolumes(): string {
+  if (!managementUsesTLS.value) return "";
+  return `    volumes:
+      - /etc/p2pstream:/etc/p2pstream:ro`;
+}
+
+function cliTLSParts(): string[] {
+  if (!managementUsesTLS.value) return [];
+  return [
+    `MANAGEMENT_CA_FILE=${shellQuote(setupManagementCAFile.value.trim())}`,
+    `AGENT_TLS_CERT_FILE=${shellQuote(setupAgentTLSCertFile.value.trim())}`,
+    `AGENT_TLS_KEY_FILE=${shellQuote(setupAgentTLSKeyFile.value.trim())}`,
+  ];
 }
 
 async function copySetupSnippet() {
@@ -425,6 +470,21 @@ async function copySetupSnippet() {
           <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Docker Image
             <input v-model="setupDockerImage" class="vercel-input text-sm normal-case tracking-normal" required />
+          </label>
+        </div>
+
+        <div v-if="managementUsesTLS" class="grid gap-3 md:grid-cols-3">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Management CA
+            <input v-model="setupManagementCAFile" class="vercel-input text-sm normal-case tracking-normal" required />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Agent Certificate
+            <input v-model="setupAgentTLSCertFile" class="vercel-input text-sm normal-case tracking-normal" required />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Agent Key
+            <input v-model="setupAgentTLSKeyFile" class="vercel-input text-sm normal-case tracking-normal" required />
           </label>
         </div>
 
