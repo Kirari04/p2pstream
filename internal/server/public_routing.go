@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -143,24 +144,44 @@ type publicRouteResolution struct {
 	TrafficShaperResponseExemptBytes    int64
 }
 
+type proxyRequestObservability struct {
+	requestBytes     *atomic.Uint64
+	responseRecorder *proxyResponseRecorder
+}
+
+func (o proxyRequestObservability) requestBytesValue() uint64 {
+	if o.requestBytes == nil {
+		return 0
+	}
+	return o.requestBytes.Load()
+}
+
+func (o proxyRequestObservability) responseBytesValue() uint64 {
+	if o.responseRecorder == nil {
+		return 0
+	}
+	return o.responseRecorder.responseBytes()
+}
+
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestStartedAt := time.Now()
-		responseWriter := w
-		var recorder *traceResponseRecorder
-		if _, ok := a.TrafficTracer.enabledLevel(); ok {
-			recorder = &traceResponseRecorder{ResponseWriter: w}
-			responseWriter = recorder
+		var requestBytes atomic.Uint64
+		if r.Body != nil && r.Body != http.NoBody {
+			r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
 		}
+		recorder := &proxyResponseRecorder{ResponseWriter: w}
+		responseWriter := http.ResponseWriter(recorder)
+		observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
 		trace := a.newTrafficRequestTrace(r, recorder)
 		if trace != nil {
 			trace.emitReceived(listenerID)
 		}
 
 		if a.PublicACME != nil && a.PublicACME.ServeHTTPChallenge(responseWriter, r) {
-			statusCode := http.StatusOK
-			if recorder != nil && recorder.statusCode != 0 {
-				statusCode = recorder.statusCode
+			statusCode := recorder.statusCode
+			if statusCode == 0 {
+				statusCode = http.StatusOK
 			}
 			a.recordProxyRequestEventWithIDs(
 				context.Background(),
@@ -171,6 +192,8 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 				sql.NullInt64{},
 				sql.NullInt64{},
 				sql.NullInt64{},
+				observability.requestBytesValue(),
+				observability.responseBytesValue(),
 			)
 			return
 		}
@@ -209,6 +232,8 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 				sql.NullInt64{},
 				sql.NullInt64{},
 				sql.NullInt64{},
+				observability.requestBytesValue(),
+				observability.responseBytesValue(),
 			)
 			return
 		}
@@ -247,17 +272,19 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 
 		resolution, err := a.resolvePublicRoute(listenerID, r)
 		if err != nil {
+			http.Error(responseWriter, err.Error(), http.StatusBadGateway)
 			a.recordProxyRequestEventWithIDs(
 				context.Background(),
 				http.StatusBadGateway,
-				0,
+				time.Since(requestStartedAt),
 				"route_resolution_failed",
 				sql.NullInt64{Int64: listenerID, Valid: true},
 				sql.NullInt64{},
 				sql.NullInt64{},
 				sql.NullInt64{},
+				observability.requestBytesValue(),
+				observability.responseBytesValue(),
 			)
-			http.Error(responseWriter, err.Error(), http.StatusBadGateway)
 			if trace != nil {
 				failureResolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: listenerID, Valid: true}}
 				if trafficShaperSelected {
@@ -282,21 +309,21 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ROUTE_RESOLVED, &resolution, nil, 0, "", nil, nil)
 		}
 		if resolution.Action == publicRouteActionRedirect {
-			a.redirectRouteResponse(responseWriter, r, resolution, trace)
+			a.redirectRouteResponse(responseWriter, r, resolution, trace, observability)
 			return
 		}
 		if trace != nil {
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, nil)
 		}
 		if resolution.Backend.BackendType == publicBackendTypeStatic {
-			a.staticBackendResponse(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected))
+			a.staticBackendResponse(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), observability)
 			return
 		}
 		if resolution.Backend.ForwardMode == publicBackendForwardModeAgentPool {
-			a.proxyAgentRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected))
+			a.proxyAgentRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), observability)
 			return
 		}
-		a.proxyDirectRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected))
+		a.proxyDirectRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), observability)
 	}
 }
 
@@ -320,7 +347,7 @@ func applyTrafficShaperResolutionFields(resolution *publicRouteResolution, decis
 	resolution.TrafficShaperResponseExemptBytes = decision.Rule.ResponseExemptBytes
 }
 
-func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
+func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := int(resolution.Route.RedirectStatusCode)
 	if statusCode == 0 {
@@ -361,11 +388,13 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			sql.NullInt64{},
 			resolution.RouteID,
 			sql.NullInt64{},
+			observability.requestBytesValue(),
+			observability.responseBytesValue(),
 		)
 	}()
 }
 
-func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision) {
+func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := resolution.Backend.StaticStatusCode
 	if statusCode == 0 {
@@ -389,6 +418,8 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 			resolution.BackendID,
 			resolution.RouteID,
 			sql.NullInt64{},
+			observability.requestBytesValue(),
+			observability.responseBytesValue(),
 		)
 	}()
 
@@ -418,7 +449,7 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 	_, _ = io.Copy(w, body)
 }
 
-func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision) {
+func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -439,6 +470,8 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 			resolution.BackendID,
 			resolution.RouteID,
 			sql.NullInt64{},
+			observability.requestBytesValue(),
+			observability.responseBytesValue(),
 		)
 	}()
 
@@ -497,7 +530,7 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 	proxy.ServeHTTP(w, r)
 }
 
-func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision) {
+func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -520,6 +553,8 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 			resolution.BackendID,
 			resolution.RouteID,
 			selectedAgentID,
+			observability.requestBytesValue(),
+			observability.responseBytesValue(),
 		)
 	}()
 

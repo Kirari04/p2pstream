@@ -2,9 +2,11 @@ package server
 
 import (
 	"database/sql"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,20 +14,20 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 )
 
-type traceResponseRecorder struct {
+type proxyResponseRecorder struct {
 	http.ResponseWriter
 	statusCode int
 	bytes      uint64
 }
 
-func (r *traceResponseRecorder) WriteHeader(statusCode int) {
+func (r *proxyResponseRecorder) WriteHeader(statusCode int) {
 	if r.statusCode == 0 {
 		r.statusCode = statusCode
 	}
 	r.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (r *traceResponseRecorder) Write(data []byte) (int, error) {
+func (r *proxyResponseRecorder) Write(data []byte) (int, error) {
 	if r.statusCode == 0 {
 		r.statusCode = http.StatusOK
 	}
@@ -34,21 +36,48 @@ func (r *traceResponseRecorder) Write(data []byte) (int, error) {
 	return n, err
 }
 
-func (r *traceResponseRecorder) Flush() {
+func (r *proxyResponseRecorder) ReadFrom(src io.Reader) (int64, error) {
+	if r.statusCode == 0 {
+		r.statusCode = http.StatusOK
+	}
+	if readerFrom, ok := r.ResponseWriter.(io.ReaderFrom); ok {
+		n, err := readerFrom.ReadFrom(src)
+		r.bytes += uint64(n)
+		return n, err
+	}
+	n, err := io.Copy(r.ResponseWriter, src)
+	r.bytes += uint64(n)
+	return n, err
+}
+
+func (r *proxyResponseRecorder) Flush() {
 	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
 		flusher.Flush()
 	}
 }
 
-func (r *traceResponseRecorder) Unwrap() http.ResponseWriter {
+func (r *proxyResponseRecorder) Unwrap() http.ResponseWriter {
 	return r.ResponseWriter
 }
 
-func (r *traceResponseRecorder) responseBytes() uint64 {
+func (r *proxyResponseRecorder) responseBytes() uint64 {
 	if r == nil {
 		return 0
 	}
 	return r.bytes
+}
+
+type countingReadCloser struct {
+	io.ReadCloser
+	bytes *atomic.Uint64
+}
+
+func (r *countingReadCloser) Read(data []byte) (int, error) {
+	n, err := r.ReadCloser.Read(data)
+	if n > 0 && r.bytes != nil {
+		r.bytes.Add(uint64(n))
+	}
+	return n, err
 }
 
 type trafficRequestTrace struct {
@@ -62,10 +91,10 @@ type trafficRequestTrace struct {
 	query          string
 	requestHeaders map[string]string
 	requestBytes   uint64
-	recorder       *traceResponseRecorder
+	recorder       *proxyResponseRecorder
 }
 
-func (a *App) newTrafficRequestTrace(r *http.Request, recorder *traceResponseRecorder) *trafficRequestTrace {
+func (a *App) newTrafficRequestTrace(r *http.Request, recorder *proxyResponseRecorder) *trafficRequestTrace {
 	if a == nil || a.TrafficTracer == nil {
 		return nil
 	}

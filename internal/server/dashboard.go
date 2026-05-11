@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -23,6 +24,12 @@ var dashboardWindows = []struct {
 	{Label: "24h", Since: 24 * time.Hour},
 	{Label: "30d", Since: 30 * 24 * time.Hour},
 }
+
+const (
+	dashboardTopWindow            = time.Hour
+	dashboardTrafficBucketWindow  = time.Hour
+	dashboardTrafficBucketSeconds = int64(5 * 60)
+)
 
 func (a *App) GetDashboard(
 	ctx context.Context,
@@ -60,13 +67,20 @@ func (a *App) GetDashboard(
 			ProxyServerError:      proxySummary.ServerError,
 			ProxyInternalError:    proxySummary.InternalError,
 			ProxyAvgDurationMs:    proxySummary.AvgDurationMs,
+			ProxyRequestBytes:     uint64FromInt64(proxySummary.RequestBytes),
+			ProxyResponseBytes:    uint64FromInt64(proxySummary.ResponseBytes),
+			ProxyTotalBytes:       uint64FromInt64(proxySummary.TotalBytes),
+			ProxyAvgRequestBytes:  uint64FromInt64(proxySummary.AvgRequestBytes),
+			ProxyAvgResponseBytes: uint64FromInt64(proxySummary.AvgResponseBytes),
+			ProxyMaxDurationMs:    proxySummary.MaxDurationMs,
+			ProxySlowRequests:     proxySummary.SlowRequests,
 			AgentSamples:          agentSummary.Samples,
 			AgentReqSuccess:       agentSummary.ReqSuccess,
 			AgentReqClientError:   agentSummary.ReqClientError,
 			AgentReqServerError:   agentSummary.ReqServerError,
 			AgentReqInternalError: agentSummary.ReqInternalError,
-			AgentBytesReceived:    uint64(agentSummary.BytesRx),
-			AgentBytesSent:        uint64(agentSummary.BytesTx),
+			AgentBytesReceived:    uint64FromInt64(agentSummary.BytesRx),
+			AgentBytesSent:        uint64FromInt64(agentSummary.BytesTx),
 			AgentAvgMemoryMb:      agentSummary.AvgMemoryMb,
 			AgentMaxMemoryMb:      agentSummary.MaxMemoryMb,
 			AgentAvgGoroutines:    agentSummary.AvgGoroutines,
@@ -79,18 +93,58 @@ func (a *App) GetDashboard(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
+	topSince := now.Add(-dashboardTopWindow)
+	topListenerRows, err := a.DB.ListTopProxyListenersSince(ctx, topSince)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topBackendRows, err := a.DB.ListTopProxyBackendsSince(ctx, topSince)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topRouteRows, err := a.DB.ListTopProxyRoutesSince(ctx, topSince)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topAgentRows, err := a.DB.ListTopProxyAgentsSince(ctx, topSince)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topErrorRows, err := a.DB.ListTopProxyErrorKindsSince(ctx, topSince)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	statusClassRows, err := a.DB.ListProxyStatusClassesSince(ctx, topSince)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	trafficBucketRows, err := a.DB.ListProxyTrafficBucketsSince(ctx, db.ListProxyTrafficBucketsSinceParams{
+		BucketSeconds: dashboardTrafficBucketSeconds,
+		Since:         now.Add(-dashboardTrafficBucketWindow),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	resp := &p2pstreamv1.GetDashboardResponse{
 		Status:                a.statusResponse(),
 		Windows:               windows,
 		AgentConnections:      agentConnections,
 		RetentionDays:         int64(a.observabilityRetentionDays()),
 		GeneratedAtUnixMillis: now.UnixMilli(),
+		TopListeners:          dashboardListenerSummaries(topListenerRows),
+		TopBackends:           dashboardBackendSummaries(topBackendRows),
+		TopRoutes:             dashboardRouteSummaries(topRouteRows),
+		TopAgents:             dashboardAgentSummaries(topAgentRows),
+		TopErrorKinds:         dashboardErrorKindSummaries(topErrorRows),
+		StatusClasses:         dashboardStatusClassSummaries(statusClassRows),
+		TrafficBuckets:        dashboardTrafficBuckets(trafficBucketRows),
 	}
 	return connect.NewResponse(resp), nil
 }
 
 func (a *App) recordProxyRequestEvent(ctx context.Context, statusCode int, duration time.Duration, errorKind string) {
-	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{})
+	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, 0, 0)
 }
 
 func (a *App) recordProxyRequestEventWithIDs(
@@ -102,6 +156,8 @@ func (a *App) recordProxyRequestEventWithIDs(
 	backendID sql.NullInt64,
 	routeID sql.NullInt64,
 	agentID sql.NullInt64,
+	requestBytes uint64,
+	responseBytes uint64,
 ) {
 	if a.DB == nil {
 		return
@@ -114,16 +170,212 @@ func (a *App) recordProxyRequestEventWithIDs(
 	}
 
 	if err := a.DB.InsertProxyRequestEvent(ctx, db.InsertProxyRequestEventParams{
-		StatusCode: int64(statusCode),
-		DurationMs: duration.Milliseconds(),
-		ErrorKind:  errorKind,
-		ListenerID: listenerID,
-		BackendID:  backendID,
-		RouteID:    routeID,
-		AgentID:    agentID,
+		StatusCode:    int64(statusCode),
+		DurationMs:    duration.Milliseconds(),
+		ErrorKind:     errorKind,
+		ListenerID:    listenerID,
+		BackendID:     backendID,
+		RouteID:       routeID,
+		AgentID:       agentID,
+		RequestBytes:  int64FromUint64(requestBytes),
+		ResponseBytes: int64FromUint64(responseBytes),
 	}); err != nil {
 		log.Warn().Err(err).Msg("Failed to record proxy request event")
 	}
+}
+
+func dashboardListenerSummaries(rows []db.ListTopProxyListenersSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardDimensionSummary(
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_LISTENER,
+			row.ID,
+			row.Label,
+			row.Requests,
+			row.Success,
+			row.ClientError,
+			row.ServerError,
+			row.InternalError,
+			row.AvgDurationMs,
+			row.RequestBytes,
+			row.ResponseBytes,
+		))
+	}
+	return items
+}
+
+func dashboardBackendSummaries(rows []db.ListTopProxyBackendsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardDimensionSummary(
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_BACKEND,
+			row.ID,
+			row.Label,
+			row.Requests,
+			row.Success,
+			row.ClientError,
+			row.ServerError,
+			row.InternalError,
+			row.AvgDurationMs,
+			row.RequestBytes,
+			row.ResponseBytes,
+		))
+	}
+	return items
+}
+
+func dashboardRouteSummaries(rows []db.ListTopProxyRoutesSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardDimensionSummary(
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE,
+			row.ID,
+			row.Label,
+			row.Requests,
+			row.Success,
+			row.ClientError,
+			row.ServerError,
+			row.InternalError,
+			row.AvgDurationMs,
+			row.RequestBytes,
+			row.ResponseBytes,
+		))
+	}
+	return items
+}
+
+func dashboardAgentSummaries(rows []db.ListTopProxyAgentsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardDimensionSummary(
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_AGENT,
+			row.ID,
+			row.Label,
+			row.Requests,
+			row.Success,
+			row.ClientError,
+			row.ServerError,
+			row.InternalError,
+			row.AvgDurationMs,
+			row.RequestBytes,
+			row.ResponseBytes,
+		))
+	}
+	return items
+}
+
+func dashboardErrorKindSummaries(rows []db.ListTopProxyErrorKindsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardDimensionSummary(
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ERROR_KIND,
+			row.ID,
+			row.Label,
+			row.Requests,
+			row.Success,
+			row.ClientError,
+			row.ServerError,
+			row.InternalError,
+			row.AvgDurationMs,
+			row.RequestBytes,
+			row.ResponseBytes,
+		))
+	}
+	return items
+}
+
+func dashboardStatusClassSummaries(rows []db.ListProxyStatusClassesSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardDimensionSummary(
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_STATUS_CLASS,
+			row.ID,
+			row.Label,
+			row.Requests,
+			row.Success,
+			row.ClientError,
+			row.ServerError,
+			row.InternalError,
+			row.AvgDurationMs,
+			row.RequestBytes,
+			row.ResponseBytes,
+		))
+	}
+	return items
+}
+
+func dashboardDimensionSummary(
+	dimension p2pstreamv1.DashboardProxyDimension,
+	id int64,
+	label any,
+	requests int64,
+	success int64,
+	clientError int64,
+	serverError int64,
+	internalError int64,
+	avgDurationMs int64,
+	requestBytes int64,
+	responseBytes int64,
+) *p2pstreamv1.DashboardProxyDimensionSummary {
+	return &p2pstreamv1.DashboardProxyDimensionSummary{
+		Dimension:     dimension,
+		Id:            id,
+		Label:         dashboardLabelString(label),
+		Requests:      requests,
+		Success:       success,
+		ClientError:   clientError,
+		ServerError:   serverError,
+		InternalError: internalError,
+		AvgDurationMs: avgDurationMs,
+		RequestBytes:  uint64FromInt64(requestBytes),
+		ResponseBytes: uint64FromInt64(responseBytes),
+	}
+}
+
+func dashboardTrafficBuckets(rows []db.ListProxyTrafficBucketsSinceRow) []*p2pstreamv1.DashboardTrafficBucket {
+	items := make([]*p2pstreamv1.DashboardTrafficBucket, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, &p2pstreamv1.DashboardTrafficBucket{
+			BucketUnixMillis: row.BucketUnixMillis,
+			Requests:         row.Requests,
+			Success:          row.Success,
+			ClientError:      row.ClientError,
+			ServerError:      row.ServerError,
+			InternalError:    row.InternalError,
+			RequestBytes:     uint64FromInt64(row.RequestBytes),
+			ResponseBytes:    uint64FromInt64(row.ResponseBytes),
+			AvgDurationMs:    row.AvgDurationMs,
+		})
+	}
+	return items
+}
+
+func dashboardLabelString(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	default:
+		return fmt.Sprint(v)
+	}
+}
+
+func uint64FromInt64(value int64) uint64 {
+	if value <= 0 {
+		return 0
+	}
+	return uint64(value)
+}
+
+func int64FromUint64(value uint64) int64 {
+	maxInt64 := uint64(^uint64(0) >> 1)
+	if value > maxInt64 {
+		return int64(maxInt64)
+	}
+	return int64(value)
 }
 
 func (a *App) cleanupObservability(ctx context.Context, now time.Time) {
