@@ -24,6 +24,8 @@ const (
 	trafficTraceRedactedValue    = "[redacted]"
 )
 
+var trafficTraceHeartbeatInterval = 5 * time.Second
+
 type trafficTracer struct {
 	enabled         atomic.Bool
 	level           atomic.Int32
@@ -90,6 +92,8 @@ func (a *App) StreamTrafficTraceEvents(
 
 	subscriber, initial, replay := a.TrafficTracer.subscribe(req.Msg.ReplayRecent, req.Msg.AfterSequence)
 	defer a.TrafficTracer.unsubscribe(subscriber.id)
+	ticker := time.NewTicker(trafficTraceHeartbeatInterval)
+	defer ticker.Stop()
 
 	if err := stream.Send(traceResponseForSubscriber(initial, subscriber)); err != nil {
 		return err
@@ -109,6 +113,10 @@ func (a *App) StreamTrafficTraceEvents(
 				return nil
 			}
 			if err := stream.Send(traceResponseForSubscriber(resp, subscriber)); err != nil {
+				return err
+			}
+		case <-ticker.C:
+			if err := stream.Send(traceResponseForSubscriber(a.TrafficTracer.settingsResponse(), subscriber)); err != nil {
 				return err
 			}
 		}
@@ -137,6 +145,12 @@ func (t *trafficTracer) settings() *p2pstreamv1.TrafficTraceSettings {
 	return t.settingsLocked()
 }
 
+func (t *trafficTracer) settingsResponse() *p2pstreamv1.StreamTrafficTraceEventsResponse {
+	return &p2pstreamv1.StreamTrafficTraceEventsResponse{
+		Settings: t.settings(),
+	}
+}
+
 func (t *trafficTracer) set(enabled bool, level p2pstreamv1.TrafficTraceLevel) (*p2pstreamv1.TrafficTraceSettings, error) {
 	if t == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("traffic tracer is unavailable"))
@@ -162,7 +176,7 @@ func (t *trafficTracer) set(enabled bool, level p2pstreamv1.TrafficTraceLevel) (
 	t.mu.Lock()
 	settings := t.settingsLocked()
 	resp := &p2pstreamv1.StreamTrafficTraceEventsResponse{Settings: settings}
-	t.broadcastLocked(resp)
+	t.broadcastLocked(resp, 0)
 	t.mu.Unlock()
 	return settings, nil
 }
@@ -179,6 +193,7 @@ func (t *trafficTracer) subscribe(replayRecent bool, afterSequence uint64) (*tra
 	t.subscribers[subscriber.id] = subscriber
 
 	initial := &p2pstreamv1.StreamTrafficTraceEventsResponse{Settings: t.settingsLocked()}
+	t.broadcastLocked(&p2pstreamv1.StreamTrafficTraceEventsResponse{Settings: initial.Settings}, subscriber.id)
 	var replay []*p2pstreamv1.StreamTrafficTraceEventsResponse
 	if replayRecent {
 		for _, resp := range t.ring {
@@ -203,6 +218,7 @@ func (t *trafficTracer) unsubscribe(id uint64) {
 	}
 	delete(t.subscribers, id)
 	close(subscriber.ch)
+	t.broadcastLocked(&p2pstreamv1.StreamTrafficTraceEventsResponse{Settings: t.settingsLocked()}, 0)
 }
 
 func (t *trafficTracer) publish(event *p2pstreamv1.TrafficTraceEvent) {
@@ -231,12 +247,15 @@ func (t *trafficTracer) publish(event *p2pstreamv1.TrafficTraceEvent) {
 		copy(t.ring, t.ring[len(t.ring)-trafficTraceRingSize:])
 		t.ring = t.ring[:trafficTraceRingSize]
 	}
-	t.broadcastLocked(resp)
+	t.broadcastLocked(resp, 0)
 	t.mu.Unlock()
 }
 
-func (t *trafficTracer) broadcastLocked(resp *p2pstreamv1.StreamTrafficTraceEventsResponse) {
-	for _, subscriber := range t.subscribers {
+func (t *trafficTracer) broadcastLocked(resp *p2pstreamv1.StreamTrafficTraceEventsResponse, excludeSubscriberID uint64) {
+	for id, subscriber := range t.subscribers {
+		if excludeSubscriberID != 0 && id == excludeSubscriberID {
+			continue
+		}
 		select {
 		case subscriber.ch <- resp:
 		default:

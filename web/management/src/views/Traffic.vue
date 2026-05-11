@@ -233,6 +233,10 @@ function openEditTarget(target: TrafficFlowEditTarget) {
   editorHost.value?.openTarget(target);
 }
 
+function handlePageHide() {
+  stopTraceStream("idle");
+}
+
 function proxyErrors(window: DashboardWindowSummary): bigint {
   return window.proxyClientError + window.proxyServerError + window.proxyInternalError;
 }
@@ -268,10 +272,12 @@ function messageFromError(err: unknown): string {
 }
 
 onMounted(() => {
+  window.addEventListener("pagehide", handlePageHide);
   void loadTraceSettings();
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("pagehide", handlePageHide);
   stopTraceStream();
   traceStore.clear();
 });

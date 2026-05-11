@@ -80,6 +80,81 @@ func TestTrafficTraceStreamRequiresAdminAndSendsInitialSettings(t *testing.T) {
 	}
 }
 
+func TestTrafficTraceSubscriberCountBroadcastsOnSubscribe(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
+
+	streamA, stopA := openTrafficTraceStream(t, client, cookie, false, 0, 3*time.Second)
+	defer stopA()
+	initialA := receiveTrafficTraceResponse(t, streamA)
+	if initialA.Settings == nil || initialA.Settings.SubscriberCount != 1 {
+		t.Fatalf("stream A initial subscriber count = %+v, want 1", initialA.Settings)
+	}
+
+	streamB, stopB := openTrafficTraceStream(t, client, cookie, false, 0, 3*time.Second)
+	defer stopB()
+	initialB := receiveTrafficTraceResponse(t, streamB)
+	if initialB.Settings == nil || initialB.Settings.SubscriberCount != 2 {
+		t.Fatalf("stream B initial subscriber count = %+v, want 2", initialB.Settings)
+	}
+
+	settingsA := receiveTrafficTraceSettingsUntil(t, streamA, 2)
+	if settingsA.SubscriberCount != 2 {
+		t.Fatalf("stream A subscriber count update = %d, want 2", settingsA.SubscriberCount)
+	}
+}
+
+func TestTrafficTraceSubscriberCountBroadcastsOnUnsubscribe(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
+
+	streamA, stopA := openTrafficTraceStream(t, client, cookie, false, 0, 3*time.Second)
+	defer stopA()
+	_ = receiveTrafficTraceResponse(t, streamA)
+
+	streamB, stopB := openTrafficTraceStream(t, client, cookie, false, 0, 3*time.Second)
+	_ = receiveTrafficTraceResponse(t, streamB)
+	_ = receiveTrafficTraceSettingsUntil(t, streamA, 2)
+
+	stopB()
+	settingsA := receiveTrafficTraceSettingsUntil(t, streamA, 1)
+	if settingsA.SubscriberCount != 1 {
+		t.Fatalf("stream A subscriber count after stream B unsubscribe = %d, want 1", settingsA.SubscriberCount)
+	}
+
+	stopA()
+	waitTrafficTraceSubscriberCount(t, client, cookie, 0)
+}
+
+func TestTrafficTraceHeartbeatPublishesSettingsWithoutEvents(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
+
+	stream, stop := openTrafficTraceStream(t, client, cookie, false, 0, 7*time.Second)
+	defer stop()
+	initial := receiveTrafficTraceResponse(t, stream)
+	if initial.Settings == nil || initial.Event != nil {
+		t.Fatalf("unexpected initial trace response: %+v", initial)
+	}
+
+	heartbeat := receiveTrafficTraceResponse(t, stream)
+	if heartbeat.Settings == nil {
+		t.Fatalf("expected heartbeat settings response, got %+v", heartbeat)
+	}
+	if heartbeat.Event != nil {
+		t.Fatalf("heartbeat should not include event: %+v", heartbeat.Event)
+	}
+	if heartbeat.Settings.SubscriberCount != 1 {
+		t.Fatalf("heartbeat subscriber count = %d, want 1", heartbeat.Settings.SubscriberCount)
+	}
+}
+
 func TestTrafficTraceDirectRequestStagesAndLevels(t *testing.T) {
 	targetSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Upstream-Trace", "ok")
@@ -142,6 +217,45 @@ func TestTrafficTraceDirectRequestStagesAndLevels(t *testing.T) {
 	}
 	if finalEvent.BackendName == "" || finalEvent.ListenerName == "" {
 		t.Fatalf("expected listener/backend names in final event: %+v", finalEvent)
+	}
+}
+
+func TestTrafficTraceHeartbeatDoesNotBreakReplay(t *testing.T) {
+	targetSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("replay ok"))
+	}))
+	defer targetSrv.Close()
+
+	database := newTestDB(t)
+	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
+	app := server.NewApp(&config.Config{}, database)
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
+
+	status, err := app.StartProxyListener(context.Background())
+	if err != nil {
+		t.Fatalf("start proxy: %v", err)
+	}
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _ = app.StopProxyListener(shutdownCtx)
+	})
+
+	resp, err := http.Get("http://" + publicListenerBoundAddress(t, status, listener.ID) + "/replay")
+	if err != nil {
+		t.Fatalf("proxy request: %v", err)
+	}
+	defer resp.Body.Close()
+	_ = mustReadResponseBody(t, resp)
+
+	stream, stop := openTrafficTraceStream(t, client, cookie, true, 0, 2*time.Second)
+	defer stop()
+	_ = receiveTrafficTraceResponse(t, stream)
+	events := collectTrafficTraceEventsUntil(t, stream, p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT)
+	if len(events) == 0 {
+		t.Fatal("expected replayed trace events")
 	}
 }
 
@@ -315,6 +429,41 @@ func receiveTrafficTraceResponse(
 		t.Fatalf("receive trace response: %v", stream.Err())
 	}
 	return stream.Msg()
+}
+
+func receiveTrafficTraceSettingsUntil(
+	t *testing.T,
+	stream *connect.ServerStreamForClient[p2pstreamv1.StreamTrafficTraceEventsResponse],
+	count int64,
+) *p2pstreamv1.TrafficTraceSettings {
+	t.Helper()
+	for stream.Receive() {
+		msg := stream.Msg()
+		if msg.Settings != nil && msg.Settings.SubscriberCount == count {
+			return msg.Settings
+		}
+	}
+	t.Fatalf("trace stream ended before subscriber count %d: %v", count, stream.Err())
+	return nil
+}
+
+func waitTrafficTraceSubscriberCount(
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	count int64,
+) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		settings := getTrafficTraceSettings(t, client, cookie)
+		if settings.SubscriberCount == count {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	settings := getTrafficTraceSettings(t, client, cookie)
+	t.Fatalf("subscriber count = %d, want %d", settings.SubscriberCount, count)
 }
 
 func collectTrafficTraceEventsUntil(
