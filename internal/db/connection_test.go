@@ -44,7 +44,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	defer database.Close()
 
-	for _, table := range []string{"agents", "public_backend_agents"} {
+	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -52,7 +52,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 
 	backendColumns := tableColumns(t, database, "public_backends")
-	for _, column := range []string{"forward_mode", "load_balancing"} {
+	for _, column := range []string{"forward_mode", "load_balancing", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"} {
 		if !containsString(backendColumns, column) {
 			t.Fatalf("public_backends missing column %s in %v", column, backendColumns)
 		}
@@ -66,6 +66,9 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	if backend.ForwardMode != "direct" || backend.LoadBalancing != "round_robin" {
 		t.Fatalf("backend defaults = mode %q lb %q, want direct round_robin", backend.ForwardMode, backend.LoadBalancing)
+	}
+	if backend.UpstreamBasicAuthEnabled != 0 || backend.UpstreamBasicAuthUsername != "" || backend.UpstreamBasicAuthPassword != "" {
+		t.Fatalf("backend upstream auth defaults = enabled %d username %q password %q, want disabled empty", backend.UpstreamBasicAuthEnabled, backend.UpstreamBasicAuthUsername, backend.UpstreamBasicAuthPassword)
 	}
 }
 
@@ -125,7 +128,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 		"connections":          {"agent_id"},
 		"agent_stats":          {"agent_id", "req_internal_error"},
 		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id"},
-		"public_backends":      {"backend_type", "forward_mode", "load_balancing", "tls_skip_verify", "static_status_code", "static_response_body"},
+		"public_backends":      {"backend_type", "forward_mode", "load_balancing", "tls_skip_verify", "static_status_code", "static_response_body", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"},
 	} {
 		got := tableColumns(t, database, table)
 		for _, column := range columns {
@@ -139,6 +142,72 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	}
 	if !indexExists(t, database, "idx_connections_agent_id") {
 		t.Fatal("expected idx_connections_agent_id after migration")
+	}
+	if !indexExists(t, database, "idx_public_backend_upstream_headers_backend_position") {
+		t.Fatal("expected idx_public_backend_upstream_headers_backend_position after migration")
+	}
+}
+
+func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
+	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	backend, err := database.CreatePublicBackend(context.Background(), CreatePublicBackendParams{
+		Name:         "upstream-headers",
+		TargetOrigin: "http://example.com",
+		BackendType:  "proxy_forward",
+		Enabled:      1,
+	})
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	first, err := database.CreatePublicBackendUpstreamHeader(context.Background(), CreatePublicBackendUpstreamHeaderParams{
+		BackendID: backend.ID,
+		Position:  0,
+		Name:      "X-Upstream-One",
+		Value:     "one",
+		Sensitive: 0,
+	})
+	if err != nil {
+		t.Fatalf("create upstream header: %v", err)
+	}
+	second, err := database.CreatePublicBackendUpstreamHeader(context.Background(), CreatePublicBackendUpstreamHeaderParams{
+		BackendID: backend.ID,
+		Position:  1,
+		Name:      "Authorization",
+		Value:     "Bearer secret",
+		Sensitive: 1,
+	})
+	if err != nil {
+		t.Fatalf("create sensitive upstream header: %v", err)
+	}
+
+	byBackend, err := database.ListPublicBackendUpstreamHeadersByBackend(context.Background(), backend.ID)
+	if err != nil {
+		t.Fatalf("list upstream headers by backend: %v", err)
+	}
+	if len(byBackend) != 2 || byBackend[0].ID != first.ID || byBackend[1].ID != second.ID {
+		t.Fatalf("unexpected upstream headers by backend: %+v", byBackend)
+	}
+	all, err := database.ListPublicBackendUpstreamHeaders(context.Background())
+	if err != nil {
+		t.Fatalf("list upstream headers: %v", err)
+	}
+	if len(all) != 2 || all[0].Name != "X-Upstream-One" || all[1].Sensitive != 1 {
+		t.Fatalf("unexpected upstream headers: %+v", all)
+	}
+	if err := database.DeletePublicBackendUpstreamHeaders(context.Background(), backend.ID); err != nil {
+		t.Fatalf("delete upstream headers: %v", err)
+	}
+	empty, err := database.ListPublicBackendUpstreamHeadersByBackend(context.Background(), backend.ID)
+	if err != nil {
+		t.Fatalf("list deleted upstream headers: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("expected deleted upstream headers, got %+v", empty)
 	}
 }
 
