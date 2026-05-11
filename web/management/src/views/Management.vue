@@ -31,6 +31,7 @@ import {
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type StaticHeaderForm = { name: string; value: string };
+type UpstreamHeaderForm = { id: string; name: string; value: string; sensitive: boolean };
 type BackendAgentForm = { agentId: string; weight: number; enabled: boolean };
 type TlsFileField = "cert" | "key";
 
@@ -68,6 +69,11 @@ const backendForm = reactive({
   loadBalancing: PublicBackendLoadBalancing.ROUND_ROBIN,
   targetOrigin: "",
   tlsVerify: true,
+  upstreamBasicAuthEnabled: false,
+  upstreamBasicAuthUsername: "",
+  upstreamBasicAuthPassword: "",
+  upstreamBasicAuthPasswordSaved: false,
+  upstreamRequestHeaders: [] as UpstreamHeaderForm[],
   agentAssignments: [] as BackendAgentForm[],
   staticStatusCode: 200,
   staticResponseHeaders: [] as StaticHeaderForm[],
@@ -215,6 +221,10 @@ function backendAgentSummary(backend: PublicBackend): string {
   return assignments.map((assignment) => `${agentName(assignment.agentId)} x${assignment.weight.toString()}`).join(", ");
 }
 
+function upstreamHeaderCount(backend: PublicBackend): number {
+  return backend.upstreamRequestHeaders.length;
+}
+
 function isDefaultSelfSignedCertificate(cert: PublicTlsCertificate): boolean {
   return cert.hostnamePattern === "p2pstream.local";
 }
@@ -236,6 +246,11 @@ function resetBackendForm() {
   backendForm.loadBalancing = PublicBackendLoadBalancing.ROUND_ROBIN;
   backendForm.targetOrigin = "";
   backendForm.tlsVerify = true;
+  backendForm.upstreamBasicAuthEnabled = false;
+  backendForm.upstreamBasicAuthUsername = "";
+  backendForm.upstreamBasicAuthPassword = "";
+  backendForm.upstreamBasicAuthPasswordSaved = false;
+  backendForm.upstreamRequestHeaders = [];
   backendForm.agentAssignments = [];
   backendForm.staticStatusCode = 200;
   backendForm.staticResponseHeaders = [];
@@ -251,6 +266,16 @@ function editBackend(backend: PublicBackend) {
   backendForm.loadBalancing = backend.loadBalancing || PublicBackendLoadBalancing.ROUND_ROBIN;
   backendForm.targetOrigin = backend.targetOrigin;
   backendForm.tlsVerify = !backend.tlsSkipVerify;
+  backendForm.upstreamBasicAuthEnabled = backend.upstreamBasicAuth?.enabled ?? false;
+  backendForm.upstreamBasicAuthUsername = backend.upstreamBasicAuth?.username ?? "";
+  backendForm.upstreamBasicAuthPassword = "";
+  backendForm.upstreamBasicAuthPasswordSaved = backend.upstreamBasicAuth?.passwordSet ?? false;
+  backendForm.upstreamRequestHeaders = backend.upstreamRequestHeaders.map((header) => ({
+    id: header.id.toString(),
+    name: header.name,
+    value: header.sensitive ? "" : header.value,
+    sensitive: header.sensitive,
+  }));
   backendForm.agentAssignments = assignmentsForBackend(backend).map((assignment) => ({
     agentId: assignment.agentId.toString(),
     weight: Number(assignment.weight || 100n),
@@ -272,6 +297,14 @@ function addStaticHeader() {
 
 function removeStaticHeader(index: number) {
   backendForm.staticResponseHeaders.splice(index, 1);
+}
+
+function addUpstreamHeader() {
+  backendForm.upstreamRequestHeaders.push({ id: "", name: "", value: "", sensitive: false });
+}
+
+function removeUpstreamHeader(index: number) {
+  backendForm.upstreamRequestHeaders.splice(index, 1);
 }
 
 function addBackendAgentAssignment() {
@@ -422,6 +455,25 @@ async function submitBackend() {
         }))
         : [],
       tlsSkipVerify: !isStatic && !backendForm.tlsVerify,
+      upstreamRequestHeaders: isStatic
+        ? []
+        : backendForm.upstreamRequestHeaders.map((header, index) => ({
+          id: BigInt(header.id || "0"),
+          backendId: BigInt(backendForm.id || "0"),
+          name: header.name,
+          value: header.value,
+          sensitive: header.sensitive,
+          valueSet: !header.sensitive || header.value !== "" || !header.id,
+          position: BigInt(index),
+        })),
+      upstreamBasicAuth: isStatic
+        ? { enabled: false, username: "", password: "", passwordSet: false }
+        : {
+          enabled: backendForm.upstreamBasicAuthEnabled,
+          username: backendForm.upstreamBasicAuthUsername,
+          password: backendForm.upstreamBasicAuthPassword,
+          passwordSet: backendForm.upstreamBasicAuthEnabled && (backendForm.upstreamBasicAuthPassword !== "" || !backendForm.upstreamBasicAuthPasswordSaved),
+        },
       staticStatusCode: BigInt(isStatic ? backendForm.staticStatusCode || 200 : 200),
       staticResponseHeaders: isStatic
         ? backendForm.staticResponseHeaders.map((header) => ({ name: header.name, value: header.value }))
@@ -709,6 +761,18 @@ watch(httpsListeners, () => {
                 severity="info"
                 class="!bg-[#111] !border-[#333] !text-white"
               />
+              <Tag
+                v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && backend.upstreamBasicAuth?.enabled"
+                value="Basic auth"
+                severity="info"
+                class="!bg-[#111] !border-[#333] !text-white"
+              />
+              <Tag
+                v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && upstreamHeaderCount(backend) > 0"
+                :value="`${upstreamHeaderCount(backend)} upstream headers`"
+                severity="info"
+                class="!bg-[#111] !border-[#333] !text-white"
+              />
               <Tag v-if="!backend.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
             </div>
             <p class="truncate text-xs text-[#888] mt-1">{{ backendSummary(backend) }}</p>
@@ -878,6 +942,43 @@ watch(httpsListeners, () => {
             <input v-model="backendForm.tlsVerify" type="checkbox" class="h-4 w-4 accent-white" />
             Verify upstream TLS certificate
           </label>
+          <div class="grid gap-3 rounded-md border border-[#333] bg-[#0b0b0b] p-3">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Upstream request</p>
+              <SecondaryButton size="small" label="Add Header" type="button" @click="addUpstreamHeader" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
+              <input v-model="backendForm.upstreamBasicAuthEnabled" type="checkbox" class="h-4 w-4 accent-white" />
+              Basic Auth
+            </label>
+            <div v-if="backendForm.upstreamBasicAuthEnabled" class="grid gap-2 sm:grid-cols-2">
+              <input v-model="backendForm.upstreamBasicAuthUsername" class="vercel-input text-sm normal-case tracking-normal" placeholder="Username" autocomplete="off" />
+              <input
+                v-model="backendForm.upstreamBasicAuthPassword"
+                class="vercel-input text-sm normal-case tracking-normal"
+                :placeholder="backendForm.upstreamBasicAuthPasswordSaved ? 'Saved password' : 'Password'"
+                type="password"
+                autocomplete="new-password"
+              />
+            </div>
+            <div v-for="(header, index) in backendForm.upstreamRequestHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_6rem_auto]">
+              <input v-model="header.name" class="vercel-input text-sm normal-case tracking-normal" placeholder="X-Upstream-Header" />
+              <input
+                v-model="header.value"
+                class="vercel-input text-sm normal-case tracking-normal"
+                :placeholder="header.sensitive && header.id ? 'Saved value' : 'Value'"
+                :type="header.sensitive ? 'password' : 'text'"
+                autocomplete="off"
+              />
+              <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
+                <input v-model="header.sensitive" type="checkbox" class="h-4 w-4 accent-white" />
+                Secret
+              </label>
+              <DangerButton size="small" aria-label="Remove upstream header" title="Remove upstream header" type="button" @click="removeUpstreamHeader(index)">
+                <template #icon><TimesIcon class="h-3.5 w-3.5" /></template>
+              </DangerButton>
+            </div>
+          </div>
           <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Forwarding
             <div class="grid grid-cols-2 rounded-md border border-[#333] bg-[#0b0b0b] p-1">
