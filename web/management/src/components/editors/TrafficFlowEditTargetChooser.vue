@@ -32,6 +32,8 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
       return "Backend";
     case "agent":
       return "Agent";
+    case "rate-limit":
+      return "Rate limit";
   }
 }
 </script>

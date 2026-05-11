@@ -1,4 +1,4 @@
-export type TrafficFlowEditTargetKind = "listener" | "route" | "backend" | "agent";
+export type TrafficFlowEditTargetKind = "listener" | "route" | "backend" | "agent" | "rate-limit";
 
 export type TrafficFlowEditTarget = {
   kind: TrafficFlowEditTargetKind;

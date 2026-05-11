@@ -22,6 +22,7 @@ import {
   TrafficTraceStage,
   type Agent,
   type GetPublicProxyConfigResponse,
+  type PublicRateLimitRule,
   type PublicRoute,
   type TrafficTraceEvent,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -216,17 +217,17 @@ const layout = computed(() => {
   const backends = props.config?.backends ?? [];
   const agents = props.config?.agents ?? [];
   const backendAgents = props.config?.backendAgents ?? [];
-  const enabledRateLimitRules = props.config?.rateLimitRules.filter((rule) => rule.enabled) ?? [];
-  const showRateLimitNode = enabledRateLimitRules.length > 0 || props.requests.some((request) => request.rateLimitRuleId > 0n || request.stage === TrafficTraceStage.RATE_LIMITED);
+  const enabledRateLimitTargets = enabledRateLimitRuleTargets();
+  const showRateLimitNode = enabledRateLimitTargets.length > 0 || props.requests.some((request) => request.rateLimitRuleId > 0n || request.stage === TrafficTraceStage.RATE_LIMITED);
 
   if (showRateLimitNode) {
     addNode({
       key: RATE_LIMIT_KEY,
       label: "Rate limit",
-      subLabel: enabledRateLimitRules.length ? `${enabledRateLimitRules.length.toString()} enabled` : "Observed",
+      subLabel: enabledRateLimitTargets.length ? `${enabledRateLimitTargets.length.toString()} enabled` : "Observed",
       column: 2,
       kind: "rate-limit",
-      editTargets: [],
+      editTargets: enabledRateLimitTargets,
     });
   }
 
@@ -1037,7 +1038,7 @@ function addObservedNodes(
       subLabel: request.rateLimitRuleName || "Observed",
       column: 2,
       kind: "rate-limit",
-      editTargets: [],
+      editTargets: enabledRateLimitRuleTargets(),
     });
   }
 
@@ -1278,6 +1279,41 @@ function backendEditTarget(id: bigint | string | number, label: string, subLabel
 
 function agentEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
   return { kind: "agent", id: id.toString(), label, subLabel };
+}
+
+function rateLimitEditTarget(rule: PublicRateLimitRule): TrafficFlowEditTarget {
+  return {
+    kind: "rate-limit",
+    id: rule.id.toString(),
+    label: rule.name || `Rate limit ${rule.id.toString()}`,
+    subLabel: `${rateLimitAlgorithmLabel(rule.algorithm)} / P${rule.priority.toString()}`,
+  };
+}
+
+function enabledRateLimitRuleTargets(): TrafficFlowEditTarget[] {
+  return [...(props.config?.rateLimitRules ?? [])]
+    .filter((rule) => rule.enabled)
+    .sort(compareRateLimitRules)
+    .map(rateLimitEditTarget);
+}
+
+function compareRateLimitRules(a: PublicRateLimitRule, b: PublicRateLimitRule): number {
+  if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
+  switch (algorithm) {
+    case PublicRateLimitAlgorithm.SLIDING_WINDOW:
+      return "Sliding window";
+    case PublicRateLimitAlgorithm.TOKEN_BUCKET:
+      return "Token bucket";
+    case PublicRateLimitAlgorithm.LEAKY_BUCKET:
+      return "Leaky bucket";
+    default:
+      return "Fixed window";
+  }
 }
 
 function backendTypeLabel(request: TraceRequest): string {

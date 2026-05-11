@@ -10,7 +10,6 @@ import TimesIcon from "@primevue/icons/times";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
-import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
@@ -64,7 +63,6 @@ const httpsListeners = computed(() => listeners.value.filter((listener) => liste
 
 const isTlsModalOpen = ref(false);
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
-const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
 
 const tlsForm = reactive({
   id: "" as string,
@@ -307,11 +305,11 @@ function editRoute(routeId: bigint) {
 }
 
 function openAddRateLimitRuleModal() {
-  rateLimitEditor.value?.openCreate();
+  editorHost.value?.openCreateRateLimitRule();
 }
 
 function editRateLimitRule(id: bigint) {
-  rateLimitEditor.value?.openEdit(id);
+  editorHost.value?.openRateLimitRule(id);
 }
 
 function openAddTlsModal() {
@@ -750,7 +748,6 @@ watch(httpsListeners, () => {
     </section>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
-    <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" />
 
     <Modal v-model="isTlsModalOpen" :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'" max-width="36rem">
       <form @submit.prevent="submitTlsCertificate" class="grid gap-4">
