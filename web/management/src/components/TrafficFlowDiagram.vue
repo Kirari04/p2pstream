@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   MarkerType,
   Position,
@@ -14,55 +14,43 @@ import {
 import TrafficFlowEdge from "@/components/TrafficFlowEdge.vue";
 import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
 import {
+  DEFAULT_ROUTE_KEY,
+  RATE_LIMIT_KEY,
+  TrafficRequestPathCache,
+  agentKey,
+  backendKey,
+  createTrafficFlowConfigIndex,
+  isRedirectRoute,
+  isTerminalTraceRequest,
+  listenerKey,
+  redirectKey,
+  requestUsesRateLimitNode,
+  routeConfigForRequest,
+  routeKey,
+  type TrafficRequestPathCacheEntry,
+} from "@/lib/trafficFlowLayout";
+import {
+  buildMotionNodeBox,
+  buildMotionPlan,
+  motionEdgeKey,
+  pointAtMotionDistance,
+  type MotionNodeBox,
+  type MotionPlan,
+  type MotionPoint,
+} from "@/lib/trafficMotion";
+import {
   PublicBackendForwardMode,
   PublicBackendType,
-  PublicRateLimitAlgorithm,
-  PublicRouteAction,
   PublicRouteRedirectTargetMode,
   TrafficTraceStage,
   type Agent,
   type GetPublicProxyConfigResponse,
-  type PublicRateLimitRule,
   type PublicRoute,
-  type TrafficTraceEvent,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
+import type { TraceRequest } from "@/types/trafficTrace";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
-
-type TraceRequest = {
-  requestId: string;
-  method: string;
-  host: string;
-  path: string;
-  query: string;
-  stage: TrafficTraceStage;
-  statusCode: bigint;
-  durationMs: bigint;
-  errorKind: string;
-  listenerId: bigint;
-  listenerName: string;
-  routeId: bigint;
-  routeLabel: string;
-  defaultRoute: boolean;
-  backendId: bigint;
-  backendName: string;
-  backendType: PublicBackendType;
-  forwardMode: PublicBackendForwardMode;
-  targetOrigin: string;
-  agentId: bigint;
-  agentName: string;
-  agentPublicId: string;
-  requestBytes: bigint;
-  responseBytes: bigint;
-  rateLimitRuleId: bigint;
-  rateLimitRuleName: string;
-  rateLimitAlgorithm: PublicRateLimitAlgorithm;
-  visible: boolean;
-  completedAt: number | null;
-  latestEvent: TrafficTraceEvent | null;
-  events: TrafficTraceEvent[];
-};
 
 export type TrafficNodeKind = "ingress" | "listener" | "rate-limit" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
 type AgentNodeStatus = {
@@ -123,10 +111,12 @@ type VisualToken = {
   requestId: string;
   request: TraceRequest;
   path: string[];
-  visualIndex: number;
-  targetIndex: number;
+  label: string;
+  motionPlan: MotionPlan;
+  currentDistance: number;
+  targetDistance: number;
   startedAt: number;
-  segmentStartedAt: number;
+  updatedAt: number;
   durationMs: number;
   finishedAt: number | null;
   status: VisualTokenStatus;
@@ -155,8 +145,6 @@ const COLUMN_X = [0, 200, 400, 600, 800, 1000, 1200, 1400];
 const ROW_GAP = 92;
 const MIN_CENTER_Y = 92;
 const FLOW_ID = "traffic-flow-diagram";
-const DEFAULT_ROUTE_KEY = "route:default";
-const RATE_LIMIT_KEY = "rate-limit";
 const EDGE_CURVATURE = 0.25;
 const BEZIER_LENGTH_SAMPLES = 32;
 const BYPASS_LANE_GAP = 54;
@@ -169,7 +157,11 @@ const BASE_PLAYBACK_MS = 1200;
 const PER_HOP_MS = 450;
 const LOW_BURST_THRESHOLD = 12;
 const HIGH_BURST_THRESHOLD = 40;
-const MAX_RENDERED_TOKENS = 60;
+const MAX_RENDERED_TOKENS_NORMAL = 36;
+const MAX_RENDERED_TOKENS_STRESSED = 16;
+const FRAME_STRESS_MS = 40;
+const FRAME_RECOVERY_MS = 20;
+const FRAME_RECOVERY_COUNT = 12;
 const COMPLETION_HOLD_MS = 2000;
 const COMPLETION_FADE_MS = 650;
 
@@ -181,12 +173,18 @@ const edgeTypes: EdgeTypesObject = {
 };
 
 const { fitView, viewport } = useVueFlow(FLOW_ID);
+const configIndex = computed(() => createTrafficFlowConfigIndex(props.config));
+const requestPathCache = new TrafficRequestPathCache();
+const tokenMotionPlanCache = new Map<string, MotionPlan>();
 const visualTokens = ref<VisualToken[]>([]);
 const rafNow = ref(typeof performance === "undefined" ? Date.now() : performance.now());
 const skippedVisualizations = ref(0);
+const isAnimationStressed = ref(false);
 const seenRequestIds = new Set<string>();
 let rafId: number | null = null;
 let didInitialFit = false;
+let previousFrameAt: number | null = null;
+let recoveryFrames = 0;
 
 const layout = computed(() => {
   const nodes = new Map<string, Omit<DiagramNode, "x" | "y">>();
@@ -208,17 +206,15 @@ const layout = computed(() => {
     if (!from || !to || from === to) return;
     edges.push({ from, to, route });
   };
+  const index = configIndex.value;
 
   addNode({ key: "ingress", label: "Ingress", subLabel: "Public request", column: 0, kind: "ingress", editTargets: [] });
   addNode({ key: "response", label: "Response", subLabel: "Client", column: 7, kind: "response", editTargets: [] });
 
   const listeners = props.config?.listeners ?? [];
-  const routes = props.config?.routes ?? [];
   const backends = props.config?.backends ?? [];
-  const agents = props.config?.agents ?? [];
-  const backendAgents = props.config?.backendAgents ?? [];
-  const enabledRateLimitTargets = enabledRateLimitRuleTargets();
-  const showRateLimitNode = enabledRateLimitTargets.length > 0 || props.requests.some((request) => request.rateLimitRuleId > 0n || request.stage === TrafficTraceStage.RATE_LIMITED);
+  const enabledRateLimitTargets = index.enabledRateLimitTargets;
+  const showRateLimitNode = index.hasEnabledRateLimitRules || props.requests.some((request) => requestUsesRateLimitNode(request, index));
 
   if (showRateLimitNode) {
     addNode({
@@ -258,7 +254,7 @@ const layout = computed(() => {
     addEdge(routeEntryKey, DEFAULT_ROUTE_KEY);
     addEdge(DEFAULT_ROUTE_KEY, backendKey(listener.defaultBackendId));
 
-    for (const route of routes.filter((item) => item.listenerId === listener.id)) {
+    for (const route of index.routesByListenerId.get(listener.id.toString()) ?? []) {
       const key = routeKey(route.id);
       addNode({
         key,
@@ -302,12 +298,12 @@ const layout = computed(() => {
     if (isAgentPool) {
       const assignments = backend.agentAssignments.length
         ? backend.agentAssignments
-        : backendAgents.filter((assignment) => assignment.backendId === backend.id);
+        : index.backendAgentsByBackendId.get(backend.id.toString()) ?? [];
       const enabledAssignments = assignments.filter((assignment) => assignment.enabled);
 
       if (enabledAssignments.length) {
         for (const assignment of enabledAssignments) {
-          const agent = agents.find((item) => item.id === assignment.agentId);
+          const agent = index.agentById.get(assignment.agentId.toString());
           const agentNodeKey = agentKey(assignment.agentId);
           addNode({
             key: agentNodeKey,
@@ -336,7 +332,7 @@ const layout = computed(() => {
 
   for (const request of props.requests) {
     addObservedNodes(request, addNode);
-    const path = buildRequestPath(request);
+    const path = cachedRequestPath(request).path;
     for (let index = 0; index < path.length - 1; index += 1) {
       addEdge(path[index], path[index + 1], routeForRequestSegment(request, path[index], path[index + 1]));
     }
@@ -447,12 +443,36 @@ const edgeRoutes = computed(() => {
   return routes;
 });
 
-const nodeCenters = computed(() => {
-  const centers = new Map<string, Point>();
+const motionNodeBoxes = computed(() => {
+  const boxes = new Map<string, MotionNodeBox>();
   for (const node of layout.value.nodes) {
-    centers.set(node.key, { x: node.x + NODE_WIDTH / 2, y: node.y + NODE_HEIGHT / 2 });
+    boxes.set(node.key, buildMotionNodeBox({
+      key: node.key,
+      x: node.x,
+      y: node.y,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+    }));
   }
-  return centers;
+  return boxes;
+});
+
+const motionEdgeRoutePoints = computed(() => {
+  const routes = new Map<string, MotionPoint[]>();
+  for (const [key, route] of edgeRoutes.value.entries()) {
+    routes.set(key, routeToMotionPoints(route));
+  }
+  return routes;
+});
+
+const motionLayoutSignature = computed(() => {
+  const nodeSignature = layout.value.nodes
+    .map((node) => `${node.key}:${node.x}:${node.y}`)
+    .join(";");
+  const edgeSignature = layout.value.edges
+    .map((edge) => `${edge.from}:${edge.to}:${edge.route}`)
+    .join(";");
+  return `${nodeSignature}|${edgeSignature}`;
 });
 
 const tokenViews = computed(() => {
@@ -467,7 +487,7 @@ const tokenViews = computed(() => {
         x: point.x * transform.zoom + transform.x,
         y: point.y * transform.zoom + transform.y,
         colorClass: tokenColorClass(token.status),
-        label: `${token.request.method || "REQUEST"} ${token.request.path || "/"}`,
+        label: token.label,
         opacity: tokenOpacity(token, now),
       };
     })
@@ -518,12 +538,33 @@ watch(
 watch(
   () => props.config,
   () => {
+    requestPathCache.clear();
+    tokenMotionPlanCache.clear();
     void nextTick(() => fitDiagram(180));
   },
   { flush: "post" },
 );
 
+watch(
+  motionLayoutSignature,
+  () => {
+    tokenMotionPlanCache.clear();
+    for (const token of visualTokens.value) {
+      updateToken(token, token.request);
+    }
+    if (visualTokens.value.length) {
+      startAnimationLoop();
+    }
+  },
+  { flush: "post" },
+);
+
+onMounted(() => {
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+});
+
 onBeforeUnmount(() => {
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
   stopAnimationLoop();
 });
 
@@ -534,6 +575,8 @@ function syncTokens() {
   }
 
   const requestById = new Map(props.requests.map((request) => [request.requestId, request]));
+  requestPathCache.prune(new Set(requestById.keys()));
+  pruneTokenMotionPlanCache(new Set(requestById.keys()));
   pruneSeenRequests(requestById);
   let changed = false;
   for (const token of visualTokens.value) {
@@ -547,7 +590,7 @@ function syncTokens() {
     if (seenRequestIds.has(request.requestId)) continue;
     seenRequestIds.add(request.requestId);
 
-    if (visualTokens.value.length >= MAX_RENDERED_TOKENS) {
+    if (visualTokens.value.length >= currentTokenCap()) {
       skippedVisualizations.value += 1;
       continue;
     }
@@ -566,11 +609,11 @@ function resetVisualPlayback(seedCurrentRequests: boolean) {
   skippedVisualizations.value = 0;
   seenRequestIds.clear();
   if (seedCurrentRequests) {
-    for (const request of props.requests) {
-      seenRequestIds.add(request.requestId);
-    }
+    seedCurrentRequestsAsSeen();
   }
   stopAnimationLoop();
+  requestPathCache.clear();
+  tokenMotionPlanCache.clear();
   emit("active-change", 0);
   emit("skipped-change", 0);
 }
@@ -584,17 +627,20 @@ function pruneSeenRequests(requestById: Map<string, TraceRequest>) {
 }
 
 function createToken(request: TraceRequest): VisualToken {
-  const path = buildRequestPath(request);
-  const now = typeof performance === "undefined" ? Date.now() : performance.now();
-  const durationMs = playbackDuration(path.length - 1, visualTokens.value.length);
+  const cached = cachedRequestPath(request);
+  const motionPlan = motionPlanForCachedPath(request.requestId, cached);
+  const now = nowMs();
+  const durationMs = playbackDuration(cached.path.length - 1, visualTokens.value.length);
   return {
     requestId: request.requestId,
     request,
-    path,
-    visualIndex: 0,
-    targetIndex: targetIndexForRequest(request, path),
+    path: cached.path,
+    label: requestLabel(request),
+    motionPlan,
+    currentDistance: 0,
+    targetDistance: motionPlan.targetLength,
     startedAt: now,
-    segmentStartedAt: now,
+    updatedAt: now,
     durationMs,
     finishedAt: null,
     status: statusForRequest(request),
@@ -603,9 +649,15 @@ function createToken(request: TraceRequest): VisualToken {
 }
 
 function updateToken(token: VisualToken, request: TraceRequest) {
+  advanceToken(token, nowMs());
+  const cached = cachedRequestPath(request);
+  const motionPlan = motionPlanForCachedPath(request.requestId, cached);
   token.request = request;
-  token.path = buildRequestPath(request);
-  token.targetIndex = Math.max(token.targetIndex, targetIndexForRequest(request, token.path));
+  token.path = cached.path;
+  token.label = requestLabel(request);
+  token.motionPlan = motionPlan;
+  token.currentDistance = clamp(token.currentDistance, 0, motionPlan.targetLength);
+  token.targetDistance = motionPlan.targetLength;
   token.durationMs = Math.max(token.durationMs, playbackDuration(token.path.length - 1, visualTokens.value.length));
   token.status = statusForRequest(request);
 }
@@ -623,6 +675,7 @@ function stopAnimationLoop() {
 
 function tick(now: number) {
   rafNow.value = now;
+  updateFrameStress(now);
   let changed = false;
 
   for (const token of visualTokens.value) {
@@ -635,6 +688,12 @@ function tick(now: number) {
   });
   if (activeTokens.length !== visualTokens.value.length) {
     visualTokens.value = activeTokens;
+    changed = true;
+  }
+  if (visualTokens.value.length > currentTokenCap()) {
+    const removed = visualTokens.value.length - currentTokenCap();
+    visualTokens.value = visualTokens.value.slice(0, currentTokenCap());
+    skippedVisualizations.value += removed;
     changed = true;
   }
 
@@ -650,43 +709,28 @@ function tick(now: number) {
 }
 
 function advanceToken(token: VisualToken, now: number) {
-  const finalIndex = Math.min(token.targetIndex, token.path.length - 1);
-  const segmentDuration = tokenSegmentDuration(token);
-
-  while (token.visualIndex < finalIndex && now - token.segmentStartedAt >= segmentDuration) {
-    token.visualIndex += 1;
-    token.segmentStartedAt += segmentDuration;
+  if (token.finishedAt !== null) {
+    token.updatedAt = now;
+    return;
   }
 
-  if (isTerminal(token.request) && token.visualIndex >= token.path.length - 1 && token.finishedAt === null) {
+  const elapsed = Math.max(0, now - token.updatedAt);
+  token.updatedAt = now;
+  if (token.currentDistance < token.targetDistance) {
+    const speed = Math.max(token.motionPlan.totalLength, token.targetDistance, 1) / token.durationMs;
+    token.currentDistance = Math.min(token.targetDistance, token.currentDistance + speed * elapsed);
+  }
+
+  if (isTerminalTraceRequest(token.request) && token.currentDistance >= token.targetDistance && token.finishedAt === null) {
     token.finishedAt = now;
   }
 }
 
-function tokenPoint(token: VisualToken, now: number): Point | null {
-  const fromKey = token.path[token.visualIndex];
-  const from = nodeCenters.value.get(fromKey) ?? nodeCenters.value.get("ingress");
-  if (!from) return null;
-
-  const targetIndex = Math.min(token.targetIndex, token.path.length - 1);
-  if (token.visualIndex >= targetIndex) return from;
-
-  const toKey = token.path[token.visualIndex + 1];
-  const progress = easeInOutCubic(clamp((now - token.segmentStartedAt) / tokenSegmentDuration(token), 0, 1));
-  const route = edgeRoutes.value.get(edgeKey(fromKey, toKey));
-  if (route) return pointAtRouteProgress(route, progress);
-
-  const next = nodeCenters.value.get(toKey);
-  if (!next) return from;
-
-  return {
-    x: from.x + (next.x - from.x) * progress,
-    y: from.y + (next.y - from.y) * progress,
-  };
-}
-
-function tokenSegmentDuration(token: VisualToken): number {
-  return token.durationMs / Math.max(1, token.path.length - 1);
+function tokenPoint(token: VisualToken, _now: number): Point | null {
+  const point = pointAtMotionDistance(token.motionPlan, token.currentDistance);
+  if (point) return point;
+  const fallbackKey = token.path[Math.min(token.motionPlan.targetNodeIndex, token.path.length - 1)] ?? "ingress";
+  return motionNodeBoxes.value.get(fallbackKey)?.center ?? null;
 }
 
 function tokenOpacity(token: VisualToken, now: number): number {
@@ -694,6 +738,93 @@ function tokenOpacity(token: VisualToken, now: number): number {
   const age = now - token.finishedAt;
   if (age <= COMPLETION_HOLD_MS) return 1;
   return clamp(1 - (age - COMPLETION_HOLD_MS) / COMPLETION_FADE_MS, 0, 1);
+}
+
+function cachedRequestPath(request: TraceRequest) {
+  return requestPathCache.get(request, configIndex.value);
+}
+
+function motionPlanForCachedPath(requestId: string, cached: TrafficRequestPathCacheEntry): MotionPlan {
+  const signature = `${cached.signature}|${cached.targetIndex.toString()}|${motionLayoutSignature.value}`;
+  const cacheKey = `${requestId}\u0000${signature}`;
+  const cachedPlan = tokenMotionPlanCache.get(cacheKey);
+  if (cachedPlan) return cachedPlan;
+
+  const motionPlan = buildMotionPlan({
+    path: cached.path,
+    targetNodeIndex: cached.targetIndex,
+    nodes: motionNodeBoxes.value,
+    edgeRoutes: motionEdgeRoutePoints.value,
+    signature,
+  });
+  tokenMotionPlanCache.set(cacheKey, motionPlan);
+  return motionPlan;
+}
+
+function pruneTokenMotionPlanCache(requestIds: Set<string>) {
+  for (const key of tokenMotionPlanCache.keys()) {
+    const separatorIndex = key.indexOf("\u0000");
+    const requestId = separatorIndex >= 0 ? key.slice(0, separatorIndex) : key;
+    if (!requestIds.has(requestId)) {
+      tokenMotionPlanCache.delete(key);
+    }
+  }
+}
+
+function requestLabel(request: TraceRequest): string {
+  return `${request.method || "REQUEST"} ${request.path || "/"}`;
+}
+
+function nowMs(): number {
+  return typeof performance === "undefined" ? Date.now() : performance.now();
+}
+
+function currentTokenCap(): number {
+  return isAnimationStressed.value ? MAX_RENDERED_TOKENS_STRESSED : MAX_RENDERED_TOKENS_NORMAL;
+}
+
+function updateFrameStress(now: number) {
+  if (previousFrameAt === null) {
+    previousFrameAt = now;
+    return;
+  }
+  const delta = now - previousFrameAt;
+  previousFrameAt = now;
+  if (delta > FRAME_STRESS_MS) {
+    isAnimationStressed.value = true;
+    recoveryFrames = 0;
+    return;
+  }
+  if (delta < FRAME_RECOVERY_MS) {
+    recoveryFrames += 1;
+    if (recoveryFrames >= FRAME_RECOVERY_COUNT) {
+      isAnimationStressed.value = false;
+    }
+    return;
+  }
+  recoveryFrames = 0;
+}
+
+function seedCurrentRequestsAsSeen() {
+  for (const request of props.requests) {
+    seenRequestIds.add(request.requestId);
+  }
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    visualTokens.value = [];
+    seedCurrentRequestsAsSeen();
+    stopAnimationLoop();
+    emit("active-change", 0);
+    return;
+  }
+  previousFrameAt = null;
+  recoveryFrames = 0;
+  seedCurrentRequestsAsSeen();
+  if (props.tracingEnabled) {
+    syncTokens();
+  }
 }
 
 function routeForRequestSegment(request: TraceRequest, from: string, to: string): DiagramEdgeRoute {
@@ -860,6 +991,15 @@ function pointAtRouteProgress(route: EdgeRouteGeometry, progress: number): Point
   return route.segments.at(-1)?.target ?? { x: 0, y: 0 };
 }
 
+function routeToMotionPoints(route: EdgeRouteGeometry): MotionPoint[] {
+  const sampleCount = Math.max(2, Math.ceil(route.totalLength / 24));
+  const points: MotionPoint[] = [];
+  for (let index = 0; index <= sampleCount; index += 1) {
+    points.push(pointAtRouteProgress(route, index / sampleCount));
+  }
+  return points;
+}
+
 function pointAtSegmentProgress(segment: CubicSegment, progress: number): Point {
   const targetLength = segment.totalLength * clamp(progress, 0, 1);
   if (segment.totalLength <= 0) return cubicBezierPoint(segment, progress);
@@ -945,100 +1085,19 @@ function handleNodeClick(event: NodeMouseEvent) {
   });
 }
 
-function buildRequestPath(request: TraceRequest): string[] {
-  const path = ["ingress"];
-
-  if (request.listenerId > 0n) {
-    path.push(listenerKey(request.listenerId));
-  }
-
-  if (requestUsesRateLimitNode(request)) {
-    path.push(RATE_LIMIT_KEY);
-  }
-
-  if (request.stage === TrafficTraceStage.RATE_LIMITED) {
-    path.push("response");
-    return dedupeConsecutive(path);
-  }
-
-  if (request.routeId > 0n) {
-    path.push(routeKey(request.routeId));
-  } else if (request.defaultRoute && request.listenerId > 0n) {
-    path.push(DEFAULT_ROUTE_KEY);
-  }
-
-  const redirectNodeKey = redirectKeyForRequest(request);
-  if (redirectNodeKey) {
-    path.push(redirectNodeKey);
-    path.push("response");
-    return dedupeConsecutive(path);
-  }
-
-  if (request.backendId > 0n) {
-    path.push(backendKey(request.backendId));
-
-    if (request.backendType === PublicBackendType.STATIC) {
-      path.push("static-response");
-    } else if (request.agentId > 0n) {
-      path.push(agentKey(request.agentId));
-      path.push("upstream");
-    } else if (request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
-      path.push("upstream");
-    }
-  }
-
-  path.push("response");
-  return dedupeConsecutive(path);
-}
-
-function targetIndexForRequest(request: TraceRequest, path: string[]): number {
-  const targetKey = nodeKeyForStage(request);
-  const index = path.indexOf(targetKey);
-  if (index >= 0) return index;
-  if (isTerminal(request)) return path.length - 1;
-  return Math.max(0, path.length - 2);
-}
-
-function nodeKeyForStage(request: TraceRequest): string {
-  switch (request.stage) {
-    case TrafficTraceStage.RECEIVED:
-      return request.listenerId > 0n ? listenerKey(request.listenerId) : "ingress";
-    case TrafficTraceStage.ROUTE_RESOLVED:
-      if (request.routeId > 0n) return routeKey(request.routeId);
-      if (request.defaultRoute && request.listenerId > 0n) return DEFAULT_ROUTE_KEY;
-      return request.listenerId > 0n ? listenerKey(request.listenerId) : "ingress";
-    case TrafficTraceStage.BACKEND_SELECTED:
-      return request.backendId > 0n ? backendKey(request.backendId) : "response";
-    case TrafficTraceStage.AGENT_SELECTED:
-      return request.agentId > 0n ? agentKey(request.agentId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
-    case TrafficTraceStage.UPSTREAM_STARTED:
-      if (request.backendType === PublicBackendType.STATIC) return "static-response";
-      if (request.agentId > 0n || request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "upstream";
-      return request.backendId > 0n ? backendKey(request.backendId) : "response";
-    case TrafficTraceStage.UPSTREAM_RESPONDED:
-      return request.backendType === PublicBackendType.STATIC ? "static-response" : "upstream";
-    case TrafficTraceStage.RATE_LIMITED:
-      return "response";
-    case TrafficTraceStage.RESPONSE_SENT:
-    case TrafficTraceStage.FAILED:
-      return "response";
-    default:
-      return "ingress";
-  }
-}
-
 function addObservedNodes(
   request: TraceRequest,
   addNode: (node: DiagramNodeInput) => void,
 ) {
-  if (requestUsesRateLimitNode(request)) {
+  const index = configIndex.value;
+  if (requestUsesRateLimitNode(request, index)) {
     addNode({
       key: RATE_LIMIT_KEY,
       label: "Rate limit",
       subLabel: request.rateLimitRuleName || "Observed",
       column: 2,
       kind: "rate-limit",
-      editTargets: enabledRateLimitRuleTargets(),
+      editTargets: index.enabledRateLimitTargets,
     });
   }
 
@@ -1062,7 +1121,7 @@ function addObservedNodes(
       kind: "route",
       editTargets: [routeEditTargetByID(request.routeId, request.routeLabel || `Route ${request.routeId.toString()}`, "Observed")],
     });
-    const route = routeConfigForRequest(request);
+    const route = routeConfigForRequest(request, index);
     if (route && isRedirectRoute(route)) {
       addRedirectNode(route, addNode);
     }
@@ -1097,7 +1156,7 @@ function addObservedNodes(
   }
 
   if (request.agentId > 0n) {
-    const agent = props.config?.agents.find((item) => item.id === request.agentId);
+    const agent = index.agentById.get(request.agentId.toString());
     addNode({
       key: agentKey(request.agentId),
       label: request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`,
@@ -1158,7 +1217,7 @@ function edgeRoutePriority(route: DiagramEdgeRoute): number {
 }
 
 function edgeKey(from: string, to: string): string {
-  return `${from}->${to}`;
+  return motionEdgeKey(from, to);
 }
 
 function dedupeEditTargets(targets: TrafficFlowEditTarget[]): TrafficFlowEditTarget[] {
@@ -1183,10 +1242,6 @@ function mergeAgentStatus(existing: AgentNodeStatus | undefined, next: AgentNode
   return existing;
 }
 
-function dedupeConsecutive(values: string[]): string[] {
-  return values.filter((value, index) => index === 0 || values[index - 1] !== value);
-}
-
 function playbackDuration(hopCount: number, activeTokens: number): number {
   const raw = BASE_PLAYBACK_MS + Math.max(1, hopCount) * PER_HOP_MS;
   if (activeTokens < LOW_BURST_THRESHOLD) return clamp(raw, 2500, MAX_PLAYBACK_MS);
@@ -1207,16 +1262,6 @@ function tokenColorClass(status: VisualTokenStatus): string {
   return `traffic-token-${status}`;
 }
 
-function isTerminal(request: TraceRequest): boolean {
-  return request.stage === TrafficTraceStage.RESPONSE_SENT ||
-    request.stage === TrafficTraceStage.FAILED ||
-    request.stage === TrafficTraceStage.RATE_LIMITED;
-}
-
-function easeInOutCubic(value: number): number {
-  return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -1234,26 +1279,6 @@ function kindOrder(kind: TrafficNodeKind): number {
     case "response": return 7;
     default: return 99;
   }
-}
-
-function listenerKey(id: bigint | string | number): string {
-  return `listener:${id.toString()}`;
-}
-
-function routeKey(id: bigint | string | number): string {
-  return `route:${id.toString()}`;
-}
-
-function backendKey(id: bigint | string | number): string {
-  return `backend:${id.toString()}`;
-}
-
-function redirectKey(id: bigint | string | number): string {
-  return `redirect:${id.toString()}`;
-}
-
-function agentKey(id: bigint | string | number): string {
-  return `agent:${id.toString()}`;
 }
 
 function routeLabel(hostPattern: string, pathPrefix: string, id: bigint): string {
@@ -1281,64 +1306,10 @@ function agentEditTarget(id: bigint | string | number, label: string, subLabel?:
   return { kind: "agent", id: id.toString(), label, subLabel };
 }
 
-function rateLimitEditTarget(rule: PublicRateLimitRule): TrafficFlowEditTarget {
-  return {
-    kind: "rate-limit",
-    id: rule.id.toString(),
-    label: rule.name || `Rate limit ${rule.id.toString()}`,
-    subLabel: `${rateLimitAlgorithmLabel(rule.algorithm)} / P${rule.priority.toString()}`,
-  };
-}
-
-function enabledRateLimitRuleTargets(): TrafficFlowEditTarget[] {
-  return [...(props.config?.rateLimitRules ?? [])]
-    .filter((rule) => rule.enabled)
-    .sort(compareRateLimitRules)
-    .map(rateLimitEditTarget);
-}
-
-function compareRateLimitRules(a: PublicRateLimitRule, b: PublicRateLimitRule): number {
-  if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
-  if (a.id === b.id) return 0;
-  return a.id < b.id ? -1 : 1;
-}
-
-function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
-  switch (algorithm) {
-    case PublicRateLimitAlgorithm.SLIDING_WINDOW:
-      return "Sliding window";
-    case PublicRateLimitAlgorithm.TOKEN_BUCKET:
-      return "Token bucket";
-    case PublicRateLimitAlgorithm.LEAKY_BUCKET:
-      return "Leaky bucket";
-    default:
-      return "Fixed window";
-  }
-}
-
 function backendTypeLabel(request: TraceRequest): string {
   if (request.backendType === PublicBackendType.STATIC) return "Static";
   if (request.forwardMode === PublicBackendForwardMode.AGENT_POOL) return "Agent pool";
   return "Direct";
-}
-
-function isRedirectRoute(route: PublicRoute): boolean {
-  return route.action === PublicRouteAction.REDIRECT;
-}
-
-function routeConfigForRequest(request: TraceRequest): PublicRoute | undefined {
-  if (request.routeId <= 0n) return undefined;
-  return props.config?.routes.find((route) => route.id === request.routeId);
-}
-
-function requestUsesRateLimitNode(request: TraceRequest): boolean {
-  if (request.rateLimitRuleId > 0n || request.stage === TrafficTraceStage.RATE_LIMITED) return true;
-  return (props.config?.rateLimitRules ?? []).some((rule) => rule.enabled);
-}
-
-function redirectKeyForRequest(request: TraceRequest): string {
-  const route = routeConfigForRequest(request);
-  return route && isRedirectRoute(route) ? redirectKey(route.id) : "";
 }
 
 function redirectNodeSubLabel(route: PublicRoute): string {
@@ -1361,7 +1332,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
 </script>
 
 <template>
-  <div class="traffic-flow-shell">
+  <div class="traffic-flow-shell" :class="{ 'traffic-flow-stressed': isAnimationStressed }">
     <div class="flow-status">
       <span>{{ visualTokens.length }} rendered</span>
       <span v-if="skippedVisualizations" class="flow-overflow">+{{ skippedVisualizations }} not rendered</span>
@@ -1399,7 +1370,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
         class="traffic-token"
         :class="view.colorClass"
         :style="{
-          transform: `translate(${view.x}px, ${view.y}px) translate(-50%, -50%)`,
+          transform: `translate3d(${view.x}px, ${view.y}px, 0) translate(-50%, -50%)`,
           opacity: view.opacity,
         }"
         :aria-label="`Open trace details for ${view.label}`"
@@ -1417,6 +1388,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   position: relative;
   height: min(58vh, 540px);
   min-height: 360px;
+  contain: layout paint style;
   overflow: hidden;
   border: 1px solid #333;
   border-radius: 6px;
@@ -1478,6 +1450,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   position: absolute;
   inset: 0;
   z-index: 6;
+  contain: strict;
   pointer-events: none;
 }
 
@@ -1492,6 +1465,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   padding: 0;
   pointer-events: auto;
   transition: opacity 160ms ease;
+  will-change: transform, opacity;
 }
 
 .traffic-token-dot,
@@ -1535,6 +1509,11 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
 .traffic-token-dot,
 .traffic-token-halo {
   background: currentColor;
+}
+
+.traffic-flow-stressed .traffic-token-halo {
+  animation: none;
+  opacity: 0.08;
 }
 
 :deep(.vue-flow__pane) {
@@ -1589,6 +1568,16 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   .flow-status {
     left: 12px;
     right: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .traffic-token-halo {
+    animation: none;
+  }
+
+  :deep(.vue-flow__edge.animated .vue-flow__edge-path) {
+    animation: none;
   }
 }
 </style>

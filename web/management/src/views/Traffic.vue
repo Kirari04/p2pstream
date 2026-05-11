@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { ComputedRef } from "vue";
 import { managementClient } from "@/api/managementClient";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
 import TrafficFlowEditTargetChooser from "@/components/editors/TrafficFlowEditTargetChooser.vue";
 import TrafficFlowDiagram from "@/components/TrafficFlowDiagram.vue";
 import TrafficTraceDetailsModal from "@/components/TrafficTraceDetailsModal.vue";
+import { TrafficTraceStore, formatDuration, traceStreamRequestForSequence } from "@/lib/trafficTraceStore";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
+import type { TraceRenderStats, TraceRequest, TraceRequestView } from "@/types/trafficTrace";
+import { emptyTraceRenderStats } from "@/types/trafficTrace";
 import type {
   DashboardWindowSummary,
   GetDashboardResponse,
@@ -15,47 +18,7 @@ import type {
   TrafficTraceEvent,
   TrafficTraceSettings,
 } from "@/gen/proto/p2pstream/v1/management_pb";
-import {
-  PublicBackendForwardMode,
-  PublicBackendType,
-  PublicRateLimitAlgorithm,
-  TrafficTraceLevel,
-  TrafficTraceStage,
-} from "@/gen/proto/p2pstream/v1/management_pb";
-
-type TraceRequest = {
-  requestId: string;
-  method: string;
-  host: string;
-  path: string;
-  query: string;
-  stage: TrafficTraceStage;
-  statusCode: bigint;
-  durationMs: bigint;
-  errorKind: string;
-  listenerId: bigint;
-  listenerName: string;
-  routeId: bigint;
-  routeLabel: string;
-  defaultRoute: boolean;
-  backendId: bigint;
-  backendName: string;
-  backendType: PublicBackendType;
-  forwardMode: PublicBackendForwardMode;
-  targetOrigin: string;
-  agentId: bigint;
-  agentName: string;
-  agentPublicId: string;
-  requestBytes: bigint;
-  responseBytes: bigint;
-  rateLimitRuleId: bigint;
-  rateLimitRuleName: string;
-  rateLimitAlgorithm: PublicRateLimitAlgorithm;
-  visible: boolean;
-  completedAt: number | null;
-  latestEvent: TrafficTraceEvent | null;
-  events: TrafficTraceEvent[];
-};
+import { TrafficTraceLevel } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
 const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
@@ -68,19 +31,25 @@ const selectedTraceLevel = ref<TrafficTraceLevel>(TrafficTraceLevel.BASIC);
 const isTraceBusy = ref(false);
 const streamState = ref<"idle" | "connecting" | "live" | "retrying" | "error">("idle");
 const streamError = ref("");
-const traceRequests = ref<TraceRequest[]>([]);
-const selectedRequest = ref<TraceRequest | null>(null);
+const tableRequests = shallowRef<TraceRequestView[]>([]);
+const diagramRequests = shallowRef<TraceRequest[]>([]);
+const renderStats = shallowRef<TraceRenderStats>(emptyTraceRenderStats());
+const traceSnapshotVersion = ref(0);
+const selectedRequestId = ref<string | null>(null);
+const selectedRequest = computed(() => {
+  traceSnapshotVersion.value;
+  return selectedRequestId.value ? traceStore.get(selectedRequestId.value) : null;
+});
 const isDetailsOpen = ref(false);
-const lastSequence = ref<bigint>(0n);
 const renderedTokenCount = ref(0);
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
 const pendingEditRequest = ref<TrafficFlowEditRequest | null>(null);
 const isEditChooserOpen = ref(false);
+const traceStore = new TrafficTraceStore(applyTraceStoreSnapshot);
 
 let streamController: AbortController | null = null;
 let retryTimer: number | null = null;
 let retryDelayMs = 1000;
-const hideTimers = new Map<string, number>();
 
 const traceLevelOptions = [
   { label: "Basic", value: TrafficTraceLevel.BASIC },
@@ -90,6 +59,13 @@ const traceLevelOptions = [
 ];
 
 const tracingEnabled = computed(() => traceSettings.value?.enabled === true);
+const traceTableSummary = computed(() => {
+  const stats = renderStats.value;
+  if (stats.sampledEvents || stats.sampledRequests) {
+    return `Sampled under load: ${numberLabel(stats.sampledEvents)} events / ${numberLabel(stats.sampledRequests)} requests omitted from rendering.`;
+  }
+  return `Latest ${numberLabel(stats.renderedTableRows)} rendered from ${numberLabel(stats.retainedRequests)} retained requests.`;
+});
 
 async function loadTraceSettings() {
   try {
@@ -153,8 +129,9 @@ function startTraceStream() {
 
 async function consumeTraceStream(controller: AbortController) {
   try {
+    const streamRequest = traceStreamRequestForSequence(traceStore.lastSequence);
     const stream = managementClient.streamTrafficTraceEvents(
-      { replayRecent: true, afterSequence: lastSequence.value },
+      streamRequest,
       { signal: controller.signal },
     );
     streamState.value = "live";
@@ -214,109 +191,26 @@ function clearRetryTimer() {
 }
 
 function mergeTraceEvent(event: TrafficTraceEvent) {
-  if (event.sequence > lastSequence.value) {
-    lastSequence.value = event.sequence;
-  }
-  const requestId = event.requestId || `trace-${event.sequence.toString()}`;
-  let request = traceRequests.value.find((item) => item.requestId === requestId);
-  if (!request) {
-    request = newTraceRequest(requestId);
-  }
-
-  request.events.push(event);
-  request.latestEvent = event;
-  request.visible = true;
-  request.stage = event.stage;
-  request.method = event.method || request.method;
-  request.host = event.host || request.host;
-  request.path = event.path || request.path;
-  request.query = event.query || request.query;
-  request.statusCode = event.statusCode || request.statusCode;
-  request.durationMs = event.durationMs || request.durationMs;
-  request.errorKind = event.errorKind || request.errorKind;
-  request.listenerId = event.listenerId || request.listenerId;
-  request.listenerName = event.listenerName || request.listenerName;
-  request.routeId = event.routeId || request.routeId;
-  request.routeLabel = event.routeLabel || request.routeLabel;
-  request.defaultRoute = event.defaultRoute || request.defaultRoute;
-  request.backendId = event.backendId || request.backendId;
-  request.backendName = event.backendName || request.backendName;
-  request.backendType = event.backendType || request.backendType;
-  request.forwardMode = event.forwardMode || request.forwardMode;
-  request.targetOrigin = event.targetOrigin || request.targetOrigin;
-  request.agentId = event.agentId || request.agentId;
-  request.agentName = event.agentName || request.agentName;
-  request.agentPublicId = event.agentPublicId || request.agentPublicId;
-  request.requestBytes = event.requestBytes || request.requestBytes;
-  request.responseBytes = event.responseBytes || request.responseBytes;
-  request.rateLimitRuleId = event.rateLimitRuleId || request.rateLimitRuleId;
-  request.rateLimitRuleName = event.rateLimitRuleName || request.rateLimitRuleName;
-  request.rateLimitAlgorithm = event.rateLimitAlgorithm || request.rateLimitAlgorithm;
-
-  if (event.stage === TrafficTraceStage.RESPONSE_SENT || event.stage === TrafficTraceStage.FAILED || event.stage === TrafficTraceStage.RATE_LIMITED) {
-    request.completedAt = Date.now();
-    queueHideRequest(request.requestId);
-  }
-
-  traceRequests.value = [
-    request,
-    ...traceRequests.value.filter((item) => item.requestId !== requestId),
-  ].slice(0, 200);
+  traceStore.enqueue(event);
 }
 
-function newTraceRequest(requestId: string): TraceRequest {
-  return {
-    requestId,
-    method: "",
-    host: "",
-    path: "",
-    query: "",
-    stage: TrafficTraceStage.UNSPECIFIED,
-    statusCode: 0n,
-    durationMs: 0n,
-    errorKind: "",
-    listenerId: 0n,
-    listenerName: "",
-    routeId: 0n,
-    routeLabel: "",
-    defaultRoute: false,
-    backendId: 0n,
-    backendName: "",
-    backendType: PublicBackendType.UNSPECIFIED,
-    forwardMode: PublicBackendForwardMode.UNSPECIFIED,
-    targetOrigin: "",
-    agentId: 0n,
-    agentName: "",
-    agentPublicId: "",
-    requestBytes: 0n,
-    responseBytes: 0n,
-    rateLimitRuleId: 0n,
-    rateLimitRuleName: "",
-    rateLimitAlgorithm: PublicRateLimitAlgorithm.UNSPECIFIED,
-    visible: true,
-    completedAt: null,
-    latestEvent: null,
-    events: [],
-  };
-}
-
-function queueHideRequest(requestId: string) {
-  const existing = hideTimers.get(requestId);
-  if (existing !== undefined) {
-    window.clearTimeout(existing);
+function applyTraceStoreSnapshot(snapshot: ReturnType<TrafficTraceStore["snapshot"]>) {
+  tableRequests.value = snapshot.tableRows;
+  diagramRequests.value = snapshot.diagramRequests;
+  renderStats.value = snapshot.stats;
+  traceSnapshotVersion.value += 1;
+  if (selectedRequestId.value && !traceStore.get(selectedRequestId.value)) {
+    selectedRequestId.value = null;
   }
-  const timer = window.setTimeout(() => {
-    hideTimers.delete(requestId);
-    const request = traceRequests.value.find((item) => item.requestId === requestId);
-    if (!request) return;
-    request.visible = false;
-    traceRequests.value = [...traceRequests.value];
-  }, 2000);
-  hideTimers.set(requestId, timer);
 }
 
-function openTraceDetails(request: TraceRequest) {
-  selectedRequest.value = request;
+function clearTraceRequests() {
+  traceStore.clear();
+  selectedRequestId.value = null;
+}
+
+function openTraceDetails(request: TraceRequest | TraceRequestView | string) {
+  selectedRequestId.value = typeof request === "string" ? request : request.requestId;
   isDetailsOpen.value = true;
 }
 
@@ -344,61 +238,16 @@ function bigIntLabel(value: bigint | undefined): string {
   return new Intl.NumberFormat().format(Number(value));
 }
 
+function numberLabel(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
+
 function formatBytes(value: bigint | undefined): string {
   if (value === undefined) return "0 B";
   const bytes = Number(value);
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function formatDuration(value: bigint | undefined): string {
-  if (value === undefined || value === 0n) return "-";
-  const millis = Number(value);
-  if (millis < 1000) return `${millis} ms`;
-  return `${(millis / 1000).toFixed(1)} s`;
-}
-
-function traceStageLabel(stage: TrafficTraceStage): string {
-  switch (stage) {
-    case TrafficTraceStage.RECEIVED: return "Received";
-    case TrafficTraceStage.ROUTE_RESOLVED: return "Route";
-    case TrafficTraceStage.BACKEND_SELECTED: return "Backend";
-    case TrafficTraceStage.AGENT_SELECTED: return "Agent";
-    case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream";
-    case TrafficTraceStage.UPSTREAM_RESPONDED: return "Responded";
-    case TrafficTraceStage.RESPONSE_SENT: return "Done";
-    case TrafficTraceStage.FAILED: return "Failed";
-    case TrafficTraceStage.RATE_LIMITED: return "Rate limited";
-    default: return "Waiting";
-  }
-}
-
-function requestStatusClass(request: TraceRequest): string {
-  if (request.stage === TrafficTraceStage.FAILED) return "text-red-400";
-  if (request.stage === TrafficTraceStage.RATE_LIMITED) return "text-amber-400";
-  const status = Number(request.statusCode);
-  if (status >= 500) return "text-red-400";
-  if (status >= 400) return "text-amber-400";
-  if (status >= 200) return "text-green-400";
-  return "text-[#888]";
-}
-
-function traceFlowLabel(request: TraceRequest): string {
-  const parts = [request.listenerName || "Listener"];
-  if (request.rateLimitRuleName || request.stage === TrafficTraceStage.RATE_LIMITED) {
-    parts.push(request.rateLimitRuleName ? `Rate limit: ${request.rateLimitRuleName}` : "Rate limit");
-  }
-  if (request.routeLabel || request.defaultRoute) {
-    parts.push(request.routeLabel || "Default route");
-  }
-  if (request.backendName) {
-    parts.push(request.backendName);
-  }
-  if (request.agentName || request.agentPublicId) {
-    parts.push(request.agentName || request.agentPublicId);
-  }
-  return parts.join(" -> ");
 }
 
 function streamStateLabel(): string {
@@ -420,10 +269,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopTraceStream();
-  for (const timer of hideTimers.values()) {
-    window.clearTimeout(timer);
-  }
-  hideTimers.clear();
+  traceStore.clear();
 });
 </script>
 
@@ -464,7 +310,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
         <div class="vercel-card p-4">
           <p class="vercel-card-title">Trace State</p>
           <span class="text-lg font-semibold" :class="tracingEnabled ? 'text-green-400' : 'text-[#888]'">{{ streamStateLabel() }}</span>
@@ -484,6 +330,16 @@ onBeforeUnmount(() => {
           </span>
         </div>
         <div class="vercel-card p-4">
+          <p class="vercel-card-title">Rendered</p>
+          <span class="text-lg font-semibold">{{ numberLabel(renderStats.renderedTableRows) }}/{{ numberLabel(renderStats.retainedRequests) }}</span>
+        </div>
+        <div class="vercel-card p-4">
+          <p class="vercel-card-title">Sampled</p>
+          <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[#ededed]'">
+            {{ numberLabel(renderStats.sampledEvents) }}/{{ numberLabel(renderStats.sampledRequests) }}
+          </span>
+        </div>
+        <div class="vercel-card p-4">
           <p class="vercel-card-title">Live Tokens</p>
           <span class="text-lg font-semibold">{{ renderedTokenCount }}</span>
         </div>
@@ -495,7 +351,7 @@ onBeforeUnmount(() => {
 
       <TrafficFlowDiagram
         :config="config"
-        :requests="traceRequests"
+        :requests="diagramRequests"
         :tracing-enabled="tracingEnabled"
         @select="openTraceDetails"
         @active-change="renderedTokenCount = $event"
@@ -506,14 +362,14 @@ onBeforeUnmount(() => {
         <div class="flex items-center justify-between border-b border-[#333] px-5 py-4">
           <div>
             <h4 class="font-semibold">Recent traces</h4>
-            <p class="text-xs text-[#888]">Last 200 requests captured while tracing is enabled.</p>
+            <p class="text-xs text-[#888]">{{ traceTableSummary }}</p>
           </div>
           <SecondaryButton
             label="Clear"
             size="small"
             class="!border-[#333] !bg-transparent !text-[#888] hover:!border-[#666]"
-            :disabled="!traceRequests.length"
-            @click="traceRequests = []"
+            :disabled="!renderStats.retainedRequests"
+            @click="clearTraceRequests"
           />
         </div>
 
@@ -529,30 +385,33 @@ onBeforeUnmount(() => {
             </thead>
             <tbody class="divide-y divide-[#222]">
               <tr
-                v-for="request in traceRequests"
+                v-for="request in tableRequests"
                 :key="request.requestId"
+                v-memo="[request.version]"
                 class="cursor-pointer transition hover:bg-[#0a0a0a]"
                 @click="openTraceDetails(request)"
               >
                 <td class="px-5 py-3">
                   <div class="flex items-center gap-2">
-                    <span class="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[0.7rem] text-[#d4d4d8]">{{ request.method || "-" }}</span>
-                    <span class="max-w-[18rem] truncate font-mono text-xs text-white">{{ request.path || "/" }}</span>
+                    <span class="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[0.7rem] text-[#d4d4d8]">{{ request.methodLabel }}</span>
+                    <span class="max-w-[18rem] truncate font-mono text-xs text-white">{{ request.pathLabel }}</span>
                   </div>
-                  <p class="mt-1 max-w-[22rem] truncate font-mono text-[0.7rem] text-[#666]">{{ request.requestId }}</p>
+                  <p class="mt-1 max-w-[22rem] truncate font-mono text-[0.7rem] text-[#666]">{{ request.requestIdLabel }}</p>
                 </td>
                 <td class="px-5 py-3">
                   <p class="text-xs text-[#d4d4d8]">
-                    {{ traceFlowLabel(request) }}
+                    {{ request.flowLabel }}
                   </p>
-                  <p class="mt-1 text-[0.7rem] text-[#888]">{{ traceStageLabel(request.stage) }}</p>
+                  <p class="mt-1 text-[0.7rem] text-[#888]">
+                    {{ request.stageLabel }}<span v-if="request.sampledEventCount"> / sampled {{ numberLabel(request.sampledEventCount) }}</span>
+                  </p>
                 </td>
-                <td class="px-5 py-3 text-right font-mono text-xs" :class="requestStatusClass(request)">
-                  {{ request.statusCode ? request.statusCode.toString() : traceStageLabel(request.stage) }}
+                <td class="px-5 py-3 text-right font-mono text-xs" :class="request.statusClass">
+                  {{ request.statusLabel }}
                 </td>
-                <td class="px-5 py-3 text-right font-mono text-xs text-[#888]">{{ formatDuration(request.durationMs) }}</td>
+                <td class="px-5 py-3 text-right font-mono text-xs text-[#888]">{{ request.durationLabel }}</td>
               </tr>
-              <tr v-if="!traceRequests.length">
+              <tr v-if="!tableRequests.length">
                 <td colspan="4" class="px-5 py-8 text-center text-sm text-[#888]">No traces captured.</td>
               </tr>
             </tbody>

@@ -1,46 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import Modal from "@/volt/Modal.vue";
+import type { TraceRequest } from "@/types/trafficTrace";
 import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
   TrafficTraceLevel,
   TrafficTraceStage,
-  type TrafficTraceEvent,
 } from "@/gen/proto/p2pstream/v1/management_pb";
-
-type TraceRequest = {
-  requestId: string;
-  method: string;
-  path: string;
-  query: string;
-  host: string;
-  stage: TrafficTraceStage;
-  statusCode: bigint;
-  durationMs: bigint;
-  errorKind: string;
-  listenerId: bigint;
-  listenerName: string;
-  routeId: bigint;
-  routeLabel: string;
-  defaultRoute: boolean;
-  backendId: bigint;
-  backendName: string;
-  backendType: PublicBackendType;
-  forwardMode: PublicBackendForwardMode;
-  targetOrigin: string;
-  agentId: bigint;
-  agentName: string;
-  agentPublicId: string;
-  requestBytes: bigint;
-  responseBytes: bigint;
-  rateLimitRuleId: bigint;
-  rateLimitRuleName: string;
-  rateLimitAlgorithm: PublicRateLimitAlgorithm;
-  latestEvent: TrafficTraceEvent | null;
-  events: TrafficTraceEvent[];
-};
 
 const props = defineProps<{
   modelValue: boolean;
@@ -127,6 +95,10 @@ function formatBytes(value: bigint): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function numberLabel(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
+
 function entries(mapValue: Record<string, string> | undefined): Array<[string, string]> {
   if (!mapValue) return [];
   return Object.entries(mapValue).sort(([a], [b]) => a.localeCompare(b));
@@ -141,6 +113,9 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Request</span>
           <strong class="break-all font-mono">{{ request.requestId }}</strong>
         </div>
+        <p v-if="request.sampledEventCount > 0" class="rounded-md border border-amber-900/60 bg-amber-950/20 px-3 py-2 text-xs text-amber-300 sm:col-span-2">
+          Some intermediate trace events were omitted while the UI was under load. {{ numberLabel(request.sampledEventCount) }} events were sampled for this request.
+        </p>
         <div class="trace-field">
           <span>Method</span>
           <strong>{{ request.method || "-" }}</strong>
