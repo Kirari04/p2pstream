@@ -3,6 +3,7 @@ import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicTrafficShaperBudgetScope,
   TrafficTraceStage,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -34,6 +35,13 @@ export type TraceRequest = {
   rateLimitRuleId: bigint;
   rateLimitRuleName: string;
   rateLimitAlgorithm: PublicRateLimitAlgorithm;
+  trafficShaperRuleId: bigint;
+  trafficShaperRuleName: string;
+  trafficShaperBudgetScope: PublicTrafficShaperBudgetScope;
+  trafficShaperUploadBytesPerSecond: bigint;
+  trafficShaperDownloadBytesPerSecond: bigint;
+  trafficShaperRequestExemptBytes: bigint;
+  trafficShaperResponseExemptBytes: bigint;
   visible: boolean;
   completedAt: number | null;
   latestEvent: TrafficTraceEvent | null;
@@ -77,4 +85,3 @@ export function emptyTraceRenderStats(): TraceRenderStats {
     pendingEvents: 0,
   };
 }
-

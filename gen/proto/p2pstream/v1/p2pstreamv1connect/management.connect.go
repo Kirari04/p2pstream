@@ -144,6 +144,15 @@ const (
 	// AgentManagementServiceDeletePublicRateLimitRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicRateLimitRule RPC.
 	AgentManagementServiceDeletePublicRateLimitRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicRateLimitRule"
+	// AgentManagementServiceCreatePublicTrafficShaperRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicTrafficShaperRule RPC.
+	AgentManagementServiceCreatePublicTrafficShaperRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTrafficShaperRule"
+	// AgentManagementServiceUpdatePublicTrafficShaperRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicTrafficShaperRule RPC.
+	AgentManagementServiceUpdatePublicTrafficShaperRuleProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicTrafficShaperRule"
+	// AgentManagementServiceDeletePublicTrafficShaperRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicTrafficShaperRule RPC.
+	AgentManagementServiceDeletePublicTrafficShaperRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTrafficShaperRule"
 )
 
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
@@ -185,6 +194,9 @@ type AgentManagementServiceClient interface {
 	CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error)
 	UpdatePublicRateLimitRule(context.Context, *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error)
 	DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error)
+	CreatePublicTrafficShaperRule(context.Context, *connect.Request[v1.CreatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.CreatePublicTrafficShaperRuleResponse], error)
+	UpdatePublicTrafficShaperRule(context.Context, *connect.Request[v1.UpdatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.UpdatePublicTrafficShaperRuleResponse], error)
+	DeletePublicTrafficShaperRule(context.Context, *connect.Request[v1.DeletePublicTrafficShaperRuleRequest]) (*connect.Response[v1.DeletePublicTrafficShaperRuleResponse], error)
 }
 
 // NewAgentManagementServiceClient constructs a client for the p2pstream.v1.AgentManagementService
@@ -420,48 +432,69 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRateLimitRule")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicTrafficShaperRule: connect.NewClient[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicTrafficShaperRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTrafficShaperRule")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicTrafficShaperRule: connect.NewClient[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicTrafficShaperRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTrafficShaperRule")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicTrafficShaperRule: connect.NewClient[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicTrafficShaperRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrafficShaperRule")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentManagementServiceClient implements AgentManagementServiceClient.
 type agentManagementServiceClient struct {
-	reportStats                *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
-	getStatus                  *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
-	getDashboard               *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
-	getTrafficTraceSettings    *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
-	setTrafficTraceSettings    *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
-	streamTrafficTraceEvents   *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
-	getSetupState              *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
-	setupAdmin                 *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
-	login                      *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	logout                     *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	getCurrentUser             *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
-	startProxy                 *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
-	stopProxy                  *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
-	getPublicProxyConfig       *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
-	createPublicBackend        *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
-	updatePublicBackend        *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
-	deletePublicBackend        *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
-	createAgent                *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
-	updateAgent                *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
-	deleteAgent                *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
-	rotateAgentToken           *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
-	createPublicListener       *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
-	updatePublicListener       *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
-	deletePublicListener       *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
-	enablePublicListener       *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
-	disablePublicListener      *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
-	startPublicListener        *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
-	stopPublicListener         *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
-	createPublicRoute          *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
-	updatePublicRoute          *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
-	deletePublicRoute          *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
-	createPublicTlsCertificate *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
-	updatePublicTlsCertificate *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
-	deletePublicTlsCertificate *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
-	createPublicRateLimitRule  *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
-	updatePublicRateLimitRule  *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
-	deletePublicRateLimitRule  *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
+	reportStats                   *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
+	getStatus                     *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
+	getDashboard                  *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getTrafficTraceSettings       *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
+	setTrafficTraceSettings       *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
+	streamTrafficTraceEvents      *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
+	getSetupState                 *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
+	setupAdmin                    *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
+	login                         *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout                        *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getCurrentUser                *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
+	startProxy                    *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
+	stopProxy                     *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
+	getPublicProxyConfig          *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
+	createPublicBackend           *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
+	updatePublicBackend           *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
+	deletePublicBackend           *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
+	createAgent                   *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
+	updateAgent                   *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
+	deleteAgent                   *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
+	rotateAgentToken              *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
+	createPublicListener          *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
+	updatePublicListener          *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
+	deletePublicListener          *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
+	enablePublicListener          *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
+	disablePublicListener         *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
+	startPublicListener           *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
+	stopPublicListener            *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
+	createPublicRoute             *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
+	updatePublicRoute             *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
+	deletePublicRoute             *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
+	createPublicTlsCertificate    *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
+	updatePublicTlsCertificate    *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
+	deletePublicTlsCertificate    *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
+	createPublicRateLimitRule     *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
+	updatePublicRateLimitRule     *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
+	deletePublicRateLimitRule     *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
+	createPublicTrafficShaperRule *connect.Client[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse]
+	updatePublicTrafficShaperRule *connect.Client[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse]
+	deletePublicTrafficShaperRule *connect.Client[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
@@ -649,6 +682,24 @@ func (c *agentManagementServiceClient) DeletePublicRateLimitRule(ctx context.Con
 	return c.deletePublicRateLimitRule.CallUnary(ctx, req)
 }
 
+// CreatePublicTrafficShaperRule calls
+// p2pstream.v1.AgentManagementService.CreatePublicTrafficShaperRule.
+func (c *agentManagementServiceClient) CreatePublicTrafficShaperRule(ctx context.Context, req *connect.Request[v1.CreatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.CreatePublicTrafficShaperRuleResponse], error) {
+	return c.createPublicTrafficShaperRule.CallUnary(ctx, req)
+}
+
+// UpdatePublicTrafficShaperRule calls
+// p2pstream.v1.AgentManagementService.UpdatePublicTrafficShaperRule.
+func (c *agentManagementServiceClient) UpdatePublicTrafficShaperRule(ctx context.Context, req *connect.Request[v1.UpdatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.UpdatePublicTrafficShaperRuleResponse], error) {
+	return c.updatePublicTrafficShaperRule.CallUnary(ctx, req)
+}
+
+// DeletePublicTrafficShaperRule calls
+// p2pstream.v1.AgentManagementService.DeletePublicTrafficShaperRule.
+func (c *agentManagementServiceClient) DeletePublicTrafficShaperRule(ctx context.Context, req *connect.Request[v1.DeletePublicTrafficShaperRuleRequest]) (*connect.Response[v1.DeletePublicTrafficShaperRuleResponse], error) {
+	return c.deletePublicTrafficShaperRule.CallUnary(ctx, req)
+}
+
 // AgentManagementServiceHandler is an implementation of the p2pstream.v1.AgentManagementService
 // service.
 type AgentManagementServiceHandler interface {
@@ -689,6 +740,9 @@ type AgentManagementServiceHandler interface {
 	CreatePublicRateLimitRule(context.Context, *connect.Request[v1.CreatePublicRateLimitRuleRequest]) (*connect.Response[v1.CreatePublicRateLimitRuleResponse], error)
 	UpdatePublicRateLimitRule(context.Context, *connect.Request[v1.UpdatePublicRateLimitRuleRequest]) (*connect.Response[v1.UpdatePublicRateLimitRuleResponse], error)
 	DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error)
+	CreatePublicTrafficShaperRule(context.Context, *connect.Request[v1.CreatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.CreatePublicTrafficShaperRuleResponse], error)
+	UpdatePublicTrafficShaperRule(context.Context, *connect.Request[v1.UpdatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.UpdatePublicTrafficShaperRuleResponse], error)
+	DeletePublicTrafficShaperRule(context.Context, *connect.Request[v1.DeletePublicTrafficShaperRuleRequest]) (*connect.Response[v1.DeletePublicTrafficShaperRuleResponse], error)
 }
 
 // NewAgentManagementServiceHandler builds an HTTP handler from the service implementation. It
@@ -920,6 +974,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRateLimitRule")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicTrafficShaperRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicTrafficShaperRuleProcedure,
+		svc.CreatePublicTrafficShaperRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTrafficShaperRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicTrafficShaperRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicTrafficShaperRuleProcedure,
+		svc.UpdatePublicTrafficShaperRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTrafficShaperRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicTrafficShaperRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicTrafficShaperRuleProcedure,
+		svc.DeletePublicTrafficShaperRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrafficShaperRule")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/p2pstream.v1.AgentManagementService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentManagementServiceReportStatsProcedure:
@@ -996,6 +1068,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicRateLimitRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicRateLimitRuleProcedure:
 			agentManagementServiceDeletePublicRateLimitRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicTrafficShaperRuleProcedure:
+			agentManagementServiceCreatePublicTrafficShaperRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicTrafficShaperRuleProcedure:
+			agentManagementServiceUpdatePublicTrafficShaperRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicTrafficShaperRuleProcedure:
+			agentManagementServiceDeletePublicTrafficShaperRuleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1151,4 +1229,16 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicRateLimitRule(cont
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicRateLimitRule(context.Context, *connect.Request[v1.DeletePublicRateLimitRuleRequest]) (*connect.Response[v1.DeletePublicRateLimitRuleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicTrafficShaperRule(context.Context, *connect.Request[v1.CreatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.CreatePublicTrafficShaperRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicTrafficShaperRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicTrafficShaperRule(context.Context, *connect.Request[v1.UpdatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.UpdatePublicTrafficShaperRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicTrafficShaperRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicTrafficShaperRule(context.Context, *connect.Request[v1.DeletePublicTrafficShaperRuleRequest]) (*connect.Response[v1.DeletePublicTrafficShaperRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTrafficShaperRule is not implemented"))
 }

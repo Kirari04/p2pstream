@@ -61,6 +61,7 @@ type publicConfigRows struct {
 	Routes                 []db.PublicRoute
 	TLSCertificates        []db.PublicTlsCertificate
 	RateLimitRules         []db.PublicRateLimitRule
+	TrafficShaperRules     []db.PublicTrafficShaperRule
 }
 
 type publicBackendHeaderInput struct {
@@ -895,16 +896,20 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	if a.RateLimiter != nil {
 		a.RateLimiter.reconcile(snap)
 	}
+	if a.TrafficShaper != nil {
+		a.TrafficShaper.reconcile(snap)
+	}
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
-		Backends:        publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents),
-		Listeners:       publicListenersToProto(rows.Listeners),
-		Routes:          publicRoutesToProto(rows.Routes),
-		TlsCertificates: publicTLSCertificatesToProto(rows.TLSCertificates),
-		Proxy:           proxy,
-		Agents:          a.publicAgentsToProto(ctx, rows.Agents),
-		BackendAgents:   publicBackendAgentsToProto(rows.BackendAgents),
-		RateLimitRules:  publicRateLimitRulesToProto(rows.RateLimitRules),
+		Backends:           publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents),
+		Listeners:          publicListenersToProto(rows.Listeners),
+		Routes:             publicRoutesToProto(rows.Routes),
+		TlsCertificates:    publicTLSCertificatesToProto(rows.TLSCertificates),
+		Proxy:              proxy,
+		Agents:             a.publicAgentsToProto(ctx, rows.Agents),
+		BackendAgents:      publicBackendAgentsToProto(rows.BackendAgents),
+		RateLimitRules:     publicRateLimitRulesToProto(rows.RateLimitRules),
+		TrafficShaperRules: publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
 	}, nil
 }
 
@@ -921,6 +926,9 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	a.LoadBalancers.reconcile(snap)
 	if a.RateLimiter != nil {
 		a.RateLimiter.reconcile(snap)
+	}
+	if a.TrafficShaper != nil {
+		a.TrafficShaper.reconcile(snap)
 	}
 	return nil
 }
@@ -976,6 +984,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
+	trafficShaperRules, err := a.DB.ListPublicTrafficShaperRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	return publicConfigRows{
 		Backends:               backends,
 		BackendHeaders:         backendHeaders,
@@ -986,6 +998,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		Routes:                 routes,
 		TLSCertificates:        certs,
 		RateLimitRules:         rateLimitRules,
+		TrafficShaperRules:     trafficShaperRules,
 	}, nil
 }
 
@@ -1163,6 +1176,13 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("rate limit rule %q is invalid: %w", row.Name, err))
 		}
 		snap.RateLimitRules = append(snap.RateLimitRules, rule)
+	}
+	for _, row := range rows.TrafficShaperRules {
+		rule, err := publicTrafficShaperRuleRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("traffic shaper rule %q is invalid: %w", row.Name, err))
+		}
+		snap.TrafficShaperRules = append(snap.TrafficShaperRules, rule)
 	}
 	return snap, nil
 }

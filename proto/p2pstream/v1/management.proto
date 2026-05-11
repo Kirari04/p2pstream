@@ -86,6 +86,12 @@ enum PublicRateLimitMatchOperator {
   PUBLIC_RATE_LIMIT_MATCH_OPERATOR_CONTAINS = 5;
 }
 
+enum PublicTrafficShaperBudgetScope {
+  PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_UNSPECIFIED = 0;
+  PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY = 1;
+  PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST = 2;
+}
+
 enum TrafficTraceLevel {
   TRAFFIC_TRACE_LEVEL_UNSPECIFIED = 0;
   TRAFFIC_TRACE_LEVEL_BASIC = 1;
@@ -105,6 +111,7 @@ enum TrafficTraceStage {
   TRAFFIC_TRACE_STAGE_RESPONSE_SENT = 7;
   TRAFFIC_TRACE_STAGE_FAILED = 8;
   TRAFFIC_TRACE_STAGE_RATE_LIMITED = 9;
+  TRAFFIC_TRACE_STAGE_TRAFFIC_SHAPER_SELECTED = 10;
 }
 
 message AgentStatsRequest {
@@ -311,6 +318,23 @@ message PublicRateLimitRule {
   int64 updated_at_unix_millis = 16;
 }
 
+message PublicTrafficShaperRule {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicTrafficShaperBudgetScope budget_scope = 5;
+  int64 upload_bytes_per_second = 6;
+  int64 download_bytes_per_second = 7;
+  int64 burst_bytes = 8;
+  int64 request_exempt_bytes = 9;
+  int64 response_exempt_bytes = 10;
+  PublicRateLimitMatch match = 11;
+  repeated PublicRateLimitKeyPart key_parts = 12;
+  int64 created_at_unix_millis = 13;
+  int64 updated_at_unix_millis = 14;
+}
+
 message PublicListenerStatus {
   int64 listener_id = 1;
   ProxyState state = 2;
@@ -334,6 +358,7 @@ message GetPublicProxyConfigResponse {
   repeated Agent agents = 6;
   repeated PublicBackendAgent backend_agents = 7;
   repeated PublicRateLimitRule rate_limit_rules = 8;
+  repeated PublicTrafficShaperRule traffic_shaper_rules = 9;
 }
 
 message CreatePublicBackendRequest {
@@ -628,6 +653,50 @@ message DeletePublicRateLimitRuleRequest {
 message DeletePublicRateLimitRuleResponse {
 }
 
+message CreatePublicTrafficShaperRuleRequest {
+  string name = 1;
+  int64 priority = 2;
+  bool enabled = 3;
+  PublicTrafficShaperBudgetScope budget_scope = 4;
+  int64 upload_bytes_per_second = 5;
+  int64 download_bytes_per_second = 6;
+  int64 burst_bytes = 7;
+  int64 request_exempt_bytes = 8;
+  int64 response_exempt_bytes = 9;
+  PublicRateLimitMatch match = 10;
+  repeated PublicRateLimitKeyPart key_parts = 11;
+}
+
+message CreatePublicTrafficShaperRuleResponse {
+  PublicTrafficShaperRule rule = 1;
+}
+
+message UpdatePublicTrafficShaperRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicTrafficShaperBudgetScope budget_scope = 5;
+  int64 upload_bytes_per_second = 6;
+  int64 download_bytes_per_second = 7;
+  int64 burst_bytes = 8;
+  int64 request_exempt_bytes = 9;
+  int64 response_exempt_bytes = 10;
+  PublicRateLimitMatch match = 11;
+  repeated PublicRateLimitKeyPart key_parts = 12;
+}
+
+message UpdatePublicTrafficShaperRuleResponse {
+  PublicTrafficShaperRule rule = 1;
+}
+
+message DeletePublicTrafficShaperRuleRequest {
+  int64 id = 1;
+}
+
+message DeletePublicTrafficShaperRuleResponse {
+}
+
 message GetDashboardRequest {
 }
 
@@ -732,6 +801,13 @@ message TrafficTraceEvent {
   int64 rate_limit_rule_id = 30;
   string rate_limit_rule_name = 31;
   PublicRateLimitAlgorithm rate_limit_algorithm = 32;
+  int64 traffic_shaper_rule_id = 33;
+  string traffic_shaper_rule_name = 34;
+  PublicTrafficShaperBudgetScope traffic_shaper_budget_scope = 35;
+  int64 traffic_shaper_upload_bytes_per_second = 36;
+  int64 traffic_shaper_download_bytes_per_second = 37;
+  int64 traffic_shaper_request_exempt_bytes = 38;
+  int64 traffic_shaper_response_exempt_bytes = 39;
 }
 
 message StreamTrafficTraceEventsResponse {
@@ -833,4 +909,7 @@ service AgentManagementService {
   rpc CreatePublicRateLimitRule(CreatePublicRateLimitRuleRequest) returns (CreatePublicRateLimitRuleResponse) {}
   rpc UpdatePublicRateLimitRule(UpdatePublicRateLimitRuleRequest) returns (UpdatePublicRateLimitRuleResponse) {}
   rpc DeletePublicRateLimitRule(DeletePublicRateLimitRuleRequest) returns (DeletePublicRateLimitRuleResponse) {}
+  rpc CreatePublicTrafficShaperRule(CreatePublicTrafficShaperRuleRequest) returns (CreatePublicTrafficShaperRuleResponse) {}
+  rpc UpdatePublicTrafficShaperRule(UpdatePublicTrafficShaperRuleRequest) returns (UpdatePublicTrafficShaperRuleResponse) {}
+  rpc DeletePublicTrafficShaperRule(DeletePublicTrafficShaperRuleRequest) returns (DeletePublicTrafficShaperRuleResponse) {}
 }

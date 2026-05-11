@@ -163,6 +163,23 @@ type PublicTlsCertificate struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
+type PublicTrafficShaperRule struct {
+	ID                     int64     `json:"id"`
+	Name                   string    `json:"name"`
+	Priority               int64     `json:"priority"`
+	Enabled                int64     `json:"enabled"`
+	BudgetScope            string    `json:"budget_scope"`
+	UploadBytesPerSecond   int64     `json:"upload_bytes_per_second"`
+	DownloadBytesPerSecond int64     `json:"download_bytes_per_second"`
+	BurstBytes             int64     `json:"burst_bytes"`
+	RequestExemptBytes     int64     `json:"request_exempt_bytes"`
+	ResponseExemptBytes    int64     `json:"response_exempt_bytes"`
+	MatchJson              string    `json:"match_json"`
+	KeyPartsJson           string    `json:"key_parts_json"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
+}
+
 type Session struct {
 	ID         int64        `json:"id"`
 	UserID     int64        `json:"user_id"`

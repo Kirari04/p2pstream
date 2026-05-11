@@ -6,6 +6,7 @@ import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicTrafficShaperBudgetScope,
   TrafficTraceLevel,
   TrafficTraceStage,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -46,6 +47,7 @@ function stageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.ROUTE_RESOLVED: return "Route resolved";
     case TrafficTraceStage.BACKEND_SELECTED: return "Backend selected";
     case TrafficTraceStage.AGENT_SELECTED: return "Agent selected";
+    case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Traffic shaper selected";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream started";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Upstream responded";
     case TrafficTraceStage.RESPONSE_SENT: return "Response sent";
@@ -63,6 +65,17 @@ function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
     case PublicRateLimitAlgorithm.FIXED_WINDOW: return "Fixed window";
     default: return "-";
   }
+}
+
+function trafficShaperScopeLabel(scope: PublicTrafficShaperBudgetScope): string {
+  return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
+}
+
+function formatRate(value: bigint): string {
+  const bytes = Number(value || 0n);
+  if (bytes <= 0) return "unlimited";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024).toString()} KiB/s`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MiB/s`;
 }
 
 function backendTypeLabel(type: PublicBackendType): string {
@@ -162,6 +175,18 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <strong>
             {{ request.rateLimitRuleName || `#${request.rateLimitRuleId.toString()}` }}
             <span class="text-[#888]">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
+          </strong>
+        </div>
+        <div v-if="request.trafficShaperRuleId" class="trace-field sm:col-span-2">
+          <span>Traffic shaper</span>
+          <strong>
+            {{ request.trafficShaperRuleName || `#${request.trafficShaperRuleId.toString()}` }}
+            <span class="text-[#888]">
+              / {{ trafficShaperScopeLabel(request.trafficShaperBudgetScope) }}
+              / up {{ formatRate(request.trafficShaperUploadBytesPerSecond) }}
+              / down {{ formatRate(request.trafficShaperDownloadBytesPerSecond) }}
+              / free {{ formatBytes(request.trafficShaperRequestExemptBytes) }} req, {{ formatBytes(request.trafficShaperResponseExemptBytes) }} res
+            </span>
           </strong>
         </div>
       </section>

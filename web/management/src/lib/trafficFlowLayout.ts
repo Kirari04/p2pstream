@@ -2,12 +2,14 @@ import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicTrafficShaperBudgetScope,
   PublicRouteAction,
   type Agent,
   type GetPublicProxyConfigResponse,
   type PublicBackend,
   type PublicBackendAgent,
   type PublicRateLimitRule,
+  type PublicTrafficShaperRule,
   type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceStage as TraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -16,6 +18,7 @@ import type { TraceRequest } from "@/types/trafficTrace";
 
 export const DEFAULT_ROUTE_KEY = "route:default";
 export const RATE_LIMIT_KEY = "rate-limit";
+export const TRAFFIC_SHAPER_KEY = "traffic-shaper";
 
 export type TrafficFlowConfigIndex = {
   routesByListenerId: Map<string, PublicRoute[]>;
@@ -25,6 +28,8 @@ export type TrafficFlowConfigIndex = {
   backendAgentsByBackendId: Map<string, PublicBackendAgent[]>;
   enabledRateLimitTargets: TrafficFlowEditTarget[];
   hasEnabledRateLimitRules: boolean;
+  enabledTrafficShaperTargets: TrafficFlowEditTarget[];
+  hasEnabledTrafficShaperRules: boolean;
 };
 
 export type TrafficRequestPathCacheEntry = {
@@ -75,6 +80,10 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
     .filter((rule) => rule.enabled)
     .sort(compareRateLimitRules)
     .map(rateLimitEditTarget);
+  const enabledTrafficShaperTargets = [...(config?.trafficShaperRules ?? [])]
+    .filter((rule) => rule.enabled)
+    .sort(compareTrafficShaperRules)
+    .map(trafficShaperEditTarget);
 
   for (const route of config?.routes ?? []) {
     routeById.set(route.id.toString(), route);
@@ -110,6 +119,8 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
     backendAgentsByBackendId,
     enabledRateLimitTargets,
     hasEnabledRateLimitRules: enabledRateLimitTargets.length > 0,
+    enabledTrafficShaperTargets,
+    hasEnabledTrafficShaperRules: enabledTrafficShaperTargets.length > 0,
   };
 }
 
@@ -127,6 +138,10 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
   if (request.stage === TraceStage.RATE_LIMITED) {
     path.push("response");
     return dedupeConsecutive(path);
+  }
+
+  if (requestUsesTrafficShaperNode(request, index)) {
+    path.push(TRAFFIC_SHAPER_KEY);
   }
 
   if (request.routeId > 0n) {
@@ -178,12 +193,18 @@ export function trafficRequestPathSignature(request: TraceRequest): string {
     request.forwardMode,
     request.agentId,
     request.rateLimitRuleId,
+    request.trafficShaperRuleId,
   ].join("|");
 }
 
 export function requestUsesRateLimitNode(request: TraceRequest, index: TrafficFlowConfigIndex | null): boolean {
   if (request.rateLimitRuleId > 0n || request.stage === TraceStage.RATE_LIMITED) return true;
   return index?.hasEnabledRateLimitRules ?? false;
+}
+
+export function requestUsesTrafficShaperNode(request: TraceRequest, index: TrafficFlowConfigIndex | null): boolean {
+  if (request.trafficShaperRuleId > 0n || request.stage === TraceStage.TRAFFIC_SHAPER_SELECTED) return true;
+  return index?.hasEnabledTrafficShaperRules ?? false;
 }
 
 export function routeConfigForRequest(request: TraceRequest, index: TrafficFlowConfigIndex | null): PublicRoute | undefined {
@@ -233,6 +254,8 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
       return request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TraceStage.AGENT_SELECTED:
       return request.agentId > 0n ? agentKey(request.agentId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
+    case TraceStage.TRAFFIC_SHAPER_SELECTED:
+      return TRAFFIC_SHAPER_KEY;
     case TraceStage.UPSTREAM_STARTED:
       if (request.backendType === PublicBackendType.STATIC) return "static-response";
       if (request.agentId > 0n || request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "upstream";
@@ -267,7 +290,22 @@ function rateLimitEditTarget(rule: PublicRateLimitRule): TrafficFlowEditTarget {
   };
 }
 
+function trafficShaperEditTarget(rule: PublicTrafficShaperRule): TrafficFlowEditTarget {
+  return {
+    kind: "traffic-shaper",
+    id: rule.id.toString(),
+    label: rule.name || `Traffic shaper ${rule.id.toString()}`,
+    subLabel: `${trafficShaperScopeLabel(rule.budgetScope)} / P${rule.priority.toString()}`,
+  };
+}
+
 function compareRateLimitRules(a: PublicRateLimitRule, b: PublicRateLimitRule): number {
+  if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+function compareTrafficShaperRules(a: PublicTrafficShaperRule, b: PublicTrafficShaperRule): number {
   if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
   if (a.id === b.id) return 0;
   return a.id < b.id ? -1 : 1;
@@ -296,4 +334,8 @@ function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
     default:
       return "Fixed window";
   }
+}
+
+function trafficShaperScopeLabel(scope: PublicTrafficShaperRule["budgetScope"]): string {
+  return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
 }

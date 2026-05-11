@@ -5,6 +5,7 @@ import PublicBackendEditorModal from "@/components/editors/PublicBackendEditorMo
 import PublicListenerEditorModal from "@/components/editors/PublicListenerEditorModal.vue";
 import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
 import PublicRouteEditorModal from "@/components/editors/PublicRouteEditorModal.vue";
+import PublicTrafficShaperRuleEditorModal from "@/components/editors/PublicTrafficShaperRuleEditorModal.vue";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -23,6 +24,7 @@ const backendEditor = ref<InstanceType<typeof PublicBackendEditorModal> | null>(
 const routeEditor = ref<InstanceType<typeof PublicRouteEditorModal> | null>(null);
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
+const trafficShaperEditor = ref<InstanceType<typeof PublicTrafficShaperRuleEditorModal> | null>(null);
 
 function openTarget(target: TrafficFlowEditTarget) {
   switch (target.kind) {
@@ -40,6 +42,9 @@ function openTarget(target: TrafficFlowEditTarget) {
       break;
     case "rate-limit":
       openRateLimitRule(target.id);
+      break;
+    case "traffic-shaper":
+      openTrafficShaperRule(target.id);
       break;
   }
 }
@@ -64,6 +69,10 @@ function openRateLimitRule(ruleId: bigint | string) {
   rateLimitEditor.value?.openEdit(ruleId);
 }
 
+function openTrafficShaperRule(ruleId: bigint | string) {
+  trafficShaperEditor.value?.openEdit(ruleId);
+}
+
 function openCreateListener() {
   listenerEditor.value?.openCreate();
 }
@@ -84,6 +93,10 @@ function openCreateRateLimitRule() {
   rateLimitEditor.value?.openCreate();
 }
 
+function openCreateTrafficShaperRule() {
+  trafficShaperEditor.value?.openCreate();
+}
+
 defineExpose({
   openTarget,
   openListener,
@@ -91,11 +104,13 @@ defineExpose({
   openBackend,
   openAgent,
   openRateLimitRule,
+  openTrafficShaperRule,
   openCreateListener,
   openCreateRoute,
   openCreateBackend,
   openCreateAgent,
   openCreateRateLimitRule,
+  openCreateTrafficShaperRule,
 });
 </script>
 
@@ -104,6 +119,7 @@ defineExpose({
   <PublicBackendEditorModal ref="backendEditor" :config="config" @saved="emit('saved')" />
   <PublicRouteEditorModal ref="routeEditor" :config="config" @saved="emit('saved')" />
   <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" @saved="emit('saved')" />
+  <PublicTrafficShaperRuleEditorModal ref="trafficShaperEditor" :config="config" @saved="emit('saved')" />
   <AgentEditorModal
     ref="agentEditor"
     :config="config"

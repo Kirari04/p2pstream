@@ -35,6 +35,28 @@ describe("TrafficTraceStore", () => {
     expect(snapshot.tableRows[0]?.durationLabel).toBe("12 ms");
   });
 
+  test("preserves traffic shaper fields", () => {
+    const store = newTestStore();
+    store.enqueue(traceEvent({
+      requestId: "req-shaped",
+      sequence: 1n,
+      stage: TrafficTraceStage.TRAFFIC_SHAPER_SELECTED,
+      trafficShaperRuleId: 42n,
+      trafficShaperRuleName: "downloads",
+      trafficShaperBudgetScope: 1,
+      trafficShaperDownloadBytesPerSecond: 128_000n,
+      trafficShaperResponseExemptBytes: 64_000n,
+    }));
+    const snapshot = store.flush();
+    const request = store.get("req-shaped");
+
+    expect(request?.trafficShaperRuleId).toBe(42n);
+    expect(request?.trafficShaperRuleName).toBe("downloads");
+    expect(request?.trafficShaperDownloadBytesPerSecond).toBe(128_000n);
+    expect(request?.trafficShaperResponseExemptBytes).toBe(64_000n);
+    expect(snapshot.tableRows[0]?.flowLabel).toContain("Shaper: downloads");
+  });
+
   test("keeps newest requests first", () => {
     const store = newTestStore();
     store.enqueue(traceEvent({ requestId: "old", sequence: 1n }));
@@ -219,6 +241,13 @@ function traceEvent(overrides: Partial<TrafficTraceEvent>): TrafficTraceEvent {
     rateLimitRuleId: 0n,
     rateLimitRuleName: "",
     rateLimitAlgorithm: 0,
+    trafficShaperRuleId: 0n,
+    trafficShaperRuleName: "",
+    trafficShaperBudgetScope: 0,
+    trafficShaperUploadBytesPerSecond: 0n,
+    trafficShaperDownloadBytesPerSecond: 0n,
+    trafficShaperRequestExemptBytes: 0n,
+    trafficShaperResponseExemptBytes: 0n,
     ...overrides,
   };
 }

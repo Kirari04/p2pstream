@@ -25,6 +25,7 @@ import {
   PublicListenerProtocol,
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
+  PublicTrafficShaperBudgetScope,
   PublicRouteAction,
   PublicRouteRedirectTargetMode,
   type GetDashboardResponse,
@@ -34,6 +35,7 @@ import {
   type PublicListener,
   type PublicListenerStatus,
   type PublicRateLimitRule,
+  type PublicTrafficShaperRule,
   type PublicRoute,
   type PublicTlsCertificate,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -59,6 +61,7 @@ const agents = computed(() => config.value?.agents ?? []);
 const backendAgents = computed(() => config.value?.backendAgents ?? []);
 const routes = computed(() => config.value?.routes ?? []);
 const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
+const trafficShaperRules = computed(() => config.value?.trafficShaperRules ?? []);
 const tlsCertificates = computed(() => config.value?.tlsCertificates ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const httpsListeners = computed(() => listeners.value.filter((listener) => listener.protocol === PublicListenerProtocol.HTTPS));
@@ -257,6 +260,59 @@ function rateLimitKeySourceLabel(source: PublicRateLimitKeySource): string {
   }
 }
 
+function trafficShaperScopeLabel(scope: PublicTrafficShaperBudgetScope): string {
+  return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
+}
+
+function trafficShaperBytesLabel(bytes: bigint): string {
+  const value = Number(bytes || 0n);
+  if (value <= 0) return "unlimited";
+  const kib = value / 1024;
+  if (kib < 1024) return `${Math.round(kib).toString()} KiB/s`;
+  return `${(kib / 1024).toFixed(1)} MiB/s`;
+}
+
+function trafficShaperKibLabel(bytes: bigint): string {
+  const value = Number(bytes || 0n);
+  if (value <= 0) return "0 KiB";
+  const kib = value / 1024;
+  if (kib < 1024) return `${Math.round(kib).toString()} KiB`;
+  return `${(kib / 1024).toFixed(1)} MiB`;
+}
+
+function trafficShaperRuleSummary(rule: PublicTrafficShaperRule): string {
+  return `up ${trafficShaperBytesLabel(rule.uploadBytesPerSecond)} / down ${trafficShaperBytesLabel(rule.downloadBytesPerSecond)}`;
+}
+
+function trafficShaperBudgetSummary(rule: PublicTrafficShaperRule): string {
+  const burst = trafficShaperKibLabel(rule.burstBytes);
+  const requestFree = trafficShaperKibLabel(rule.requestExemptBytes);
+  const responseFree = trafficShaperKibLabel(rule.responseExemptBytes);
+  return `burst ${burst} / free req ${requestFree}, res ${responseFree}`;
+}
+
+function trafficShaperMatchSummary(rule: PublicTrafficShaperRule): string {
+  const match = rule.match;
+  if (!match) return "Any request";
+  const parts: string[] = [];
+  if (match.methods.length) parts.push(match.methods.join(","));
+  if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
+  if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
+  if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
+  if (matcherCount) parts.push(`${matcherCount} value matcher${matcherCount === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" / ") : "Any request";
+}
+
+function trafficShaperKeySummary(rule: PublicTrafficShaperRule): string {
+  if (rule.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST) return "per request";
+  const parts = rule.keyParts.length ? rule.keyParts : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
+  return parts.map((part) => {
+    const label = rateLimitKeySourceLabel(part.source);
+    return part.name ? `${label}:${part.name}` : label;
+  }).join(" + ");
+}
+
 function backendSummary(backend: PublicBackend): string {
   if (backend.backendType === PublicBackendType.STATIC) {
     const body = backend.staticResponseBody.trim();
@@ -322,6 +378,14 @@ function openAddRateLimitRuleModal() {
 
 function editRateLimitRule(id: bigint) {
   editorHost.value?.openRateLimitRule(id);
+}
+
+function openAddTrafficShaperRuleModal() {
+  editorHost.value?.openCreateTrafficShaperRule();
+}
+
+function editTrafficShaperRule(id: bigint) {
+  editorHost.value?.openTrafficShaperRule(id);
 }
 
 function openAddTlsModal() {
@@ -431,6 +495,13 @@ async function deleteRateLimitRule(id: bigint) {
   if (!window.confirm("Delete this rate-limit rule?")) return;
   await run(async () => {
     await managementClient.deletePublicRateLimitRule({ id });
+  });
+}
+
+async function deleteTrafficShaperRule(id: bigint) {
+  if (!window.confirm("Delete this traffic-shaper rule?")) return;
+  await run(async () => {
+    await managementClient.deletePublicTrafficShaperRule({ id });
   });
 }
 
@@ -684,6 +755,41 @@ watch(httpsListeners, () => {
         </div>
         <div v-if="!rateLimitRules.length" class="px-5 py-8 text-center text-sm text-[#888]">
           No rate-limit rules configured.
+        </div>
+      </div>
+    </section>
+
+    <!-- Traffic Shaper List -->
+    <section class="vercel-card overflow-hidden">
+      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Traffic Shaper</h4>
+        <SecondaryButton size="small" label="Add Shaper" @click="openAddTrafficShaperRuleModal">
+          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+        </SecondaryButton>
+      </div>
+      <div class="divide-y divide-[#1f1f1f]">
+        <div v-for="rule in trafficShaperRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+          <div class="min-w-0">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <Tag :value="trafficShaperScopeLabel(rule.budgetScope)" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
+              <Tag :value="`P${rule.priority.toString()}`" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+            </div>
+            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</p>
+            <p class="mt-1 truncate text-xs text-[#666]">{{ trafficShaperMatchSummary(rule) }} / key {{ trafficShaperKeySummary(rule) }}</p>
+          </div>
+          <div class="flex gap-2 lg:justify-end">
+            <SecondaryButton size="small" aria-label="Edit traffic-shaper rule" title="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">
+              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <DangerButton size="small" aria-label="Delete traffic-shaper rule" title="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            </DangerButton>
+          </div>
+        </div>
+        <div v-if="!trafficShaperRules.length" class="px-5 py-8 text-center text-sm text-[#888]">
+          No traffic-shaper rules configured.
         </div>
       </div>
     </section>

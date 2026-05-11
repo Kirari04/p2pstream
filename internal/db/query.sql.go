@@ -526,6 +526,73 @@ func (q *Queries) CreatePublicTlsCertificate(ctx context.Context, arg CreatePubl
 	return i, err
 }
 
+const createPublicTrafficShaperRule = `-- name: CreatePublicTrafficShaperRule :one
+INSERT INTO public_traffic_shaper_rules (
+    name,
+    priority,
+    enabled,
+    budget_scope,
+    upload_bytes_per_second,
+    download_bytes_per_second,
+    burst_bytes,
+    request_exempt_bytes,
+    response_exempt_bytes,
+    match_json,
+    key_parts_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+`
+
+type CreatePublicTrafficShaperRuleParams struct {
+	Name                   string `json:"name"`
+	Priority               int64  `json:"priority"`
+	Enabled                int64  `json:"enabled"`
+	BudgetScope            string `json:"budget_scope"`
+	UploadBytesPerSecond   int64  `json:"upload_bytes_per_second"`
+	DownloadBytesPerSecond int64  `json:"download_bytes_per_second"`
+	BurstBytes             int64  `json:"burst_bytes"`
+	RequestExemptBytes     int64  `json:"request_exempt_bytes"`
+	ResponseExemptBytes    int64  `json:"response_exempt_bytes"`
+	MatchJson              string `json:"match_json"`
+	KeyPartsJson           string `json:"key_parts_json"`
+}
+
+func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error) {
+	row := q.db.QueryRowContext(ctx, createPublicTrafficShaperRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.BudgetScope,
+		arg.UploadBytesPerSecond,
+		arg.DownloadBytesPerSecond,
+		arg.BurstBytes,
+		arg.RequestExemptBytes,
+		arg.ResponseExemptBytes,
+		arg.MatchJson,
+		arg.KeyPartsJson,
+	)
+	var i PublicTrafficShaperRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.BudgetScope,
+		&i.UploadBytesPerSecond,
+		&i.DownloadBytesPerSecond,
+		&i.BurstBytes,
+		&i.RequestExemptBytes,
+		&i.ResponseExemptBytes,
+		&i.MatchJson,
+		&i.KeyPartsJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (user_id, token_hash, expires_at)
 VALUES (?, ?, ?)
@@ -696,6 +763,16 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicTlsCertificate(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicTlsCertificate, id)
+	return err
+}
+
+const deletePublicTrafficShaperRule = `-- name: DeletePublicTrafficShaperRule :exec
+DELETE FROM public_traffic_shaper_rules
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicTrafficShaperRule(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicTrafficShaperRule, id)
 	return err
 }
 
@@ -1094,6 +1171,34 @@ func (q *Queries) GetPublicTlsCertificate(ctx context.Context, id int64) (Public
 		&i.CertPath,
 		&i.KeyPath,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicTrafficShaperRule = `-- name: GetPublicTrafficShaperRule :one
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+FROM public_traffic_shaper_rules
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error) {
+	row := q.db.QueryRowContext(ctx, getPublicTrafficShaperRule, id)
+	var i PublicTrafficShaperRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.BudgetScope,
+		&i.UploadBytesPerSecond,
+		&i.DownloadBytesPerSecond,
+		&i.BurstBytes,
+		&i.RequestExemptBytes,
+		&i.ResponseExemptBytes,
+		&i.MatchJson,
+		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1700,6 +1805,50 @@ func (q *Queries) ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCer
 	return items, nil
 }
 
+const listPublicTrafficShaperRules = `-- name: ListPublicTrafficShaperRules :many
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+FROM public_traffic_shaper_rules
+ORDER BY priority ASC, id ASC
+`
+
+func (q *Queries) ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicTrafficShaperRules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicTrafficShaperRule
+	for rows.Next() {
+		var i PublicTrafficShaperRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Priority,
+			&i.Enabled,
+			&i.BudgetScope,
+			&i.UploadBytesPerSecond,
+			&i.DownloadBytesPerSecond,
+			&i.BurstBytes,
+			&i.RequestExemptBytes,
+			&i.ResponseExemptBytes,
+			&i.MatchJson,
+			&i.KeyPartsJson,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markAgentConnected = `-- name: MarkAgentConnected :exec
 UPDATE agents
 SET last_connected_at = CURRENT_TIMESTAMP,
@@ -2144,6 +2293,74 @@ func (q *Queries) UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePubl
 		&i.CertPath,
 		&i.KeyPath,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicTrafficShaperRule = `-- name: UpdatePublicTrafficShaperRule :one
+UPDATE public_traffic_shaper_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    budget_scope = ?,
+    upload_bytes_per_second = ?,
+    download_bytes_per_second = ?,
+    burst_bytes = ?,
+    request_exempt_bytes = ?,
+    response_exempt_bytes = ?,
+    match_json = ?,
+    key_parts_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+`
+
+type UpdatePublicTrafficShaperRuleParams struct {
+	Name                   string `json:"name"`
+	Priority               int64  `json:"priority"`
+	Enabled                int64  `json:"enabled"`
+	BudgetScope            string `json:"budget_scope"`
+	UploadBytesPerSecond   int64  `json:"upload_bytes_per_second"`
+	DownloadBytesPerSecond int64  `json:"download_bytes_per_second"`
+	BurstBytes             int64  `json:"burst_bytes"`
+	RequestExemptBytes     int64  `json:"request_exempt_bytes"`
+	ResponseExemptBytes    int64  `json:"response_exempt_bytes"`
+	MatchJson              string `json:"match_json"`
+	KeyPartsJson           string `json:"key_parts_json"`
+	ID                     int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTrafficShaperRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.BudgetScope,
+		arg.UploadBytesPerSecond,
+		arg.DownloadBytesPerSecond,
+		arg.BurstBytes,
+		arg.RequestExemptBytes,
+		arg.ResponseExemptBytes,
+		arg.MatchJson,
+		arg.KeyPartsJson,
+		arg.ID,
+	)
+	var i PublicTrafficShaperRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.BudgetScope,
+		&i.UploadBytesPerSecond,
+		&i.DownloadBytesPerSecond,
+		&i.BurstBytes,
+		&i.RequestExemptBytes,
+		&i.ResponseExemptBytes,
+		&i.MatchJson,
+		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

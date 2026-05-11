@@ -202,6 +202,15 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 		event.RateLimitRuleName = resolution.RateLimitRuleName
 		event.RateLimitAlgorithm = protoRateLimitAlgorithmFromString(resolution.RateLimitAlgorithm)
 	}
+	if resolution.TrafficShaperRuleID != 0 {
+		event.TrafficShaperRuleId = resolution.TrafficShaperRuleID
+		event.TrafficShaperRuleName = resolution.TrafficShaperRuleName
+		event.TrafficShaperBudgetScope = protoTrafficShaperBudgetScopeFromString(resolution.TrafficShaperBudgetScope)
+		event.TrafficShaperUploadBytesPerSecond = resolution.TrafficShaperUploadBytesPerSecond
+		event.TrafficShaperDownloadBytesPerSecond = resolution.TrafficShaperDownloadBytesPerSecond
+		event.TrafficShaperRequestExemptBytes = resolution.TrafficShaperRequestExemptBytes
+		event.TrafficShaperResponseExemptBytes = resolution.TrafficShaperResponseExemptBytes
+	}
 }
 
 func traceRouteLabel(resolution publicRouteResolution) string {

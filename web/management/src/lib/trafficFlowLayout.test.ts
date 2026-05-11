@@ -3,6 +3,7 @@ import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicTrafficShaperBudgetScope,
   PublicRouteAction,
   TrafficTraceStage,
   type Agent,
@@ -10,6 +11,7 @@ import {
   type PublicBackend,
   type PublicBackendAgent,
   type PublicRateLimitRule,
+  type PublicTrafficShaperRule,
   type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
@@ -22,7 +24,7 @@ import {
   redirectKey,
   routeKey,
 } from "@/lib/trafficFlowLayout";
-import { DEFAULT_ROUTE_KEY, RATE_LIMIT_KEY } from "@/lib/trafficFlowLayout";
+import { DEFAULT_ROUTE_KEY, RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY } from "@/lib/trafficFlowLayout";
 import { newTraceRequest } from "@/lib/trafficTraceStore";
 import type { TraceRequest } from "@/types/trafficTrace";
 
@@ -96,6 +98,33 @@ describe("trafficFlowLayout", () => {
     ]);
   });
 
+  test("traffic-shaped request path includes shaper after rate limit", () => {
+    const index = createTrafficFlowConfigIndex(configWith({
+      rateLimitRules: [rateLimitRule({ id: 9n, enabled: true })],
+      trafficShaperRules: [trafficShaperRule({ id: 10n, enabled: true })],
+    }));
+    const request = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      backendId: 2n,
+      backendType: PublicBackendType.PROXY_FORWARD,
+      forwardMode: PublicBackendForwardMode.DIRECT,
+      trafficShaperRuleId: 10n,
+      stage: TrafficTraceStage.TRAFFIC_SHAPER_SELECTED,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, index)).toEqual([
+      "ingress",
+      listenerKey(1n),
+      RATE_LIMIT_KEY,
+      TRAFFIC_SHAPER_KEY,
+      DEFAULT_ROUTE_KEY,
+      backendKey(2n),
+      "upstream",
+      "response",
+    ]);
+  });
+
   test("redirect request path includes redirect node and response", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       routes: [route({ id: 3n, listenerId: 1n, action: PublicRouteAction.REDIRECT })],
@@ -143,6 +172,7 @@ describe("trafficFlowLayout", () => {
       agents: [agent({ id: 7n })],
       backendAgents: [backendAgent({ backendId: 2n, agentId: 7n })],
       rateLimitRules: [rateLimitRule({ id: 9n, enabled: true })],
+      trafficShaperRules: [trafficShaperRule({ id: 10n, enabled: true })],
     }));
 
     expect(index.routesByListenerId.get("1")?.map((item) => item.id)).toEqual([4n, 3n]);
@@ -151,6 +181,8 @@ describe("trafficFlowLayout", () => {
     expect(index.backendAgentsByBackendId.get("2")?.[0]?.agentId).toBe(7n);
     expect(index.enabledRateLimitTargets[0]?.kind).toBe("rate-limit");
     expect(index.hasEnabledRateLimitRules).toBe(true);
+    expect(index.enabledTrafficShaperTargets[0]?.kind).toBe("traffic-shaper");
+    expect(index.hasEnabledTrafficShaperRules).toBe(true);
   });
 });
 
@@ -174,6 +206,7 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
     agents: [],
     routes: [],
     rateLimitRules: [],
+    trafficShaperRules: [],
     tlsCertificates: [],
     proxy: undefined,
     ...overrides,
@@ -274,4 +307,25 @@ function rateLimitRule(overrides: Partial<PublicRateLimitRule>): PublicRateLimit
     updatedAtUnixMillis: 0n,
     ...overrides,
   } as PublicRateLimitRule;
+}
+
+function trafficShaperRule(overrides: Partial<PublicTrafficShaperRule>): PublicTrafficShaperRule {
+  return {
+    $typeName: "p2pstream.v1.PublicTrafficShaperRule",
+    id: 0n,
+    name: "",
+    priority: 100n,
+    enabled: true,
+    budgetScope: PublicTrafficShaperBudgetScope.PER_KEY,
+    uploadBytesPerSecond: 0n,
+    downloadBytesPerSecond: 1024n,
+    burstBytes: 0n,
+    requestExemptBytes: 0n,
+    responseExemptBytes: 0n,
+    keyParts: [],
+    match: undefined,
+    createdAtUnixMillis: 0n,
+    updatedAtUnixMillis: 0n,
+    ...overrides,
+  } as PublicTrafficShaperRule;
 }

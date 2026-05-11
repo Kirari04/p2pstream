@@ -109,27 +109,35 @@ type publicTLSCertificateConfig struct {
 }
 
 type publicProxySnapshot struct {
-	Backends         map[int64]publicBackendConfig
-	Agents           map[int64]publicAgentConfig
-	Listeners        map[int64]publicListenerConfig
-	RoutesByListener map[int64][]publicRouteConfig
-	CertsByListener  map[int64][]publicTLSCertificateConfig
-	RateLimitRules   []publicRateLimitRuleConfig
+	Backends           map[int64]publicBackendConfig
+	Agents             map[int64]publicAgentConfig
+	Listeners          map[int64]publicListenerConfig
+	RoutesByListener   map[int64][]publicRouteConfig
+	CertsByListener    map[int64][]publicTLSCertificateConfig
+	RateLimitRules     []publicRateLimitRuleConfig
+	TrafficShaperRules []publicTrafficShaperRuleConfig
 }
 
 type publicRouteResolution struct {
-	Backend            publicBackendConfig
-	Listener           publicListenerConfig
-	Route              publicRouteConfig
-	Action             string
-	DefaultRoute       bool
-	ListenerID         sql.NullInt64
-	BackendID          sql.NullInt64
-	RouteID            sql.NullInt64
-	AgentID            sql.NullInt64
-	RateLimitRuleID    int64
-	RateLimitRuleName  string
-	RateLimitAlgorithm string
+	Backend                             publicBackendConfig
+	Listener                            publicListenerConfig
+	Route                               publicRouteConfig
+	Action                              string
+	DefaultRoute                        bool
+	ListenerID                          sql.NullInt64
+	BackendID                           sql.NullInt64
+	RouteID                             sql.NullInt64
+	AgentID                             sql.NullInt64
+	RateLimitRuleID                     int64
+	RateLimitRuleName                   string
+	RateLimitAlgorithm                  string
+	TrafficShaperRuleID                 int64
+	TrafficShaperRuleName               string
+	TrafficShaperBudgetScope            string
+	TrafficShaperUploadBytesPerSecond   int64
+	TrafficShaperDownloadBytesPerSecond int64
+	TrafficShaperRequestExemptBytes     int64
+	TrafficShaperResponseExemptBytes    int64
 }
 
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
@@ -184,6 +192,38 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			return
 		}
 
+		var trafficShaperDecision publicTrafficShaperDecision
+		trafficShaperSelected := false
+		if decision, ok := a.selectPublicTrafficShaper(listenerID, r); ok {
+			trafficShaperDecision = decision
+			trafficShaperSelected = true
+			if trace != nil {
+				resolution := publicRouteResolution{
+					Listener:   decision.Listener,
+					ListenerID: sql.NullInt64{Int64: listenerID, Valid: true},
+				}
+				applyTrafficShaperResolutionFields(&resolution, decision)
+				trace.emit(
+					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_TRAFFIC_SHAPER_SELECTED,
+					&resolution,
+					nil,
+					0,
+					"",
+					nil,
+					map[string]string{
+						"handler":                        "traffic_shaper",
+						"traffic_shaper_rule_id":         strconv.FormatInt(decision.Rule.ID, 10),
+						"traffic_shaper_rule_name":       decision.Rule.Name,
+						"traffic_shaper_budget_scope":    decision.Rule.BudgetScope,
+						"traffic_shaper_upload_bps":      strconv.FormatInt(decision.Rule.UploadBytesPerSecond, 10),
+						"traffic_shaper_download_bps":    strconv.FormatInt(decision.Rule.DownloadBytesPerSecond, 10),
+						"traffic_shaper_request_exempt":  strconv.FormatInt(decision.Rule.RequestExemptBytes, 10),
+						"traffic_shaper_response_exempt": strconv.FormatInt(decision.Rule.ResponseExemptBytes, 10),
+					},
+				)
+			}
+		}
+
 		resolution, err := a.resolvePublicRoute(listenerID, r)
 		if err != nil {
 			a.recordProxyRequestEventWithIDs(
@@ -198,9 +238,13 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			)
 			http.Error(responseWriter, err.Error(), http.StatusBadGateway)
 			if trace != nil {
+				failureResolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: listenerID, Valid: true}}
+				if trafficShaperSelected {
+					applyTrafficShaperResolutionFields(&failureResolution, trafficShaperDecision)
+				}
 				trace.emit(
 					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
-					&publicRouteResolution{ListenerID: sql.NullInt64{Int64: listenerID, Valid: true}},
+					&failureResolution,
 					nil,
 					http.StatusBadGateway,
 					"route_resolution_failed",
@@ -209,6 +253,9 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 				)
 			}
 			return
+		}
+		if trafficShaperSelected {
+			applyTrafficShaperResolutionFields(&resolution, trafficShaperDecision)
 		}
 		if trace != nil {
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ROUTE_RESOLVED, &resolution, nil, 0, "", nil, nil)
@@ -221,15 +268,35 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, nil)
 		}
 		if resolution.Backend.BackendType == publicBackendTypeStatic {
-			a.staticBackendResponse(responseWriter, r, resolution, trace)
+			a.staticBackendResponse(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected))
 			return
 		}
 		if resolution.Backend.ForwardMode == publicBackendForwardModeAgentPool {
-			a.proxyAgentRequest(responseWriter, r, resolution, trace)
+			a.proxyAgentRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected))
 			return
 		}
-		a.proxyDirectRequest(responseWriter, r, resolution, trace)
+		a.proxyDirectRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected))
 	}
+}
+
+func trafficShaperDecisionIfSelected(decision publicTrafficShaperDecision, selected bool) *publicTrafficShaperDecision {
+	if !selected {
+		return nil
+	}
+	return &decision
+}
+
+func applyTrafficShaperResolutionFields(resolution *publicRouteResolution, decision publicTrafficShaperDecision) {
+	if resolution == nil {
+		return
+	}
+	resolution.TrafficShaperRuleID = decision.Rule.ID
+	resolution.TrafficShaperRuleName = decision.Rule.Name
+	resolution.TrafficShaperBudgetScope = decision.Rule.BudgetScope
+	resolution.TrafficShaperUploadBytesPerSecond = decision.Rule.UploadBytesPerSecond
+	resolution.TrafficShaperDownloadBytesPerSecond = decision.Rule.DownloadBytesPerSecond
+	resolution.TrafficShaperRequestExemptBytes = decision.Rule.RequestExemptBytes
+	resolution.TrafficShaperResponseExemptBytes = decision.Rule.ResponseExemptBytes
 }
 
 func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
@@ -277,7 +344,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 	}()
 }
 
-func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
+func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision) {
 	startedAt := time.Now()
 	statusCode := resolution.Backend.StaticStatusCode
 	if statusCode == 0 {
@@ -322,10 +389,15 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 	if !shouldWriteStaticResponseBody(r.Method, statusCode) {
 		return
 	}
-	_, _ = io.WriteString(w, resolution.Backend.StaticResponseBody)
+	body := io.NopCloser(strings.NewReader(resolution.Backend.StaticResponseBody))
+	if shaper != nil {
+		body = shaper.wrapDownloadBody(r.Context(), body)
+	}
+	defer body.Close()
+	_, _ = io.Copy(w, body)
 }
 
-func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
+func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -371,9 +443,15 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 	proxy := &httputil.ReverseProxy{
 		Director: func(out *http.Request) {
 			applyUpstreamRequestConfig(out, resolution.Backend)
+			if shaper != nil {
+				out.Body = shaper.wrapUploadBody(r.Context(), out.Body)
+			}
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			statusCode = resp.StatusCode
+			if shaper != nil {
+				resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
+			}
 			if trace != nil {
 				trace.emit(
 					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
@@ -398,7 +476,7 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 	proxy.ServeHTTP(w, r)
 }
 
-func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
+func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -481,6 +559,9 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 
 	outReq := r.Clone(r.Context())
 	applyUpstreamRequestConfig(outReq, resolution.Backend)
+	if shaper != nil {
+		outReq.Body = shaper.wrapUploadBody(r.Context(), outReq.Body)
+	}
 
 	if trace != nil {
 		trace.emit(
@@ -581,6 +662,9 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	w.WriteHeader(resp.StatusCode)
 
 	if resp.Body != nil {
+		if shaper != nil {
+			resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
+		}
 		defer resp.Body.Close()
 		_, _ = io.Copy(w, resp.Body)
 	}

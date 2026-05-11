@@ -439,6 +439,29 @@ func (db *DB) migrate() error {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_priority ON public_rate_limit_rules (priority, id)`); err != nil {
 		return err
 	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_traffic_shaper_rules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			priority INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			budget_scope TEXT NOT NULL DEFAULT 'per_key',
+			upload_bytes_per_second INTEGER NOT NULL DEFAULT 0,
+			download_bytes_per_second INTEGER NOT NULL DEFAULT 0,
+			burst_bytes INTEGER NOT NULL DEFAULT 0,
+			request_exempt_bytes INTEGER NOT NULL DEFAULT 0,
+			response_exempt_bytes INTEGER NOT NULL DEFAULT 0,
+			match_json TEXT NOT NULL DEFAULT '{}',
+			key_parts_json TEXT NOT NULL DEFAULT '[]',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_traffic_shaper_rules_priority ON public_traffic_shaper_rules (priority, id)`); err != nil {
+		return err
+	}
 	return nil
 }
 

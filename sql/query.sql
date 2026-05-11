@@ -506,3 +506,52 @@ RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, bu
 -- name: DeletePublicRateLimitRule :exec
 DELETE FROM public_rate_limit_rules
 WHERE id = ?;
+
+-- name: ListPublicTrafficShaperRules :many
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+FROM public_traffic_shaper_rules
+ORDER BY priority ASC, id ASC;
+
+-- name: GetPublicTrafficShaperRule :one
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+FROM public_traffic_shaper_rules
+WHERE id = ?;
+
+-- name: CreatePublicTrafficShaperRule :one
+INSERT INTO public_traffic_shaper_rules (
+    name,
+    priority,
+    enabled,
+    budget_scope,
+    upload_bytes_per_second,
+    download_bytes_per_second,
+    burst_bytes,
+    request_exempt_bytes,
+    response_exempt_bytes,
+    match_json,
+    key_parts_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at;
+
+-- name: UpdatePublicTrafficShaperRule :one
+UPDATE public_traffic_shaper_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    budget_scope = ?,
+    upload_bytes_per_second = ?,
+    download_bytes_per_second = ?,
+    burst_bytes = ?,
+    request_exempt_bytes = ?,
+    response_exempt_bytes = ?,
+    match_json = ?,
+    key_parts_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at;
+
+-- name: DeletePublicTrafficShaperRule :exec
+DELETE FROM public_traffic_shaper_rules
+WHERE id = ?;

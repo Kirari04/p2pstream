@@ -3,6 +3,7 @@ import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicTrafficShaperBudgetScope,
   TrafficTraceStage,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TraceRenderStats, TraceRequest, TraceRequestView } from "@/types/trafficTrace";
@@ -238,6 +239,13 @@ export class TrafficTraceStore {
     request.rateLimitRuleId = event.rateLimitRuleId || request.rateLimitRuleId;
     request.rateLimitRuleName = event.rateLimitRuleName || request.rateLimitRuleName;
     request.rateLimitAlgorithm = event.rateLimitAlgorithm || request.rateLimitAlgorithm;
+    request.trafficShaperRuleId = event.trafficShaperRuleId || request.trafficShaperRuleId;
+    request.trafficShaperRuleName = event.trafficShaperRuleName || request.trafficShaperRuleName;
+    request.trafficShaperBudgetScope = event.trafficShaperBudgetScope || request.trafficShaperBudgetScope;
+    request.trafficShaperUploadBytesPerSecond = event.trafficShaperUploadBytesPerSecond || request.trafficShaperUploadBytesPerSecond;
+    request.trafficShaperDownloadBytesPerSecond = event.trafficShaperDownloadBytesPerSecond || request.trafficShaperDownloadBytesPerSecond;
+    request.trafficShaperRequestExemptBytes = event.trafficShaperRequestExemptBytes || request.trafficShaperRequestExemptBytes;
+    request.trafficShaperResponseExemptBytes = event.trafficShaperResponseExemptBytes || request.trafficShaperResponseExemptBytes;
     request.lastSeenAt = now;
     request.lastEventSequence = event.sequence;
     request.version += 1;
@@ -334,6 +342,13 @@ export function newTraceRequest(requestId: string, now = Date.now()): TraceReque
     rateLimitRuleId: 0n,
     rateLimitRuleName: "",
     rateLimitAlgorithm: PublicRateLimitAlgorithm.UNSPECIFIED,
+    trafficShaperRuleId: 0n,
+    trafficShaperRuleName: "",
+    trafficShaperBudgetScope: PublicTrafficShaperBudgetScope.UNSPECIFIED,
+    trafficShaperUploadBytesPerSecond: 0n,
+    trafficShaperDownloadBytesPerSecond: 0n,
+    trafficShaperRequestExemptBytes: 0n,
+    trafficShaperResponseExemptBytes: 0n,
     visible: true,
     completedAt: null,
     latestEvent: null,
@@ -368,6 +383,7 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.ROUTE_RESOLVED: return "Route";
     case TrafficTraceStage.BACKEND_SELECTED: return "Backend";
     case TrafficTraceStage.AGENT_SELECTED: return "Agent";
+    case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Shaper";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Responded";
     case TrafficTraceStage.RESPONSE_SENT: return "Done";
@@ -391,6 +407,9 @@ export function traceFlowLabel(request: TraceRequest): string {
   const parts = [request.listenerName || "Listener"];
   if (request.rateLimitRuleName || request.stage === TrafficTraceStage.RATE_LIMITED) {
     parts.push(request.rateLimitRuleName ? `Rate limit: ${request.rateLimitRuleName}` : "Rate limit");
+  }
+  if (request.trafficShaperRuleName || request.stage === TrafficTraceStage.TRAFFIC_SHAPER_SELECTED) {
+    parts.push(request.trafficShaperRuleName ? `Shaper: ${request.trafficShaperRuleName}` : "Traffic shaper");
   }
   if (request.routeLabel || request.defaultRoute) {
     parts.push(request.routeLabel || "Default route");

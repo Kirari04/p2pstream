@@ -45,6 +45,7 @@ type App struct {
 	LoadBalancers    *loadBalancerRegistry
 	TrafficTracer    *trafficTracer
 	RateLimiter      *publicRateLimiter
+	TrafficShaper    *publicTrafficShaper
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -74,6 +75,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		LoadBalancers:       newLoadBalancerRegistry(),
 		TrafficTracer:       newTrafficTracer(),
 		RateLimiter:         newPublicRateLimiter(),
+		TrafficShaper:       newPublicTrafficShaper(),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
