@@ -184,6 +184,9 @@ func (db *DB) migrate() error {
 		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
 		static_status_code INTEGER NOT NULL DEFAULT 200,
 		static_response_body TEXT NOT NULL DEFAULT '',
+		upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
+		upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
+		upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -195,6 +198,18 @@ func (db *DB) migrate() error {
 		position INTEGER NOT NULL,
 		name TEXT NOT NULL,
 		value TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(backend_id, position)
+	);
+
+	CREATE TABLE IF NOT EXISTS public_backend_upstream_headers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+		position INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		value TEXT NOT NULL,
+		sensitive INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(backend_id, position)
@@ -277,6 +292,9 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position
 	ON public_backend_headers (backend_id, position);
 
+	CREATE INDEX IF NOT EXISTS idx_public_backend_upstream_headers_backend_position
+	ON public_backend_upstream_headers (backend_id, position);
+
 	CREATE INDEX IF NOT EXISTS idx_public_backend_agents_backend_position
 	ON public_backend_agents (backend_id, position);
 
@@ -313,6 +331,9 @@ func (db *DB) migrate() error {
 		`ALTER TABLE public_backends ADD COLUMN tls_skip_verify INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN static_status_code INTEGER NOT NULL DEFAULT 200`,
 		`ALTER TABLE public_backends ADD COLUMN static_response_body TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
@@ -342,6 +363,24 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position ON public_backend_headers (backend_id, position)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_backend_upstream_headers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			value TEXT NOT NULL,
+			sensitive INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(backend_id, position)
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_upstream_headers_backend_position ON public_backend_upstream_headers (backend_id, position)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`

@@ -20,6 +20,7 @@ type Querier interface {
 	CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error)
 	CreatePublicBackendAgent(ctx context.Context, arg CreatePublicBackendAgentParams) (PublicBackendAgent, error)
 	CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error)
+	CreatePublicBackendUpstreamHeader(ctx context.Context, arg CreatePublicBackendUpstreamHeaderParams) (PublicBackendUpstreamHeader, error)
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
@@ -32,6 +33,7 @@ type Querier interface {
 	DeletePublicBackend(ctx context.Context, id int64) error
 	DeletePublicBackendAgents(ctx context.Context, backendID int64) error
 	DeletePublicBackendHeaders(ctx context.Context, backendID int64) error
+	DeletePublicBackendUpstreamHeaders(ctx context.Context, backendID int64) error
 	DeletePublicListener(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
@@ -58,6 +60,8 @@ type Querier interface {
 	ListPublicBackendAgentsByBackend(ctx context.Context, backendID int64) ([]PublicBackendAgent, error)
 	ListPublicBackendHeaders(ctx context.Context) ([]PublicBackendHeader, error)
 	ListPublicBackendHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendHeader, error)
+	ListPublicBackendUpstreamHeaders(ctx context.Context) ([]PublicBackendUpstreamHeader, error)
+	ListPublicBackendUpstreamHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendUpstreamHeader, error)
 	ListPublicBackends(ctx context.Context) ([]PublicBackend, error)
 	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)

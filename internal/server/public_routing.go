@@ -23,19 +23,21 @@ import (
 )
 
 type publicBackendConfig struct {
-	ID                    int64
-	Name                  string
-	TargetOrigin          string
-	BackendType           string
-	ForwardMode           string
-	LoadBalancing         string
-	TLSSkipVerify         bool
-	StaticStatusCode      int
-	StaticResponseHeaders []publicResponseHeader
-	StaticResponseBody    string
-	Enabled               bool
-	ParsedOrigin          *url.URL
-	AgentAssignments      []publicBackendAgentConfig
+	ID                     int64
+	Name                   string
+	TargetOrigin           string
+	BackendType            string
+	ForwardMode            string
+	LoadBalancing          string
+	TLSSkipVerify          bool
+	StaticStatusCode       int
+	StaticResponseHeaders  []publicResponseHeader
+	StaticResponseBody     string
+	UpstreamRequestHeaders []publicRequestHeader
+	UpstreamBasicAuth      publicBackendBasicAuthConfig
+	Enabled                bool
+	ParsedOrigin           *url.URL
+	AgentAssignments       []publicBackendAgentConfig
 }
 
 type publicAgentConfig struct {
@@ -56,6 +58,18 @@ type publicBackendAgentConfig struct {
 type publicResponseHeader struct {
 	Name  string
 	Value string
+}
+
+type publicRequestHeader struct {
+	Name      string
+	Value     string
+	Sensitive bool
+}
+
+type publicBackendBasicAuthConfig struct {
+	Enabled  bool
+	Username string
+	Password string
 }
 
 type publicListenerConfig struct {
@@ -189,10 +203,7 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 
 	proxy := &httputil.ReverseProxy{
 		Director: func(out *http.Request) {
-			out.URL.Scheme = targetOrigin.Scheme
-			out.URL.Host = targetOrigin.Host
-			out.Host = targetOrigin.Host
-			out.RequestURI = ""
+			applyUpstreamRequestConfig(out, resolution.Backend)
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			statusCode = resp.StatusCode
@@ -269,11 +280,10 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	a.PendingRequests.Store(id, pending)
 	defer a.PendingRequests.Delete(id)
 
-	r.URL.Scheme = targetOrigin.Scheme
-	r.URL.Host = targetOrigin.Host
-	r.Host = targetOrigin.Host
+	outReq := r.Clone(r.Context())
+	applyUpstreamRequestConfig(outReq, resolution.Backend)
 
-	enc := httpmsg.NewRequestEncoderWithMetadata(id, r, map[string]string{
+	enc := httpmsg.NewRequestEncoderWithMetadata(id, outReq, map[string]string{
 		httpmsg.MetadataTLSSkipVerify: strconv.FormatBool(resolution.Backend.TLSSkipVerify),
 	})
 	for {
@@ -384,6 +394,21 @@ func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
 		})
 	}
 	return a.LoadBalancers.selectAgent(backend, candidates)
+}
+
+func applyUpstreamRequestConfig(req *http.Request, backend publicBackendConfig) {
+	if backend.ParsedOrigin != nil {
+		req.URL.Scheme = backend.ParsedOrigin.Scheme
+		req.URL.Host = backend.ParsedOrigin.Host
+		req.Host = backend.ParsedOrigin.Host
+	}
+	req.RequestURI = ""
+	for _, header := range backend.UpstreamRequestHeaders {
+		req.Header.Set(header.Name, header.Value)
+	}
+	if backend.UpstreamBasicAuth.Enabled {
+		req.SetBasicAuth(backend.UpstreamBasicAuth.Username, backend.UpstreamBasicAuth.Password)
+	}
 }
 
 func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRouteResolution, error) {

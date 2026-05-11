@@ -235,19 +235,22 @@ INSERT INTO public_backends (
     tls_skip_verify,
     static_status_code,
     static_response_body,
+    upstream_basic_auth_enabled,
+    upstream_basic_auth_username,
+    upstream_basic_auth_password,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at;
 
 -- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC;
 
 -- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?;
 
@@ -261,10 +264,13 @@ SET name = ?,
     tls_skip_verify = ?,
     static_status_code = ?,
     static_response_body = ?,
+    upstream_basic_auth_enabled = ?,
+    upstream_basic_auth_username = ?,
+    upstream_basic_auth_password = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at;
 
 -- name: DeletePublicBackend :exec
 DELETE FROM public_backends
@@ -288,6 +294,26 @@ RETURNING id, backend_id, position, name, value, created_at, updated_at;
 
 -- name: DeletePublicBackendHeaders :exec
 DELETE FROM public_backend_headers
+WHERE backend_id = ?;
+
+-- name: ListPublicBackendUpstreamHeaders :many
+SELECT id, backend_id, position, name, value, sensitive, created_at, updated_at
+FROM public_backend_upstream_headers
+ORDER BY backend_id ASC, position ASC, id ASC;
+
+-- name: ListPublicBackendUpstreamHeadersByBackend :many
+SELECT id, backend_id, position, name, value, sensitive, created_at, updated_at
+FROM public_backend_upstream_headers
+WHERE backend_id = ?
+ORDER BY position ASC, id ASC;
+
+-- name: CreatePublicBackendUpstreamHeader :one
+INSERT INTO public_backend_upstream_headers (backend_id, position, name, value, sensitive)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, backend_id, position, name, value, sensitive, created_at, updated_at;
+
+-- name: DeletePublicBackendUpstreamHeaders :exec
+DELETE FROM public_backend_upstream_headers
 WHERE backend_id = ?;
 
 -- name: ListPublicBackendAgents :many

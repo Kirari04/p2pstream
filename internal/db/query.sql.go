@@ -141,23 +141,29 @@ INSERT INTO public_backends (
     tls_skip_verify,
     static_status_code,
     static_response_body,
+    upstream_basic_auth_enabled,
+    upstream_basic_auth_username,
+    upstream_basic_auth_password,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
 `
 
 type CreatePublicBackendParams struct {
-	Name               string `json:"name"`
-	TargetOrigin       string `json:"target_origin"`
-	BackendType        string `json:"backend_type"`
-	ForwardMode        string `json:"forward_mode"`
-	LoadBalancing      string `json:"load_balancing"`
-	TlsSkipVerify      int64  `json:"tls_skip_verify"`
-	StaticStatusCode   int64  `json:"static_status_code"`
-	StaticResponseBody string `json:"static_response_body"`
-	Enabled            int64  `json:"enabled"`
+	Name                      string `json:"name"`
+	TargetOrigin              string `json:"target_origin"`
+	BackendType               string `json:"backend_type"`
+	ForwardMode               string `json:"forward_mode"`
+	LoadBalancing             string `json:"load_balancing"`
+	TlsSkipVerify             int64  `json:"tls_skip_verify"`
+	StaticStatusCode          int64  `json:"static_status_code"`
+	StaticResponseBody        string `json:"static_response_body"`
+	UpstreamBasicAuthEnabled  int64  `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername string `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword string `json:"upstream_basic_auth_password"`
+	Enabled                   int64  `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error) {
@@ -170,6 +176,9 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		arg.TlsSkipVerify,
 		arg.StaticStatusCode,
 		arg.StaticResponseBody,
+		arg.UpstreamBasicAuthEnabled,
+		arg.UpstreamBasicAuthUsername,
+		arg.UpstreamBasicAuthPassword,
 		arg.Enabled,
 	)
 	var i PublicBackend
@@ -183,6 +192,9 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
+		&i.UpstreamBasicAuthEnabled,
+		&i.UpstreamBasicAuthUsername,
+		&i.UpstreamBasicAuthPassword,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -252,6 +264,42 @@ func (q *Queries) CreatePublicBackendHeader(ctx context.Context, arg CreatePubli
 		&i.Position,
 		&i.Name,
 		&i.Value,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicBackendUpstreamHeader = `-- name: CreatePublicBackendUpstreamHeader :one
+INSERT INTO public_backend_upstream_headers (backend_id, position, name, value, sensitive)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, backend_id, position, name, value, sensitive, created_at, updated_at
+`
+
+type CreatePublicBackendUpstreamHeaderParams struct {
+	BackendID int64  `json:"backend_id"`
+	Position  int64  `json:"position"`
+	Name      string `json:"name"`
+	Value     string `json:"value"`
+	Sensitive int64  `json:"sensitive"`
+}
+
+func (q *Queries) CreatePublicBackendUpstreamHeader(ctx context.Context, arg CreatePublicBackendUpstreamHeaderParams) (PublicBackendUpstreamHeader, error) {
+	row := q.db.QueryRowContext(ctx, createPublicBackendUpstreamHeader,
+		arg.BackendID,
+		arg.Position,
+		arg.Name,
+		arg.Value,
+		arg.Sensitive,
+	)
+	var i PublicBackendUpstreamHeader
+	err := row.Scan(
+		&i.ID,
+		&i.BackendID,
+		&i.Position,
+		&i.Name,
+		&i.Value,
+		&i.Sensitive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -492,6 +540,16 @@ WHERE backend_id = ?
 
 func (q *Queries) DeletePublicBackendHeaders(ctx context.Context, backendID int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicBackendHeaders, backendID)
+	return err
+}
+
+const deletePublicBackendUpstreamHeaders = `-- name: DeletePublicBackendUpstreamHeaders :exec
+DELETE FROM public_backend_upstream_headers
+WHERE backend_id = ?
+`
+
+func (q *Queries) DeletePublicBackendUpstreamHeaders(ctx context.Context, backendID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicBackendUpstreamHeaders, backendID)
 	return err
 }
 
@@ -794,7 +852,7 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 }
 
 const getPublicBackend = `-- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?
 `
@@ -812,6 +870,9 @@ func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
+		&i.UpstreamBasicAuthEnabled,
+		&i.UpstreamBasicAuthUsername,
+		&i.UpstreamBasicAuthPassword,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1197,8 +1258,85 @@ func (q *Queries) ListPublicBackendHeadersByBackend(ctx context.Context, backend
 	return items, nil
 }
 
+const listPublicBackendUpstreamHeaders = `-- name: ListPublicBackendUpstreamHeaders :many
+SELECT id, backend_id, position, name, value, sensitive, created_at, updated_at
+FROM public_backend_upstream_headers
+ORDER BY backend_id ASC, position ASC, id ASC
+`
+
+func (q *Queries) ListPublicBackendUpstreamHeaders(ctx context.Context) ([]PublicBackendUpstreamHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicBackendUpstreamHeaders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicBackendUpstreamHeader
+	for rows.Next() {
+		var i PublicBackendUpstreamHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.BackendID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.Sensitive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicBackendUpstreamHeadersByBackend = `-- name: ListPublicBackendUpstreamHeadersByBackend :many
+SELECT id, backend_id, position, name, value, sensitive, created_at, updated_at
+FROM public_backend_upstream_headers
+WHERE backend_id = ?
+ORDER BY position ASC, id ASC
+`
+
+func (q *Queries) ListPublicBackendUpstreamHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendUpstreamHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicBackendUpstreamHeadersByBackend, backendID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicBackendUpstreamHeader
+	for rows.Next() {
+		var i PublicBackendUpstreamHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.BackendID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.Sensitive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicBackends = `-- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC
 `
@@ -1222,6 +1360,9 @@ func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, erro
 			&i.TlsSkipVerify,
 			&i.StaticStatusCode,
 			&i.StaticResponseBody,
+			&i.UpstreamBasicAuthEnabled,
+			&i.UpstreamBasicAuthUsername,
+			&i.UpstreamBasicAuthPassword,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -1514,23 +1655,29 @@ SET name = ?,
     tls_skip_verify = ?,
     static_status_code = ?,
     static_response_body = ?,
+    upstream_basic_auth_enabled = ?,
+    upstream_basic_auth_username = ?,
+    upstream_basic_auth_password = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
 `
 
 type UpdatePublicBackendParams struct {
-	Name               string `json:"name"`
-	TargetOrigin       string `json:"target_origin"`
-	BackendType        string `json:"backend_type"`
-	ForwardMode        string `json:"forward_mode"`
-	LoadBalancing      string `json:"load_balancing"`
-	TlsSkipVerify      int64  `json:"tls_skip_verify"`
-	StaticStatusCode   int64  `json:"static_status_code"`
-	StaticResponseBody string `json:"static_response_body"`
-	Enabled            int64  `json:"enabled"`
-	ID                 int64  `json:"id"`
+	Name                      string `json:"name"`
+	TargetOrigin              string `json:"target_origin"`
+	BackendType               string `json:"backend_type"`
+	ForwardMode               string `json:"forward_mode"`
+	LoadBalancing             string `json:"load_balancing"`
+	TlsSkipVerify             int64  `json:"tls_skip_verify"`
+	StaticStatusCode          int64  `json:"static_status_code"`
+	StaticResponseBody        string `json:"static_response_body"`
+	UpstreamBasicAuthEnabled  int64  `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername string `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword string `json:"upstream_basic_auth_password"`
+	Enabled                   int64  `json:"enabled"`
+	ID                        int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error) {
@@ -1543,6 +1690,9 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		arg.TlsSkipVerify,
 		arg.StaticStatusCode,
 		arg.StaticResponseBody,
+		arg.UpstreamBasicAuthEnabled,
+		arg.UpstreamBasicAuthUsername,
+		arg.UpstreamBasicAuthPassword,
 		arg.Enabled,
 		arg.ID,
 	)
@@ -1557,6 +1707,9 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
+		&i.UpstreamBasicAuthEnabled,
+		&i.UpstreamBasicAuthUsername,
+		&i.UpstreamBasicAuthPassword,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,

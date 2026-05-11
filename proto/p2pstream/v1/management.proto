@@ -114,11 +114,30 @@ message PublicBackend {
   PublicBackendForwardMode forward_mode = 12;
   PublicBackendLoadBalancing load_balancing = 13;
   repeated PublicBackendAgent agent_assignments = 14;
+  repeated PublicBackendUpstreamHeader upstream_request_headers = 15;
+  PublicBackendBasicAuth upstream_basic_auth = 16;
 }
 
 message PublicHeader {
   string name = 1;
   string value = 2;
+}
+
+message PublicBackendUpstreamHeader {
+  int64 id = 1;
+  int64 backend_id = 2;
+  string name = 3;
+  string value = 4;
+  bool sensitive = 5;
+  bool value_set = 6;
+  int64 position = 7;
+}
+
+message PublicBackendBasicAuth {
+  bool enabled = 1;
+  string username = 2;
+  string password = 3;
+  bool password_set = 4;
 }
 
 message Agent {
@@ -214,6 +233,8 @@ message CreatePublicBackendRequest {
   PublicBackendForwardMode forward_mode = 9;
   PublicBackendLoadBalancing load_balancing = 10;
   repeated PublicBackendAgent agent_assignments = 11;
+  repeated PublicBackendUpstreamHeader upstream_request_headers = 12;
+  PublicBackendBasicAuth upstream_basic_auth = 13;
 }
 
 message CreatePublicBackendResponse {
@@ -233,6 +254,8 @@ message UpdatePublicBackendRequest {
   PublicBackendForwardMode forward_mode = 10;
   PublicBackendLoadBalancing load_balancing = 11;
   repeated PublicBackendAgent agent_assignments = 12;
+  repeated PublicBackendUpstreamHeader upstream_request_headers = 13;
+  PublicBackendBasicAuth upstream_basic_auth = 14;
 }
 
 message UpdatePublicBackendResponse {

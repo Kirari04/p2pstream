@@ -55,18 +55,21 @@ type ProxyRequestEvent struct {
 }
 
 type PublicBackend struct {
-	ID                 int64     `json:"id"`
-	Name               string    `json:"name"`
-	TargetOrigin       string    `json:"target_origin"`
-	BackendType        string    `json:"backend_type"`
-	ForwardMode        string    `json:"forward_mode"`
-	LoadBalancing      string    `json:"load_balancing"`
-	TlsSkipVerify      int64     `json:"tls_skip_verify"`
-	StaticStatusCode   int64     `json:"static_status_code"`
-	StaticResponseBody string    `json:"static_response_body"`
-	Enabled            int64     `json:"enabled"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                        int64     `json:"id"`
+	Name                      string    `json:"name"`
+	TargetOrigin              string    `json:"target_origin"`
+	BackendType               string    `json:"backend_type"`
+	ForwardMode               string    `json:"forward_mode"`
+	LoadBalancing             string    `json:"load_balancing"`
+	TlsSkipVerify             int64     `json:"tls_skip_verify"`
+	StaticStatusCode          int64     `json:"static_status_code"`
+	StaticResponseBody        string    `json:"static_response_body"`
+	UpstreamBasicAuthEnabled  int64     `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername string    `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword string    `json:"upstream_basic_auth_password"`
+	Enabled                   int64     `json:"enabled"`
+	CreatedAt                 time.Time `json:"created_at"`
+	UpdatedAt                 time.Time `json:"updated_at"`
 }
 
 type PublicBackendAgent struct {
@@ -85,6 +88,17 @@ type PublicBackendHeader struct {
 	Position  int64     `json:"position"`
 	Name      string    `json:"name"`
 	Value     string    `json:"value"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PublicBackendUpstreamHeader struct {
+	ID        int64     `json:"id"`
+	BackendID int64     `json:"backend_id"`
+	Position  int64     `json:"position"`
+	Name      string    `json:"name"`
+	Value     string    `json:"value"`
+	Sensitive int64     `json:"sensitive"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
