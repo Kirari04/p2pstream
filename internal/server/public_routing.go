@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/httpmsg"
 	"p2pstream/msg"
 )
@@ -110,15 +111,29 @@ type publicProxySnapshot struct {
 }
 
 type publicRouteResolution struct {
-	Backend    publicBackendConfig
-	ListenerID sql.NullInt64
-	BackendID  sql.NullInt64
-	RouteID    sql.NullInt64
-	AgentID    sql.NullInt64
+	Backend      publicBackendConfig
+	Listener     publicListenerConfig
+	Route        publicRouteConfig
+	DefaultRoute bool
+	ListenerID   sql.NullInt64
+	BackendID    sql.NullInt64
+	RouteID      sql.NullInt64
+	AgentID      sql.NullInt64
 }
 
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		responseWriter := w
+		var recorder *traceResponseRecorder
+		if _, ok := a.TrafficTracer.enabledLevel(); ok {
+			recorder = &traceResponseRecorder{ResponseWriter: w}
+			responseWriter = recorder
+		}
+		trace := a.newTrafficRequestTrace(r, recorder)
+		if trace != nil {
+			trace.emitReceived(listenerID)
+		}
+
 		resolution, err := a.resolvePublicRoute(listenerID, r)
 		if err != nil {
 			a.recordProxyRequestEventWithIDs(
@@ -131,22 +146,37 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 				sql.NullInt64{},
 				sql.NullInt64{},
 			)
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			http.Error(responseWriter, err.Error(), http.StatusBadGateway)
+			if trace != nil {
+				trace.emit(
+					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
+					&publicRouteResolution{ListenerID: sql.NullInt64{Int64: listenerID, Valid: true}},
+					nil,
+					http.StatusBadGateway,
+					"route_resolution_failed",
+					responseWriter.Header(),
+					nil,
+				)
+			}
 			return
 		}
+		if trace != nil {
+			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ROUTE_RESOLVED, &resolution, nil, 0, "", nil, nil)
+			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, nil)
+		}
 		if resolution.Backend.BackendType == publicBackendTypeStatic {
-			a.staticBackendResponse(w, r, resolution)
+			a.staticBackendResponse(responseWriter, r, resolution, trace)
 			return
 		}
 		if resolution.Backend.ForwardMode == publicBackendForwardModeAgentPool {
-			a.proxyAgentRequest(w, r, resolution)
+			a.proxyAgentRequest(responseWriter, r, resolution, trace)
 			return
 		}
-		a.proxyDirectRequest(w, r, resolution)
+		a.proxyDirectRequest(responseWriter, r, resolution, trace)
 	}
 }
 
-func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution) {
+func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
 	startedAt := time.Now()
 	statusCode := resolution.Backend.StaticStatusCode
 	if statusCode == 0 {
@@ -154,6 +184,13 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 	}
 	errorKind := ""
 	defer func() {
+		if trace != nil {
+			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
+			if errorKind != "" {
+				stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
+			}
+			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), map[string]string{"handler": "static"})
+		}
 		a.recordProxyRequestEventWithIDs(
 			context.Background(),
 			statusCode,
@@ -170,17 +207,35 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 		w.Header().Add(header.Name, header.Value)
 	}
 	w.WriteHeader(statusCode)
+	if trace != nil {
+		trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
+			&resolution,
+			nil,
+			statusCode,
+			"",
+			w.Header(),
+			map[string]string{"handler": "static"},
+		)
+	}
 	if !shouldWriteStaticResponseBody(r.Method, statusCode) {
 		return
 	}
 	_, _ = io.WriteString(w, resolution.Backend.StaticResponseBody)
 }
 
-func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution) {
+func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
 	defer func() {
+		if trace != nil {
+			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
+			if errorKind != "" {
+				stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
+			}
+			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), map[string]string{"handler": "direct"})
+		}
 		a.recordProxyRequestEventWithIDs(
 			context.Background(),
 			statusCode,
@@ -200,6 +255,17 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 		http.Error(w, "Selected backend is unavailable", http.StatusBadGateway)
 		return
 	}
+	if trace != nil {
+		trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED,
+			&resolution,
+			nil,
+			0,
+			"",
+			nil,
+			map[string]string{"handler": "direct", "upstream": targetOrigin.String()},
+		)
+	}
 
 	proxy := &httputil.ReverseProxy{
 		Director: func(out *http.Request) {
@@ -207,6 +273,17 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			statusCode = resp.StatusCode
+			if trace != nil {
+				trace.emit(
+					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
+					&resolution,
+					nil,
+					resp.StatusCode,
+					"",
+					resp.Header,
+					map[string]string{"handler": "direct"},
+				)
+			}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -220,12 +297,20 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 	proxy.ServeHTTP(w, r)
 }
 
-func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution) {
+func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
 	var selectedAgentID sql.NullInt64
+	var agent *AgentConn
 	defer func() {
+		if trace != nil {
+			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
+			if errorKind != "" {
+				stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
+			}
+			trace.emit(stage, &resolution, agent, statusCode, errorKind, w.Header(), map[string]string{"handler": "agent_pool"})
+		}
 		a.recordProxyRequestEventWithIDs(
 			context.Background(),
 			statusCode,
@@ -238,7 +323,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		)
 	}()
 
-	agent := a.selectBackendAgent(resolution.Backend)
+	agent = a.selectBackendAgent(resolution.Backend)
 	if agent == nil {
 		statusCode = http.StatusServiceUnavailable
 		errorKind = "no_backend_agent"
@@ -246,15 +331,28 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		return
 	}
 	selectedAgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
+	resolution.AgentID = selectedAgentID
+	if trace != nil {
+		trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_AGENT_SELECTED, &resolution, agent, 0, "", nil, map[string]string{
+			"load_balancer": resolution.Backend.LoadBalancing,
+		})
+	}
 	agent.ActiveRequests.Add(1)
 	defer agent.ActiveRequests.Add(-1)
 
-	id, err := uuid.NewV7()
-	if err != nil {
-		statusCode = http.StatusInternalServerError
-		errorKind = "request_id_failed"
-		http.Error(w, "Failed to generate ID", http.StatusInternalServerError)
-		return
+	id := uuid.Nil
+	if trace != nil {
+		id = trace.uuid()
+	}
+	if id == uuid.Nil {
+		var err error
+		id, err = uuid.NewV7()
+		if err != nil {
+			statusCode = http.StatusInternalServerError
+			errorKind = "request_id_failed"
+			http.Error(w, "Failed to generate ID", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	targetOrigin := resolution.Backend.ParsedOrigin
@@ -283,6 +381,17 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	outReq := r.Clone(r.Context())
 	applyUpstreamRequestConfig(outReq, resolution.Backend)
 
+	if trace != nil {
+		trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED,
+			&resolution,
+			agent,
+			0,
+			"",
+			nil,
+			map[string]string{"handler": "agent_pool", "agent": agent.PublicID, "upstream": targetOrigin.String()},
+		)
+	}
 	enc := httpmsg.NewRequestEncoderWithMetadata(id, outReq, map[string]string{
 		httpmsg.MetadataTLSSkipVerify: strconv.FormatBool(resolution.Backend.TLSSkipVerify),
 	})
@@ -351,6 +460,17 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	}
 
 	statusCode = resp.StatusCode
+	if trace != nil {
+		trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
+			&resolution,
+			agent,
+			resp.StatusCode,
+			"",
+			resp.Header,
+			map[string]string{"handler": "agent_pool", "agent": agent.PublicID},
+		)
+	}
 
 	for k, vv := range resp.Header {
 		for _, v := range vv {
@@ -428,6 +548,8 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 
 	backendID := listener.DefaultBackendID
 	var routeID sql.NullInt64
+	var matchedRoute publicRouteConfig
+	defaultRoute := true
 	for _, route := range snap.RoutesByListener[listenerID] {
 		if !route.Enabled {
 			continue
@@ -440,6 +562,8 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		}
 		backendID = route.BackendID
 		routeID = sql.NullInt64{Int64: route.ID, Valid: true}
+		matchedRoute = route
+		defaultRoute = false
 		break
 	}
 
@@ -452,10 +576,13 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 	}
 
 	return publicRouteResolution{
-		Backend:    backend,
-		ListenerID: sql.NullInt64{Int64: listenerID, Valid: true},
-		BackendID:  sql.NullInt64{Int64: backendID, Valid: true},
-		RouteID:    routeID,
+		Backend:      backend,
+		Listener:     listener,
+		Route:        matchedRoute,
+		DefaultRoute: defaultRoute,
+		ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
+		BackendID:    sql.NullInt64{Int64: backendID, Valid: true},
+		RouteID:      routeID,
 	}, nil
 }
 

@@ -12,6 +12,7 @@
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
     "@primevue/icons": "^4.5.5",
+    "@vue-flow/core": "^1.48.2",
     "primevue": "^4.5.5",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4",

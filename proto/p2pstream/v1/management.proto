@@ -44,6 +44,26 @@ enum PublicBackendLoadBalancing {
   PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
 }
 
+enum TrafficTraceLevel {
+  TRAFFIC_TRACE_LEVEL_UNSPECIFIED = 0;
+  TRAFFIC_TRACE_LEVEL_BASIC = 1;
+  TRAFFIC_TRACE_LEVEL_DETAILED = 2;
+  TRAFFIC_TRACE_LEVEL_HEADERS = 3;
+  TRAFFIC_TRACE_LEVEL_DEBUG = 4;
+}
+
+enum TrafficTraceStage {
+  TRAFFIC_TRACE_STAGE_UNSPECIFIED = 0;
+  TRAFFIC_TRACE_STAGE_RECEIVED = 1;
+  TRAFFIC_TRACE_STAGE_ROUTE_RESOLVED = 2;
+  TRAFFIC_TRACE_STAGE_BACKEND_SELECTED = 3;
+  TRAFFIC_TRACE_STAGE_AGENT_SELECTED = 4;
+  TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED = 5;
+  TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED = 6;
+  TRAFFIC_TRACE_STAGE_RESPONSE_SENT = 7;
+  TRAFFIC_TRACE_STAGE_FAILED = 8;
+}
+
 message AgentStatsRequest {
   int64 memory_sys_mb = 1;
   int64 num_goroutine = 2;
@@ -494,6 +514,74 @@ message GetDashboardResponse {
   int64 generated_at_unix_millis = 5;
 }
 
+message TrafficTraceSettings {
+  bool enabled = 1;
+  TrafficTraceLevel level = 2;
+  int64 updated_at_unix_millis = 3;
+  uint64 emitted_events = 4;
+  uint64 dropped_events = 5;
+  int64 subscriber_count = 6;
+}
+
+message GetTrafficTraceSettingsRequest {
+}
+
+message GetTrafficTraceSettingsResponse {
+  TrafficTraceSettings settings = 1;
+}
+
+message SetTrafficTraceSettingsRequest {
+  bool enabled = 1;
+  TrafficTraceLevel level = 2;
+}
+
+message SetTrafficTraceSettingsResponse {
+  TrafficTraceSettings settings = 1;
+}
+
+message StreamTrafficTraceEventsRequest {
+  bool replay_recent = 1;
+  uint64 after_sequence = 2;
+}
+
+message TrafficTraceEvent {
+  uint64 sequence = 1;
+  string request_id = 2;
+  TrafficTraceStage stage = 3;
+  int64 occurred_at_unix_millis = 4;
+  string method = 5;
+  string host = 6;
+  string path = 7;
+  string query = 8;
+  int64 listener_id = 9;
+  string listener_name = 10;
+  int64 route_id = 11;
+  string route_label = 12;
+  bool default_route = 13;
+  int64 backend_id = 14;
+  string backend_name = 15;
+  PublicBackendType backend_type = 16;
+  PublicBackendForwardMode forward_mode = 17;
+  string target_origin = 18;
+  int64 agent_id = 19;
+  string agent_public_id = 20;
+  string agent_name = 21;
+  int64 status_code = 22;
+  int64 duration_ms = 23;
+  string error_kind = 24;
+  map<string, string> request_headers = 25;
+  map<string, string> response_headers = 26;
+  uint64 request_bytes = 27;
+  uint64 response_bytes = 28;
+  map<string, string> debug_attributes = 29;
+}
+
+message StreamTrafficTraceEventsResponse {
+  TrafficTraceSettings settings = 1;
+  TrafficTraceEvent event = 2;
+  uint64 subscriber_dropped_events = 3;
+}
+
 message GetSetupStateRequest {
 }
 
@@ -553,6 +641,9 @@ service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
   rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
+  rpc GetTrafficTraceSettings(GetTrafficTraceSettingsRequest) returns (GetTrafficTraceSettingsResponse) {}
+  rpc SetTrafficTraceSettings(SetTrafficTraceSettingsRequest) returns (SetTrafficTraceSettingsResponse) {}
+  rpc StreamTrafficTraceEvents(StreamTrafficTraceEventsRequest) returns (stream StreamTrafficTraceEventsResponse) {}
   rpc GetSetupState(GetSetupStateRequest) returns (GetSetupStateResponse) {}
   rpc SetupAdmin(SetupAdminRequest) returns (SetupAdminResponse) {}
   rpc Login(LoginRequest) returns (LoginResponse) {}

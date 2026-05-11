@@ -42,6 +42,15 @@ const (
 	// AgentManagementServiceGetDashboardProcedure is the fully-qualified name of the
 	// AgentManagementService's GetDashboard RPC.
 	AgentManagementServiceGetDashboardProcedure = "/p2pstream.v1.AgentManagementService/GetDashboard"
+	// AgentManagementServiceGetTrafficTraceSettingsProcedure is the fully-qualified name of the
+	// AgentManagementService's GetTrafficTraceSettings RPC.
+	AgentManagementServiceGetTrafficTraceSettingsProcedure = "/p2pstream.v1.AgentManagementService/GetTrafficTraceSettings"
+	// AgentManagementServiceSetTrafficTraceSettingsProcedure is the fully-qualified name of the
+	// AgentManagementService's SetTrafficTraceSettings RPC.
+	AgentManagementServiceSetTrafficTraceSettingsProcedure = "/p2pstream.v1.AgentManagementService/SetTrafficTraceSettings"
+	// AgentManagementServiceStreamTrafficTraceEventsProcedure is the fully-qualified name of the
+	// AgentManagementService's StreamTrafficTraceEvents RPC.
+	AgentManagementServiceStreamTrafficTraceEventsProcedure = "/p2pstream.v1.AgentManagementService/StreamTrafficTraceEvents"
 	// AgentManagementServiceGetSetupStateProcedure is the fully-qualified name of the
 	// AgentManagementService's GetSetupState RPC.
 	AgentManagementServiceGetSetupStateProcedure = "/p2pstream.v1.AgentManagementService/GetSetupState"
@@ -133,6 +142,9 @@ type AgentManagementServiceClient interface {
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
+	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
+	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
+	StreamTrafficTraceEvents(context.Context, *connect.Request[v1.StreamTrafficTraceEventsRequest]) (*connect.ServerStreamForClient[v1.StreamTrafficTraceEventsResponse], error)
 	GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error)
 	SetupAdmin(context.Context, *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
@@ -190,6 +202,24 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceGetDashboardProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
+			connect.WithClientOptions(opts...),
+		),
+		getTrafficTraceSettings: connect.NewClient[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetTrafficTraceSettingsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetTrafficTraceSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		setTrafficTraceSettings: connect.NewClient[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceSetTrafficTraceSettingsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("SetTrafficTraceSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		streamTrafficTraceEvents: connect.NewClient[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceStreamTrafficTraceEventsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("StreamTrafficTraceEvents")),
 			connect.WithClientOptions(opts...),
 		),
 		getSetupState: connect.NewClient[v1.GetSetupStateRequest, v1.GetSetupStateResponse](
@@ -368,6 +398,9 @@ type agentManagementServiceClient struct {
 	reportStats                *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
 	getStatus                  *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
 	getDashboard               *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getTrafficTraceSettings    *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
+	setTrafficTraceSettings    *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
+	streamTrafficTraceEvents   *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
 	getSetupState              *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
 	setupAdmin                 *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
 	login                      *connect.Client[v1.LoginRequest, v1.LoginResponse]
@@ -411,6 +444,21 @@ func (c *agentManagementServiceClient) GetStatus(ctx context.Context, req *conne
 // GetDashboard calls p2pstream.v1.AgentManagementService.GetDashboard.
 func (c *agentManagementServiceClient) GetDashboard(ctx context.Context, req *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
 	return c.getDashboard.CallUnary(ctx, req)
+}
+
+// GetTrafficTraceSettings calls p2pstream.v1.AgentManagementService.GetTrafficTraceSettings.
+func (c *agentManagementServiceClient) GetTrafficTraceSettings(ctx context.Context, req *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error) {
+	return c.getTrafficTraceSettings.CallUnary(ctx, req)
+}
+
+// SetTrafficTraceSettings calls p2pstream.v1.AgentManagementService.SetTrafficTraceSettings.
+func (c *agentManagementServiceClient) SetTrafficTraceSettings(ctx context.Context, req *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error) {
+	return c.setTrafficTraceSettings.CallUnary(ctx, req)
+}
+
+// StreamTrafficTraceEvents calls p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents.
+func (c *agentManagementServiceClient) StreamTrafficTraceEvents(ctx context.Context, req *connect.Request[v1.StreamTrafficTraceEventsRequest]) (*connect.ServerStreamForClient[v1.StreamTrafficTraceEventsResponse], error) {
+	return c.streamTrafficTraceEvents.CallServerStream(ctx, req)
 }
 
 // GetSetupState calls p2pstream.v1.AgentManagementService.GetSetupState.
@@ -559,6 +607,9 @@ type AgentManagementServiceHandler interface {
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
+	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
+	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
+	StreamTrafficTraceEvents(context.Context, *connect.Request[v1.StreamTrafficTraceEventsRequest], *connect.ServerStream[v1.StreamTrafficTraceEventsResponse]) error
 	GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error)
 	SetupAdmin(context.Context, *connect.Request[v1.SetupAdminRequest]) (*connect.Response[v1.SetupAdminResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
@@ -612,6 +663,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceGetDashboardProcedure,
 		svc.GetDashboard,
 		connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetTrafficTraceSettingsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetTrafficTraceSettingsProcedure,
+		svc.GetTrafficTraceSettings,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetTrafficTraceSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceSetTrafficTraceSettingsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceSetTrafficTraceSettingsProcedure,
+		svc.SetTrafficTraceSettings,
+		connect.WithSchema(agentManagementServiceMethods.ByName("SetTrafficTraceSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceStreamTrafficTraceEventsHandler := connect.NewServerStreamHandler(
+		AgentManagementServiceStreamTrafficTraceEventsProcedure,
+		svc.StreamTrafficTraceEvents,
+		connect.WithSchema(agentManagementServiceMethods.ByName("StreamTrafficTraceEvents")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceGetSetupStateHandler := connect.NewUnaryHandler(
@@ -790,6 +859,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceGetStatusHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetDashboardProcedure:
 			agentManagementServiceGetDashboardHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetTrafficTraceSettingsProcedure:
+			agentManagementServiceGetTrafficTraceSettingsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceSetTrafficTraceSettingsProcedure:
+			agentManagementServiceSetTrafficTraceSettingsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceStreamTrafficTraceEventsProcedure:
+			agentManagementServiceStreamTrafficTraceEventsHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetSetupStateProcedure:
 			agentManagementServiceGetSetupStateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceSetupAdminProcedure:
@@ -865,6 +940,18 @@ func (UnimplementedAgentManagementServiceHandler) GetStatus(context.Context, *co
 
 func (UnimplementedAgentManagementServiceHandler) GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetDashboard is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetTrafficTraceSettings is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.SetTrafficTraceSettings is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) StreamTrafficTraceEvents(context.Context, *connect.Request[v1.StreamTrafficTraceEventsRequest], *connect.ServerStream[v1.StreamTrafficTraceEventsResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) GetSetupState(context.Context, *connect.Request[v1.GetSetupStateRequest]) (*connect.Response[v1.GetSetupStateResponse], error) {

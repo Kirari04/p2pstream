@@ -43,6 +43,7 @@ type App struct {
 	LatestAgentStats atomic.Pointer[stats.AgentStats]
 	AgentHub         *agentHub
 	LoadBalancers    *loadBalancerRegistry
+	TrafficTracer    *trafficTracer
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -70,6 +71,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		StartedAt:           time.Now(),
 		AgentHub:            newAgentHub(),
 		LoadBalancers:       newLoadBalancerRegistry(),
+		TrafficTracer:       newTrafficTracer(),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
