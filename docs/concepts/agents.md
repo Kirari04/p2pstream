@@ -54,3 +54,10 @@ The Agent Health page shows:
 - latest memory and goroutine stats,
 - last connected time,
 - token rotation and enable/disable actions.
+
+Registered agents expose connection state and recent runtime stats in the UI.
+
+<figure class="doc-screenshot">
+  <img src="../assets/agent.png" alt="p2pstream agent health dashboard showing memory, goroutine, active request metrics, registered agents, and connection history">
+  <figcaption>Agent Health shows connection state, active requests, recent runtime metrics, and connection history.</figcaption>
+</figure>

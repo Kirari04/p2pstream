@@ -36,6 +36,15 @@ Login sessions are stored in SQLite and expire after 7 days. The session cookie 
 - SameSite Lax,
 - marked Secure when `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true`.
 
+## After Login
+
+After login, the operator lands in the management console and can move between Overview, Traffic, Agent Health, and Management.
+
+<figure class="doc-screenshot">
+  <img src="../assets/management_1.png" alt="p2pstream management page showing public listeners and backend configuration">
+  <figcaption>The Management tab is where listeners, backends, routes, TLS mappings, rate limits, and shapers are created and edited.</figcaption>
+</figure>
+
 ## If you lock yourself out
 
 p2pstream does not currently include a password reset CLI. For a self-hosted deployment, keep backups of `/data` and store the admin password securely. If this is a new empty installation and no user was created, restart the server during the setup window.

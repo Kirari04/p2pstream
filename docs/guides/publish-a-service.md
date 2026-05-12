@@ -29,6 +29,11 @@ Create a backend:
 | TLS skip verify | Off unless the upstream has a broken internal certificate |
 | Enabled | On |
 
+<figure class="doc-screenshot">
+  <img src="../assets/management_1.png" alt="p2pstream management console showing listener and backend entries">
+  <figcaption>Listeners accept public traffic; backends define where matching requests are sent.</figcaption>
+</figure>
+
 If the upstream needs a header, add it under upstream request headers. If it needs HTTP basic auth, configure upstream basic auth instead of manually adding `Authorization`.
 
 ## 2. Create an HTTPS listener
@@ -63,6 +68,11 @@ Create a route:
 | Action | Forward |
 | Backend | `app` |
 | Enabled | On |
+
+<figure class="doc-screenshot">
+  <img src="../assets/management_2.png" alt="p2pstream management console showing rate limits, traffic shaper, routes, and TLS certificates">
+  <figcaption>Routes, TLS mappings, rate limits, and traffic shapers complete the public service configuration.</figcaption>
+</figure>
 
 ## 4. Configure public TLS
 

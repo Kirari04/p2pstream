@@ -8,6 +8,11 @@ Open **Traffic** in the management UI.
 
 Enable **Tracing**.
 
+<figure class="doc-screenshot">
+  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow dashboard with tracing enabled and rendered request path">
+  <figcaption>With tracing enabled, the Traffic view shows how sampled requests move through policy, routing, backend selection, agents, and upstreams.</figcaption>
+</figure>
+
 ## 2. Select a level
 
 | Level | Use |

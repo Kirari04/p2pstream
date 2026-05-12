@@ -17,6 +17,11 @@ The default retention period is controlled by:
 OBSERVABILITY_RETENTION_DAYS=30
 ```
 
+<figure class="doc-screenshot">
+  <img src="../assets/overview.png" alt="p2pstream overview dashboard with request counts, success rate, throughput, traffic trend, and hotspots">
+  <figcaption>Overview combines retained request events with current proxy and agent state.</figcaption>
+</figure>
+
 ## Recorded request fields
 
 Proxy request events include:
@@ -53,3 +58,8 @@ Traffic tracing is an admin-controlled live stream. Levels are:
 | Debug | More detailed event attributes. |
 
 Use headers and debug tracing temporarily. They can expose operational details and request metadata.
+
+<figure class="doc-screenshot">
+  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow view showing a live request path through listener, rate limit, shaper, route, backend, agent, upstream, and response">
+  <figcaption>Traffic Flow renders sampled request paths across listeners, policy checks, routes, backends, agents, and upstreams.</figcaption>
+</figure>

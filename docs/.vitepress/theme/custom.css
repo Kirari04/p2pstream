@@ -130,3 +130,25 @@
   width: 100%;
   height: auto;
 }
+
+.doc-screenshot {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+  overflow: hidden;
+  margin: 24px 0;
+}
+
+.doc-screenshot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.doc-screenshot figcaption {
+  border-top: 1px solid var(--vp-c-divider);
+  padding: 10px 14px;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.55;
+}

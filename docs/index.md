@@ -27,6 +27,15 @@ These docs are written for selfhosters operating p2pstream on a VPS, home lab ho
   </div>
 </div>
 
+## Management console
+
+The management UI gives operators one place to inspect runtime health, traffic, agents, listeners, backends, routes, TLS, rate limits, and traffic shaping.
+
+<figure class="doc-screenshot">
+  <img src="./assets/overview.png" alt="p2pstream proxy overview dashboard showing proxy status, request metrics, traffic trend, hotspots, and configuration snapshot">
+  <figcaption>The overview dashboard summarizes proxy health, recent traffic, active agents, and loaded configuration.</figcaption>
+</figure>
+
 ## Main capabilities
 
 | Capability | What it does |
