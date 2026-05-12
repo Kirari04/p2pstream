@@ -1,0 +1,52 @@
+# p2pstream self-hosting docs
+
+p2pstream is a public reverse proxy and management server with optional remote agents. It can expose services from the server host, tunnel requests through registered agents, serve static responses, redirect traffic, automate public TLS certificates, apply rate limits, shape traffic, and trace live request flow.
+
+These docs are written for selfhosters operating the service on a VPS, home lab host, or small private fleet.
+
+::: warning Replace the seeded backend
+On an empty database, p2pstream seeds a default backend pointing to `https://httpbin.org` plus HTTP and HTTPS listeners. Replace that backend before exposing real public traffic.
+:::
+
+<div class="home-grid">
+  <div class="home-card">
+    <h3>Run it</h3>
+    <p>Start the server with Docker, persist `/data`, and complete the first admin setup.</p>
+    <a href="./getting-started/quickstart">Open the quickstart</a>
+  </div>
+  <div class="home-card">
+    <h3>Publish a service</h3>
+    <p>Create a backend, listener, route, and TLS mapping for your first app.</p>
+    <a href="./guides/publish-a-service">Publish a local service</a>
+  </div>
+  <div class="home-card">
+    <h3>Add an agent</h3>
+    <p>Connect a remote machine so p2pstream can reach home lab services over WSS.</p>
+    <a href="./guides/expose-a-home-lab-app">Expose a home lab app</a>
+  </div>
+  <div class="home-card">
+    <h3>Harden operations</h3>
+    <p>Protect management access, back up SQLite and certificates, and plan upgrades.</p>
+    <a href="./operations/security-hardening">Secure the deployment</a>
+  </div>
+</div>
+
+## Main capabilities
+
+| Capability | What it does |
+| --- | --- |
+| Public listeners | Bind HTTP or HTTPS listeners on ports such as `80`, `443`, or any explicitly published Docker port. |
+| Routing | Match by host pattern, path prefix, and priority. Send traffic to a backend or issue a redirect. |
+| Backends | Forward directly from the server host, return static responses, or route through an agent pool. |
+| Agents | Keep outbound HTTPS/WSS connections from remote hosts to the management server and forward selected requests there. |
+| TLS | Use manual certificate mappings or ACME HTTP-01, TLS-ALPN-01, and DNS-01 with Cloudflare. |
+| Controls | Apply request rate limits and upload/download traffic shaping rules before forwarding. |
+| Observability | Use dashboard windows, retained request events, agent stats, and live traffic tracing. |
+
+## Recommended reading order
+
+1. [Quickstart](./getting-started/quickstart)
+2. [Architecture](./concepts/architecture)
+3. [Publish a service](./guides/publish-a-service)
+4. [TLS concepts](./concepts/tls)
+5. [Backup and restore](./operations/backup-restore)

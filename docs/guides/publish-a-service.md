@@ -1,0 +1,83 @@
+# Publish a Service with a Direct Backend
+
+Use this when the upstream service is reachable from the p2pstream server.
+
+Example target:
+
+```text
+https://app.internal:8443
+```
+
+Public URL:
+
+```text
+https://app.example.com
+```
+
+## 1. Create or update the backend
+
+In the management UI, open **Management -> Backends**.
+
+Create a backend:
+
+| Field | Value |
+| --- | --- |
+| Name | `app` |
+| Type | Proxy forward |
+| Forward mode | Direct |
+| Target origin | `https://app.internal:8443` |
+| TLS skip verify | Off unless the upstream has a broken internal certificate |
+| Enabled | On |
+
+If the upstream needs a header, add it under upstream request headers. If it needs HTTP basic auth, configure upstream basic auth instead of manually adding `Authorization`.
+
+## 2. Create an HTTPS listener
+
+Open **Management -> Listeners**.
+
+Use the seeded `public-https` listener or create one:
+
+| Field | Value |
+| --- | --- |
+| Name | `public-https` |
+| Protocol | HTTPS |
+| Bind address | empty |
+| Port | `443` |
+| Default backend | `app` |
+| Enabled | On |
+
+For Docker, make sure `443:443` is published.
+
+## 3. Add a route
+
+Open **Management -> Routes**.
+
+Create a route:
+
+| Field | Value |
+| --- | --- |
+| Listener | `public-https` |
+| Priority | `10` |
+| Host pattern | `app.example.com` |
+| Path prefix | `/` |
+| Action | Forward |
+| Backend | `app` |
+| Enabled | On |
+
+## 4. Configure public TLS
+
+Open **Management -> TLS** and add a certificate mapping for `app.example.com`.
+
+For public deployments, use ACME:
+
+- HTTP-01 if port `80` reaches p2pstream,
+- TLS-ALPN-01 if port `443` reaches p2pstream,
+- DNS-01 for wildcard certificates or when inbound validation ports are not available.
+
+## 5. Test
+
+```bash
+curl -I https://app.example.com
+```
+
+Check **Overview** for request count and status class. If the request fails, open **Traffic**, enable tracing, and retry the request.

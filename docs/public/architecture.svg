@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 520" role="img" aria-labelledby="title desc">
+  <title id="title">p2pstream architecture</title>
+  <desc id="desc">Public clients reach HTTP and HTTPS listeners on the p2pstream server. Requests route to direct upstreams, static responses, or remote agents connected over the management WebSocket.</desc>
+  <defs>
+    <style>
+      .bg { fill: #0d1117; }
+      .panel { fill: #111820; stroke: #2f3a46; stroke-width: 2; }
+      .box { fill: #151d26; stroke: #3b4654; stroke-width: 2; }
+      .accent { fill: #0f766e; stroke: #2dd4bf; stroke-width: 2; }
+      .muted { fill: #202a35; stroke: #3b4654; stroke-width: 2; }
+      .text { fill: #f4f2ec; font: 700 20px ui-sans-serif, system-ui, sans-serif; }
+      .small { fill: #c2c7cc; font: 500 14px ui-sans-serif, system-ui, sans-serif; }
+      .mono { fill: #d6fffa; font: 600 13px ui-monospace, SFMono-Regular, Consolas, monospace; }
+      .line { fill: none; stroke: #2dd4bf; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .line2 { fill: none; stroke: #94a3b8; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 8; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4bf"/>
+    </marker>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1120" height="520" rx="18"/>
+  <rect class="panel" x="30" y="46" width="230" height="410" rx="12"/>
+  <text class="text" x="60" y="96">Public clients</text>
+  <rect class="box" x="60" y="136" width="170" height="62" rx="8"/>
+  <text class="small" x="84" y="163">Browsers</text>
+  <text class="mono" x="84" y="183">HTTP / HTTPS</text>
+  <rect class="box" x="60" y="226" width="170" height="62" rx="8"/>
+  <text class="small" x="84" y="253">API clients</text>
+  <text class="mono" x="84" y="273">Ports 80 / 443</text>
+  <rect class="box" x="60" y="316" width="170" height="62" rx="8"/>
+  <text class="small" x="84" y="343">ACME validators</text>
+  <text class="mono" x="84" y="363">HTTP-01 / ALPN</text>
+
+  <rect class="panel" x="360" y="46" width="400" height="410" rx="12"/>
+  <text class="text" x="390" y="96">p2pstream server</text>
+  <rect class="accent" x="390" y="128" width="310" height="56" rx="8"/>
+  <text class="small" x="414" y="151">Public listeners</text>
+  <text class="mono" x="414" y="170">HTTP, HTTPS, SNI, ACME</text>
+  <rect class="box" x="390" y="214" width="310" height="68" rx="8"/>
+  <text class="small" x="414" y="240">Routing engine</text>
+  <text class="mono" x="414" y="260">host, path, priority, redirects</text>
+  <rect class="box" x="390" y="312" width="146" height="74" rx="8"/>
+  <text class="small" x="414" y="340">Management</text>
+  <text class="mono" x="414" y="360">UI + API :8081</text>
+  <rect class="box" x="554" y="312" width="146" height="74" rx="8"/>
+  <text class="small" x="578" y="340">SQLite</text>
+  <text class="mono" x="578" y="360">/data/*.db</text>
+
+  <rect class="panel" x="860" y="46" width="230" height="410" rx="12"/>
+  <text class="text" x="890" y="96">Destinations</text>
+  <rect class="box" x="890" y="136" width="170" height="62" rx="8"/>
+  <text class="small" x="914" y="163">Direct backend</text>
+  <text class="mono" x="914" y="183">server -> upstream</text>
+  <rect class="box" x="890" y="226" width="170" height="62" rx="8"/>
+  <text class="small" x="914" y="253">Static backend</text>
+  <text class="mono" x="914" y="273">status + body</text>
+  <rect class="muted" x="890" y="316" width="170" height="62" rx="8"/>
+  <text class="small" x="914" y="343">Remote agent</text>
+  <text class="mono" x="914" y="363">WSS tunnel</text>
+
+  <path class="line" d="M 230 167 C 290 167, 320 156, 390 156" marker-end="url(#arrow)"/>
+  <path class="line" d="M 700 156 C 770 156, 812 167, 890 167" marker-end="url(#arrow)"/>
+  <path class="line" d="M 700 248 C 770 248, 812 257, 890 257" marker-end="url(#arrow)"/>
+  <path class="line2" d="M 700 348 C 770 348, 812 347, 890 347" marker-end="url(#arrow2)"/>
+  <path class="line2" d="M 463 312 C 463 292, 480 284, 510 282" marker-end="url(#arrow2)"/>
+  <path class="line2" d="M 627 312 C 627 292, 610 284, 580 282" marker-end="url(#arrow2)"/>
+</svg>
