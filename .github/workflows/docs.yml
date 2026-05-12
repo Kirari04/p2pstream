@@ -2,6 +2,8 @@ name: Docs
 
 on:
   pull_request:
+    branches:
+      - main
     paths:
       - "docs/**"
       - ".github/workflows/docs.yml"
@@ -27,6 +29,7 @@ env:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: Build VitePress
     runs-on: ubuntu-latest
     steps:

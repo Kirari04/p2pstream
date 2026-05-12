@@ -24,6 +24,7 @@ env:
 
 jobs:
   verify:
+    if: github.ref == 'refs/heads/main'
     name: Verify and resolve version
     runs-on: ubuntu-latest
     outputs:

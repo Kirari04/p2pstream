@@ -2,11 +2,11 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
-      - "**"
-    tags-ignore:
-      - "v*"
+      - main
 
 permissions:
   contents: read
@@ -16,6 +16,7 @@ env:
 
 jobs:
   verify:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: Verify
     runs-on: ubuntu-latest
     steps:
