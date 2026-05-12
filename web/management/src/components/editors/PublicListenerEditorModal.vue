@@ -123,10 +123,12 @@ defineExpose({ openCreate, openEdit, close });
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Bind address
         <input v-model="listenerForm.bindAddress" class="vercel-input text-sm normal-case tracking-normal" placeholder="0.0.0.0" />
+        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Leave empty to bind on all interfaces.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Port
         <input v-model.number="listenerForm.port" class="vercel-input text-sm normal-case tracking-normal" type="number" min="1" max="65535" required />
+        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Ports below 1024 may require elevated privileges.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Protocol
@@ -134,6 +136,7 @@ defineExpose({ openCreate, openEdit, close });
           <option :value="PublicListenerProtocol.HTTP">HTTP</option>
           <option :value="PublicListenerProtocol.HTTPS">HTTPS</option>
         </select>
+        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Choose HTTPS to enable TLS termination.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
         Default backend
@@ -142,15 +145,14 @@ defineExpose({ openCreate, openEdit, close });
         </select>
       </label>
       <label class="flex items-center gap-2 text-sm text-[#d4d4d8] sm:col-span-2 mt-2">
-        <input v-model="listenerForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+        <input v-model="listenerForm.enabled" type="checkbox" />
         Enabled
       </label>
       <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
         <DisabledHint :disabled="Boolean(listenerSubmitDisabledReason)" :reason="listenerSubmitDisabledReason">
           <Button
-            class="!bg-white !text-black !border-white"
-            :label="listenerForm.id ? 'Save Changes' : 'Create Listener'"
+                       :label="listenerForm.id ? 'Save Changes' : 'Create Listener'"
             type="submit"
             :disabled="Boolean(listenerSubmitDisabledReason)"
           />

@@ -9,8 +9,11 @@ import RefreshIcon from "@primevue/icons/refresh";
 import TimesIcon from "@primevue/icons/times";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
+import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
@@ -84,6 +87,7 @@ const httpsListeners = computed(() => listeners.value.filter((listener) => liste
 const isTlsModalOpen = ref(false);
 const isTlsCredentialModalOpen = ref(false);
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
+const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
 
 const tlsForm = reactive({
   id: "" as string,
@@ -589,14 +593,14 @@ async function run(action: () => Promise<void>) {
 }
 
 async function deleteBackend(id: bigint) {
-  if (!window.confirm("Delete this backend?")) return;
+  if (!await confirm("Delete Backend", "This backend and all its agent assignments will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicBackend({ id });
   });
 }
 
 async function deleteListener(id: bigint) {
-  if (!window.confirm("Delete this listener?")) return;
+  if (!await confirm("Delete Listener", "This listener will stop accepting connections and be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicListener({ id });
   });
@@ -623,21 +627,21 @@ async function setListenerRunning(listener: PublicListener, running: boolean) {
 }
 
 async function deleteRoute(id: bigint) {
-  if (!window.confirm("Delete this route?")) return;
+  if (!await confirm("Delete Route", "This route will be permanently removed. Traffic matching it will fall through to other routes or the default backend.")) return;
   await run(async () => {
     await managementClient.deletePublicRoute({ id });
   });
 }
 
 async function deleteRateLimitRule(id: bigint) {
-  if (!window.confirm("Delete this rate-limit rule?")) return;
+  if (!await confirm("Delete Rate Limit Rule", "This rate-limit rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicRateLimitRule({ id });
   });
 }
 
 async function deleteTrafficShaperRule(id: bigint) {
-  if (!window.confirm("Delete this traffic-shaper rule?")) return;
+  if (!await confirm("Delete Traffic Shaper Rule", "This traffic-shaper rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicTrafficShaperRule({ id });
   });
@@ -688,7 +692,7 @@ async function renewTlsCertificate(id: bigint) {
 }
 
 async function deleteTlsCertificate(id: bigint) {
-  if (!window.confirm("Delete this TLS certificate?")) return;
+  if (!await confirm("Delete TLS Certificate", "This certificate will be permanently removed. HTTPS connections using it will fall back to the default self-signed certificate.")) return;
   await run(async () => {
     await managementClient.deletePublicTlsCertificate({ id });
   });
@@ -719,7 +723,7 @@ async function submitTlsCredential() {
 }
 
 async function deleteTlsCredential(id: bigint) {
-  if (!window.confirm("Delete this DNS credential?")) return;
+  if (!await confirm("Delete DNS Credential", "This credential will be permanently removed. Certificates using it will no longer be able to renew.")) return;
   await run(async () => {
     await managementClient.deletePublicTlsDnsCredential({ id });
   });
@@ -746,12 +750,11 @@ watch(tlsDnsCredentials, () => {
         <p class="text-sm text-[#888]">Public listeners, backends, routes, and TLS mappings.</p>
       </div>
       <div class="flex items-center gap-3">
-        <Tag :severity="proxySeverity" :value="proxyStateLabel(proxyState)" class="!bg-[#111] !border-[#333] !text-white" />
+        <Tag :severity="proxySeverity" :value="proxyStateLabel(proxyState)" />
         <DisabledHint v-if="!proxyIsRunning" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
           <Button
             label="Start Proxy"
-            class="!bg-white !text-black !border-white"
-            :loading="isBusy && !proxyIsRunning"
+                       :loading="isBusy && !proxyIsRunning"
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(true)"
           >
@@ -775,10 +778,15 @@ watch(tlsDnsCredentials, () => {
       {{ proxyError }}
     </p>
 
+    <p class="text-xs font-semibold uppercase tracking-widest text-[#555]">Traffic Path</p>
+
     <!-- Public Listeners List -->
     <section class="vercel-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Public Listeners</h4>
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Public Listeners</h4>
+          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Incoming endpoints where the proxy accepts connections.</p>
+        </div>
         <SecondaryButton size="small" label="Add Listener" @click="openAddListenerModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
         </SecondaryButton>
@@ -806,7 +814,7 @@ watch(tlsDnsCredentials, () => {
                   <Tag
                     :severity="listener.enabled ? severityForState(listenerState(listener)) : 'warn'"
                     :value="listenerStateLabel(listener)"
-                    class="w-fit !bg-[#111] !border-[#333] !text-white"
+                    class="w-fit"
                   />
                   <span v-if="listenerStatus(listener)?.lastError" class="max-w-[280px] truncate text-xs text-red-400">
                     {{ listenerStatus(listener)?.lastError }}
@@ -864,7 +872,10 @@ watch(tlsDnsCredentials, () => {
     <!-- Backends List -->
     <section class="vercel-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Backends</h4>
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Backends</h4>
+          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Upstream targets where matched traffic is forwarded.</p>
+        </div>
         <SecondaryButton size="small" label="Add Backend" @click="openAddBackendModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
         </SecondaryButton>
@@ -874,26 +885,23 @@ watch(tlsDnsCredentials, () => {
           <div class="min-w-0">
             <div class="flex items-center gap-2">
               <p class="truncate text-sm font-medium text-white">{{ backend.name }}</p>
-              <Tag :value="backendTypeLabel(backend.backendType)" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+              <Tag :value="backendTypeLabel(backend.backendType)" severity="info" />
               <Tag
                 v-if="backend.backendType === PublicBackendType.PROXY_FORWARD"
                 :value="forwardModeLabel(backend.forwardMode)"
                 severity="info"
-                class="!bg-[#111] !border-[#333] !text-white"
-              />
+                             />
               <Tag
                 v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && backend.upstreamBasicAuth?.enabled"
                 value="Basic auth"
                 severity="info"
-                class="!bg-[#111] !border-[#333] !text-white"
-              />
+                             />
               <Tag
                 v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && upstreamHeaderCount(backend) > 0"
                 :value="`${upstreamHeaderCount(backend)} upstream headers`"
                 severity="info"
-                class="!bg-[#111] !border-[#333] !text-white"
-              />
-              <Tag v-if="!backend.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
+                             />
+              <Tag v-if="!backend.enabled" value="Disabled" severity="warn" />
             </div>
             <p class="truncate text-xs text-[#888] mt-1">{{ backendSummary(backend) }}</p>
             <p
@@ -915,10 +923,15 @@ watch(tlsDnsCredentials, () => {
       </div>
     </section>
 
+    <p class="text-xs font-semibold uppercase tracking-widest text-[#555]">Traffic Policy</p>
+
     <!-- Rate Limits List -->
     <section class="vercel-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Rate Limits</h4>
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Rate Limits</h4>
+          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Throttle traffic based on request rate per client or route.</p>
+        </div>
         <SecondaryButton size="small" label="Add Rule" @click="openAddRateLimitRuleModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
         </SecondaryButton>
@@ -928,9 +941,9 @@ watch(tlsDnsCredentials, () => {
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
-              <Tag :value="rateLimitAlgorithmLabel(rule.algorithm)" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
-              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
-              <Tag :value="`P${rule.priority.toString()}`" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+              <Tag :value="rateLimitAlgorithmLabel(rule.algorithm)" severity="info" />
+              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
+              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
             </div>
             <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ rateLimitRuleSummary(rule) }} / key {{ rateLimitKeySummary(rule) }}</p>
             <p class="mt-1 truncate text-xs text-[#666]">{{ rateLimitMatchSummary(rule) }} / response {{ rule.responseStatusCode.toString() }}</p>
@@ -944,16 +957,23 @@ watch(tlsDnsCredentials, () => {
             </DangerButton>
           </div>
         </div>
-        <div v-if="!rateLimitRules.length" class="px-5 py-8 text-center text-sm text-[#888]">
-          No rate-limit rules configured.
-        </div>
+        <EmptyState
+          v-if="!rateLimitRules.length"
+          title="No rate-limit rules configured"
+          description="Rate limits protect your backends from excessive traffic by throttling requests per client or route."
+          action-label="Add Rule"
+          @action="openAddRateLimitRuleModal"
+        />
       </div>
     </section>
 
     <!-- Traffic Shaper List -->
     <section class="vercel-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Traffic Shaper</h4>
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Traffic Shaper</h4>
+          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Limit bandwidth consumption per request or client.</p>
+        </div>
         <SecondaryButton size="small" label="Add Shaper" @click="openAddTrafficShaperRuleModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
         </SecondaryButton>
@@ -963,9 +983,9 @@ watch(tlsDnsCredentials, () => {
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
-              <Tag :value="trafficShaperScopeLabel(rule.budgetScope)" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
-              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
-              <Tag :value="`P${rule.priority.toString()}`" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+              <Tag :value="trafficShaperScopeLabel(rule.budgetScope)" severity="info" />
+              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
+              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
             </div>
             <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</p>
             <p class="mt-1 truncate text-xs text-[#666]">{{ trafficShaperMatchSummary(rule) }} / key {{ trafficShaperKeySummary(rule) }}</p>
@@ -979,18 +999,27 @@ watch(tlsDnsCredentials, () => {
             </DangerButton>
           </div>
         </div>
-        <div v-if="!trafficShaperRules.length" class="px-5 py-8 text-center text-sm text-[#888]">
-          No traffic-shaper rules configured.
-        </div>
+        <EmptyState
+          v-if="!trafficShaperRules.length"
+          title="No traffic-shaper rules configured"
+          description="Traffic shapers limit bandwidth consumption per request or client to prevent saturation."
+          action-label="Add Shaper"
+          @action="openAddTrafficShaperRuleModal"
+        />
       </div>
     </section>
+
+    <p class="text-xs font-semibold uppercase tracking-widest text-[#555]">Security</p>
 
     <!-- Routes and TLS Section -->
     <section class="grid gap-6 lg:grid-cols-2">
       <!-- Routes List -->
       <div class="vercel-card overflow-hidden h-fit">
         <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Routes</h4>
+          <div>
+            <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Routes</h4>
+            <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Rules that match incoming requests to backends.</p>
+          </div>
           <SecondaryButton size="small" label="Add Route" @click="openAddRouteModal">
             <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
           </SecondaryButton>
@@ -1029,7 +1058,10 @@ watch(tlsDnsCredentials, () => {
       <!-- TLS Certificates List -->
       <div class="vercel-card overflow-hidden h-fit">
         <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">TLS Certificates</h4>
+          <div>
+            <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">TLS Certificates</h4>
+            <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Certificates for HTTPS listeners.</p>
+          </div>
           <div class="flex flex-wrap justify-end gap-2">
             <SecondaryButton size="small" label="DNS Credentials" @click="openAddTlsCredentialModal">
               <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
@@ -1044,9 +1076,9 @@ watch(tlsDnsCredentials, () => {
             <div class="min-w-0">
               <div class="flex min-w-0 items-center gap-2">
                 <p class="truncate text-sm font-medium text-white">{{ listenerName(cert.listenerId) }} / {{ cert.hostnamePattern }}</p>
-                <Tag v-if="isDefaultSelfSignedCertificate(cert)" value="Self-signed" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
-                <Tag v-else :value="tlsSourceLabel(cert)" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
-                <Tag :value="tlsStatusLabel(cert)" :severity="tlsStatusSeverity(cert)" class="!bg-[#111] !border-[#333] !text-white" />
+                <Tag v-if="isDefaultSelfSignedCertificate(cert)" value="Self-signed" severity="info" />
+                <Tag v-else :value="tlsSourceLabel(cert)" severity="info" />
+                <Tag :value="tlsStatusLabel(cert)" :severity="tlsStatusSeverity(cert)" />
               </div>
               <p class="truncate text-xs text-[#888]">{{ tlsCertificateSummary(cert) }}</p>
               <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="truncate text-xs text-[#666]">
@@ -1077,7 +1109,7 @@ watch(tlsDnsCredentials, () => {
             <div class="min-w-0">
               <div class="flex min-w-0 items-center gap-2">
                 <p class="truncate text-sm font-medium text-white">{{ httpsListeners[0]?.name ?? "HTTPS listener" }} / p2pstream.local</p>
-                <Tag value="Self-signed" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
+                <Tag value="Self-signed" severity="info" />
               </div>
               <p class="truncate text-xs text-[#888]">Runtime fallback certificate</p>
             </div>
@@ -1088,8 +1120,8 @@ watch(tlsDnsCredentials, () => {
               <div class="min-w-0">
                 <div class="flex min-w-0 items-center gap-2">
                   <p class="truncate text-sm font-medium text-white">{{ credential.name }}</p>
-                  <Tag value="Cloudflare" severity="info" class="!bg-[#111] !border-[#333] !text-white" />
-                  <Tag v-if="!credential.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
+                  <Tag value="Cloudflare" severity="info" />
+                  <Tag v-if="!credential.enabled" value="Disabled" severity="warn" />
                 </div>
                 <p class="truncate font-mono text-xs text-[#888]">{{ credential.cloudflareZoneId }}</p>
               </div>
@@ -1108,6 +1140,7 @@ watch(tlsDnsCredentials, () => {
     </section>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
+    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
 
     <Modal v-model="isTlsModalOpen" :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'" max-width="36rem">
       <form @submit.prevent="submitTlsCertificate" class="grid gap-4">
@@ -1135,12 +1168,14 @@ watch(tlsDnsCredentials, () => {
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Hostname pattern
           <input v-model="tlsForm.hostnamePattern" class="vercel-input text-sm normal-case tracking-normal" placeholder="app.example.com" required />
+          <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Exact domain or wildcard prefix (*.example.com).</p>
         </label>
         <div v-if="tlsForm.method !== 'manual'" class="grid gap-3">
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               ACME email
               <input v-model="tlsForm.acmeEmail" class="vercel-input text-sm normal-case tracking-normal" type="email" placeholder="admin@example.com" required />
+              <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Used for certificate expiration notices from Let's Encrypt.</p>
             </label>
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               CA environment
@@ -1189,13 +1224,13 @@ watch(tlsDnsCredentials, () => {
           {{ tlsUploadError }}
         </p>
         <label class="flex items-center gap-2 text-sm text-[#d4d4d8] mt-2">
-          <input v-model="tlsForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+          <input v-model="tlsForm.enabled" type="checkbox" />
           Enabled
         </label>
         <div class="mt-4 flex justify-end gap-3">
           <SecondaryButton type="button" label="Cancel" @click="isTlsModalOpen = false" />
           <DisabledHint :disabled="Boolean(tlsSubmitDisabledReason)" :reason="tlsSubmitDisabledReason">
-            <Button class="!bg-white !text-black !border-white" :label="tlsForm.id ? 'Save Changes' : 'Create TLS Mapping'" type="submit" :disabled="tlsSubmitDisabled" />
+            <Button :label="tlsForm.id ? 'Save Changes' : 'Create TLS Mapping'" type="submit" :disabled="tlsSubmitDisabled" />
           </DisabledHint>
         </div>
       </form>
@@ -1226,13 +1261,13 @@ watch(tlsDnsCredentials, () => {
           {{ tlsCredentialError }}
         </p>
         <label class="flex items-center gap-2 text-sm text-[#d4d4d8] mt-2">
-          <input v-model="tlsCredentialForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+          <input v-model="tlsCredentialForm.enabled" type="checkbox" />
           Enabled
         </label>
         <div class="mt-4 flex justify-end gap-3">
           <SecondaryButton type="button" label="Cancel" @click="isTlsCredentialModalOpen = false" />
           <DisabledHint :disabled="Boolean(tlsCredentialSubmitDisabledReason)" :reason="tlsCredentialSubmitDisabledReason">
-            <Button class="!bg-white !text-black !border-white" :label="tlsCredentialForm.id ? 'Save Credential' : 'Create Credential'" type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)" />
+            <Button :label="tlsCredentialForm.id ? 'Save Credential' : 'Create Credential'" type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)" />
           </DisabledHint>
         </div>
       </form>

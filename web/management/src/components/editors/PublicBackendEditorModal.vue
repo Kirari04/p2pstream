@@ -271,10 +271,12 @@ defineExpose({ openCreate, openEdit, close });
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Target origin
           <input v-model="backendForm.targetOrigin" class="vercel-input text-sm normal-case tracking-normal" placeholder="https://example.com" required />
+          <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Full upstream URL, e.g. https://api.example.com</p>
         </label>
         <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="backendForm.tlsVerify" type="checkbox" class="h-4 w-4 accent-white" />
+          <input v-model="backendForm.tlsVerify" type="checkbox" />
           Verify upstream TLS certificate
+          <p class="text-xs font-normal text-[#666]">Disable only for self-signed upstream certificates.</p>
         </label>
         <div class="grid gap-3 rounded-md border border-[#333] bg-[#0b0b0b] p-3">
           <div class="flex items-center justify-between gap-3">
@@ -282,7 +284,7 @@ defineExpose({ openCreate, openEdit, close });
             <SecondaryButton size="small" label="Add Header" type="button" @click="addUpstreamHeader" />
           </div>
           <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-            <input v-model="backendForm.upstreamBasicAuthEnabled" type="checkbox" class="h-4 w-4 accent-white" />
+            <input v-model="backendForm.upstreamBasicAuthEnabled" type="checkbox" />
             Basic Auth
           </label>
           <div v-if="backendForm.upstreamBasicAuthEnabled" class="grid gap-2 sm:grid-cols-2">
@@ -305,7 +307,7 @@ defineExpose({ openCreate, openEdit, close });
               autocomplete="off"
             />
             <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-              <input v-model="header.sensitive" type="checkbox" class="h-4 w-4 accent-white" />
+              <input v-model="header.sensitive" type="checkbox" />
               Secret
             </label>
             <DangerButton size="small" aria-label="Remove upstream header" title="Remove upstream header" type="button" @click="removeUpstreamHeader(index)">
@@ -370,7 +372,7 @@ defineExpose({ openCreate, openEdit, close });
               </select>
               <input v-model.number="assignment.weight" type="number" min="1" max="1000" class="vercel-input text-sm normal-case tracking-normal" />
               <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-                <input v-model="assignment.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+                <input v-model="assignment.enabled" type="checkbox" />
                 On
               </label>
               <DangerButton size="small" aria-label="Remove agent" title="Remove agent" type="button" @click="removeBackendAgentAssignment(index)">
@@ -404,13 +406,13 @@ defineExpose({ openCreate, openEdit, close });
         </div>
       </template>
       <label class="flex items-center gap-2 text-sm text-[#d4d4d8] mt-2">
-        <input v-model="backendForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+        <input v-model="backendForm.enabled" type="checkbox" />
         Enabled
       </label>
       <div class="mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
         <DisabledHint :disabled="Boolean(backendSubmitDisabledReason)" :reason="backendSubmitDisabledReason">
-          <Button class="!bg-white !text-black !border-white" :label="backendForm.id ? 'Save Changes' : 'Create Backend'" type="submit" :disabled="backendSubmitDisabled" />
+          <Button :label="backendForm.id ? 'Save Changes' : 'Create Backend'" type="submit" :disabled="backendSubmitDisabled" />
         </DisabledHint>
       </div>
     </form>

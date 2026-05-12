@@ -102,13 +102,13 @@ defineExpose({ openCreate, openEdit, close });
         <input v-model="agentForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
       </label>
       <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-        <input v-model="agentForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+        <input v-model="agentForm.enabled" type="checkbox" />
         Enabled
       </label>
       <div class="mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
         <DisabledHint :disabled="Boolean(agentSubmitDisabledReason)" :reason="agentSubmitDisabledReason">
-          <Button class="!bg-white !text-black !border-white" :label="agentForm.id ? 'Save Changes' : 'Create Agent'" type="submit" :disabled="Boolean(agentSubmitDisabledReason)" />
+          <Button :label="agentForm.id ? 'Save Changes' : 'Create Agent'" type="submit" :disabled="Boolean(agentSubmitDisabledReason)" />
         </DisabledHint>
       </div>
     </form>

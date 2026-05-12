@@ -374,7 +374,7 @@ defineExpose({ openCreate, openEdit, close });
           <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
         </label>
         <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+          <input v-model="form.enabled" type="checkbox" />
           Enabled
         </label>
       </section>
@@ -403,14 +403,17 @@ defineExpose({ openCreate, openEdit, close });
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Upload KiB/s
             <input v-model.number="form.uploadKibPerSecond" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Client-to-server bandwidth cap.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Download KiB/s
             <input v-model.number="form.downloadKibPerSecond" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Server-to-client bandwidth cap.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Burst KiB
             <input v-model.number="form.burstKib" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Extra data allowed in a burst before throttling.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Request free KiB

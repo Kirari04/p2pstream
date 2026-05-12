@@ -234,10 +234,12 @@ defineExpose({ openCreate, openEdit, close });
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Priority
         <input v-model.number="routeForm.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
+        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Lower values are evaluated first.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Host pattern
         <input v-model="routeForm.hostPattern" class="vercel-input text-sm normal-case tracking-normal" placeholder="*.example.com" />
+        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Supports wildcards, e.g. *.example.com</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
         Path prefix
@@ -266,23 +268,23 @@ defineExpose({ openCreate, openEdit, close });
             v-if="routeForm.redirectTargetMode !== PublicRouteRedirectTargetMode.EXTERNAL_ORIGIN_KEEP_PATH"
             class="flex items-center gap-2 text-sm text-[#d4d4d8]"
           >
-            <input v-model="routeForm.redirectPreservePathSuffix" type="checkbox" class="h-4 w-4 accent-white" />
+            <input v-model="routeForm.redirectPreservePathSuffix" type="checkbox" />
             Append matched path suffix
           </label>
           <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-            <input v-model="routeForm.redirectPreserveQuery" type="checkbox" class="h-4 w-4 accent-white" />
+            <input v-model="routeForm.redirectPreserveQuery" type="checkbox" />
             Preserve query string
           </label>
         </div>
       </template>
       <label class="flex items-center gap-2 text-sm text-[#d4d4d8] sm:col-span-2 mt-2">
-        <input v-model="routeForm.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+        <input v-model="routeForm.enabled" type="checkbox" />
         Enabled
       </label>
       <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
         <DisabledHint :disabled="Boolean(routeSubmitDisabledReason)" :reason="routeSubmitDisabledReason">
-          <Button class="!bg-white !text-black !border-white" :label="routeForm.id ? 'Save Changes' : 'Create Route'" type="submit" :disabled="routeSubmitDisabled" />
+          <Button :label="routeForm.id ? 'Save Changes' : 'Create Route'" type="submit" :disabled="routeSubmitDisabled" />
         </DisabledHint>
       </div>
     </form>

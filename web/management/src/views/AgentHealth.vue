@@ -8,8 +8,11 @@ import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
+import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import {
   FALLBACK_RELEASE_REPOSITORY,
   cliSnippet as buildCliSnippet,
@@ -37,6 +40,7 @@ const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null
 const runManagementAction = inject<Runner>("runManagementAction");
 const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
+const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
 const status = computed(() => dashboard?.value?.status ?? null);
 const config = computed(() => publicProxyConfig?.value ?? null);
 const agents = computed(() => publicProxyConfig?.value?.agents ?? []);
@@ -160,7 +164,7 @@ async function confirmRotateAgentToken() {
 }
 
 async function deleteAgent(agent: Agent) {
-  if (!window.confirm("Delete this agent?")) return;
+  if (!await confirm("Delete Agent", "This agent and its backend assignments will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deleteAgent({ id: agent.id });
   });
@@ -330,8 +334,8 @@ async function copySetupSnippet() {
               </td>
               <td class="px-5 py-4">
                 <div class="flex items-center gap-2">
-                  <Tag :value="agent.connected ? 'Connected' : 'Offline'" :severity="agent.connected ? 'success' : 'warn'" class="!bg-[#111] !border-[#333] !text-white" />
-                  <Tag v-if="!agent.enabled" value="Disabled" severity="warn" class="!bg-[#111] !border-[#333] !text-white" />
+                  <Tag :value="agent.connected ? 'Connected' : 'Offline'" :severity="agent.connected ? 'success' : 'warn'" />
+                  <Tag v-if="!agent.enabled" value="Disabled" severity="warn" />
                 </div>
               </td>
               <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ agent.activeRequests.toString() }}</td>
@@ -375,7 +379,14 @@ async function copySetupSnippet() {
               </td>
             </tr>
             <tr v-if="!agents.length">
-              <td colspan="6" class="px-5 py-8 text-center text-sm text-[#888]">No agents registered.</td>
+              <td colspan="6">
+                <EmptyState
+                  title="No agents registered"
+                  description="Agents forward traffic to services behind NAT or firewalls by connecting outbound to this proxy."
+                  action-label="Add Agent"
+                  @action="openAddAgentModal"
+                />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -410,6 +421,7 @@ async function copySetupSnippet() {
       allow-create
       @created-agent="handleAgentCreated"
     />
+    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
 
     <Modal :model-value="Boolean(rotateAgentToConfirm)" title="Rotate Agent Token" max-width="34rem" @update:model-value="closeRotateAgentModal">
       <div v-if="rotateAgentToConfirm" class="grid gap-5">
@@ -538,7 +550,7 @@ async function copySetupSnippet() {
 
         <div class="flex justify-end gap-3">
           <SecondaryButton type="button" :label="setupCopyLabel" :disabled="Boolean(setupSnippetError)" @click="copySetupSnippet" />
-          <Button class="!bg-white !text-black !border-white" label="Done" @click="clearIssuedToken" />
+          <Button label="Done" @click="clearIssuedToken" />
         </div>
       </div>
     </Modal>

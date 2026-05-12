@@ -22,13 +22,13 @@ defineProps<Props>();
 
 const theme = ref<TagPassThroughOptions>({
     root: `inline-flex items-center justify-center text-sm font-bold py-1 px-2 rounded-md gap-1 p-rounded:rounded-2xl
-        bg-primary-100 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300
-        p-success:bg-green-100 dark:p-success:bg-green-500/15 p-success:text-green-700 dark:p-success:text-green-300
-        p-info:bg-sky-100 dark:p-info:bg-sky-500/15 p-info:text-sky-700 dark:p-info:text-sky-300
-        p-warn:bg-orange-100 dark:p-warn:bg-orange-500/15 p-warn:text-orange-700 dark:p-warn:text-orange-300
-        p-danger:bg-red-100 dark:p-danger:bg-red-500/15 p-danger:text-red-700 dark:p-danger:text-red-300
-        p-secondary:bg-surface-100 dark:p-secondary:bg-surface-800 p-secondary:text-surface-600 dark:p-secondary:text-surface-300
-        p-contrast:bg-surface-950 dark:p-contrast:bg-surface-0 p-contrast:text-surface-0 dark:p-contrast:text-surface-950`,
+        bg-[#111] border border-[#333] text-white
+        p-success:text-green-400
+        p-info:text-sky-400
+        p-warn:text-amber-400
+        p-danger:text-red-400
+        p-secondary:text-[#888]
+        p-contrast:bg-white p-contrast:text-black p-contrast:border-white`,
     icon: `text-xs w-3 h-3`
 });
 </script>

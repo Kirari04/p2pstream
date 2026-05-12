@@ -389,7 +389,7 @@ defineExpose({ openCreate, openEdit, close });
           <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
         </label>
         <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" class="h-4 w-4 accent-white" />
+          <input v-model="form.enabled" type="checkbox" />
           Enabled
         </label>
       </section>
@@ -411,10 +411,12 @@ defineExpose({ openCreate, openEdit, close });
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Limit
             <input v-model.number="form.limit" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" required />
+            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Max requests allowed per window.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Window seconds
             <input v-model.number="form.windowSeconds" type="number" min="1" step="1" class="vercel-input text-sm normal-case tracking-normal" required />
+            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Duration of each rate limit window.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Burst
@@ -644,7 +646,7 @@ defineExpose({ openCreate, openEdit, close });
       <div class="flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
         <DisabledHint :disabled="Boolean(rateLimitSubmitDisabledReason)" :reason="rateLimitSubmitDisabledReason">
-          <Button class="!bg-white !text-black !border-white" :label="form.id ? 'Save Changes' : 'Create Rule'" type="submit" :disabled="submitDisabled" />
+          <Button :label="form.id ? 'Save Changes' : 'Create Rule'" type="submit" :disabled="submitDisabled" />
         </DisabledHint>
       </div>
     </form>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RefreshIcon from "@primevue/icons/refresh";
+import { useToast } from "primevue/usetoast";
 import { computed, onBeforeUnmount, onMounted, ref, provide } from "vue";
 import { managementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -9,12 +10,15 @@ import DangerButton from "@/volt/DangerButton.vue";
 import Message from "@/volt/Message.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import Skeleton from "@/volt/Skeleton.vue";
+import Toast from "@/volt/Toast.vue";
 import {
   type GetDashboardResponse,
   type GetPublicProxyConfigResponse,
   type GetSetupStateResponse,
   type User,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const toast = useToast();
 
 const setupState = ref<GetSetupStateResponse | null>(null);
 const currentUser = ref<User | null>(null);
@@ -199,15 +203,19 @@ async function setProxyRunning(shouldRun: boolean) {
   });
 }
 
-async function runManagementAction(action: () => Promise<void>): Promise<boolean> {
+async function runManagementAction(action: () => Promise<void>, successMessage?: string): Promise<boolean> {
   isBusy.value = true;
   error.value = null;
   try {
     await action();
     await loadDashboard();
+    if (successMessage) {
+      toast.add({ severity: "success", summary: successMessage, life: 3000 });
+    }
     return true;
   } catch (err) {
     error.value = messageFromError(err);
+    toast.add({ severity: "error", summary: "Operation failed", detail: messageFromError(err), life: 5000 });
     return false;
   } finally {
     isBusy.value = false;
@@ -233,6 +241,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen bg-black text-[#ededed]">
+    <Toast position="top-right" />
     <!-- Top Header -->
     <header class="border-b border-[#333] bg-black sticky top-0 z-50">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -254,7 +263,7 @@ onBeforeUnmount(() => {
             <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
               <SecondaryButton
                 size="small"
-                class="!bg-transparent !border-[#333] hover:!border-[#666] !text-[#ededed] h-8"
+                class="h-8"
                 :loading="isRefreshing"
                 :disabled="Boolean(refreshDisabledReason)"
                 aria-label="Refresh dashboard"
@@ -270,7 +279,7 @@ onBeforeUnmount(() => {
               <SecondaryButton
                 label="Log out"
                 size="small"
-                class="!bg-transparent !border-[#333] hover:!border-[#666] !text-[#888] h-8"
+                class="h-8"
                 :disabled="Boolean(busyDisabledReason)"
                 @click="requestLogout"
               />
@@ -330,7 +339,7 @@ onBeforeUnmount(() => {
                 required
               />
             </div>
-            <Button label="Complete Setup" type="submit" class="mt-4 !bg-white !text-black !border-white w-full" :loading="isBusy" />
+            <Button label="Complete Setup" type="submit" class="mt-4 w-full" :loading="isBusy" />
           </form>
         </div>
       </div>
@@ -368,7 +377,7 @@ onBeforeUnmount(() => {
                 required
               />
             </div>
-            <Button label="Continue" type="submit" class="mt-4 !bg-white !text-black !border-white w-full" :loading="isBusy" />
+            <Button label="Continue" type="submit" class="mt-4 w-full" :loading="isBusy" />
           </form>
         </div>
       </div>
@@ -406,7 +415,6 @@ onBeforeUnmount(() => {
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
             <SecondaryButton
               label="Stay logged in"
-              class="!border-[#333] !bg-transparent !text-[#ededed] hover:!border-[#666]"
               :disabled="Boolean(busyDisabledReason)"
               @click="cancelLogout"
             />
@@ -414,7 +422,6 @@ onBeforeUnmount(() => {
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
             <DangerButton
               label="Log out"
-              class="!border-red-600 !bg-red-600 !text-white hover:!border-red-500 hover:!bg-red-500"
               :loading="isBusy"
               :disabled="Boolean(busyDisabledReason)"
               @click="confirmLogout"

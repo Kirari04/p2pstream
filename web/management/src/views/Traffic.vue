@@ -47,6 +47,7 @@ const renderedTokenCount = ref(0);
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
 const pendingEditRequest = ref<TrafficFlowEditRequest | null>(null);
 const isEditChooserOpen = ref(false);
+const showDebugStats = ref(false);
 const traceStore = new TrafficTraceStore(applyTraceStoreSnapshot);
 
 let streamController: AbortController | null = null;
@@ -297,8 +298,7 @@ onBeforeUnmount(() => {
             <label class="flex h-10 items-center gap-3 rounded-md border border-[#333] bg-black px-3 text-sm text-[#ededed]">
               <input
                 type="checkbox"
-                class="h-4 w-4 accent-white"
-                :checked="tracingEnabled"
+                               :checked="tracingEnabled"
                 :disabled="Boolean(traceBusyDisabledReason)"
                 @change="setTracingEnabled(($event.target as HTMLInputElement).checked)"
               />
@@ -331,14 +331,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div class="vercel-card p-4">
           <p class="vercel-card-title">Trace State</p>
           <span class="text-lg font-semibold" :class="tracingEnabled ? 'text-green-400' : 'text-[#888]'">{{ streamStateLabel() }}</span>
-        </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Subscribers</p>
-          <span class="text-lg font-semibold">{{ traceSettings?.subscriberCount?.toString() ?? "0" }}</span>
         </div>
         <div class="vercel-card p-4">
           <p class="vercel-card-title">Events</p>
@@ -354,15 +350,30 @@ onBeforeUnmount(() => {
           <p class="vercel-card-title">Rendered</p>
           <span class="text-lg font-semibold">{{ numberLabel(renderStats.renderedTableRows) }}/{{ numberLabel(renderStats.retainedRequests) }}</span>
         </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Sampled</p>
-          <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[#ededed]'">
-            {{ numberLabel(renderStats.sampledEvents) }}/{{ numberLabel(renderStats.sampledRequests) }}
-          </span>
-        </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Live Tokens</p>
-          <span class="text-lg font-semibold">{{ renderedTokenCount }}</span>
+      </div>
+      <div class="grid gap-3">
+        <button
+          type="button"
+          class="text-xs font-medium text-[#666] transition hover:text-[#888]"
+          @click="showDebugStats = !showDebugStats"
+        >
+          {{ showDebugStats ? 'Hide' : 'Show' }} debug stats
+        </button>
+        <div v-if="showDebugStats" class="grid gap-3 sm:grid-cols-3">
+          <div class="vercel-card p-4">
+            <p class="vercel-card-title">Subscribers</p>
+            <span class="text-lg font-semibold">{{ traceSettings?.subscriberCount?.toString() ?? "0" }}</span>
+          </div>
+          <div class="vercel-card p-4">
+            <p class="vercel-card-title">Sampled</p>
+            <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[#ededed]'">
+              {{ numberLabel(renderStats.sampledEvents) }}/{{ numberLabel(renderStats.sampledRequests) }}
+            </span>
+          </div>
+          <div class="vercel-card p-4">
+            <p class="vercel-card-title">Live Tokens</p>
+            <span class="text-lg font-semibold">{{ renderedTokenCount }}</span>
+          </div>
         </div>
       </div>
 
@@ -435,7 +446,7 @@ onBeforeUnmount(() => {
                 <td class="px-5 py-3 text-right font-mono text-xs text-[#888]">{{ request.durationLabel }}</td>
               </tr>
               <tr v-if="!tableRequests.length">
-                <td colspan="4" class="px-5 py-8 text-center text-sm text-[#888]">No traces captured.</td>
+                <td colspan="4" class="px-5 py-8 text-center text-sm text-[#666]">No traces captured. Enable tracing above to see live request flow.</td>
               </tr>
             </tbody>
           </table>
