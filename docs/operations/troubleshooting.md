@@ -30,6 +30,14 @@ sudo journalctl -u p2pstream-agent -f
 | Wrong hostname | Set `MANAGEMENT_PUBLIC_URL` and `MANAGEMENT_TLS_EXTRA_HOSTS`, then restart if needed. |
 | Management behind another proxy | Terminate trusted TLS at that proxy or pass the correct public URL to agents. |
 
+## Cannot log in
+
+| Cause | Fix |
+| --- | --- |
+| Wrong or forgotten password | Reset it with `p2pstream users reset-password USERNAME` on a host or container with access to the same database. |
+| Setup window expired and no users exist | Restart the server to reopen the setup window. |
+| Reset command used the wrong database | Run it with the same `CONFIG_DIR` as the server or pass `--database-url` for the server's SQLite database. |
+
 ## Agent will not connect
 
 | Check | Fix |

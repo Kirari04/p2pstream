@@ -26,6 +26,49 @@ MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
 p2pstream server
 ```
 
+## Users
+
+```bash
+p2pstream users reset-password USERNAME [flags]
+```
+
+`users reset-password` is an offline recovery command. It updates the management user directly in the configured SQLite database and revokes that user's active login sessions. Run it on the host or container that can access the same `CONFIG_DIR` or `DATABASE_URL` used by the server.
+
+Flags:
+
+| Flag | Description |
+| --- | --- |
+| `--database-url` | Override `DATABASE_URL` for this operation. |
+| `--password-env` | Read the new password from the named environment variable. |
+| `--password-file` | Read the new password from a file. |
+
+Interactive reset:
+
+```bash
+CONFIG_DIR=/var/lib/p2pstream \
+p2pstream users reset-password admin
+```
+
+Noninteractive reset from an environment variable:
+
+```bash
+RESET_PASSWORD='new long password value' \
+p2pstream users reset-password admin --password-env RESET_PASSWORD
+```
+
+Reset from a secret file:
+
+```bash
+p2pstream users reset-password admin --password-file /run/secrets/admin-password
+```
+
+Reset against an explicit database:
+
+```bash
+p2pstream users reset-password admin \
+  --database-url 'file:/var/lib/p2pstream/p2pstream.db?mode=rwc'
+```
+
 ## Agent
 
 ```bash

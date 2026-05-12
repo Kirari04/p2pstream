@@ -2753,6 +2753,20 @@ func (q *Queries) RevokeSessionByTokenHash(ctx context.Context, tokenHash string
 	return err
 }
 
+const revokeUserSessions = `-- name: RevokeUserSessions :execrows
+UPDATE sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE user_id = ? AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeUserSessions(ctx context.Context, userID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeUserSessions, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setPublicListenerEnabled = `-- name: SetPublicListenerEnabled :one
 UPDATE public_listeners
 SET enabled = ?, updated_at = CURRENT_TIMESTAMP
@@ -3477,6 +3491,33 @@ func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdateP
 		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :one
+UPDATE users
+SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND disabled_at IS NULL
+RETURNING id, username, password_hash, role, created_at, updated_at, disabled_at
+`
+
+type UpdateUserPasswordParams struct {
+	PasswordHash string `json:"password_hash"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DisabledAt,
 	)
 	return i, err
 }

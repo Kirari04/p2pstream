@@ -47,6 +47,12 @@ The runtime image:
 - exposes `80`, `443`, and `8081`,
 - runs `/app/p2pstream server`.
 
+The same image also includes local utility commands. For example, reset a forgotten management password against the mounted `/data` database with:
+
+```bash
+docker compose exec p2pstream p2pstream users reset-password admin
+```
+
 ## Published ports
 
 The runtime image exposes `80`, `443`, and `8081`, but Docker only publishes what the Compose file maps.

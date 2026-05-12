@@ -47,4 +47,12 @@ After login, the operator lands in the management console and can move between O
 
 ## If you lock yourself out
 
-p2pstream does not currently include a password reset CLI. For a self-hosted deployment, keep backups of `/data` and store the admin password securely. If this is a new empty installation and no user was created, restart the server during the setup window.
+Reset an existing management user's password from the host or container that can access the same database:
+
+```bash
+CONFIG_DIR=/var/lib/p2pstream p2pstream users reset-password admin
+```
+
+Docker Compose deployments store that database in the `/data` volume. Run the command with the same mounted volume or point it at the same database with `--database-url`. The reset command revokes existing sessions for that user.
+
+If this is a new empty installation and no user was created, restart the server during the setup window.

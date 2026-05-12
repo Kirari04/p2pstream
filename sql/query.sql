@@ -332,6 +332,12 @@ SELECT id, username, password_hash, role, created_at, updated_at, disabled_at
 FROM users
 WHERE id = ? AND disabled_at IS NULL;
 
+-- name: UpdateUserPassword :one
+UPDATE users
+SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND disabled_at IS NULL
+RETURNING id, username, password_hash, role, created_at, updated_at, disabled_at;
+
 -- name: CreateSession :one
 INSERT INTO sessions (user_id, token_hash, expires_at)
 VALUES (?, ?, ?)
@@ -363,6 +369,11 @@ WHERE id = ?
 UPDATE sessions
 SET revoked_at = CURRENT_TIMESTAMP
 WHERE token_hash = ? AND revoked_at IS NULL;
+
+-- name: RevokeUserSessions :execrows
+UPDATE sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE user_id = ? AND revoked_at IS NULL;
 
 -- name: CountPublicBackends :one
 SELECT COUNT(*) FROM public_backends;

@@ -22,6 +22,8 @@ Protect `/data`. It contains:
 
 Back up `/data` and restrict host access to trusted administrators.
 
+Anyone with write access to the database can reset management credentials with the local CLI. Treat host access, volume access, and database backups as administrative access.
+
 ## Agent security
 
 - Store generated agent tokens as secrets.
@@ -52,6 +54,7 @@ Open only required ports:
 - [ ] `/data` is persistent and backed up.
 - [ ] management is HTTPS.
 - [ ] admin password is stored in a password manager.
+- [ ] password reset recovery uses the documented local CLI path.
 - [ ] `MANAGEMENT_PUBLIC_URL` is correct.
 - [ ] unused listeners are disabled.
 - [ ] unused agents are disabled or deleted.

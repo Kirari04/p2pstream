@@ -10,14 +10,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
-	"golang.org/x/crypto/bcrypt"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/authutil"
 	"p2pstream/internal/db"
 )
 
@@ -26,11 +25,8 @@ const (
 	setupWindow             = 5 * time.Minute
 	sessionDuration         = 7 * 24 * time.Hour
 	sessionTouchInterval    = 30 * time.Second
-	minimumPasswordLength   = 12
 	setupWindowExpiredError = "setup window expired; restart the server to retry setup"
 )
-
-var usernamePattern = regexp.MustCompile(`^[a-z0-9_-]{3,64}$`)
 
 type authenticatedUser struct {
 	ID        int64
@@ -120,12 +116,12 @@ func (a *App) SetupAdmin(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for setup"))
 	}
 
-	username := strings.TrimSpace(strings.ToLower(req.Msg.Username))
-	if !usernamePattern.MatchString(username) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("username must be 3-64 lowercase letters, numbers, underscores, or hyphens"))
+	username := authutil.NormalizeUsername(req.Msg.Username)
+	if err := authutil.ValidateUsername(username); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if len(req.Msg.Password) < minimumPasswordLength {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("password must be at least 12 characters"))
+	if err := authutil.ValidatePassword(req.Msg.Password); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	a.setupMu.Lock()
@@ -149,14 +145,14 @@ func (a *App) SetupAdmin(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(setupWindowExpiredError))
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Msg.Password), 12)
+	passwordHash, err := authutil.HashPassword(req.Msg.Password)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	user, err := qtx.CreateUser(ctx, db.CreateUserParams{
 		Username:     username,
-		PasswordHash: string(passwordHash),
+		PasswordHash: passwordHash,
 		Role:         roleString(p2pstreamv1.UserRole_USER_ROLE_ADMIN),
 	})
 	if err != nil {
@@ -183,7 +179,7 @@ func (a *App) Login(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for login"))
 	}
 
-	username := strings.TrimSpace(strings.ToLower(req.Msg.Username))
+	username := authutil.NormalizeUsername(req.Msg.Username)
 	throttleKey := loginThrottleKey(req.Peer().Addr, username)
 	now := time.Now()
 	if retryAfter := a.LoginThrottle.retryAfter(throttleKey, now); retryAfter > 0 {
@@ -197,7 +193,7 @@ func (a *App) Login(
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Msg.Password)); err != nil {
+	if err := authutil.ComparePasswordHash(user.PasswordHash, req.Msg.Password); err != nil {
 		a.LoginThrottle.recordFailure(throttleKey, now)
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 	}

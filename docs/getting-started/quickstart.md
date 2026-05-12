@@ -48,6 +48,8 @@ If the setup window expires before any user exists, restart the container and tr
 docker compose restart p2pstream
 ```
 
+If you later forget the admin password, reset it with `p2pstream users reset-password USERNAME` against the same persisted `/data` database. See [First login](./first-login#if-you-lock-yourself-out) for the recovery command.
+
 ## Default welcome site
 
 On a new database, p2pstream seeds:

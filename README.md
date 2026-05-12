@@ -21,6 +21,8 @@ https://your-server:8081
 
 The first admin user can be created only while the setup window is open. The setup window lasts 5 minutes after server start when no users exist. If it expires before setup is complete, restart the container and open the UI again.
 
+If you forget the admin password later, run `p2pstream users reset-password USERNAME` against the persisted data volume or database to set a new password and revoke existing sessions for that user.
+
 Runtime state is stored in the named Docker volume `p2pstream-data`. Keep this volume when upgrading or moving the deployment; it contains the SQLite database plus generated management and public TLS certificates.
 
 Upgrade the running deployment with:

@@ -121,6 +121,12 @@ Keep the `p2pstream-data` volume mounted at `/data`. It contains:
 
 Do not delete this volume during upgrades.
 
+To reset a forgotten management password in the recommended Compose deployment, run the recovery command inside the server container so it uses the mounted `/data` volume:
+
+```bash
+docker compose exec p2pstream p2pstream users reset-password admin
+```
+
 ## Lifecycle
 
 Stop and start the service:
