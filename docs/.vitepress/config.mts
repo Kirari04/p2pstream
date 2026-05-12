@@ -90,6 +90,7 @@ export default defineConfig({
         text: "Reference",
         items: [
           { text: "Configuration", link: "/reference/configuration" },
+          { text: "Screenshot Overview", link: "/reference/screenshots" },
           { text: "CLI", link: "/reference/cli" },
           { text: "Ports", link: "/reference/ports" },
           { text: "Database", link: "/reference/database" },
