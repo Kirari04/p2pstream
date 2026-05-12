@@ -188,7 +188,7 @@ jobs:
           password: ${{ github.token }}
 
       - name: Build and push architecture image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: runtime
