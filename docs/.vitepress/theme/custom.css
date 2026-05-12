@@ -152,3 +152,16 @@
   font-size: 13px;
   line-height: 1.55;
 }
+
+.doc-screenshot img,
+.architecture-frame img {
+  cursor: zoom-in;
+}
+
+.medium-zoom-overlay {
+  z-index: 30;
+}
+
+.medium-zoom-image--opened {
+  z-index: 31;
+}

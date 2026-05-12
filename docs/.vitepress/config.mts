@@ -1,11 +1,27 @@
 import { defineConfig } from "vitepress";
+import llmstxt from "vitepress-plugin-llms";
+
+const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+const base = env.VITEPRESS_BASE ?? "/p2pstream/";
+const siteUrl = env.VITEPRESS_SITE_URL ?? `https://kirari04.github.io${base}`;
 
 export default defineConfig({
   title: "p2pstream",
   description: "Self-hosted reverse proxy and remote agent documentation.",
-  base: process.env.VITEPRESS_BASE ?? "/p2pstream/",
+  base,
   cleanUrls: true,
   lastUpdated: true,
+  sitemap: {
+    hostname: siteUrl
+  },
+  vite: {
+    plugins: [
+      llmstxt({
+        title: "p2pstream",
+        description: "Self-hosted reverse proxy and remote agent documentation."
+      })
+    ]
+  },
   head: [
     ["meta", { name: "theme-color", content: "#111827" }],
     ["meta", { property: "og:type", content: "website" }],
