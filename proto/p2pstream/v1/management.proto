@@ -185,10 +185,12 @@ message AgentStatsSnapshot {
 }
 
 message GetStatusResponse {
+  reserved 4;
+  reserved "target_origin";
+
   bool proxy_running = 1;
   string proxy_last_error = 2;
   bool agent_connected = 3;
-  string target_origin = 4;
   AgentStatsSnapshot latest_agent_stats = 5;
   ProxyStatus proxy = 6;
 }

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,10 +29,11 @@ import (
 
 func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	configDir := t.TempDir()
+	database := newTestDB(t)
 	app := server.NewApp(&config.Config{
 		ConfigDir: configDir,
 		CertsDir:  filepath.Join(configDir, "certs"),
-	}, newTestDB(t))
+	}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -39,22 +41,47 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	if len(cfg.Backends) != 1 {
 		t.Fatalf("expected one seeded backend, got %d", len(cfg.Backends))
 	}
-	if cfg.Backends[0].Name != "default" || cfg.Backends[0].TargetOrigin != "https://httpbin.org" || !cfg.Backends[0].Enabled {
+	backend := cfg.Backends[0]
+	if backend.Name != "default" || backend.TargetOrigin != "" || !backend.Enabled {
 		t.Fatalf("unexpected seeded backend: %+v", cfg.Backends[0])
 	}
-	if cfg.Backends[0].GetBackendType() != p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD || cfg.Backends[0].GetTlsSkipVerify() {
-		t.Fatalf("unexpected seeded backend type/options: %+v", cfg.Backends[0])
+	if backend.GetBackendType() != p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC ||
+		backend.GetTlsSkipVerify() ||
+		backend.GetStaticStatusCode() != http.StatusOK ||
+		!strings.Contains(backend.GetStaticResponseBody(), "Welcome to p2pstream proxy") {
+		t.Fatalf("unexpected seeded backend type/options: %+v", backend)
+	}
+	staticHeaders := map[string]string{}
+	for _, header := range backend.GetStaticResponseHeaders() {
+		staticHeaders[header.GetName()] = header.GetValue()
+	}
+	if staticHeaders["Content-Type"] != "text/html; charset=utf-8" ||
+		staticHeaders["X-Content-Type-Options"] != "nosniff" ||
+		staticHeaders["Cache-Control"] != "no-store" {
+		t.Fatalf("unexpected seeded static headers: %+v", backend.GetStaticResponseHeaders())
 	}
 
 	httpListener := publicListenerByName(t, cfg, "public-http")
-	if httpListener.Port != 80 || httpListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP || !httpListener.Enabled {
+	if httpListener.Port != 80 ||
+		httpListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP ||
+		httpListener.GetDefaultBackendId() != backend.GetId() ||
+		!httpListener.Enabled {
 		t.Fatalf("unexpected seeded HTTP listener: %+v", httpListener)
 	}
 
 	httpsListener := publicListenerByName(t, cfg, "public-https")
-	if httpsListener.Port != 443 || httpsListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS || !httpsListener.Enabled {
+	if httpsListener.Port != 443 ||
+		httpsListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS ||
+		httpsListener.GetDefaultBackendId() != backend.GetId() ||
+		!httpsListener.Enabled {
 		t.Fatalf("unexpected seeded HTTPS listener: %+v", httpsListener)
 	}
+	if len(cfg.Routes) != 2 {
+		t.Fatalf("expected two seeded routes, got %d", len(cfg.Routes))
+	}
+	assertSeededWelcomeRoute(t, cfg, httpListener.GetId(), backend.GetId())
+	assertSeededWelcomeRoute(t, cfg, httpsListener.GetId(), backend.GetId())
+
 	if len(cfg.TlsCertificates) != 1 {
 		t.Fatalf("expected one seeded TLS certificate, got %d", len(cfg.TlsCertificates))
 	}
@@ -71,8 +98,49 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	assertFileMode(t, seededCert.GetKeyPath(), 0600)
 
 	cfgAgain := getPublicProxyConfig(t, client, cookie)
-	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.Backends) != 1 || len(cfgAgain.TlsCertificates) != 1 {
-		t.Fatalf("expected idempotent seed, got %d listeners, %d backends, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.Backends), len(cfgAgain.TlsCertificates))
+	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.Backends) != 1 || len(cfgAgain.Routes) != 2 || len(cfgAgain.TlsCertificates) != 1 {
+		t.Fatalf("expected idempotent seed, got %d listeners, %d backends, %d routes, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.Backends), len(cfgAgain.Routes), len(cfgAgain.TlsCertificates))
+	}
+
+	if _, err := database.UpdatePublicListener(context.Background(), db.UpdatePublicListenerParams{
+		ID:               httpListener.GetId(),
+		Name:             httpListener.GetName(),
+		BindAddress:      "127.0.0.1",
+		Port:             0,
+		Protocol:         "http",
+		Enabled:          1,
+		DefaultBackendID: backend.GetId(),
+	}); err != nil {
+		t.Fatalf("move seeded HTTP listener to test port: %v", err)
+	}
+	if _, err := database.SetPublicListenerEnabled(context.Background(), db.SetPublicListenerEnabledParams{
+		ID:      httpsListener.GetId(),
+		Enabled: 0,
+	}); err != nil {
+		t.Fatalf("disable seeded HTTPS listener: %v", err)
+	}
+	status, err := app.StartProxyListener(context.Background())
+	if err != nil {
+		t.Fatalf("start seeded proxy: %v", err)
+	}
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _ = app.StopProxyListener(shutdownCtx)
+	})
+	resp, err := http.Get("http://" + publicListenerBoundAddress(t, status, httpListener.GetId()) + "/")
+	if err != nil {
+		t.Fatalf("seeded welcome request: %v", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read seeded welcome response: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK ||
+		resp.Header.Get("Content-Type") != "text/html; charset=utf-8" ||
+		!strings.Contains(string(body), "Welcome to p2pstream proxy") {
+		t.Fatalf("unexpected seeded welcome response: status=%d content-type=%q body=%q", resp.StatusCode, resp.Header.Get("Content-Type"), string(body))
 	}
 }
 
@@ -509,6 +577,25 @@ func publicListenerByName(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigRes
 	}
 	t.Fatalf("listener %q not found in %+v", name, cfg.Listeners)
 	return nil
+}
+
+func assertSeededWelcomeRoute(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, listenerID int64, backendID int64) {
+	t.Helper()
+	for _, route := range cfg.Routes {
+		if route.GetListenerId() != listenerID {
+			continue
+		}
+		if route.GetPriority() != 1000 ||
+			route.GetHostPattern() != "" ||
+			route.GetPathPrefix() != "/" ||
+			route.GetBackendId() != backendID ||
+			route.GetAction() != p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD ||
+			!route.GetEnabled() {
+			t.Fatalf("unexpected seeded route for listener %d: %+v", listenerID, route)
+		}
+		return
+	}
+	t.Fatalf("seeded route for listener %d not found in %+v", listenerID, cfg.Routes)
 }
 
 func publicListenerBoundAddress(t *testing.T, status *p2pstreamv1.ProxyStatus, listenerID int64) string {

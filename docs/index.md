@@ -4,10 +4,6 @@ p2pstream is a public reverse proxy and management server with optional remote a
 
 These docs are written for selfhosters operating the service on a VPS, home lab host, or small private fleet.
 
-::: warning Replace the seeded backend
-On an empty database, p2pstream seeds a default backend pointing to `https://httpbin.org` plus HTTP and HTTPS listeners. Replace that backend before exposing real public traffic.
-:::
-
 <div class="home-grid">
   <div class="home-card">
     <h3>Run it</h3>

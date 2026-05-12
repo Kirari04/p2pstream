@@ -228,7 +228,6 @@ func isolatedConfigTestDir(t *testing.T) string {
 	t.Chdir(workDir)
 	unsetEnv(t, "DATABASE_URL")
 	unsetEnv(t, "CONFIG_DIR")
-	unsetEnv(t, "TARGET_ORIGIN")
 	unsetEnv(t, "MANAGEMENT_TLS_CERT_FILE")
 	unsetEnv(t, "MANAGEMENT_TLS_KEY_FILE")
 	unsetEnv(t, "MANAGEMENT_TLS_CLIENT_CA_FILE")

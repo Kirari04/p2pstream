@@ -15,7 +15,6 @@ services:
     environment:
       MANAGEMENT_PORT: "8081"
       PORT: "8080"
-      TARGET_ORIGIN: "http://upstream:9000"
       CONFIG_DIR: "/data"
       BOOTSTRAP_AGENT_ID: "docker-agent"
       BOOTSTRAP_AGENT_NAME: "Docker Smoke Agent"

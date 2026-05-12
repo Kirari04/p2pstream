@@ -36,18 +36,19 @@ The first admin user can be created only while the setup window is open. The set
 
 If the setup window expires before any user exists, restart the container and try again.
 
-## Replace the default backend
+## Default welcome site
 
 On a new database, p2pstream seeds:
 
 | Object | Default |
 | --- | --- |
-| Backend | `default` -> `https://httpbin.org` |
+| Backend | `default` static welcome page |
 | HTTP listener | `public-http` on `:80` |
 | HTTPS listener | `public-https` on `:443` |
+| Routes | catch-all `/` routes to the `default` backend |
 | HTTPS fallback certificate | self-signed mapping for `p2pstream.local` |
 
-Before putting DNS on the server, replace the default backend with your real upstream or disable the listeners.
+The seeded backend serves a local `Welcome to p2pstream proxy` page. Replace the backend, add routes, or disable listeners when you are ready to publish real traffic.
 
 ## Firewall checklist
 

@@ -38,4 +38,4 @@ On an empty database, p2pstream creates:
 | `public-http` | HTTP | `80` |
 | `public-https` | HTTPS | `443` |
 
-Both use the seeded `default` backend until you replace it.
+Both use catch-all routes to the seeded `default` static welcome backend until you replace the backend or add more specific routes.

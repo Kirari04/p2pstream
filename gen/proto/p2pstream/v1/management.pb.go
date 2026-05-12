@@ -1472,7 +1472,6 @@ type GetStatusResponse struct {
 	ProxyRunning     bool                   `protobuf:"varint,1,opt,name=proxy_running,json=proxyRunning,proto3" json:"proxy_running,omitempty"`
 	ProxyLastError   string                 `protobuf:"bytes,2,opt,name=proxy_last_error,json=proxyLastError,proto3" json:"proxy_last_error,omitempty"`
 	AgentConnected   bool                   `protobuf:"varint,3,opt,name=agent_connected,json=agentConnected,proto3" json:"agent_connected,omitempty"`
-	TargetOrigin     string                 `protobuf:"bytes,4,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
 	LatestAgentStats *AgentStatsSnapshot    `protobuf:"bytes,5,opt,name=latest_agent_stats,json=latestAgentStats,proto3" json:"latest_agent_stats,omitempty"`
 	Proxy            *ProxyStatus           `protobuf:"bytes,6,opt,name=proxy,proto3" json:"proxy,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -1528,13 +1527,6 @@ func (x *GetStatusResponse) GetAgentConnected() bool {
 		return x.AgentConnected
 	}
 	return false
-}
-
-func (x *GetStatusResponse) GetTargetOrigin() string {
-	if x != nil {
-		return x.TargetOrigin
-	}
-	return ""
 }
 
 func (x *GetStatusResponse) GetLatestAgentStats() *AgentStatsSnapshot {
@@ -9597,14 +9589,13 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"bytes_sent\x18\b \x01(\x04R\tbytesSent\x12'\n" +
 	"\x0factive_requests\x18\t \x01(\x05R\x0eactiveRequests\x125\n" +
 	"\x17reported_at_unix_millis\x18\n" +
-	" \x01(\x03R\x14reportedAtUnixMillis\"\xb1\x02\n" +
+	" \x01(\x03R\x14reportedAtUnixMillis\"\xa1\x02\n" +
 	"\x11GetStatusResponse\x12#\n" +
 	"\rproxy_running\x18\x01 \x01(\bR\fproxyRunning\x12(\n" +
 	"\x10proxy_last_error\x18\x02 \x01(\tR\x0eproxyLastError\x12'\n" +
-	"\x0fagent_connected\x18\x03 \x01(\bR\x0eagentConnected\x12#\n" +
-	"\rtarget_origin\x18\x04 \x01(\tR\ftargetOrigin\x12N\n" +
+	"\x0fagent_connected\x18\x03 \x01(\bR\x0eagentConnected\x12N\n" +
 	"\x12latest_agent_stats\x18\x05 \x01(\v2 .p2pstream.v1.AgentStatsSnapshotR\x10latestAgentStats\x12/\n" +
-	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\"\x88\x02\n" +
+	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxyJ\x04\b\x04\x10\x05R\rtarget_origin\"\x88\x02\n" +
 	"\vProxyStatus\x12.\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x18.p2pstream.v1.ProxyStateR\x05state\x12\x1d\n" +
 	"\n" +

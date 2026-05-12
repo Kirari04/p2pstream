@@ -44,8 +44,10 @@ func TestDockerSmoke(t *testing.T) {
 
 	cfg := getPublicProxyConfig(ctx, t, client, cookie)
 	defaultBackend := requireBackend(t, cfg, "default")
-	defaultBackend = upsertProxyBackend(ctx, t, client, cookie, defaultBackend, upstreamURL)
 	ensureDefaultListeners(ctx, t, client, cookie, cfg, defaultBackend.Id)
+	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "Welcome to p2pstream proxy", "seeded static welcome listener")
+
+	defaultBackend = upsertProxyBackend(ctx, t, client, cookie, defaultBackend, upstreamURL)
 
 	waitAgentConnected(ctx, t, client, cookie)
 	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "Directory listing", "proxy-forward default listener")

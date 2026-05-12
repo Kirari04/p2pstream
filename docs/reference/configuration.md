@@ -27,8 +27,6 @@ p2pstream reads `.env` if present, then environment variables.
 | `BOOTSTRAP_AGENT_TOKEN` | empty | Bootstrap agent token. Stored as a hash. |
 | `OBSERVABILITY_RETENTION_DAYS` | `30` | Retention window for recorded request and agent observability data. |
 
-`TARGET_ORIGIN` exists in the configuration struct for older/default behavior, but production routing is managed through public backends in the management UI.
-
 ## Agent variables
 
 | Variable | Description |

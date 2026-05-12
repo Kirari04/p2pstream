@@ -24,9 +24,102 @@ import (
 )
 
 const (
-	defaultPublicTargetOrigin                             = "https://httpbin.org"
-	defaultPublicHTTPPort                                 = int64(80)
-	defaultSelfSignedTLSHost                              = "p2pstream.local"
+	defaultPublicHTTPPort      = int64(80)
+	defaultPublicRoutePriority = int64(1000)
+	defaultSelfSignedTLSHost   = "p2pstream.local"
+	defaultWelcomeContentType  = "text/html; charset=utf-8"
+	defaultWelcomeCacheControl = "no-store"
+	defaultWelcomeBody         = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to p2pstream proxy</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a0d;
+      --panel: #11161c;
+      --line: #29313a;
+      --text: #f4f7fa;
+      --muted: #9aa8b5;
+      --accent: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        var(--bg);
+      background-size: 44px 44px;
+      color: var(--text);
+      font-family: "Trebuchet MS", "Lucida Sans Unicode", Verdana, sans-serif;
+      padding: 32px;
+    }
+    main {
+      width: min(720px, 100%);
+      border: 1px solid var(--line);
+      background: rgba(17, 22, 28, .92);
+      padding: 56px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.42);
+    }
+    .label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font-size: 12px;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .label::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      background: var(--accent);
+      box-shadow: 0 0 20px var(--accent);
+    }
+    h1 {
+      margin: 22px 0 18px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 4.75rem;
+      line-height: .95;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0;
+      max-width: 58ch;
+      color: var(--muted);
+      font-size: 1.15rem;
+      line-height: 1.7;
+    }
+    code {
+      color: var(--text);
+      background: #050608;
+      border: 1px solid var(--line);
+      padding: 2px 6px;
+    }
+    @media (max-width: 560px) {
+      body { padding: 18px; }
+      main { padding: 28px; }
+      h1 { font-size: 2.65rem; }
+      p { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="label">p2pstream proxy online</div>
+    <h1>Welcome to p2pstream proxy</h1>
+    <p>This default static page is served locally by p2pstream. Replace the <code>default</code> backend or add routes when you are ready to publish real traffic.</p>
+  </main>
+</body>
+</html>
+`
 	publicBackendTypeProxyForward                         = "proxy_forward"
 	publicBackendTypeStatic                               = "static"
 	publicBackendForwardModeDirect                        = "direct"
@@ -1181,13 +1274,13 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 
 	backend, err := a.DB.CreatePublicBackend(ctx, db.CreatePublicBackendParams{
 		Name:                      "default",
-		TargetOrigin:              defaultPublicTargetOrigin,
-		BackendType:               publicBackendTypeProxyForward,
+		TargetOrigin:              "",
+		BackendType:               publicBackendTypeStatic,
 		ForwardMode:               publicBackendForwardModeDirect,
 		LoadBalancing:             publicBackendLoadBalancingRoundRobin,
 		TlsSkipVerify:             0,
 		StaticStatusCode:          defaultStaticStatusCode,
-		StaticResponseBody:        "",
+		StaticResponseBody:        defaultWelcomeBody,
 		UpstreamBasicAuthEnabled:  0,
 		UpstreamBasicAuthUsername: "",
 		UpstreamBasicAuthPassword: "",
@@ -1197,14 +1290,30 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		return publicDBError(err)
 	}
 
-	if _, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
+	for idx, header := range []publicBackendHeaderInput{
+		{Name: "Content-Type", Value: defaultWelcomeContentType},
+		{Name: "X-Content-Type-Options", Value: "nosniff"},
+		{Name: "Cache-Control", Value: defaultWelcomeCacheControl},
+	} {
+		if _, err := a.DB.CreatePublicBackendHeader(ctx, db.CreatePublicBackendHeaderParams{
+			BackendID: backend.ID,
+			Position:  int64(idx),
+			Name:      header.Name,
+			Value:     header.Value,
+		}); err != nil {
+			return publicDBError(err)
+		}
+	}
+
+	httpListener, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
 		Name:             "public-http",
 		BindAddress:      "",
 		Port:             defaultPublicHTTPPort,
 		Protocol:         publicListenerProtocolHTTP,
 		Enabled:          1,
 		DefaultBackendID: backend.ID,
-	}); err != nil {
+	})
+	if err != nil {
 		return publicDBError(err)
 	}
 
@@ -1218,6 +1327,25 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 	})
 	if err != nil {
 		return publicDBError(err)
+	}
+
+	for _, listener := range []db.PublicListener{httpListener, httpsListener} {
+		if _, err := a.DB.CreatePublicRoute(ctx, db.CreatePublicRouteParams{
+			ListenerID:                 listener.ID,
+			Priority:                   defaultPublicRoutePriority,
+			HostPattern:                "",
+			PathPrefix:                 "/",
+			BackendID:                  sql.NullInt64{Int64: backend.ID, Valid: true},
+			Action:                     publicRouteActionForward,
+			RedirectTargetMode:         "",
+			RedirectTarget:             "",
+			RedirectStatusCode:         defaultRedirectStatusCode,
+			RedirectPreservePathSuffix: 1,
+			RedirectPreserveQuery:      1,
+			Enabled:                    1,
+		}); err != nil {
+			return publicDBError(err)
+		}
 	}
 
 	certPEM, keyPEM, err := generateManagedSelfSignedCertificatePEM()

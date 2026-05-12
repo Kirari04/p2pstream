@@ -35,7 +35,7 @@ If the upstream needs a header, add it under upstream request headers. If it nee
 
 Open **Management -> Listeners**.
 
-Use the seeded `public-https` listener or create one:
+Use the seeded `public-https` listener or create one. If you keep the seeded listener, change its default backend from the welcome page to your app:
 
 | Field | Value |
 | --- | --- |
