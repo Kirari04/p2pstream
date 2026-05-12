@@ -133,6 +133,19 @@ func TestWritePublicTLSCertificateFilesUsesConfigCertsDir(t *testing.T) {
 }
 
 func TestLoadValidatesManagementTLSFiles(t *testing.T) {
+	t.Run("default mode is auto", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.ManagementTLSMode != "auto" {
+			t.Fatalf("ManagementTLSMode = %q, want auto", cfg.ManagementTLSMode)
+		}
+	})
+
 	t.Run("cert and key pair accepted", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
@@ -159,13 +172,52 @@ func TestLoadValidatesManagementTLSFiles(t *testing.T) {
 		}
 	})
 
-	t.Run("client CA requires management TLS", func(t *testing.T) {
+	t.Run("client CA is accepted in auto mode", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
 		t.Setenv("MANAGEMENT_TLS_CLIENT_CA_FILE", filepath.Join(workDir, "agents-ca.pem"))
 
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.ManagementTLSClientCAFile == "" {
+			t.Fatal("expected management client CA file to be retained")
+		}
+	})
+
+	t.Run("provided mode requires cert and key", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("MANAGEMENT_TLS_MODE", "provided")
+
 		if _, err := Load(); err == nil {
-			t.Fatal("expected management client CA without cert/key to fail")
+			t.Fatal("expected provided mode without cert/key to fail")
+		}
+	})
+
+	t.Run("off mode requires explicit insecure opt in", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("MANAGEMENT_TLS_MODE", "off")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected off mode without insecure opt in to fail")
+		}
+	})
+
+	t.Run("off mode with explicit insecure opt in is accepted", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("MANAGEMENT_TLS_MODE", "off")
+		t.Setenv("MANAGEMENT_ALLOW_INSECURE_HTTP", "true")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.ManagementTLSMode != "off" || !cfg.ManagementAllowInsecureHTTP {
+			t.Fatalf("unexpected insecure management config: %+v", cfg)
 		}
 	})
 }
@@ -177,6 +229,14 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "DATABASE_URL")
 	unsetEnv(t, "CONFIG_DIR")
 	unsetEnv(t, "TARGET_ORIGIN")
+	unsetEnv(t, "MANAGEMENT_TLS_CERT_FILE")
+	unsetEnv(t, "MANAGEMENT_TLS_KEY_FILE")
+	unsetEnv(t, "MANAGEMENT_TLS_CLIENT_CA_FILE")
+	unsetEnv(t, "MANAGEMENT_TLS_MODE")
+	unsetEnv(t, "MANAGEMENT_ALLOW_INSECURE_HTTP")
+	unsetEnv(t, "MANAGEMENT_PUBLIC_URL")
+	unsetEnv(t, "MANAGEMENT_ADVERTISE_HOST")
+	unsetEnv(t, "MANAGEMENT_TLS_EXTRA_HOSTS")
 	return workDir
 }
 

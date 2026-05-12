@@ -871,6 +871,18 @@ message DashboardTrafficBucket {
   int64 avg_duration_ms = 9;
 }
 
+message ManagementSecurity {
+  bool tls_enabled = 1;
+  bool auto_tls = 2;
+  bool insecure_http_allowed = 3;
+  bool agent_https_required = 4;
+  bool agent_client_certificate_required = 5;
+  string default_management_url = 6;
+  string management_ca_pem = 7;
+  string management_ca_sha256 = 8;
+  string detected_advertise_host = 9;
+}
+
 message AgentConnectionSummary {
   bool connected = 1;
   int64 total_connections = 2;
@@ -892,6 +904,7 @@ message GetDashboardResponse {
   repeated DashboardProxyDimensionSummary top_error_kinds = 10;
   repeated DashboardProxyDimensionSummary status_classes = 11;
   repeated DashboardTrafficBucket traffic_buckets = 12;
+  ManagementSecurity management_security = 13;
 }
 
 message TrafficTraceSettings {
