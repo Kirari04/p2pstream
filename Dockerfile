@@ -53,11 +53,20 @@ FROM test-base AS smoke
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates libcap2-bin \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=backend /out/p2pstream /app/p2pstream
 COPY --from=frontend /app/web/management/dist /app/web/management/dist
 
+RUN groupadd --system p2pstream \
+    && useradd --system --gid p2pstream --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin p2pstream \
+    && mkdir -p /data \
+    && chown -R p2pstream:p2pstream /app /data \
+    && setcap 'cap_net_bind_service=+ep' /app/p2pstream
+
+USER p2pstream:p2pstream
+
+ENV ENV=production
 ENV MANAGEMENT_UI_DIST_DIR=/app/web/management/dist
 ENV MANAGEMENT_PORT=8081
 ENV PORT=80

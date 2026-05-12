@@ -8,6 +8,8 @@ readonly ENV_FILE="${CONFIG_DIR}/agent.env"
 readonly SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
 readonly MANAGEMENT_CA_PEM_FILE="${CONFIG_DIR}/management-ca.pem"
+readonly SERVICE_USER="p2pstream"
+readonly SERVICE_GROUP="p2pstream"
 
 fail() {
   printf 'p2pstream agent install failed: %s\n' "$*" >&2
@@ -93,11 +95,25 @@ EnvironmentFile=${ENV_FILE}
 ExecStart=${INSTALL_PATH} agent
 Restart=always
 RestartSec=5s
-User=root
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
+}
+
+ensure_service_user() {
+  if ! getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
+    groupadd --system "$SERVICE_GROUP"
+  fi
+  if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    useradd --system --gid "$SERVICE_GROUP" --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
+  fi
 }
 
 decode_management_ca_pem() {
@@ -115,6 +131,9 @@ main() {
 
   require_command curl
   require_command install
+  require_command getent
+  require_command groupadd
+  require_command useradd
   require_command mktemp
   require_command sed
   require_command sha256sum
@@ -129,13 +148,15 @@ main() {
   if [[ "$MANAGEMENT_URL" == http://* && "${AGENT_ALLOW_INSECURE_MANAGEMENT:-}" != "true" ]]; then
     fail "refusing insecure MANAGEMENT_URL; use https or set AGENT_ALLOW_INSECURE_MANAGEMENT=true"
   fi
+  ensure_service_user
 
   local repository="${P2PSTREAM_REPOSITORY:-$DEFAULT_REPOSITORY}"
   local version="${P2PSTREAM_VERSION:-latest}"
   local arch tag asset base_url tmp_dir checksum_line
 
   repository="$(single_line "$repository")"
-  [[ "$repository" == */* ]] || fail "P2PSTREAM_REPOSITORY must look like owner/repo"
+  [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+    || fail "P2PSTREAM_REPOSITORY must use GitHub owner/repo with letters, numbers, dots, underscores, or hyphens"
 
   arch="$(detect_arch)"
   if [[ "$version" == "latest" ]]; then
@@ -172,7 +193,7 @@ main() {
     MANAGEMENT_CA_FILE="$MANAGEMENT_CA_PEM_FILE"
   fi
   write_agent_env "${tmp_dir}/agent.env"
-  install -m 0600 "${tmp_dir}/agent.env" "$ENV_FILE"
+  install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0600 "${tmp_dir}/agent.env" "$ENV_FILE"
 
   write_service_file "${tmp_dir}/${SERVICE_NAME}.service"
   install -m 0644 "${tmp_dir}/${SERVICE_NAME}.service" "$SERVICE_FILE"

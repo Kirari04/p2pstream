@@ -63,6 +63,7 @@ var serverCmd = &cobra.Command{
 			Protocols: p,
 			TLSConfig: mgmtTLSConfig,
 		}
+		server.ConfigureManagementHTTPServer(mgmtSrv)
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()

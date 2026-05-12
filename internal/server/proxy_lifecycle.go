@@ -198,11 +198,13 @@ func (a *App) startPublicListenerFromSnapshot(listener publicListenerConfig, sna
 			return a.getPublicListenerStatus(listener.ID), nil
 		}
 		srv = &http.Server{Addr: addr, Handler: mux, TLSConfig: tlsConfig}
+		configurePublicHTTPServer(srv)
 		serve = func(ln net.Listener) error {
 			return srv.ServeTLS(ln, "", "")
 		}
 	} else {
 		srv = &http.Server{Addr: addr, Handler: mux}
+		configurePublicHTTPServer(srv)
 		serve = srv.Serve
 	}
 
