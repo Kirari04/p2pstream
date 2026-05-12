@@ -52,7 +52,10 @@ The runtime image exposes:
 
 - `80` for public HTTP listeners.
 - `443` for public HTTPS listeners.
-- `8081` for the management API and UI.
+- `8081` for the HTTPS management API and UI.
+
+Management HTTPS is enabled by default. When no certificate is provided, p2pstream creates a persisted local management CA and server certificate under `/data/certs/management`. Agents verify the management certificate with `MANAGEMENT_CA_FILE` or `MANAGEMENT_CA_PEM_BASE64`; they do not skip TLS verification by default. Plain HTTP management mode is only available with `MANAGEMENT_TLS_MODE=off` and `MANAGEMENT_ALLOW_INSECURE_HTTP=true`.
+Set `MANAGEMENT_PUBLIC_URL=https://your-host:8081` when the management UI is reached through NAT, Docker port publishing, or a reverse proxy, so Agent Setup generates the correct URL and certificate names.
 
 ## Agent Install
 
@@ -61,10 +64,11 @@ Create an agent in the management UI. The setup dialog returns a generated `AGEN
 For a Linux systemd agent, use the one-line installer shown by the Agent Setup dialog. The command has this shape:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/install-agent.sh | sudo env MANAGEMENT_URL='https://management.example.com' AGENT_ID='agent-...' AGENT_TOKEN='...' P2PSTREAM_REPOSITORY='Kirari04/p2pstream' bash
+curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/install-agent.sh | sudo env MANAGEMENT_URL='https://management.example.com:8081' MANAGEMENT_CA_PEM_BASE64='...' AGENT_ID='agent-...' AGENT_TOKEN='...' P2PSTREAM_REPOSITORY='Kirari04/p2pstream' bash
 ```
 
 The installer downloads the latest Linux release binary, verifies its checksum, installs `/usr/local/bin/p2pstream`, writes `/etc/p2pstream/agent.env`, and enables `p2pstream-agent.service`.
+If `MANAGEMENT_CA_PEM_BASE64` is present, the installer writes it to `/etc/p2pstream/management-ca.pem` and configures the agent with `MANAGEMENT_CA_FILE=/etc/p2pstream/management-ca.pem`.
 
 ## Agent Docker Compose
 
@@ -77,6 +81,7 @@ services:
     command: ["/app/p2pstream", "agent"]
     environment:
       MANAGEMENT_URL: "https://management.example.com"
+      MANAGEMENT_CA_PEM_BASE64: "..."
       AGENT_ID: "agent-..."
       AGENT_TOKEN: "..."
     restart: unless-stopped

@@ -35,11 +35,14 @@ services:
   agent:
     image: p2pstream:docker-smoke-runtime
     build: *runtime-build
-    command: ["/app/p2pstream", "agent"]
+    command: ["sh", "-c", "while [ ! -s /data/certs/management/ca.crt.pem ]; do sleep 0.2; done; /app/p2pstream agent"]
     environment:
-      MANAGEMENT_URL: "http://server:8081"
+      MANAGEMENT_URL: "https://server:8081"
+      MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
       AGENT_ID: "docker-agent"
       AGENT_TOKEN: "docker-smoke-token"
+    volumes:
+      - p2pstream-data:/data:ro
     depends_on:
       - server
       - upstream
@@ -49,14 +52,17 @@ services:
     build:
       context: .
       target: smoke
-    command: ["go", "test", "-tags", "docker_smoke", "./internal/smoketest", "-count=1", "-v"]
+    command: ["sh", "-c", "while [ ! -s /data/certs/management/ca.crt.pem ]; do sleep 0.2; done; go test -tags docker_smoke ./internal/smoketest -count=1 -v"]
     environment:
-      MANAGEMENT_URL: "http://server:8081"
+      MANAGEMENT_URL: "https://server:8081"
+      MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
       PUBLIC_DEFAULT_URL: "http://server:8080"
       PUBLIC_AGENT_URL: "http://server:8089"
       PUBLIC_STATIC_URL: "http://server:8088"
       PUBLIC_HTTPS_URL: "https://server:443"
       UPSTREAM_URL: "http://upstream:9000"
+    volumes:
+      - p2pstream-data:/data:ro
     depends_on:
       - server
       - agent

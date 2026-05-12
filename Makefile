@@ -37,18 +37,20 @@ dev: frontend-install generate-proto kill
 	@echo "Starting p2pstream development mode..."
 	@cd web/management && bun run dev & FRONTEND_PID=$$!; \
 	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
-	sleep 2; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} go run main.go agent & AGENT_PID=$$!; \
-	echo "Management UI: http://localhost:$${MANAGEMENT_PORT:-8081}"; \
+	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
+	for i in $$(seq 1 50); do [ -s "$$CA_FILE" ] && break; sleep 0.2; done; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} MANAGEMENT_CA_FILE=$$CA_FILE go run main.go agent & AGENT_PID=$$!; \
+	echo "Management UI: https://localhost:$${MANAGEMENT_PORT:-8081}"; \
 	trap "kill $$FRONTEND_PID $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$FRONTEND_PID $$SERVER_PID $$AGENT_PID
 
 run: build kill
 	@echo "Starting server and agent..."
 	@BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} ./bin/p2pstream server & SERVER_PID=$$!; \
-	sleep 1; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} ./bin/p2pstream agent & AGENT_PID=$$!; \
-	echo "Management UI: http://localhost:$${MANAGEMENT_PORT:-8081}"; \
+	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
+	for i in $$(seq 1 50); do [ -s "$$CA_FILE" ] && break; sleep 0.2; done; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} MANAGEMENT_CA_FILE=$$CA_FILE ./bin/p2pstream agent & AGENT_PID=$$!; \
+	echo "Management UI: https://localhost:$${MANAGEMENT_PORT:-8081}"; \
 	trap "kill $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$SERVER_PID $$AGENT_PID
 

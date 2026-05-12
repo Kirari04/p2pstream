@@ -5,6 +5,7 @@ package smoketest
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,7 +27,7 @@ const (
 
 func TestDockerSmoke(t *testing.T) {
 	ctx := context.Background()
-	managementURL := envOrDefault("MANAGEMENT_URL", "http://server:8081")
+	managementURL := envOrDefault("MANAGEMENT_URL", "https://server:8081")
 	publicDefaultURL := envOrDefault("PUBLIC_DEFAULT_URL", "http://server:8080")
 	publicAgentURL := envOrDefault("PUBLIC_AGENT_URL", "http://server:8089")
 	publicStaticURL := envOrDefault("PUBLIC_STATIC_URL", "http://server:8088")
@@ -34,7 +35,7 @@ func TestDockerSmoke(t *testing.T) {
 	upstreamURL := envOrDefault("UPSTREAM_URL", "http://upstream:9000")
 
 	client := p2pstreamv1connect.NewAgentManagementServiceClient(
-		&http.Client{Timeout: 10 * time.Second},
+		managementHTTPClient(t),
 		managementURL,
 	)
 
@@ -555,6 +556,32 @@ func insecureHTTPClient() *http.Client {
 			TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
 		},
 	}
+}
+
+func managementHTTPClient(t *testing.T) *http.Client {
+	t.Helper()
+
+	transport := &http.Transport{
+		DisableKeepAlives: true,
+	}
+	if caFile := strings.TrimSpace(os.Getenv("MANAGEMENT_CA_FILE")); caFile != "" {
+		roots, err := x509.SystemCertPool()
+		if err != nil || roots == nil {
+			roots = x509.NewCertPool()
+		}
+		caPEM, err := os.ReadFile(caFile)
+		if err != nil {
+			t.Fatalf("read MANAGEMENT_CA_FILE: %v", err)
+		}
+		if !roots.AppendCertsFromPEM(caPEM) {
+			t.Fatalf("MANAGEMENT_CA_FILE %q did not contain PEM certificates", caFile)
+		}
+		transport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			RootCAs:    roots,
+		}
+	}
+	return &http.Client{Timeout: 10 * time.Second, Transport: transport}
 }
 
 func requireBackend(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *p2pstreamv1.PublicBackend {
