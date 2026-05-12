@@ -2,24 +2,24 @@ package httpmsg
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/google/uuid"
 	"p2pstream/msg"
 )
 
 const (
-	MaxBodyChunkSize      = 60 * 1024
+	MaxBodyChunkSize      = msg.MaxBodyChunkSize
 	MetadataTLSSkipVerify = ":p2pstream-tls-skip-verify"
 )
 
 // Encoder takes an HTTP request or response and yields a sequence of msg.Request chunks.
 type Encoder struct {
 	id         uuid.UUID
-	headers    map[string]string
+	headers    map[string][]string
 	bodyReader io.Reader
 	bodyLen    int64
 	chunkNr    uint32
@@ -36,28 +36,32 @@ func NewRequestEncoder(id uuid.UUID, req *http.Request) *Encoder {
 // NewRequestEncoderWithMetadata creates a request encoder with internal
 // colon-prefixed metadata that is consumed by the agent and not forwarded.
 func NewRequestEncoderWithMetadata(id uuid.UUID, req *http.Request, metadata map[string]string) *Encoder {
-	headers := make(map[string]string)
-	headers[":method"] = req.Method
+	headers := make(map[string][]string)
+	headers[":method"] = []string{req.Method}
 	if req.URL != nil {
-		headers[":path"] = req.URL.RequestURI()
+		headers[":path"] = []string{req.URL.RequestURI()}
 		if req.URL.Scheme != "" {
-			headers[":scheme"] = req.URL.Scheme
+			headers[":scheme"] = []string{req.URL.Scheme}
 		} else {
 			// Fallback to http if not set
-			headers[":scheme"] = "http"
+			headers[":scheme"] = []string{"http"}
 		}
 	} else {
-		headers[":path"] = "/"
-		headers[":scheme"] = "http"
+		headers[":path"] = []string{"/"}
+		headers[":scheme"] = []string{"http"}
 	}
-	headers[":host"] = req.Host
+	host := req.Host
+	if host == "" && req.URL != nil {
+		host = req.URL.Host
+	}
+	headers[":host"] = []string{host}
 
 	for k, vv := range req.Header {
-		headers[k] = strings.Join(vv, ",")
+		headers[k] = append([]string(nil), vv...)
 	}
 	for k, v := range metadata {
-		if strings.HasPrefix(k, ":") {
-			headers[k] = v
+		if len(k) > 0 && k[0] == ':' {
+			headers[k] = []string{v}
 		}
 	}
 
@@ -72,11 +76,11 @@ func NewRequestEncoderWithMetadata(id uuid.UUID, req *http.Request, metadata map
 
 // NewResponseEncoder creates a new encoder from an http.Response.
 func NewResponseEncoder(id uuid.UUID, resp *http.Response) *Encoder {
-	headers := make(map[string]string)
-	headers[":status"] = strconv.Itoa(resp.StatusCode)
+	headers := make(map[string][]string)
+	headers[":status"] = []string{strconv.Itoa(resp.StatusCode)}
 
 	for k, vv := range resp.Header {
-		headers[k] = strings.Join(vv, ",")
+		headers[k] = append([]string(nil), vv...)
 	}
 
 	return &Encoder{
@@ -102,9 +106,12 @@ func (e *Encoder) Next() (*msg.Request, error) {
 		if e.bodyLen >= 0 && e.bodyLen <= MaxBodyChunkSize {
 			var bodyBuf bytes.Buffer
 			if e.bodyReader != nil {
-				_, err := io.Copy(&bodyBuf, e.bodyReader)
+				_, err := io.Copy(&bodyBuf, io.LimitReader(e.bodyReader, MaxBodyChunkSize+1))
 				if err != nil {
 					return nil, err
+				}
+				if bodyBuf.Len() > MaxBodyChunkSize {
+					return nil, fmt.Errorf("body exceeds %d bytes", MaxBodyChunkSize)
 				}
 			}
 			e.isDone = true
@@ -123,7 +130,7 @@ func (e *Encoder) Next() (*msg.Request, error) {
 
 	if e.isDone {
 		e.eofSent = true
-		req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string]string{}, nil, 0)
+		req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string][]string{}, nil, 0)
 		req.ChunkNr = e.chunkNr
 		return req, nil
 	}
@@ -138,12 +145,12 @@ func (e *Encoder) Next() (*msg.Request, error) {
 	if n == 0 && err == io.EOF {
 		e.isDone = true
 		e.eofSent = true
-		req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string]string{}, nil, 0)
+		req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string][]string{}, nil, 0)
 		req.ChunkNr = e.chunkNr
 		return req, nil
 	}
 
-	req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string]string{}, bytes.NewReader(chunk[:n]), uint32(n))
+	req := msg.NewRequest(e.id, msg.RequestTypeBody, map[string][]string{}, bytes.NewReader(chunk[:n]), uint32(n))
 	req.ChunkNr = e.chunkNr
 	e.chunkNr++
 

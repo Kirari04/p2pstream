@@ -1,6 +1,7 @@
 package httpmsg
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,15 +19,27 @@ type MessageStream interface {
 
 // ChannelStream adapts a <-chan *msg.Request to the MessageStream interface.
 type ChannelStream struct {
-	Ch <-chan *msg.Request
+	Ctx context.Context
+	Ch  <-chan *msg.Request
 }
 
 func (c ChannelStream) Next() (*msg.Request, error) {
-	m, ok := <-c.Ch
-	if !ok {
-		return nil, io.EOF
+	if c.Ctx == nil {
+		m, ok := <-c.Ch
+		if !ok {
+			return nil, io.EOF
+		}
+		return m, nil
 	}
-	return m, nil
+	select {
+	case <-c.Ctx.Done():
+		return nil, c.Ctx.Err()
+	case m, ok := <-c.Ch:
+		if !ok {
+			return nil, io.EOF
+		}
+		return m, nil
+	}
 }
 
 type bodyReader struct {
@@ -85,21 +98,32 @@ func DecodeRequest(m *msg.Request, stream MessageStream) (*http.Request, error) 
 		return nil, fmt.Errorf("first message must be Header or HeaderAndBody")
 	}
 
-	method := m.Headers[":method"]
-	path := m.Headers[":path"]
-	host := m.Headers[":host"]
-	scheme := m.Headers[":scheme"]
+	method := FirstHeaderValue(m.Headers, ":method")
+	path := FirstHeaderValue(m.Headers, ":path")
+	host := FirstHeaderValue(m.Headers, ":host")
+	scheme := FirstHeaderValue(m.Headers, ":scheme")
+	if method == "" {
+		return nil, fmt.Errorf("missing :method")
+	}
+	if path == "" {
+		return nil, fmt.Errorf("missing :path")
+	}
+	if host == "" {
+		return nil, fmt.Errorf("missing :host")
+	}
+	if scheme == "" {
+		scheme = "http"
+	}
+	if scheme != "http" && scheme != "https" {
+		return nil, fmt.Errorf("invalid :scheme %q", scheme)
+	}
 
 	reqURL, err := url.Parse(path)
 	if err != nil {
 		return nil, err
 	}
 	reqURL.Host = host
-	if scheme != "" {
-		reqURL.Scheme = scheme
-	} else {
-		reqURL.Scheme = "http"
-	}
+	reqURL.Scheme = scheme
 
 	var body io.ReadCloser
 	if m.Type == msg.RequestTypeHeaderAndBody {
@@ -128,7 +152,11 @@ func DecodeRequest(m *msg.Request, stream MessageStream) (*http.Request, error) 
 		if strings.HasPrefix(k, ":") {
 			continue
 		}
-		for _, part := range strings.Split(v, ",") {
+		if len(v) == 0 {
+			req.Header.Add(k, "")
+			continue
+		}
+		for _, part := range v {
 			req.Header.Add(k, part)
 		}
 	}
@@ -143,8 +171,11 @@ func DecodeResponse(m *msg.Request, stream MessageStream) (*http.Response, error
 		return nil, fmt.Errorf("first message must be Header or HeaderAndBody")
 	}
 
-	statusStr := m.Headers[":status"]
-	statusCode, _ := strconv.Atoi(statusStr)
+	statusStr := FirstHeaderValue(m.Headers, ":status")
+	statusCode, err := strconv.Atoi(statusStr)
+	if err != nil || statusCode < 100 || statusCode > 999 {
+		return nil, fmt.Errorf("invalid :status %q", statusStr)
+	}
 
 	var body io.ReadCloser
 	if m.Type == msg.RequestTypeHeaderAndBody {
@@ -172,10 +203,22 @@ func DecodeResponse(m *msg.Request, stream MessageStream) (*http.Response, error
 		if strings.HasPrefix(k, ":") {
 			continue
 		}
-		for _, part := range strings.Split(v, ",") {
+		if len(v) == 0 {
+			resp.Header.Add(k, "")
+			continue
+		}
+		for _, part := range v {
 			resp.Header.Add(k, part)
 		}
 	}
 
 	return resp, nil
+}
+
+func FirstHeaderValue(headers map[string][]string, key string) string {
+	values := headers[key]
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }

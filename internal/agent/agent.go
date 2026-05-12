@@ -29,9 +29,6 @@ import (
 )
 
 var (
-	incomingRequests sync.Map // map[uuid.UUID]chan *msg.Request
-	writeCh          chan *msg.Request
-
 	activeRequests   atomic.Int32
 	reqSuccess       atomic.Int32
 	reqClientError   atomic.Int32
@@ -40,9 +37,17 @@ var (
 	bytesReceived    atomic.Uint64
 	bytesSent        atomic.Uint64
 
-	defaultForwardClient       = &http.Client{}
-	tlsSkipVerifyForwardClient = &http.Client{Transport: tlsSkipVerifyTransport()}
+	defaultForwardClient       = &http.Client{Transport: forwardTransport(false)}
+	tlsSkipVerifyForwardClient = &http.Client{Transport: forwardTransport(true)}
 )
+
+const upstreamResponseHeaderTimeout = 30 * time.Second
+
+type agentConnection struct {
+	ctx      context.Context
+	writeCh  chan *msg.Request
+	incoming sync.Map // map[uuid.UUID]chan *msg.Request
+}
 
 type Options struct {
 	ManagementURL           string
@@ -196,7 +201,8 @@ func managementHTTPClient(opts Options) (*http.Client, error) {
 }
 
 func connectAndServe(client *http.Client, wsURL string, agentPublicID string, agentName string, agentToken string) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	opts := &websocket.DialOptions{
 		HTTPClient: client,
 		HTTPHeader: http.Header{
@@ -216,23 +222,36 @@ func connectAndServe(client *http.Client, wsURL string, agentPublicID string, ag
 
 	log.Info().Msg("Connected successfully!")
 
-	writeCh = make(chan *msg.Request, 100)
+	conn := &agentConnection{
+		ctx:     ctx,
+		writeCh: make(chan *msg.Request, 100),
+	}
+	defer conn.closeIncomingRequests()
 
 	go func() {
-		for req := range writeCh {
-			cw, err := c.Writer(ctx, websocket.MessageBinary)
-			if err != nil {
-				log.Error().Err(err).Msg("ws write error")
+		defer cancel()
+		for {
+			select {
+			case <-ctx.Done():
 				return
+			case req := <-conn.writeCh:
+				cw, err := c.Writer(ctx, websocket.MessageBinary)
+				if err != nil {
+					log.Error().Err(err).Msg("ws write error")
+					return
+				}
+				n, err := req.WriteTo(cw)
+				closeErr := cw.Close()
+				if err != nil {
+					log.Error().Err(err).Msg("msg WriteTo error")
+					return
+				}
+				if closeErr != nil {
+					log.Error().Err(closeErr).Msg("ws writer close error")
+					return
+				}
+				bytesSent.Add(uint64(n))
 			}
-			n, err := req.WriteTo(cw)
-			if err != nil {
-				log.Error().Err(err).Msg("msg WriteTo error")
-				cw.Close()
-				return
-			}
-			bytesSent.Add(uint64(n))
-			cw.Close()
 		}
 	}()
 
@@ -257,13 +276,21 @@ func connectAndServe(client *http.Client, wsURL string, agentPublicID string, ag
 
 		if m.Type == msg.RequestTypeHeader || m.Type == msg.RequestTypeHeaderAndBody {
 			reqCh := make(chan *msg.Request, 100)
-			incomingRequests.Store(m.ID, reqCh)
-			reqCh <- m
+			conn.incoming.Store(m.ID, reqCh)
+			select {
+			case reqCh <- m:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 
-			go handleRequest(m.ID, reqCh)
+			go conn.handleRequest(m.ID, reqCh)
 		} else {
-			if ch, ok := incomingRequests.Load(m.ID); ok {
-				ch.(chan *msg.Request) <- m
+			if ch, ok := conn.incoming.Load(m.ID); ok {
+				select {
+				case ch.(chan *msg.Request) <- m:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
 			} else {
 				log.Warn().Str("req_id", m.ID.String()).Msg("Received chunk for unknown request")
 			}
@@ -271,19 +298,19 @@ func connectAndServe(client *http.Client, wsURL string, agentPublicID string, ag
 	}
 }
 
-func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
+func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 	activeRequests.Add(1)
 	defer activeRequests.Add(-1)
-	defer incomingRequests.Delete(id)
+	defer conn.incoming.Delete(id)
 
-	stream := &httpmsg.ChannelStream{Ch: reqCh}
+	stream := &httpmsg.ChannelStream{Ctx: conn.ctx, Ch: reqCh}
 	firstMsg, err := stream.Next()
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to get first chunk")
 		reqInternalError.Add(1)
 		return
 	}
-	tlsSkipVerify := strings.EqualFold(firstMsg.Headers[httpmsg.MetadataTLSSkipVerify], "true")
+	tlsSkipVerify := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTLSSkipVerify), "true")
 
 	req, err := httpmsg.DecodeRequest(firstMsg, stream)
 	if err != nil {
@@ -291,6 +318,7 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 		reqInternalError.Add(1)
 		return
 	}
+	req = req.WithContext(conn.ctx)
 
 	req.RequestURI = ""
 
@@ -302,14 +330,18 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to execute request")
 		reqInternalError.Add(1)
 
+		body := []byte("Bad Gateway\n")
 		resp = &http.Response{
 			StatusCode:    http.StatusBadGateway,
 			Status:        http.StatusText(http.StatusBadGateway),
 			Header:        make(http.Header),
-			Body:          io.NopCloser(bytes.NewReader([]byte(err.Error()))),
-			ContentLength: int64(len(err.Error())),
+			Body:          io.NopCloser(bytes.NewReader(body)),
+			ContentLength: int64(len(body)),
 		}
 	} else {
+		if resp.Body != nil {
+			defer resp.Body.Close()
+		}
 		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 			reqSuccess.Add(1)
 		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
@@ -329,7 +361,11 @@ func handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
 			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode response")
 			return
 		}
-		writeCh <- m
+		select {
+		case conn.writeCh <- m:
+		case <-conn.ctx.Done():
+			return
+		}
 	}
 
 	log.Info().Str("req_id", id.String()).Msg("Finished successfully")
@@ -342,12 +378,16 @@ func forwardHTTPClient(tlsSkipVerify bool) *http.Client {
 	return defaultForwardClient
 }
 
-func tlsSkipVerifyTransport() http.RoundTripper {
+func forwardTransport(tlsSkipVerify bool) http.RoundTripper {
 	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return http.DefaultTransport
 	}
 	transport := base.Clone()
+	transport.ResponseHeaderTimeout = upstreamResponseHeaderTimeout
+	if !tlsSkipVerify {
+		return transport
+	}
 	if transport.TLSClientConfig == nil {
 		transport.TLSClientConfig = &tls.Config{}
 	} else {
@@ -355,6 +395,16 @@ func tlsSkipVerifyTransport() http.RoundTripper {
 	}
 	transport.TLSClientConfig.InsecureSkipVerify = true
 	return transport
+}
+
+func (conn *agentConnection) closeIncomingRequests() {
+	conn.incoming.Range(func(key, value any) bool {
+		conn.incoming.Delete(key)
+		if ch, ok := value.(chan *msg.Request); ok {
+			close(ch)
+		}
+		return true
+	})
 }
 
 func startStatsReporter(httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string) {

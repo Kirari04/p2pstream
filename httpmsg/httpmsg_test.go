@@ -86,7 +86,7 @@ func TestEncoderDecoder_SmallRequest(t *testing.T) {
 
 func TestEncoderDecoder_LargeRequest(t *testing.T) {
 	id, _ := uuid.NewV7()
-	
+
 	// Create a large body (~150KB) which requires chunking
 	bodySize := 150 * 1024
 	largeBodyData := bytes.Repeat([]byte("a"), bodySize)
@@ -135,5 +135,106 @@ func TestEncoderDecoder_LargeRequest(t *testing.T) {
 
 	if !bytes.Equal(decBody, largeBodyData) {
 		t.Errorf("expected body to match large body data")
+	}
+}
+
+func TestEncoderDecoder_PreservesRepeatedCommaHeaders(t *testing.T) {
+	id, _ := uuid.NewV7()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Set-Cookie": {
+				"session=abc; Expires=Wed, 21 Oct 2030 07:28:00 GMT; Path=/",
+				"theme=dark; Path=/",
+			},
+		},
+		Body:          io.NopCloser(bytes.NewReader(nil)),
+		ContentLength: 0,
+	}
+
+	enc := NewResponseEncoder(id, resp)
+	first, err := enc.Next()
+	if err != nil {
+		t.Fatalf("encode response: %v", err)
+	}
+	decoded, err := DecodeResponse(first, &ArrayStream{})
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	got := decoded.Header.Values("Set-Cookie")
+	want := resp.Header.Values("Set-Cookie")
+	if len(got) != len(want) {
+		t.Fatalf("Set-Cookie values = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("Set-Cookie[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestDecodeRequestValidatesPseudoHeaders(t *testing.T) {
+	id, _ := uuid.NewV7()
+	baseHeaders := map[string][]string{
+		":method": {"GET"},
+		":path":   {"/"},
+		":scheme": {"http"},
+		":host":   {"example.com"},
+	}
+	for _, tc := range []struct {
+		name    string
+		mutate  func(map[string][]string)
+		wantErr bool
+	}{
+		{name: "valid"},
+		{name: "missing method", mutate: func(h map[string][]string) { delete(h, ":method") }, wantErr: true},
+		{name: "missing host", mutate: func(h map[string][]string) { delete(h, ":host") }, wantErr: true},
+		{name: "invalid scheme", mutate: func(h map[string][]string) { h[":scheme"] = []string{"ftp"} }, wantErr: true},
+		{name: "bad path", mutate: func(h map[string][]string) { h[":path"] = []string{"http://[::1"} }, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			headers := make(map[string][]string, len(baseHeaders))
+			for k, v := range baseHeaders {
+				headers[k] = append([]string(nil), v...)
+			}
+			if tc.mutate != nil {
+				tc.mutate(headers)
+			}
+			_, err := DecodeRequest(msg.NewRequest(id, msg.RequestTypeHeaderAndBody, headers, nil, 0), &ArrayStream{})
+			if tc.wantErr && err == nil {
+				t.Fatal("expected error")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestDecodeResponseValidatesStatus(t *testing.T) {
+	id, _ := uuid.NewV7()
+	for _, status := range []string{"", "99", "1000", "abc"} {
+		t.Run(status, func(t *testing.T) {
+			headers := map[string][]string{":status": {status}}
+			_, err := DecodeResponse(msg.NewRequest(id, msg.RequestTypeHeaderAndBody, headers, nil, 0), &ArrayStream{})
+			if err == nil {
+				t.Fatal("expected invalid status to fail")
+			}
+		})
+	}
+}
+
+func TestEncoderRejectsSmallBodyContentLengthLies(t *testing.T) {
+	id, _ := uuid.NewV7()
+	body := bytes.Repeat([]byte("x"), MaxBodyChunkSize+1)
+	req, err := http.NewRequest(http.MethodPost, "http://example.com/upload", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.ContentLength = 1
+
+	enc := NewRequestEncoder(id, req)
+	if _, err := enc.Next(); err == nil {
+		t.Fatal("expected oversized body read through small content length to fail")
 	}
 }

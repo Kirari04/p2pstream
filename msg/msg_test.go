@@ -2,6 +2,7 @@ package msg
 
 import (
 	"bytes"
+	"encoding/binary"
 	"io"
 	"testing"
 
@@ -12,10 +13,10 @@ func TestRequest_WriteTo_ParseRequest(t *testing.T) {
 	id := uuid.NewMD5(uuid.NameSpaceDNS, []byte("test"))
 	bodyData := []byte("hello world")
 	req := &Request{
-		Version: "0.0.0",
+		Version: Version,
 		ID:      id,
 		Type:    RequestTypeHeaderAndBody,
-		Headers: map[string]string{"key": "value", "foo": "bar"},
+		Headers: map[string][]string{"key": {"value"}, "foo": {"bar"}},
 		Body:    bytes.NewReader(bodyData),
 		BodyLen: uint32(len(bodyData)),
 	}
@@ -62,19 +63,43 @@ func TestRequest_WriteTo_ParseRequest(t *testing.T) {
 	}
 
 	for k, v := range req.Headers {
-		if parsed.Headers[k] != v {
-			t.Errorf("expected header %s=%s, got %s", k, v, parsed.Headers[k])
+		if !equalStringSlices(parsed.Headers[k], v) {
+			t.Errorf("expected header %s=%v, got %v", k, v, parsed.Headers[k])
 		}
+	}
+}
+
+func TestRequest_WriteTo_ParseRequest_RepeatedHeaders(t *testing.T) {
+	id := uuid.NewMD5(uuid.NameSpaceDNS, []byte("repeated"))
+	req := &Request{
+		Version: Version,
+		ID:      id,
+		Type:    RequestTypeHeader,
+		Headers: map[string][]string{
+			"Set-Cookie": {"a=1; Path=/", "b=2; Path=/"},
+		},
+	}
+
+	var buf bytes.Buffer
+	if _, err := req.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo failed: %v", err)
+	}
+	parsed, err := ParseRequest(&buf)
+	if err != nil {
+		t.Fatalf("ParseRequest failed: %v", err)
+	}
+	if !equalStringSlices(parsed.Headers["Set-Cookie"], req.Headers["Set-Cookie"]) {
+		t.Fatalf("Set-Cookie headers = %v, want %v", parsed.Headers["Set-Cookie"], req.Headers["Set-Cookie"])
 	}
 }
 
 func TestRequest_WriteTo_ParseRequest_Empty(t *testing.T) {
 	id, _ := uuid.NewV7()
 	req := &Request{
-		Version: "0.0.0",
+		Version: Version,
 		ID:      id,
 		Type:    RequestTypeBody,
-		Headers: map[string]string{},
+		Headers: map[string][]string{},
 		Body:    nil,
 		BodyLen: 0,
 		ChunkNr: 42,
@@ -138,10 +163,10 @@ func TestRequest_LargeHeader(t *testing.T) {
 	}
 
 	req := &Request{
-		Version: "0.0.0",
+		Version: Version,
 		ID:      id,
 		Type:    RequestTypeHeader,
-		Headers: map[string]string{largeKey: largeValue},
+		Headers: map[string][]string{largeKey: {largeValue}},
 	}
 
 	var buf bytes.Buffer
@@ -154,67 +179,42 @@ func TestRequest_LargeHeader(t *testing.T) {
 		t.Fatalf("ParseRequest failed: %v", err)
 	}
 
-	if parsed.Headers[largeKey] != largeValue {
+	if got := parsed.Headers[largeKey]; len(got) != 1 || got[0] != largeValue {
 		t.Errorf("expected large header value to match")
 	}
 }
 
-func TestRequest_LargeBody(t *testing.T) {
+func TestRequest_RejectsOversizedBodyChunk(t *testing.T) {
 	id, _ := uuid.NewV7()
-	
-	// Create a large body (e.g., 5MB)
-	bodySize := 5 * 1024 * 1024
+
+	bodySize := MaxBodyChunkSize + 1
 	largeBodyData := bytes.Repeat([]byte("b"), bodySize)
 
 	req := &Request{
-		Version: "0.0.0",
+		Version: Version,
 		ID:      id,
 		Type:    RequestTypeBody,
-		Headers: map[string]string{},
+		Headers: map[string][]string{},
 		Body:    bytes.NewReader(largeBodyData),
 		BodyLen: uint32(bodySize),
 		ChunkNr: 1,
 	}
 
 	var buf bytes.Buffer
-	if _, err := req.WriteTo(&buf); err != nil {
-		t.Fatalf("WriteTo failed: %v", err)
-	}
-
-	parsed, err := ParseRequest(&buf)
-	if err != nil {
-		t.Fatalf("ParseRequest failed: %v", err)
-	}
-
-	if parsed.ChunkNr != 1 {
-		t.Errorf("expected chunk nr 1, got %d", parsed.ChunkNr)
-	}
-
-	var parsedBody []byte
-	if parsed.Body != nil {
-		var err error
-		parsedBody, err = io.ReadAll(parsed.Body)
-		if err != nil {
-			t.Fatalf("failed to read parsed body: %v", err)
-		}
-	} else {
-		parsedBody = []byte{}
-	}
-
-	if !bytes.Equal(parsedBody, largeBodyData) {
-		t.Errorf("expected body to match large body data")
+	if _, err := req.WriteTo(&buf); err == nil {
+		t.Fatalf("expected oversized body chunk to fail")
 	}
 }
 
 func TestRequest_WriteTo_Errors(t *testing.T) {
 	id, _ := uuid.NewV7()
-	
+
 	// Test header with body error
 	req1 := &Request{
-		Version: "0.0.0",
+		Version: Version,
 		ID:      id,
 		Type:    RequestTypeHeader,
-		Headers: map[string]string{"k": "v"},
+		Headers: map[string][]string{"k": {"v"}},
 		Body:    bytes.NewReader([]byte("should fail")),
 		BodyLen: 11,
 	}
@@ -225,10 +225,10 @@ func TestRequest_WriteTo_Errors(t *testing.T) {
 
 	// Test body with header error
 	req2 := &Request{
-		Version: "0.0.0",
+		Version: Version,
 		ID:      id,
 		Type:    RequestTypeBody,
-		Headers: map[string]string{"k": "v"},
+		Headers: map[string][]string{"k": {"v"}},
 		Body:    bytes.NewReader([]byte("body content")),
 		BodyLen: 12,
 	}
@@ -239,10 +239,10 @@ func TestRequest_WriteTo_Errors(t *testing.T) {
 
 	// Test large RequestTypeHeaderAndBody payload error (64KB limit)
 	req3 := &Request{
-		Version: "0.0.0",
+		Version: Version,
 		ID:      id,
 		Type:    RequestTypeHeaderAndBody,
-		Headers: map[string]string{},
+		Headers: map[string][]string{},
 		Body:    nil, // doesn't matter for the limit check, it will trigger before reading body
 		BodyLen: 65537,
 	}
@@ -256,7 +256,7 @@ func TestRequest_WriteTo_Errors(t *testing.T) {
 		Version: "1.0.0", // Invalid version
 		ID:      id,
 		Type:    RequestTypeHeader,
-		Headers: map[string]string{},
+		Headers: map[string][]string{},
 	}
 	var buf4 bytes.Buffer
 	if _, err := req4.WriteTo(&buf4); err != nil {
@@ -265,4 +265,148 @@ func TestRequest_WriteTo_Errors(t *testing.T) {
 	if _, err := ParseRequest(&buf4); err == nil {
 		t.Errorf("expected error for unsupported protocol version")
 	}
+}
+
+func TestRequest_WriteTo_RejectsTooManyHeaders(t *testing.T) {
+	id, _ := uuid.NewV7()
+	headers := make(map[string][]string)
+	for i := 0; i < MaxHeaderEntries+1; i++ {
+		headers[string(rune('a'+(i%26)))+string(rune('A'+(i/26)))] = []string{"v"}
+	}
+	req := &Request{
+		Version: Version,
+		ID:      id,
+		Type:    RequestTypeHeader,
+		Headers: headers,
+	}
+	var buf bytes.Buffer
+	if _, err := req.WriteTo(&buf); err == nil {
+		t.Fatal("expected too many headers to fail")
+	}
+}
+
+func TestRequest_WriteTo_RejectsOversizedHeaderKeyAndValue(t *testing.T) {
+	id, _ := uuid.NewV7()
+	for _, tc := range []struct {
+		name    string
+		headers map[string][]string
+	}{
+		{
+			name:    "key",
+			headers: map[string][]string{string(bytes.Repeat([]byte("k"), MaxHeaderKeyLen+1)): {"v"}},
+		},
+		{
+			name:    "value",
+			headers: map[string][]string{"k": {string(bytes.Repeat([]byte("v"), MaxHeaderValueLen+1))}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &Request{
+				Version: Version,
+				ID:      id,
+				Type:    RequestTypeHeader,
+				Headers: tc.headers,
+			}
+			var buf bytes.Buffer
+			if _, err := req.WriteTo(&buf); err == nil {
+				t.Fatal("expected oversized header to fail")
+			}
+		})
+	}
+}
+
+func TestParseRequestRejectsUnknownType(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString(Version)
+	id, _ := uuid.NewV7()
+	idBytes, _ := id.MarshalBinary()
+	buf.Write(idBytes)
+	buf.WriteByte(99)
+	if _, err := ParseRequest(&buf); err == nil {
+		t.Fatal("expected unknown type to fail")
+	}
+}
+
+func TestParseRequestRejectsMalformedEOF(t *testing.T) {
+	var buf bytes.Buffer
+	writeParseTestPrefix(t, &buf, RequestTypeHeader)
+	if err := binary.Write(&buf, binary.BigEndian, uint16(1)); err != nil {
+		t.Fatalf("write header count: %v", err)
+	}
+	if err := binary.Write(&buf, binary.BigEndian, uint16(3)); err != nil {
+		t.Fatalf("write key len: %v", err)
+	}
+	buf.WriteString("ab")
+	if _, err := ParseRequest(&buf); err == nil {
+		t.Fatal("expected malformed EOF to fail")
+	}
+}
+
+func TestParseRequestRejectsOversizedHeaderAndBody(t *testing.T) {
+	t.Run("too many headers", func(t *testing.T) {
+		var buf bytes.Buffer
+		writeParseTestPrefix(t, &buf, RequestTypeHeader)
+		if err := binary.Write(&buf, binary.BigEndian, uint16(MaxHeaderEntries+1)); err != nil {
+			t.Fatalf("write header count: %v", err)
+		}
+		if _, err := ParseRequest(&buf); err == nil {
+			t.Fatal("expected too many headers to fail")
+		}
+	})
+
+	t.Run("large value", func(t *testing.T) {
+		var buf bytes.Buffer
+		writeParseTestPrefix(t, &buf, RequestTypeHeader)
+		if err := binary.Write(&buf, binary.BigEndian, uint16(1)); err != nil {
+			t.Fatalf("write header count: %v", err)
+		}
+		if err := binary.Write(&buf, binary.BigEndian, uint16(1)); err != nil {
+			t.Fatalf("write key len: %v", err)
+		}
+		buf.WriteByte('k')
+		if err := binary.Write(&buf, binary.BigEndian, uint32(MaxHeaderValueLen+1)); err != nil {
+			t.Fatalf("write value len: %v", err)
+		}
+		if _, err := ParseRequest(&buf); err == nil {
+			t.Fatal("expected oversized value to fail")
+		}
+	})
+
+	t.Run("large body", func(t *testing.T) {
+		var buf bytes.Buffer
+		writeParseTestPrefix(t, &buf, RequestTypeBody)
+		if err := binary.Write(&buf, binary.BigEndian, uint32(0)); err != nil {
+			t.Fatalf("write chunk nr: %v", err)
+		}
+		if err := binary.Write(&buf, binary.BigEndian, uint32(MaxBodyChunkSize+1)); err != nil {
+			t.Fatalf("write body len: %v", err)
+		}
+		if _, err := ParseRequest(&buf); err == nil {
+			t.Fatal("expected oversized body to fail")
+		}
+	})
+}
+
+func writeParseTestPrefix(t *testing.T, buf *bytes.Buffer, typ RequestType) {
+	t.Helper()
+	buf.WriteString(Version)
+	id, _ := uuid.NewV7()
+	idBytes, err := id.MarshalBinary()
+	if err != nil {
+		t.Fatalf("marshal id: %v", err)
+	}
+	buf.Write(idBytes)
+	buf.WriteByte(byte(typ))
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
