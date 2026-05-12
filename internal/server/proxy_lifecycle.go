@@ -76,6 +76,12 @@ func (a *App) startProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) 
 	a.ensureListenerStatesLocked(snap)
 	a.proxyState = p2pstreamv1.ProxyState_PROXY_STATE_STARTING
 	a.proxyMu.Unlock()
+	if a.LoadBalancers != nil {
+		a.LoadBalancers.reconcile(snap)
+	}
+	if a.BackendHealth != nil {
+		a.BackendHealth.reconcile(snap, true)
+	}
 
 	for _, listener := range snap.Listeners {
 		if !listener.Enabled {
@@ -127,6 +133,9 @@ func (a *App) stopProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
 	a.proxyMu.Lock()
 	status := a.proxyStatusLocked()
 	a.proxyMu.Unlock()
+	if a.BackendHealth != nil {
+		a.BackendHealth.reconcile(nil, false)
+	}
 	if shutdownErr != nil {
 		return status, connect.NewError(connect.CodeInternal, shutdownErr)
 	}

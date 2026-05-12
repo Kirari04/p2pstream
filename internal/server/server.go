@@ -43,6 +43,7 @@ type App struct {
 	LatestAgentStats atomic.Pointer[stats.AgentStats]
 	AgentHub         *agentHub
 	LoadBalancers    *loadBalancerRegistry
+	BackendHealth    *publicBackendHealthMonitor
 	TrafficTracer    *trafficTracer
 	RateLimiter      *publicRateLimiter
 	TrafficShaper    *publicTrafficShaper
@@ -75,6 +76,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		StartedAt:           time.Now(),
 		AgentHub:            newAgentHub(),
 		LoadBalancers:       newLoadBalancerRegistry(),
+		BackendHealth:       newPublicBackendHealthMonitor(),
 		TrafficTracer:       newTrafficTracer(),
 		RateLimiter:         newPublicRateLimiter(),
 		TrafficShaper:       newPublicTrafficShaper(),

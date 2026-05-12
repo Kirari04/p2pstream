@@ -312,6 +312,35 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if !indexExists(t, database, "idx_public_routes_listener_priority") {
 		t.Fatal("expected idx_public_routes_listener_priority after route migration")
 	}
+	routeBackends, err := database.ListPublicRouteBackends(context.Background())
+	if err != nil {
+		t.Fatalf("list route backends after migration: %v", err)
+	}
+	if len(routeBackends) != 1 || routeBackends[0].RouteID != route.ID || routeBackends[0].BackendID != 1 || routeBackends[0].Weight != 100 || routeBackends[0].Enabled != 1 {
+		t.Fatalf("unexpected migrated route backend assignments: %+v", routeBackends)
+	}
+	if route.LoadBalancing != "round_robin" || route.FallbackBackendID.Valid {
+		t.Fatalf("unexpected migrated route pool fields: %+v", route)
+	}
+	backendColumns := tableColumns(t, database, "public_backends")
+	for _, column := range []string{
+		"health_check_enabled",
+		"health_check_method",
+		"health_check_path",
+		"health_check_interval_millis",
+		"health_check_timeout_millis",
+		"health_check_healthy_threshold",
+		"health_check_unhealthy_threshold",
+		"health_check_expected_status_min",
+		"health_check_expected_status_max",
+	} {
+		if !containsString(backendColumns, column) {
+			t.Fatalf("public_backends missing migrated column %s; columns=%v", column, backendColumns)
+		}
+	}
+	if !indexExists(t, database, "idx_public_route_backends_route_position") || !indexExists(t, database, "idx_public_route_backends_backend_id") {
+		t.Fatal("expected public_route_backends indexes after migration")
+	}
 }
 
 func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {

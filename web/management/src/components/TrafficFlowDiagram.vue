@@ -25,6 +25,7 @@ import {
   isTerminalTraceRequest,
   listenerKey,
   redirectKey,
+  routeBackendAssignments,
   requestUsesRateLimitNode,
   requestUsesTrafficShaperNode,
   routeConfigForRequest,
@@ -289,7 +290,17 @@ const layout = computed(() => {
         addEdge(key, redirectKey(route.id));
         addEdge(redirectKey(route.id), "response", "intermediate-bypass");
       } else {
-        addEdge(key, backendKey(route.backendId));
+        const assignments = routeBackendAssignments(route, index).filter((assignment) => assignment.enabled);
+        if (assignments.length) {
+          for (const assignment of assignments) {
+            addEdge(key, backendKey(assignment.backendId));
+          }
+        } else if (route.backendId > 0n) {
+          addEdge(key, backendKey(route.backendId));
+        }
+        if (route.fallbackBackendId > 0n) {
+          addEdge(key, backendKey(route.fallbackBackendId), "agent-bypass");
+        }
       }
     }
   }

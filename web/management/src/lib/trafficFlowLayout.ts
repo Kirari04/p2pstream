@@ -8,6 +8,7 @@ import {
   type GetPublicProxyConfigResponse,
   type PublicBackend,
   type PublicBackendAgent,
+  type PublicRouteBackend,
   type PublicRateLimitRule,
   type PublicTrafficShaperRule,
   type PublicRoute,
@@ -26,6 +27,7 @@ export type TrafficFlowConfigIndex = {
   backendById: Map<string, PublicBackend>;
   agentById: Map<string, Agent>;
   backendAgentsByBackendId: Map<string, PublicBackendAgent[]>;
+  routeBackendsByRouteId: Map<string, PublicRouteBackend[]>;
   enabledRateLimitTargets: TrafficFlowEditTarget[];
   hasEnabledRateLimitRules: boolean;
   enabledTrafficShaperTargets: TrafficFlowEditTarget[];
@@ -76,6 +78,7 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
   const backendById = new Map<string, PublicBackend>();
   const agentById = new Map<string, Agent>();
   const backendAgentsByBackendId = new Map<string, PublicBackendAgent[]>();
+  const routeBackendsByRouteId = new Map<string, PublicRouteBackend[]>();
   const enabledRateLimitTargets = [...(config?.rateLimitRules ?? [])]
     .filter((rule) => rule.enabled)
     .sort(compareRateLimitRules)
@@ -110,6 +113,15 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
   for (const assignments of backendAgentsByBackendId.values()) {
     assignments.sort(compareBackendAgents);
   }
+  for (const assignment of config?.routeBackends ?? []) {
+    const key = assignment.routeId.toString();
+    const assignments = routeBackendsByRouteId.get(key) ?? [];
+    assignments.push(assignment);
+    routeBackendsByRouteId.set(key, assignments);
+  }
+  for (const assignments of routeBackendsByRouteId.values()) {
+    assignments.sort(compareRouteBackends);
+  }
 
   return {
     routesByListenerId,
@@ -117,11 +129,21 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
     backendById,
     agentById,
     backendAgentsByBackendId,
+    routeBackendsByRouteId,
     enabledRateLimitTargets,
     hasEnabledRateLimitRules: enabledRateLimitTargets.length > 0,
     enabledTrafficShaperTargets,
     hasEnabledTrafficShaperRules: enabledTrafficShaperTargets.length > 0,
   };
+}
+
+export function routeBackendAssignments(route: PublicRoute, index: TrafficFlowConfigIndex | null): PublicRouteBackend[] {
+  if (route.backendAssignments.length) return route.backendAssignments;
+  const assignments = index?.routeBackendsByRouteId.get(route.id.toString()) ?? [];
+  if (assignments.length) return assignments;
+  return route.backendId > 0n
+    ? [{ $typeName: "p2pstream.v1.PublicRouteBackend", routeId: route.id, backendId: route.backendId, position: 0n, weight: 100n, enabled: true }]
+    : [];
 }
 
 export function buildTrafficFlowRequestPath(request: TraceRequest, index: TrafficFlowConfigIndex | null): string[] {
@@ -321,6 +343,12 @@ function compareBackendAgents(a: PublicBackendAgent, b: PublicBackendAgent): num
   if (a.position !== b.position) return a.position < b.position ? -1 : 1;
   if (a.agentId === b.agentId) return 0;
   return a.agentId < b.agentId ? -1 : 1;
+}
+
+function compareRouteBackends(a: PublicRouteBackend, b: PublicRouteBackend): number {
+  if (a.position !== b.position) return a.position < b.position ? -1 : 1;
+  if (a.backendId === b.backendId) return 0;
+  return a.backendId < b.backendId ? -1 : 1;
 }
 
 function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {

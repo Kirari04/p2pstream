@@ -39,6 +39,31 @@ If no route matches, p2pstream uses the listener default backend.
 
 Redirect status codes must be one of `301`, `302`, `307`, or `308`.
 
+## Forward backend pools
+
+A forward route can select one or more backends. Each route backend assignment has:
+
+- a backend,
+- an enabled flag,
+- a route-specific weight from `1` to `1000`.
+
+Routes can use the same load-balancing algorithms as agent pools:
+
+- round-robin,
+- weighted round-robin,
+- random,
+- weighted random,
+- least active requests,
+- weighted least active requests.
+
+p2pstream records the backend actually selected for each request in proxy request events and traffic traces.
+
+## Route fallback backend
+
+A forward route can define one fallback backend. If all assigned backends are disabled or unavailable, p2pstream tries the route fallback backend. If the fallback is absent or unavailable too, p2pstream returns `503 Service Unavailable`.
+
+The listener default backend is still only used when no enabled route matches the request.
+
 ## Redirect target modes
 
 | Mode | Target example | Behavior |

@@ -51,6 +51,15 @@ const backendForm = reactive({
   upstreamBasicAuthPassword: "",
   upstreamBasicAuthPasswordSaved: false,
   upstreamRequestHeaders: [] as UpstreamHeaderForm[],
+  healthCheckEnabled: false,
+  healthCheckMethod: "GET",
+  healthCheckPath: "/",
+  healthCheckIntervalMillis: 10000,
+  healthCheckTimeoutMillis: 2000,
+  healthCheckHealthyThreshold: 2,
+  healthCheckUnhealthyThreshold: 2,
+  healthCheckExpectedStatusMin: 200,
+  healthCheckExpectedStatusMax: 399,
   agentAssignments: [] as BackendAgentForm[],
   staticStatusCode: 200,
   staticResponseHeaders: [] as StaticHeaderForm[],
@@ -91,6 +100,15 @@ function resetForm() {
   backendForm.upstreamBasicAuthPassword = "";
   backendForm.upstreamBasicAuthPasswordSaved = false;
   backendForm.upstreamRequestHeaders = [];
+  backendForm.healthCheckEnabled = false;
+  backendForm.healthCheckMethod = "GET";
+  backendForm.healthCheckPath = "/";
+  backendForm.healthCheckIntervalMillis = 10000;
+  backendForm.healthCheckTimeoutMillis = 2000;
+  backendForm.healthCheckHealthyThreshold = 2;
+  backendForm.healthCheckUnhealthyThreshold = 2;
+  backendForm.healthCheckExpectedStatusMin = 200;
+  backendForm.healthCheckExpectedStatusMax = 399;
   backendForm.agentAssignments = [];
   backendForm.staticStatusCode = 200;
   backendForm.staticResponseHeaders = [];
@@ -124,6 +142,15 @@ function openEdit(backendId: bigint | string) {
     value: header.sensitive ? "" : header.value,
     sensitive: header.sensitive,
   }));
+  backendForm.healthCheckEnabled = backend.healthCheck?.enabled ?? false;
+  backendForm.healthCheckMethod = backend.healthCheck?.method || "GET";
+  backendForm.healthCheckPath = backend.healthCheck?.path || "/";
+  backendForm.healthCheckIntervalMillis = Number(backend.healthCheck?.intervalMillis || 10000n);
+  backendForm.healthCheckTimeoutMillis = Number(backend.healthCheck?.timeoutMillis || 2000n);
+  backendForm.healthCheckHealthyThreshold = Number(backend.healthCheck?.healthyThreshold || 2n);
+  backendForm.healthCheckUnhealthyThreshold = Number(backend.healthCheck?.unhealthyThreshold || 2n);
+  backendForm.healthCheckExpectedStatusMin = Number(backend.healthCheck?.expectedStatusMin || 200n);
+  backendForm.healthCheckExpectedStatusMax = Number(backend.healthCheck?.expectedStatusMax || 399n);
   backendForm.agentAssignments = assignmentsForBackend(backend).map((assignment) => ({
     agentId: assignment.agentId.toString(),
     weight: Number(assignment.weight || 100n),
@@ -215,6 +242,23 @@ async function submitBackend() {
           password: backendForm.upstreamBasicAuthPassword,
           passwordSet: backendForm.upstreamBasicAuthEnabled && (backendForm.upstreamBasicAuthPassword !== "" || !backendForm.upstreamBasicAuthPasswordSaved),
         },
+      healthCheck: isStatic
+        ? { enabled: false, method: "GET", path: "/", intervalMillis: 10000n, timeoutMillis: 2000n, healthyThreshold: 2n, unhealthyThreshold: 2n, expectedStatusMin: 200n, expectedStatusMax: 399n, status: 0, lastCheckedAtUnixMillis: 0n, lastError: "", passiveUnhealthyUntilUnixMillis: 0n }
+        : {
+          enabled: backendForm.healthCheckEnabled,
+          method: backendForm.healthCheckMethod,
+          path: backendForm.healthCheckPath,
+          intervalMillis: BigInt(backendForm.healthCheckIntervalMillis || 10000),
+          timeoutMillis: BigInt(backendForm.healthCheckTimeoutMillis || 2000),
+          healthyThreshold: BigInt(backendForm.healthCheckHealthyThreshold || 2),
+          unhealthyThreshold: BigInt(backendForm.healthCheckUnhealthyThreshold || 2),
+          expectedStatusMin: BigInt(backendForm.healthCheckExpectedStatusMin || 200),
+          expectedStatusMax: BigInt(backendForm.healthCheckExpectedStatusMax || 399),
+          status: 0,
+          lastCheckedAtUnixMillis: 0n,
+          lastError: "",
+          passiveUnhealthyUntilUnixMillis: 0n,
+        },
       staticStatusCode: BigInt(isStatic ? backendForm.staticStatusCode || 200 : 200),
       staticResponseHeaders: isStatic
         ? backendForm.staticResponseHeaders.map((header) => ({ name: header.name, value: header.value }))
@@ -278,6 +322,45 @@ defineExpose({ openCreate, openEdit, close });
           Verify upstream TLS certificate
           <p class="text-xs font-normal text-[#666]">Disable only for self-signed upstream certificates.</p>
         </label>
+        <div class="grid gap-3 rounded-md border border-[#333] bg-[#0b0b0b] p-3">
+          <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
+            <input v-model="backendForm.healthCheckEnabled" type="checkbox" />
+            HTTP health check
+          </label>
+          <div v-if="backendForm.healthCheckEnabled" class="grid gap-2 sm:grid-cols-[7rem_1fr]">
+            <select v-model="backendForm.healthCheckMethod" class="vercel-input text-sm normal-case tracking-normal">
+              <option value="GET">GET</option>
+              <option value="HEAD">HEAD</option>
+            </select>
+            <input v-model="backendForm.healthCheckPath" class="vercel-input text-sm normal-case tracking-normal" placeholder="/" />
+          </div>
+          <div v-if="backendForm.healthCheckEnabled" class="grid gap-2 sm:grid-cols-2">
+            <label class="grid gap-1 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Interval ms
+              <input v-model.number="backendForm.healthCheckIntervalMillis" type="number" min="1000" max="3600000" class="vercel-input text-sm normal-case tracking-normal" />
+            </label>
+            <label class="grid gap-1 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Timeout ms
+              <input v-model.number="backendForm.healthCheckTimeoutMillis" type="number" min="100" max="30000" class="vercel-input text-sm normal-case tracking-normal" />
+            </label>
+            <label class="grid gap-1 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Healthy after
+              <input v-model.number="backendForm.healthCheckHealthyThreshold" type="number" min="1" max="10" class="vercel-input text-sm normal-case tracking-normal" />
+            </label>
+            <label class="grid gap-1 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Unhealthy after
+              <input v-model.number="backendForm.healthCheckUnhealthyThreshold" type="number" min="1" max="10" class="vercel-input text-sm normal-case tracking-normal" />
+            </label>
+            <label class="grid gap-1 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Status min
+              <input v-model.number="backendForm.healthCheckExpectedStatusMin" type="number" min="100" max="599" class="vercel-input text-sm normal-case tracking-normal" />
+            </label>
+            <label class="grid gap-1 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Status max
+              <input v-model.number="backendForm.healthCheckExpectedStatusMax" type="number" min="100" max="599" class="vercel-input text-sm normal-case tracking-normal" />
+            </label>
+          </div>
+        </div>
         <div class="grid gap-3 rounded-md border border-[#333] bg-[#0b0b0b] p-3">
           <div class="flex items-center justify-between gap-3">
             <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Upstream request</p>

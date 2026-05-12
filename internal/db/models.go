@@ -57,21 +57,30 @@ type ProxyRequestEvent struct {
 }
 
 type PublicBackend struct {
-	ID                        int64     `json:"id"`
-	Name                      string    `json:"name"`
-	TargetOrigin              string    `json:"target_origin"`
-	BackendType               string    `json:"backend_type"`
-	ForwardMode               string    `json:"forward_mode"`
-	LoadBalancing             string    `json:"load_balancing"`
-	TlsSkipVerify             int64     `json:"tls_skip_verify"`
-	StaticStatusCode          int64     `json:"static_status_code"`
-	StaticResponseBody        string    `json:"static_response_body"`
-	UpstreamBasicAuthEnabled  int64     `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername string    `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword string    `json:"upstream_basic_auth_password"`
-	Enabled                   int64     `json:"enabled"`
-	CreatedAt                 time.Time `json:"created_at"`
-	UpdatedAt                 time.Time `json:"updated_at"`
+	ID                            int64     `json:"id"`
+	Name                          string    `json:"name"`
+	TargetOrigin                  string    `json:"target_origin"`
+	BackendType                   string    `json:"backend_type"`
+	ForwardMode                   string    `json:"forward_mode"`
+	LoadBalancing                 string    `json:"load_balancing"`
+	TlsSkipVerify                 int64     `json:"tls_skip_verify"`
+	StaticStatusCode              int64     `json:"static_status_code"`
+	StaticResponseBody            string    `json:"static_response_body"`
+	UpstreamBasicAuthEnabled      int64     `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername     string    `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword     string    `json:"upstream_basic_auth_password"`
+	HealthCheckEnabled            int64     `json:"health_check_enabled"`
+	HealthCheckMethod             string    `json:"health_check_method"`
+	HealthCheckPath               string    `json:"health_check_path"`
+	HealthCheckIntervalMillis     int64     `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis      int64     `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold   int64     `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold int64     `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin  int64     `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax  int64     `json:"health_check_expected_status_max"`
+	Enabled                       int64     `json:"enabled"`
+	CreatedAt                     time.Time `json:"created_at"`
+	UpdatedAt                     time.Time `json:"updated_at"`
 }
 
 type PublicBackendAgent struct {
@@ -143,6 +152,8 @@ type PublicRoute struct {
 	HostPattern                string        `json:"host_pattern"`
 	PathPrefix                 string        `json:"path_prefix"`
 	BackendID                  sql.NullInt64 `json:"backend_id"`
+	LoadBalancing              string        `json:"load_balancing"`
+	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
 	Action                     string        `json:"action"`
 	RedirectTargetMode         string        `json:"redirect_target_mode"`
 	RedirectTarget             string        `json:"redirect_target"`
@@ -152,6 +163,16 @@ type PublicRoute struct {
 	Enabled                    int64         `json:"enabled"`
 	CreatedAt                  time.Time     `json:"created_at"`
 	UpdatedAt                  time.Time     `json:"updated_at"`
+}
+
+type PublicRouteBackend struct {
+	RouteID   int64     `json:"route_id"`
+	BackendID int64     `json:"backend_id"`
+	Position  int64     `json:"position"`
+	Weight    int64     `json:"weight"`
+	Enabled   int64     `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type PublicTlsCertificate struct {

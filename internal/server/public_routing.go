@@ -26,6 +26,8 @@ import (
 
 const publicUpstreamResponseHeaderTimeout = 30 * time.Second
 
+var errNoRouteBackendAvailable = errors.New("no route backend available")
+
 type publicBackendConfig struct {
 	ID                     int64
 	Name                   string
@@ -42,6 +44,7 @@ type publicBackendConfig struct {
 	Enabled                bool
 	ParsedOrigin           *url.URL
 	AgentAssignments       []publicBackendAgentConfig
+	HealthCheck            publicBackendHealthCheckConfig
 }
 
 type publicAgentConfig struct {
@@ -76,6 +79,18 @@ type publicBackendBasicAuthConfig struct {
 	Password string
 }
 
+type publicBackendHealthCheckConfig struct {
+	Enabled            bool
+	Method             string
+	Path               string
+	Interval           time.Duration
+	Timeout            time.Duration
+	HealthyThreshold   int64
+	UnhealthyThreshold int64
+	ExpectedStatusMin  int64
+	ExpectedStatusMax  int64
+}
+
 type publicListenerConfig struct {
 	ID               int64
 	Name             string
@@ -93,6 +108,9 @@ type publicRouteConfig struct {
 	HostPattern                string
 	PathPrefix                 string
 	BackendID                  int64
+	LoadBalancing              string
+	FallbackBackendID          int64
+	BackendAssignments         []publicRouteBackendConfig
 	Action                     string
 	RedirectTargetMode         string
 	RedirectTarget             string
@@ -100,6 +118,14 @@ type publicRouteConfig struct {
 	RedirectPreservePathSuffix bool
 	RedirectPreserveQuery      bool
 	Enabled                    bool
+}
+
+type publicRouteBackendConfig struct {
+	RouteID   int64
+	BackendID int64
+	Position  int64
+	Weight    int64
+	Enabled   bool
 }
 
 type publicTLSCertificateConfig struct {
@@ -144,6 +170,8 @@ type publicRouteResolution struct {
 	TrafficShaperDownloadBytesPerSecond int64
 	TrafficShaperRequestExemptBytes     int64
 	TrafficShaperResponseExemptBytes    int64
+	RouteLoadBalancing                  string
+	RouteFallbackSelected               bool
 }
 
 type proxyRequestObservability struct {
@@ -274,12 +302,20 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 
 		resolution, err := a.resolvePublicRoute(listenerID, r)
 		if err != nil {
-			http.Error(responseWriter, err.Error(), http.StatusBadGateway)
+			statusCode := http.StatusBadGateway
+			errorKind := "route_resolution_failed"
+			if errors.Is(err, errNoRouteBackendAvailable) {
+				statusCode = http.StatusServiceUnavailable
+				errorKind = "no_route_backend_available"
+				writeNoRouteBackendAvailable(responseWriter)
+			} else {
+				http.Error(responseWriter, err.Error(), statusCode)
+			}
 			a.recordProxyRequestEventWithIDs(
 				context.Background(),
-				http.StatusBadGateway,
+				statusCode,
 				time.Since(requestStartedAt),
-				"route_resolution_failed",
+				errorKind,
 				sql.NullInt64{Int64: listenerID, Valid: true},
 				sql.NullInt64{},
 				sql.NullInt64{},
@@ -296,8 +332,8 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
 					&failureResolution,
 					nil,
-					http.StatusBadGateway,
-					"route_resolution_failed",
+					statusCode,
+					errorKind,
 					responseWriter.Header(),
 					nil,
 				)
@@ -315,7 +351,18 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			return
 		}
 		if trace != nil {
-			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, nil)
+			attributes := map[string]string(nil)
+			if resolution.RouteLoadBalancing != "" {
+				attributes = map[string]string{
+					"route_load_balancer": resolution.RouteLoadBalancing,
+					"route_fallback":      strconv.FormatBool(resolution.RouteFallbackSelected),
+				}
+			}
+			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, attributes)
+		}
+		if resolution.BackendID.Valid {
+			done := a.beginPublicBackendRequest(resolution.BackendID.Int64)
+			defer done()
 		}
 		if resolution.Backend.BackendType == publicBackendTypeStatic {
 			a.staticBackendResponse(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), observability)
@@ -334,6 +381,22 @@ func trafficShaperDecisionIfSelected(decision publicTrafficShaperDecision, selec
 		return nil
 	}
 	return &decision
+}
+
+func writeNoRouteBackendAvailable(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_, _ = io.WriteString(w, `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Service unavailable</title></head>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#080a0d;color:#f4f7fa;font-family:Trebuchet MS,Verdana,sans-serif;padding:32px">
+<main style="max-width:680px;border:1px solid #29313a;background:#11161c;padding:40px">
+<p style="margin:0 0 12px;color:#34d399;text-transform:uppercase;font-size:12px;letter-spacing:0">p2pstream route unavailable</p>
+<h1 style="margin:0 0 16px;font-size:42px;line-height:1">No backend is available</h1>
+<p style="margin:0;color:#9aa8b5;line-height:1.6">The matched route has no enabled or healthy backend available, and its fallback backend could not be used.</p>
+</main>
+</body>
+</html>`)
 }
 
 func applyTrafficShaperResolutionFields(resolution *publicRouteResolution, decision publicTrafficShaperDecision) {
@@ -524,6 +587,7 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			log.Error().Err(err).Str("backend", resolution.Backend.Name).Msg("Direct proxy failed")
+			a.markPublicBackendPassiveFailure(resolution.Backend.ID, err)
 			statusCode = http.StatusBadGateway
 			errorKind = "direct_proxy_failed"
 			http.Error(w, "Bad Gateway", http.StatusBadGateway)
@@ -673,6 +737,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	var firstMsg *msg.Request
 	select {
 	case <-timeoutCtx.Done():
+		a.markPublicBackendPassiveFailure(resolution.Backend.ID, timeoutCtx.Err())
 		statusCode = http.StatusGatewayTimeout
 		errorKind = "agent_timeout"
 		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
@@ -765,6 +830,104 @@ func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
 	return a.LoadBalancers.selectAgent(backend, candidates)
 }
 
+func (a *App) selectRouteBackend(snap publicProxySnapshot, route publicRouteConfig) (publicBackendConfig, bool, bool) {
+	assignments := route.BackendAssignments
+	if len(assignments) == 0 && route.BackendID > 0 {
+		assignments = []publicRouteBackendConfig{{
+			RouteID:   route.ID,
+			BackendID: route.BackendID,
+			Position:  0,
+			Weight:    100,
+			Enabled:   true,
+		}}
+	}
+	candidates := make([]routeBackendCandidate, 0, len(assignments))
+	for _, assignment := range assignments {
+		if !assignment.Enabled {
+			continue
+		}
+		backend, ok := snap.Backends[assignment.BackendID]
+		if !ok || !a.backendEligibleForRoute(snap, backend) {
+			continue
+		}
+		activeRequests := int64(0)
+		if a.BackendHealth != nil {
+			activeRequests = a.BackendHealth.activeRequests(backend.ID)
+		}
+		candidates = append(candidates, routeBackendCandidate{
+			Backend:        backend,
+			BackendID:      backend.ID,
+			Position:       assignment.Position,
+			Weight:         assignment.Weight,
+			ActiveRequests: activeRequests,
+		})
+	}
+	if len(candidates) > 0 {
+		if a.LoadBalancers == nil {
+			return candidates[0].Backend, true, false
+		}
+		selected, ok := a.LoadBalancers.selectRouteBackend(route, candidates)
+		if !ok {
+			return publicBackendConfig{}, false, false
+		}
+		return selected.Backend, true, false
+	}
+	if route.FallbackBackendID <= 0 {
+		return publicBackendConfig{}, false, false
+	}
+	backend, ok := snap.Backends[route.FallbackBackendID]
+	if !ok || !a.backendEligibleForRoute(snap, backend) {
+		return publicBackendConfig{}, false, false
+	}
+	return backend, true, true
+}
+
+func (a *App) backendEligibleForRoute(snap publicProxySnapshot, backend publicBackendConfig) bool {
+	if !backend.Enabled {
+		return false
+	}
+	if backend.BackendType == publicBackendTypeProxyForward && backend.ParsedOrigin == nil {
+		return false
+	}
+	if a.BackendHealth != nil && !a.BackendHealth.available(backend) {
+		return false
+	}
+	if backend.ForwardMode == publicBackendForwardModeAgentPool {
+		return a.backendHasEligibleAgent(snap, backend)
+	}
+	return true
+}
+
+func (a *App) backendHasEligibleAgent(snap publicProxySnapshot, backend publicBackendConfig) bool {
+	for _, assignment := range backend.AgentAssignments {
+		if !assignment.Enabled {
+			continue
+		}
+		agentConfig, ok := snap.Agents[assignment.AgentID]
+		if !ok || !agentConfig.Enabled {
+			continue
+		}
+		if a.AgentHub.connectedByID(assignment.AgentID) != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *App) beginPublicBackendRequest(backendID int64) func() {
+	if a.BackendHealth == nil {
+		return func() {}
+	}
+	return a.BackendHealth.beginRequest(backendID)
+}
+
+func (a *App) markPublicBackendPassiveFailure(backendID int64, err error) {
+	if a.BackendHealth == nil {
+		return
+	}
+	a.BackendHealth.markPassiveFailure(backendID, err)
+}
+
 func applyUpstreamRequestConfig(req *http.Request, backend publicBackendConfig) {
 	if backend.ParsedOrigin != nil {
 		req.URL.Scheme = backend.ParsedOrigin.Scheme
@@ -855,6 +1018,7 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 	var matchedRoute publicRouteConfig
 	action := publicRouteActionForward
 	defaultRoute := true
+	routeFallbackSelected := false
 	for _, route := range snap.RoutesByListener[listenerID] {
 		if !route.Enabled {
 			continue
@@ -879,7 +1043,12 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 				RouteID:      routeID,
 			}, nil
 		}
-		backendID = route.BackendID
+		selected, ok, fallbackSelected := a.selectRouteBackend(*snap, route)
+		if !ok {
+			return publicRouteResolution{}, errNoRouteBackendAvailable
+		}
+		backendID = selected.ID
+		routeFallbackSelected = fallbackSelected
 		break
 	}
 
@@ -900,6 +1069,13 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
 		BackendID:    sql.NullInt64{Int64: backendID, Valid: true},
 		RouteID:      routeID,
+		RouteLoadBalancing: func() string {
+			if routeID.Valid {
+				return matchedRoute.LoadBalancing
+			}
+			return ""
+		}(),
+		RouteFallbackSelected: routeFallbackSelected,
 	}, nil
 }
 

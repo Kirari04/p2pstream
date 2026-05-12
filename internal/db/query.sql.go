@@ -43,21 +43,23 @@ SELECT
   (
     SELECT COUNT(*)
     FROM public_listeners
-    WHERE default_backend_id = ? AND enabled = 1
+    WHERE default_backend_id = ?1 AND enabled = 1
   ) + (
     SELECT COUNT(*)
     FROM public_routes
-    WHERE backend_id = ? AND enabled = 1
+    WHERE (backend_id = ?1 OR fallback_backend_id = ?1) AND enabled = 1
+  ) + (
+    SELECT COUNT(*)
+    FROM public_route_backends prb
+    JOIN public_routes pr ON pr.id = prb.route_id
+    WHERE prb.backend_id = ?1
+      AND prb.enabled = 1
+      AND pr.enabled = 1
   ) AS references_count
 `
 
-type CountPublicBackendEnabledReferencesParams struct {
-	DefaultBackendID int64         `json:"default_backend_id"`
-	BackendID        sql.NullInt64 `json:"backend_id"`
-}
-
-func (q *Queries) CountPublicBackendEnabledReferences(ctx context.Context, arg CountPublicBackendEnabledReferencesParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countPublicBackendEnabledReferences, arg.DefaultBackendID, arg.BackendID)
+func (q *Queries) CountPublicBackendEnabledReferences(ctx context.Context, backendID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublicBackendEnabledReferences, backendID)
 	var references_count int64
 	err := row.Scan(&references_count)
 	return references_count, err
@@ -144,26 +146,44 @@ INSERT INTO public_backends (
     upstream_basic_auth_enabled,
     upstream_basic_auth_username,
     upstream_basic_auth_password,
+    health_check_enabled,
+    health_check_method,
+    health_check_path,
+    health_check_interval_millis,
+    health_check_timeout_millis,
+    health_check_healthy_threshold,
+    health_check_unhealthy_threshold,
+    health_check_expected_status_min,
+    health_check_expected_status_max,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 `
 
 type CreatePublicBackendParams struct {
-	Name                      string `json:"name"`
-	TargetOrigin              string `json:"target_origin"`
-	BackendType               string `json:"backend_type"`
-	ForwardMode               string `json:"forward_mode"`
-	LoadBalancing             string `json:"load_balancing"`
-	TlsSkipVerify             int64  `json:"tls_skip_verify"`
-	StaticStatusCode          int64  `json:"static_status_code"`
-	StaticResponseBody        string `json:"static_response_body"`
-	UpstreamBasicAuthEnabled  int64  `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername string `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword string `json:"upstream_basic_auth_password"`
-	Enabled                   int64  `json:"enabled"`
+	Name                          string `json:"name"`
+	TargetOrigin                  string `json:"target_origin"`
+	BackendType                   string `json:"backend_type"`
+	ForwardMode                   string `json:"forward_mode"`
+	LoadBalancing                 string `json:"load_balancing"`
+	TlsSkipVerify                 int64  `json:"tls_skip_verify"`
+	StaticStatusCode              int64  `json:"static_status_code"`
+	StaticResponseBody            string `json:"static_response_body"`
+	UpstreamBasicAuthEnabled      int64  `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername     string `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword     string `json:"upstream_basic_auth_password"`
+	HealthCheckEnabled            int64  `json:"health_check_enabled"`
+	HealthCheckMethod             string `json:"health_check_method"`
+	HealthCheckPath               string `json:"health_check_path"`
+	HealthCheckIntervalMillis     int64  `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis      int64  `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold   int64  `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold int64  `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin  int64  `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax  int64  `json:"health_check_expected_status_max"`
+	Enabled                       int64  `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error) {
@@ -179,6 +199,15 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		arg.UpstreamBasicAuthEnabled,
 		arg.UpstreamBasicAuthUsername,
 		arg.UpstreamBasicAuthPassword,
+		arg.HealthCheckEnabled,
+		arg.HealthCheckMethod,
+		arg.HealthCheckPath,
+		arg.HealthCheckIntervalMillis,
+		arg.HealthCheckTimeoutMillis,
+		arg.HealthCheckHealthyThreshold,
+		arg.HealthCheckUnhealthyThreshold,
+		arg.HealthCheckExpectedStatusMin,
+		arg.HealthCheckExpectedStatusMax,
 		arg.Enabled,
 	)
 	var i PublicBackend
@@ -195,6 +224,15 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
+		&i.HealthCheckEnabled,
+		&i.HealthCheckMethod,
+		&i.HealthCheckPath,
+		&i.HealthCheckIntervalMillis,
+		&i.HealthCheckTimeoutMillis,
+		&i.HealthCheckHealthyThreshold,
+		&i.HealthCheckUnhealthyThreshold,
+		&i.HealthCheckExpectedStatusMin,
+		&i.HealthCheckExpectedStatusMax,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -427,6 +465,8 @@ INSERT INTO public_routes (
     host_pattern,
     path_prefix,
     backend_id,
+    load_balancing,
+    fallback_backend_id,
     action,
     redirect_target_mode,
     redirect_target,
@@ -435,8 +475,8 @@ INSERT INTO public_routes (
     redirect_preserve_query,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type CreatePublicRouteParams struct {
@@ -445,6 +485,8 @@ type CreatePublicRouteParams struct {
 	HostPattern                string        `json:"host_pattern"`
 	PathPrefix                 string        `json:"path_prefix"`
 	BackendID                  sql.NullInt64 `json:"backend_id"`
+	LoadBalancing              string        `json:"load_balancing"`
+	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
 	Action                     string        `json:"action"`
 	RedirectTargetMode         string        `json:"redirect_target_mode"`
 	RedirectTarget             string        `json:"redirect_target"`
@@ -461,6 +503,8 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		arg.HostPattern,
 		arg.PathPrefix,
 		arg.BackendID,
+		arg.LoadBalancing,
+		arg.FallbackBackendID,
 		arg.Action,
 		arg.RedirectTargetMode,
 		arg.RedirectTarget,
@@ -477,12 +521,49 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.HostPattern,
 		&i.PathPrefix,
 		&i.BackendID,
+		&i.LoadBalancing,
+		&i.FallbackBackendID,
 		&i.Action,
 		&i.RedirectTargetMode,
 		&i.RedirectTarget,
 		&i.RedirectStatusCode,
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicRouteBackend = `-- name: CreatePublicRouteBackend :one
+INSERT INTO public_route_backends (route_id, backend_id, position, weight, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING route_id, backend_id, position, weight, enabled, created_at, updated_at
+`
+
+type CreatePublicRouteBackendParams struct {
+	RouteID   int64 `json:"route_id"`
+	BackendID int64 `json:"backend_id"`
+	Position  int64 `json:"position"`
+	Weight    int64 `json:"weight"`
+	Enabled   int64 `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicRouteBackend(ctx context.Context, arg CreatePublicRouteBackendParams) (PublicRouteBackend, error) {
+	row := q.db.QueryRowContext(ctx, createPublicRouteBackend,
+		arg.RouteID,
+		arg.BackendID,
+		arg.Position,
+		arg.Weight,
+		arg.Enabled,
+	)
+	var i PublicRouteBackend
+	err := row.Scan(
+		&i.RouteID,
+		&i.BackendID,
+		&i.Position,
+		&i.Weight,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -843,6 +924,16 @@ func (q *Queries) DeletePublicRoute(ctx context.Context, id int64) error {
 	return err
 }
 
+const deletePublicRouteBackends = `-- name: DeletePublicRouteBackends :exec
+DELETE FROM public_route_backends
+WHERE route_id = ?
+`
+
+func (q *Queries) DeletePublicRouteBackends(ctx context.Context, routeID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRouteBackends, routeID)
+	return err
+}
+
 const deletePublicTlsCertificate = `-- name: DeletePublicTlsCertificate :exec
 DELETE FROM public_tls_certificates
 WHERE id = ?
@@ -1163,7 +1254,7 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 }
 
 const getPublicBackend = `-- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?
 `
@@ -1184,6 +1275,15 @@ func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
+		&i.HealthCheckEnabled,
+		&i.HealthCheckMethod,
+		&i.HealthCheckPath,
+		&i.HealthCheckIntervalMillis,
+		&i.HealthCheckTimeoutMillis,
+		&i.HealthCheckHealthyThreshold,
+		&i.HealthCheckUnhealthyThreshold,
+		&i.HealthCheckExpectedStatusMin,
+		&i.HealthCheckExpectedStatusMax,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1245,7 +1345,7 @@ func (q *Queries) GetPublicRateLimitRule(ctx context.Context, id int64) (PublicR
 }
 
 const getPublicRoute = `-- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?
 `
@@ -1260,6 +1360,8 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.HostPattern,
 		&i.PathPrefix,
 		&i.BackendID,
+		&i.LoadBalancing,
+		&i.FallbackBackendID,
 		&i.Action,
 		&i.RedirectTargetMode,
 		&i.RedirectTarget,
@@ -1882,7 +1984,7 @@ func (q *Queries) ListPublicBackendUpstreamHeadersByBackend(ctx context.Context,
 }
 
 const listPublicBackends = `-- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC
 `
@@ -1909,6 +2011,15 @@ func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, erro
 			&i.UpstreamBasicAuthEnabled,
 			&i.UpstreamBasicAuthUsername,
 			&i.UpstreamBasicAuthPassword,
+			&i.HealthCheckEnabled,
+			&i.HealthCheckMethod,
+			&i.HealthCheckPath,
+			&i.HealthCheckIntervalMillis,
+			&i.HealthCheckTimeoutMillis,
+			&i.HealthCheckHealthyThreshold,
+			&i.HealthCheckUnhealthyThreshold,
+			&i.HealthCheckExpectedStatusMin,
+			&i.HealthCheckExpectedStatusMax,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -2011,8 +2122,83 @@ func (q *Queries) ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLim
 	return items, nil
 }
 
+const listPublicRouteBackends = `-- name: ListPublicRouteBackends :many
+SELECT route_id, backend_id, position, weight, enabled, created_at, updated_at
+FROM public_route_backends
+ORDER BY route_id ASC, position ASC, backend_id ASC
+`
+
+func (q *Queries) ListPublicRouteBackends(ctx context.Context) ([]PublicRouteBackend, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteBackends)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteBackend
+	for rows.Next() {
+		var i PublicRouteBackend
+		if err := rows.Scan(
+			&i.RouteID,
+			&i.BackendID,
+			&i.Position,
+			&i.Weight,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicRouteBackendsByRoute = `-- name: ListPublicRouteBackendsByRoute :many
+SELECT route_id, backend_id, position, weight, enabled, created_at, updated_at
+FROM public_route_backends
+WHERE route_id = ?
+ORDER BY position ASC, backend_id ASC
+`
+
+func (q *Queries) ListPublicRouteBackendsByRoute(ctx context.Context, routeID int64) ([]PublicRouteBackend, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteBackendsByRoute, routeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteBackend
+	for rows.Next() {
+		var i PublicRouteBackend
+		if err := rows.Scan(
+			&i.RouteID,
+			&i.BackendID,
+			&i.Position,
+			&i.Weight,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicRoutes = `-- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC
 `
@@ -2033,6 +2219,8 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 			&i.HostPattern,
 			&i.PathPrefix,
 			&i.BackendID,
+			&i.LoadBalancing,
+			&i.FallbackBackendID,
 			&i.Action,
 			&i.RedirectTargetMode,
 			&i.RedirectTarget,
@@ -2692,26 +2880,44 @@ SET name = ?,
     upstream_basic_auth_enabled = ?,
     upstream_basic_auth_username = ?,
     upstream_basic_auth_password = ?,
+    health_check_enabled = ?,
+    health_check_method = ?,
+    health_check_path = ?,
+    health_check_interval_millis = ?,
+    health_check_timeout_millis = ?,
+    health_check_healthy_threshold = ?,
+    health_check_unhealthy_threshold = ?,
+    health_check_expected_status_min = ?,
+    health_check_expected_status_max = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 `
 
 type UpdatePublicBackendParams struct {
-	Name                      string `json:"name"`
-	TargetOrigin              string `json:"target_origin"`
-	BackendType               string `json:"backend_type"`
-	ForwardMode               string `json:"forward_mode"`
-	LoadBalancing             string `json:"load_balancing"`
-	TlsSkipVerify             int64  `json:"tls_skip_verify"`
-	StaticStatusCode          int64  `json:"static_status_code"`
-	StaticResponseBody        string `json:"static_response_body"`
-	UpstreamBasicAuthEnabled  int64  `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername string `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword string `json:"upstream_basic_auth_password"`
-	Enabled                   int64  `json:"enabled"`
-	ID                        int64  `json:"id"`
+	Name                          string `json:"name"`
+	TargetOrigin                  string `json:"target_origin"`
+	BackendType                   string `json:"backend_type"`
+	ForwardMode                   string `json:"forward_mode"`
+	LoadBalancing                 string `json:"load_balancing"`
+	TlsSkipVerify                 int64  `json:"tls_skip_verify"`
+	StaticStatusCode              int64  `json:"static_status_code"`
+	StaticResponseBody            string `json:"static_response_body"`
+	UpstreamBasicAuthEnabled      int64  `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername     string `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword     string `json:"upstream_basic_auth_password"`
+	HealthCheckEnabled            int64  `json:"health_check_enabled"`
+	HealthCheckMethod             string `json:"health_check_method"`
+	HealthCheckPath               string `json:"health_check_path"`
+	HealthCheckIntervalMillis     int64  `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis      int64  `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold   int64  `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold int64  `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin  int64  `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax  int64  `json:"health_check_expected_status_max"`
+	Enabled                       int64  `json:"enabled"`
+	ID                            int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error) {
@@ -2727,6 +2933,15 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		arg.UpstreamBasicAuthEnabled,
 		arg.UpstreamBasicAuthUsername,
 		arg.UpstreamBasicAuthPassword,
+		arg.HealthCheckEnabled,
+		arg.HealthCheckMethod,
+		arg.HealthCheckPath,
+		arg.HealthCheckIntervalMillis,
+		arg.HealthCheckTimeoutMillis,
+		arg.HealthCheckHealthyThreshold,
+		arg.HealthCheckUnhealthyThreshold,
+		arg.HealthCheckExpectedStatusMin,
+		arg.HealthCheckExpectedStatusMax,
 		arg.Enabled,
 		arg.ID,
 	)
@@ -2744,6 +2959,15 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
+		&i.HealthCheckEnabled,
+		&i.HealthCheckMethod,
+		&i.HealthCheckPath,
+		&i.HealthCheckIntervalMillis,
+		&i.HealthCheckTimeoutMillis,
+		&i.HealthCheckHealthyThreshold,
+		&i.HealthCheckUnhealthyThreshold,
+		&i.HealthCheckExpectedStatusMin,
+		&i.HealthCheckExpectedStatusMax,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -2876,6 +3100,8 @@ SET listener_id = ?,
     host_pattern = ?,
     path_prefix = ?,
     backend_id = ?,
+    load_balancing = ?,
+    fallback_backend_id = ?,
     action = ?,
     redirect_target_mode = ?,
     redirect_target = ?,
@@ -2885,7 +3111,7 @@ SET listener_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type UpdatePublicRouteParams struct {
@@ -2894,6 +3120,8 @@ type UpdatePublicRouteParams struct {
 	HostPattern                string        `json:"host_pattern"`
 	PathPrefix                 string        `json:"path_prefix"`
 	BackendID                  sql.NullInt64 `json:"backend_id"`
+	LoadBalancing              string        `json:"load_balancing"`
+	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
 	Action                     string        `json:"action"`
 	RedirectTargetMode         string        `json:"redirect_target_mode"`
 	RedirectTarget             string        `json:"redirect_target"`
@@ -2911,6 +3139,8 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		arg.HostPattern,
 		arg.PathPrefix,
 		arg.BackendID,
+		arg.LoadBalancing,
+		arg.FallbackBackendID,
 		arg.Action,
 		arg.RedirectTargetMode,
 		arg.RedirectTarget,
@@ -2928,6 +3158,8 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.HostPattern,
 		&i.PathPrefix,
 		&i.BackendID,
+		&i.LoadBalancing,
+		&i.FallbackBackendID,
 		&i.Action,
 		&i.RedirectTargetMode,
 		&i.RedirectTarget,

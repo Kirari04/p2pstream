@@ -189,6 +189,15 @@ func (db *DB) migrate() error {
 		upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
 		upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
 		upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
+		health_check_enabled INTEGER NOT NULL DEFAULT 0,
+		health_check_method TEXT NOT NULL DEFAULT 'GET',
+		health_check_path TEXT NOT NULL DEFAULT '/',
+		health_check_interval_millis INTEGER NOT NULL DEFAULT 10000,
+		health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000,
+		health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2,
+		health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2,
+		health_check_expected_status_min INTEGER NOT NULL DEFAULT 200,
+		health_check_expected_status_max INTEGER NOT NULL DEFAULT 399,
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -249,6 +258,8 @@ func (db *DB) migrate() error {
 		host_pattern TEXT NOT NULL DEFAULT '',
 		path_prefix TEXT NOT NULL DEFAULT '',
 		backend_id INTEGER REFERENCES public_backends(id),
+		load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+		fallback_backend_id INTEGER REFERENCES public_backends(id),
 		action TEXT NOT NULL DEFAULT 'forward',
 		redirect_target_mode TEXT NOT NULL DEFAULT '',
 		redirect_target TEXT NOT NULL DEFAULT '',
@@ -258,6 +269,18 @@ func (db *DB) migrate() error {
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_route_backends (
+		route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+		position INTEGER NOT NULL,
+		weight INTEGER NOT NULL DEFAULT 100,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (route_id, backend_id),
+		UNIQUE(route_id, position)
 	);
 
 	CREATE TABLE IF NOT EXISTS public_tls_dns_credentials (
@@ -331,6 +354,12 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id
 	ON public_backend_agents (agent_id);
 
+	CREATE INDEX IF NOT EXISTS idx_public_route_backends_route_position
+	ON public_route_backends (route_id, position);
+
+	CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id
+	ON public_route_backends (backend_id);
+
 	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 	ON public_tls_certificates (listener_id);
 
@@ -366,6 +395,17 @@ func (db *DB) migrate() error {
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_enabled INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_method TEXT NOT NULL DEFAULT 'GET'`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_path TEXT NOT NULL DEFAULT '/'`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_interval_millis INTEGER NOT NULL DEFAULT 10000`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_expected_status_min INTEGER NOT NULL DEFAULT 200`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_expected_status_max INTEGER NOT NULL DEFAULT 399`,
+		`ALTER TABLE public_routes ADD COLUMN load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
+		`ALTER TABLE public_routes ADD COLUMN fallback_backend_id INTEGER REFERENCES public_backends(id)`,
 		`ALTER TABLE public_tls_certificates ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`,
 		`ALTER TABLE public_tls_certificates ADD COLUMN acme_challenge_type TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE public_tls_certificates ADD COLUMN acme_ca TEXT NOT NULL DEFAULT ''`,
@@ -477,6 +517,30 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_route_backends (
+			route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			weight INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (route_id, backend_id),
+			UNIQUE(route_id, position)
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_backends_route_position ON public_route_backends (route_id, position)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id ON public_route_backends (backend_id)`); err != nil {
+		return err
+	}
+	if err := db.backfillPublicRouteBackends(); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_rate_limit_rules (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
@@ -575,6 +639,8 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			host_pattern TEXT NOT NULL DEFAULT '',
 			path_prefix TEXT NOT NULL DEFAULT '',
 			backend_id INTEGER REFERENCES public_backends(id),
+			load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+			fallback_backend_id INTEGER REFERENCES public_backends(id),
 			action TEXT NOT NULL DEFAULT 'forward',
 			redirect_target_mode TEXT NOT NULL DEFAULT '',
 			redirect_target TEXT NOT NULL DEFAULT '',
@@ -603,6 +669,8 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			host_pattern,
 			path_prefix,
 			backend_id,
+			load_balancing,
+			fallback_backend_id,
 			action,
 			redirect_target_mode,
 			redirect_target,
@@ -626,11 +694,15 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			%s,
 			%s,
 			%s,
+			%s,
+			%s,
 			enabled,
 			created_at,
 			updated_at
 		FROM public_routes
 	`,
+		columnExpr("load_balancing", "'round_robin'"),
+		columnExpr("fallback_backend_id", "NULL"),
 		columnExpr("action", "'forward'"),
 		columnExpr("redirect_target_mode", "''"),
 		columnExpr("redirect_target", "''"),
@@ -651,6 +723,17 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 		return err
 	}
 	return tx.Commit()
+}
+
+func (db *DB) backfillPublicRouteBackends() error {
+	_, err := db.Exec(`
+		INSERT OR IGNORE INTO public_route_backends (route_id, backend_id, position, weight, enabled)
+		SELECT id, backend_id, 0, 100, 1
+		FROM public_routes
+		WHERE backend_id IS NOT NULL
+		  AND COALESCE(action, 'forward') = 'forward'
+	`)
+	return err
 }
 
 func (db *DB) sqliteTableColumns(tableName string) (map[string]sqliteTableColumn, error) {

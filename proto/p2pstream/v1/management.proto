@@ -44,6 +44,14 @@ enum PublicBackendLoadBalancing {
   PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
 }
 
+enum PublicBackendHealthStatus {
+  PUBLIC_BACKEND_HEALTH_STATUS_UNSPECIFIED = 0;
+  PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN = 1;
+  PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY = 2;
+  PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY = 3;
+  PUBLIC_BACKEND_HEALTH_STATUS_DISABLED = 4;
+}
+
 enum PublicRouteAction {
   PUBLIC_ROUTE_ACTION_UNSPECIFIED = 0;
   PUBLIC_ROUTE_ACTION_FORWARD = 1;
@@ -220,6 +228,7 @@ message PublicBackend {
   repeated PublicBackendAgent agent_assignments = 14;
   repeated PublicBackendUpstreamHeader upstream_request_headers = 15;
   PublicBackendBasicAuth upstream_basic_auth = 16;
+  PublicBackendHealthCheck health_check = 17;
 }
 
 message PublicHeader {
@@ -244,6 +253,22 @@ message PublicBackendBasicAuth {
   bool password_set = 4;
 }
 
+message PublicBackendHealthCheck {
+  bool enabled = 1;
+  string method = 2;
+  string path = 3;
+  int64 interval_millis = 4;
+  int64 timeout_millis = 5;
+  int64 healthy_threshold = 6;
+  int64 unhealthy_threshold = 7;
+  int64 expected_status_min = 8;
+  int64 expected_status_max = 9;
+  PublicBackendHealthStatus status = 10;
+  int64 last_checked_at_unix_millis = 11;
+  string last_error = 12;
+  int64 passive_unhealthy_until_unix_millis = 13;
+}
+
 message Agent {
   int64 id = 1;
   string public_id = 2;
@@ -261,6 +286,14 @@ message Agent {
 message PublicBackendAgent {
   int64 backend_id = 1;
   int64 agent_id = 2;
+  int64 position = 3;
+  int64 weight = 4;
+  bool enabled = 5;
+}
+
+message PublicRouteBackend {
+  int64 route_id = 1;
+  int64 backend_id = 2;
   int64 position = 3;
   int64 weight = 4;
   bool enabled = 5;
@@ -294,6 +327,9 @@ message PublicRoute {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
+  PublicBackendLoadBalancing load_balancing = 16;
+  repeated PublicRouteBackend backend_assignments = 17;
+  int64 fallback_backend_id = 18;
 }
 
 message PublicTlsCertificate {
@@ -416,6 +452,7 @@ message GetPublicProxyConfigResponse {
   repeated PublicRateLimitRule rate_limit_rules = 8;
   repeated PublicTrafficShaperRule traffic_shaper_rules = 9;
   repeated PublicTlsDnsCredential tls_dns_credentials = 10;
+  repeated PublicRouteBackend route_backends = 11;
 }
 
 message CreatePublicBackendRequest {
@@ -432,6 +469,7 @@ message CreatePublicBackendRequest {
   repeated PublicBackendAgent agent_assignments = 11;
   repeated PublicBackendUpstreamHeader upstream_request_headers = 12;
   PublicBackendBasicAuth upstream_basic_auth = 13;
+  PublicBackendHealthCheck health_check = 14;
 }
 
 message CreatePublicBackendResponse {
@@ -453,6 +491,7 @@ message UpdatePublicBackendRequest {
   repeated PublicBackendAgent agent_assignments = 12;
   repeated PublicBackendUpstreamHeader upstream_request_headers = 13;
   PublicBackendBasicAuth upstream_basic_auth = 14;
+  PublicBackendHealthCheck health_check = 15;
 }
 
 message UpdatePublicBackendResponse {
@@ -593,6 +632,9 @@ message CreatePublicRouteRequest {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
+  PublicBackendLoadBalancing load_balancing = 16;
+  repeated PublicRouteBackend backend_assignments = 17;
+  int64 fallback_backend_id = 18;
 }
 
 message CreatePublicRouteResponse {
@@ -613,6 +655,9 @@ message UpdatePublicRouteRequest {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
+  PublicBackendLoadBalancing load_balancing = 16;
+  repeated PublicRouteBackend backend_assignments = 17;
+  int64 fallback_backend_id = 18;
 }
 
 message UpdatePublicRouteResponse {

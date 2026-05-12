@@ -383,19 +383,28 @@ INSERT INTO public_backends (
     upstream_basic_auth_enabled,
     upstream_basic_auth_username,
     upstream_basic_auth_password,
+    health_check_enabled,
+    health_check_method,
+    health_check_path,
+    health_check_interval_millis,
+    health_check_timeout_millis,
+    health_check_healthy_threshold,
+    health_check_unhealthy_threshold,
+    health_check_expected_status_min,
+    health_check_expected_status_max,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
 
 -- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC;
 
 -- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?;
 
@@ -412,10 +421,19 @@ SET name = ?,
     upstream_basic_auth_enabled = ?,
     upstream_basic_auth_username = ?,
     upstream_basic_auth_password = ?,
+    health_check_enabled = ?,
+    health_check_method = ?,
+    health_check_path = ?,
+    health_check_interval_millis = ?,
+    health_check_timeout_millis = ?,
+    health_check_healthy_threshold = ?,
+    health_check_unhealthy_threshold = ?,
+    health_check_expected_status_min = ?,
+    health_check_expected_status_max = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
 
 -- name: DeletePublicBackend :exec
 DELETE FROM public_backends
@@ -481,16 +499,43 @@ RETURNING backend_id, agent_id, position, weight, enabled, created_at, updated_a
 DELETE FROM public_backend_agents
 WHERE backend_id = ?;
 
+-- name: ListPublicRouteBackends :many
+SELECT route_id, backend_id, position, weight, enabled, created_at, updated_at
+FROM public_route_backends
+ORDER BY route_id ASC, position ASC, backend_id ASC;
+
+-- name: ListPublicRouteBackendsByRoute :many
+SELECT route_id, backend_id, position, weight, enabled, created_at, updated_at
+FROM public_route_backends
+WHERE route_id = ?
+ORDER BY position ASC, backend_id ASC;
+
+-- name: CreatePublicRouteBackend :one
+INSERT INTO public_route_backends (route_id, backend_id, position, weight, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING route_id, backend_id, position, weight, enabled, created_at, updated_at;
+
+-- name: DeletePublicRouteBackends :exec
+DELETE FROM public_route_backends
+WHERE route_id = ?;
+
 -- name: CountPublicBackendEnabledReferences :one
 SELECT
   (
     SELECT COUNT(*)
     FROM public_listeners
-    WHERE default_backend_id = ? AND enabled = 1
+    WHERE default_backend_id = sqlc.arg(backend_id) AND enabled = 1
   ) + (
     SELECT COUNT(*)
     FROM public_routes
-    WHERE backend_id = ? AND enabled = 1
+    WHERE (backend_id = sqlc.arg(backend_id) OR fallback_backend_id = sqlc.arg(backend_id)) AND enabled = 1
+  ) + (
+    SELECT COUNT(*)
+    FROM public_route_backends prb
+    JOIN public_routes pr ON pr.id = prb.route_id
+    WHERE prb.backend_id = sqlc.arg(backend_id)
+      AND prb.enabled = 1
+      AND pr.enabled = 1
   ) AS references_count;
 
 -- name: CreatePublicListener :one
@@ -531,6 +576,8 @@ INSERT INTO public_routes (
     host_pattern,
     path_prefix,
     backend_id,
+    load_balancing,
+    fallback_backend_id,
     action,
     redirect_target_mode,
     redirect_target,
@@ -539,16 +586,16 @@ INSERT INTO public_routes (
     redirect_preserve_query,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
 
 -- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC;
 
 -- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?;
 
@@ -559,6 +606,8 @@ SET listener_id = ?,
     host_pattern = ?,
     path_prefix = ?,
     backend_id = ?,
+    load_balancing = ?,
+    fallback_backend_id = ?,
     action = ?,
     redirect_target_mode = ?,
     redirect_target = ?,
@@ -568,7 +617,7 @@ SET listener_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
 
 -- name: DeletePublicRoute :exec
 DELETE FROM public_routes

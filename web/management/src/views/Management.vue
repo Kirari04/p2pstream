@@ -22,6 +22,7 @@ import Tag from "@/volt/Tag.vue";
 import Modal from "@/volt/Modal.vue";
 import {
   ProxyState,
+  PublicBackendHealthStatus,
   PublicBackendForwardMode,
   PublicBackendLoadBalancing,
   PublicBackendType,
@@ -77,6 +78,7 @@ const backends = computed(() => config.value?.backends ?? []);
 const agents = computed(() => config.value?.agents ?? []);
 const backendAgents = computed(() => config.value?.backendAgents ?? []);
 const routes = computed(() => config.value?.routes ?? []);
+const routeBackends = computed(() => config.value?.routeBackends ?? []);
 const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
 const trafficShaperRules = computed(() => config.value?.trafficShaperRules ?? []);
 const tlsCertificates = computed(() => config.value?.tlsCertificates ?? []);
@@ -214,15 +216,27 @@ function routeDestinationLabel(route: PublicRoute): string {
   if (routeAction(route) === PublicRouteAction.REDIRECT) {
     return `Redirect ${route.redirectStatusCode || 302}`;
   }
-  return backendName(route.backendId);
+  const assignments = routeAssignments(route);
+  if (assignments.length > 1) return `${assignments.length} backends`;
+  return backendName(assignments[0]?.backendId ?? route.backendId);
 }
 
 function routeTargetSummary(route: PublicRoute): string {
   if (routeAction(route) !== PublicRouteAction.REDIRECT) {
-    return backendName(route.backendId);
+    const assignments = routeAssignments(route);
+    const names = assignments.map((assignment) => backendName(assignment.backendId)).join(", ");
+    const fallback = route.fallbackBackendId > 0n ? ` / fallback ${backendName(route.fallbackBackendId)}` : "";
+    return `${loadBalancingLabel(route.loadBalancing)} / ${names || backendName(route.backendId)}${fallback}`;
   }
   const target = route.redirectTarget || redirectModeLabel(route.redirectTargetMode);
   return `${redirectModeLabel(route.redirectTargetMode)} -> ${target}`;
+}
+
+function routeAssignments(route: PublicRoute) {
+  if (route.backendAssignments.length) return route.backendAssignments;
+  const assignments = routeBackends.value.filter((assignment) => assignment.routeId === route.id);
+  if (assignments.length) return assignments;
+  return route.backendId > 0n ? [{ backendId: route.backendId, enabled: true, weight: 100n }] : [];
 }
 
 function redirectModeLabel(mode: PublicRouteRedirectTargetMode): string {
@@ -246,6 +260,33 @@ function loadBalancingLabel(algorithm: PublicBackendLoadBalancing): string {
     case PublicBackendLoadBalancing.LEAST_ACTIVE_REQUESTS: return "Least active";
     case PublicBackendLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS: return "Weighted least active";
     default: return "Round-robin";
+  }
+}
+
+function backendHealthLabel(backend: PublicBackend): string {
+  if (!backend.healthCheck?.enabled) return "Health unknown";
+  switch (backend.healthCheck.status) {
+    case PublicBackendHealthStatus.HEALTHY:
+      return "Healthy";
+    case PublicBackendHealthStatus.UNHEALTHY:
+      return "Unhealthy";
+    case PublicBackendHealthStatus.DISABLED:
+      return "Health disabled";
+    default:
+      return "Health unknown";
+  }
+}
+
+function backendHealthSeverity(backend: PublicBackend): "success" | "warn" | "danger" | "info" {
+  switch (backend.healthCheck?.status) {
+    case PublicBackendHealthStatus.HEALTHY:
+      return "success";
+    case PublicBackendHealthStatus.UNHEALTHY:
+      return "danger";
+    case PublicBackendHealthStatus.DISABLED:
+      return "warn";
+    default:
+      return "info";
   }
 }
 
@@ -901,6 +942,11 @@ watch(tlsDnsCredentials, () => {
                 :value="`${upstreamHeaderCount(backend)} upstream headers`"
                 severity="info"
                              />
+              <Tag
+                v-if="backend.backendType === PublicBackendType.PROXY_FORWARD"
+                :value="backendHealthLabel(backend)"
+                :severity="backendHealthSeverity(backend)"
+              />
               <Tag v-if="!backend.enabled" value="Disabled" severity="warn" />
             </div>
             <p class="truncate text-xs text-[#888] mt-1">{{ backendSummary(backend) }}</p>
@@ -1039,7 +1085,7 @@ watch(tlsDnsCredentials, () => {
               <p class="truncate font-mono text-xs text-[#888]">
                 {{ route.priority.toString() }} / {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
               </p>
-              <p v-if="routeAction(route) === PublicRouteAction.REDIRECT" class="truncate font-mono text-xs text-[#71717a]">
+              <p class="truncate font-mono text-xs text-[#71717a]">
                 {{ routeTargetSummary(route) }}
               </p>
             </div>

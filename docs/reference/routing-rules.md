@@ -31,7 +31,20 @@ Use low numbers for specific rules and high numbers for fallbacks.
 
 ## Actions
 
-Forward routes require a backend.
+Forward routes require at least one backend assignment. The legacy single `backend_id` field is treated as a one-backend pool when no assignment list is provided.
+
+Forward route pool fields:
+
+| Field | Rule |
+| --- | --- |
+| `backend_assignments` | At least one assignment for forward routes. Backend IDs must be unique per route. |
+| `load_balancing` | `round_robin`, `weighted_round_robin`, `random`, `weighted_random`, `least_active_requests`, or `weighted_least_active_requests`. |
+| `weight` | `1` to `1000`; defaults to `100`. |
+| `fallback_backend_id` | Optional route fallback when no assigned backend is eligible. |
+
+At request time, disabled assignments, disabled backends, unhealthy backends, and invalid backend configs are skipped. If nothing remains, the route fallback is tried. If no fallback is usable, the response is `503`.
+
+Connection and timeout failures mark the selected backend temporarily unhealthy for later requests. The original request is not replayed to another backend.
 
 Redirect routes require:
 

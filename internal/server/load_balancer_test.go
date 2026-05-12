@@ -119,12 +119,120 @@ func TestLoadBalancerConcurrentSelection(t *testing.T) {
 	wg.Wait()
 }
 
+func TestRouteLoadBalancerRoundRobin(t *testing.T) {
+	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
+	route := publicRouteConfig{ID: 20, LoadBalancing: publicBackendLoadBalancingRoundRobin}
+	candidates := testRouteCandidates(1, 2, 3)
+
+	got := []int64{}
+	for range 4 {
+		pick, ok := registry.selectRouteBackend(route, candidates)
+		if !ok {
+			t.Fatal("route selector returned no backend")
+		}
+		got = append(got, pick.BackendID)
+	}
+	want := []int64{1, 2, 3, 1}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("route round robin pick %d = %d, want %d (all picks=%v)", i, got[i], want[i], got)
+		}
+	}
+}
+
+func TestRouteLoadBalancerWeightedAlgorithms(t *testing.T) {
+	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(7)))
+	roundRobinRoute := publicRouteConfig{ID: 21, LoadBalancing: publicBackendLoadBalancingWeightedRoundRobin}
+	randomRoute := publicRouteConfig{ID: 22, LoadBalancing: publicBackendLoadBalancingWeightedRandom}
+	candidates := []routeBackendCandidate{
+		testRouteCandidate(1, 0, 3, 0),
+		testRouteCandidate(2, 1, 1, 0),
+	}
+
+	counts := map[int64]int{}
+	for range 8 {
+		pick, ok := registry.selectRouteBackend(roundRobinRoute, candidates)
+		if !ok {
+			t.Fatal("weighted route selector returned no backend")
+		}
+		counts[pick.BackendID]++
+	}
+	if counts[1] != 6 || counts[2] != 2 {
+		t.Fatalf("route weighted round robin counts = %+v, want 6/2", counts)
+	}
+
+	counts = map[int64]int{}
+	for range 50 {
+		pick, ok := registry.selectRouteBackend(randomRoute, candidates)
+		if !ok {
+			t.Fatal("weighted random route selector returned no backend")
+		}
+		counts[pick.BackendID]++
+	}
+	if counts[1] <= counts[2] {
+		t.Fatalf("route weighted random counts = %+v, expected high-weight backend to dominate", counts)
+	}
+}
+
+func TestRouteLoadBalancerLeastActive(t *testing.T) {
+	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
+	route := publicRouteConfig{ID: 23, LoadBalancing: publicBackendLoadBalancingLeastActiveRequests}
+	candidates := []routeBackendCandidate{
+		testRouteCandidate(1, 0, 1, 4),
+		testRouteCandidate(2, 1, 1, 1),
+		testRouteCandidate(3, 2, 1, 7),
+	}
+
+	pick, ok := registry.selectRouteBackend(route, candidates)
+	if !ok {
+		t.Fatal("least-active route selector returned no backend")
+	}
+	if pick.BackendID != 2 {
+		t.Fatalf("route least active selected %d, want 2", pick.BackendID)
+	}
+}
+
+func TestRouteAndAgentLoadBalancerStateIsolation(t *testing.T) {
+	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
+	agentBackend := publicBackendConfig{ID: 30, LoadBalancing: publicBackendLoadBalancingRoundRobin}
+	route := publicRouteConfig{ID: 30, LoadBalancing: publicBackendLoadBalancingRoundRobin}
+
+	if got := registry.selectAgent(agentBackend, testCandidates(10, 11)).AgentID; got != 10 {
+		t.Fatalf("agent first pick = %d, want 10", got)
+	}
+	routePick, ok := registry.selectRouteBackend(route, testRouteCandidates(20, 21))
+	if !ok {
+		t.Fatal("route selector returned no backend")
+	}
+	if routePick.BackendID != 20 {
+		t.Fatalf("route first pick = %d, want 20", routePick.BackendID)
+	}
+}
+
 func testCandidates(ids ...int64) []backendAgentCandidate {
 	resp := make([]backendAgentCandidate, 0, len(ids))
 	for idx, id := range ids {
 		resp = append(resp, testCandidate(id, int64(idx), 1))
 	}
 	return resp
+}
+
+func testRouteCandidates(ids ...int64) []routeBackendCandidate {
+	resp := make([]routeBackendCandidate, 0, len(ids))
+	for idx, id := range ids {
+		resp = append(resp, testRouteCandidate(id, int64(idx), 1, 0))
+	}
+	return resp
+}
+
+func testRouteCandidate(id int64, position int64, weight int64, active int64) routeBackendCandidate {
+	return routeBackendCandidate{
+		Backend:        publicBackendConfig{ID: id, Enabled: true},
+		BackendID:      id,
+		Position:       position,
+		Weight:         weight,
+		ActiveRequests: active,
+	}
 }
 
 func testCandidate(id int64, position int64, weight int64) backendAgentCandidate {

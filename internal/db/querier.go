@@ -12,7 +12,7 @@ import (
 
 type Querier interface {
 	CountEnabledAgentPoolBackendsWhereAgentIsLast(ctx context.Context, agentID int64) (int64, error)
-	CountPublicBackendEnabledReferences(ctx context.Context, arg CountPublicBackendEnabledReferencesParams) (int64, error)
+	CountPublicBackendEnabledReferences(ctx context.Context, backendID int64) (int64, error)
 	CountPublicBackends(ctx context.Context) (int64, error)
 	CountPublicListeners(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
@@ -24,6 +24,7 @@ type Querier interface {
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
+	CreatePublicRouteBackend(ctx context.Context, arg CreatePublicRouteBackendParams) (PublicRouteBackend, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
@@ -40,6 +41,7 @@ type Querier interface {
 	DeletePublicListener(ctx context.Context, id int64) error
 	DeletePublicRateLimitRule(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
+	DeletePublicRouteBackends(ctx context.Context, routeID int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
@@ -76,6 +78,8 @@ type Querier interface {
 	ListPublicBackends(ctx context.Context) ([]PublicBackend, error)
 	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
 	ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error)
+	ListPublicRouteBackends(ctx context.Context) ([]PublicRouteBackend, error)
+	ListPublicRouteBackendsByRoute(ctx context.Context, routeID int64) ([]PublicRouteBackend, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)

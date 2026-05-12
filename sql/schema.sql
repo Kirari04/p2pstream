@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS public_backends (
     upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
     upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
     upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
+    health_check_enabled INTEGER NOT NULL DEFAULT 0,
+    health_check_method TEXT NOT NULL DEFAULT 'GET',
+    health_check_path TEXT NOT NULL DEFAULT '/',
+    health_check_interval_millis INTEGER NOT NULL DEFAULT 10000,
+    health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000,
+    health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2,
+    health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2,
+    health_check_expected_status_min INTEGER NOT NULL DEFAULT 200,
+    health_check_expected_status_max INTEGER NOT NULL DEFAULT 399,
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -118,6 +127,8 @@ CREATE TABLE IF NOT EXISTS public_routes (
     host_pattern TEXT NOT NULL DEFAULT '',
     path_prefix TEXT NOT NULL DEFAULT '',
     backend_id INTEGER REFERENCES public_backends(id),
+    load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+    fallback_backend_id INTEGER REFERENCES public_backends(id),
     action TEXT NOT NULL DEFAULT 'forward',
     redirect_target_mode TEXT NOT NULL DEFAULT '',
     redirect_target TEXT NOT NULL DEFAULT '',
@@ -127,6 +138,18 @@ CREATE TABLE IF NOT EXISTS public_routes (
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public_route_backends (
+    route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+    backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    weight INTEGER NOT NULL DEFAULT 100,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (route_id, backend_id),
+    UNIQUE(route_id, position)
 );
 
 CREATE TABLE IF NOT EXISTS public_tls_dns_credentials (
@@ -248,6 +271,12 @@ ON public_backend_agents (backend_id, position);
 
 CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id
 ON public_backend_agents (agent_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_route_backends_route_position
+ON public_route_backends (route_id, position);
+
+CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id
+ON public_route_backends (backend_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 ON public_tls_certificates (listener_id);

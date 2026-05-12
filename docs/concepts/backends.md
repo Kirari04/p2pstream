@@ -33,6 +33,22 @@ Agent pool backends support:
 
 Agent assignment weights must be between `1` and `1000`. At least one enabled assignment is required for an enabled agent-pool backend.
 
+Routes can also load-balance across multiple backends. Route backend weights are configured on the route, so the same backend can receive different traffic shares on different routes.
+
+## Health checks and availability
+
+Proxy-forward backends can define an HTTP health check:
+
+- method `GET` or `HEAD`,
+- path starting with `/`,
+- interval and timeout,
+- healthy and unhealthy thresholds,
+- expected status range.
+
+When a backend health check marks a backend unhealthy, route backend pools skip it. If no health check is configured, the backend is eligible until p2pstream observes a connection or timeout failure. Those passive failures mark the backend temporarily unhealthy for a short cooldown, then it is tried again.
+
+p2pstream does not replay the same client request to another backend after an upstream failure. Later requests avoid the temporarily unhealthy backend.
+
 ## Upstream headers and basic auth
 
 Proxy-forward backends can inject upstream request headers. Mark secrets as sensitive so the management UI does not require the value on every edit.
