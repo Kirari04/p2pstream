@@ -42,15 +42,17 @@ const config = computed(() => publicProxyConfig?.value ?? null);
 const agents = computed(() => publicProxyConfig?.value?.agents ?? []);
 const oneHourWindow = computed(() => dashboard?.value?.windows.find((w) => w.label === "1h"));
 const dayWindow = computed(() => dashboard?.value?.windows.find((w) => w.label === "24h"));
+const managementSecurity = computed(() => dashboard?.value?.managementSecurity ?? null);
 
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rotateAgentToConfirm = ref<Agent | null>(null);
 const issuedToken = ref("");
 const issuedAgent = ref<Agent | null>(null);
 const setupManagementUrl = ref(defaultManagementUrl());
-const setupManagementCAFile = ref("/etc/p2pstream/management-ca.pem");
+const setupManagementCAFile = ref("");
 const setupAgentTLSCertFile = ref("/etc/p2pstream/agent.crt.pem");
 const setupAgentTLSKeyFile = ref("/etc/p2pstream/agent.key.pem");
+const setupAllowInsecureManagement = ref(false);
 const setupReleaseRepository = ref(defaultReleaseRepository());
 const setupDockerImage = ref(dockerImageForRepository(setupReleaseRepository.value));
 const setupDockerImageTouched = ref(false);
@@ -61,6 +63,12 @@ let setupCopyReset: number | undefined;
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
 const managementUsesTLS = computed(() => normalizedManagementUrl.value.toLowerCase().startsWith("https://"));
+const agentClientCertificateRequired = computed(() => Boolean(managementSecurity.value?.agentClientCertificateRequired));
+const embeddedManagementCAPEMBase64 = computed(() => {
+  const pem = managementSecurity.value?.managementCaPem ?? "";
+  if (!pem || !managementUsesTLS.value) return "";
+  return window.btoa(pem);
+});
 const setupSnippet = computed(() => {
   if (!issuedAgent.value) return "";
   switch (setupTab.value) {
@@ -156,9 +164,10 @@ function openSetupModal(agent: Agent | null, token: string) {
   issuedAgent.value = agent;
   issuedToken.value = token;
   setupManagementUrl.value = defaultManagementUrl();
-  setupManagementCAFile.value = "/etc/p2pstream/management-ca.pem";
+  setupManagementCAFile.value = "";
   setupAgentTLSCertFile.value = "/etc/p2pstream/agent.crt.pem";
   setupAgentTLSKeyFile.value = "/etc/p2pstream/agent.key.pem";
+  setupAllowInsecureManagement.value = false;
   setupReleaseRepository.value = defaultReleaseRepository();
   setupDockerImage.value = dockerImageForRepository(setupReleaseRepository.value);
   setupDockerImageTouched.value = false;
@@ -171,8 +180,15 @@ function handleAgentCreated(payload: { agent: Agent | null; token: string }) {
 }
 
 function defaultManagementUrl(): string {
+  const configured = managementSecurity.value?.defaultManagementUrl;
+  if (configured) {
+    return configured.replace(/\/+$/, "");
+  }
   const url = new URL(window.location.origin);
+  url.protocol = "https:";
   if (url.port === "5173") {
+    url.port = "8081";
+  } else if (!url.port) {
     url.port = "8081";
   }
   return url.toString().replace(/\/$/, "");
@@ -207,9 +223,11 @@ function setupSnippetInput() {
     dockerImage: setupDockerImage.value,
     tls: {
       enabled: managementUsesTLS.value,
-      managementCAFile: setupManagementCAFile.value,
-      agentTLSCertFile: setupAgentTLSCertFile.value,
-      agentTLSKeyFile: setupAgentTLSKeyFile.value,
+      managementCAFile: embeddedManagementCAPEMBase64.value ? "" : setupManagementCAFile.value,
+      managementCAPEMBase64: embeddedManagementCAPEMBase64.value,
+      agentTLSCertFile: agentClientCertificateRequired.value ? setupAgentTLSCertFile.value : "",
+      agentTLSKeyFile: agentClientCertificateRequired.value ? setupAgentTLSKeyFile.value : "",
+      allowInsecureManagement: setupAllowInsecureManagement.value,
     },
   };
 }
@@ -437,16 +455,35 @@ async function copySetupSnippet() {
           </label>
         </div>
 
-        <div v-if="managementUsesTLS" class="grid gap-3 md:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Management CA
-            <input v-model="setupManagementCAFile" class="vercel-input text-sm normal-case tracking-normal" required />
+        <div v-if="!managementUsesTLS" class="rounded-md border border-[#5f3b1d] bg-[#160d05] p-3 text-xs leading-5 text-[#f5c28b]">
+          <p class="font-semibold uppercase tracking-wider">Insecure management URL</p>
+          <p class="mt-1 text-[#c79866]">Agents reject HTTP management URLs by default. Enable the override only for isolated local development.</p>
+          <label class="mt-3 flex items-center gap-2 text-[#f5c28b]">
+            <input v-model="setupAllowInsecureManagement" type="checkbox" />
+            Allow insecure agent management connection
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        </div>
+
+        <div v-if="managementUsesTLS" class="grid gap-3 md:grid-cols-3">
+          <label v-if="!embeddedManagementCAPEMBase64" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Management CA file
+            <input
+              v-model="setupManagementCAFile"
+              class="vercel-input text-sm normal-case tracking-normal"
+              placeholder="/etc/p2pstream/management-ca.pem"
+            />
+          </label>
+          <div v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Management CA
+            <div class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs normal-case leading-5 tracking-normal text-[#d4d4d8]">
+              Embedded pinned CA from this management server
+            </div>
+          </div>
+          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Agent Certificate
             <input v-model="setupAgentTLSCertFile" class="vercel-input text-sm normal-case tracking-normal" required />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Agent Key
             <input v-model="setupAgentTLSKeyFile" class="vercel-input text-sm normal-case tracking-normal" required />
           </label>

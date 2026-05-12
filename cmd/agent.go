@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,7 +20,7 @@ var agentCmd = &cobra.Command{
 		if mgmtURL == "" {
 			mgmtURL = os.Getenv("MANAGEMENT_URL")
 			if mgmtURL == "" {
-				mgmtURL = "http://localhost:8081" // Default to internal mgmt port
+				mgmtURL = defaultAgentManagementURL()
 			}
 		}
 
@@ -46,6 +49,10 @@ var agentCmd = &cobra.Command{
 		if managementCAFile == "" {
 			managementCAFile = os.Getenv("MANAGEMENT_CA_FILE")
 		}
+		managementCAPEMBase64, _ := cmd.Flags().GetString("management-ca-pem-base64")
+		if managementCAPEMBase64 == "" {
+			managementCAPEMBase64 = os.Getenv("MANAGEMENT_CA_PEM_BASE64")
+		}
 		tlsCertFile, _ := cmd.Flags().GetString("tls-cert-file")
 		if tlsCertFile == "" {
 			tlsCertFile = os.Getenv("AGENT_TLS_CERT_FILE")
@@ -54,15 +61,21 @@ var agentCmd = &cobra.Command{
 		if tlsKeyFile == "" {
 			tlsKeyFile = os.Getenv("AGENT_TLS_KEY_FILE")
 		}
+		allowInsecureManagement, _ := cmd.Flags().GetBool("allow-insecure-management")
+		if !allowInsecureManagement {
+			allowInsecureManagement = envBool("AGENT_ALLOW_INSECURE_MANAGEMENT")
+		}
 
 		if err := agent.Run(agent.Options{
-			ManagementURL:    mgmtURL,
-			PublicID:         agentID,
-			Name:             agentName,
-			Token:            agentToken,
-			ManagementCAFile: managementCAFile,
-			TLSCertFile:      tlsCertFile,
-			TLSKeyFile:       tlsKeyFile,
+			ManagementURL:           mgmtURL,
+			PublicID:                agentID,
+			Name:                    agentName,
+			Token:                   agentToken,
+			ManagementCAFile:        managementCAFile,
+			ManagementCAPEMBase64:   managementCAPEMBase64,
+			TLSCertFile:             tlsCertFile,
+			TLSKeyFile:              tlsKeyFile,
+			AllowInsecureManagement: allowInsecureManagement,
 		}); err != nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
@@ -72,11 +85,78 @@ var agentCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(agentCmd)
-	agentCmd.Flags().String("management-url", "", "The HTTP URL of the p2pstream management server")
+	agentCmd.Flags().String("management-url", "", "The HTTPS URL of the p2pstream management server")
 	agentCmd.Flags().String("agent-token", "", "Bearer token from the management UI setup instructions")
 	agentCmd.Flags().String("agent-id", "", "Generated registered agent id from the management UI setup instructions")
 	agentCmd.Flags().String("agent-name", "", "Optional agent display name")
 	agentCmd.Flags().String("management-ca-file", "", "PEM CA bundle used to verify the HTTPS management server")
+	agentCmd.Flags().String("management-ca-pem-base64", "", "Base64 PEM CA bundle used to verify the HTTPS management server")
 	agentCmd.Flags().String("tls-cert-file", "", "PEM client certificate for management mTLS")
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
+	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
+}
+
+func defaultAgentManagementURL() string {
+	host := defaultRouteLocalIP()
+	if host == "" {
+		host = firstNonLoopbackIPv4()
+	}
+	if host == "" {
+		host = "localhost"
+	}
+	return "https://" + net.JoinHostPort(host, "8081")
+}
+
+func defaultRouteLocalIP() string {
+	conn, err := net.DialTimeout("udp", "1.1.1.1:443", 500*time.Millisecond)
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	addr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok || addr.IP == nil || addr.IP.IsLoopback() {
+		return ""
+	}
+	return addr.IP.String()
+}
+
+func firstNonLoopbackIPv4() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			if ipv4 := ip.To4(); ipv4 != nil {
+				return ipv4.String()
+			}
+		}
+	}
+	return ""
+}
+
+func envBool(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }

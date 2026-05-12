@@ -7,6 +7,7 @@ readonly CONFIG_DIR="${P2PSTREAM_CONFIG_DIR:-/etc/p2pstream}"
 readonly ENV_FILE="${CONFIG_DIR}/agent.env"
 readonly SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
+readonly MANAGEMENT_CA_PEM_FILE="${CONFIG_DIR}/management-ca.pem"
 
 fail() {
   printf 'p2pstream agent install failed: %s\n' "$*" >&2
@@ -71,6 +72,9 @@ write_agent_env() {
     if [[ -n "${AGENT_TLS_KEY_FILE:-}" ]]; then
       printf 'AGENT_TLS_KEY_FILE=%s\n' "$(systemd_env_value "$AGENT_TLS_KEY_FILE")"
     fi
+    if [[ "${AGENT_ALLOW_INSECURE_MANAGEMENT:-}" == "true" ]]; then
+      printf 'AGENT_ALLOW_INSECURE_MANAGEMENT="true"\n'
+    fi
     printf 'AGENT_ID=%s\n' "$(systemd_env_value "$AGENT_ID")"
     printf 'AGENT_TOKEN=%s\n' "$(systemd_env_value "$AGENT_TOKEN")"
   } >"$tmp_file"
@@ -96,6 +100,15 @@ WantedBy=multi-user.target
 EOF
 }
 
+decode_management_ca_pem() {
+  if [[ -z "${MANAGEMENT_CA_PEM_BASE64:-}" ]]; then
+    return
+  fi
+  require_command base64
+  printf '%s' "$MANAGEMENT_CA_PEM_BASE64" | base64 -d >"$1" 2>/dev/null \
+    || fail "MANAGEMENT_CA_PEM_BASE64 is not valid base64"
+}
+
 main() {
   [[ "$(uname -s)" == "Linux" ]] || fail "this installer supports Linux only"
   [[ "$(id -u)" == "0" ]] || fail "run this installer with sudo"
@@ -113,6 +126,9 @@ main() {
   require_env MANAGEMENT_URL
   require_env AGENT_ID
   require_env AGENT_TOKEN
+  if [[ "$MANAGEMENT_URL" == http://* && "${AGENT_ALLOW_INSECURE_MANAGEMENT:-}" != "true" ]]; then
+    fail "refusing insecure MANAGEMENT_URL; use https or set AGENT_ALLOW_INSECURE_MANAGEMENT=true"
+  fi
 
   local repository="${P2PSTREAM_REPOSITORY:-$DEFAULT_REPOSITORY}"
   local version="${P2PSTREAM_VERSION:-latest}"
@@ -150,6 +166,11 @@ main() {
   install -m 0755 "${tmp_dir}/p2pstream" "$INSTALL_PATH"
 
   install -d -m 0755 "$CONFIG_DIR"
+  if [[ -n "${MANAGEMENT_CA_PEM_BASE64:-}" ]]; then
+    decode_management_ca_pem "${tmp_dir}/management-ca.pem"
+    install -m 0644 "${tmp_dir}/management-ca.pem" "$MANAGEMENT_CA_PEM_FILE"
+    MANAGEMENT_CA_FILE="$MANAGEMENT_CA_PEM_FILE"
+  fi
   write_agent_env "${tmp_dir}/agent.env"
   install -m 0600 "${tmp_dir}/agent.env" "$ENV_FILE"
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,13 +45,15 @@ var (
 )
 
 type Options struct {
-	ManagementURL    string
-	PublicID         string
-	Name             string
-	Token            string
-	ManagementCAFile string
-	TLSCertFile      string
-	TLSKeyFile       string
+	ManagementURL           string
+	PublicID                string
+	Name                    string
+	Token                   string
+	ManagementCAFile        string
+	ManagementCAPEMBase64   string
+	TLSCertFile             string
+	TLSKeyFile              string
+	AllowInsecureManagement bool
 }
 
 // Run is the main entry point to start the agent loop
@@ -92,12 +95,15 @@ func validateOptions(opts Options) error {
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return fmt.Errorf("unsupported management URL scheme %q", parsed.Scheme)
 	}
+	if parsed.Scheme == "http" && !opts.AllowInsecureManagement {
+		return fmt.Errorf("insecure HTTP management URL rejected; use https or set AGENT_ALLOW_INSECURE_MANAGEMENT=true")
+	}
 	hasClientCert := strings.TrimSpace(opts.TLSCertFile) != ""
 	hasClientKey := strings.TrimSpace(opts.TLSKeyFile) != ""
 	if hasClientCert != hasClientKey {
 		return fmt.Errorf("AGENT_TLS_CERT_FILE and AGENT_TLS_KEY_FILE must be set together")
 	}
-	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "") {
+	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "" || strings.TrimSpace(opts.ManagementCAPEMBase64) != "") {
 		return fmt.Errorf("agent TLS files require an https management URL")
 	}
 	return nil
@@ -127,6 +133,7 @@ func managementHTTPClient(opts Options) (*http.Client, error) {
 		return nil, err
 	}
 	if strings.TrimSpace(opts.ManagementCAFile) == "" &&
+		strings.TrimSpace(opts.ManagementCAPEMBase64) == "" &&
 		strings.TrimSpace(opts.TLSCertFile) == "" &&
 		strings.TrimSpace(opts.TLSKeyFile) == "" {
 		return http.DefaultClient, nil
@@ -150,6 +157,28 @@ func managementHTTPClient(opts Options) (*http.Client, error) {
 		}
 		if !rootCAs.AppendCertsFromPEM(caPEM) {
 			return nil, fmt.Errorf("no PEM certificates found in management CA file %q", caFile)
+		}
+		tlsConfig.RootCAs = rootCAs
+	}
+
+	if caBase64 := strings.TrimSpace(opts.ManagementCAPEMBase64); caBase64 != "" {
+		rootCAs := tlsConfig.RootCAs
+		if rootCAs == nil {
+			var err error
+			rootCAs, err = x509.SystemCertPool()
+			if err != nil {
+				rootCAs = x509.NewCertPool()
+			}
+		}
+		caPEM, err := base64.StdEncoding.DecodeString(caBase64)
+		if err != nil {
+			caPEM, err = base64.RawStdEncoding.DecodeString(caBase64)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode MANAGEMENT_CA_PEM_BASE64: %w", err)
+		}
+		if !rootCAs.AppendCertsFromPEM(caPEM) {
+			return nil, fmt.Errorf("MANAGEMENT_CA_PEM_BASE64 did not contain PEM certificates")
 		}
 		tlsConfig.RootCAs = rootCAs
 	}

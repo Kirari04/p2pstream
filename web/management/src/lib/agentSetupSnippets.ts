@@ -1,8 +1,10 @@
 export type AgentSetupTLSConfig = {
   enabled?: boolean;
   managementCAFile?: string;
+  managementCAPEMBase64?: string;
   agentTLSCertFile?: string;
   agentTLSKeyFile?: string;
+  allowInsecureManagement?: boolean;
 };
 
 export type AgentSetupSnippetInput = {
@@ -33,7 +35,7 @@ export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
   const repository = normalizeRepository(input.repository);
   const parts = [
     `MANAGEMENT_URL=${shellQuote(normalizeManagementUrl(input.managementUrl))}`,
-    ...cliTLSParts(input.tls),
+    ...installTLSParts(input.tls),
     `AGENT_ID=${shellQuote(input.agentId)}`,
     `AGENT_TOKEN=${shellQuote(input.agentToken)}`,
     `P2PSTREAM_REPOSITORY=${shellQuote(repository)}`,
@@ -85,27 +87,71 @@ function singleLine(value: string): string {
 }
 
 function hasTLS(tls: AgentSetupTLSConfig | undefined): boolean {
-  return Boolean(tls?.enabled);
+  return Boolean(tls?.enabled || tls?.allowInsecureManagement);
 }
 
 function dockerTLSLines(tls: AgentSetupTLSConfig | undefined): string {
   if (!hasTLS(tls)) return "";
-  return `      MANAGEMENT_CA_FILE: ${yamlQuote(tls?.managementCAFile ?? "")}
-      AGENT_TLS_CERT_FILE: ${yamlQuote(tls?.agentTLSCertFile ?? "")}
-      AGENT_TLS_KEY_FILE: ${yamlQuote(tls?.agentTLSKeyFile ?? "")}`;
+  const lines: string[] = [];
+  if (tls?.managementCAPEMBase64) {
+    lines.push(`      MANAGEMENT_CA_PEM_BASE64: ${yamlQuote(tls.managementCAPEMBase64)}`);
+  } else if (tls?.managementCAFile) {
+    lines.push(`      MANAGEMENT_CA_FILE: ${yamlQuote(tls.managementCAFile)}`);
+  }
+  if (tls?.agentTLSCertFile) {
+    lines.push(`      AGENT_TLS_CERT_FILE: ${yamlQuote(tls.agentTLSCertFile)}`);
+  }
+  if (tls?.agentTLSKeyFile) {
+    lines.push(`      AGENT_TLS_KEY_FILE: ${yamlQuote(tls.agentTLSKeyFile)}`);
+  }
+  if (tls?.allowInsecureManagement) {
+    lines.push(`      AGENT_ALLOW_INSECURE_MANAGEMENT: "true"`);
+  }
+  return lines.join("\n");
 }
 
 function dockerTLSVolumes(tls: AgentSetupTLSConfig | undefined): string {
-  if (!hasTLS(tls)) return "";
+  if (!tls?.managementCAFile && !tls?.agentTLSCertFile && !tls?.agentTLSKeyFile) return "";
   return `    volumes:
       - /etc/p2pstream:/etc/p2pstream:ro`;
 }
 
+function installTLSParts(tls: AgentSetupTLSConfig | undefined): string[] {
+  if (!hasTLS(tls)) return [];
+  const parts: string[] = [];
+  if (tls?.managementCAPEMBase64) {
+    parts.push(`MANAGEMENT_CA_PEM_BASE64=${shellQuote(tls.managementCAPEMBase64)}`);
+  } else if (tls?.managementCAFile) {
+    parts.push(`MANAGEMENT_CA_FILE=${shellQuote(tls.managementCAFile)}`);
+  }
+  if (tls?.agentTLSCertFile) {
+    parts.push(`AGENT_TLS_CERT_FILE=${shellQuote(tls.agentTLSCertFile)}`);
+  }
+  if (tls?.agentTLSKeyFile) {
+    parts.push(`AGENT_TLS_KEY_FILE=${shellQuote(tls.agentTLSKeyFile)}`);
+  }
+  if (tls?.allowInsecureManagement) {
+    parts.push(`AGENT_ALLOW_INSECURE_MANAGEMENT=true`);
+  }
+  return parts;
+}
+
 function cliTLSParts(tls: AgentSetupTLSConfig | undefined): string[] {
   if (!hasTLS(tls)) return [];
-  return [
-    `MANAGEMENT_CA_FILE=${shellQuote(tls?.managementCAFile ?? "")}`,
-    `AGENT_TLS_CERT_FILE=${shellQuote(tls?.agentTLSCertFile ?? "")}`,
-    `AGENT_TLS_KEY_FILE=${shellQuote(tls?.agentTLSKeyFile ?? "")}`,
-  ];
+  const parts: string[] = [];
+  if (tls?.managementCAPEMBase64) {
+    parts.push(`MANAGEMENT_CA_PEM_BASE64=${shellQuote(tls.managementCAPEMBase64)}`);
+  } else if (tls?.managementCAFile) {
+    parts.push(`MANAGEMENT_CA_FILE=${shellQuote(tls.managementCAFile)}`);
+  }
+  if (tls?.agentTLSCertFile) {
+    parts.push(`AGENT_TLS_CERT_FILE=${shellQuote(tls.agentTLSCertFile)}`);
+  }
+  if (tls?.agentTLSKeyFile) {
+    parts.push(`AGENT_TLS_KEY_FILE=${shellQuote(tls.agentTLSKeyFile)}`);
+  }
+  if (tls?.allowInsecureManagement) {
+    parts.push(`AGENT_ALLOW_INSECURE_MANAGEMENT=true`);
+  }
+  return parts;
 }

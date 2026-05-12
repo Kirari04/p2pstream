@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"math/big"
 	"net"
@@ -102,6 +103,22 @@ func TestManagementHTTPClientPrivateCATrustAndClientCertificate(t *testing.T) {
 		<-sawClientCert
 	})
 
+	t.Run("private CA verifies from base64 PEM", func(t *testing.T) {
+		client, err := managementHTTPClient(Options{
+			ManagementURL:         srv.URL,
+			ManagementCAPEMBase64: base64.StdEncoding.EncodeToString([]byte(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw}))),
+		})
+		if err != nil {
+			t.Fatalf("managementHTTPClient() error = %v", err)
+		}
+		resp, err := client.Get(srv.URL)
+		if err != nil {
+			t.Fatalf("GET with private CA base64: %v", err)
+		}
+		resp.Body.Close()
+		<-sawClientCert
+	})
+
 	t.Run("missing CA fails", func(t *testing.T) {
 		client, err := managementHTTPClient(Options{ManagementURL: srv.URL})
 		if err != nil {
@@ -111,6 +128,23 @@ func TestManagementHTTPClientPrivateCATrustAndClientCertificate(t *testing.T) {
 		if err == nil {
 			resp.Body.Close()
 			t.Fatal("expected private CA server verification to fail without CA file")
+		}
+	})
+
+	t.Run("wrong CA fails", func(t *testing.T) {
+		wrongCACert, _ := agentTestCA(t)
+		wrongCAPath := agentWriteTestFile(t, "wrong-ca.pem", pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: wrongCACert.Raw}))
+		client, err := managementHTTPClient(Options{
+			ManagementURL:    srv.URL,
+			ManagementCAFile: wrongCAPath,
+		})
+		if err != nil {
+			t.Fatalf("managementHTTPClient() error = %v", err)
+		}
+		resp, err := client.Get(srv.URL)
+		if err == nil {
+			resp.Body.Close()
+			t.Fatal("expected private CA server verification to fail with wrong CA")
 		}
 	})
 
@@ -141,6 +175,10 @@ func TestManagementHTTPClientValidation(t *testing.T) {
 		opts Options
 	}{
 		{
+			name: "http rejected by default",
+			opts: Options{ManagementURL: "http://example.test"},
+		},
+		{
 			name: "partial client certificate",
 			opts: Options{ManagementURL: "https://example.test", TLSCertFile: "/tmp/agent.crt.pem"},
 		},
@@ -151,6 +189,14 @@ func TestManagementHTTPClientValidation(t *testing.T) {
 		{
 			name: "CA with http",
 			opts: Options{ManagementURL: "http://example.test", ManagementCAFile: "/tmp/ca.pem"},
+		},
+		{
+			name: "base64 CA with http",
+			opts: Options{ManagementURL: "http://example.test", ManagementCAPEMBase64: "abc"},
+		},
+		{
+			name: "invalid base64 CA",
+			opts: Options{ManagementURL: "https://example.test", ManagementCAPEMBase64: "not base64!"},
 		},
 		{
 			name: "unsupported scheme",
@@ -164,6 +210,19 @@ func TestManagementHTTPClientValidation(t *testing.T) {
 				t.Fatal("expected validation error")
 			}
 		})
+	}
+}
+
+func TestManagementHTTPClientAllowsExplicitInsecureHTTP(t *testing.T) {
+	client, err := managementHTTPClient(Options{
+		ManagementURL:           "http://example.test",
+		AllowInsecureManagement: true,
+	})
+	if err != nil {
+		t.Fatalf("managementHTTPClient() error = %v", err)
+	}
+	if client == nil {
+		t.Fatal("managementHTTPClient() returned nil client")
 	}
 }
 

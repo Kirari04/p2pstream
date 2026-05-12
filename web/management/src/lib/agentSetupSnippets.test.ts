@@ -69,6 +69,34 @@ describe("agentSetupSnippets", () => {
     expect(withTLS).toContain("AGENT_TLS_KEY_FILE='/etc/p2pstream/agent.key.pem'");
   });
 
+  test("embeds management CA base64 in setup snippets", () => {
+    const input = {
+      ...baseInput,
+      tls: {
+        enabled: true,
+        managementCAPEMBase64: "LS0tQ0EtLS0=",
+      },
+    };
+
+    expect(linuxInstallSnippet(input)).toContain("MANAGEMENT_CA_PEM_BASE64='LS0tQ0EtLS0='");
+    expect(dockerComposeSnippet(input)).toContain("MANAGEMENT_CA_PEM_BASE64: \"LS0tQ0EtLS0=\"");
+    expect(cliSnippet(input)).toContain("MANAGEMENT_CA_PEM_BASE64='LS0tQ0EtLS0='");
+  });
+
+  test("adds explicit insecure management opt-in for HTTP snippets", () => {
+    const input = {
+      ...baseInput,
+      managementUrl: "http://mgmt.example.test",
+      tls: {
+        allowInsecureManagement: true,
+      },
+    };
+
+    expect(linuxInstallSnippet(input)).toContain("AGENT_ALLOW_INSECURE_MANAGEMENT=true");
+    expect(dockerComposeSnippet(input)).toContain("AGENT_ALLOW_INSECURE_MANAGEMENT: \"true\"");
+    expect(cliSnippet(input)).toContain("AGENT_ALLOW_INSECURE_MANAGEMENT=true");
+  });
+
   test("builds Docker Compose snippet with default GHCR image", () => {
     const snippet = dockerComposeSnippet(baseInput);
 
