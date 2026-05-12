@@ -1,5 +1,7 @@
 FROM oven/bun:1.2.18 AS frontend
 WORKDIR /app/web/management
+ARG VITE_RELEASE_REPOSITORY=""
+ENV VITE_RELEASE_REPOSITORY=$VITE_RELEASE_REPOSITORY
 COPY web/management/package.json web/management/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web/management/ ./
@@ -11,6 +13,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN go build -o /out/p2pstream main.go
+
+FROM scratch AS binary
+COPY --from=backend /out/p2pstream /p2pstream
 
 FROM golang:1.25.6-bookworm AS test-base
 RUN apt-get update \
