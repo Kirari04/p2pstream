@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import BanIcon from "@primevue/icons/ban";
 import CheckIcon from "@primevue/icons/check";
@@ -10,6 +10,14 @@ import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
+import {
+  FALLBACK_RELEASE_REPOSITORY,
+  cliSnippet as buildCliSnippet,
+  dockerComposeSnippet as buildDockerComposeSnippet,
+  dockerImageForRepository,
+  linuxInstallSnippet,
+  normalizeManagementUrl as normalizeSetupManagementUrl,
+} from "@/lib/agentSetupSnippets";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
@@ -43,13 +51,15 @@ const setupManagementUrl = ref(defaultManagementUrl());
 const setupManagementCAFile = ref("/etc/p2pstream/management-ca.pem");
 const setupAgentTLSCertFile = ref("/etc/p2pstream/agent.crt.pem");
 const setupAgentTLSKeyFile = ref("/etc/p2pstream/agent.key.pem");
-const setupDockerImage = ref("p2pstream:local");
-const setupTab = ref<"systemd" | "docker" | "cli">("systemd");
+const setupReleaseRepository = ref(defaultReleaseRepository());
+const setupDockerImage = ref(dockerImageForRepository(setupReleaseRepository.value));
+const setupDockerImageTouched = ref(false);
+const setupTab = ref<"install" | "docker" | "cli">("install");
 const setupCopyLabel = ref("Copy");
 let setupCopyReset: number | undefined;
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
-const normalizedManagementUrl = computed(() => setupManagementUrl.value.trim().replace(/\/+$/, ""));
+const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
 const managementUsesTLS = computed(() => normalizedManagementUrl.value.toLowerCase().startsWith("https://"));
 const setupSnippet = computed(() => {
   if (!issuedAgent.value) return "";
@@ -59,7 +69,13 @@ const setupSnippet = computed(() => {
     case "cli":
       return cliSnippet();
     default:
-      return systemdSnippet();
+      return linuxInstallerSnippet();
+  }
+});
+
+watch(setupReleaseRepository, (repository) => {
+  if (!setupDockerImageTouched.value) {
+    setupDockerImage.value = dockerImageForRepository(repository);
   }
 });
 
@@ -143,8 +159,10 @@ function openSetupModal(agent: Agent | null, token: string) {
   setupManagementCAFile.value = "/etc/p2pstream/management-ca.pem";
   setupAgentTLSCertFile.value = "/etc/p2pstream/agent.crt.pem";
   setupAgentTLSKeyFile.value = "/etc/p2pstream/agent.key.pem";
-  setupDockerImage.value = "p2pstream:local";
-  setupTab.value = "systemd";
+  setupReleaseRepository.value = defaultReleaseRepository();
+  setupDockerImage.value = dockerImageForRepository(setupReleaseRepository.value);
+  setupDockerImageTouched.value = false;
+  setupTab.value = "install";
   setupCopyLabel.value = "Copy";
 }
 
@@ -160,103 +178,40 @@ function defaultManagementUrl(): string {
   return url.toString().replace(/\/$/, "");
 }
 
-function shellQuote(value: string): string {
-  if (value === "") return "''";
-  return "'" + value.replace(/'/g, "'\\''") + "'";
+function defaultReleaseRepository(): string {
+  const configured = import.meta.env.VITE_RELEASE_REPOSITORY;
+  return typeof configured === "string" && configured.trim() ? configured.trim() : FALLBACK_RELEASE_REPOSITORY;
 }
 
-function envQuote(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\r?\n/g, "")}"`;
-}
-
-function yamlQuote(value: string): string {
-  return JSON.stringify(value);
-}
-
-function systemdSnippet(): string {
+function linuxInstallerSnippet(): string {
   if (!issuedAgent.value) return "";
-  return `sudo install -d -m 0755 /etc/p2pstream
-sudo tee /etc/p2pstream/agent.env >/dev/null <<'EOF'
-MANAGEMENT_URL=${envQuote(normalizedManagementUrl.value)}
-${systemdTLSLines()}
-AGENT_ID=${envQuote(issuedAgent.value.publicId)}
-AGENT_TOKEN=${envQuote(issuedToken.value)}
-EOF
-
-sudo tee /etc/systemd/system/p2pstream-agent.service >/dev/null <<'EOF'
-[Unit]
-Description=p2pstream agent
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-EnvironmentFile=/etc/p2pstream/agent.env
-ExecStart=/usr/local/bin/p2pstream agent
-Restart=always
-RestartSec=5s
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now p2pstream-agent`;
+  return linuxInstallSnippet(setupSnippetInput());
 }
 
 function dockerComposeSnippet(): string {
   if (!issuedAgent.value) return "";
-  return `services:
-  p2pstream-agent:
-    image: ${yamlQuote(setupDockerImage.value.trim() || "p2pstream:local")}
-    command: ["/app/p2pstream", "agent"]
-    environment:
-      MANAGEMENT_URL: ${yamlQuote(normalizedManagementUrl.value)}
-${dockerTLSLines()}
-      AGENT_ID: ${yamlQuote(issuedAgent.value.publicId)}
-      AGENT_TOKEN: ${yamlQuote(issuedToken.value)}
-${dockerTLSVolumes()}
-    restart: unless-stopped`;
+  return buildDockerComposeSnippet(setupSnippetInput());
 }
 
 function cliSnippet(): string {
   if (!issuedAgent.value) return "";
-  const parts = [
-    `MANAGEMENT_URL=${shellQuote(normalizedManagementUrl.value)}`,
-    ...cliTLSParts(),
-    `AGENT_ID=${shellQuote(issuedAgent.value.publicId)}`,
-    `AGENT_TOKEN=${shellQuote(issuedToken.value)}`,
-  ];
-  return `${parts.join(" ")} p2pstream agent`;
+  return buildCliSnippet(setupSnippetInput());
 }
 
-function systemdTLSLines(): string {
-  if (!managementUsesTLS.value) return "";
-  return `MANAGEMENT_CA_FILE=${envQuote(setupManagementCAFile.value.trim())}
-AGENT_TLS_CERT_FILE=${envQuote(setupAgentTLSCertFile.value.trim())}
-AGENT_TLS_KEY_FILE=${envQuote(setupAgentTLSKeyFile.value.trim())}`;
-}
-
-function dockerTLSLines(): string {
-  if (!managementUsesTLS.value) return "";
-  return `      MANAGEMENT_CA_FILE: ${yamlQuote(setupManagementCAFile.value.trim())}
-      AGENT_TLS_CERT_FILE: ${yamlQuote(setupAgentTLSCertFile.value.trim())}
-      AGENT_TLS_KEY_FILE: ${yamlQuote(setupAgentTLSKeyFile.value.trim())}`;
-}
-
-function dockerTLSVolumes(): string {
-  if (!managementUsesTLS.value) return "";
-  return `    volumes:
-      - /etc/p2pstream:/etc/p2pstream:ro`;
-}
-
-function cliTLSParts(): string[] {
-  if (!managementUsesTLS.value) return [];
-  return [
-    `MANAGEMENT_CA_FILE=${shellQuote(setupManagementCAFile.value.trim())}`,
-    `AGENT_TLS_CERT_FILE=${shellQuote(setupAgentTLSCertFile.value.trim())}`,
-    `AGENT_TLS_KEY_FILE=${shellQuote(setupAgentTLSKeyFile.value.trim())}`,
-  ];
+function setupSnippetInput() {
+  return {
+    managementUrl: normalizedManagementUrl.value,
+    agentId: issuedAgent.value?.publicId ?? "",
+    agentToken: issuedToken.value,
+    repository: setupReleaseRepository.value,
+    dockerImage: setupDockerImage.value,
+    tls: {
+      enabled: managementUsesTLS.value,
+      managementCAFile: setupManagementCAFile.value,
+      agentTLSCertFile: setupAgentTLSCertFile.value,
+      agentTLSKeyFile: setupAgentTLSKeyFile.value,
+    },
+  };
 }
 
 async function copySetupSnippet() {
@@ -462,14 +417,23 @@ async function copySetupSnippet() {
           <code class="block break-all rounded-md border border-[#333] bg-[#0b0b0b] p-3 font-mono text-xs text-white">{{ issuedToken }}</code>
         </label>
 
-        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem]">
+        <div class="grid gap-3 md:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Management URL
             <input v-model="setupManagementUrl" class="vercel-input text-sm normal-case tracking-normal" required />
           </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            GitHub Repository
+            <input v-model="setupReleaseRepository" class="vercel-input text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+          </label>
           <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Docker Image
-            <input v-model="setupDockerImage" class="vercel-input text-sm normal-case tracking-normal" required />
+            <input
+              v-model="setupDockerImage"
+              class="vercel-input text-sm normal-case tracking-normal"
+              required
+              @input="setupDockerImageTouched = true"
+            />
           </label>
         </div>
 
@@ -492,10 +456,10 @@ async function copySetupSnippet() {
           <button
             type="button"
             class="rounded-md border px-3 py-2 text-sm transition"
-            :class="setupTab === 'systemd' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
-            @click="setupTab = 'systemd'"
+            :class="setupTab === 'install' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
+            @click="setupTab = 'install'"
           >
-            systemd
+            Linux install
           </button>
           <button
             type="button"

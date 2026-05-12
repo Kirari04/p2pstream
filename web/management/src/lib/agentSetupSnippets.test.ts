@@ -1,0 +1,86 @@
+import { describe, expect, test } from "bun:test";
+import {
+  cliSnippet,
+  dockerComposeSnippet,
+  dockerImageForRepository,
+  linuxInstallSnippet,
+  normalizeRepository,
+  shellQuote,
+  yamlQuote,
+} from "@/lib/agentSetupSnippets";
+
+const baseInput = {
+  managementUrl: "https://mgmt.example.test/",
+  agentId: "agent-mfrggzdfmztwq2lkmmxgg33nna",
+  agentToken: "token'value",
+  repository: "ExampleUser/p2pstream",
+};
+
+describe("agentSetupSnippets", () => {
+  test("quotes shell values safely", () => {
+    expect(shellQuote("plain")).toBe("'plain'");
+    expect(shellQuote("token'value")).toBe("'token'\\''value'");
+    expect(shellQuote("line\nbreak")).toBe("'linebreak'");
+    expect(shellQuote("")).toBe("''");
+  });
+
+  test("quotes YAML values safely", () => {
+    expect(yamlQuote("token:value")).toBe("\"token:value\"");
+    expect(yamlQuote("line\nbreak")).toBe("\"linebreak\"");
+  });
+
+  test("normalizes repository values", () => {
+    expect(normalizeRepository("https://github.com/Owner/p2pstream.git")).toBe("Owner/p2pstream");
+    expect(normalizeRepository("git@github.com:Owner/p2pstream.git")).toBe("Owner/p2pstream");
+    expect(normalizeRepository("")).toBe("Kirari04/p2pstream");
+  });
+
+  test("uses GHCR image default from repository", () => {
+    expect(dockerImageForRepository("ExampleUser/p2pstream")).toBe("ghcr.io/exampleuser/p2pstream:latest");
+  });
+
+  test("builds one-line Linux installer snippet", () => {
+    const snippet = linuxInstallSnippet(baseInput);
+
+    expect(snippet).toContain("curl -fsSL https://raw.githubusercontent.com/ExampleUser/p2pstream/main/scripts/install-agent.sh");
+    expect(snippet).toContain("sudo env");
+    expect(snippet).toContain("MANAGEMENT_URL='https://mgmt.example.test'");
+    expect(snippet).toContain("AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna'");
+    expect(snippet).toContain("AGENT_TOKEN='token'\\''value'");
+    expect(snippet).toContain("P2PSTREAM_REPOSITORY='ExampleUser/p2pstream'");
+    expect(snippet).not.toContain("\n");
+  });
+
+  test("adds TLS variables only when enabled", () => {
+    const withoutTLS = linuxInstallSnippet(baseInput);
+    const withTLS = linuxInstallSnippet({
+      ...baseInput,
+      tls: {
+        enabled: true,
+        managementCAFile: "/etc/p2pstream/ca.pem",
+        agentTLSCertFile: "/etc/p2pstream/agent.crt.pem",
+        agentTLSKeyFile: "/etc/p2pstream/agent.key.pem",
+      },
+    });
+
+    expect(withoutTLS).not.toContain("MANAGEMENT_CA_FILE");
+    expect(withTLS).toContain("MANAGEMENT_CA_FILE='/etc/p2pstream/ca.pem'");
+    expect(withTLS).toContain("AGENT_TLS_CERT_FILE='/etc/p2pstream/agent.crt.pem'");
+    expect(withTLS).toContain("AGENT_TLS_KEY_FILE='/etc/p2pstream/agent.key.pem'");
+  });
+
+  test("builds Docker Compose snippet with default GHCR image", () => {
+    const snippet = dockerComposeSnippet(baseInput);
+
+    expect(snippet).toContain("image: \"ghcr.io/exampleuser/p2pstream:latest\"");
+    expect(snippet).toContain("command: [\"/app/p2pstream\", \"agent\"]");
+    expect(snippet).toContain("MANAGEMENT_URL: \"https://mgmt.example.test\"");
+    expect(snippet).toContain("AGENT_TOKEN: \"token'value\"");
+  });
+
+  test("builds CLI snippet without repository fields", () => {
+    const snippet = cliSnippet(baseInput);
+
+    expect(snippet).toBe("MANAGEMENT_URL='https://mgmt.example.test' AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna' AGENT_TOKEN='token'\\''value' p2pstream agent");
+  });
+});
