@@ -13,7 +13,6 @@ export default defineConfig({
     ["meta", { property: "og:description", content: "Self-hosting operations guide for p2pstream." }]
   ],
   themeConfig: {
-    logo: "/architecture.svg",
     search: {
       provider: "local"
     },
