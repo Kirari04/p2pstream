@@ -35,12 +35,14 @@ build: frontend-build backend-build
 
 dev: frontend-install generate-proto kill
 	@echo "Starting p2pstream development mode..."
+	@mkdir -p tmp
+	@go build -o ./tmp/p2pstream-agent-dev .
 	@cd web/management && VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} VITE_MANAGEMENT_PROXY_SECURE=false VITE_HMR_PROTOCOL=wss VITE_HMR_HOST=localhost VITE_HMR_CLIENT_PORT=$${MANAGEMENT_PORT:-8081} bun run dev & FRONTEND_PID=$$!; \
 	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
 	MGMT_PORT=$${MANAGEMENT_PORT:-8081}; \
 	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE go run main.go agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
 	trap "kill $$FRONTEND_PID $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
 	wait $$FRONTEND_PID $$SERVER_PID $$AGENT_PID
@@ -79,7 +81,7 @@ test:
 
 kill:
 	@echo "Ensuring previous processes are killed..."
-	@-pkill -9 -f 'bin/p2pstream|tmp/p2pstream-dev' || true
+	@-pkill -9 -f '[b]in/p2pstream|[t]mp/p2pstream-dev|[t]mp/p2pstream-agent-dev|[g]o tool air -c .air.toml|/go-build/.*/[a]ir -c .air.toml|[b]un run --bun vite --host 127.0.0.1 --port 5173|[n]ode .*vite --host 127.0.0.1 --port 5173|[g]o run main.go agent|/go-build/.*/[m]ain agent' || true
 
 clean:
 	@echo "Cleaning up..."
