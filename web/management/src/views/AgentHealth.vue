@@ -69,7 +69,20 @@ const embeddedManagementCAPEMBase64 = computed(() => {
   if (!pem || !managementUsesTLS.value) return "";
   return window.btoa(pem);
 });
+const setupSnippetError = computed(() => {
+  try {
+    buildSetupSnippet();
+    return "";
+  } catch (err) {
+    return err instanceof Error ? err.message : "Agent setup values are invalid.";
+  }
+});
 const setupSnippet = computed(() => {
+  if (setupSnippetError.value) return "";
+  return buildSetupSnippet();
+});
+
+function buildSetupSnippet(): string {
   if (!issuedAgent.value) return "";
   switch (setupTab.value) {
     case "docker":
@@ -79,7 +92,7 @@ const setupSnippet = computed(() => {
     default:
       return linuxInstallerSnippet();
   }
-});
+}
 
 watch(setupReleaseRepository, (repository) => {
   if (!setupDockerImageTouched.value) {
@@ -233,6 +246,10 @@ function setupSnippetInput() {
 }
 
 async function copySetupSnippet() {
+  if (setupSnippetError.value) {
+    setupCopyLabel.value = "Invalid";
+    return;
+  }
   try {
     await navigator.clipboard.writeText(setupSnippet.value);
     setupCopyLabel.value = "Copied";
@@ -516,10 +533,11 @@ async function copySetupSnippet() {
           </button>
         </div>
 
-        <pre class="max-h-[360px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ setupSnippet }}</code></pre>
+        <p v-if="setupSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ setupSnippetError }}</p>
+        <pre v-else class="max-h-[360px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ setupSnippet }}</code></pre>
 
         <div class="flex justify-end gap-3">
-          <SecondaryButton type="button" :label="setupCopyLabel" @click="copySetupSnippet" />
+          <SecondaryButton type="button" :label="setupCopyLabel" :disabled="Boolean(setupSnippetError)" @click="copySetupSnippet" />
           <Button class="!bg-white !text-black !border-white" label="Done" @click="clearIssuedToken" />
         </div>
       </div>

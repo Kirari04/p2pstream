@@ -17,14 +17,23 @@ export type AgentSetupSnippetInput = {
 };
 
 export const FALLBACK_RELEASE_REPOSITORY = "Kirari04/p2pstream";
+const RELEASE_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 export function normalizeManagementUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
 
 export function normalizeRepository(value: string | undefined): string {
-  const trimmed = (value ?? "").trim().replace(/^https:\/\/github\.com\//i, "").replace(/^git@github\.com:/i, "").replace(/\.git$/i, "");
-  return trimmed || FALLBACK_RELEASE_REPOSITORY;
+	const trimmed = (value ?? "").trim().replace(/^https:\/\/github\.com\//i, "").replace(/^git@github\.com:/i, "").replace(/\.git$/i, "");
+	const repository = trimmed || FALLBACK_RELEASE_REPOSITORY;
+	if (!isValidRepository(repository)) {
+		throw new Error("GitHub repository must use owner/repo with letters, numbers, dots, underscores, or hyphens.");
+	}
+	return repository;
+}
+
+export function isValidRepository(value: string | undefined): boolean {
+	return RELEASE_REPOSITORY_PATTERN.test((value ?? "").trim());
 }
 
 export function dockerImageForRepository(repository: string | undefined): string {

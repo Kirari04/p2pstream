@@ -3,6 +3,7 @@ import {
   cliSnippet,
   dockerComposeSnippet,
   dockerImageForRepository,
+  isValidRepository,
   linuxInstallSnippet,
   normalizeRepository,
   shellQuote,
@@ -33,6 +34,20 @@ describe("agentSetupSnippets", () => {
     expect(normalizeRepository("https://github.com/Owner/p2pstream.git")).toBe("Owner/p2pstream");
     expect(normalizeRepository("git@github.com:Owner/p2pstream.git")).toBe("Owner/p2pstream");
     expect(normalizeRepository("")).toBe("Kirari04/p2pstream");
+  });
+
+  test("rejects unsafe repository values before building snippets", () => {
+    for (const repository of [
+      "owner/repo;id",
+      "owner/repo$(id)",
+      "owner/repo\nid",
+      "owner /repo",
+      "https://evil.example/owner/repo",
+    ]) {
+      expect(isValidRepository(repository)).toBe(false);
+      expect(() => normalizeRepository(repository)).toThrow("GitHub repository must use owner/repo");
+      expect(() => linuxInstallSnippet({ ...baseInput, repository })).toThrow("GitHub repository must use owner/repo");
+    }
   });
 
   test("uses GHCR image default from repository", () => {
