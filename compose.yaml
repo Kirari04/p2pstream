@@ -1,0 +1,21 @@
+services:
+  p2pstream:
+    image: ghcr.io/kirari04/p2pstream:latest
+    container_name: p2pstream
+    restart: unless-stopped
+    environment:
+      CONFIG_DIR: /data
+      MANAGEMENT_PORT: "8081"
+      PORT: "80"
+      MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
+      MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
+    ports:
+      - "${P2PSTREAM_HTTP_PORT:-80}:80"
+      - "${P2PSTREAM_HTTPS_PORT:-443}:443"
+      - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
+    volumes:
+      - p2pstream-data:/data
+
+volumes:
+  p2pstream-data:
+    name: p2pstream-data

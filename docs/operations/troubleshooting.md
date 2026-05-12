@@ -3,10 +3,10 @@
 Start with logs:
 
 ```bash
-docker logs -f p2pstream
+docker compose logs -f p2pstream
 ```
 
-For systemd:
+For advanced systemd installs:
 
 ```bash
 sudo journalctl -u p2pstream -f

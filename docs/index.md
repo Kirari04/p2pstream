@@ -1,14 +1,14 @@
-# p2pstream self-hosting docs
+# Start with Docker Compose
 
 p2pstream is a public reverse proxy and management server with optional remote agents. It can expose services from the server host, tunnel requests through registered agents, serve static responses, redirect traffic, automate public TLS certificates, apply rate limits, shape traffic, and trace live request flow.
 
-These docs are written for selfhosters operating the service on a VPS, home lab host, or small private fleet.
+These docs are written for selfhosters operating p2pstream on a VPS, home lab host, or small private fleet. The recommended setup is Docker Compose with persistent state in the `p2pstream-data` volume.
 
 <div class="home-grid">
   <div class="home-card">
     <h3>Run it</h3>
-    <p>Start the server with Docker, persist `/data`, and complete the first admin setup.</p>
-    <a href="./getting-started/quickstart">Open the quickstart</a>
+    <p>Start p2pstream with Docker Compose, persist `/data`, and complete the first admin setup.</p>
+    <a href="./getting-started/quickstart">Open the Docker Compose quickstart</a>
   </div>
   <div class="home-card">
     <h3>Publish a service</h3>
@@ -41,8 +41,8 @@ These docs are written for selfhosters operating the service on a VPS, home lab 
 
 ## Recommended reading order
 
-1. [Quickstart](./getting-started/quickstart)
-2. [Architecture](./concepts/architecture)
+1. [Docker Compose quickstart](./getting-started/quickstart)
+2. [First login](./getting-started/first-login)
 3. [Publish a service](./guides/publish-a-service)
-4. [TLS concepts](./concepts/tls)
-5. [Backup and restore](./operations/backup-restore)
+4. [Backup and restore](./operations/backup-restore)
+5. [Security hardening](./operations/security-hardening)

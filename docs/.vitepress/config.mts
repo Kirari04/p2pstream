@@ -27,9 +27,9 @@ export default defineConfig({
       {
         text: "Get Started",
         items: [
-          { text: "Quickstart", link: "/getting-started/quickstart" },
-          { text: "Docker Compose", link: "/getting-started/docker-compose" },
-          { text: "Release Binary", link: "/getting-started/binary" },
+          { text: "Docker Compose Quickstart", link: "/getting-started/quickstart" },
+          { text: "Docker Compose Details", link: "/getting-started/docker-compose" },
+          { text: "Release Binary (advanced)", link: "/getting-started/binary" },
           { text: "First Login", link: "/getting-started/first-login" }
         ]
       },
@@ -66,7 +66,7 @@ export default defineConfig({
           { text: "Security Hardening", link: "/operations/security-hardening" },
           { text: "Backup and Restore", link: "/operations/backup-restore" },
           { text: "Upgrades", link: "/operations/upgrades" },
-          { text: "Systemd", link: "/operations/systemd" },
+          { text: "Systemd (advanced)", link: "/operations/systemd" },
           { text: "Troubleshooting", link: "/operations/troubleshooting" }
         ]
       },

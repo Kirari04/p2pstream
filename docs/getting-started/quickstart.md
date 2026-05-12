@@ -1,20 +1,26 @@
-# Quickstart
+# Docker Compose Quickstart
 
-This starts the management server, public HTTP listener, and public HTTPS listener in one container. Configuration, SQLite, and generated certificates are persisted in `/data`.
+This starts the management server, public HTTP listener, and public HTTPS listener in one container. Configuration, SQLite, and generated certificates are persisted in the `p2pstream-data` Docker volume.
 
-## Start the container
+## Start with Compose
+
+From the repository root, copy the example environment file and set the management URL that browsers and agents will use:
 
 ```bash
-docker volume create p2pstream-data
+cp .env.example .env
+```
 
-docker run -d \
-  --name p2pstream \
-  --restart unless-stopped \
-  -p 80:80 \
-  -p 443:443 \
-  -p 8081:8081 \
-  -v p2pstream-data:/data \
-  ghcr.io/kirari04/p2pstream:latest
+Edit `.env`:
+
+```dotenv
+MANAGEMENT_PUBLIC_URL=https://your-server:8081
+```
+
+Start p2pstream:
+
+```bash
+docker compose up -d
+docker compose logs -f p2pstream
 ```
 
 Open the management UI:
@@ -25,6 +31,8 @@ https://your-server:8081
 
 The management server uses HTTPS by default. If you did not provide a certificate, p2pstream creates a local management CA and server certificate under `/data/certs/management`. Your browser will warn about the certificate until you trust that local CA or place management behind your own trusted TLS endpoint.
 
+If management is reachable through NAT, Docker port publishing, or another reverse proxy, `MANAGEMENT_PUBLIC_URL` must contain the externally reachable URL so generated agent setup commands contain the correct URL and certificate names.
+
 ## Complete first setup
 
 The first admin user can be created only while the setup window is open. The setup window lasts 5 minutes after server start when no users exist.
@@ -34,7 +42,11 @@ The first admin user can be created only while the setup window is open. The set
 3. Use a password with at least 12 characters.
 4. Log in and open the Management page.
 
-If the setup window expires before any user exists, restart the container and try again.
+If the setup window expires before any user exists, restart the container and try again:
+
+```bash
+docker compose restart p2pstream
+```
 
 ## Default welcome site
 
@@ -60,10 +72,10 @@ Open only the ports you need:
 | `443/tcp` | public HTTPS listener and ACME TLS-ALPN-01 |
 | `8081/tcp` | management UI/API and agent connections |
 
-If management is reachable through NAT, Docker port publishing, or another reverse proxy, set `MANAGEMENT_PUBLIC_URL` so generated agent setup commands contain the correct URL.
+Docker only publishes the ports listed in `compose.yaml`. If you add listeners on other ports in the management UI, publish those ports in Compose too.
 
 ## Next
 
-- [Docker Compose](./docker-compose)
+- [Docker Compose details](./docker-compose)
 - [First login details](./first-login)
 - [Publish a service](../guides/publish-a-service)

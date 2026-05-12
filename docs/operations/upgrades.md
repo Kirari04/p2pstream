@@ -1,41 +1,33 @@
 # Upgrades
 
-p2pstream stores runtime state in `/data`, so image and binary upgrades should keep the same data directory.
+p2pstream stores runtime state in `/data`, mounted from the `p2pstream-data` Docker volume in the recommended Compose setup. Keep the same volume when upgrading.
 
-## Docker upgrade
+## Docker Compose upgrade
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-For a single `docker run` container:
+Follow logs after the restart:
 
 ```bash
-docker pull ghcr.io/kirari04/p2pstream:latest
-docker stop p2pstream
-docker rm p2pstream
-docker run -d \
-  --name p2pstream \
-  --restart unless-stopped \
-  -p 80:80 \
-  -p 443:443 \
-  -p 8081:8081 \
-  -v p2pstream-data:/data \
-  ghcr.io/kirari04/p2pstream:latest
+docker compose logs -f p2pstream
 ```
 
 ## Pinned versions
 
-For repeatable deployments, pin a tag instead of `latest`:
+For repeatable deployments, pin a tag instead of `latest` in `compose.yaml`:
 
-```text
-ghcr.io/kirari04/p2pstream:v0.1.0
+```yaml
+image: ghcr.io/kirari04/p2pstream:v0.1.0
 ```
 
 Use the same tag for agents when you want server and agent binaries to move together.
 
-## Binary upgrade
+## Advanced binary upgrade
+
+Binary/systemd installs are an advanced deployment path. To upgrade one:
 
 1. Download the new release archive.
 2. Verify `checksums.txt`.
@@ -58,6 +50,10 @@ sudo systemctl restart p2pstream
 
 ## Rollback
 
-Keep the previous image tag or binary archive available. If rollback is needed, stop the service, restore the old binary/image, and start with the same `/data`.
+Keep the previous image tag or binary archive available. If rollback is needed, switch `compose.yaml` back to the previous image tag and run:
 
-Back up `/data` before major upgrades.
+```bash
+docker compose up -d
+```
+
+Use the same `p2pstream-data` volume. Back up the volume before major upgrades.

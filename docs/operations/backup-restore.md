@@ -1,6 +1,6 @@
 # Backup and Restore
 
-Back up the full `CONFIG_DIR`, usually `/data` in Docker deployments.
+Back up the full `CONFIG_DIR`, mounted at `/data` from the `p2pstream-data` Docker volume in the recommended Compose setup.
 
 ## What to back up
 
@@ -15,12 +15,12 @@ Include:
 
 The database stores proxy config, users, sessions, agent registry, and observability. The cert directory stores management TLS and public TLS material.
 
-## Simple Docker backup
+## Simple Compose backup
 
-The safest simple backup is to stop the container, copy the volume, then start it again.
+The safest simple backup is to stop the service, copy the volume, then start it again.
 
 ```bash
-docker stop p2pstream
+docker compose stop p2pstream
 
 docker run --rm \
   -v p2pstream-data:/data:ro \
@@ -28,36 +28,35 @@ docker run --rm \
   debian:bookworm-slim \
   tar -C /data -czf /backup/p2pstream-data.tar.gz .
 
-docker start p2pstream
+docker compose start p2pstream
 ```
 
 Stopping the container avoids copying SQLite while WAL files are changing.
 
 ## Restore
 
-Create a fresh volume and extract the backup into it:
+Stop Compose and recreate the named data volume:
 
 ```bash
-docker volume create p2pstream-data-restored
+docker compose down
+docker volume rm p2pstream-data
+docker volume create p2pstream-data
+```
 
+Extract the backup into the restored volume:
+
+```bash
 docker run --rm \
-  -v p2pstream-data-restored:/data \
+  -v p2pstream-data:/data \
   -v "$PWD:/backup" \
   debian:bookworm-slim \
   tar -C /data -xzf /backup/p2pstream-data.tar.gz
 ```
 
-Start p2pstream with that volume:
+Start p2pstream with the restored volume:
 
 ```bash
-docker run -d \
-  --name p2pstream \
-  --restart unless-stopped \
-  -p 80:80 \
-  -p 443:443 \
-  -p 8081:8081 \
-  -v p2pstream-data-restored:/data \
-  ghcr.io/kirari04/p2pstream:latest
+docker compose up -d
 ```
 
 ## Restore checks
