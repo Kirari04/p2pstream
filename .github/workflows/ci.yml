@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+    tags-ignore:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.18
+
+      - name: Generate code
+        run: make generate
+
+      - name: Verify generated files are committed
+        run: git diff --exit-code
+
+      - name: Check installer syntax
+        run: bash -n scripts/install-agent.sh
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run frontend unit tests
+        run: cd web/management && bun test src/lib/*.test.ts
+
+      - name: Typecheck management UI
+        run: cd web/management && bun run typecheck
+
+      - name: Build management UI
+        run: cd web/management && bun run build
+
+      - name: Build runtime image
+        run: docker build --target runtime -t p2pstream:ci .
