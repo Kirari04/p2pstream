@@ -3,6 +3,8 @@ package main_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -219,6 +221,12 @@ func TestDirectPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 		w.Header().Set("X-Got-Upstream", r.Header.Get("X-Upstream"))
 		w.Header().Set("X-Got-Override", r.Header.Get("X-Override"))
 		w.Header().Set("X-Got-Client", r.Header.Get("X-Client"))
+		w.Header().Set("X-Got-Forwarded", r.Header.Get("Forwarded"))
+		w.Header().Set("X-Got-Forwarded-For", r.Header.Get("X-Forwarded-For"))
+		w.Header().Set("X-Got-Forwarded-Host", r.Header.Get("X-Forwarded-Host"))
+		w.Header().Set("X-Got-Forwarded-Proto", r.Header.Get("X-Forwarded-Proto"))
+		w.Header().Set("X-Got-Forwarded-Port", r.Header.Get("X-Forwarded-Port"))
+		w.Header().Set("X-Got-Real-IP", r.Header.Get("X-Real-IP"))
 		if ok && user == "service" && password == "secret" {
 			w.Header().Set("X-Got-Basic-Auth", "true")
 		}
@@ -250,13 +258,15 @@ func TestDirectPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 		_, _ = app.StopProxyListener(shutdownCtx)
 	})
 
-	req, err := http.NewRequest(http.MethodPost, "http://"+publicListenerBoundAddress(t, status, listener.ID)+"/upstream", bytes.NewReader([]byte("payload")))
+	listenerAddr := publicListenerBoundAddress(t, status, listener.ID)
+	req, err := http.NewRequest(http.MethodPost, "http://"+listenerAddr+"/upstream", bytes.NewReader([]byte("payload")))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
 	req.Header.Set("X-Upstream", "incoming")
 	req.Header.Set("X-Override", "incoming")
 	req.Header.Set("X-Client", "client-kept")
+	setSpoofedForwardedHeaders(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("direct upstream request: %v", err)
@@ -271,6 +281,69 @@ func TestDirectPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 		resp.Header.Get("X-Got-Basic-Auth") != "true" {
 		t.Fatalf("upstream request config was not applied, response headers=%+v", resp.Header)
 	}
+	assertTrustedForwardedHeaders(t, resp.Header, listenerAddr)
+}
+
+func TestPublicRoutePathPrefixUsesSegmentBoundaries(t *testing.T) {
+	defaultSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("default backend"))
+	}))
+	defer defaultSrv.Close()
+	apiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("api backend"))
+	}))
+	defer apiSrv.Close()
+
+	database := newTestDB(t)
+	listener := seedTestHTTPPublicListener(t, database, defaultSrv.URL)
+	apiBackend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
+		Name:         "api-backend",
+		TargetOrigin: apiSrv.URL,
+		BackendType:  "proxy_forward",
+		ForwardMode:  "direct",
+		Enabled:      1,
+	})
+	if err != nil {
+		t.Fatalf("create api backend: %v", err)
+	}
+	if _, err := database.CreatePublicRoute(context.Background(), db.CreatePublicRouteParams{
+		ListenerID: listener.ID,
+		Priority:   1,
+		PathPrefix: "/api",
+		BackendID:  sql.NullInt64{Int64: apiBackend.ID, Valid: true},
+		Enabled:    1,
+	}); err != nil {
+		t.Fatalf("create api route: %v", err)
+	}
+	app := server.NewApp(&config.Config{}, database)
+	status, err := app.StartProxyListener(context.Background())
+	if err != nil {
+		t.Fatalf("start proxy: %v", err)
+	}
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _ = app.StopProxyListener(shutdownCtx)
+	})
+
+	baseURL := "http://" + publicListenerBoundAddress(t, status, listener.ID)
+	apiResp, err := http.Get(baseURL + "/api/users")
+	if err != nil {
+		t.Fatalf("api request: %v", err)
+	}
+	defer apiResp.Body.Close()
+	if body := mustReadResponseBody(t, apiResp); body != "api backend" {
+		t.Fatalf("/api response body = %q, want api backend", body)
+	}
+
+	defaultResp, err := http.Get(baseURL + "/apiv2/users")
+	if err != nil {
+		t.Fatalf("apiv2 request: %v", err)
+	}
+	defer defaultResp.Body.Close()
+	if body := mustReadResponseBody(t, defaultResp); body != "default backend" {
+		t.Fatalf("/apiv2 response body = %q, want default backend", body)
+	}
 }
 
 func TestAgentPoolPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
@@ -278,6 +351,12 @@ func TestAgentPoolPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 		user, password, ok := r.BasicAuth()
 		w.Header().Set("X-Got-Upstream", r.Header.Get("X-Upstream"))
 		w.Header().Set("X-Got-Override", r.Header.Get("X-Override"))
+		w.Header().Set("X-Got-Forwarded", r.Header.Get("Forwarded"))
+		w.Header().Set("X-Got-Forwarded-For", r.Header.Get("X-Forwarded-For"))
+		w.Header().Set("X-Got-Forwarded-Host", r.Header.Get("X-Forwarded-Host"))
+		w.Header().Set("X-Got-Forwarded-Proto", r.Header.Get("X-Forwarded-Proto"))
+		w.Header().Set("X-Got-Forwarded-Port", r.Header.Get("X-Forwarded-Port"))
+		w.Header().Set("X-Got-Real-IP", r.Header.Get("X-Real-IP"))
 		if ok && user == "service" && password == "secret" {
 			w.Header().Set("X-Got-Basic-Auth", "true")
 		}
@@ -356,12 +435,14 @@ func TestAgentPoolPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 	}()
 	time.Sleep(250 * time.Millisecond)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+publicListenerBoundAddress(t, status, listener.ID)+"/upstream", nil)
+	listenerAddr := publicListenerBoundAddress(t, status, listener.ID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+listenerAddr+"/upstream", nil)
 	if err != nil {
 		t.Fatalf("new agent upstream request: %v", err)
 	}
 	req.Header.Set("X-Upstream", "incoming")
 	req.Header.Set("X-Override", "incoming")
+	setSpoofedForwardedHeaders(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("agent upstream request: %v", err)
@@ -376,6 +457,7 @@ func TestAgentPoolPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 		resp.Header.Get("X-Mock-Agent") != agent.GetPublicId() {
 		t.Fatalf("agent upstream request config was not applied, response headers=%+v", resp.Header)
 	}
+	assertTrustedForwardedHeaders(t, resp.Header, listenerAddr)
 
 	cancel()
 	<-agentDone
@@ -414,6 +496,42 @@ func createDirectBackendWithUpstreamConfig(t *testing.T, database *db.DB, name s
 		}
 	}
 	return backend
+}
+
+func setSpoofedForwardedHeaders(req *http.Request) {
+	req.Header.Set("Forwarded", "for=203.0.113.66;proto=https;host=evil.example")
+	req.Header.Set("X-Forwarded-For", "203.0.113.66")
+	req.Header.Set("X-Forwarded-Host", "evil.example")
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Header.Set("X-Forwarded-Port", "443")
+	req.Header.Set("X-Real-IP", "203.0.113.66")
+}
+
+func assertTrustedForwardedHeaders(t *testing.T, got http.Header, listenerAddr string) {
+	t.Helper()
+
+	_, wantPort, err := net.SplitHostPort(listenerAddr)
+	if err != nil {
+		t.Fatalf("listener address %q did not include a port: %v", listenerAddr, err)
+	}
+	if got.Get("X-Got-Forwarded") != "" {
+		t.Fatalf("Forwarded header was not stripped: %+v", got)
+	}
+	if forwardedFor := got.Get("X-Got-Forwarded-For"); forwardedFor == "" || forwardedFor == "203.0.113.66" {
+		t.Fatalf("X-Forwarded-For = %q, want trusted client IP", forwardedFor)
+	}
+	if realIP := got.Get("X-Got-Real-IP"); realIP == "" || realIP == "203.0.113.66" {
+		t.Fatalf("X-Real-IP = %q, want trusted client IP", realIP)
+	}
+	if got.Get("X-Got-Forwarded-Host") != listenerAddr {
+		t.Fatalf("X-Forwarded-Host = %q, want %q", got.Get("X-Got-Forwarded-Host"), listenerAddr)
+	}
+	if got.Get("X-Got-Forwarded-Proto") != "http" {
+		t.Fatalf("X-Forwarded-Proto = %q, want http", got.Get("X-Got-Forwarded-Proto"))
+	}
+	if got.Get("X-Got-Forwarded-Port") != wantPort {
+		t.Fatalf("X-Forwarded-Port = %q, want %q", got.Get("X-Got-Forwarded-Port"), wantPort)
+	}
 }
 
 func assertUpstreamHeaderProto(t *testing.T, backend *p2pstreamv1.PublicBackend, name string, wantValue string, wantSensitive bool, wantValueSet bool) *p2pstreamv1.PublicBackendUpstreamHeader {

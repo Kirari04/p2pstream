@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -14,6 +15,8 @@ type pendingAgentRequest struct {
 	AgentPublicID string
 	ResponseCh    chan *msg.Request
 	ErrorCh       chan error
+	ctx           context.Context
+	cancel        context.CancelFunc
 	closeOnce     sync.Once
 }
 
@@ -96,6 +99,8 @@ func (p *pendingAgentRequest) fail(err error) {
 	default:
 	}
 	p.closeOnce.Do(func() {
-		close(p.ResponseCh)
+		if p.cancel != nil {
+			p.cancel()
+		}
 	})
 }

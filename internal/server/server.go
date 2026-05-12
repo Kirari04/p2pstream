@@ -39,7 +39,7 @@ type App struct {
 	Config           *config.Config
 	DB               *db.DB
 	StartedAt        time.Time
-	PendingRequests  sync.Map // map[uuid.UUID]chan *msg.Request
+	PendingRequests  sync.Map // map[uuid.UUID]*pendingAgentRequest
 	LatestAgentStats atomic.Pointer[stats.AgentStats]
 	AgentHub         *agentHub
 	LoadBalancers    *loadBalancerRegistry
@@ -47,6 +47,7 @@ type App struct {
 	RateLimiter      *publicRateLimiter
 	TrafficShaper    *publicTrafficShaper
 	PublicACME       *publicACMEManager
+	LoginThrottle    *loginThrottle
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -77,6 +78,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		TrafficTracer:       newTrafficTracer(),
 		RateLimiter:         newPublicRateLimiter(),
 		TrafficShaper:       newPublicTrafficShaper(),
+		LoginThrottle:       newLoginThrottle(),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
@@ -208,7 +210,8 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 	defer c.Close(websocket.StatusInternalError, "internal server error")
 
 	c.SetReadLimit(128 * 1024)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
 
 	var connID int64
 	if a.DB != nil {
@@ -249,6 +252,7 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 		Msg("Agent connected successfully")
 
 	go func() {
+		defer cancel()
 		for {
 			select {
 			case <-agent.Done:
@@ -257,12 +261,19 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 				cw, err := c.Writer(ctx, websocket.MessageBinary)
 				if err != nil {
 					log.Error().Err(err).Msg("ws write error")
+					c.Close(websocket.StatusInternalError, "websocket write failed")
 					return
 				}
 				_, err = m.WriteTo(cw)
-				cw.Close()
+				closeErr := cw.Close()
 				if err != nil {
 					log.Error().Err(err).Msg("failed to write message to ws")
+					c.Close(websocket.StatusInternalError, "websocket write failed")
+					return
+				}
+				if closeErr != nil {
+					log.Error().Err(closeErr).Msg("failed to close ws writer")
+					c.Close(websocket.StatusInternalError, "websocket write failed")
 					return
 				}
 			}
@@ -299,7 +310,12 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 					Msg("Received response from wrong agent")
 				continue
 			}
-			pending.ResponseCh <- m
+			select {
+			case pending.ResponseCh <- m:
+			case <-pending.ctx.Done():
+			case <-agent.Done:
+			case <-ctx.Done():
+			}
 		} else {
 			log.Warn().Str("req_id", m.ID.String()).Msg("Received message for unknown request")
 		}

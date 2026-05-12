@@ -179,7 +179,7 @@ func TestTrafficTraceDirectRequestStagesAndLevels(t *testing.T) {
 		_, _ = app.StopProxyListener(shutdownCtx)
 	})
 
-	resp, err := http.Get("http://" + publicListenerBoundAddress(t, status, listener.ID) + "/trace/path?token=visible-at-detailed")
+	resp, err := http.Get("http://" + publicListenerBoundAddress(t, status, listener.ID) + "/trace/path?token=visible-at-detailed&safe=ok")
 	if err != nil {
 		t.Fatalf("proxy request: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestTrafficTraceDirectRequestStagesAndLevels(t *testing.T) {
 	)
 
 	finalEvent := events[len(events)-1]
-	if finalEvent.Query != "token=visible-at-detailed" {
+	if finalEvent.Query != "safe=ok&token=%5Bredacted%5D" {
 		t.Fatalf("detailed trace query = %q", finalEvent.Query)
 	}
 	if finalEvent.RequestHeaders != nil || finalEvent.ResponseHeaders != nil {

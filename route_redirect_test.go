@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
@@ -253,13 +254,13 @@ func createRedirectRoute(
 	request *p2pstreamv1.CreatePublicRouteRequest,
 ) *p2pstreamv1.PublicRoute {
 	t.Helper()
-	payload := *request
+	payload := proto.Clone(request).(*p2pstreamv1.CreatePublicRouteRequest)
 	payload.ListenerId = listenerID
 	payload.Action = p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_REDIRECT
 	if payload.Priority == 0 {
 		payload.Priority = 1
 	}
-	req := connect.NewRequest(&payload)
+	req := connect.NewRequest(payload)
 	req.Header().Set("Cookie", cookie)
 	resp, err := client.CreatePublicRoute(context.Background(), req)
 	if err != nil {

@@ -24,6 +24,8 @@ import (
 	"p2pstream/msg"
 )
 
+const publicUpstreamResponseHeaderTimeout = 30 * time.Second
+
 type publicBackendConfig struct {
 	ID                     int64
 	Name                   string
@@ -370,7 +372,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			"redirect_target_mode": resolution.Route.RedirectTargetMode,
 		}
 		if location != "" {
-			attributes["redirect_location"] = location
+			attributes["redirect_location"] = redactSensitiveTraceURL(location)
 		}
 		if trace != nil {
 			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
@@ -490,15 +492,16 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 			0,
 			"",
 			nil,
-			map[string]string{"handler": "direct", "upstream": targetOrigin.String()},
+			map[string]string{"handler": "direct", "upstream": redactSensitiveTraceURL(targetOrigin.String())},
 		)
 	}
 
 	proxy := &httputil.ReverseProxy{
-		Director: func(out *http.Request) {
-			applyUpstreamRequestConfig(out, resolution.Backend)
+		Rewrite: func(proxyReq *httputil.ProxyRequest) {
+			applyUpstreamRequestConfig(proxyReq.Out, resolution.Backend)
+			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In)
 			if shaper != nil {
-				out.Body = shaper.wrapUploadBody(r.Context(), out.Body)
+				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
 			}
 		},
 		ModifyResponse: func(resp *http.Response) error {
@@ -604,17 +607,22 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		Str("path", r.URL.Path).
 		Msg("Proxying request")
 
+	pendingCtx, pendingCancel := context.WithCancel(r.Context())
+	defer pendingCancel()
 	pending := &pendingAgentRequest{
 		AgentID:       agent.AgentID,
 		AgentPublicID: agent.PublicID,
 		ResponseCh:    make(chan *msg.Request, 100),
 		ErrorCh:       make(chan error, 1),
+		ctx:           pendingCtx,
+		cancel:        pendingCancel,
 	}
 	a.PendingRequests.Store(id, pending)
 	defer a.PendingRequests.Delete(id)
 
 	outReq := r.Clone(r.Context())
 	applyUpstreamRequestConfig(outReq, resolution.Backend)
+	applyTrustedForwardedHeaders(outReq, r)
 	if shaper != nil {
 		outReq.Body = shaper.wrapUploadBody(r.Context(), outReq.Body)
 	}
@@ -627,7 +635,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 			0,
 			"",
 			nil,
-			map[string]string{"handler": "agent_pool", "agent": agent.PublicID, "upstream": targetOrigin.String()},
+			map[string]string{"handler": "agent_pool", "agent": agent.PublicID, "upstream": redactSensitiveTraceURL(targetOrigin.String())},
 		)
 	}
 	enc := httpmsg.NewRequestEncoderWithMetadata(id, outReq, map[string]string{
@@ -687,7 +695,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		}
 	}
 
-	stream := &httpmsg.ChannelStream{Ch: pending.ResponseCh}
+	stream := &httpmsg.ChannelStream{Ctx: pendingCtx, Ch: pending.ResponseCh}
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
@@ -772,6 +780,61 @@ func applyUpstreamRequestConfig(req *http.Request, backend publicBackendConfig) 
 	}
 }
 
+func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request) {
+	if outReq == nil {
+		return
+	}
+	for _, name := range []string{
+		"Forwarded",
+		"X-Forwarded-For",
+		"X-Forwarded-Host",
+		"X-Forwarded-Proto",
+		"X-Forwarded-Port",
+		"X-Real-Ip",
+	} {
+		outReq.Header.Del(name)
+	}
+	if inReq == nil {
+		return
+	}
+	clientIP := remoteAddrIP(inReq.RemoteAddr)
+	if clientIP != "" {
+		outReq.Header.Set("X-Forwarded-For", clientIP)
+		outReq.Header.Set("X-Real-IP", clientIP)
+	}
+	if inReq.Host != "" {
+		outReq.Header.Set("X-Forwarded-Host", inReq.Host)
+	}
+	proto := "http"
+	if inReq.TLS != nil {
+		proto = "https"
+	}
+	outReq.Header.Set("X-Forwarded-Proto", proto)
+	if port := forwardedPort(inReq.Host, proto); port != "" {
+		outReq.Header.Set("X-Forwarded-Port", port)
+	}
+}
+
+func remoteAddrIP(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err == nil {
+		return host
+	}
+	return strings.TrimSpace(remoteAddr)
+}
+
+func forwardedPort(host string, proto string) string {
+	if _, port, err := net.SplitHostPort(host); err == nil {
+		return port
+	}
+	switch proto {
+	case "https":
+		return "443"
+	default:
+		return "80"
+	}
+}
+
 func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRouteResolution, error) {
 	host := normalizeRequestHost(r.Host)
 
@@ -799,7 +862,7 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		if route.HostPattern != "" && !hostMatchesPattern(host, route.HostPattern) {
 			continue
 		}
-		if route.PathPrefix != "" && !strings.HasPrefix(r.URL.Path, route.PathPrefix) {
+		if route.PathPrefix != "" && !pathPrefixMatches(r.URL.Path, route.PathPrefix) {
 			continue
 		}
 		routeID = sql.NullInt64{Int64: route.ID, Valid: true}
@@ -901,7 +964,7 @@ func redirectPathSuffix(r *http.Request, pathPrefix string) string {
 	if pathPrefix == "" || pathPrefix == "/" {
 		return requestPath
 	}
-	if !strings.HasPrefix(requestPath, pathPrefix) {
+	if !pathPrefixMatches(requestPath, pathPrefix) {
 		return ""
 	}
 	suffix := strings.TrimPrefix(requestPath, pathPrefix)
@@ -933,6 +996,26 @@ func joinRedirectPath(basePath string, suffix string) string {
 	return strings.TrimRight(basePath, "/") + "/" + strings.TrimLeft(suffix, "/")
 }
 
+func pathPrefixMatches(requestPath string, pathPrefix string) bool {
+	pathPrefix = strings.TrimSpace(pathPrefix)
+	if pathPrefix == "" || pathPrefix == "/" {
+		return true
+	}
+	if requestPath == "" {
+		requestPath = "/"
+	}
+	if !strings.HasPrefix(requestPath, pathPrefix) {
+		return false
+	}
+	if len(requestPath) == len(pathPrefix) {
+		return true
+	}
+	if strings.HasSuffix(pathPrefix, "/") {
+		return true
+	}
+	return requestPath[len(pathPrefix)] == '/'
+}
+
 func mergeRedirectQuery(configuredQuery string, incomingQuery string, preserveIncoming bool) string {
 	if !preserveIncoming || incomingQuery == "" {
 		return configuredQuery
@@ -949,6 +1032,7 @@ func directProxyTransport(tlsSkipVerify bool) http.RoundTripper {
 		return http.DefaultTransport
 	}
 	transport := base.Clone()
+	transport.ResponseHeaderTimeout = publicUpstreamResponseHeaderTimeout
 	if tlsSkipVerify {
 		if transport.TLSClientConfig == nil {
 			transport.TLSClientConfig = &tls.Config{}

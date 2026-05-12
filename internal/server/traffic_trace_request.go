@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -118,7 +119,7 @@ func (a *App) newTrafficRequestTrace(r *http.Request, recorder *proxyResponseRec
 		method:    r.Method,
 		host:      r.Host,
 		path:      path,
-		query:     r.URL.RawQuery,
+		query:     redactSensitiveQuery(r.URL.RawQuery),
 		recorder:  recorder,
 	}
 	if level >= p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_HEADERS {
@@ -200,6 +201,45 @@ func (t *trafficRequestTrace) emit(
 		event.AgentName = agent.Name
 	}
 	t.tracer.publish(event)
+}
+
+func redactSensitiveTraceURL(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	parsed.RawQuery = redactSensitiveQuery(parsed.RawQuery)
+	return parsed.String()
+}
+
+func redactSensitiveQuery(rawQuery string) string {
+	if rawQuery == "" {
+		return ""
+	}
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return ""
+	}
+	for key := range values {
+		if traceQueryKeyIsSensitive(key) {
+			values[key] = []string{trafficTraceRedactedValue}
+		}
+	}
+	return values.Encode()
+}
+
+func traceQueryKeyIsSensitive(key string) bool {
+	lower := strings.ToLower(key)
+	return strings.Contains(lower, "token") ||
+		strings.Contains(lower, "secret") ||
+		strings.Contains(lower, "password") ||
+		strings.Contains(lower, "key") ||
+		strings.Contains(lower, "auth") ||
+		strings.Contains(lower, "code") ||
+		strings.Contains(lower, "session")
 }
 
 func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution publicRouteResolution) {

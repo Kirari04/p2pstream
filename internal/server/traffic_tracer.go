@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 )
@@ -284,11 +285,14 @@ func traceResponseForSubscriber(resp *p2pstreamv1.StreamTrafficTraceEventsRespon
 	if resp == nil {
 		return &p2pstreamv1.StreamTrafficTraceEventsResponse{}
 	}
-	copyResp := *resp
+	copyResp, ok := proto.Clone(resp).(*p2pstreamv1.StreamTrafficTraceEventsResponse)
+	if !ok {
+		return &p2pstreamv1.StreamTrafficTraceEventsResponse{}
+	}
 	if subscriber != nil {
 		copyResp.SubscriberDroppedEvents = subscriber.dropped.Load()
 	}
-	return &copyResp
+	return copyResp
 }
 
 func validTrafficTraceLevel(level p2pstreamv1.TrafficTraceLevel) bool {
@@ -304,7 +308,10 @@ func validTrafficTraceLevel(level p2pstreamv1.TrafficTraceLevel) bool {
 }
 
 func sanitizeTrafficTraceEvent(event *p2pstreamv1.TrafficTraceEvent, level p2pstreamv1.TrafficTraceLevel) *p2pstreamv1.TrafficTraceEvent {
-	copyEvent := *event
+	copyEvent, ok := proto.Clone(event).(*p2pstreamv1.TrafficTraceEvent)
+	if !ok {
+		return &p2pstreamv1.TrafficTraceEvent{}
+	}
 	if level < p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_DETAILED {
 		copyEvent.Host = ""
 		copyEvent.Query = ""
@@ -322,7 +329,7 @@ func sanitizeTrafficTraceEvent(event *p2pstreamv1.TrafficTraceEvent, level p2pst
 		copyEvent.ResponseBytes = 0
 		copyEvent.DebugAttributes = nil
 	}
-	return &copyEvent
+	return copyEvent
 }
 
 func sanitizedHeaderMap(header http.Header) map[string]string {
