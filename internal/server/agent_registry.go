@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/base32"
 	"encoding/base64"
@@ -164,7 +165,7 @@ func (a *App) authenticateAgent(ctx context.Context, publicID string, authorizat
 	if agent.Enabled == 0 {
 		return db.Agent{}, errors.New("agent is disabled")
 	}
-	if hashAgentToken(token) != agent.TokenHash {
+	if subtle.ConstantTimeCompare([]byte(hashAgentToken(token)), []byte(agent.TokenHash)) != 1 {
 		return db.Agent{}, errors.New("invalid agent token")
 	}
 	if err := a.requireAgentClientCertificate(ctx, publicID); err != nil {

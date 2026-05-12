@@ -282,6 +282,144 @@ func TestLoginLogoutSessionCookie(t *testing.T) {
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
 }
 
+func TestSessionCookieSecureFollowsManagementTLS(t *testing.T) {
+	app := server.NewApp(&config.Config{ManagementTLSEnabled: true}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+
+	ctx := context.Background()
+	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("setup admin: %v", err)
+	}
+	loginResp, err := client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("login admin: %v", err)
+	}
+	if setCookie := loginResp.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "; Secure") {
+		t.Fatalf("Set-Cookie missing Secure with management TLS enabled: %q", setCookie)
+	}
+}
+
+func TestSessionCookieCanBeInsecureForExplicitHTTPDevelopment(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+
+	ctx := context.Background()
+	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("setup admin: %v", err)
+	}
+	loginResp, err := client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("login admin: %v", err)
+	}
+	if setCookie := loginResp.Header().Get("Set-Cookie"); strings.Contains(setCookie, "; Secure") {
+		t.Fatalf("Set-Cookie unexpectedly secure without TLS/production config: %q", setCookie)
+	}
+}
+
+func TestSessionCookieSecureFollowsProductionEnv(t *testing.T) {
+	app := server.NewApp(&config.Config{Env: "production"}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+
+	ctx := context.Background()
+	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("setup admin: %v", err)
+	}
+	loginResp, err := client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("login admin: %v", err)
+	}
+	if setCookie := loginResp.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "; Secure") {
+		t.Fatalf("Set-Cookie missing Secure in production env: %q", setCookie)
+	}
+}
+
+func TestLoginThrottleBlocksRepeatedFailures(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+
+	ctx := context.Background()
+	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("setup admin: %v", err)
+	}
+	for i := 0; i < 5; i++ {
+		_, err = client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+			Username: testAdminUsername,
+			Password: "wrong password",
+		}))
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	}
+	_, err = client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+		Username: testAdminUsername,
+		Password: "wrong password",
+	}))
+	requireConnectCode(t, err, connect.CodeResourceExhausted)
+
+	_, err = client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	requireConnectCode(t, err, connect.CodeResourceExhausted)
+}
+
+func TestLoginThrottleResetsAfterSuccessfulLogin(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+
+	ctx := context.Background()
+	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	}))
+	if err != nil {
+		t.Fatalf("setup admin: %v", err)
+	}
+	for i := 0; i < 2; i++ {
+		_, err = client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+			Username: testAdminUsername,
+			Password: "wrong password",
+		}))
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	}
+	if _, err = client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+		Username: testAdminUsername,
+		Password: testAdminPassword,
+	})); err != nil {
+		t.Fatalf("login after failures: %v", err)
+	}
+	for i := 0; i < 5; i++ {
+		_, err = client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+			Username: testAdminUsername,
+			Password: "wrong password",
+		}))
+		requireConnectCode(t, err, connect.CodeUnauthenticated)
+	}
+}
+
 func TestProtectedRPCRejectsWithoutSession(t *testing.T) {
 	app := server.NewApp(&config.Config{}, newTestDB(t))
 	_, client := newTestManagementClient(t, app)

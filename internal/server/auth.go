@@ -184,16 +184,24 @@ func (a *App) Login(
 	}
 
 	username := strings.TrimSpace(strings.ToLower(req.Msg.Username))
+	throttleKey := loginThrottleKey(req.Peer().Addr, username)
+	now := time.Now()
+	if retryAfter := a.LoginThrottle.retryAfter(throttleKey, now); retryAfter > 0 {
+		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("too many failed login attempts; try again later"))
+	}
 	user, err := a.DB.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			a.LoginThrottle.recordFailure(throttleKey, now)
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Msg.Password)); err != nil {
+		a.LoginThrottle.recordFailure(throttleKey, now)
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 	}
+	a.LoginThrottle.recordSuccess(throttleKey)
 
 	token, tokenHash, err := newSessionToken()
 	if err != nil {
@@ -371,7 +379,7 @@ func (a *App) clearSessionCookie() *http.Cookie {
 }
 
 func (a *App) secureCookies() bool {
-	return a.Config != nil && (a.Config.Env == "production" || a.Config.ManagementCookieSecure)
+	return a.Config != nil && (a.Config.ManagementTLSEnabled || a.Config.Env == "production" || a.Config.ManagementCookieSecure)
 }
 
 func dbUserToProto(user db.User) *p2pstreamv1.User {
