@@ -36,6 +36,9 @@ const (
 	maxRateLimitKeyValueBytes            = 256
 	maxRateLimitResponseBodyBytes        = 64 * 1024
 	maxRateLimitResponseHeaders          = 32
+	maxRateLimitKeysPerRule              = 10000
+	rateLimitIdleStateTTL                = 15 * time.Minute
+	rateLimitPruneInterval               = time.Minute
 	rateLimitMissingValue                = "<missing>"
 	publicRateLimitKeySourceRemoteIP     = "remote_ip"
 	publicRateLimitKeySourceHost         = "host"
@@ -115,8 +118,9 @@ type publicRateLimitRuleMutationInput struct {
 }
 
 type publicRateLimiter struct {
-	mu    sync.Mutex
-	rules map[int64]*publicRateLimitRuleRuntime
+	mu        sync.Mutex
+	rules     map[int64]*publicRateLimitRuleRuntime
+	lastPrune time.Time
 }
 
 type publicRateLimitRuleRuntime struct {
@@ -134,6 +138,7 @@ type publicRateLimitKeyRuntime struct {
 	leakyLevel       float64
 	leakyLastDrain   int64
 	leakyInitialized bool
+	lastSeenAt       time.Time
 }
 
 type publicRateLimitDecision struct {
@@ -210,6 +215,7 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.pruneLocked(now)
 	for _, rule := range ordered {
 		if !rule.Enabled || !rule.matches(listener, r) {
 			continue
@@ -222,9 +228,13 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 		key := rateLimitKeyHash(rule.keyValues(listener, r))
 		keyState := runtime.keys[key]
 		if keyState == nil {
+			if len(runtime.keys) >= maxRateLimitKeysPerRule {
+				evictOldestRateLimitKey(runtime.keys)
+			}
 			keyState = &publicRateLimitKeyRuntime{}
 			runtime.keys[key] = keyState
 		}
+		keyState.lastSeenAt = now
 		result := keyState.allow(rule, now)
 		if !result.allowed {
 			return publicRateLimitDecision{
@@ -241,6 +251,38 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 		}
 	}
 	return publicRateLimitDecision{}, true
+}
+
+func (l *publicRateLimiter) pruneLocked(now time.Time) {
+	if !l.lastPrune.IsZero() && now.Sub(l.lastPrune) < rateLimitPruneInterval {
+		return
+	}
+	l.lastPrune = now
+	for _, runtime := range l.rules {
+		for key, keyState := range runtime.keys {
+			if keyState.lastSeenAt.IsZero() || now.Sub(keyState.lastSeenAt) > rateLimitIdleStateTTL {
+				delete(runtime.keys, key)
+			}
+		}
+	}
+}
+
+func evictOldestRateLimitKey(keys map[string]*publicRateLimitKeyRuntime) {
+	var oldestKey string
+	var oldestTime time.Time
+	for key, keyState := range keys {
+		if keyState == nil {
+			delete(keys, key)
+			return
+		}
+		if oldestKey == "" || keyState.lastSeenAt.Before(oldestTime) {
+			oldestKey = key
+			oldestTime = keyState.lastSeenAt
+		}
+	}
+	if oldestKey != "" {
+		delete(keys, oldestKey)
+	}
 }
 
 type publicRateLimitAllowResult struct {
@@ -358,7 +400,7 @@ func (rule publicRateLimitRuleConfig) matches(listener publicListenerConfig, r *
 	if len(rule.Match.PathPrefixes) > 0 {
 		matched := false
 		for _, prefix := range rule.Match.PathPrefixes {
-			if strings.HasPrefix(r.URL.Path, prefix) {
+			if pathPrefixMatches(r.URL.Path, prefix) {
 				matched = true
 				break
 			}

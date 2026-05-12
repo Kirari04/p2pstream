@@ -43,6 +43,23 @@ func TestPublicTrafficShaperSkipsNonMatchingRules(t *testing.T) {
 	}
 }
 
+func TestPublicTrafficShaperPathPrefixUsesSegmentBoundaries(t *testing.T) {
+	shaper := newPublicTrafficShaper()
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	rule := testTrafficShaperRule(1, "api", 100, publicTrafficShaperBudgetScopePerKey, 0, 1024)
+	rule.Match.PathPrefixes = []string{"/api"}
+	rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
+
+	matching := testRateLimitRequest("GET", "http://example.com/api/data", "198.51.100.10:1234")
+	if _, ok := shaper.evaluate([]publicTrafficShaperRuleConfig{rule}, listener, matching, time.Unix(1, 0)); !ok {
+		t.Fatal("matching /api path did not select shaper")
+	}
+	confusing := testRateLimitRequest("GET", "http://example.com/apiv2/data", "198.51.100.10:1234")
+	if _, ok := shaper.evaluate([]publicTrafficShaperRuleConfig{rule}, listener, confusing, time.Unix(2, 0)); ok {
+		t.Fatal("path prefix /api matched /apiv2")
+	}
+}
+
 func TestPublicTrafficShaperPerKeyAndPerRequestBuckets(t *testing.T) {
 	shaper := newPublicTrafficShaper()
 	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}

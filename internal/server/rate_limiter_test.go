@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -130,6 +131,31 @@ func TestPublicRateLimiterMatchingAndCompositeKeys(t *testing.T) {
 	if _, allowed := limiter.evaluate([]publicRateLimitRuleConfig{rule}, listener, nonMatching, time.UnixMilli(300)); !allowed {
 		t.Fatal("non-matching path was rate limited")
 	}
+
+	confusing := testRateLimitRequest("GET", "http://api.example.com/apiv2/data", "198.51.100.9:1234")
+	confusing.Header.Set("X-Plan", "free")
+	confusing.Header.Set("X-User", "alice")
+	if _, allowed := limiter.evaluate([]publicRateLimitRuleConfig{rule}, listener, confusing, time.UnixMilli(350)); !allowed {
+		t.Fatal("path prefix /api matched /apiv2")
+	}
+}
+
+func TestPathPrefixMatchesSegmentBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		path   string
+		prefix string
+		want   bool
+	}{
+		{path: "/api", prefix: "/api", want: true},
+		{path: "/api/", prefix: "/api", want: true},
+		{path: "/api/users", prefix: "/api", want: true},
+		{path: "/apiv2", prefix: "/api", want: false},
+		{path: "/apiary", prefix: "/api", want: false},
+	} {
+		if got := pathPrefixMatches(tc.path, tc.prefix); got != tc.want {
+			t.Fatalf("pathPrefixMatches(%q, %q) = %v, want %v", tc.path, tc.prefix, got, tc.want)
+		}
+	}
 }
 
 func TestPublicRateLimitValidationRejectsUnsafeInput(t *testing.T) {
@@ -194,6 +220,50 @@ func TestPublicRateLimitResponseUsesGeneratedHeaders(t *testing.T) {
 	}
 	if got := recorder.Body.String(); got != "blocked\n" {
 		t.Fatalf("body = %q", got)
+	}
+}
+
+func TestPublicRateLimiterPrunesIdleKeys(t *testing.T) {
+	rule := testRateLimitRule(publicRateLimitAlgorithmFixedWindow, 10, 1000, 0)
+	rule.KeyParts = []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceHeader, Name: "X-User"}}
+	rule.Fingerprint = publicRateLimitRuleFingerprint(rule)
+	limiter := newPublicRateLimiter()
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+
+	first := testRateLimitRequest("GET", "http://example.com/api", "198.51.100.9:1234")
+	first.Header.Set("X-User", "old")
+	if _, allowed := limiter.evaluate([]publicRateLimitRuleConfig{rule}, listener, first, time.Unix(1, 0)); !allowed {
+		t.Fatal("first request rejected")
+	}
+	second := testRateLimitRequest("GET", "http://example.com/api", "198.51.100.9:1234")
+	second.Header.Set("X-User", "new")
+	if _, allowed := limiter.evaluate([]publicRateLimitRuleConfig{rule}, listener, second, time.Unix(1, 0).Add(rateLimitIdleStateTTL+rateLimitPruneInterval+time.Second)); !allowed {
+		t.Fatal("second request rejected")
+	}
+	runtime := limiter.rules[rule.ID]
+	if got := len(runtime.keys); got != 1 {
+		t.Fatalf("runtime keys = %d, want 1 after pruning idle key", got)
+	}
+}
+
+func TestPublicRateLimiterCapsPerRuleKeys(t *testing.T) {
+	rule := testRateLimitRule(publicRateLimitAlgorithmFixedWindow, 10, 1000, 0)
+	rule.KeyParts = []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceHeader, Name: "X-User"}}
+	rule.Fingerprint = publicRateLimitRuleFingerprint(rule)
+	limiter := newPublicRateLimiter()
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	now := time.Unix(1, 0)
+
+	for i := 0; i < maxRateLimitKeysPerRule+1; i++ {
+		req := testRateLimitRequest("GET", "http://example.com/api", "198.51.100.9:1234")
+		req.Header.Set("X-User", strconv.Itoa(i))
+		if _, allowed := limiter.evaluate([]publicRateLimitRuleConfig{rule}, listener, req, now.Add(time.Duration(i)*time.Millisecond)); !allowed {
+			t.Fatalf("request %d rejected", i)
+		}
+	}
+	runtime := limiter.rules[rule.ID]
+	if got := len(runtime.keys); got != maxRateLimitKeysPerRule {
+		t.Fatalf("runtime keys = %d, want capped at %d", got, maxRateLimitKeysPerRule)
 	}
 }
 
