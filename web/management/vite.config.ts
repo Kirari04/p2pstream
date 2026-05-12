@@ -3,6 +3,12 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 
+const managementProxyTarget = process.env.VITE_MANAGEMENT_PROXY_TARGET ?? "https://127.0.0.1:8081";
+const managementProxySecure = process.env.VITE_MANAGEMENT_PROXY_SECURE === "true";
+const hmrProtocol = process.env.VITE_HMR_PROTOCOL ?? "wss";
+const hmrHost = process.env.VITE_HMR_HOST ?? "localhost";
+const hmrClientPort = Number.parseInt(process.env.VITE_HMR_CLIENT_PORT ?? "8081", 10);
+
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   resolve: {
@@ -15,12 +21,16 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      "/p2pstream.v1.AgentManagementService": "http://127.0.0.1:8081",
+      "/p2pstream.v1.AgentManagementService": {
+        target: managementProxyTarget,
+        changeOrigin: true,
+        secure: managementProxySecure,
+      },
     },
     hmr: {
-      protocol: "ws",
-      host: "localhost",
-      clientPort: 8081,
+      protocol: hmrProtocol,
+      host: hmrHost,
+      clientPort: Number.isFinite(hmrClientPort) ? hmrClientPort : 8081,
     },
   },
 });
