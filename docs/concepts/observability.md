@@ -33,6 +33,7 @@ Proxy request events include:
 - backend ID,
 - route ID,
 - WAF rule ID and action when a WAF decision handled the request,
+- cache rule ID, cache status, and cache bytes when cache handled or stored an object,
 - agent ID,
 - request bytes,
 - response bytes.
@@ -61,7 +62,9 @@ Traffic tracing is an admin-controlled live stream. Levels are:
 
 Use headers and debug tracing temporarily. They can expose operational details and request metadata.
 
+Traffic Flow renders cache as a decision point after backend selection. A cache hit exits from Cache to Response. A miss or bypass continues from Cache to the selected direct upstream or agent. When an upstream response is stored, the Cache node pulses; the main request path does not move backward.
+
 <figure class="doc-screenshot">
-  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, backend, agent, upstream, and response">
-  <figcaption>Traffic Flow renders sampled request paths across listeners, WAF and policy checks, routes, backends, agents, and upstreams.</figcaption>
+  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, backend, cache, agent, upstream, and response">
+  <figcaption>Traffic Flow renders sampled request paths across listeners, policy checks, route and backend selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>

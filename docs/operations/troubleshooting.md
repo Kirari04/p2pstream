@@ -113,6 +113,19 @@ When health checks are disabled, transient upstream failures fail only the curre
 
 The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
 
+## Static asset is not cached
+
+| Cause | Fix |
+| --- | --- |
+| No matching cache rule | Check host, path prefix, suffix, method, route/backend filters, and priority. |
+| Browser sends cookies | Enable `Cache requests with Cookie headers` only on precise public asset rules. |
+| Authorization header present | Authorization requests always bypass cache. |
+| Origin sends `Set-Cookie` | p2pstream will not store the response. |
+| Origin sends `private`, `no-store`, or `no-cache` | p2pstream respects the origin denial. |
+| Origin sends `Vary: Cookie`, `Vary: Authorization`, or `Vary: *` | p2pstream will not store the response. |
+| Origin sends `Vary: Accept-Encoding` | This is supported; it creates separate variants and is not a problem by itself. |
+| Status or object size not allowed | Adjust rule status codes or max object size if appropriate. |
+
 ## Rate limits affect every user
 
 | Cause | Fix |

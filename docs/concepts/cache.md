@@ -30,6 +30,24 @@ Responses are never cached when they include:
 
 There is no force-cache option for private or no-store responses.
 
+## Cookie-tolerant asset rules
+
+Logged-in browsers often send cookies on every same-site asset request, including files that are still public build artifacts. For those cases, open **Traffic Policy -> Cache**, add or edit a rule, and enable **Cache requests with Cookie headers** under **Cache behavior**.
+
+This setting is per rule and defaults to off. Existing cache rules stay conservative until you explicitly enable it.
+
+Use it only with precise public asset matches. For a Nuxt or similar hashed build output, a typical rule uses:
+
+| Field | Value |
+| --- | --- |
+| Host | your public app domain |
+| Path prefix | `/_nuxt/` |
+| Path suffixes | `.js`, `.css`, `.png`, `.webp`, `.svg`, `.woff2` |
+| TTL mode | Origin TTL when the upstream sends immutable asset headers |
+| Cache requests with Cookie headers | On |
+
+Even when cookie requests are allowed, p2pstream ignores cookie values for cache keys and does not store them. `Authorization` requests still always bypass cache. Responses with `Set-Cookie`, private cache directives, `Vary: Cookie`, `Vary: Authorization`, or `Vary: *` are still not stored.
+
 ## Rule matching
 
 Cache rules use the same ordered-policy model as WAF, rate limits, and traffic shapers: enabled rules are evaluated by priority, then ID, and the first match wins.
@@ -46,7 +64,13 @@ Rules can match method, listener protocol, host pattern, path prefix, path suffi
 .woff2
 ```
 
-For Nuxt or similar hashed build assets, a typical rule uses the public host, path prefix `/_nuxt/`, suffixes such as `.js`, `.css`, `.png`, `.webp`, `.svg`, and `.woff2`, and `allow_cookie_requests` enabled. Use origin TTL when the upstream already sends long-lived cache headers, or a fixed TTL such as one hour.
+When cookie matching is used in a rule, remember that cookie-bearing requests still bypass unless the same matching rule allows cookie requests.
+
+## Vary and compression
+
+The default configured Vary header is `Accept-Encoding`. This is expected for compressed assets and allows p2pstream to store separate gzip, br, or uncompressed variants for the same URL.
+
+Do not configure sensitive Vary headers. Cache rules reject configured Vary headers named `Cookie`, `Authorization`, or `Set-Cookie`. Origin responses with `Vary: Cookie`, `Vary: Authorization`, or `Vary: *` are not stored because those responses declare personalized or unbounded variants.
 
 ## TTL modes
 

@@ -35,7 +35,7 @@ Cache hits still consume rate-limit buckets and still use traffic shaping. They 
 | `cache_status_codes` | Statuses that may be stored. Default `200`, `203`, `204`, `301`, `308`. |
 | `max_object_bytes` | Maximum stored response size. Default `104857600`. |
 | `add_cache_status_header` | Adds `X-p2pstream-Cache: HIT` or `MISS`. |
-| `allow_cookie_requests` | Allows matching requests with `Cookie` headers to use the cache. Default `false`. |
+| `allow_cookie_requests` | Allows matching requests with `Cookie` headers to use the cache after the rule matches. Default `false`; cookie values are ignored and never stored. |
 
 ## Safe bypasses
 
@@ -44,6 +44,18 @@ p2pstream always bypasses cache for requests with `Authorization`. It also bypas
 Requests with `Cookie` bypass by default unless the matching rule enables `allow_cookie_requests`. Use that only for precise public static asset rules. Cookie values are ignored for cache keys and are never stored.
 
 p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
+
+| Request or response condition | Result |
+| --- | --- |
+| `Authorization` request | Always bypasses cache. |
+| `Cookie` request, rule does not allow cookies | Bypasses cache. |
+| `Cookie` request, rule allows cookies | Eligible for lookup and store when every other safety check passes. |
+| Response has `Set-Cookie` | Not stored. |
+| Response has `Cache-Control: no-store`, `private`, or `no-cache` | Not stored. |
+| Response has `Vary: Cookie`, `Vary: Authorization`, or `Vary: *` | Not stored. |
+| Response has `Vary: Accept-Encoding` | Supported variant key for compressed and uncompressed responses. |
+
+Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
 
 ## TTL
 
@@ -56,6 +68,25 @@ Origin TTL reads `s-maxage`, then `max-age`, then `Expires`. If no usable origin
 The key includes listener protocol, normalized host, route or selected backend scope, normalized GET method for GET/HEAD sharing, path, query string according to query mode, configured vary headers, and origin `Vary` headers.
 
 Raw cookies, authorization headers, and full cache keys are not stored in proxy event rows. Cookies and authorization headers are never included in cache keys.
+
+## Verify a cache rule
+
+When `add_cache_status_header` is enabled, p2pstream adds `X-p2pstream-Cache` to eligible responses. The first request for a cacheable object should usually return `MISS`; a later request with the same cache key should return `HIT`.
+
+If a matching request has cookies, it can only hit cache when the cache rule enables `allow_cookie_requests`. A request with `Authorization` always bypasses and should not produce a cache hit.
+
+## Cache statuses
+
+Cache status is recorded in live traces and proxy request events.
+
+| Status | Meaning |
+| --- | --- |
+| `hit` | A valid cached object was served. |
+| `miss` | A rule matched, no valid object was available, and the request was forwarded upstream. |
+| `bypass` | Cache was skipped because a safety rule or request condition prevented lookup or store. |
+| `expired` | A matching entry existed but was expired, so the request was forwarded upstream. |
+| `stored` | A complete upstream response was committed to cache. |
+| `store_failed` | p2pstream attempted to capture a miss response but did not commit it. |
 
 ## Storage settings
 

@@ -153,6 +153,28 @@
   line-height: 1.55;
 }
 
+.screenshot-gallery {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin: 24px 0;
+}
+
+.screenshot-tile {
+  margin: 0;
+}
+
+.screenshot-tile img {
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.screenshot-tile figcaption {
+  color: var(--vp-c-text-1);
+  font-weight: 700;
+}
+
 .doc-screenshot img,
 .architecture-frame img {
   cursor: zoom-in;

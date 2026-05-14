@@ -34,6 +34,7 @@ export default defineConfig({
     },
     nav: [
       { text: "Guide", link: "/getting-started/quickstart" },
+      { text: "Screenshots", link: "/reference/screenshots" },
       { text: "Concepts", link: "/concepts/architecture" },
       { text: "Operations", link: "/operations/security-hardening" },
       { text: "Reference", link: "/reference/configuration" },
@@ -60,6 +61,7 @@ export default defineConfig({
           { text: "TLS", link: "/concepts/tls" },
           { text: "Limits and Shaping", link: "/concepts/limits-and-shaping" },
           { text: "WAF", link: "/concepts/waf" },
+          { text: "Public Asset Cache", link: "/concepts/cache" },
           { text: "Observability", link: "/concepts/observability" }
         ]
       },
@@ -101,6 +103,7 @@ export default defineConfig({
           { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "Rate Limits", link: "/reference/rate-limits" },
           { text: "WAF", link: "/reference/waf" },
+          { text: "Cache", link: "/reference/cache" },
           { text: "Traffic Shaping", link: "/reference/traffic-shaping" }
         ]
       }

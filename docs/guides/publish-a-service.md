@@ -91,3 +91,5 @@ curl -I https://app.example.com
 ```
 
 Check **Overview** for request count and status class. If the request fails, open **Traffic**, enable tracing, and retry the request.
+
+For frontend assets such as CSS, JavaScript, images, and fonts, configure public asset caching under **Traffic Policy -> Cache**. Logged-in browsers often send cookies with asset requests; enable cookie-tolerant caching only on precise public asset rules such as hashed build paths. See [Public Asset Cache](../concepts/cache.md).
