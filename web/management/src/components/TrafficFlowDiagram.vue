@@ -64,6 +64,11 @@ type AgentNodeStatus = {
   state: "connected" | "offline" | "disabled" | "unknown";
   label: string;
 };
+export type CacheNodeTone = "hit" | "miss" | "bypass" | "stored" | "lookup" | "neutral";
+type CacheNodeStatus = {
+  label: string;
+  tone: CacheNodeTone;
+};
 
 export type TrafficNodeData = {
   label: string;
@@ -71,6 +76,7 @@ export type TrafficNodeData = {
   kind: TrafficNodeKind;
   editTargets: TrafficFlowEditTarget[];
   agentStatus?: AgentNodeStatus;
+  cacheStatus?: CacheNodeStatus;
 };
 
 type DiagramNode = TrafficNodeData & {
@@ -113,6 +119,7 @@ type Bounds = {
   bottom: number;
 };
 type VisualTokenStatus = "in-flight" | "success" | "client-error" | "server-error" | "failed";
+type VisualTokenCacheTone = "hit" | "miss" | "bypass" | "stored" | "";
 
 type VisualToken = {
   requestId: string;
@@ -127,7 +134,12 @@ type VisualToken = {
   durationMs: number;
   finishedAt: number | null;
   status: VisualTokenStatus;
+  cacheTone: VisualTokenCacheTone;
   skipped: boolean;
+};
+type CacheStorePulse = {
+  requestId: string;
+  startedAt: number;
 };
 
 const props = withDefaults(
@@ -148,7 +160,7 @@ const emit = defineEmits<{
 
 const NODE_WIDTH = 152;
 const NODE_HEIGHT = 58;
-const COLUMN_X = [0, 190, 380, 570, 760, 950, 1140, 1330, 1520, 1710];
+const COLUMN_X = [0, 190, 380, 570, 760, 950, 1140, 1330, 1520, 1710, 1900];
 const ROW_GAP = 92;
 const MIN_CENTER_Y = 92;
 const FLOW_ID = "traffic-flow-diagram";
@@ -171,6 +183,8 @@ const FRAME_RECOVERY_MS = 20;
 const FRAME_RECOVERY_COUNT = 12;
 const COMPLETION_HOLD_MS = 2000;
 const COMPLETION_FADE_MS = 650;
+const CACHE_PROXIMITY_PX = 40;
+const CACHE_STORE_PULSE_MS = 900;
 
 const nodeTypes: NodeTypesObject = {
   traffic: markRaw(TrafficFlowNode),
@@ -184,10 +198,12 @@ const configIndex = computed(() => createTrafficFlowConfigIndex(props.config));
 const requestPathCache = new TrafficRequestPathCache();
 const tokenMotionPlanCache = new Map<string, MotionPlan>();
 const visualTokens = ref<VisualToken[]>([]);
+const cacheStorePulses = ref<CacheStorePulse[]>([]);
 const rafNow = ref(typeof performance === "undefined" ? Date.now() : performance.now());
 const skippedVisualizations = ref(0);
 const isAnimationStressed = ref(false);
 const seenRequestIds = new Set<string>();
+const seenCacheStorePulseRequestIds = new Set<string>();
 let rafId: number | null = null;
 let didInitialFit = false;
 let previousFrameAt: number | null = null;
@@ -207,6 +223,7 @@ const layout = computed(() => {
       ...existing,
       editTargets: dedupeEditTargets([...existing.editTargets, ...(node.editTargets ?? [])]),
       agentStatus: mergeAgentStatus(existing.agentStatus, node.agentStatus),
+      cacheStatus: mergeCacheStatus(existing.cacheStatus, node.cacheStatus),
     });
   };
   const addEdge = (from: string, to: string, route: DiagramEdgeRoute = "default") => {
@@ -216,7 +233,7 @@ const layout = computed(() => {
   const index = configIndex.value;
 
   addNode({ key: "ingress", label: "Ingress", subLabel: "Public request", column: 0, kind: "ingress", editTargets: [] });
-  addNode({ key: "response", label: "Response", subLabel: "Client", column: 9, kind: "response", editTargets: [] });
+  addNode({ key: "response", label: "Response", subLabel: "Client", column: 10, kind: "response", editTargets: [] });
 
   const listeners = props.config?.listeners ?? [];
   const backends = props.config?.backends ?? [];
@@ -267,18 +284,18 @@ const layout = computed(() => {
       key: CACHE_KEY,
       label: "Cache",
       subLabel: enabledCacheTargets.length ? `${enabledCacheTargets.length.toString()} enabled` : "Observed",
-      column: 5,
+      column: 7,
       kind: "cache",
       editTargets: enabledCacheTargets,
+      cacheStatus: { label: "READY", tone: "neutral" },
     });
   }
 
   for (const listener of listeners) {
     const listenerNodeKey = listenerKey(listener.id);
-    const routeEntryKey = showCacheNode ? CACHE_KEY : showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
+    const routeEntryKey = showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
     const rateEntryKey = showWafNode ? WAF_KEY : listenerNodeKey;
     const shaperEntryKey = showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
-    const cacheEntryKey = showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
     addNode({
       key: listenerNodeKey,
       label: listener.name || `Listener ${listener.id.toString()}`,
@@ -296,9 +313,6 @@ const layout = computed(() => {
     }
     if (showTrafficShaperNode) {
       addEdge(shaperEntryKey, TRAFFIC_SHAPER_KEY);
-    }
-    if (showCacheNode) {
-      addEdge(cacheEntryKey, CACHE_KEY);
     }
 
     addNode({
@@ -377,24 +391,41 @@ const layout = computed(() => {
             key: agentNodeKey,
             label: agent?.name || `Agent ${assignment.agentId.toString()}`,
             subLabel: agent?.publicId || `x${assignment.weight.toString()}`,
-            column: 7,
+            column: 8,
             kind: "agent",
             agentStatus: agentNodeStatus(agent),
             editTargets: [agentEditTarget(assignment.agentId, agent?.name || `Agent ${assignment.agentId.toString()}`, agent?.publicId || "")],
           });
           addUpstreamNode(addNode, backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, "Agent pool"));
-          addEdge(key, agentNodeKey);
+          if (showCacheNode) {
+            addEdge(key, CACHE_KEY);
+            addEdge(CACHE_KEY, "response", "intermediate-bypass");
+            addEdge(CACHE_KEY, agentNodeKey);
+          } else {
+            addEdge(key, agentNodeKey);
+          }
           addEdge(agentNodeKey, "upstream");
           addEdge("upstream", "response");
         }
       } else {
-        addEdge(key, "response", "agent-bypass");
+        if (showCacheNode) {
+          addEdge(key, CACHE_KEY);
+          addEdge(CACHE_KEY, "response", "agent-bypass");
+        } else {
+          addEdge(key, "response", "agent-bypass");
+        }
       }
       continue;
     }
 
     addUpstreamNode(addNode, backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, "Direct"));
-    addEdge(key, "upstream", "agent-bypass");
+    if (showCacheNode) {
+      addEdge(key, CACHE_KEY);
+      addEdge(CACHE_KEY, "response", "intermediate-bypass");
+      addEdge(CACHE_KEY, "upstream", "agent-bypass");
+    } else {
+      addEdge(key, "upstream", "agent-bypass");
+    }
     addEdge("upstream", "response");
   }
 
@@ -447,6 +478,27 @@ const layout = computed(() => {
   return { nodes: positioned, nodeByKey, edges: uniqueEdges };
 });
 
+const activeCacheStatus = computed<CacheNodeStatus | undefined>(() => {
+  const cacheNode = layout.value.nodeByKey.get(CACHE_KEY);
+  if (!cacheNode) return undefined;
+  const now = rafNow.value;
+  const candidates: CacheNodeStatus[] = [];
+  const bounds = nodeBounds(cacheNode);
+  const expandedBounds = {
+    left: bounds.left - CACHE_PROXIMITY_PX,
+    right: bounds.right + CACHE_PROXIMITY_PX,
+    top: bounds.top - CACHE_PROXIMITY_PX,
+    bottom: bounds.bottom + CACHE_PROXIMITY_PX,
+  };
+  for (const token of visualTokens.value) {
+    if (!token.cacheTone || !token.path.includes(CACHE_KEY)) continue;
+    const point = tokenPoint(token, now);
+    if (!point || !pointInsideBounds(point, expandedBounds)) continue;
+    candidates.push(cacheStatusForTone(token.cacheTone));
+  }
+  return candidates.sort((a, b) => cacheTonePriority(b.tone) - cacheTonePriority(a.tone))[0];
+});
+
 const flowNodes = computed<Node<TrafficNodeData>[]>(() =>
   layout.value.nodes.map((node) => ({
     id: node.key,
@@ -466,6 +518,7 @@ const flowNodes = computed<Node<TrafficNodeData>[]>(() =>
       kind: node.kind,
       editTargets: node.editTargets,
       agentStatus: node.agentStatus,
+      cacheStatus: node.kind === "cache" ? activeCacheStatus.value ?? node.cacheStatus : node.cacheStatus,
     },
   })),
 );
@@ -564,12 +617,37 @@ const tokenViews = computed(() => {
         token,
         x: point.x * transform.zoom + transform.x,
         y: point.y * transform.zoom + transform.y,
-        colorClass: tokenColorClass(token.status),
+        colorClass: tokenColorClass(token),
         label: token.label,
         opacity: tokenOpacity(token, now),
+        nearCache: isTokenNearCache(token, point),
       };
     })
     .filter((token): token is NonNullable<typeof token> => token !== null);
+});
+
+const cacheStorePulseViews = computed(() => {
+  if (isAnimationStressed.value) return [];
+  const cacheNode = layout.value.nodeByKey.get(CACHE_KEY);
+  if (!cacheNode) return [];
+  const transform = viewport.value;
+  const center = {
+    x: (cacheNode.x + NODE_WIDTH / 2) * transform.zoom + transform.x,
+    y: (cacheNode.y + NODE_HEIGHT / 2) * transform.zoom + transform.y,
+  };
+  const now = rafNow.value;
+  return cacheStorePulses.value
+    .map((pulse) => {
+      const age = now - pulse.startedAt;
+      if (age < 0 || age > CACHE_STORE_PULSE_MS) return null;
+      return {
+        id: pulse.requestId,
+        x: center.x,
+        y: center.y,
+        opacity: clamp(1 - age / CACHE_STORE_PULSE_MS, 0, 1),
+      };
+    })
+    .filter((view): view is NonNullable<typeof view> => view !== null);
 });
 
 watch(
@@ -660,11 +738,17 @@ function syncTokens() {
   for (const token of visualTokens.value) {
     const request = requestById.get(token.requestId);
     if (!request) continue;
+    if (maybeEnqueueCacheStorePulse(request)) {
+      changed = true;
+    }
     updateToken(token, request);
   }
 
   const oldestFirst = [...props.requests].reverse();
   for (const request of oldestFirst) {
+    if (maybeEnqueueCacheStorePulse(request)) {
+      changed = true;
+    }
     if (seenRequestIds.has(request.requestId)) continue;
     seenRequestIds.add(request.requestId);
 
@@ -684,8 +768,10 @@ function syncTokens() {
 
 function resetVisualPlayback(seedCurrentRequests: boolean) {
   visualTokens.value = [];
+  cacheStorePulses.value = [];
   skippedVisualizations.value = 0;
   seenRequestIds.clear();
+  seenCacheStorePulseRequestIds.clear();
   if (seedCurrentRequests) {
     seedCurrentRequestsAsSeen();
   }
@@ -701,6 +787,10 @@ function pruneSeenRequests(requestById: Map<string, TraceRequest>) {
   for (const requestId of seenRequestIds) {
     if (requestById.has(requestId) || animatedRequestIds.has(requestId)) continue;
     seenRequestIds.delete(requestId);
+  }
+  for (const requestId of seenCacheStorePulseRequestIds) {
+    if (requestById.has(requestId) || animatedRequestIds.has(requestId)) continue;
+    seenCacheStorePulseRequestIds.delete(requestId);
   }
 }
 
@@ -722,6 +812,7 @@ function createToken(request: TraceRequest): VisualToken {
     durationMs,
     finishedAt: null,
     status: statusForRequest(request),
+    cacheTone: cacheToneForRequest(request),
     skipped: false,
   };
 }
@@ -738,6 +829,23 @@ function updateToken(token: VisualToken, request: TraceRequest) {
   token.targetDistance = motionPlan.targetLength;
   token.durationMs = Math.max(token.durationMs, playbackDuration(token.path.length - 1, visualTokens.value.length));
   token.status = statusForRequest(request);
+  token.cacheTone = cacheToneForRequest(request);
+}
+
+function maybeEnqueueCacheStorePulse(request: TraceRequest): boolean {
+  if (cacheToneForRequest(request) !== "stored") return false;
+  if (!cachedRequestPath(request).path.includes(CACHE_KEY)) return false;
+  if (seenCacheStorePulseRequestIds.has(request.requestId)) return false;
+  seenCacheStorePulseRequestIds.add(request.requestId);
+  cacheStorePulses.value.push({ requestId: request.requestId, startedAt: nowMs() });
+  return true;
+}
+
+function pruneCacheStorePulses(now: number) {
+  const active = cacheStorePulses.value.filter((pulse) => now - pulse.startedAt <= CACHE_STORE_PULSE_MS);
+  if (active.length !== cacheStorePulses.value.length) {
+    cacheStorePulses.value = active;
+  }
 }
 
 function startAnimationLoop() {
@@ -759,6 +867,7 @@ function tick(now: number) {
   for (const token of visualTokens.value) {
     advanceToken(token, now);
   }
+  pruneCacheStorePulses(now);
 
   const activeTokens = visualTokens.value.filter((token) => {
     if (token.finishedAt === null) return true;
@@ -775,7 +884,7 @@ function tick(now: number) {
     changed = true;
   }
 
-  if (visualTokens.value.length) {
+  if (visualTokens.value.length || cacheStorePulses.value.length) {
     rafId = window.requestAnimationFrame(tick);
   } else {
     rafId = null;
@@ -892,6 +1001,7 @@ function seedCurrentRequestsAsSeen() {
 function handleVisibilityChange() {
   if (document.hidden) {
     visualTokens.value = [];
+    cacheStorePulses.value = [];
     seedCurrentRequestsAsSeen();
     stopAnimationLoop();
     emit("active-change", 0);
@@ -909,8 +1019,11 @@ function routeForRequestSegment(request: TraceRequest, from: string, to: string)
   if (from.startsWith("redirect:") && to === "response") return "intermediate-bypass";
   if (from === RATE_LIMIT_KEY && to === "response") return "intermediate-bypass";
   if (from === TRAFFIC_SHAPER_KEY && to === "response") return "intermediate-bypass";
+  if (from === CACHE_KEY && to === "response") return "intermediate-bypass";
+  if (from === CACHE_KEY && to === "upstream") return "agent-bypass";
   const backendNode = request.backendId > 0n ? backendKey(request.backendId) : "";
   if (from !== backendNode) return "default";
+  if (to === CACHE_KEY) return "default";
   if (request.agentId > 0n) return "default";
   if (to === "static-response" || to === "upstream" || to === "response") return "agent-bypass";
   return "default";
@@ -1211,8 +1324,9 @@ function addObservedNodes(
       key: CACHE_KEY,
       label: "Cache",
       subLabel: request.cacheRuleName || request.cacheStatus || "Observed",
-      column: 5,
+      column: 7,
       kind: "cache",
+      cacheStatus: cacheStatusForRequest(request),
       editTargets: request.cacheRuleId > 0n
         ? [cacheEditTarget(request.cacheRuleId, request.cacheRuleName || `Cache ${request.cacheRuleId.toString()}`, request.cacheStatus || "Observed")]
         : index.enabledCacheTargets,
@@ -1279,7 +1393,7 @@ function addObservedNodes(
       key: agentKey(request.agentId),
       label: request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`,
       subLabel: request.agentPublicId || "Observed",
-      column: 7,
+      column: 8,
       kind: "agent",
       agentStatus: agentNodeStatus(agent),
       editTargets: [agentEditTarget(request.agentId, request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`, request.agentPublicId || "Observed")],
@@ -1289,11 +1403,11 @@ function addObservedNodes(
 }
 
 function addStaticNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
-  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 8, kind: "upstream", editTargets: target ? [target] : [] });
+  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 9, kind: "upstream", editTargets: target ? [target] : [] });
 }
 
 function addUpstreamNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
-  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 8, kind: "upstream", editTargets: target ? [target] : [] });
+  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 9, kind: "upstream", editTargets: target ? [target] : [] });
 }
 
 function addRedirectNode(route: PublicRoute, addNode: (node: DiagramNodeInput) => void) {
@@ -1360,6 +1474,12 @@ function mergeAgentStatus(existing: AgentNodeStatus | undefined, next: AgentNode
   return existing;
 }
 
+function mergeCacheStatus(existing: CacheNodeStatus | undefined, next: CacheNodeStatus | undefined): CacheNodeStatus | undefined {
+  if (!existing) return next;
+  if (!next) return existing;
+  return cacheTonePriority(next.tone) > cacheTonePriority(existing.tone) ? next : existing;
+}
+
 function playbackDuration(hopCount: number, activeTokens: number): number {
   const raw = BASE_PLAYBACK_MS + Math.max(1, hopCount) * PER_HOP_MS;
   if (activeTokens < LOW_BURST_THRESHOLD) return clamp(raw, 2500, MAX_PLAYBACK_MS);
@@ -1376,8 +1496,63 @@ function statusForRequest(request: TraceRequest): VisualTokenStatus {
   return "in-flight";
 }
 
-function tokenColorClass(status: VisualTokenStatus): string {
-  return `traffic-token-${status}`;
+function cacheToneForRequest(request: TraceRequest): VisualTokenCacheTone {
+  const status = request.cacheStatus.toLowerCase();
+  if (status === "hit" || request.stage === TrafficTraceStage.CACHE_HIT) return "hit";
+  if (status === "miss" || request.stage === TrafficTraceStage.CACHE_MISS) return "miss";
+  if (status === "bypass" || request.stage === TrafficTraceStage.CACHE_BYPASS) return "bypass";
+  if (status === "stored" || request.stage === TrafficTraceStage.CACHE_STORED) return "stored";
+  return "";
+}
+
+function cacheStatusForTone(tone: Exclude<VisualTokenCacheTone, ""> | CacheNodeTone): CacheNodeStatus {
+  switch (tone) {
+    case "hit": return { label: "HIT", tone: "hit" };
+    case "miss": return { label: "MISS", tone: "miss" };
+    case "bypass": return { label: "BYPASS", tone: "bypass" };
+    case "stored": return { label: "STORED", tone: "stored" };
+    case "lookup": return { label: "LOOKUP", tone: "lookup" };
+    default: return { label: "READY", tone: "neutral" };
+  }
+}
+
+function cacheStatusForRequest(request: TraceRequest): CacheNodeStatus {
+  return cacheStatusForTone(cacheToneForRequest(request) || "lookup");
+}
+
+function cacheTonePriority(tone: CacheNodeTone): number {
+  switch (tone) {
+    case "hit": return 6;
+    case "stored": return 5;
+    case "miss": return 4;
+    case "bypass": return 3;
+    case "lookup": return 2;
+    default: return 1;
+  }
+}
+
+function tokenColorClass(token: VisualToken): string {
+  if (token.status === "client-error" || token.status === "server-error" || token.status === "failed") {
+    return `traffic-token-${token.status}`;
+  }
+  return token.cacheTone ? `traffic-token-cache-${token.cacheTone}` : `traffic-token-${token.status}`;
+}
+
+function isTokenNearCache(token: VisualToken, point: Point): boolean {
+  if (!token.cacheTone || !token.path.includes(CACHE_KEY)) return false;
+  const cacheNode = layout.value.nodeByKey.get(CACHE_KEY);
+  if (!cacheNode) return false;
+  const bounds = nodeBounds(cacheNode);
+  return pointInsideBounds(point, {
+    left: bounds.left - CACHE_PROXIMITY_PX,
+    right: bounds.right + CACHE_PROXIMITY_PX,
+    top: bounds.top - CACHE_PROXIMITY_PX,
+    bottom: bounds.bottom + CACHE_PROXIMITY_PX,
+  });
+}
+
+function pointInsideBounds(point: Point, bounds: Bounds): boolean {
+  return point.x >= bounds.left && point.x <= bounds.right && point.y >= bounds.top && point.y <= bounds.bottom;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -1394,9 +1569,10 @@ function kindOrder(kind: TrafficNodeKind): number {
     case "route": return 5;
     case "backend": return 6;
     case "redirect": return 6;
-    case "agent": return 7;
-    case "upstream": return 8;
-    case "response": return 9;
+    case "cache": return 7;
+    case "agent": return 8;
+    case "upstream": return 9;
+    case "response": return 10;
     default: return 99;
   }
 }
@@ -1500,7 +1676,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
         :key="view.token.requestId"
         type="button"
         class="traffic-token"
-        :class="view.colorClass"
+        :class="[view.colorClass, view.nearCache ? 'traffic-token-cache-near' : '']"
         :style="{
           transform: `translate3d(${view.x}px, ${view.y}px, 0) translate(-50%, -50%)`,
           opacity: view.opacity,
@@ -1511,6 +1687,15 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
         <span class="traffic-token-halo" />
         <span class="traffic-token-dot" />
       </button>
+      <span
+        v-for="pulse in cacheStorePulseViews"
+        :key="pulse.id"
+        class="traffic-cache-store-pulse"
+        :style="{
+          transform: `translate3d(${pulse.x}px, ${pulse.y}px, 0) translate(-50%, -50%)`,
+          opacity: pulse.opacity,
+        }"
+      />
     </div>
   </div>
 </template>
@@ -1629,6 +1814,22 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   color: #22c55e;
 }
 
+.traffic-token-cache-hit {
+  color: #10b981;
+}
+
+.traffic-token-cache-miss {
+  color: #38bdf8;
+}
+
+.traffic-token-cache-bypass {
+  color: #a1a1aa;
+}
+
+.traffic-token-cache-stored {
+  color: #34d399;
+}
+
 .traffic-token-client-error {
   color: #f59e0b;
 }
@@ -1643,9 +1844,39 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   background: currentColor;
 }
 
+.traffic-token-cache-near .traffic-token-dot {
+  width: 13px;
+  height: 13px;
+}
+
+.traffic-token-cache-near .traffic-token-halo {
+  width: 34px;
+  height: 34px;
+  opacity: 0.28;
+}
+
+.traffic-cache-store-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 74px;
+  height: 74px;
+  border: 1px solid rgb(52 211 153 / 85%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(52 211 153 / 24%) 0%, rgb(52 211 153 / 8%) 44%, transparent 68%);
+  box-shadow: 0 0 28px rgb(52 211 153 / 22%);
+  pointer-events: none;
+  animation: cache-store-pulse 900ms ease-out both;
+  will-change: transform, opacity;
+}
+
 .traffic-flow-stressed .traffic-token-halo {
   animation: none;
   opacity: 0.08;
+}
+
+.traffic-flow-stressed .traffic-cache-store-pulse {
+  display: none;
 }
 
 :deep(.vue-flow__pane) {
@@ -1692,6 +1923,19 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   }
 }
 
+@keyframes cache-store-pulse {
+  0% {
+    width: 30px;
+    height: 30px;
+    border-color: rgb(52 211 153 / 100%);
+  }
+  100% {
+    width: 78px;
+    height: 78px;
+    border-color: rgb(52 211 153 / 0%);
+  }
+}
+
 @media (max-width: 640px) {
   .traffic-flow-shell {
     height: 420px;
@@ -1710,6 +1954,10 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
 
   :deep(.vue-flow__edge.animated .vue-flow__edge-path) {
     animation: none;
+  }
+
+  .traffic-cache-store-pulse {
+    display: none;
   }
 }
 </style>

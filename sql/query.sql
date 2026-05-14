@@ -1038,14 +1038,14 @@ RETURNING id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_b
 -- name: ListPublicCacheRules :many
 SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-       add_cache_status_header, created_at, updated_at
+       add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
 ORDER BY priority ASC, id ASC;
 
 -- name: GetPublicCacheRule :one
 SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-       add_cache_status_header, created_at, updated_at
+       add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
 WHERE id = ?;
 
@@ -1065,13 +1065,14 @@ INSERT INTO public_cache_rules (
     vary_headers_json,
     cache_status_codes_json,
     max_object_bytes,
-    add_cache_status_header
+    add_cache_status_header,
+    allow_cookie_requests
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-          add_cache_status_header, created_at, updated_at;
+          add_cache_status_header, allow_cookie_requests, created_at, updated_at;
 
 -- name: UpdatePublicCacheRule :one
 UPDATE public_cache_rules
@@ -1090,11 +1091,12 @@ SET name = ?,
     cache_status_codes_json = ?,
     max_object_bytes = ?,
     add_cache_status_header = ?,
+    allow_cookie_requests = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-          add_cache_status_header, created_at, updated_at;
+          add_cache_status_header, allow_cookie_requests, created_at, updated_at;
 
 -- name: DeletePublicCacheRule :exec
 DELETE FROM public_cache_rules

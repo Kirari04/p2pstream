@@ -4602,6 +4602,7 @@ type PublicCacheRule struct {
 	AddCacheStatusHeader bool                   `protobuf:"varint,16,opt,name=add_cache_status_header,json=addCacheStatusHeader,proto3" json:"add_cache_status_header,omitempty"`
 	CreatedAtUnixMillis  int64                  `protobuf:"varint,17,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
 	UpdatedAtUnixMillis  int64                  `protobuf:"varint,18,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	AllowCookieRequests  bool                   `protobuf:"varint,19,opt,name=allow_cookie_requests,json=allowCookieRequests,proto3" json:"allow_cookie_requests,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -4760,6 +4761,13 @@ func (x *PublicCacheRule) GetUpdatedAtUnixMillis() int64 {
 		return x.UpdatedAtUnixMillis
 	}
 	return 0
+}
+
+func (x *PublicCacheRule) GetAllowCookieRequests() bool {
+	if x != nil {
+		return x.AllowCookieRequests
+	}
+	return false
 }
 
 type PublicListenerStatus struct {
@@ -9795,6 +9803,7 @@ type CreatePublicCacheRuleRequest struct {
 	CacheStatusCodes     []int64                `protobuf:"varint,13,rep,packed,name=cache_status_codes,json=cacheStatusCodes,proto3" json:"cache_status_codes,omitempty"`
 	MaxObjectBytes       int64                  `protobuf:"varint,14,opt,name=max_object_bytes,json=maxObjectBytes,proto3" json:"max_object_bytes,omitempty"`
 	AddCacheStatusHeader bool                   `protobuf:"varint,15,opt,name=add_cache_status_header,json=addCacheStatusHeader,proto3" json:"add_cache_status_header,omitempty"`
+	AllowCookieRequests  bool                   `protobuf:"varint,16,opt,name=allow_cookie_requests,json=allowCookieRequests,proto3" json:"allow_cookie_requests,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -9934,6 +9943,13 @@ func (x *CreatePublicCacheRuleRequest) GetAddCacheStatusHeader() bool {
 	return false
 }
 
+func (x *CreatePublicCacheRuleRequest) GetAllowCookieRequests() bool {
+	if x != nil {
+		return x.AllowCookieRequests
+	}
+	return false
+}
+
 type CreatePublicCacheRuleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rule          *PublicCacheRule       `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
@@ -9996,6 +10012,7 @@ type UpdatePublicCacheRuleRequest struct {
 	CacheStatusCodes     []int64                `protobuf:"varint,14,rep,packed,name=cache_status_codes,json=cacheStatusCodes,proto3" json:"cache_status_codes,omitempty"`
 	MaxObjectBytes       int64                  `protobuf:"varint,15,opt,name=max_object_bytes,json=maxObjectBytes,proto3" json:"max_object_bytes,omitempty"`
 	AddCacheStatusHeader bool                   `protobuf:"varint,16,opt,name=add_cache_status_header,json=addCacheStatusHeader,proto3" json:"add_cache_status_header,omitempty"`
+	AllowCookieRequests  bool                   `protobuf:"varint,17,opt,name=allow_cookie_requests,json=allowCookieRequests,proto3" json:"allow_cookie_requests,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -10138,6 +10155,13 @@ func (x *UpdatePublicCacheRuleRequest) GetMaxObjectBytes() int64 {
 func (x *UpdatePublicCacheRuleRequest) GetAddCacheStatusHeader() bool {
 	if x != nil {
 		return x.AddCacheStatusHeader
+	}
+	return false
+}
+
+func (x *UpdatePublicCacheRuleRequest) GetAllowCookieRequests() bool {
+	if x != nil {
+		return x.AllowCookieRequests
 	}
 	return false
 }
@@ -13091,7 +13115,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"maxEntries\x126\n" +
 	"\x17cleanup_interval_millis\x18\x06 \x01(\x03R\x15cleanupIntervalMillis\x123\n" +
 	"\x16created_at_unix_millis\x18\a \x01(\x03R\x13createdAtUnixMillis\x123\n" +
-	"\x16updated_at_unix_millis\x18\b \x01(\x03R\x13updatedAtUnixMillis\"\xf7\x05\n" +
+	"\x16updated_at_unix_millis\x18\b \x01(\x03R\x13updatedAtUnixMillis\"\xab\x06\n" +
 	"\x0fPublicCacheRule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -13114,7 +13138,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x10max_object_bytes\x18\x0f \x01(\x03R\x0emaxObjectBytes\x125\n" +
 	"\x17add_cache_status_header\x18\x10 \x01(\bR\x14addCacheStatusHeader\x123\n" +
 	"\x16created_at_unix_millis\x18\x11 \x01(\x03R\x13createdAtUnixMillis\x123\n" +
-	"\x16updated_at_unix_millis\x18\x12 \x01(\x03R\x13updatedAtUnixMillis\"\xcb\x02\n" +
+	"\x16updated_at_unix_millis\x18\x12 \x01(\x03R\x13updatedAtUnixMillis\x122\n" +
+	"\x15allow_cookie_requests\x18\x13 \x01(\bR\x13allowCookieRequests\"\xcb\x02\n" +
 	"\x14PublicListenerStatus\x12\x1f\n" +
 	"\vlistener_id\x18\x01 \x01(\x03R\n" +
 	"listenerId\x12.\n" +
@@ -13512,7 +13537,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x04rule\x18\x01 \x01(\v2\x1b.p2pstream.v1.PublicWafRuleR\x04rule\",\n" +
 	"\x1aDeletePublicWafRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1d\n" +
-	"\x1bDeletePublicWafRuleResponse\"\x8a\x05\n" +
+	"\x1bDeletePublicWafRuleResponse\"\xbe\x05\n" +
 	"\x1cCreatePublicCacheRuleRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bpriority\x18\x02 \x01(\x03R\bpriority\x12\x18\n" +
@@ -13532,9 +13557,10 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\fvary_headers\x18\f \x03(\tR\vvaryHeaders\x12,\n" +
 	"\x12cache_status_codes\x18\r \x03(\x03R\x10cacheStatusCodes\x12(\n" +
 	"\x10max_object_bytes\x18\x0e \x01(\x03R\x0emaxObjectBytes\x125\n" +
-	"\x17add_cache_status_header\x18\x0f \x01(\bR\x14addCacheStatusHeader\"R\n" +
+	"\x17add_cache_status_header\x18\x0f \x01(\bR\x14addCacheStatusHeader\x122\n" +
+	"\x15allow_cookie_requests\x18\x10 \x01(\bR\x13allowCookieRequests\"R\n" +
 	"\x1dCreatePublicCacheRuleResponse\x121\n" +
-	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicCacheRuleR\x04rule\"\x9a\x05\n" +
+	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicCacheRuleR\x04rule\"\xce\x05\n" +
 	"\x1cUpdatePublicCacheRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -13555,7 +13581,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\fvary_headers\x18\r \x03(\tR\vvaryHeaders\x12,\n" +
 	"\x12cache_status_codes\x18\x0e \x03(\x03R\x10cacheStatusCodes\x12(\n" +
 	"\x10max_object_bytes\x18\x0f \x01(\x03R\x0emaxObjectBytes\x125\n" +
-	"\x17add_cache_status_header\x18\x10 \x01(\bR\x14addCacheStatusHeader\"R\n" +
+	"\x17add_cache_status_header\x18\x10 \x01(\bR\x14addCacheStatusHeader\x122\n" +
+	"\x15allow_cookie_requests\x18\x11 \x01(\bR\x13allowCookieRequests\"R\n" +
 	"\x1dUpdatePublicCacheRuleResponse\x121\n" +
 	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicCacheRuleR\x04rule\".\n" +
 	"\x1cDeletePublicCacheRuleRequest\x12\x0e\n" +

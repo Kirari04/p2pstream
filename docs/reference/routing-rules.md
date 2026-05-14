@@ -48,7 +48,7 @@ When backend health checks are enabled, connection and timeout failures mark the
 
 Proxy-forward backends also have a configurable upstream response-header timeout. The default is `60000` milliseconds. Direct backends wait for response headers from the p2pstream server, while agent-pool backends wait from the selected agent. This timeout is separate from the backend health-check timeout and does not limit response streaming after headers arrive.
 
-After a route and backend are selected, cache rules may serve eligible proxy-forward `GET` or `HEAD` requests from the public asset cache. Cache hits still happen after WAF, rate limits, and traffic shaping, and requests with `Cookie` or `Authorization` are always bypassed.
+After a route and backend are selected, cache rules may serve eligible proxy-forward `GET` or `HEAD` requests from the public asset cache. Cache hits still happen after WAF, rate limits, and traffic shaping. `Authorization` requests always bypass cache, while cookie-bearing requests bypass by default unless the matching cache rule explicitly allows them.
 
 Redirect routes require:
 

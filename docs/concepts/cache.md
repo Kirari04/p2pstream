@@ -9,11 +9,12 @@ The cache is designed for public static assets such as CSS, JavaScript, images, 
 Requests are never cached when they include:
 
 - `Authorization`,
-- `Cookie`,
 - a request body,
 - `Range`,
 - WebSocket or other upgrade headers,
 - methods other than `GET` or `HEAD`.
+
+Requests with `Cookie` bypass cache by default. A cache rule can explicitly enable `allow_cookie_requests` for precise public asset matches, such as hashed JavaScript, CSS, images, or fonts. Cookie values are ignored for the cache key and are never stored.
 
 Responses are never cached when they include:
 
@@ -22,6 +23,8 @@ Responses are never cached when they include:
 - `Cache-Control: private`,
 - `Cache-Control: no-cache`,
 - `Vary: *`,
+- `Vary: Cookie`,
+- `Vary: Authorization`,
 - a status code not allowed by the rule,
 - a body larger than the rule maximum object size.
 
@@ -42,6 +45,8 @@ Rules can match method, listener protocol, host pattern, path prefix, path suffi
 .svg
 .woff2
 ```
+
+For Nuxt or similar hashed build assets, a typical rule uses the public host, path prefix `/_nuxt/`, suffixes such as `.js`, `.css`, `.png`, `.webp`, `.svg`, and `.woff2`, and `allow_cookie_requests` enabled. Use origin TTL when the upstream already sends long-lived cache headers, or a fixed TTL such as one hour.
 
 ## TTL modes
 

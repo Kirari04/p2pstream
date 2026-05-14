@@ -382,6 +382,7 @@ async function deleteTrafficShaperRule(id: bigint) {
               <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
               <Tag :value="cacheTtlModeLabel(rule.ttlMode)" severity="info" />
               <Tag :value="cacheScopeLabel(rule.scope)" severity="info" />
+              <Tag v-if="rule.allowCookieRequests" value="Cookie requests" severity="warn" />
               <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
               <Tag :value="`P${rule.priority.toString()}`" severity="info" />
             </div>
@@ -400,7 +401,7 @@ async function deleteTrafficShaperRule(id: bigint) {
         <EmptyState
           v-if="!cacheRules.length"
           title="No cache rules configured"
-          description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Cookie and Authorization requests are always bypassed."
+          description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Authorization requests are always bypassed; cookie requests require an explicit rule opt-in."
           action-label="Add Rule"
           @action="openAddCacheRuleModal"
         />

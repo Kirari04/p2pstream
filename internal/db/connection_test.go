@@ -90,6 +90,20 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		cacheSettings.CleanupIntervalMillis != 60000 {
 		t.Fatalf("unexpected cache settings defaults: %+v", cacheSettings)
 	}
+	cacheRuleColumns := tableColumns(t, database, "public_cache_rules")
+	if !containsString(cacheRuleColumns, "allow_cookie_requests") {
+		t.Fatalf("public_cache_rules missing allow_cookie_requests in %v", cacheRuleColumns)
+	}
+	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_cache_rules (name) VALUES ('cache-default')`); err != nil {
+		t.Fatalf("insert cache rule defaults: %v", err)
+	}
+	var allowCookieRequests int64
+	if err := database.QueryRowContext(context.Background(), `SELECT allow_cookie_requests FROM public_cache_rules WHERE name = 'cache-default'`).Scan(&allowCookieRequests); err != nil {
+		t.Fatalf("read cache rule allow_cookie_requests default: %v", err)
+	}
+	if allowCookieRequests != 0 {
+		t.Fatalf("cache rule allow_cookie_requests default = %d, want 0", allowCookieRequests)
+	}
 
 	backendColumns := tableColumns(t, database, "public_backends")
 	for _, column := range []string{"forward_mode", "load_balancing", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password", "upstream_response_header_timeout_millis"} {
@@ -183,6 +197,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 		"agent_stats":          {"agent_id", "req_internal_error", "cpu_percent"},
 		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes"},
 		"public_backends":      {"backend_type", "forward_mode", "load_balancing", "tls_skip_verify", "static_status_code", "static_response_body", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"},
+		"public_cache_rules":   {"allow_cookie_requests"},
 	} {
 		got := tableColumns(t, database, table)
 		for _, column := range columns {

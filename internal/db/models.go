@@ -160,6 +160,7 @@ type PublicCacheRule struct {
 	CacheStatusCodesJson string    `json:"cache_status_codes_json"`
 	MaxObjectBytes       int64     `json:"max_object_bytes"`
 	AddCacheStatusHeader int64     `json:"add_cache_status_header"`
+	AllowCookieRequests  int64     `json:"allow_cookie_requests"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }

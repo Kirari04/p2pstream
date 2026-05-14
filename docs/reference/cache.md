@@ -35,12 +35,15 @@ Cache hits still consume rate-limit buckets and still use traffic shaping. They 
 | `cache_status_codes` | Statuses that may be stored. Default `200`, `203`, `204`, `301`, `308`. |
 | `max_object_bytes` | Maximum stored response size. Default `104857600`. |
 | `add_cache_status_header` | Adds `X-p2pstream-Cache: HIT` or `MISS`. |
+| `allow_cookie_requests` | Allows matching requests with `Cookie` headers to use the cache. Default `false`. |
 
 ## Safe bypasses
 
-p2pstream always bypasses cache for requests with `Authorization` or `Cookie`. It also bypasses non-GET/HEAD methods, request bodies, `Range`, and upgrades.
+p2pstream always bypasses cache for requests with `Authorization`. It also bypasses non-GET/HEAD methods, request bodies, `Range`, and upgrades.
 
-p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, disallowed status codes, or bodies larger than the rule limit.
+Requests with `Cookie` bypass by default unless the matching rule enables `allow_cookie_requests`. Use that only for precise public static asset rules. Cookie values are ignored for cache keys and are never stored.
+
+p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
 
 ## TTL
 
@@ -52,7 +55,7 @@ Origin TTL reads `s-maxage`, then `max-age`, then `Expires`. If no usable origin
 
 The key includes listener protocol, normalized host, route or selected backend scope, normalized GET method for GET/HEAD sharing, path, query string according to query mode, configured vary headers, and origin `Vary` headers.
 
-Raw cookies, authorization headers, and full cache keys are not stored in proxy event rows.
+Raw cookies, authorization headers, and full cache keys are not stored in proxy event rows. Cookies and authorization headers are never included in cache keys.
 
 ## Storage settings
 
@@ -81,6 +84,8 @@ Use a host match for the public domain, a path prefix such as `/assets/`, and su
 ```
 
 Set fixed TTL to `3600000` ms for a one-hour cache, or use origin TTL when the upstream already sends cache headers.
+
+For a Nuxt app, use a path prefix such as `/_nuxt/` with hashed asset suffixes. If logged-in browsers send cookies for those assets, enable `allow_cookie_requests` on that rule. Responses with `Set-Cookie`, private/no-store/no-cache, `Vary: Cookie`, or `Vary: Authorization` still will not be stored.
 
 ## Limitations
 

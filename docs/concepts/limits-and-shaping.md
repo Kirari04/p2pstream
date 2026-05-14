@@ -51,7 +51,7 @@ Rules can exempt the first bytes of a request or response so small requests stay
 
 ## Cache
 
-Cache rules store eligible public `GET` responses for proxy-forward backends. Requests with `Cookie` or `Authorization` are always bypassed, and responses with `Set-Cookie`, `no-store`, `private`, or `no-cache` are not stored.
+Cache rules store eligible public `GET` responses for proxy-forward backends. `Authorization` requests always bypass. Cookie requests bypass by default, but a cache rule can explicitly allow them for precise public asset matches. Responses with `Set-Cookie`, `no-store`, `private`, or `no-cache` are not stored.
 
 Cache hits still pass through WAF, rate limits, and traffic shaping. They do not bypass earlier traffic policy.
 

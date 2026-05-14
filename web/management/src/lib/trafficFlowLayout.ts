@@ -204,14 +204,6 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
     path.push(DEFAULT_ROUTE_KEY);
   }
 
-  if (requestUsesCacheNode(request, index)) {
-    path.push(CACHE_KEY);
-    if (request.stage === TraceStage.CACHE_HIT) {
-      path.push("response");
-      return dedupeConsecutive(path);
-    }
-  }
-
   const redirectNodeKey = redirectKeyForRequest(request, index);
   if (redirectNodeKey) {
     path.push(redirectNodeKey);
@@ -224,11 +216,20 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
 
     if (request.backendType === PublicBackendType.STATIC) {
       path.push("static-response");
-    } else if (request.agentId > 0n) {
-      path.push(agentKey(request.agentId));
-      path.push("upstream");
-    } else if (request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
-      path.push("upstream");
+    } else if (request.backendType === PublicBackendType.PROXY_FORWARD) {
+      if (requestUsesCacheNode(request, index)) {
+        path.push(CACHE_KEY);
+        if (request.stage === TraceStage.CACHE_HIT) {
+          path.push("response");
+          return dedupeConsecutive(path);
+        }
+      }
+      if (request.agentId > 0n) {
+        path.push(agentKey(request.agentId));
+        path.push("upstream");
+      } else if (request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
+        path.push("upstream");
+      }
     }
   }
 
@@ -237,6 +238,10 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
 }
 
 export function targetIndexForTraceRequest(request: TraceRequest, path: string[]): number {
+  if (request.stage === TraceStage.CACHE_STORED) {
+    const responseIndex = path.indexOf("response");
+    if (responseIndex >= 0) return responseIndex;
+  }
   const targetKey = nodeKeyForTraceStage(request);
   const index = path.indexOf(targetKey);
   if (index >= 0) return index;

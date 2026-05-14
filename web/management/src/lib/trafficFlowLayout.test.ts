@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   PublicBackendForwardMode,
   PublicBackendType,
+  PublicCacheQueryMode,
+  PublicCacheScope,
+  PublicCacheTtlMode,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
   PublicRouteAction,
@@ -10,11 +13,13 @@ import {
   type GetPublicProxyConfigResponse,
   type PublicBackend,
   type PublicBackendAgent,
+  type PublicCacheRule,
   type PublicRateLimitRule,
   type PublicTrafficShaperRule,
   type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
+  CACHE_KEY,
   TrafficRequestPathCache,
   agentKey,
   backendKey,
@@ -23,6 +28,7 @@ import {
   listenerKey,
   redirectKey,
   routeKey,
+  targetIndexForTraceRequest,
 } from "@/lib/trafficFlowLayout";
 import { DEFAULT_ROUTE_KEY, RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY } from "@/lib/trafficFlowLayout";
 import { newTraceRequest } from "@/lib/trafficTraceStore";
@@ -144,6 +150,146 @@ describe("trafficFlowLayout", () => {
     ]);
   });
 
+  test("cache hit path exits directly to response", () => {
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      backendId: 2n,
+      backendType: PublicBackendType.PROXY_FORWARD,
+      forwardMode: PublicBackendForwardMode.DIRECT,
+      cacheRuleId: 4n,
+      cacheStatus: "hit",
+      stage: TrafficTraceStage.CACHE_HIT,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, emptyIndex())).toEqual([
+      "ingress",
+      listenerKey(1n),
+      routeKey(3n),
+      backendKey(2n),
+      CACHE_KEY,
+      "response",
+    ]);
+  });
+
+  test("cache miss path continues to direct upstream", () => {
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      backendId: 2n,
+      backendType: PublicBackendType.PROXY_FORWARD,
+      forwardMode: PublicBackendForwardMode.DIRECT,
+      cacheRuleId: 4n,
+      cacheStatus: "miss",
+      stage: TrafficTraceStage.CACHE_MISS,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, emptyIndex())).toEqual([
+      "ingress",
+      listenerKey(1n),
+      routeKey(3n),
+      backendKey(2n),
+      CACHE_KEY,
+      "upstream",
+      "response",
+    ]);
+  });
+
+  test("cache bypass path continues through selected agent", () => {
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      backendId: 2n,
+      backendType: PublicBackendType.PROXY_FORWARD,
+      forwardMode: PublicBackendForwardMode.AGENT_POOL,
+      agentId: 7n,
+      cacheRuleId: 4n,
+      cacheStatus: "bypass",
+      stage: TrafficTraceStage.CACHE_BYPASS,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, emptyIndex())).toEqual([
+      "ingress",
+      listenerKey(1n),
+      routeKey(3n),
+      backendKey(2n),
+      CACHE_KEY,
+      agentKey(7n),
+      "upstream",
+      "response",
+    ]);
+  });
+
+  test("static backend does not include cache", () => {
+    const index = createTrafficFlowConfigIndex(configWith({
+      cacheRules: [cacheRule({ id: 4n, enabled: true })],
+    }));
+    const request = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      backendId: 2n,
+      backendType: PublicBackendType.STATIC,
+      stage: TrafficTraceStage.RESPONSE_SENT,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, index)).not.toContain(CACHE_KEY);
+  });
+
+  test("redirect route does not include cache", () => {
+    const index = createTrafficFlowConfigIndex(configWith({
+      routes: [route({ id: 3n, listenerId: 1n, action: PublicRouteAction.REDIRECT })],
+      cacheRules: [cacheRule({ id: 4n, enabled: true })],
+    }));
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      stage: TrafficTraceStage.RESPONSE_SENT,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, index)).not.toContain(CACHE_KEY);
+  });
+
+  test("cache stored targets response", () => {
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      backendId: 2n,
+      backendType: PublicBackendType.PROXY_FORWARD,
+      forwardMode: PublicBackendForwardMode.DIRECT,
+      cacheRuleId: 4n,
+      cacheStatus: "stored",
+      stage: TrafficTraceStage.CACHE_STORED,
+    });
+    const path = buildTrafficFlowRequestPath(request, emptyIndex());
+
+    expect(path).toEqual([
+      "ingress",
+      listenerKey(1n),
+      routeKey(3n),
+      backendKey(2n),
+      CACHE_KEY,
+      "upstream",
+      "response",
+    ]);
+    expect(targetIndexForTraceRequest(request, path)).toBe(path.indexOf("response"));
+  });
+
+  test("enabled cache config keeps cache node available for proxy-forward path", () => {
+    const index = createTrafficFlowConfigIndex(configWith({
+      cacheRules: [cacheRule({ id: 4n, enabled: true })],
+    }));
+    const request = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      backendId: 2n,
+      backendType: PublicBackendType.PROXY_FORWARD,
+      forwardMode: PublicBackendForwardMode.DIRECT,
+      stage: TrafficTraceStage.RESPONSE_SENT,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, index)).toContain(CACHE_KEY);
+  });
+
   test("path cache returns stable paths and invalidates on signature changes", () => {
     const cache = new TrafficRequestPathCache();
     const request = traceRequest({
@@ -207,10 +353,37 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
     routes: [],
     rateLimitRules: [],
     trafficShaperRules: [],
+    cacheRules: [],
     tlsCertificates: [],
     proxy: undefined,
     ...overrides,
   } as GetPublicProxyConfigResponse;
+}
+
+function cacheRule(overrides: Partial<PublicCacheRule>): PublicCacheRule {
+  return {
+    $typeName: "p2pstream.v1.PublicCacheRule",
+    id: 0n,
+    name: "",
+    priority: 100n,
+    enabled: true,
+    match: undefined,
+    routeIds: [],
+    backendIds: [],
+    scope: PublicCacheScope.SELECTED_BACKEND,
+    ttlMode: PublicCacheTtlMode.FIXED,
+    ttlMillis: 3_600_000n,
+    queryMode: PublicCacheQueryMode.FULL,
+    queryParams: [],
+    varyHeaders: ["Accept-Encoding"],
+    cacheStatusCodes: [200n],
+    maxObjectBytes: 104_857_600n,
+    addCacheStatusHeader: true,
+    allowCookieRequests: false,
+    createdAtUnixMillis: 0n,
+    updatedAtUnixMillis: 0n,
+    ...overrides,
+  } as PublicCacheRule;
 }
 
 function route(overrides: Partial<PublicRoute>): PublicRoute {

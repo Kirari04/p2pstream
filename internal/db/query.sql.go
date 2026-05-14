@@ -364,13 +364,14 @@ INSERT INTO public_cache_rules (
     vary_headers_json,
     cache_status_codes_json,
     max_object_bytes,
-    add_cache_status_header
+    add_cache_status_header,
+    allow_cookie_requests
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-          add_cache_status_header, created_at, updated_at
+          add_cache_status_header, allow_cookie_requests, created_at, updated_at
 `
 
 type CreatePublicCacheRuleParams struct {
@@ -389,6 +390,7 @@ type CreatePublicCacheRuleParams struct {
 	CacheStatusCodesJson string `json:"cache_status_codes_json"`
 	MaxObjectBytes       int64  `json:"max_object_bytes"`
 	AddCacheStatusHeader int64  `json:"add_cache_status_header"`
+	AllowCookieRequests  int64  `json:"allow_cookie_requests"`
 }
 
 func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCacheRuleParams) (PublicCacheRule, error) {
@@ -408,6 +410,7 @@ func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCac
 		arg.CacheStatusCodesJson,
 		arg.MaxObjectBytes,
 		arg.AddCacheStatusHeader,
+		arg.AllowCookieRequests,
 	)
 	var i PublicCacheRule
 	err := row.Scan(
@@ -427,6 +430,7 @@ func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCac
 		&i.CacheStatusCodesJson,
 		&i.MaxObjectBytes,
 		&i.AddCacheStatusHeader,
+		&i.AllowCookieRequests,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1694,7 +1698,7 @@ func (q *Queries) GetPublicCacheEntry(ctx context.Context, keyDigest string) (Pu
 const getPublicCacheRule = `-- name: GetPublicCacheRule :one
 SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-       add_cache_status_header, created_at, updated_at
+       add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
 WHERE id = ?
 `
@@ -1719,6 +1723,7 @@ func (q *Queries) GetPublicCacheRule(ctx context.Context, id int64) (PublicCache
 		&i.CacheStatusCodesJson,
 		&i.MaxObjectBytes,
 		&i.AddCacheStatusHeader,
+		&i.AllowCookieRequests,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -2719,7 +2724,7 @@ func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPu
 const listPublicCacheRules = `-- name: ListPublicCacheRules :many
 SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-       add_cache_status_header, created_at, updated_at
+       add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
 ORDER BY priority ASC, id ASC
 `
@@ -2750,6 +2755,7 @@ func (q *Queries) ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, 
 			&i.CacheStatusCodesJson,
 			&i.MaxObjectBytes,
 			&i.AddCacheStatusHeader,
+			&i.AllowCookieRequests,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -3993,11 +3999,12 @@ SET name = ?,
     cache_status_codes_json = ?,
     max_object_bytes = ?,
     add_cache_status_header = ?,
+    allow_cookie_requests = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
-          add_cache_status_header, created_at, updated_at
+          add_cache_status_header, allow_cookie_requests, created_at, updated_at
 `
 
 type UpdatePublicCacheRuleParams struct {
@@ -4016,6 +4023,7 @@ type UpdatePublicCacheRuleParams struct {
 	CacheStatusCodesJson string `json:"cache_status_codes_json"`
 	MaxObjectBytes       int64  `json:"max_object_bytes"`
 	AddCacheStatusHeader int64  `json:"add_cache_status_header"`
+	AllowCookieRequests  int64  `json:"allow_cookie_requests"`
 	ID                   int64  `json:"id"`
 }
 
@@ -4036,6 +4044,7 @@ func (q *Queries) UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCac
 		arg.CacheStatusCodesJson,
 		arg.MaxObjectBytes,
 		arg.AddCacheStatusHeader,
+		arg.AllowCookieRequests,
 		arg.ID,
 	)
 	var i PublicCacheRule
@@ -4056,6 +4065,7 @@ func (q *Queries) UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCac
 		&i.CacheStatusCodesJson,
 		&i.MaxObjectBytes,
 		&i.AddCacheStatusHeader,
+		&i.AllowCookieRequests,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

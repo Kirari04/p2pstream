@@ -312,6 +312,7 @@ CREATE TABLE IF NOT EXISTS public_cache_rules (
     cache_status_codes_json TEXT NOT NULL DEFAULT '[200,203,204,301,308]',
     max_object_bytes INTEGER NOT NULL DEFAULT 104857600,
     add_cache_status_header INTEGER NOT NULL DEFAULT 1,
+    allow_cookie_requests INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

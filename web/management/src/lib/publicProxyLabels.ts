@@ -287,7 +287,8 @@ export function cacheRuleSummary(rule: PublicCacheRule): string {
   const ttl = durationMillisLabel(rule.ttlMillis);
   const statuses = rule.cacheStatusCodes.length ? rule.cacheStatusCodes.join(",") : "200,203,204,301,308";
   const maxMb = Math.max(1, Math.round(Number(rule.maxObjectBytes || 0n) / 1024 / 1024));
-  return `${cacheTtlModeLabel(rule.ttlMode)} ${ttl} / status ${statuses} / max ${maxMb.toString()} MiB`;
+  const cookies = rule.allowCookieRequests ? " / cookie requests" : "";
+  return `${cacheTtlModeLabel(rule.ttlMode)} ${ttl} / status ${statuses} / max ${maxMb.toString()} MiB${cookies}`;
 }
 
 export function cacheRuleMatchSummary(rule: PublicCacheRule): string {
@@ -298,7 +299,7 @@ export function cacheRuleMatchSummary(rule: PublicCacheRule): string {
   if (match?.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
   if (rule.routeIds.length) parts.push(`${rule.routeIds.length.toString()} route${rule.routeIds.length === 1 ? "" : "s"}`);
   if (rule.backendIds.length) parts.push(`${rule.backendIds.length.toString()} backend${rule.backendIds.length === 1 ? "" : "s"}`);
-  return parts.length ? parts.join(" / ") : "Any public GET/HEAD without cookies or authorization";
+  return parts.length ? parts.join(" / ") : "Any public GET/HEAD without authorization";
 }
 
 export function bytesToMiB(value: bigint): number {

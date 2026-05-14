@@ -7,6 +7,10 @@ type AgentNodeStatus = {
   state: "connected" | "offline" | "disabled" | "unknown";
   label: string;
 };
+type CacheNodeStatus = {
+  label: string;
+  tone: "hit" | "miss" | "bypass" | "stored" | "lookup" | "neutral";
+};
 
 type TrafficNodeData = {
   label: string;
@@ -14,6 +18,7 @@ type TrafficNodeData = {
   kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
   editTargets: TrafficFlowEditTarget[];
   agentStatus?: AgentNodeStatus;
+  cacheStatus?: CacheNodeStatus;
 };
 
 defineProps<NodeProps<TrafficNodeData>>();
@@ -22,10 +27,21 @@ defineProps<NodeProps<TrafficNodeData>>();
 <template>
   <div
     class="traffic-flow-node"
-    :class="[`traffic-flow-node-${data.kind}`, data.editTargets.length ? 'traffic-flow-node-clickable' : '']"
+    :class="[
+      `traffic-flow-node-${data.kind}`,
+      data.kind === 'cache' && data.cacheStatus ? `traffic-flow-node-cache-${data.cacheStatus.tone}` : '',
+      data.editTargets.length ? 'traffic-flow-node-clickable' : '',
+    ]"
   >
     <Handle type="target" :position="Position.Left" class="traffic-handle" />
     <div class="node-label" :title="data.label">{{ data.label || "-" }}</div>
+    <span
+      v-if="data.kind === 'cache' && data.cacheStatus"
+      class="node-cache-badge"
+      :class="`node-cache-badge-${data.cacheStatus.tone}`"
+    >
+      {{ data.cacheStatus.label }}
+    </span>
     <div class="node-meta">
       <div class="node-sub-label" :title="data.subLabel">{{ data.subLabel || "-" }}</div>
       <span
@@ -43,6 +59,7 @@ defineProps<NodeProps<TrafficNodeData>>();
 
 <style scoped>
 .traffic-flow-node {
+  position: relative;
   width: 152px;
   height: 58px;
   border: 1px solid #333;
@@ -93,6 +110,30 @@ defineProps<NodeProps<TrafficNodeData>>();
   border-color: #38bdf8;
 }
 
+.traffic-flow-node-cache {
+  border-color: #2dd4bf;
+  background:
+    linear-gradient(135deg, rgb(45 212 191 / 8%), transparent 42%),
+    #050505;
+}
+
+.traffic-flow-node-cache-hit,
+.traffic-flow-node-cache-stored {
+  border-color: #34d399;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 26%), 0 0 20px rgb(52 211 153 / 13%);
+}
+
+.traffic-flow-node-cache-miss,
+.traffic-flow-node-cache-lookup {
+  border-color: #38bdf8;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 26%), 0 0 20px rgb(56 189 248 / 12%);
+}
+
+.traffic-flow-node-cache-bypass {
+  border-color: #71717a;
+  background: #050505;
+}
+
 .traffic-flow-node-backend {
   border-color: #71717a;
 }
@@ -113,6 +154,10 @@ defineProps<NodeProps<TrafficNodeData>>();
   font-size: 0.76rem;
   font-weight: 650;
   line-height: 1.25;
+}
+
+.traffic-flow-node-cache .node-label {
+  padding-right: 56px;
 }
 
 .node-meta {
@@ -177,6 +222,39 @@ defineProps<NodeProps<TrafficNodeData>>();
 
 .node-status-unknown {
   color: #71717a;
+}
+
+.node-cache-badge {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  max-width: 54px;
+  overflow: hidden;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 5px;
+  background: rgb(0 0 0 / 52%);
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-cache-badge-hit,
+.node-cache-badge-stored {
+  color: #34d399;
+}
+
+.node-cache-badge-miss,
+.node-cache-badge-lookup {
+  color: #38bdf8;
+}
+
+.node-cache-badge-bypass,
+.node-cache-badge-neutral {
+  color: #a1a1aa;
 }
 
 :deep(.traffic-handle) {

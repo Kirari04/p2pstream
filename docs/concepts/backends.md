@@ -73,7 +73,7 @@ Upstream basic auth is configured separately. When basic auth is enabled, p2pstr
 
 Proxy-forward backends can be cached by global cache rules. Direct backend cache misses are fetched from the p2pstream server. Agent-pool cache misses are fetched through the selected agent and stored on the p2pstream server.
 
-Static backends are not cached by the public asset cache. Requests with `Cookie` or `Authorization` are always bypassed.
+Static backends are not cached by the public asset cache. `Authorization` requests always bypass. Cookie requests bypass by default unless a matching cache rule explicitly allows them for public static assets.
 
 ## TLS verification
 

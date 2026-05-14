@@ -93,6 +93,7 @@ type publicCacheRuleConfig struct {
 	CacheStatusCodes     []int64
 	MaxObjectBytes       int64
 	AddCacheStatusHeader bool
+	AllowCookieRequests  bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 	Fingerprint          string
@@ -114,6 +115,7 @@ type publicCacheRuleMutationInput struct {
 	CacheStatusCodesJSON string
 	MaxObjectBytes       int64
 	AddCacheStatusHeader int64
+	AllowCookieRequests  int64
 }
 
 type publicCacheDecision struct {
@@ -127,6 +129,7 @@ type publicCacheDecision struct {
 	BackendID      sql.NullInt64
 	Entry          *db.PublicCacheEntry
 	BypassReason   string
+	CookieRequest  bool
 	Cacheable      bool
 	StoredBytes    int64
 	LookupDuration time.Duration
@@ -367,6 +370,11 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		return decision
 	}
 	decision.Rule = rule
+	if reason := publicCacheRuleBypassReason(rule, r); reason != "" {
+		decision.Status = publicCacheStatusBypass
+		decision.BypassReason = reason
+		return decision
+	}
 	if rule.Scope == publicCacheScopeRoute {
 		decision.BackendID = sql.NullInt64{}
 	}
@@ -434,10 +442,11 @@ func publicCacheBaseDecision(r *http.Request, resolution publicRouteResolution) 
 		backendID = sql.NullInt64{Int64: resolution.Backend.ID, Valid: true}
 	}
 	return publicCacheDecision{
-		Host:      normalizeRequestHost(r.Host),
-		Path:      path,
-		RouteID:   routeID,
-		BackendID: backendID,
+		Host:          normalizeRequestHost(r.Host),
+		Path:          path,
+		RouteID:       routeID,
+		BackendID:     backendID,
+		CookieRequest: r.Header.Get("Cookie") != "",
 	}
 }
 
@@ -448,9 +457,6 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	if r.Header.Get("Authorization") != "" {
 		return "authorization"
 	}
-	if r.Header.Get("Cookie") != "" {
-		return "cookie"
-	}
 	if r.Header.Get("Range") != "" {
 		return "range"
 	}
@@ -459,6 +465,13 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	}
 	if len(r.TransferEncoding) > 0 || (r.Body != nil && r.Body != http.NoBody && r.ContentLength != 0) {
 		return "request_body"
+	}
+	return ""
+}
+
+func publicCacheRuleBypassReason(rule publicCacheRuleConfig, r *http.Request) string {
+	if r.Header.Get("Cookie") != "" && !rule.AllowCookieRequests {
+		return "cookie"
 	}
 	return ""
 }
@@ -935,6 +948,11 @@ func publicCacheOriginTTL(header http.Header) (time.Duration, bool) {
 
 func publicCacheResponseVaryHeaders(ruleHeaders []string, varyValues []string) ([]string, bool) {
 	headers := normalizePublicCacheHeaderList(ruleHeaders)
+	for _, header := range headers {
+		if publicCacheSensitiveVaryHeader(header) {
+			return nil, false
+		}
+	}
 	for _, value := range varyValues {
 		for _, part := range strings.Split(value, ",") {
 			part = strings.TrimSpace(part)
@@ -944,10 +962,23 @@ func publicCacheResponseVaryHeaders(ruleHeaders []string, varyValues []string) (
 			if part == "*" {
 				return nil, false
 			}
-			headers = append(headers, textproto.CanonicalMIMEHeaderKey(part))
+			canonical := textproto.CanonicalMIMEHeaderKey(part)
+			if publicCacheSensitiveVaryHeader(canonical) {
+				return nil, false
+			}
+			headers = append(headers, canonical)
 		}
 	}
 	return normalizePublicCacheHeaderList(headers), true
+}
+
+func publicCacheSensitiveVaryHeader(header string) bool {
+	switch strings.ToLower(textproto.CanonicalMIMEHeaderKey(strings.TrimSpace(header))) {
+	case "cookie", "authorization", "set-cookie":
+		return true
+	default:
+		return false
+	}
 }
 
 func publicCacheHeadersJSON(header http.Header) (string, error) {
@@ -1037,6 +1068,9 @@ func publicCacheTraceAttributes(decision publicCacheDecision) map[string]string 
 	}
 	if decision.BypassReason != "" {
 		attrs["cache_bypass_reason"] = decision.BypassReason
+	}
+	if decision.CookieRequest {
+		attrs["cache_cookie_request"] = "true"
 	}
 	if decision.LookupDuration > 0 {
 		attrs["cache_lookup_ms"] = strconv.FormatInt(decision.LookupDuration.Milliseconds(), 10)
@@ -1155,6 +1189,7 @@ func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, 
 		CacheStatusCodes:     normalizePublicCacheStatusCodes(statusCodes),
 		MaxObjectBytes:       normalizePublicCacheMaxObjectBytes(row.MaxObjectBytes),
 		AddCacheStatusHeader: row.AddCacheStatusHeader != 0,
+		AllowCookieRequests:  row.AllowCookieRequests != 0,
 		CreatedAt:            row.CreatedAt,
 		UpdatedAt:            row.UpdatedAt,
 	}
@@ -1195,6 +1230,7 @@ func publicCacheRuleConfigToProto(rule publicCacheRuleConfig) *p2pstreamv1.Publi
 		CacheStatusCodes:     append([]int64(nil), rule.CacheStatusCodes...),
 		MaxObjectBytes:       rule.MaxObjectBytes,
 		AddCacheStatusHeader: rule.AddCacheStatusHeader,
+		AllowCookieRequests:  rule.AllowCookieRequests,
 		CreatedAtUnixMillis:  rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:  rule.UpdatedAt.UnixMilli(),
 	}
@@ -1215,7 +1251,7 @@ func (a *App) ensurePublicCacheSettings(ctx context.Context) (db.PublicCacheSett
 	return row, nil
 }
 
-func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, priority int64, enabled bool, match *p2pstreamv1.PublicRateLimitMatch, routeIDs []int64, backendIDs []int64, scope p2pstreamv1.PublicCacheScope, ttlMode p2pstreamv1.PublicCacheTtlMode, ttlMillis int64, queryMode p2pstreamv1.PublicCacheQueryMode, queryParams []string, varyHeaders []string, statusCodes []int64, maxObjectBytes int64, addCacheStatusHeader bool) (publicCacheRuleMutationInput, error) {
+func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, priority int64, enabled bool, match *p2pstreamv1.PublicRateLimitMatch, routeIDs []int64, backendIDs []int64, scope p2pstreamv1.PublicCacheScope, ttlMode p2pstreamv1.PublicCacheTtlMode, ttlMillis int64, queryMode p2pstreamv1.PublicCacheQueryMode, queryParams []string, varyHeaders []string, statusCodes []int64, maxObjectBytes int64, addCacheStatusHeader bool, allowCookieRequests bool) (publicCacheRuleMutationInput, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule name must be 1-64 alphanumeric, dot, dash, or underscore characters"))
@@ -1262,6 +1298,11 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 	if len(varyHeaders) > maxPublicCacheListItems {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule has too many vary headers"))
 	}
+	for _, header := range varyHeaders {
+		if publicCacheSensitiveVaryHeader(header) {
+			return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache vary headers must not include Cookie, Authorization, or Set-Cookie"))
+		}
+	}
 	statusCodes = normalizePublicCacheStatusCodes(statusCodes)
 	if len(statusCodes) > maxPublicCacheListItems {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule has too many status codes"))
@@ -1292,6 +1333,7 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 		CacheStatusCodesJSON: string(statusCodesJSON),
 		MaxObjectBytes:       maxObjectBytes,
 		AddCacheStatusHeader: boolInt(addCacheStatusHeader),
+		AllowCookieRequests:  boolInt(allowCookieRequests),
 	}, nil
 }
 
@@ -1325,7 +1367,7 @@ func (a *App) CreatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Match, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader)
+	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Match, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests)
 	if err != nil {
 		return nil, err
 	}
@@ -1347,7 +1389,7 @@ func (a *App) UpdatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Match, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader)
+	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Match, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests)
 	if err != nil {
 		return nil, err
 	}
@@ -1512,6 +1554,7 @@ func cacheCreateParams(input publicCacheRuleMutationInput) db.CreatePublicCacheR
 		CacheStatusCodesJson: input.CacheStatusCodesJSON,
 		MaxObjectBytes:       input.MaxObjectBytes,
 		AddCacheStatusHeader: input.AddCacheStatusHeader,
+		AllowCookieRequests:  input.AllowCookieRequests,
 	}
 }
 
@@ -1533,6 +1576,7 @@ func cacheUpdateParams(id int64, input publicCacheRuleMutationInput) db.UpdatePu
 		CacheStatusCodesJson: input.CacheStatusCodesJSON,
 		MaxObjectBytes:       input.MaxObjectBytes,
 		AddCacheStatusHeader: input.AddCacheStatusHeader,
+		AllowCookieRequests:  input.AllowCookieRequests,
 	}
 }
 
