@@ -536,15 +536,6 @@ defineExpose({ openCreate, openEdit, close });
           <input v-model="form.enabled" type="checkbox" />
           Enabled
         </label>
-        <label class="sm:col-span-4 flex items-start gap-3 rounded-md border border-[#2f3f46] bg-[#071316] p-3 text-sm text-[#d4d4d8]">
-          <input v-model="form.allowCookieRequests" type="checkbox" class="mt-0.5" />
-          <span class="grid gap-1">
-            <span class="font-medium text-white">Cache requests with Cookie headers</span>
-            <span class="text-xs leading-5 text-[#8ba6ad]">
-              Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
-            </span>
-          </span>
-        </label>
       </section>
 
       <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
@@ -554,6 +545,15 @@ defineExpose({ openCreate, openEdit, close });
         <p class="text-xs leading-5 text-[#777]">
           Authorization requests are always bypassed. Cookie requests are cached only when this rule allows them. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
+        <label class="flex items-start gap-3 rounded-md border border-[#222] bg-[#050505] p-3 text-sm text-[#d4d4d8]">
+          <input v-model="form.allowCookieRequests" type="checkbox" class="mt-0.5" />
+          <span class="grid gap-1">
+            <span class="font-medium text-white">Cache requests with Cookie headers</span>
+            <span class="text-xs leading-5 text-[#777]">
+              Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
+            </span>
+          </span>
+        </label>
         <div class="grid gap-4 sm:grid-cols-4">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             TTL mode
