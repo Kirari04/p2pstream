@@ -16,7 +16,7 @@ https://app.example.com
 
 ## 1. Create or update the backend
 
-In the management UI, open **Management -> Backends**.
+In the management UI, open **Proxy -> Backends**.
 
 Create a backend:
 
@@ -30,7 +30,7 @@ Create a backend:
 | Enabled | On |
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_1.png" alt="p2pstream management console showing listener and backend entries">
+  <img src="../assets/management_1.png" alt="p2pstream Proxy page showing listener and backend entries">
   <figcaption>Listeners accept public traffic; backends define where matching requests are sent.</figcaption>
 </figure>
 
@@ -38,7 +38,7 @@ If the upstream needs a header, add it under upstream request headers. If it nee
 
 ## 2. Create an HTTPS listener
 
-Open **Management -> Listeners**.
+Open **Proxy -> Listeners**.
 
 Use the seeded `public-https` listener or create one. If you keep the seeded listener, change its default backend from the welcome page to your app:
 
@@ -55,7 +55,7 @@ For Docker, make sure `443:443` is published.
 
 ## 3. Add a route
 
-Open **Management -> Routes**.
+Open **Proxy -> Routes**.
 
 Create a route:
 
@@ -70,13 +70,13 @@ Create a route:
 | Enabled | On |
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_2.png" alt="p2pstream management console showing WAF rules, rate limits, traffic shaper, routes, and TLS certificates">
-  <figcaption>Routes, TLS mappings, WAF rules, rate limits, and traffic shapers complete the public service configuration.</figcaption>
+  <img src="../assets/management_2.png" alt="p2pstream Traffic Policy and TLS pages showing WAF rules, rate limits, traffic shaper, routes, and TLS certificates">
+  <figcaption>Routes are configured under Proxy, while TLS mappings, WAF rules, rate limits, cache rules, and traffic shapers live on focused TLS and Traffic Policy pages.</figcaption>
 </figure>
 
 ## 4. Configure public TLS
 
-Open **Management -> TLS** and add a certificate mapping for `app.example.com`.
+Open **TLS** and add a certificate mapping for `app.example.com`.
 
 For public deployments, use ACME:
 

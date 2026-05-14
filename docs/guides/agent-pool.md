@@ -4,7 +4,7 @@ Agent pools let one public backend spread traffic across multiple remote network
 
 ## 1. Register agents
 
-Open **Agent Health** and create one agent per host.
+Open **Agents** and create one agent per host.
 
 Example:
 
@@ -18,7 +18,7 @@ Install each agent with its generated setup command and wait until each shows as
 
 ## 2. Create the backend
 
-Open **Management -> Backends**.
+Open **Proxy -> Backends**.
 
 Create:
 

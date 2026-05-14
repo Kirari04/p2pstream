@@ -4,7 +4,7 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
 
 ## Redirect a host
 
-Open **Management -> Routes** and create:
+Open **Proxy -> Routes** and create:
 
 | Field | Value |
 | --- | --- |
@@ -38,7 +38,7 @@ Use same-host path mode:
 
 ## Serve a static maintenance response
 
-Open **Management -> Backends** and create:
+Open **Proxy -> Backends** and create:
 
 | Field | Value |
 | --- | --- |

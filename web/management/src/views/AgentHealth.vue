@@ -273,7 +273,7 @@ async function copySetupSnippet() {
   <div v-if="dashboard && status" class="space-y-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <h3 class="text-xl font-bold mb-2">Agent Health</h3>
+        <h3 class="text-xl font-bold mb-2">Agents</h3>
         <p class="text-[#888] text-sm">Registered agents, connection state, and recent runtime metrics.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">

@@ -14,7 +14,7 @@ ACME HTTP challenges bypass the WAF before these reserved endpoints are handled.
 
 ## Captcha Providers
 
-Create captcha providers under **Management -> Traffic Policy -> WAF**.
+Create captcha providers under **Traffic Policy -> WAF**.
 
 | Provider | Upstream setup | p2pstream fields |
 | --- | --- | --- |

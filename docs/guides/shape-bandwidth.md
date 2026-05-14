@@ -4,7 +4,7 @@ Traffic shaping limits upload and download throughput for matched requests. Use 
 
 ## 1. Open traffic shapers
 
-Open **Management -> Traffic Policy -> Traffic Shapers** and create a rule.
+Open **Traffic Policy -> Traffic Shapers** and create a rule.
 
 ## 2. Match the traffic
 

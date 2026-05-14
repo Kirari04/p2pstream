@@ -40,7 +40,7 @@ The first admin user can be created only while the setup window is open. The set
 1. Open `https://your-server:8081`.
 2. Create the admin user.
 3. Use a password with at least 12 characters.
-4. Log in and open the Management page.
+4. Log in and open the Proxy page when you are ready to configure listeners, backends, and routes.
 
 If the setup window expires before any user exists, restart the container and try again:
 

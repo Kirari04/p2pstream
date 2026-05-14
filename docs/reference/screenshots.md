@@ -16,23 +16,23 @@ Use this page to quickly inspect the management console views used throughout th
   <figcaption>The Traffic page renders sampled request flow across listeners, WAF and policy checks, routes, backends, agents, upstreams, and responses.</figcaption>
 </figure>
 
-## Agent health
+## Agents
 
 <figure class="doc-screenshot">
-  <img src="../assets/agent.png" alt="p2pstream agent health dashboard showing runtime metrics, registered agents, and connection history">
-  <figcaption>The Agent Health page shows runtime stats, connection state, active requests, registered agents, and connection history.</figcaption>
+  <img src="../assets/agent.png" alt="p2pstream Agents page showing runtime metrics, registered agents, and connection history">
+  <figcaption>The Agents page shows runtime stats, connection state, active requests, registered agents, and connection history.</figcaption>
 </figure>
 
-## Management: traffic path
+## Proxy
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_1.png" alt="p2pstream management page showing public listeners and backend configuration">
-  <figcaption>The Management page groups public listeners and backends so operators can define where traffic is accepted and forwarded.</figcaption>
+  <img src="../assets/management_1.png" alt="p2pstream Proxy page showing public listeners and backend configuration">
+  <figcaption>The Proxy page groups public listeners, backends, and routes so operators can define where traffic is accepted and forwarded.</figcaption>
 </figure>
 
-## Management: policy and security
+## Traffic Policy and TLS
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_2.png" alt="p2pstream management page showing WAF rules, rate limits, traffic shaper, routes, and TLS certificates">
-  <figcaption>The lower Management sections cover WAF rules, rate limits, traffic shapers, routes, TLS mappings, and session controls.</figcaption>
+  <img src="../assets/management_2.png" alt="p2pstream Traffic Policy and TLS pages showing WAF rules, rate limits, traffic shaper, routes, and TLS certificates">
+  <figcaption>The Traffic Policy page covers WAF rules, rate limits, cache rules, and traffic shapers. The TLS page covers certificate mappings and DNS credentials.</figcaption>
 </figure>

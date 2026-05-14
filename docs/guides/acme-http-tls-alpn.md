@@ -13,7 +13,7 @@ The hostname must be public DNS, not `localhost`, an IP address, or an internal-
 
 ## 1. Create the listener
 
-Open **Management -> Listeners**.
+Open **Proxy -> Listeners**.
 
 For HTTP-01, ensure an HTTP listener is enabled on port `80`.
 
@@ -21,7 +21,7 @@ For TLS-ALPN-01, ensure an HTTPS listener is enabled on port `443`.
 
 ## 2. Add the certificate mapping
 
-Open **Management -> TLS** and add:
+Open **TLS** and add:
 
 | Field | Value |
 | --- | --- |

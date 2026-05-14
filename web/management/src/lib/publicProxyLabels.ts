@@ -1,0 +1,455 @@
+import {
+  ProxyState,
+  PublicAcmeChallengeType,
+  PublicBackendForwardMode,
+  PublicBackendHealthStatus,
+  PublicBackendLoadBalancing,
+  PublicBackendType,
+  PublicCacheQueryMode,
+  PublicCacheScope,
+  PublicCacheTtlMode,
+  PublicListenerProtocol,
+  PublicRateLimitAlgorithm,
+  PublicRateLimitKeySource,
+  PublicRouteAction,
+  PublicRouteRedirectTargetMode,
+  PublicTlsCertificateSource,
+  PublicTlsCertificateStatus,
+  PublicTrafficShaperBudgetScope,
+  PublicWafActivationMode,
+  PublicWafCaptchaProviderType,
+  PublicWafRuleAction,
+  type Agent,
+  type PublicBackend,
+  type PublicBackendAgent,
+  type PublicCacheRule,
+  type PublicListener,
+  type PublicListenerStatus,
+  type PublicRateLimitRule,
+  type PublicRoute,
+  type PublicRouteBackend,
+  type PublicTlsCertificate,
+  type PublicTlsDnsCredential,
+  type PublicTrafficShaperRule,
+  type PublicWafCaptchaProvider,
+  type PublicWafRule,
+} from "@/gen/proto/p2pstream/v1/management_pb";
+
+export type TlsMethod = "manual" | "http_01" | "tls_alpn_01" | "dns_01";
+
+export function proxyStateLabel(state: ProxyState, proxyRunning = false): string {
+  switch (state) {
+    case ProxyState.STOPPED: return "Stopped";
+    case ProxyState.STARTING: return "Starting";
+    case ProxyState.RUNNING: return "Running";
+    case ProxyState.STOPPING: return "Stopping";
+    case ProxyState.ERROR: return "Error";
+    default: return proxyRunning ? "Running" : "Unknown";
+  }
+}
+
+export function severityForState(state: ProxyState): string {
+  if (state === ProxyState.RUNNING) return "success";
+  if (state === ProxyState.STARTING || state === ProxyState.STOPPING) return "warn";
+  return "danger";
+}
+
+export function listenerRuntimeState(listener: PublicListener, status?: PublicListenerStatus): ProxyState {
+  if (!listener.enabled) return ProxyState.STOPPED;
+  return status?.state ?? ProxyState.STOPPED;
+}
+
+export function listenerStateLabel(listener: PublicListener, status?: PublicListenerStatus): string {
+  if (!listener.enabled || status?.disabled) return "Disabled";
+  return proxyStateLabel(listenerRuntimeState(listener, status));
+}
+
+export function backendName(id: bigint, backends: readonly PublicBackend[]): string {
+  if (id === 0n) return "None";
+  return backends.find((backend) => backend.id === id)?.name ?? `#${id.toString()}`;
+}
+
+export function agentName(id: bigint, agents: readonly Agent[]): string {
+  const agent = agents.find((item) => item.id === id);
+  return agent ? `${agent.name} (${agent.publicId})` : `#${id.toString()}`;
+}
+
+export function listenerName(id: bigint, listeners: readonly PublicListener[]): string {
+  return listeners.find((listener) => listener.id === id)?.name ?? `#${id.toString()}`;
+}
+
+export function bindLabel(listener: PublicListener): string {
+  return `${listener.bindAddress || "*"}:${listener.port.toString()}`;
+}
+
+export function protocolLabel(protocol: PublicListenerProtocol): string {
+  return protocol === PublicListenerProtocol.HTTPS ? "HTTPS" : "HTTP";
+}
+
+export function backendTypeLabel(type: PublicBackendType): string {
+  return type === PublicBackendType.STATIC ? "Static" : "Proxy forward";
+}
+
+export function forwardModeLabel(mode: PublicBackendForwardMode): string {
+  return mode === PublicBackendForwardMode.AGENT_POOL ? "Agents" : "Direct";
+}
+
+export function routeAction(route: PublicRoute): PublicRouteAction {
+  return route.action === PublicRouteAction.REDIRECT ? PublicRouteAction.REDIRECT : PublicRouteAction.FORWARD;
+}
+
+export function routeAssignments(route: PublicRoute, routeBackends: readonly PublicRouteBackend[]): Array<PublicRouteBackend | { backendId: bigint; enabled: boolean; weight: bigint }> {
+  if (route.backendAssignments.length) return route.backendAssignments;
+  const assignments = routeBackends.filter((assignment) => assignment.routeId === route.id);
+  if (assignments.length) return assignments;
+  return route.backendId > 0n ? [{ backendId: route.backendId, enabled: true, weight: 100n }] : [];
+}
+
+export function routeDestinationLabel(route: PublicRoute, backends: readonly PublicBackend[], routeBackends: readonly PublicRouteBackend[]): string {
+  if (routeAction(route) === PublicRouteAction.REDIRECT) {
+    return `Redirect ${route.redirectStatusCode || 302}`;
+  }
+  const assignments = routeAssignments(route, routeBackends);
+  if (assignments.length > 1) return `${assignments.length.toString()} backends`;
+  return backendName(assignments[0]?.backendId ?? route.backendId, backends);
+}
+
+export function routeTargetSummary(route: PublicRoute, backends: readonly PublicBackend[], routeBackends: readonly PublicRouteBackend[]): string {
+  if (routeAction(route) !== PublicRouteAction.REDIRECT) {
+    const assignments = routeAssignments(route, routeBackends);
+    const names = assignments.map((assignment) => backendName(assignment.backendId, backends)).join(", ");
+    const fallback = route.fallbackBackendId > 0n ? ` / fallback ${backendName(route.fallbackBackendId, backends)}` : "";
+    return `${loadBalancingLabel(route.loadBalancing)} / ${names || backendName(route.backendId, backends)}${fallback}`;
+  }
+  const target = route.redirectTarget || redirectModeLabel(route.redirectTargetMode);
+  return `${redirectModeLabel(route.redirectTargetMode)} -> ${target}`;
+}
+
+export function redirectModeLabel(mode: PublicRouteRedirectTargetMode): string {
+  switch (mode) {
+    case PublicRouteRedirectTargetMode.EXTERNAL_ORIGIN_KEEP_PATH:
+      return "External origin";
+    case PublicRouteRedirectTargetMode.ABSOLUTE_URL:
+      return "Absolute URL";
+    case PublicRouteRedirectTargetMode.SAME_HOST_PATH:
+      return "Same host";
+    default:
+      return "Redirect";
+  }
+}
+
+export function loadBalancingLabel(algorithm: PublicBackendLoadBalancing): string {
+  switch (algorithm) {
+    case PublicBackendLoadBalancing.WEIGHTED_ROUND_ROBIN: return "Weighted round-robin";
+    case PublicBackendLoadBalancing.RANDOM: return "Random";
+    case PublicBackendLoadBalancing.WEIGHTED_RANDOM: return "Weighted random";
+    case PublicBackendLoadBalancing.LEAST_ACTIVE_REQUESTS: return "Least active";
+    case PublicBackendLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS: return "Weighted least active";
+    default: return "Round-robin";
+  }
+}
+
+export function backendHealthLabel(backend: PublicBackend): string {
+  if (!backend.healthCheck?.enabled) return "Health unknown";
+  switch (backend.healthCheck.status) {
+    case PublicBackendHealthStatus.HEALTHY:
+      return "Healthy";
+    case PublicBackendHealthStatus.UNHEALTHY:
+      return "Unhealthy";
+    case PublicBackendHealthStatus.DISABLED:
+      return "Health disabled";
+    default:
+      return "Health unknown";
+  }
+}
+
+export function backendHealthSeverity(backend: PublicBackend): "success" | "warn" | "danger" | "info" {
+  switch (backend.healthCheck?.status) {
+    case PublicBackendHealthStatus.HEALTHY:
+      return "success";
+    case PublicBackendHealthStatus.UNHEALTHY:
+      return "danger";
+    case PublicBackendHealthStatus.DISABLED:
+      return "warn";
+    default:
+      return "info";
+  }
+}
+
+export function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
+  switch (algorithm) {
+    case PublicRateLimitAlgorithm.SLIDING_WINDOW: return "Sliding window";
+    case PublicRateLimitAlgorithm.TOKEN_BUCKET: return "Token bucket";
+    case PublicRateLimitAlgorithm.LEAKY_BUCKET: return "Leaky bucket";
+    default: return "Fixed window";
+  }
+}
+
+export function durationMillisLabel(windowMillis: bigint): string {
+  const seconds = Math.max(1, Math.round(Number(windowMillis || 0n) / 1000));
+  if (seconds < 60) return `${seconds.toString()}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60).toString()}m`;
+  return `${Math.round(seconds / 3600).toString()}h`;
+}
+
+export function rateLimitRuleSummary(rule: PublicRateLimitRule): string {
+  const burst = rule.algorithm === PublicRateLimitAlgorithm.TOKEN_BUCKET || rule.algorithm === PublicRateLimitAlgorithm.LEAKY_BUCKET
+    ? `, burst ${Number(rule.burst || rule.limit).toString()}`
+    : "";
+  return `${Number(rule.limit).toString()} / ${durationMillisLabel(rule.windowMillis)}${burst}`;
+}
+
+export function publicPolicyMatchSummary(rule: PublicRateLimitRule | PublicWafRule | PublicTrafficShaperRule): string {
+  const match = rule.match;
+  if (!match) return "Any request";
+  const parts: string[] = [];
+  if (match.methods.length) parts.push(match.methods.join(","));
+  if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
+  if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
+  if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  if (match.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
+  const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
+  if (matcherCount) parts.push(`${matcherCount.toString()} value matcher${matcherCount === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" / ") : "Any request";
+}
+
+export function rateLimitKeySummary(rule: PublicRateLimitRule | PublicWafRule): string {
+  const parts = rule.keyParts.length ? rule.keyParts : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
+  return parts.map((part) => {
+    const label = rateLimitKeySourceLabel(part.source);
+    return part.name ? `${label}:${part.name}` : label;
+  }).join(" + ");
+}
+
+export function rateLimitKeySourceLabel(source: PublicRateLimitKeySource): string {
+  switch (source) {
+    case PublicRateLimitKeySource.HOST: return "host";
+    case PublicRateLimitKeySource.METHOD: return "method";
+    case PublicRateLimitKeySource.PATH: return "path";
+    case PublicRateLimitKeySource.PROTOCOL: return "protocol";
+    case PublicRateLimitKeySource.HEADER: return "header";
+    case PublicRateLimitKeySource.COOKIE: return "cookie";
+    case PublicRateLimitKeySource.QUERY_PARAM: return "query";
+    default: return "ip";
+  }
+}
+
+export function wafActionLabel(action: PublicWafRuleAction): string {
+  switch (action) {
+    case PublicWafRuleAction.CAPTCHA: return "Captcha";
+    case PublicWafRuleAction.WAITING_ROOM: return "Waiting room";
+    default: return "Block";
+  }
+}
+
+export function wafActivationLabel(mode: PublicWafActivationMode): string {
+  return mode === PublicWafActivationMode.AUTOMATIC ? "Automatic" : "Always";
+}
+
+export function wafProviderLabel(type: PublicWafCaptchaProviderType): string {
+  switch (type) {
+    case PublicWafCaptchaProviderType.HCAPTCHA: return "hCaptcha";
+    case PublicWafCaptchaProviderType.RECAPTCHA_V2: return "reCAPTCHA v2";
+    default: return "Turnstile";
+  }
+}
+
+export function wafRuleSummary(rule: PublicWafRule, providers: readonly PublicWafCaptchaProvider[]): string {
+  if (rule.action === PublicWafRuleAction.CAPTCHA) {
+    const provider = providers.find((item) => item.id === rule.captchaProviderId);
+    return `provider ${provider?.name ?? "missing"} / pass ${durationMillisLabel(rule.captchaPassTtlMillis)}`;
+  }
+  if (rule.action === PublicWafRuleAction.WAITING_ROOM) {
+    const room = rule.waitingRoom;
+    return `capacity ${room?.maxAdmittedSessions?.toString() ?? "50"} / admit ${room?.admissionRatePerSecond?.toString() ?? "10"}/s`;
+  }
+  return `response ${rule.blockResponseStatusCode.toString()}`;
+}
+
+export function cacheTtlModeLabel(mode: PublicCacheTtlMode): string {
+  return mode === PublicCacheTtlMode.ORIGIN ? "Origin TTL" : "Fixed TTL";
+}
+
+export function cacheScopeLabel(scope: PublicCacheScope): string {
+  return scope === PublicCacheScope.ROUTE ? "Route scope" : "Backend scope";
+}
+
+export function cacheQueryModeLabel(mode: PublicCacheQueryMode): string {
+  switch (mode) {
+    case PublicCacheQueryMode.IGNORE: return "ignore query";
+    case PublicCacheQueryMode.ALLOWLIST: return "allowlist query";
+    case PublicCacheQueryMode.DENYLIST: return "denylist query";
+    default: return "full query";
+  }
+}
+
+export function cacheRuleSummary(rule: PublicCacheRule): string {
+  const ttl = durationMillisLabel(rule.ttlMillis);
+  const statuses = rule.cacheStatusCodes.length ? rule.cacheStatusCodes.join(",") : "200,203,204,301,308";
+  const maxMb = Math.max(1, Math.round(Number(rule.maxObjectBytes || 0n) / 1024 / 1024));
+  return `${cacheTtlModeLabel(rule.ttlMode)} ${ttl} / status ${statuses} / max ${maxMb.toString()} MiB`;
+}
+
+export function cacheRuleMatchSummary(rule: PublicCacheRule): string {
+  const match = rule.match;
+  const parts: string[] = [];
+  if (match?.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
+  if (match?.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  if (match?.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
+  if (rule.routeIds.length) parts.push(`${rule.routeIds.length.toString()} route${rule.routeIds.length === 1 ? "" : "s"}`);
+  if (rule.backendIds.length) parts.push(`${rule.backendIds.length.toString()} backend${rule.backendIds.length === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" / ") : "Any public GET/HEAD without cookies or authorization";
+}
+
+export function bytesToMiB(value: bigint): number {
+  return Math.max(1, Math.round(Number(value || 0n) / 1024 / 1024));
+}
+
+export function bytesToKiB(value: bigint): number {
+  return Math.max(1, Math.round(Number(value || 0n) / 1024));
+}
+
+export function miBToBytes(value: number): bigint {
+  return BigInt(Math.max(1, Math.round(value || 0)) * 1024 * 1024);
+}
+
+export function kiBToBytes(value: number): bigint {
+  return BigInt(Math.max(1, Math.round(value || 0)) * 1024);
+}
+
+export function trafficShaperScopeLabel(scope: PublicTrafficShaperBudgetScope): string {
+  return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
+}
+
+export function trafficShaperBytesLabel(bytes: bigint): string {
+  const value = Number(bytes || 0n);
+  if (value <= 0) return "unlimited";
+  const kib = value / 1024;
+  if (kib < 1024) return `${Math.round(kib).toString()} KiB/s`;
+  return `${(kib / 1024).toFixed(1)} MiB/s`;
+}
+
+export function trafficShaperKibLabel(bytes: bigint): string {
+  const value = Number(bytes || 0n);
+  if (value <= 0) return "0 KiB";
+  const kib = value / 1024;
+  if (kib < 1024) return `${Math.round(kib).toString()} KiB`;
+  return `${(kib / 1024).toFixed(1)} MiB`;
+}
+
+export function trafficShaperRuleSummary(rule: PublicTrafficShaperRule): string {
+  return `up ${trafficShaperBytesLabel(rule.uploadBytesPerSecond)} / down ${trafficShaperBytesLabel(rule.downloadBytesPerSecond)}`;
+}
+
+export function trafficShaperBudgetSummary(rule: PublicTrafficShaperRule): string {
+  const burst = trafficShaperKibLabel(rule.burstBytes);
+  const requestFree = trafficShaperKibLabel(rule.requestExemptBytes);
+  const responseFree = trafficShaperKibLabel(rule.responseExemptBytes);
+  return `burst ${burst} / free req ${requestFree}, res ${responseFree}`;
+}
+
+export function trafficShaperKeySummary(rule: PublicTrafficShaperRule): string {
+  if (rule.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST) return "per request";
+  const parts = rule.keyParts.length ? rule.keyParts : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
+  return parts.map((part) => {
+    const label = rateLimitKeySourceLabel(part.source);
+    return part.name ? `${label}:${part.name}` : label;
+  }).join(" + ");
+}
+
+export function backendSummary(backend: PublicBackend): string {
+  if (backend.backendType === PublicBackendType.STATIC) {
+    const body = backend.staticResponseBody.trim();
+    const suffix = body ? ` - ${body.slice(0, 72)}` : "";
+    return `${backend.staticStatusCode.toString()}${suffix}`;
+  }
+  return backend.targetOrigin;
+}
+
+export function assignmentsForBackend(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[]): PublicBackendAgent[] {
+  if (backend.agentAssignments.length) return backend.agentAssignments;
+  return backendAgents.filter((assignment) => assignment.backendId === backend.id);
+}
+
+export function backendAgentSummary(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[], agents: readonly Agent[]): string {
+  if (backend.backendType !== PublicBackendType.PROXY_FORWARD || backend.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
+    return "";
+  }
+  const assignments = assignmentsForBackend(backend, backendAgents).filter((assignment) => assignment.enabled);
+  if (!assignments.length) return "No enabled agents";
+  return assignments.map((assignment) => `${agentName(assignment.agentId, agents)} x${assignment.weight.toString()}`).join(", ");
+}
+
+export function upstreamHeaderCount(backend: PublicBackend): number {
+  return backend.upstreamRequestHeaders.length;
+}
+
+export function isDefaultSelfSignedCertificate(cert: PublicTlsCertificate): boolean {
+  return cert.hostnamePattern === "p2pstream.local";
+}
+
+export function tlsCertificateSummary(cert: PublicTlsCertificate): string {
+  if (isDefaultSelfSignedCertificate(cert)) return "Default self-signed certificate";
+  if (cert.source === PublicTlsCertificateSource.ACME) {
+    const expiry = formatUnixMillis(cert.expiresAtUnixMillis);
+    const renewal = formatUnixMillis(cert.nextRenewalAtUnixMillis);
+    if (expiry && renewal) return `Expires ${expiry} / renews ${renewal}`;
+    if (expiry) return `Expires ${expiry}`;
+    return "Managed by Let's Encrypt";
+  }
+  return "Uploaded certificate";
+}
+
+export function tlsMethodForCertificate(cert: PublicTlsCertificate): TlsMethod {
+  if (cert.source !== PublicTlsCertificateSource.ACME) return "manual";
+  if (cert.acmeChallengeType === PublicAcmeChallengeType.TLS_ALPN_01) return "tls_alpn_01";
+  if (cert.acmeChallengeType === PublicAcmeChallengeType.DNS_01) return "dns_01";
+  return "http_01";
+}
+
+export function tlsSourceLabel(cert: PublicTlsCertificate): string {
+  switch (tlsMethodForCertificate(cert)) {
+    case "http_01": return "HTTP-01";
+    case "tls_alpn_01": return "TLS-ALPN-01";
+    case "dns_01": return "DNS-01";
+    default: return "Manual";
+  }
+}
+
+export function tlsStatusLabel(cert: PublicTlsCertificate): string {
+  if (!cert.enabled) return "Disabled";
+  switch (cert.status) {
+    case PublicTlsCertificateStatus.PENDING: return "Pending";
+    case PublicTlsCertificateStatus.RENEWING: return "Renewing";
+    case PublicTlsCertificateStatus.ERROR: return "Error";
+    case PublicTlsCertificateStatus.READY: return "Ready";
+    default: return cert.source === PublicTlsCertificateSource.ACME ? "Pending" : "Ready";
+  }
+}
+
+export function tlsStatusSeverity(cert: PublicTlsCertificate): string {
+  if (!cert.enabled) return "warn";
+  if (cert.status === PublicTlsCertificateStatus.ERROR) return "danger";
+  if (cert.status === PublicTlsCertificateStatus.PENDING || cert.status === PublicTlsCertificateStatus.RENEWING) return "warn";
+  return "success";
+}
+
+export function acmeChallengeTypeForMethod(method: TlsMethod): PublicAcmeChallengeType {
+  if (method === "tls_alpn_01") return PublicAcmeChallengeType.TLS_ALPN_01;
+  if (method === "dns_01") return PublicAcmeChallengeType.DNS_01;
+  return PublicAcmeChallengeType.HTTP_01;
+}
+
+export function tlsSourceForMethod(method: TlsMethod): PublicTlsCertificateSource {
+  return method === "manual" ? PublicTlsCertificateSource.MANUAL : PublicTlsCertificateSource.ACME;
+}
+
+export function dnsCredentialName(id: bigint, credentials: readonly PublicTlsDnsCredential[]): string {
+  if (id === 0n) return "None";
+  return credentials.find((credential) => credential.id === id)?.name ?? `#${id.toString()}`;
+}
+
+export function formatUnixMillis(value: bigint): string {
+  if (!value || value === 0n) return "";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(Number(value)));
+}

@@ -34,7 +34,7 @@ p2pstream supports:
 - hCaptcha,
 - Google reCAPTCHA v2 checkbox.
 
-Create the provider in the upstream service, then add the site key and secret key under **Management -> Traffic Policy -> WAF**. Captcha verification is performed by p2pstream against the provider `siteverify` endpoint with a 3 second timeout.
+Create the provider in the upstream service, then add the site key and secret key under **Traffic Policy -> WAF**. Captcha verification is performed by p2pstream against the provider `siteverify` endpoint with a 3 second timeout.
 
 On success, p2pstream sets a signed `p2pstream_waf_<rule_id>` pass cookie and redirects with `303 See Other`. Request bodies are not replayed, so a challenged `POST` must be submitted again by the client.
 

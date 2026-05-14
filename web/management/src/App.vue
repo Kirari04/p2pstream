@@ -34,8 +34,10 @@ const error = ref<string | null>(null);
 const tabs = [
   { path: "/overview", label: "Overview" },
   { path: "/traffic", label: "Traffic" },
-  { path: "/agent", label: "Agent Health" },
-  { path: "/management", label: "Management" },
+  { path: "/agent", label: "Agents" },
+  { path: "/proxy", label: "Proxy" },
+  { path: "/policies", label: "Traffic Policy" },
+  { path: "/tls", label: "TLS" },
 ];
 
 const setupForm = ref({ username: "admin", password: "" });

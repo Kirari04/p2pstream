@@ -38,11 +38,11 @@ Login sessions are stored in SQLite and expire after 7 days. The session cookie 
 
 ## After Login
 
-After login, the operator lands in the management console and can move between Overview, Traffic, Agent Health, and Management.
+After login, the operator lands in the management console and can move between Overview, Traffic, Agents, Proxy, Traffic Policy, and TLS.
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_1.png" alt="p2pstream management page showing public listeners and backend configuration">
-  <figcaption>The Management tab is where listeners, backends, routes, TLS mappings, WAF rules, rate limits, and shapers are created and edited.</figcaption>
+  <img src="../assets/management_1.png" alt="p2pstream Proxy page showing public listeners and backend configuration">
+  <figcaption>The Proxy page is where listeners, backends, and routes are created and edited. Traffic Policy contains WAF, rate limits, cache, and shapers; TLS contains certificate mappings and DNS credentials.</figcaption>
 </figure>
 
 ## If you lock yourself out

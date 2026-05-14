@@ -13,7 +13,7 @@ Record:
 
 ## 2. Add the DNS credential
 
-Open **Management -> TLS DNS Credentials**.
+Open **TLS -> DNS Credentials**.
 
 Create:
 
@@ -29,7 +29,7 @@ The API token is stored and later shown as set, not echoed back in full.
 
 ## 3. Add the wildcard certificate
 
-Open **Management -> TLS** and create:
+Open **TLS** and create:
 
 | Field | Value |
 | --- | --- |

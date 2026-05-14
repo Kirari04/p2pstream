@@ -472,7 +472,7 @@ defineExpose({ openCreate, openEdit, close });
               </DisabledHint>
             </div>
             <div v-if="!agents.length" class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs text-[#888]">
-              Create an agent in Agent Health before using agent forwarding.
+              Create an agent in Agents before using agent forwarding.
             </div>
             <div v-for="(assignment, index) in backendForm.agentAssignments" :key="index" class="grid gap-2 sm:grid-cols-[1fr_6rem_5rem_auto]">
               <select v-model="assignment.agentId" class="vercel-input text-sm normal-case tracking-normal">

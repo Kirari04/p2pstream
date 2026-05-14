@@ -10,7 +10,7 @@ Example:
 
 ## 1. Create an agent
 
-Open **Agent Health -> Add Agent**.
+Open **Agents -> Add Agent**.
 
 Use:
 
@@ -50,7 +50,7 @@ sudo journalctl -u p2pstream-agent -f
 
 ## 3. Create an agent-pool backend
 
-Open **Management -> Backends**.
+Open **Proxy -> Backends**.
 
 Create:
 
