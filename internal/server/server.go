@@ -36,20 +36,21 @@ type AgentConn struct {
 }
 
 type App struct {
-	Config           *config.Config
-	DB               *db.DB
-	StartedAt        time.Time
-	PendingRequests  sync.Map // map[uuid.UUID]*pendingAgentRequest
-	LatestAgentStats atomic.Pointer[stats.AgentStats]
-	AgentHub         *agentHub
-	LoadBalancers    *loadBalancerRegistry
-	BackendHealth    *publicBackendHealthMonitor
-	TrafficTracer    *trafficTracer
-	RateLimiter      *publicRateLimiter
-	TrafficShaper    *publicTrafficShaper
-	PublicWAF        *publicWAF
-	PublicACME       *publicACMEManager
-	LoginThrottle    *loginThrottle
+	Config             *config.Config
+	DB                 *db.DB
+	StartedAt          time.Time
+	PendingRequests    sync.Map // map[uuid.UUID]*pendingAgentRequest
+	LateAgentResponses *lateAgentResponseTracker
+	LatestAgentStats   atomic.Pointer[stats.AgentStats]
+	AgentHub           *agentHub
+	LoadBalancers      *loadBalancerRegistry
+	BackendHealth      *publicBackendHealthMonitor
+	TrafficTracer      *trafficTracer
+	RateLimiter        *publicRateLimiter
+	TrafficShaper      *publicTrafficShaper
+	PublicWAF          *publicWAF
+	PublicACME         *publicACMEManager
+	LoginThrottle      *loginThrottle
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -75,6 +76,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		Config:              cfg,
 		DB:                  database,
 		StartedAt:           time.Now(),
+		LateAgentResponses:  newLateAgentResponseTracker(),
 		AgentHub:            newAgentHub(),
 		LoadBalancers:       newLoadBalancerRegistry(),
 		BackendHealth:       newPublicBackendHealthMonitor(),
@@ -326,7 +328,11 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 			case <-ctx.Done():
 			}
 		} else {
-			log.Warn().Str("req_id", m.ID.String()).Msg("Received message for unknown request")
+			if reason, ok := a.LateAgentResponses.lookup(m.ID); ok {
+				log.Debug().Str("req_id", m.ID.String()).Str("reason", reason).Msg("Received late message for completed request")
+			} else {
+				log.Warn().Str("req_id", m.ID.String()).Msg("Received message for unknown request")
+			}
 		}
 	}
 

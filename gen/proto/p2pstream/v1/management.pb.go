@@ -1859,26 +1859,27 @@ func (x *ProxyStatus) GetListeners() []*PublicListenerStatus {
 }
 
 type PublicBackend struct {
-	state                  protoimpl.MessageState         `protogen:"open.v1"`
-	Id                     int64                          `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                   string                         `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	TargetOrigin           string                         `protobuf:"bytes,3,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
-	Enabled                bool                           `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	CreatedAtUnixMillis    int64                          `protobuf:"varint,5,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
-	UpdatedAtUnixMillis    int64                          `protobuf:"varint,6,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
-	BackendType            PublicBackendType              `protobuf:"varint,7,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
-	TlsSkipVerify          bool                           `protobuf:"varint,8,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
-	StaticStatusCode       int64                          `protobuf:"varint,9,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
-	StaticResponseHeaders  []*PublicHeader                `protobuf:"bytes,10,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
-	StaticResponseBody     string                         `protobuf:"bytes,11,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
-	ForwardMode            PublicBackendForwardMode       `protobuf:"varint,12,opt,name=forward_mode,json=forwardMode,proto3,enum=p2pstream.v1.PublicBackendForwardMode" json:"forward_mode,omitempty"`
-	LoadBalancing          PublicBackendLoadBalancing     `protobuf:"varint,13,opt,name=load_balancing,json=loadBalancing,proto3,enum=p2pstream.v1.PublicBackendLoadBalancing" json:"load_balancing,omitempty"`
-	AgentAssignments       []*PublicBackendAgent          `protobuf:"bytes,14,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
-	UpstreamRequestHeaders []*PublicBackendUpstreamHeader `protobuf:"bytes,15,rep,name=upstream_request_headers,json=upstreamRequestHeaders,proto3" json:"upstream_request_headers,omitempty"`
-	UpstreamBasicAuth      *PublicBackendBasicAuth        `protobuf:"bytes,16,opt,name=upstream_basic_auth,json=upstreamBasicAuth,proto3" json:"upstream_basic_auth,omitempty"`
-	HealthCheck            *PublicBackendHealthCheck      `protobuf:"bytes,17,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                               protoimpl.MessageState         `protogen:"open.v1"`
+	Id                                  int64                          `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                                string                         `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	TargetOrigin                        string                         `protobuf:"bytes,3,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
+	Enabled                             bool                           `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CreatedAtUnixMillis                 int64                          `protobuf:"varint,5,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis                 int64                          `protobuf:"varint,6,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	BackendType                         PublicBackendType              `protobuf:"varint,7,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
+	TlsSkipVerify                       bool                           `protobuf:"varint,8,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	StaticStatusCode                    int64                          `protobuf:"varint,9,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
+	StaticResponseHeaders               []*PublicHeader                `protobuf:"bytes,10,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
+	StaticResponseBody                  string                         `protobuf:"bytes,11,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
+	ForwardMode                         PublicBackendForwardMode       `protobuf:"varint,12,opt,name=forward_mode,json=forwardMode,proto3,enum=p2pstream.v1.PublicBackendForwardMode" json:"forward_mode,omitempty"`
+	LoadBalancing                       PublicBackendLoadBalancing     `protobuf:"varint,13,opt,name=load_balancing,json=loadBalancing,proto3,enum=p2pstream.v1.PublicBackendLoadBalancing" json:"load_balancing,omitempty"`
+	AgentAssignments                    []*PublicBackendAgent          `protobuf:"bytes,14,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
+	UpstreamRequestHeaders              []*PublicBackendUpstreamHeader `protobuf:"bytes,15,rep,name=upstream_request_headers,json=upstreamRequestHeaders,proto3" json:"upstream_request_headers,omitempty"`
+	UpstreamBasicAuth                   *PublicBackendBasicAuth        `protobuf:"bytes,16,opt,name=upstream_basic_auth,json=upstreamBasicAuth,proto3" json:"upstream_basic_auth,omitempty"`
+	HealthCheck                         *PublicBackendHealthCheck      `protobuf:"bytes,17,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
+	UpstreamResponseHeaderTimeoutMillis int64                          `protobuf:"varint,18,opt,name=upstream_response_header_timeout_millis,json=upstreamResponseHeaderTimeoutMillis,proto3" json:"upstream_response_header_timeout_millis,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *PublicBackend) Reset() {
@@ -2028,6 +2029,13 @@ func (x *PublicBackend) GetHealthCheck() *PublicBackendHealthCheck {
 		return x.HealthCheck
 	}
 	return nil
+}
+
+func (x *PublicBackend) GetUpstreamResponseHeaderTimeoutMillis() int64 {
+	if x != nil {
+		return x.UpstreamResponseHeaderTimeoutMillis
+	}
+	return 0
 }
 
 type PublicHeader struct {
@@ -4575,23 +4583,24 @@ func (x *GetPublicProxyConfigResponse) GetWafRules() []*PublicWafRule {
 }
 
 type CreatePublicBackendRequest struct {
-	state                  protoimpl.MessageState         `protogen:"open.v1"`
-	Name                   string                         `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	TargetOrigin           string                         `protobuf:"bytes,2,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
-	Enabled                bool                           `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	BackendType            PublicBackendType              `protobuf:"varint,4,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
-	TlsSkipVerify          bool                           `protobuf:"varint,5,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
-	StaticStatusCode       int64                          `protobuf:"varint,6,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
-	StaticResponseHeaders  []*PublicHeader                `protobuf:"bytes,7,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
-	StaticResponseBody     string                         `protobuf:"bytes,8,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
-	ForwardMode            PublicBackendForwardMode       `protobuf:"varint,9,opt,name=forward_mode,json=forwardMode,proto3,enum=p2pstream.v1.PublicBackendForwardMode" json:"forward_mode,omitempty"`
-	LoadBalancing          PublicBackendLoadBalancing     `protobuf:"varint,10,opt,name=load_balancing,json=loadBalancing,proto3,enum=p2pstream.v1.PublicBackendLoadBalancing" json:"load_balancing,omitempty"`
-	AgentAssignments       []*PublicBackendAgent          `protobuf:"bytes,11,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
-	UpstreamRequestHeaders []*PublicBackendUpstreamHeader `protobuf:"bytes,12,rep,name=upstream_request_headers,json=upstreamRequestHeaders,proto3" json:"upstream_request_headers,omitempty"`
-	UpstreamBasicAuth      *PublicBackendBasicAuth        `protobuf:"bytes,13,opt,name=upstream_basic_auth,json=upstreamBasicAuth,proto3" json:"upstream_basic_auth,omitempty"`
-	HealthCheck            *PublicBackendHealthCheck      `protobuf:"bytes,14,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                               protoimpl.MessageState         `protogen:"open.v1"`
+	Name                                string                         `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	TargetOrigin                        string                         `protobuf:"bytes,2,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
+	Enabled                             bool                           `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	BackendType                         PublicBackendType              `protobuf:"varint,4,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
+	TlsSkipVerify                       bool                           `protobuf:"varint,5,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	StaticStatusCode                    int64                          `protobuf:"varint,6,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
+	StaticResponseHeaders               []*PublicHeader                `protobuf:"bytes,7,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
+	StaticResponseBody                  string                         `protobuf:"bytes,8,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
+	ForwardMode                         PublicBackendForwardMode       `protobuf:"varint,9,opt,name=forward_mode,json=forwardMode,proto3,enum=p2pstream.v1.PublicBackendForwardMode" json:"forward_mode,omitempty"`
+	LoadBalancing                       PublicBackendLoadBalancing     `protobuf:"varint,10,opt,name=load_balancing,json=loadBalancing,proto3,enum=p2pstream.v1.PublicBackendLoadBalancing" json:"load_balancing,omitempty"`
+	AgentAssignments                    []*PublicBackendAgent          `protobuf:"bytes,11,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
+	UpstreamRequestHeaders              []*PublicBackendUpstreamHeader `protobuf:"bytes,12,rep,name=upstream_request_headers,json=upstreamRequestHeaders,proto3" json:"upstream_request_headers,omitempty"`
+	UpstreamBasicAuth                   *PublicBackendBasicAuth        `protobuf:"bytes,13,opt,name=upstream_basic_auth,json=upstreamBasicAuth,proto3" json:"upstream_basic_auth,omitempty"`
+	HealthCheck                         *PublicBackendHealthCheck      `protobuf:"bytes,14,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
+	UpstreamResponseHeaderTimeoutMillis int64                          `protobuf:"varint,15,opt,name=upstream_response_header_timeout_millis,json=upstreamResponseHeaderTimeoutMillis,proto3" json:"upstream_response_header_timeout_millis,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *CreatePublicBackendRequest) Reset() {
@@ -4722,6 +4731,13 @@ func (x *CreatePublicBackendRequest) GetHealthCheck() *PublicBackendHealthCheck 
 	return nil
 }
 
+func (x *CreatePublicBackendRequest) GetUpstreamResponseHeaderTimeoutMillis() int64 {
+	if x != nil {
+		return x.UpstreamResponseHeaderTimeoutMillis
+	}
+	return 0
+}
+
 type CreatePublicBackendResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Backend       *PublicBackend         `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
@@ -4767,24 +4783,25 @@ func (x *CreatePublicBackendResponse) GetBackend() *PublicBackend {
 }
 
 type UpdatePublicBackendRequest struct {
-	state                  protoimpl.MessageState         `protogen:"open.v1"`
-	Id                     int64                          `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                   string                         `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	TargetOrigin           string                         `protobuf:"bytes,3,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
-	Enabled                bool                           `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	BackendType            PublicBackendType              `protobuf:"varint,5,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
-	TlsSkipVerify          bool                           `protobuf:"varint,6,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
-	StaticStatusCode       int64                          `protobuf:"varint,7,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
-	StaticResponseHeaders  []*PublicHeader                `protobuf:"bytes,8,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
-	StaticResponseBody     string                         `protobuf:"bytes,9,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
-	ForwardMode            PublicBackendForwardMode       `protobuf:"varint,10,opt,name=forward_mode,json=forwardMode,proto3,enum=p2pstream.v1.PublicBackendForwardMode" json:"forward_mode,omitempty"`
-	LoadBalancing          PublicBackendLoadBalancing     `protobuf:"varint,11,opt,name=load_balancing,json=loadBalancing,proto3,enum=p2pstream.v1.PublicBackendLoadBalancing" json:"load_balancing,omitempty"`
-	AgentAssignments       []*PublicBackendAgent          `protobuf:"bytes,12,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
-	UpstreamRequestHeaders []*PublicBackendUpstreamHeader `protobuf:"bytes,13,rep,name=upstream_request_headers,json=upstreamRequestHeaders,proto3" json:"upstream_request_headers,omitempty"`
-	UpstreamBasicAuth      *PublicBackendBasicAuth        `protobuf:"bytes,14,opt,name=upstream_basic_auth,json=upstreamBasicAuth,proto3" json:"upstream_basic_auth,omitempty"`
-	HealthCheck            *PublicBackendHealthCheck      `protobuf:"bytes,15,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                               protoimpl.MessageState         `protogen:"open.v1"`
+	Id                                  int64                          `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                                string                         `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	TargetOrigin                        string                         `protobuf:"bytes,3,opt,name=target_origin,json=targetOrigin,proto3" json:"target_origin,omitempty"`
+	Enabled                             bool                           `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	BackendType                         PublicBackendType              `protobuf:"varint,5,opt,name=backend_type,json=backendType,proto3,enum=p2pstream.v1.PublicBackendType" json:"backend_type,omitempty"`
+	TlsSkipVerify                       bool                           `protobuf:"varint,6,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	StaticStatusCode                    int64                          `protobuf:"varint,7,opt,name=static_status_code,json=staticStatusCode,proto3" json:"static_status_code,omitempty"`
+	StaticResponseHeaders               []*PublicHeader                `protobuf:"bytes,8,rep,name=static_response_headers,json=staticResponseHeaders,proto3" json:"static_response_headers,omitempty"`
+	StaticResponseBody                  string                         `protobuf:"bytes,9,opt,name=static_response_body,json=staticResponseBody,proto3" json:"static_response_body,omitempty"`
+	ForwardMode                         PublicBackendForwardMode       `protobuf:"varint,10,opt,name=forward_mode,json=forwardMode,proto3,enum=p2pstream.v1.PublicBackendForwardMode" json:"forward_mode,omitempty"`
+	LoadBalancing                       PublicBackendLoadBalancing     `protobuf:"varint,11,opt,name=load_balancing,json=loadBalancing,proto3,enum=p2pstream.v1.PublicBackendLoadBalancing" json:"load_balancing,omitempty"`
+	AgentAssignments                    []*PublicBackendAgent          `protobuf:"bytes,12,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
+	UpstreamRequestHeaders              []*PublicBackendUpstreamHeader `protobuf:"bytes,13,rep,name=upstream_request_headers,json=upstreamRequestHeaders,proto3" json:"upstream_request_headers,omitempty"`
+	UpstreamBasicAuth                   *PublicBackendBasicAuth        `protobuf:"bytes,14,opt,name=upstream_basic_auth,json=upstreamBasicAuth,proto3" json:"upstream_basic_auth,omitempty"`
+	HealthCheck                         *PublicBackendHealthCheck      `protobuf:"bytes,15,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
+	UpstreamResponseHeaderTimeoutMillis int64                          `protobuf:"varint,16,opt,name=upstream_response_header_timeout_millis,json=upstreamResponseHeaderTimeoutMillis,proto3" json:"upstream_response_header_timeout_millis,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *UpdatePublicBackendRequest) Reset() {
@@ -4920,6 +4937,13 @@ func (x *UpdatePublicBackendRequest) GetHealthCheck() *PublicBackendHealthCheck 
 		return x.HealthCheck
 	}
 	return nil
+}
+
+func (x *UpdatePublicBackendRequest) GetUpstreamResponseHeaderTimeoutMillis() int64 {
+	if x != nil {
+		return x.UpstreamResponseHeaderTimeoutMillis
+	}
+	return 0
 }
 
 type UpdatePublicBackendResponse struct {
@@ -11565,7 +11589,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"last_error\x18\x02 \x01(\tR\tlastError\x123\n" +
 	"\x16started_at_unix_millis\x18\x03 \x01(\x03R\x13startedAtUnixMillis\x123\n" +
 	"\x16stopped_at_unix_millis\x18\x04 \x01(\x03R\x13stoppedAtUnixMillis\x12@\n" +
-	"\tlisteners\x18\x05 \x03(\v2\".p2pstream.v1.PublicListenerStatusR\tlisteners\"\xed\a\n" +
+	"\tlisteners\x18\x05 \x03(\v2\".p2pstream.v1.PublicListenerStatusR\tlisteners\"\xc3\b\n" +
 	"\rPublicBackend\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -11584,7 +11608,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x11agent_assignments\x18\x0e \x03(\v2 .p2pstream.v1.PublicBackendAgentR\x10agentAssignments\x12c\n" +
 	"\x18upstream_request_headers\x18\x0f \x03(\v2).p2pstream.v1.PublicBackendUpstreamHeaderR\x16upstreamRequestHeaders\x12T\n" +
 	"\x13upstream_basic_auth\x18\x10 \x01(\v2$.p2pstream.v1.PublicBackendBasicAuthR\x11upstreamBasicAuth\x12I\n" +
-	"\fhealth_check\x18\x11 \x01(\v2&.p2pstream.v1.PublicBackendHealthCheckR\vhealthCheck\"8\n" +
+	"\fhealth_check\x18\x11 \x01(\v2&.p2pstream.v1.PublicBackendHealthCheckR\vhealthCheck\x12T\n" +
+	"'upstream_response_header_timeout_millis\x18\x12 \x01(\x03R#upstreamResponseHeaderTimeoutMillis\"8\n" +
 	"\fPublicHeader\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\"\xcd\x01\n" +
@@ -11842,7 +11867,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	" \x03(\v2$.p2pstream.v1.PublicTlsDnsCredentialR\x11tlsDnsCredentials\x12G\n" +
 	"\x0eroute_backends\x18\v \x03(\v2 .p2pstream.v1.PublicRouteBackendR\rrouteBackends\x12Z\n" +
 	"\x15waf_captcha_providers\x18\f \x03(\v2&.p2pstream.v1.PublicWafCaptchaProviderR\x13wafCaptchaProviders\x128\n" +
-	"\twaf_rules\x18\r \x03(\v2\x1b.p2pstream.v1.PublicWafRuleR\bwafRules\"\x80\a\n" +
+	"\twaf_rules\x18\r \x03(\v2\x1b.p2pstream.v1.PublicWafRuleR\bwafRules\"\xd6\a\n" +
 	"\x1aCreatePublicBackendRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rtarget_origin\x18\x02 \x01(\tR\ftargetOrigin\x12\x18\n" +
@@ -11858,9 +11883,10 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x11agent_assignments\x18\v \x03(\v2 .p2pstream.v1.PublicBackendAgentR\x10agentAssignments\x12c\n" +
 	"\x18upstream_request_headers\x18\f \x03(\v2).p2pstream.v1.PublicBackendUpstreamHeaderR\x16upstreamRequestHeaders\x12T\n" +
 	"\x13upstream_basic_auth\x18\r \x01(\v2$.p2pstream.v1.PublicBackendBasicAuthR\x11upstreamBasicAuth\x12I\n" +
-	"\fhealth_check\x18\x0e \x01(\v2&.p2pstream.v1.PublicBackendHealthCheckR\vhealthCheck\"T\n" +
+	"\fhealth_check\x18\x0e \x01(\v2&.p2pstream.v1.PublicBackendHealthCheckR\vhealthCheck\x12T\n" +
+	"'upstream_response_header_timeout_millis\x18\x0f \x01(\x03R#upstreamResponseHeaderTimeoutMillis\"T\n" +
 	"\x1bCreatePublicBackendResponse\x125\n" +
-	"\abackend\x18\x01 \x01(\v2\x1b.p2pstream.v1.PublicBackendR\abackend\"\x90\a\n" +
+	"\abackend\x18\x01 \x01(\v2\x1b.p2pstream.v1.PublicBackendR\abackend\"\xe6\a\n" +
 	"\x1aUpdatePublicBackendRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -11877,7 +11903,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x11agent_assignments\x18\f \x03(\v2 .p2pstream.v1.PublicBackendAgentR\x10agentAssignments\x12c\n" +
 	"\x18upstream_request_headers\x18\r \x03(\v2).p2pstream.v1.PublicBackendUpstreamHeaderR\x16upstreamRequestHeaders\x12T\n" +
 	"\x13upstream_basic_auth\x18\x0e \x01(\v2$.p2pstream.v1.PublicBackendBasicAuthR\x11upstreamBasicAuth\x12I\n" +
-	"\fhealth_check\x18\x0f \x01(\v2&.p2pstream.v1.PublicBackendHealthCheckR\vhealthCheck\"T\n" +
+	"\fhealth_check\x18\x0f \x01(\v2&.p2pstream.v1.PublicBackendHealthCheckR\vhealthCheck\x12T\n" +
+	"'upstream_response_header_timeout_millis\x18\x10 \x01(\x03R#upstreamResponseHeaderTimeoutMillis\"T\n" +
 	"\x1bUpdatePublicBackendResponse\x125\n" +
 	"\abackend\x18\x01 \x01(\v2\x1b.p2pstream.v1.PublicBackendR\abackend\",\n" +
 	"\x1aDeletePublicBackendRequest\x12\x0e\n" +

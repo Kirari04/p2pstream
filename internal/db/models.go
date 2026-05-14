@@ -60,30 +60,31 @@ type ProxyRequestEvent struct {
 }
 
 type PublicBackend struct {
-	ID                            int64     `json:"id"`
-	Name                          string    `json:"name"`
-	TargetOrigin                  string    `json:"target_origin"`
-	BackendType                   string    `json:"backend_type"`
-	ForwardMode                   string    `json:"forward_mode"`
-	LoadBalancing                 string    `json:"load_balancing"`
-	TlsSkipVerify                 int64     `json:"tls_skip_verify"`
-	StaticStatusCode              int64     `json:"static_status_code"`
-	StaticResponseBody            string    `json:"static_response_body"`
-	UpstreamBasicAuthEnabled      int64     `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername     string    `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword     string    `json:"upstream_basic_auth_password"`
-	HealthCheckEnabled            int64     `json:"health_check_enabled"`
-	HealthCheckMethod             string    `json:"health_check_method"`
-	HealthCheckPath               string    `json:"health_check_path"`
-	HealthCheckIntervalMillis     int64     `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis      int64     `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold   int64     `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold int64     `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin  int64     `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax  int64     `json:"health_check_expected_status_max"`
-	Enabled                       int64     `json:"enabled"`
-	CreatedAt                     time.Time `json:"created_at"`
-	UpdatedAt                     time.Time `json:"updated_at"`
+	ID                                  int64     `json:"id"`
+	Name                                string    `json:"name"`
+	TargetOrigin                        string    `json:"target_origin"`
+	BackendType                         string    `json:"backend_type"`
+	ForwardMode                         string    `json:"forward_mode"`
+	LoadBalancing                       string    `json:"load_balancing"`
+	TlsSkipVerify                       int64     `json:"tls_skip_verify"`
+	StaticStatusCode                    int64     `json:"static_status_code"`
+	StaticResponseBody                  string    `json:"static_response_body"`
+	UpstreamBasicAuthEnabled            int64     `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string    `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string    `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64     `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64     `json:"health_check_enabled"`
+	HealthCheckMethod                   string    `json:"health_check_method"`
+	HealthCheckPath                     string    `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64     `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64     `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64     `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64     `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64     `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64     `json:"health_check_expected_status_max"`
+	Enabled                             int64     `json:"enabled"`
+	CreatedAt                           time.Time `json:"created_at"`
+	UpdatedAt                           time.Time `json:"updated_at"`
 }
 
 type PublicBackendAgent struct {

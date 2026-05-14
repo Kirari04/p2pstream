@@ -75,7 +75,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 
 	backendColumns := tableColumns(t, database, "public_backends")
-	for _, column := range []string{"forward_mode", "load_balancing", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"} {
+	for _, column := range []string{"forward_mode", "load_balancing", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password", "upstream_response_header_timeout_millis"} {
 		if !containsString(backendColumns, column) {
 			t.Fatalf("public_backends missing column %s in %v", column, backendColumns)
 		}
@@ -103,6 +103,9 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	if backend.UpstreamBasicAuthEnabled != 0 || backend.UpstreamBasicAuthUsername != "" || backend.UpstreamBasicAuthPassword != "" {
 		t.Fatalf("backend upstream auth defaults = enabled %d username %q password %q, want disabled empty", backend.UpstreamBasicAuthEnabled, backend.UpstreamBasicAuthUsername, backend.UpstreamBasicAuthPassword)
+	}
+	if backend.UpstreamResponseHeaderTimeoutMillis != 60000 {
+		t.Fatalf("backend upstream response header timeout default = %d, want 60000", backend.UpstreamResponseHeaderTimeoutMillis)
 	}
 }
 
@@ -347,6 +350,7 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 		"health_check_unhealthy_threshold",
 		"health_check_expected_status_min",
 		"health_check_expected_status_max",
+		"upstream_response_header_timeout_millis",
 	} {
 		if !containsString(backendColumns, column) {
 			t.Fatalf("public_backends missing migrated column %s; columns=%v", column, backendColumns)

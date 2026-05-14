@@ -91,6 +91,9 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 		if httpmsg.FirstHeaderValue(first.Headers, httpmsg.MetadataTLSSkipVerify) != "true" {
 			t.Fatal("missing tls skip metadata on agent request")
 		}
+		if got := httpmsg.FirstHeaderValue(first.Headers, httpmsg.MetadataResponseHeaderTimeoutMillis); got != "1000" {
+			t.Fatalf("health timeout metadata = %q, want 1000", got)
+		}
 		if req.Header.Get("X-Health") != "ok" {
 			t.Fatalf("missing upstream health header, got %q", req.Header.Get("X-Health"))
 		}

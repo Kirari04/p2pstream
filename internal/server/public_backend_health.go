@@ -303,7 +303,7 @@ func checkPublicBackendHealth(parent context.Context, backend publicBackendConfi
 		return err
 	}
 	applyUpstreamRequestConfig(req, backend)
-	client := &http.Client{Transport: directProxyTransport(backend.TLSSkipVerify)}
+	client := &http.Client{Transport: directProxyTransport(backend.TLSSkipVerify, timeout)}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -333,9 +333,9 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 	if timeout <= 0 {
 		timeout = time.Duration(defaultBackendHealthCheckTimeoutMillis) * time.Millisecond
 	}
-	ctx, cancel := context.WithTimeout(parent, timeout)
+	waitCtx, cancel := context.WithTimeout(parent, agentResponseWaitTimeout(timeout))
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, backend.HealthCheck.Method, checkURL.String(), nil)
+	req, err := http.NewRequestWithContext(waitCtx, backend.HealthCheck.Method, checkURL.String(), nil)
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 	if err != nil {
 		return fmt.Errorf("generate health check request id: %w", err)
 	}
-	pendingCtx, pendingCancel := context.WithCancel(ctx)
+	pendingCtx, pendingCancel := context.WithCancel(waitCtx)
 	defer pendingCancel()
 	pending := &pendingAgentRequest{
 		AgentID:       agent.AgentID,
@@ -356,11 +356,15 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 		cancel:        pendingCancel,
 	}
 	a.PendingRequests.Store(id, pending)
-	defer a.PendingRequests.Delete(id)
+	pendingFinishReason := "health_check_completed"
+	defer func() {
+		a.finishPendingAgentRequest(id, pendingFinishReason)
+	}()
 
 	enc := httpmsg.NewRequestEncoderWithMetadata(id, req, map[string]string{
-		httpmsg.MetadataTLSSkipVerify: strconv.FormatBool(backend.TLSSkipVerify),
-		httpmsg.MetadataHealthCheck:   "true",
+		httpmsg.MetadataTLSSkipVerify:               strconv.FormatBool(backend.TLSSkipVerify),
+		httpmsg.MetadataHealthCheck:                 "true",
+		httpmsg.MetadataResponseHeaderTimeoutMillis: strconv.FormatInt(int64(timeout/time.Millisecond), 10),
 	})
 	for {
 		chunk, err := enc.Next()
@@ -373,26 +377,32 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 		select {
 		case agent.WriteCh <- chunk:
 		case <-agent.Done:
+			pendingFinishReason = "agent_disconnected"
 			return errAgentDisconnected
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-waitCtx.Done():
+			pendingFinishReason = "health_check_timeout"
+			return waitCtx.Err()
 		}
 	}
 
 	var firstMsg *msg.Request
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-waitCtx.Done():
+		pendingFinishReason = "health_check_timeout"
+		return waitCtx.Err()
 	case err := <-pending.ErrorCh:
+		pendingFinishReason = "agent_failed"
 		return err
 	case firstMsg = <-pending.ResponseCh:
 		if firstMsg == nil {
+			pendingFinishReason = "agent_disconnected"
 			return errAgentDisconnected
 		}
 	}
 	stream := &httpmsg.ChannelStream{Ctx: pendingCtx, Ch: pending.ResponseCh}
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
+		pendingFinishReason = "health_check_decode_failed"
 		return fmt.Errorf("decode health check response: %w", err)
 	}
 	defer resp.Body.Close()

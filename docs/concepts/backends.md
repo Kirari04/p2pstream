@@ -20,6 +20,14 @@ Static backends are useful for maintenance windows, health-check responses, or d
 
 Use direct mode when the upstream is reachable from the server. Use agent pool mode when the upstream is reachable only from another network.
 
+## Upstream response timeout
+
+Proxy-forward backends have an upstream response-header timeout. The default is `60000` milliseconds. This controls how long p2pstream waits for the upstream to send response headers; it does not limit the total duration of a response after headers have arrived, so long streaming downloads can continue.
+
+Direct backends enforce this timeout from the p2pstream server. Agent-pool backends enforce it on the selected agent. Health-check timeouts are configured separately and are not affected by this value.
+
+Older agents that do not understand the timeout metadata continue using their built-in `30000` millisecond upstream response-header timeout until they are upgraded.
+
 ## Load balancing
 
 Agent pool backends support:

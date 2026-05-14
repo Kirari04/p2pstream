@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public_backends (
     upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
     upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
     upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
+    upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000,
     health_check_enabled INTEGER NOT NULL DEFAULT 0,
     health_check_method TEXT NOT NULL DEFAULT 'GET',
     health_check_path TEXT NOT NULL DEFAULT '/',

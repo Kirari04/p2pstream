@@ -4,11 +4,18 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
+	"github.com/google/uuid"
 	"p2pstream/msg"
 )
 
 var errAgentDisconnected = errors.New("agent disconnected")
+
+const (
+	lateAgentResponseTTL        = 2 * time.Minute
+	lateAgentResponseMaxEntries = 4096
+)
 
 type pendingAgentRequest struct {
 	AgentID       int64
@@ -24,6 +31,71 @@ type agentHub struct {
 	mu         sync.RWMutex
 	byID       map[int64]*AgentConn
 	byPublicID map[string]*AgentConn
+}
+
+type lateAgentResponseTracker struct {
+	mu      sync.Mutex
+	entries map[uuid.UUID]lateAgentResponse
+}
+
+type lateAgentResponse struct {
+	reason    string
+	expiresAt time.Time
+}
+
+func newLateAgentResponseTracker() *lateAgentResponseTracker {
+	return &lateAgentResponseTracker{
+		entries: make(map[uuid.UUID]lateAgentResponse),
+	}
+}
+
+func (t *lateAgentResponseTracker) record(id uuid.UUID, reason string) {
+	if t == nil || id == uuid.Nil {
+		return
+	}
+	if reason == "" {
+		reason = "completed"
+	}
+	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.cleanupLocked(now)
+	for len(t.entries) >= lateAgentResponseMaxEntries {
+		for existingID := range t.entries {
+			delete(t.entries, existingID)
+			break
+		}
+	}
+	t.entries[id] = lateAgentResponse{
+		reason:    reason,
+		expiresAt: now.Add(lateAgentResponseTTL),
+	}
+}
+
+func (t *lateAgentResponseTracker) lookup(id uuid.UUID) (string, bool) {
+	if t == nil || id == uuid.Nil {
+		return "", false
+	}
+	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	entry, ok := t.entries[id]
+	if !ok {
+		return "", false
+	}
+	if now.After(entry.expiresAt) {
+		delete(t.entries, id)
+		return "", false
+	}
+	return entry.reason, true
+}
+
+func (t *lateAgentResponseTracker) cleanupLocked(now time.Time) {
+	for id, entry := range t.entries {
+		if now.After(entry.expiresAt) {
+			delete(t.entries, id)
+		}
+	}
 }
 
 func newAgentHub() *agentHub {
@@ -91,6 +163,13 @@ func (a *App) failPendingRequestsForAgent(agentID int64, err error) {
 		pending.fail(err)
 		return true
 	})
+}
+
+func (a *App) finishPendingAgentRequest(id uuid.UUID, reason string) {
+	a.PendingRequests.Delete(id)
+	if a.LateAgentResponses != nil {
+		a.LateAgentResponses.record(id, reason)
+	}
 }
 
 func (p *pendingAgentRequest) fail(err error) {

@@ -396,6 +396,7 @@ INSERT INTO public_backends (
     upstream_basic_auth_enabled,
     upstream_basic_auth_username,
     upstream_basic_auth_password,
+    upstream_response_header_timeout_millis,
     health_check_enabled,
     health_check_method,
     health_check_path,
@@ -407,17 +408,17 @@ INSERT INTO public_backends (
     health_check_expected_status_max,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
 
 -- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC;
 
 -- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?;
 
@@ -434,6 +435,7 @@ SET name = ?,
     upstream_basic_auth_enabled = ?,
     upstream_basic_auth_username = ?,
     upstream_basic_auth_password = ?,
+    upstream_response_header_timeout_millis = ?,
     health_check_enabled = ?,
     health_check_method = ?,
     health_check_path = ?,
@@ -446,7 +448,7 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
 
 -- name: DeletePublicBackend :exec
 DELETE FROM public_backends

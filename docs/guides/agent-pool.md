@@ -60,4 +60,6 @@ Disable an assignment before taking an agent host down. Do not delete a connecte
 
 If you enable health checks on an agent-pool backend, p2pstream checks the target origin from each enabled assigned connected agent. A loopback origin such as `http://127.0.0.1:8888` means loopback on each agent host.
 
+Agent-pool backends also enforce the backend response-header timeout on the selected agent. The default is `60000` ms and it controls only the wait for first upstream response headers, not the total duration of an already-started response. Health-check timeout remains separate. Upgrade agents after changing this setting; older agents keep their built-in `30000` ms timeout.
+
 Watch **Overview -> Hotspots -> Agents** to see which agents are serving traffic.

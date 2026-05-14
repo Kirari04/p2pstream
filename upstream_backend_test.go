@@ -129,6 +129,61 @@ func TestPublicBackendUpstreamConfigAPIValidationAndSecretSemantics(t *testing.T
 	}
 }
 
+func TestPublicBackendUpstreamResponseHeaderTimeoutAPI(t *testing.T) {
+	app := server.NewApp(&config.Config{}, newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
+		Name:         "timeout-api",
+		TargetOrigin: "http://example.com",
+		Enabled:      true,
+		BackendType:  p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
+		ForwardMode:  p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_DIRECT,
+	})
+	createReq.Header().Set("Cookie", cookie)
+	createResp, err := client.CreatePublicBackend(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("create backend with default timeout: %v", err)
+	}
+	if got := createResp.Msg.GetBackend().GetUpstreamResponseHeaderTimeoutMillis(); got != 60000 {
+		t.Fatalf("default upstream response header timeout = %d, want 60000", got)
+	}
+
+	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicBackendRequest{
+		Id:                                  createResp.Msg.GetBackend().GetId(),
+		Name:                                "timeout-api",
+		TargetOrigin:                        "http://example.com",
+		Enabled:                             true,
+		BackendType:                         p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
+		ForwardMode:                         p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_DIRECT,
+		UpstreamResponseHeaderTimeoutMillis: 45000,
+	})
+	updateReq.Header().Set("Cookie", cookie)
+	updateResp, err := client.UpdatePublicBackend(context.Background(), updateReq)
+	if err != nil {
+		t.Fatalf("update backend timeout: %v", err)
+	}
+	if got := updateResp.Msg.GetBackend().GetUpstreamResponseHeaderTimeoutMillis(); got != 45000 {
+		t.Fatalf("updated upstream response header timeout = %d, want 45000", got)
+	}
+
+	for _, timeoutMillis := range []int64{999, 3600001} {
+		req := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
+			Name:                                "timeout-invalid",
+			TargetOrigin:                        "http://example.com",
+			Enabled:                             true,
+			BackendType:                         p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
+			ForwardMode:                         p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_DIRECT,
+			UpstreamResponseHeaderTimeoutMillis: timeoutMillis,
+		})
+		req.Header().Set("Cookie", cookie)
+		if _, err := client.CreatePublicBackend(context.Background(), req); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("timeout %d: expected invalid argument, got %v", timeoutMillis, err)
+		}
+	}
+}
+
 func TestPublicBackendUpstreamConfigValidationRejectsInvalidInputs(t *testing.T) {
 	app := server.NewApp(&config.Config{}, newTestDB(t))
 	_, client := newTestManagementClient(t, app)

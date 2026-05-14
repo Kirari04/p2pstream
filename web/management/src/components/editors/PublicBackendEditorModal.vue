@@ -47,10 +47,11 @@ const backendForm = reactive({
   targetOrigin: "",
   tlsVerify: true,
   upstreamBasicAuthEnabled: false,
-  upstreamBasicAuthUsername: "",
-  upstreamBasicAuthPassword: "",
-  upstreamBasicAuthPasswordSaved: false,
-  upstreamRequestHeaders: [] as UpstreamHeaderForm[],
+	  upstreamBasicAuthUsername: "",
+	  upstreamBasicAuthPassword: "",
+	  upstreamBasicAuthPasswordSaved: false,
+	  upstreamResponseHeaderTimeoutMillis: 60000,
+	  upstreamRequestHeaders: [] as UpstreamHeaderForm[],
   healthCheckEnabled: false,
   healthCheckMethod: "GET",
   healthCheckPath: "/",
@@ -96,10 +97,11 @@ function resetForm() {
   backendForm.targetOrigin = "";
   backendForm.tlsVerify = true;
   backendForm.upstreamBasicAuthEnabled = false;
-  backendForm.upstreamBasicAuthUsername = "";
-  backendForm.upstreamBasicAuthPassword = "";
-  backendForm.upstreamBasicAuthPasswordSaved = false;
-  backendForm.upstreamRequestHeaders = [];
+	  backendForm.upstreamBasicAuthUsername = "";
+	  backendForm.upstreamBasicAuthPassword = "";
+	  backendForm.upstreamBasicAuthPasswordSaved = false;
+	  backendForm.upstreamResponseHeaderTimeoutMillis = 60000;
+	  backendForm.upstreamRequestHeaders = [];
   backendForm.healthCheckEnabled = false;
   backendForm.healthCheckMethod = "GET";
   backendForm.healthCheckPath = "/";
@@ -133,10 +135,11 @@ function openEdit(backendId: bigint | string) {
   backendForm.targetOrigin = backend.targetOrigin;
   backendForm.tlsVerify = !backend.tlsSkipVerify;
   backendForm.upstreamBasicAuthEnabled = backend.upstreamBasicAuth?.enabled ?? false;
-  backendForm.upstreamBasicAuthUsername = backend.upstreamBasicAuth?.username ?? "";
-  backendForm.upstreamBasicAuthPassword = "";
-  backendForm.upstreamBasicAuthPasswordSaved = backend.upstreamBasicAuth?.passwordSet ?? false;
-  backendForm.upstreamRequestHeaders = backend.upstreamRequestHeaders.map((header) => ({
+	  backendForm.upstreamBasicAuthUsername = backend.upstreamBasicAuth?.username ?? "";
+	  backendForm.upstreamBasicAuthPassword = "";
+	  backendForm.upstreamBasicAuthPasswordSaved = backend.upstreamBasicAuth?.passwordSet ?? false;
+	  backendForm.upstreamResponseHeaderTimeoutMillis = Number(backend.upstreamResponseHeaderTimeoutMillis || 60000n);
+	  backendForm.upstreamRequestHeaders = backend.upstreamRequestHeaders.map((header) => ({
     id: header.id.toString(),
     name: header.name,
     value: header.sensitive ? "" : header.value,
@@ -222,8 +225,9 @@ async function submitBackend() {
           enabled: assignment.enabled,
         }))
         : [],
-      tlsSkipVerify: !isStatic && !backendForm.tlsVerify,
-      upstreamRequestHeaders: isStatic
+	      tlsSkipVerify: !isStatic && !backendForm.tlsVerify,
+	      upstreamResponseHeaderTimeoutMillis: BigInt(isStatic ? 60000 : backendForm.upstreamResponseHeaderTimeoutMillis || 60000),
+	      upstreamRequestHeaders: isStatic
         ? []
         : backendForm.upstreamRequestHeaders.map((header, index) => ({
           id: BigInt(header.id || "0"),
@@ -317,12 +321,25 @@ defineExpose({ openCreate, openEdit, close });
           <input v-model="backendForm.targetOrigin" class="vercel-input text-sm normal-case tracking-normal" placeholder="https://example.com" required />
           <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Full upstream URL, e.g. https://api.example.com</p>
         </label>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="backendForm.tlsVerify" type="checkbox" />
-          Verify upstream TLS certificate
-          <p class="text-xs font-normal text-[#666]">Disable only for self-signed upstream certificates.</p>
-        </label>
-        <div class="grid gap-3 rounded-md border border-[#333] bg-[#0b0b0b] p-3">
+	        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
+	          <input v-model="backendForm.tlsVerify" type="checkbox" />
+	          Verify upstream TLS certificate
+	          <p class="text-xs font-normal text-[#666]">Disable only for self-signed upstream certificates.</p>
+	        </label>
+	        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+	          Response header timeout ms
+	          <input
+	            v-model.number="backendForm.upstreamResponseHeaderTimeoutMillis"
+	            type="number"
+	            min="1000"
+	            max="3600000"
+	            class="vercel-input text-sm normal-case tracking-normal"
+	          />
+	          <p class="text-xs font-normal normal-case tracking-normal text-[#666]">
+	            Maximum time to wait for the upstream to send response headers. Long streaming responses are allowed after headers arrive.
+	          </p>
+	        </label>
+	        <div class="grid gap-3 rounded-md border border-[#333] bg-[#0b0b0b] p-3">
           <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
             <input v-model="backendForm.healthCheckEnabled" type="checkbox" />
             HTTP health check

@@ -256,6 +256,7 @@ message PublicBackend {
   repeated PublicBackendUpstreamHeader upstream_request_headers = 15;
   PublicBackendBasicAuth upstream_basic_auth = 16;
   PublicBackendHealthCheck health_check = 17;
+  int64 upstream_response_header_timeout_millis = 18;
 }
 
 message PublicHeader {
@@ -555,6 +556,7 @@ message CreatePublicBackendRequest {
   repeated PublicBackendUpstreamHeader upstream_request_headers = 12;
   PublicBackendBasicAuth upstream_basic_auth = 13;
   PublicBackendHealthCheck health_check = 14;
+  int64 upstream_response_header_timeout_millis = 15;
 }
 
 message CreatePublicBackendResponse {
@@ -577,6 +579,7 @@ message UpdatePublicBackendRequest {
   repeated PublicBackendUpstreamHeader upstream_request_headers = 13;
   PublicBackendBasicAuth upstream_basic_auth = 14;
   PublicBackendHealthCheck health_check = 15;
+  int64 upstream_response_header_timeout_millis = 16;
 }
 
 message UpdatePublicBackendResponse {

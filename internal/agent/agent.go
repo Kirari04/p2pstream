@@ -6,12 +6,15 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,11 +41,17 @@ var (
 	bytesReceived    atomic.Uint64
 	bytesSent        atomic.Uint64
 
-	defaultForwardClient       = &http.Client{Transport: forwardTransport(false)}
-	tlsSkipVerifyForwardClient = &http.Client{Transport: forwardTransport(true)}
+	defaultForwardClient       = &http.Client{Transport: forwardTransport(false, upstreamResponseHeaderTimeout)}
+	tlsSkipVerifyForwardClient = &http.Client{Transport: forwardTransport(true, upstreamResponseHeaderTimeout)}
+	forwardClientCache         sync.Map // map[forwardClientKey]*http.Client
 )
 
 const upstreamResponseHeaderTimeout = 30 * time.Second
+
+type forwardClientKey struct {
+	tlsSkipVerify bool
+	timeoutMillis int64
+}
 
 type agentConnection struct {
 	ctx      context.Context
@@ -311,6 +320,7 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 	}
 	tlsSkipVerify := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTLSSkipVerify), "true")
 	isHealthCheck := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataHealthCheck), "true")
+	responseHeaderTimeout := parseResponseHeaderTimeout(firstMsg)
 	if !isHealthCheck {
 		activeRequests.Add(1)
 		defer activeRequests.Add(-1)
@@ -330,18 +340,26 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 
 	log.Info().Str("req_id", id.String()).Str("method", req.Method).Str("url", req.URL.String()).Msg("Forwarding request")
 
-	client := forwardHTTPClient(tlsSkipVerify)
+	client := forwardHTTPClient(tlsSkipVerify, responseHeaderTimeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to execute request")
-		if !isHealthCheck {
-			reqInternalError.Add(1)
-		}
-
+		statusCode := http.StatusBadGateway
 		body := []byte("Bad Gateway\n")
+		if isTimeoutError(err) {
+			statusCode = http.StatusGatewayTimeout
+			body = []byte("Gateway Timeout\n")
+		}
+		if !isHealthCheck {
+			if statusCode >= 500 && statusCode != http.StatusBadGateway {
+				reqServerError.Add(1)
+			} else {
+				reqInternalError.Add(1)
+			}
+		}
 		resp = &http.Response{
-			StatusCode:    http.StatusBadGateway,
-			Status:        http.StatusText(http.StatusBadGateway),
+			StatusCode:    statusCode,
+			Status:        fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
 			Header:        make(http.Header),
 			Body:          io.NopCloser(bytes.NewReader(body)),
 			ContentLength: int64(len(body)),
@@ -381,20 +399,48 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 	log.Info().Str("req_id", id.String()).Msg("Finished successfully")
 }
 
-func forwardHTTPClient(tlsSkipVerify bool) *http.Client {
-	if tlsSkipVerify {
-		return tlsSkipVerifyForwardClient
+func parseResponseHeaderTimeout(firstMsg *msg.Request) time.Duration {
+	timeoutMillis, err := strconv.ParseInt(strings.TrimSpace(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataResponseHeaderTimeoutMillis)), 10, 64)
+	if err != nil || timeoutMillis <= 0 {
+		return upstreamResponseHeaderTimeout
 	}
-	return defaultForwardClient
+	return time.Duration(timeoutMillis) * time.Millisecond
 }
 
-func forwardTransport(tlsSkipVerify bool) http.RoundTripper {
+func forwardHTTPClient(tlsSkipVerify bool, responseHeaderTimeout time.Duration) *http.Client {
+	timeout := normalizeResponseHeaderTimeout(responseHeaderTimeout)
+	if timeout == upstreamResponseHeaderTimeout {
+		if tlsSkipVerify {
+			return tlsSkipVerifyForwardClient
+		}
+		return defaultForwardClient
+	}
+	key := forwardClientKey{
+		tlsSkipVerify: tlsSkipVerify,
+		timeoutMillis: int64(timeout / time.Millisecond),
+	}
+	if cached, ok := forwardClientCache.Load(key); ok {
+		return cached.(*http.Client)
+	}
+	client := &http.Client{Transport: forwardTransport(tlsSkipVerify, timeout)}
+	actual, _ := forwardClientCache.LoadOrStore(key, client)
+	return actual.(*http.Client)
+}
+
+func normalizeResponseHeaderTimeout(responseHeaderTimeout time.Duration) time.Duration {
+	if responseHeaderTimeout <= 0 {
+		return upstreamResponseHeaderTimeout
+	}
+	return responseHeaderTimeout
+}
+
+func forwardTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duration) http.RoundTripper {
 	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return http.DefaultTransport
 	}
 	transport := base.Clone()
-	transport.ResponseHeaderTimeout = upstreamResponseHeaderTimeout
+	transport.ResponseHeaderTimeout = normalizeResponseHeaderTimeout(responseHeaderTimeout)
 	if !tlsSkipVerify {
 		return transport
 	}
@@ -405,6 +451,17 @@ func forwardTransport(tlsSkipVerify bool) http.RoundTripper {
 	}
 	transport.TLSClientConfig.InsecureSkipVerify = true
 	return transport
+}
+
+func isTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func (conn *agentConnection) closeIncomingRequests() {

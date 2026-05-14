@@ -102,6 +102,17 @@ sudo journalctl -u p2pstream-agent -f
 
 When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_backend_available`.
 
+## Backend returns gateway timeout
+
+| Cause | Fix |
+| --- | --- |
+| Upstream is slow to send response headers | Increase the backend response-header timeout. The default is `60000` ms. |
+| Agent-pool backend waits on a private app | Test the target origin from the selected agent host and raise the backend timeout if the app legitimately takes longer before headers. |
+| Health check timeout confusion | Health-check timeout is separate. Raising the backend response-header timeout does not change health-check timing. |
+| Old agent binary | Upgrade agents so they honor the per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
+
+The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
+
 ## Rate limits affect every user
 
 | Cause | Fix |

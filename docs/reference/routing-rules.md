@@ -46,6 +46,8 @@ At request time, disabled assignments, disabled backends, unhealthy backends, an
 
 When backend health checks are enabled, connection and timeout failures mark the selected backend, or selected backend-agent assignment, temporarily unhealthy for later requests. When health checks are disabled, those failures affect only the current request and do not remove the backend from routing. The original request is not replayed to another backend.
 
+Proxy-forward backends also have a configurable upstream response-header timeout. The default is `60000` milliseconds. Direct backends wait for response headers from the p2pstream server, while agent-pool backends wait from the selected agent. This timeout is separate from the backend health-check timeout and does not limit response streaming after headers arrive.
+
 Redirect routes require:
 
 - redirect target mode,

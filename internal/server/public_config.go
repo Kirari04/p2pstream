@@ -161,6 +161,9 @@ const (
 	defaultBackendHealthCheckUnhealthyThreshold           = int64(2)
 	defaultBackendHealthCheckExpectedStatusMin            = int64(200)
 	defaultBackendHealthCheckExpectedStatusMax            = int64(399)
+	defaultBackendUpstreamResponseHeaderTimeoutMillis     = int64(60000)
+	minBackendUpstreamResponseHeaderTimeoutMillis         = int64(1000)
+	maxBackendUpstreamResponseHeaderTimeoutMillis         = int64(3600000)
 	maxUpstreamHeaderValueBytes                           = 8192
 )
 
@@ -208,6 +211,7 @@ type publicBackendMutationInput struct {
 	UpstreamBasicAuthEnabled      int64
 	UpstreamBasicAuthUsername     string
 	UpstreamBasicAuthPassword     string
+	UpstreamResponseHeaderTimeout int64
 	HealthCheckEnabled            int64
 	HealthCheckMethod             string
 	HealthCheckPath               string
@@ -294,6 +298,7 @@ func (a *App) CreatePublicBackend(
 		req.Msg.UpstreamRequestHeaders,
 		req.Msg.UpstreamBasicAuth,
 		req.Msg.HealthCheck,
+		req.Msg.UpstreamResponseHeaderTimeoutMillis,
 	)
 	if err != nil {
 		return nil, err
@@ -332,6 +337,7 @@ func (a *App) UpdatePublicBackend(
 		req.Msg.UpstreamRequestHeaders,
 		req.Msg.UpstreamBasicAuth,
 		req.Msg.HealthCheck,
+		req.Msg.UpstreamResponseHeaderTimeoutMillis,
 	)
 	if err != nil {
 		return nil, err
@@ -393,27 +399,28 @@ func (a *App) createPublicBackendWithDetails(
 
 	qtx := a.DB.WithTx(tx)
 	backend, err := qtx.CreatePublicBackend(ctx, db.CreatePublicBackendParams{
-		Name:                          params.Name,
-		TargetOrigin:                  params.TargetOrigin,
-		BackendType:                   params.BackendType,
-		ForwardMode:                   params.ForwardMode,
-		LoadBalancing:                 params.LoadBalancing,
-		TlsSkipVerify:                 params.TLSSkipVerify,
-		StaticStatusCode:              params.StaticStatusCode,
-		StaticResponseBody:            params.StaticResponseBody,
-		UpstreamBasicAuthEnabled:      params.UpstreamBasicAuthEnabled,
-		UpstreamBasicAuthUsername:     params.UpstreamBasicAuthUsername,
-		UpstreamBasicAuthPassword:     params.UpstreamBasicAuthPassword,
-		HealthCheckEnabled:            params.HealthCheckEnabled,
-		HealthCheckMethod:             params.HealthCheckMethod,
-		HealthCheckPath:               params.HealthCheckPath,
-		HealthCheckIntervalMillis:     params.HealthCheckIntervalMillis,
-		HealthCheckTimeoutMillis:      params.HealthCheckTimeoutMillis,
-		HealthCheckHealthyThreshold:   params.HealthCheckHealthyThreshold,
-		HealthCheckUnhealthyThreshold: params.HealthCheckUnhealthyThreshold,
-		HealthCheckExpectedStatusMin:  params.HealthCheckExpectedStatusMin,
-		HealthCheckExpectedStatusMax:  params.HealthCheckExpectedStatusMax,
-		Enabled:                       params.Enabled,
+		Name:                                params.Name,
+		TargetOrigin:                        params.TargetOrigin,
+		BackendType:                         params.BackendType,
+		ForwardMode:                         params.ForwardMode,
+		LoadBalancing:                       params.LoadBalancing,
+		TlsSkipVerify:                       params.TLSSkipVerify,
+		StaticStatusCode:                    params.StaticStatusCode,
+		StaticResponseBody:                  params.StaticResponseBody,
+		UpstreamBasicAuthEnabled:            params.UpstreamBasicAuthEnabled,
+		UpstreamBasicAuthUsername:           params.UpstreamBasicAuthUsername,
+		UpstreamBasicAuthPassword:           params.UpstreamBasicAuthPassword,
+		UpstreamResponseHeaderTimeoutMillis: params.UpstreamResponseHeaderTimeout,
+		HealthCheckEnabled:                  params.HealthCheckEnabled,
+		HealthCheckMethod:                   params.HealthCheckMethod,
+		HealthCheckPath:                     params.HealthCheckPath,
+		HealthCheckIntervalMillis:           params.HealthCheckIntervalMillis,
+		HealthCheckTimeoutMillis:            params.HealthCheckTimeoutMillis,
+		HealthCheckHealthyThreshold:         params.HealthCheckHealthyThreshold,
+		HealthCheckUnhealthyThreshold:       params.HealthCheckUnhealthyThreshold,
+		HealthCheckExpectedStatusMin:        params.HealthCheckExpectedStatusMin,
+		HealthCheckExpectedStatusMax:        params.HealthCheckExpectedStatusMax,
+		Enabled:                             params.Enabled,
 	})
 	if err != nil {
 		return db.PublicBackend{}, nil, nil, nil, err
@@ -452,28 +459,29 @@ func (a *App) updatePublicBackendWithDetails(
 
 	qtx := a.DB.WithTx(tx)
 	backend, err := qtx.UpdatePublicBackend(ctx, db.UpdatePublicBackendParams{
-		ID:                            id,
-		Name:                          params.Name,
-		TargetOrigin:                  params.TargetOrigin,
-		BackendType:                   params.BackendType,
-		ForwardMode:                   params.ForwardMode,
-		LoadBalancing:                 params.LoadBalancing,
-		TlsSkipVerify:                 params.TLSSkipVerify,
-		StaticStatusCode:              params.StaticStatusCode,
-		StaticResponseBody:            params.StaticResponseBody,
-		UpstreamBasicAuthEnabled:      params.UpstreamBasicAuthEnabled,
-		UpstreamBasicAuthUsername:     params.UpstreamBasicAuthUsername,
-		UpstreamBasicAuthPassword:     params.UpstreamBasicAuthPassword,
-		HealthCheckEnabled:            params.HealthCheckEnabled,
-		HealthCheckMethod:             params.HealthCheckMethod,
-		HealthCheckPath:               params.HealthCheckPath,
-		HealthCheckIntervalMillis:     params.HealthCheckIntervalMillis,
-		HealthCheckTimeoutMillis:      params.HealthCheckTimeoutMillis,
-		HealthCheckHealthyThreshold:   params.HealthCheckHealthyThreshold,
-		HealthCheckUnhealthyThreshold: params.HealthCheckUnhealthyThreshold,
-		HealthCheckExpectedStatusMin:  params.HealthCheckExpectedStatusMin,
-		HealthCheckExpectedStatusMax:  params.HealthCheckExpectedStatusMax,
-		Enabled:                       params.Enabled,
+		ID:                                  id,
+		Name:                                params.Name,
+		TargetOrigin:                        params.TargetOrigin,
+		BackendType:                         params.BackendType,
+		ForwardMode:                         params.ForwardMode,
+		LoadBalancing:                       params.LoadBalancing,
+		TlsSkipVerify:                       params.TLSSkipVerify,
+		StaticStatusCode:                    params.StaticStatusCode,
+		StaticResponseBody:                  params.StaticResponseBody,
+		UpstreamBasicAuthEnabled:            params.UpstreamBasicAuthEnabled,
+		UpstreamBasicAuthUsername:           params.UpstreamBasicAuthUsername,
+		UpstreamBasicAuthPassword:           params.UpstreamBasicAuthPassword,
+		UpstreamResponseHeaderTimeoutMillis: params.UpstreamResponseHeaderTimeout,
+		HealthCheckEnabled:                  params.HealthCheckEnabled,
+		HealthCheckMethod:                   params.HealthCheckMethod,
+		HealthCheckPath:                     params.HealthCheckPath,
+		HealthCheckIntervalMillis:           params.HealthCheckIntervalMillis,
+		HealthCheckTimeoutMillis:            params.HealthCheckTimeoutMillis,
+		HealthCheckHealthyThreshold:         params.HealthCheckHealthyThreshold,
+		HealthCheckUnhealthyThreshold:       params.HealthCheckUnhealthyThreshold,
+		HealthCheckExpectedStatusMin:        params.HealthCheckExpectedStatusMin,
+		HealthCheckExpectedStatusMax:        params.HealthCheckExpectedStatusMax,
+		Enabled:                             params.Enabled,
 	})
 	if err != nil {
 		return db.PublicBackend{}, nil, nil, nil, err
@@ -1438,27 +1446,28 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 	}
 
 	backend, err := a.DB.CreatePublicBackend(ctx, db.CreatePublicBackendParams{
-		Name:                          "default",
-		TargetOrigin:                  "",
-		BackendType:                   publicBackendTypeStatic,
-		ForwardMode:                   publicBackendForwardModeDirect,
-		LoadBalancing:                 publicBackendLoadBalancingRoundRobin,
-		TlsSkipVerify:                 0,
-		StaticStatusCode:              defaultStaticStatusCode,
-		StaticResponseBody:            defaultWelcomeBody,
-		UpstreamBasicAuthEnabled:      0,
-		UpstreamBasicAuthUsername:     "",
-		UpstreamBasicAuthPassword:     "",
-		HealthCheckEnabled:            0,
-		HealthCheckMethod:             defaultBackendHealthCheckMethod,
-		HealthCheckPath:               defaultBackendHealthCheckPath,
-		HealthCheckIntervalMillis:     defaultBackendHealthCheckIntervalMillis,
-		HealthCheckTimeoutMillis:      defaultBackendHealthCheckTimeoutMillis,
-		HealthCheckHealthyThreshold:   defaultBackendHealthCheckHealthyThreshold,
-		HealthCheckUnhealthyThreshold: defaultBackendHealthCheckUnhealthyThreshold,
-		HealthCheckExpectedStatusMin:  defaultBackendHealthCheckExpectedStatusMin,
-		HealthCheckExpectedStatusMax:  defaultBackendHealthCheckExpectedStatusMax,
-		Enabled:                       1,
+		Name:                                "default",
+		TargetOrigin:                        "",
+		BackendType:                         publicBackendTypeStatic,
+		ForwardMode:                         publicBackendForwardModeDirect,
+		LoadBalancing:                       publicBackendLoadBalancingRoundRobin,
+		TlsSkipVerify:                       0,
+		StaticStatusCode:                    defaultStaticStatusCode,
+		StaticResponseBody:                  defaultWelcomeBody,
+		UpstreamBasicAuthEnabled:            0,
+		UpstreamBasicAuthUsername:           "",
+		UpstreamBasicAuthPassword:           "",
+		UpstreamResponseHeaderTimeoutMillis: defaultBackendUpstreamResponseHeaderTimeoutMillis,
+		HealthCheckEnabled:                  0,
+		HealthCheckMethod:                   defaultBackendHealthCheckMethod,
+		HealthCheckPath:                     defaultBackendHealthCheckPath,
+		HealthCheckIntervalMillis:           defaultBackendHealthCheckIntervalMillis,
+		HealthCheckTimeoutMillis:            defaultBackendHealthCheckTimeoutMillis,
+		HealthCheckHealthyThreshold:         defaultBackendHealthCheckHealthyThreshold,
+		HealthCheckUnhealthyThreshold:       defaultBackendHealthCheckUnhealthyThreshold,
+		HealthCheckExpectedStatusMin:        defaultBackendHealthCheckExpectedStatusMin,
+		HealthCheckExpectedStatusMax:        defaultBackendHealthCheckExpectedStatusMax,
+		Enabled:                             1,
 	})
 	if err != nil {
 		return publicDBError(err)
@@ -1594,10 +1603,11 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 				Username: backend.UpstreamBasicAuthUsername,
 				Password: backend.UpstreamBasicAuthPassword,
 			},
-			Enabled:          backend.Enabled != 0,
-			ParsedOrigin:     parsed,
-			AgentAssignments: publicBackendAgentRowsToConfig(agentsByBackend[backend.ID]),
-			HealthCheck:      publicBackendHealthCheckRowToConfig(backend),
+			UpstreamResponseHeaderTimeout: time.Duration(normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(backend.UpstreamResponseHeaderTimeoutMillis)) * time.Millisecond,
+			Enabled:                       backend.Enabled != 0,
+			ParsedOrigin:                  parsed,
+			AgentAssignments:              publicBackendAgentRowsToConfig(agentsByBackend[backend.ID]),
+			HealthCheck:                   publicBackendHealthCheckRowToConfig(backend),
 		}
 	}
 	for _, agent := range rows.Agents {
@@ -1743,6 +1753,7 @@ func (a *App) validatePublicBackendInput(
 	upstreamRequestHeaders []*p2pstreamv1.PublicBackendUpstreamHeader,
 	upstreamBasicAuth *p2pstreamv1.PublicBackendBasicAuth,
 	healthCheck *p2pstreamv1.PublicBackendHealthCheck,
+	upstreamResponseHeaderTimeoutMillis int64,
 ) (publicBackendMutationInput, []publicBackendHeaderInput, []publicBackendUpstreamHeaderInput, []publicBackendAgentInput, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
@@ -1769,6 +1780,7 @@ func (a *App) validatePublicBackendInput(
 		HealthCheckUnhealthyThreshold: defaultBackendHealthCheckUnhealthyThreshold,
 		HealthCheckExpectedStatusMin:  defaultBackendHealthCheckExpectedStatusMin,
 		HealthCheckExpectedStatusMax:  defaultBackendHealthCheckExpectedStatusMax,
+		UpstreamResponseHeaderTimeout: defaultBackendUpstreamResponseHeaderTimeoutMillis,
 		Enabled:                       boolInt(enabled),
 	}
 
@@ -1811,6 +1823,11 @@ func (a *App) validatePublicBackendInput(
 		params.UpstreamBasicAuthEnabled = authEnabled
 		params.UpstreamBasicAuthUsername = authUsername
 		params.UpstreamBasicAuthPassword = authPassword
+		timeoutMillis, err := validatePublicBackendUpstreamResponseHeaderTimeout(upstreamResponseHeaderTimeoutMillis)
+		if err != nil {
+			return publicBackendMutationInput{}, nil, nil, nil, err
+		}
+		params.UpstreamResponseHeaderTimeout = timeoutMillis
 		applyPublicBackendHealthCheckInput(&params, health)
 		return params, nil, upstreamHeaders, agents, nil
 	}
@@ -1920,6 +1937,27 @@ func validatePublicBackendHealthCheck(input *p2pstreamv1.PublicBackendHealthChec
 	cfg.ExpectedStatusMin = statusMin
 	cfg.ExpectedStatusMax = statusMax
 	return cfg, nil
+}
+
+func validatePublicBackendUpstreamResponseHeaderTimeout(timeoutMillis int64) (int64, error) {
+	if timeoutMillis == 0 {
+		return defaultBackendUpstreamResponseHeaderTimeoutMillis, nil
+	}
+	if timeoutMillis < minBackendUpstreamResponseHeaderTimeoutMillis || timeoutMillis > maxBackendUpstreamResponseHeaderTimeoutMillis {
+		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf(
+			"upstream response header timeout must be between %d and %d milliseconds",
+			minBackendUpstreamResponseHeaderTimeoutMillis,
+			maxBackendUpstreamResponseHeaderTimeoutMillis,
+		))
+	}
+	return timeoutMillis, nil
+}
+
+func normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(timeoutMillis int64) int64 {
+	if timeoutMillis < minBackendUpstreamResponseHeaderTimeoutMillis || timeoutMillis > maxBackendUpstreamResponseHeaderTimeoutMillis {
+		return defaultBackendUpstreamResponseHeaderTimeoutMillis
+	}
+	return timeoutMillis
 }
 
 func applyPublicBackendHealthCheckInput(params *publicBackendMutationInput, cfg publicBackendHealthCheckConfig) {
@@ -3159,23 +3197,24 @@ func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHe
 		healthSnapshot = monitor.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: backend.Enabled != 0})
 	}
 	return &p2pstreamv1.PublicBackend{
-		Id:                     backend.ID,
-		Name:                   backend.Name,
-		TargetOrigin:           backend.TargetOrigin,
-		Enabled:                backend.Enabled != 0,
-		CreatedAtUnixMillis:    backend.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis:    backend.UpdatedAt.UnixMilli(),
-		BackendType:            protoBackendTypeFromString(backend.BackendType),
-		ForwardMode:            protoForwardModeFromString(backend.ForwardMode),
-		LoadBalancing:          protoLoadBalancingFromString(backend.LoadBalancing),
-		TlsSkipVerify:          backend.TlsSkipVerify != 0,
-		StaticStatusCode:       backend.StaticStatusCode,
-		StaticResponseHeaders:  publicBackendHeaderRowsToProto(headers),
-		StaticResponseBody:     backend.StaticResponseBody,
-		AgentAssignments:       publicBackendAgentsToProto(agents),
-		UpstreamRequestHeaders: publicBackendUpstreamHeaderRowsToProto(upstreamHeaders),
-		UpstreamBasicAuth:      publicBackendBasicAuthToProto(backend),
-		HealthCheck:            publicBackendHealthCheckToProto(backend, healthSnapshot),
+		Id:                                  backend.ID,
+		Name:                                backend.Name,
+		TargetOrigin:                        backend.TargetOrigin,
+		Enabled:                             backend.Enabled != 0,
+		CreatedAtUnixMillis:                 backend.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:                 backend.UpdatedAt.UnixMilli(),
+		BackendType:                         protoBackendTypeFromString(backend.BackendType),
+		ForwardMode:                         protoForwardModeFromString(backend.ForwardMode),
+		LoadBalancing:                       protoLoadBalancingFromString(backend.LoadBalancing),
+		TlsSkipVerify:                       backend.TlsSkipVerify != 0,
+		StaticStatusCode:                    backend.StaticStatusCode,
+		StaticResponseHeaders:               publicBackendHeaderRowsToProto(headers),
+		StaticResponseBody:                  backend.StaticResponseBody,
+		AgentAssignments:                    publicBackendAgentsToProto(agents),
+		UpstreamRequestHeaders:              publicBackendUpstreamHeaderRowsToProto(upstreamHeaders),
+		UpstreamBasicAuth:                   publicBackendBasicAuthToProto(backend),
+		HealthCheck:                         publicBackendHealthCheckToProto(backend, healthSnapshot),
+		UpstreamResponseHeaderTimeoutMillis: normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(backend.UpstreamResponseHeaderTimeoutMillis),
 	}
 }
 

@@ -24,27 +24,28 @@ import (
 	"p2pstream/msg"
 )
 
-const publicUpstreamResponseHeaderTimeout = 30 * time.Second
+const publicAgentResponseGracePeriod = 5 * time.Second
 
 var errNoRouteBackendAvailable = errors.New("no route backend available")
 
 type publicBackendConfig struct {
-	ID                     int64
-	Name                   string
-	TargetOrigin           string
-	BackendType            string
-	ForwardMode            string
-	LoadBalancing          string
-	TLSSkipVerify          bool
-	StaticStatusCode       int
-	StaticResponseHeaders  []publicResponseHeader
-	StaticResponseBody     string
-	UpstreamRequestHeaders []publicRequestHeader
-	UpstreamBasicAuth      publicBackendBasicAuthConfig
-	Enabled                bool
-	ParsedOrigin           *url.URL
-	AgentAssignments       []publicBackendAgentConfig
-	HealthCheck            publicBackendHealthCheckConfig
+	ID                            int64
+	Name                          string
+	TargetOrigin                  string
+	BackendType                   string
+	ForwardMode                   string
+	LoadBalancing                 string
+	TLSSkipVerify                 bool
+	StaticStatusCode              int
+	StaticResponseHeaders         []publicResponseHeader
+	StaticResponseBody            string
+	UpstreamRequestHeaders        []publicRequestHeader
+	UpstreamBasicAuth             publicBackendBasicAuthConfig
+	UpstreamResponseHeaderTimeout time.Duration
+	Enabled                       bool
+	ParsedOrigin                  *url.URL
+	AgentAssignments              []publicBackendAgentConfig
+	HealthCheck                   publicBackendHealthCheckConfig
 }
 
 type publicAgentConfig struct {
@@ -679,11 +680,17 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 			if r.Context().Err() == nil && !errors.Is(err, context.Canceled) {
 				a.markPublicBackendPassiveFailure(resolution.Backend.ID, err)
 			}
+			if isTimeoutError(err) {
+				statusCode = http.StatusGatewayTimeout
+				errorKind = "upstream_response_header_timeout"
+				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+				return
+			}
 			statusCode = http.StatusBadGateway
 			errorKind = "direct_proxy_failed"
 			http.Error(w, "Bad Gateway", http.StatusBadGateway)
 		},
-		Transport: directProxyTransport(resolution.Backend.TLSSkipVerify),
+		Transport: directProxyTransport(resolution.Backend.TLSSkipVerify, resolution.Backend.UpstreamResponseHeaderTimeout),
 	}
 	proxy.ServeHTTP(w, r)
 }
@@ -773,7 +780,10 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		cancel:        pendingCancel,
 	}
 	a.PendingRequests.Store(id, pending)
-	defer a.PendingRequests.Delete(id)
+	pendingFinishReason := "completed"
+	defer func() {
+		a.finishPendingAgentRequest(id, pendingFinishReason)
+	}()
 
 	outReq := r.Clone(r.Context())
 	applyUpstreamRequestConfig(outReq, resolution.Backend)
@@ -794,7 +804,8 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		)
 	}
 	enc := httpmsg.NewRequestEncoderWithMetadata(id, outReq, map[string]string{
-		httpmsg.MetadataTLSSkipVerify: strconv.FormatBool(resolution.Backend.TLSSkipVerify),
+		httpmsg.MetadataTLSSkipVerify:               strconv.FormatBool(resolution.Backend.TLSSkipVerify),
+		httpmsg.MetadataResponseHeaderTimeoutMillis: strconv.FormatInt(durationMillis(resolution.Backend.UpstreamResponseHeaderTimeout), 10),
 	})
 	for {
 		m, err := enc.Next()
@@ -811,33 +822,38 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		select {
 		case agent.WriteCh <- m:
 		case <-agent.Done:
+			pendingFinishReason = "agent_disconnected"
 			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, errAgentDisconnected)
 			statusCode = http.StatusBadGateway
 			errorKind = "agent_disconnected"
 			http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			return
 		case <-r.Context().Done():
+			pendingFinishReason = "client_cancelled"
 			statusCode = http.StatusGatewayTimeout
 			errorKind = "client_cancelled"
 			return
 		}
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(r.Context(), agentResponseWaitTimeout(resolution.Backend.UpstreamResponseHeaderTimeout))
 	defer cancel()
 
 	var firstMsg *msg.Request
 	select {
 	case <-timeoutCtx.Done():
+		pendingFinishReason = "agent_timeout"
 		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, timeoutCtx.Err())
 		statusCode = http.StatusGatewayTimeout
 		errorKind = "agent_timeout"
 		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 		return
 	case err := <-pending.ErrorCh:
+		pendingFinishReason = "agent_failed"
 		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
 		statusCode = http.StatusBadGateway
 		if errors.Is(err, errAgentDisconnected) {
+			pendingFinishReason = "agent_disconnected"
 			errorKind = "agent_disconnected"
 		} else {
 			errorKind = "agent_failed"
@@ -846,6 +862,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		return
 	case firstMsg = <-pending.ResponseCh:
 		if firstMsg == nil {
+			pendingFinishReason = "agent_disconnected"
 			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, errAgentDisconnected)
 			statusCode = http.StatusBadGateway
 			errorKind = "agent_disconnected"
@@ -858,6 +875,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
+		pendingFinishReason = "response_decode_failed"
 		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
 		statusCode = http.StatusBadGateway
 		errorKind = "response_decode_failed"
@@ -1308,13 +1326,13 @@ func mergeRedirectQuery(configuredQuery string, incomingQuery string, preserveIn
 	return configuredQuery + "&" + incomingQuery
 }
 
-func directProxyTransport(tlsSkipVerify bool) http.RoundTripper {
+func directProxyTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duration) http.RoundTripper {
 	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return http.DefaultTransport
 	}
 	transport := base.Clone()
-	transport.ResponseHeaderTimeout = publicUpstreamResponseHeaderTimeout
+	transport.ResponseHeaderTimeout = normalizeUpstreamResponseHeaderTimeout(responseHeaderTimeout)
 	if tlsSkipVerify {
 		if transport.TLSClientConfig == nil {
 			transport.TLSClientConfig = &tls.Config{}
@@ -1324,6 +1342,32 @@ func directProxyTransport(tlsSkipVerify bool) http.RoundTripper {
 		transport.TLSClientConfig.InsecureSkipVerify = true
 	}
 	return transport
+}
+
+func normalizeUpstreamResponseHeaderTimeout(timeout time.Duration) time.Duration {
+	if timeout <= 0 {
+		return time.Duration(defaultBackendUpstreamResponseHeaderTimeoutMillis) * time.Millisecond
+	}
+	return timeout
+}
+
+func agentResponseWaitTimeout(responseHeaderTimeout time.Duration) time.Duration {
+	return normalizeUpstreamResponseHeaderTimeout(responseHeaderTimeout) + publicAgentResponseGracePeriod
+}
+
+func durationMillis(duration time.Duration) int64 {
+	return int64(normalizeUpstreamResponseHeaderTimeout(duration) / time.Millisecond)
+}
+
+func isTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func hostMatchesPattern(host string, pattern string) bool {

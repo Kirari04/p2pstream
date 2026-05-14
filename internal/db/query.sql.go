@@ -146,6 +146,7 @@ INSERT INTO public_backends (
     upstream_basic_auth_enabled,
     upstream_basic_auth_username,
     upstream_basic_auth_password,
+    upstream_response_header_timeout_millis,
     health_check_enabled,
     health_check_method,
     health_check_path,
@@ -157,33 +158,34 @@ INSERT INTO public_backends (
     health_check_expected_status_max,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 `
 
 type CreatePublicBackendParams struct {
-	Name                          string `json:"name"`
-	TargetOrigin                  string `json:"target_origin"`
-	BackendType                   string `json:"backend_type"`
-	ForwardMode                   string `json:"forward_mode"`
-	LoadBalancing                 string `json:"load_balancing"`
-	TlsSkipVerify                 int64  `json:"tls_skip_verify"`
-	StaticStatusCode              int64  `json:"static_status_code"`
-	StaticResponseBody            string `json:"static_response_body"`
-	UpstreamBasicAuthEnabled      int64  `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername     string `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword     string `json:"upstream_basic_auth_password"`
-	HealthCheckEnabled            int64  `json:"health_check_enabled"`
-	HealthCheckMethod             string `json:"health_check_method"`
-	HealthCheckPath               string `json:"health_check_path"`
-	HealthCheckIntervalMillis     int64  `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis      int64  `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold   int64  `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold int64  `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin  int64  `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax  int64  `json:"health_check_expected_status_max"`
-	Enabled                       int64  `json:"enabled"`
+	Name                                string `json:"name"`
+	TargetOrigin                        string `json:"target_origin"`
+	BackendType                         string `json:"backend_type"`
+	ForwardMode                         string `json:"forward_mode"`
+	LoadBalancing                       string `json:"load_balancing"`
+	TlsSkipVerify                       int64  `json:"tls_skip_verify"`
+	StaticStatusCode                    int64  `json:"static_status_code"`
+	StaticResponseBody                  string `json:"static_response_body"`
+	UpstreamBasicAuthEnabled            int64  `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64  `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64  `json:"health_check_enabled"`
+	HealthCheckMethod                   string `json:"health_check_method"`
+	HealthCheckPath                     string `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64  `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64  `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64  `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64  `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64  `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64  `json:"health_check_expected_status_max"`
+	Enabled                             int64  `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error) {
@@ -199,6 +201,7 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		arg.UpstreamBasicAuthEnabled,
 		arg.UpstreamBasicAuthUsername,
 		arg.UpstreamBasicAuthPassword,
+		arg.UpstreamResponseHeaderTimeoutMillis,
 		arg.HealthCheckEnabled,
 		arg.HealthCheckMethod,
 		arg.HealthCheckPath,
@@ -224,6 +227,7 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
+		&i.UpstreamResponseHeaderTimeoutMillis,
 		&i.HealthCheckEnabled,
 		&i.HealthCheckMethod,
 		&i.HealthCheckPath,
@@ -1474,7 +1478,7 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 }
 
 const getPublicBackend = `-- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?
 `
@@ -1495,6 +1499,7 @@ func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
+		&i.UpstreamResponseHeaderTimeoutMillis,
 		&i.HealthCheckEnabled,
 		&i.HealthCheckMethod,
 		&i.HealthCheckPath,
@@ -2303,7 +2308,7 @@ func (q *Queries) ListPublicBackendUpstreamHeadersByBackend(ctx context.Context,
 }
 
 const listPublicBackends = `-- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC
 `
@@ -2330,6 +2335,7 @@ func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, erro
 			&i.UpstreamBasicAuthEnabled,
 			&i.UpstreamBasicAuthUsername,
 			&i.UpstreamBasicAuthPassword,
+			&i.UpstreamResponseHeaderTimeoutMillis,
 			&i.HealthCheckEnabled,
 			&i.HealthCheckMethod,
 			&i.HealthCheckPath,
@@ -3320,6 +3326,7 @@ SET name = ?,
     upstream_basic_auth_enabled = ?,
     upstream_basic_auth_username = ?,
     upstream_basic_auth_password = ?,
+    upstream_response_header_timeout_millis = ?,
     health_check_enabled = ?,
     health_check_method = ?,
     health_check_path = ?,
@@ -3332,32 +3339,33 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 `
 
 type UpdatePublicBackendParams struct {
-	Name                          string `json:"name"`
-	TargetOrigin                  string `json:"target_origin"`
-	BackendType                   string `json:"backend_type"`
-	ForwardMode                   string `json:"forward_mode"`
-	LoadBalancing                 string `json:"load_balancing"`
-	TlsSkipVerify                 int64  `json:"tls_skip_verify"`
-	StaticStatusCode              int64  `json:"static_status_code"`
-	StaticResponseBody            string `json:"static_response_body"`
-	UpstreamBasicAuthEnabled      int64  `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername     string `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword     string `json:"upstream_basic_auth_password"`
-	HealthCheckEnabled            int64  `json:"health_check_enabled"`
-	HealthCheckMethod             string `json:"health_check_method"`
-	HealthCheckPath               string `json:"health_check_path"`
-	HealthCheckIntervalMillis     int64  `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis      int64  `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold   int64  `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold int64  `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin  int64  `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax  int64  `json:"health_check_expected_status_max"`
-	Enabled                       int64  `json:"enabled"`
-	ID                            int64  `json:"id"`
+	Name                                string `json:"name"`
+	TargetOrigin                        string `json:"target_origin"`
+	BackendType                         string `json:"backend_type"`
+	ForwardMode                         string `json:"forward_mode"`
+	LoadBalancing                       string `json:"load_balancing"`
+	TlsSkipVerify                       int64  `json:"tls_skip_verify"`
+	StaticStatusCode                    int64  `json:"static_status_code"`
+	StaticResponseBody                  string `json:"static_response_body"`
+	UpstreamBasicAuthEnabled            int64  `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64  `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64  `json:"health_check_enabled"`
+	HealthCheckMethod                   string `json:"health_check_method"`
+	HealthCheckPath                     string `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64  `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64  `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64  `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64  `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64  `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64  `json:"health_check_expected_status_max"`
+	Enabled                             int64  `json:"enabled"`
+	ID                                  int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error) {
@@ -3373,6 +3381,7 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		arg.UpstreamBasicAuthEnabled,
 		arg.UpstreamBasicAuthUsername,
 		arg.UpstreamBasicAuthPassword,
+		arg.UpstreamResponseHeaderTimeoutMillis,
 		arg.HealthCheckEnabled,
 		arg.HealthCheckMethod,
 		arg.HealthCheckPath,
@@ -3399,6 +3408,7 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
+		&i.UpstreamResponseHeaderTimeoutMillis,
 		&i.HealthCheckEnabled,
 		&i.HealthCheckMethod,
 		&i.HealthCheckPath,

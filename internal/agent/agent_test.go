@@ -60,6 +60,9 @@ func TestAgentHealthCheckMetadataDoesNotIncrementRequestCounters(t *testing.T) {
 		if req.Header.Get(httpmsg.MetadataHealthCheck) != "" {
 			t.Fatalf("internal health check metadata was forwarded upstream")
 		}
+		if req.Header.Get(httpmsg.MetadataResponseHeaderTimeoutMillis) != "" {
+			t.Fatalf("internal timeout metadata was forwarded upstream")
+		}
 		return &http.Response{
 			StatusCode:    http.StatusOK,
 			Status:        http.StatusText(http.StatusOK),
@@ -216,6 +219,50 @@ func TestHandleRequestUsesGenericBadGatewayBody(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusBadGateway || string(body) != "Bad Gateway\n" {
 		t.Fatalf("unexpected error response: status=%d body=%q", resp.StatusCode, body)
+	}
+}
+
+func TestHandleRequestUsesResponseHeaderTimeoutMetadata(t *testing.T) {
+	resetAgentRequestCounters()
+	t.Cleanup(resetAgentRequestCounters)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(httpmsg.MetadataResponseHeaderTimeoutMillis) != "" {
+			t.Fatalf("internal timeout metadata was forwarded upstream")
+		}
+		time.Sleep(200 * time.Millisecond)
+		_, _ = w.Write([]byte("too late"))
+	}))
+	defer target.Close()
+
+	conn, done := startAgentRequestHandlerWithMetadata(t, target.URL, map[string]string{
+		httpmsg.MetadataResponseHeaderTimeoutMillis: "25",
+	})
+	var firstResp *msg.Request
+	select {
+	case firstResp = <-conn.writeCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for response")
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for handler")
+	}
+
+	resp, err := httpmsg.DecodeResponse(firstResp, &httpmsg.ChannelStream{Ch: conn.writeCh})
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read response body: %v", err)
+	}
+	if resp.StatusCode != http.StatusGatewayTimeout || string(body) != "Gateway Timeout\n" {
+		t.Fatalf("unexpected timeout response: status=%d body=%q", resp.StatusCode, body)
+	}
+	if reqServerError.Load() != 1 || reqInternalError.Load() != 0 {
+		t.Fatalf("timeout counters = server %d internal %d, want server=1 internal=0", reqServerError.Load(), reqInternalError.Load())
 	}
 }
 
