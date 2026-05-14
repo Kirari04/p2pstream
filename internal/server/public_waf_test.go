@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,6 +41,7 @@ func TestPublicWafCaptchaPageUsesCloudflareInspiredLayout(t *testing.T) {
 		"cf-turnstile",
 		`name="rule_id"`,
 		`name="return_to"`,
+		`name="captcha_challenge"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("captcha page missing %q\n%s", want, body)
@@ -260,6 +263,179 @@ func TestPublicWafCaptchaVerificationTimeout(t *testing.T) {
 	err := waf.verifyCaptcha(publicWafCaptchaProviderConfig{ProviderType: publicWafCaptchaProviderTurnstile, SecretKey: "secret"}, "token", "203.0.113.7")
 	if err == nil {
 		t.Fatal("expected timeout error")
+	}
+}
+
+func TestPublicWafCaptchaVerifyRequiresSignedChallenge(t *testing.T) {
+	_, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	form := captchaVerifyForm(rule.ID, "/private", "", "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusBadRequest)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafCaptchaVerifyRejectsOversizedFormBeforeProviderCall(t *testing.T) {
+	_, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	form := captchaVerifyForm(rule.ID, "/private", "", "token")
+	form.Set("padding", strings.Repeat("x", publicWafCaptchaVerifyMaxFormBytes))
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusRequestEntityTooLarge)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafCaptchaVerifyRejectsTamperedChallenge(t *testing.T) {
+	app, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+	form := captchaVerifyForm(rule.ID, "/private", challenge+"x", "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusBadRequest)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafCaptchaVerifyRejectsMismatchedHost(t *testing.T) {
+	app, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+	form := captchaVerifyForm(rule.ID, "/private", challenge, "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("evil.example", form))
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusBadRequest)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafCaptchaVerifyRejectsMismatchedReturnTo(t *testing.T) {
+	app, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+	form := captchaVerifyForm(rule.ID, "/other", challenge, "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusBadRequest)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafCaptchaVerifyRejectsChangedRuleFingerprint(t *testing.T) {
+	app, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+
+	changedRule := rule
+	changedRule.CaptchaPassTTL = time.Hour
+	changedRule.Fingerprint = publicWafRuleFingerprint(changedRule)
+	app.proxyMu.Lock()
+	snap := app.publicSnapshot
+	snap.WafRules = []publicWafRuleConfig{changedRule}
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+
+	form := captchaVerifyForm(rule.ID, "/private", challenge, "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusBadRequest)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafCaptchaVerifyThrottlesBeforeProviderCall(t *testing.T) {
+	app, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+	form := captchaVerifyForm(rule.ID, "/private", challenge, "bad-token")
+
+	for i := 0; i < publicWafCaptchaVerifyIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		handler(resp, newCaptchaVerifyRequest("example.com", form))
+		if resp.Code != http.StatusForbidden {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusForbidden)
+		}
+	}
+	if got := calls.Load(); got != publicWafCaptchaVerifyIPLimit {
+		t.Fatalf("provider calls = %d, want %d", got, publicWafCaptchaVerifyIPLimit)
+	}
+
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if got := calls.Load(); got != publicWafCaptchaVerifyIPLimit {
+		t.Fatalf("provider calls after throttle = %d, want %d", got, publicWafCaptchaVerifyIPLimit)
+	}
+}
+
+func TestPublicWafCaptchaVerifySuccessSetsCookieAndRedirects(t *testing.T) {
+	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parse form: %v", err)
+		}
+		if r.Form.Get("response") == "token" {
+			_, _ = w.Write([]byte(`{"success":true}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private?x=1")
+	form := captchaVerifyForm(rule.ID, "/private?x=1", challenge, "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusSeeOther)
+	}
+	if location := resp.Header().Get("Location"); location != "/private?x=1" {
+		t.Fatalf("Location = %q, want %q", location, "/private?x=1")
+	}
+	foundCookie := false
+	for _, cookie := range resp.Result().Cookies() {
+		if cookie.Name == wafCookieName(rule.ID, publicWafCaptchaCookieKind) {
+			foundCookie = true
+			break
+		}
+	}
+	if !foundCookie {
+		t.Fatalf("missing WAF pass cookie %q", wafCookieName(rule.ID, publicWafCaptchaCookieKind))
 	}
 }
 
@@ -537,6 +713,66 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected invalid provider error, got %v", err)
 	}
+}
+
+func newTestCaptchaVerifyApp(t *testing.T, provider http.HandlerFunc) (*App, http.HandlerFunc, publicWafRuleConfig, *atomic.Int64) {
+	t.Helper()
+	var calls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		provider(w, r)
+	}))
+	t.Cleanup(server.Close)
+
+	oldEndpoint := publicWafCaptchaVerifyEndpoints[publicWafCaptchaProviderTurnstile]
+	publicWafCaptchaVerifyEndpoints[publicWafCaptchaProviderTurnstile] = server.URL
+	t.Cleanup(func() {
+		publicWafCaptchaVerifyEndpoints[publicWafCaptchaProviderTurnstile] = oldEndpoint
+	})
+
+	app := NewApp(nil, nil)
+	rule := testWafRule(1, publicWafActionCaptcha)
+	snap := testWafSnapshot(rule, map[int64]publicWafCaptchaProviderConfig{
+		1: {
+			ID:           1,
+			Name:         "turnstile",
+			ProviderType: publicWafCaptchaProviderTurnstile,
+			SiteKey:      "site",
+			SecretKey:    "secret",
+			Enabled:      true,
+		},
+	})
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+	return app, app.publicProxyHandler(1), rule, &calls
+}
+
+func captchaVerifyForm(ruleID int64, returnTo string, challenge string, token string) url.Values {
+	form := url.Values{}
+	form.Set("rule_id", strconv.FormatInt(ruleID, 10))
+	form.Set("return_to", returnTo)
+	form.Set("captcha_challenge", challenge)
+	form.Set("cf-turnstile-response", token)
+	return form
+}
+
+func newCaptchaVerifyRequest(host string, form url.Values) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "http://"+host+publicWafCaptchaVerifyPath, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "198.51.100.9:12345"
+	return req
+}
+
+func testCaptchaChallenge(t *testing.T, app *App, rule publicWafRuleConfig, host string, returnTo string) string {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "http://"+host+returnTo, nil)
+	challenge := app.PublicWAF.signCaptchaChallenge(rule, publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}, req, returnTo, time.Now())
+	if challenge == "" {
+		t.Fatal("empty captcha challenge")
+	}
+	return challenge
 }
 
 func testWafCaptchaPageDecision(providerType string) publicWafDecision {
