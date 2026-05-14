@@ -180,38 +180,34 @@ func writeWaitingRoomPage(w http.ResponseWriter, decision publicWafDecision) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	_, _ = fmt.Fprintf(w, `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="%d">
-  <title>%s</title>
-  <style>
-    :root { color-scheme: light dark; --bg: #0b0f14; --panel: #151b23; --line: #2b3642; --text: #f5f7fb; --muted: #9aa7b4; --accent: #60a5fa; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; }
-    main { width: min(560px, 100%%); border: 1px solid var(--line); background: var(--panel); padding: 32px; border-radius: 8px; }
-    h1 { margin: 0 0 12px; font-size: 1.65rem; letter-spacing: 0; }
-    p { margin: 0 0 16px; color: var(--muted); line-height: 1.55; }
-    .position { display: inline-flex; gap: 8px; color: var(--accent); font-weight: 700; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>%s</h1>
-    <p>%s</p>
-    <p class="position">Queue position %s</p>
-    <p>This page will check again automatically. Request bodies are not replayed after admission.</p>
-  </main>
-</body>
-</html>`,
-		pollSeconds,
-		html.EscapeString(title),
-		html.EscapeString(title),
-		html.EscapeString(body),
+	primaryHTML := fmt.Sprintf(`<div class="cf-queue-grid">
+        <div class="cf-stat">
+          <span>Queue position</span>
+          <strong>%s</strong>
+        </div>
+        <div class="cf-stat">
+          <span>Next check</span>
+          <strong>%ss</strong>
+        </div>
+      </div>`,
 		html.EscapeString(strconv.FormatInt(decision.QueuePosition, 10)),
+		html.EscapeString(strconv.Itoa(pollSeconds)),
 	)
+	writePublicWafInterstitialPage(w, publicWafPageModel{
+		Title:          title,
+		Heading:        title,
+		Lead:           body,
+		ReferenceID:    publicWafReferenceID(decision.Rule.ID),
+		FooterLabel:    "Waiting room by p2pstream",
+		RefreshSeconds: pollSeconds,
+		Diagnostics: []publicWafPageDiagnostic{
+			{Label: "Browser", Status: "Connected", Tone: "ok"},
+			{Label: "p2pstream", Status: "Waiting room", Tone: "warn"},
+			{Label: "Destination", Status: "Protected", Tone: "muted"},
+		},
+		PrimaryHTML:   primaryHTML,
+		SecondaryHTML: `<p>Keep this page open. You will continue automatically when capacity is available. Request bodies are not replayed after admission.</p>`,
+	})
 }
 
 func (a *App) servePublicWAFWaitingRoomStatus(w http.ResponseWriter, r *http.Request, listenerID int64) publicWafDecision {

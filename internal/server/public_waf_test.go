@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,190 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/db"
 )
+
+func TestPublicWafCaptchaPageUsesCloudflareInspiredLayout(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.test/private?x=1", nil)
+	resp := httptest.NewRecorder()
+	writeCaptchaChallenge(resp, req, testWafCaptchaPageDecision(publicWafCaptchaProviderTurnstile))
+
+	if resp.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusForbidden)
+	}
+	if contentType := resp.Header().Get("Content-Type"); !strings.Contains(contentType, "text/html") {
+		t.Fatalf("Content-Type = %q, want text/html", contentType)
+	}
+	if cacheControl := resp.Header().Get("Cache-Control"); cacheControl != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", cacheControl)
+	}
+	body := resp.Body.String()
+	for _, want := range []string{
+		"needs to review the security of your connection",
+		"Browser",
+		"p2pstream",
+		"Destination",
+		"Security by p2pstream",
+		"cf-turnstile",
+		`name="rule_id"`,
+		`name="return_to"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("captcha page missing %q\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "Cloudflare") {
+		t.Fatalf("captcha page must not claim Cloudflare generated it\n%s", body)
+	}
+}
+
+func TestPublicWafCaptchaPageEscapesHostAndReturnTo(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
+	req.Host = `bad.example"><script>alert(1)</script>`
+	req.URL.RawQuery = `next="><script>alert(2)</script>`
+	resp := httptest.NewRecorder()
+	writeCaptchaChallenge(resp, req, testWafCaptchaPageDecision(publicWafCaptchaProviderTurnstile))
+
+	body := resp.Body.String()
+	if !strings.Contains(body, `bad.example&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;`) {
+		t.Fatalf("captcha page did not escape hostile host\n%s", body)
+	}
+	if !strings.Contains(body, `next=&#34;&gt;&lt;script&gt;alert(2)&lt;/script&gt;`) {
+		t.Fatalf("captcha page did not escape hostile return URL\n%s", body)
+	}
+	if strings.Contains(body, `<script>alert(1)</script>`) || strings.Contains(body, `<script>alert(2)</script>`) {
+		t.Fatalf("captcha page rendered raw injected script text\n%s", body)
+	}
+}
+
+func TestPublicWafCaptchaPageSupportsAllProviders(t *testing.T) {
+	cases := []struct {
+		name        string
+		provider    string
+		scriptURL   string
+		widgetClass string
+		label       string
+	}{
+		{
+			name:        "turnstile",
+			provider:    publicWafCaptchaProviderTurnstile,
+			scriptURL:   "https://challenges.cloudflare.com/turnstile/v0/api.js",
+			widgetClass: "cf-turnstile",
+			label:       "Turnstile",
+		},
+		{
+			name:        "hcaptcha",
+			provider:    publicWafCaptchaProviderHCaptcha,
+			scriptURL:   "https://js.hcaptcha.com/1/api.js",
+			widgetClass: "h-captcha",
+			label:       "hCaptcha",
+		},
+		{
+			name:        "recaptcha",
+			provider:    publicWafCaptchaProviderRecaptcha,
+			scriptURL:   "https://www.google.com/recaptcha/api.js",
+			widgetClass: "g-recaptcha",
+			label:       "reCAPTCHA",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://app.example.test/private", nil)
+			resp := httptest.NewRecorder()
+			writeCaptchaChallenge(resp, req, testWafCaptchaPageDecision(tc.provider))
+
+			body := resp.Body.String()
+			for _, want := range []string{tc.scriptURL, tc.widgetClass, "JavaScript is required for " + tc.label} {
+				if !strings.Contains(body, want) {
+					t.Fatalf("captcha page for %s missing %q\n%s", tc.name, want, body)
+				}
+			}
+		})
+	}
+}
+
+func TestPublicWafWaitingRoomPageUsesCloudflareInspiredLayout(t *testing.T) {
+	rule := testWafRule(9, publicWafActionWaitingRoom)
+	rule.WaitingRoom.PageTitle = "Queue for access"
+	rule.WaitingRoom.PageBody = "Traffic is high. Please wait."
+	decision := publicWafDecision{
+		Rule:          rule,
+		Action:        publicWafActionWaitingRoom,
+		StatusCode:    http.StatusServiceUnavailable,
+		RetryAfter:    5 * time.Second,
+		ChallengeKind: publicWafActionWaitingRoom,
+		QueuePosition: 12,
+	}
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.test/private", nil)
+	resp := httptest.NewRecorder()
+	writePublicWafResponse(resp, req, decision)
+
+	if resp.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusServiceUnavailable)
+	}
+	if retryAfter := resp.Header().Get("Retry-After"); retryAfter != "5" {
+		t.Fatalf("Retry-After = %q, want 5", retryAfter)
+	}
+	body := resp.Body.String()
+	for _, want := range []string{
+		"Queue for access",
+		"Traffic is high. Please wait.",
+		"Queue position",
+		"Next check",
+		"Browser",
+		"p2pstream",
+		"Destination",
+		"Waiting room by p2pstream",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("waiting-room page missing %q\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "Cloudflare") {
+		t.Fatalf("waiting-room page must not claim Cloudflare generated it\n%s", body)
+	}
+}
+
+func TestPublicWafWaitingRoomPageEscapesConfiguredCopy(t *testing.T) {
+	rule := testWafRule(10, publicWafActionWaitingRoom)
+	rule.WaitingRoom.PageTitle = `Wait"><script>alert(1)</script>`
+	rule.WaitingRoom.PageBody = `Body"><script>alert(2)</script>`
+	resp := httptest.NewRecorder()
+	writeWaitingRoomPage(resp, publicWafDecision{
+		Rule:          rule,
+		Action:        publicWafActionWaitingRoom,
+		StatusCode:    http.StatusServiceUnavailable,
+		RetryAfter:    5 * time.Second,
+		QueuePosition: 3,
+	})
+
+	body := resp.Body.String()
+	for _, want := range []string{
+		`Wait&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;`,
+		`Body&#34;&gt;&lt;script&gt;alert(2)&lt;/script&gt;`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("waiting-room page missing escaped copy %q\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, `<script>alert(1)</script>`) || strings.Contains(body, `<script>alert(2)</script>`) {
+		t.Fatalf("waiting-room page rendered raw configured HTML\n%s", body)
+	}
+}
+
+func TestPublicWafWaitingRoomPageKeepsRefreshInterval(t *testing.T) {
+	rule := testWafRule(11, publicWafActionWaitingRoom)
+	resp := httptest.NewRecorder()
+	writeWaitingRoomPage(resp, publicWafDecision{
+		Rule:          rule,
+		Action:        publicWafActionWaitingRoom,
+		StatusCode:    http.StatusServiceUnavailable,
+		RetryAfter:    5 * time.Second,
+		QueuePosition: 1,
+	})
+
+	if body := resp.Body.String(); !strings.Contains(body, `<meta http-equiv="refresh" content="5">`) {
+		t.Fatalf("waiting-room page did not keep meta refresh interval\n%s", body)
+	}
+}
 
 func TestPublicWafCaptchaVerificationProviders(t *testing.T) {
 	providers := []string{
@@ -351,6 +536,24 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected invalid provider error, got %v", err)
+	}
+}
+
+func testWafCaptchaPageDecision(providerType string) publicWafDecision {
+	rule := testWafRule(7, publicWafActionCaptcha)
+	return publicWafDecision{
+		Rule:          rule,
+		Action:        publicWafActionCaptcha,
+		StatusCode:    http.StatusForbidden,
+		ChallengeKind: providerType,
+		CaptchaProvider: publicWafCaptchaProviderConfig{
+			ID:           1,
+			Name:         "captcha",
+			ProviderType: providerType,
+			SiteKey:      `site"><key`,
+			SecretKey:    "secret",
+			Enabled:      true,
+		},
 	}
 }
 

@@ -220,37 +220,38 @@ func writeCaptchaChallenge(w http.ResponseWriter, r *http.Request, decision publ
 	w.WriteHeader(status)
 	returnTo := html.EscapeString(sanitizeWAFReturnTo(r.URL.RequestURI()))
 	script, widgetClass, responseName := captchaWidgetParts(provider.ProviderType)
-	_, _ = fmt.Fprintf(w, `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Security check</title>
-  <script src="%s" async defer></script>
-  <style>
-    :root { color-scheme: light dark; --bg: #0b0f14; --panel: #151b23; --line: #2b3642; --text: #f5f7fb; --muted: #9aa7b4; --accent: #2dd4bf; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; }
-    main { width: min(520px, 100%%); border: 1px solid var(--line); background: var(--panel); padding: 32px; border-radius: 8px; }
-    h1 { margin: 0 0 12px; font-size: 1.65rem; letter-spacing: 0; }
-    p { margin: 0 0 24px; color: var(--muted); line-height: 1.55; }
-    button { margin-top: 20px; border: 0; background: var(--accent); color: #06110f; font-weight: 700; padding: 11px 16px; border-radius: 6px; cursor: pointer; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>Security check</h1>
-    <p>Complete the challenge to continue. The original request body will not be replayed.</p>
-    <form method="post" action="%s">
-      <input type="hidden" name="rule_id" value="%d">
-      <input type="hidden" name="return_to" value="%s">
-      <div class="%s" data-sitekey="%s"></div>
-      <noscript><p>JavaScript is required for %s.</p></noscript>
-      <button type="submit">Continue</button>
-    </form>
-  </main>
-</body>
-</html>`, html.EscapeString(script), publicWafCaptchaVerifyPath, decision.Rule.ID, returnTo, html.EscapeString(widgetClass), html.EscapeString(provider.SiteKey), html.EscapeString(responseName))
+	primaryHTML := fmt.Sprintf(`<script src="%s" async defer></script>
+      <form class="cf-challenge-form" method="post" action="%s">
+        <input type="hidden" name="rule_id" value="%d">
+        <input type="hidden" name="return_to" value="%s">
+        <div class="cf-widget %s" data-sitekey="%s"></div>
+        <noscript><p class="cf-noscript">JavaScript is required for %s.</p></noscript>
+        <button class="cf-button" type="submit">Continue</button>
+      </form>`,
+		html.EscapeString(script),
+		html.EscapeString(publicWafCaptchaVerifyPath),
+		decision.Rule.ID,
+		returnTo,
+		html.EscapeString(widgetClass),
+		html.EscapeString(provider.SiteKey),
+		html.EscapeString(responseName),
+	)
+	host := publicWafRequestHost(r)
+	writePublicWafInterstitialPage(w, publicWafPageModel{
+		Title:       "Just a moment...",
+		Heading:     host + " needs to review the security of your connection before proceeding.",
+		Lead:        "Complete the verification below to continue.",
+		Host:        host,
+		ReferenceID: publicWafReferenceID(decision.Rule.ID),
+		FooterLabel: "Security by p2pstream",
+		Diagnostics: []publicWafPageDiagnostic{
+			{Label: "Browser", Status: "Working", Tone: "ok"},
+			{Label: "p2pstream", Status: "Security check", Tone: "warn"},
+			{Label: "Destination", Status: "Protected", Tone: "muted"},
+		},
+		PrimaryHTML:   primaryHTML,
+		SecondaryHTML: `<p>This check helps protect the site from automated traffic. Request bodies are not replayed after verification.</p>`,
+	})
 }
 
 func captchaWidgetParts(providerType string) (script string, widgetClass string, responseName string) {
