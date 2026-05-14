@@ -22,6 +22,8 @@ Rules are ordered by priority, then ID. The first enabled matching rule wins.
 | Captcha | Shows a challenge page and sets a signed pass cookie after verification. |
 | Waiting room | Queues visitors and admits sessions gradually with signed cookies. |
 
+Passing a captcha or waiting-room admission does not bypass later policy layers. The request still goes through rate limits, traffic shaping, route resolution, and backend forwarding.
+
 WAF match fields reuse the same policy matcher model as rate limits: method, protocol, host pattern, path prefix, headers, cookies, and query parameters. Key parts identify a visitor or policy bucket, defaulting to remote IP.
 
 ## Captcha providers

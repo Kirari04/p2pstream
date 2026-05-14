@@ -94,6 +94,12 @@ Visitors with an admission cookie pass through. New visitors receive a signed qu
 
 The original request body is never replayed after waiting-room admission.
 
+## Challenge And Queue Passes
+
+Captcha pass cookies and waiting-room admission cookies only satisfy the matching WAF rule. After a visitor passes a challenge or is admitted from the waiting room, the request still continues through rate limits, traffic shaping, route resolution, and backend forwarding.
+
+Captcha and waiting-room pages are p2pstream-branded interstitial pages with browser, p2pstream, and destination diagnostics plus a per-response reference ID. They do not include provider secrets or signed cookie values.
+
 ## Automatic Activation
 
 Waiting-room rules can use `always` mode or `automatic` mode. Automatic mode activates only after one or more configured pressure signals trip for the minimum active duration, then deactivates after the quiet period.

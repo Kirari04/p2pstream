@@ -66,6 +66,8 @@ Create:
 
 The target origin is resolved from the agent host, not from the VPS.
 
+Health checks for this backend also run from the assigned agent, so health-check paths must be reachable from the home lab host.
+
 ## 4. Route public traffic
 
 Create an HTTPS listener and route:

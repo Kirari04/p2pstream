@@ -58,4 +58,6 @@ Weights must be from `1` to `1000`. Keep at least one enabled assignment on an e
 
 Disable an assignment before taking an agent host down. Do not delete a connected agent; disconnect or disable it first.
 
+If you enable health checks on an agent-pool backend, p2pstream checks the target origin from each enabled assigned connected agent. A loopback origin such as `http://127.0.0.1:8888` means loopback on each agent host.
+
 Watch **Overview -> Hotspots -> Agents** to see which agents are serving traffic.

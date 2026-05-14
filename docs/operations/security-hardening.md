@@ -9,6 +9,7 @@ Treat the management surface as administrative infrastructure. Public listeners 
 - Prefer firewall allowlists, VPN, or a private admin network.
 - Set `MANAGEMENT_PUBLIC_URL` to the real management URL used by browsers and agents.
 - Use `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true` when management is accessed over HTTPS.
+- For headless deployments, set `MANAGEMENT_UI_DISABLED=true` to stop serving the browser UI while keeping the API and agent WebSocket available.
 
 ## Data protection
 
@@ -62,6 +63,7 @@ Do not treat the WAF as a substitute for upstream DDoS protection. Network satur
 - [ ] admin password is stored in a password manager.
 - [ ] password reset recovery uses the documented local CLI path.
 - [ ] `MANAGEMENT_PUBLIC_URL` is correct.
+- [ ] browser UI exposure is intentional, or `MANAGEMENT_UI_DISABLED=true` is set for API-only management.
 - [ ] unused listeners are disabled.
 - [ ] WAF, rate-limit, and shaper rules are scoped to the hosts and paths they are meant to protect.
 - [ ] unused agents are disabled or deleted.

@@ -4,7 +4,7 @@
 | --- | --- |
 | `80/tcp` | Public HTTP listener. Also used for ACME HTTP-01. |
 | `443/tcp` | Public HTTPS listener. Also used for ACME TLS-ALPN-01. |
-| `8081/tcp` | Management UI/API and agent HTTPS/WSS connections. |
+| `8081/tcp` | Management UI/API and agent HTTPS/WSS connections. The browser UI can be disabled with `MANAGEMENT_UI_DISABLED=true`. |
 
 ## Docker publishing
 

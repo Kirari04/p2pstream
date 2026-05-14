@@ -44,7 +44,7 @@ Forward route pool fields:
 
 At request time, disabled assignments, disabled backends, unhealthy backends, and invalid backend configs are skipped. If nothing remains, the route fallback is tried. If no fallback is usable, the response is `503`.
 
-Connection and timeout failures mark the selected backend temporarily unhealthy for later requests. The original request is not replayed to another backend.
+When backend health checks are enabled, connection and timeout failures mark the selected backend, or selected backend-agent assignment, temporarily unhealthy for later requests. When health checks are disabled, those failures affect only the current request and do not remove the backend from routing. The original request is not replayed to another backend.
 
 Redirect routes require:
 

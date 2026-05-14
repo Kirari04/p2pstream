@@ -21,6 +21,7 @@ sudo journalctl -u p2pstream-agent -f
 | Port published | Publish `8081:8081` or use the actual host port. |
 | Scheme | Use `https://host:8081` unless management TLS is explicitly off. |
 | Firewall | Allow the management port from your admin network. |
+| Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; ConnectRPC APIs and the agent WebSocket remain available. |
 
 ## Browser certificate warning
 
@@ -97,6 +98,9 @@ sudo journalctl -u p2pstream-agent -f
 | Agent offline | Reconnect or enable an assigned agent. |
 | Upstream TLS error | Fix the upstream certificate; use skip verify only as a temporary internal workaround. |
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
+| Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. Wait for recovery, fix the upstream, or adjust health-check settings. |
+
+When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_backend_available`.
 
 ## Rate limits affect every user
 
