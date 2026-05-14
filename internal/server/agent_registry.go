@@ -137,6 +137,7 @@ func (a *App) RotateAgentToken(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	a.revokeAgentConnection(agent.ID, errAgentTokenRotated)
 	return connect.NewResponse(&p2pstreamv1.RotateAgentTokenResponse{
 		Agent: a.agentToProto(ctx, agent),
 		Token: token,

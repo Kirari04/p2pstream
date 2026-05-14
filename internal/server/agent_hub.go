@@ -10,7 +10,10 @@ import (
 	"p2pstream/msg"
 )
 
-var errAgentDisconnected = errors.New("agent disconnected")
+var (
+	errAgentDisconnected = errors.New("agent disconnected")
+	errAgentTokenRotated = errors.New("agent token rotated")
+)
 
 const (
 	lateAgentResponseTTL        = 2 * time.Minute
@@ -117,13 +120,40 @@ func (h *agentHub) connect(conn *AgentConn) error {
 }
 
 func (h *agentHub) disconnect(conn *AgentConn) {
+	if h == nil || conn == nil {
+		return
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.disconnectLocked(conn)
+}
+
+func (h *agentHub) disconnectByID(agentID int64) *AgentConn {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	conn := h.byID[agentID]
+	if conn == nil {
+		return nil
+	}
+	h.disconnectLocked(conn)
+	return conn
+}
+
+func (h *agentHub) disconnectLocked(conn *AgentConn) {
+	if conn == nil {
+		return
+	}
 	if current := h.byPublicID[conn.PublicID]; current == conn {
 		delete(h.byPublicID, conn.PublicID)
 	}
 	if current := h.byID[conn.AgentID]; current == conn {
 		delete(h.byID, conn.AgentID)
+	}
+	if conn.Done == nil {
+		return
 	}
 	select {
 	case <-conn.Done:
@@ -163,6 +193,18 @@ func (a *App) failPendingRequestsForAgent(agentID int64, err error) {
 		pending.fail(err)
 		return true
 	})
+}
+
+func (a *App) revokeAgentConnection(agentID int64, err error) bool {
+	if a == nil {
+		return false
+	}
+	disconnected := false
+	if a.AgentHub != nil {
+		disconnected = a.AgentHub.disconnectByID(agentID) != nil
+	}
+	a.failPendingRequestsForAgent(agentID, err)
+	return disconnected
 }
 
 func (a *App) finishPendingAgentRequest(id uuid.UUID, reason string) {

@@ -428,7 +428,7 @@ async function copySetupSnippet() {
         <div class="grid gap-2">
           <p class="text-sm text-white">Rotate the token for {{ rotateAgentToConfirm.name }}?</p>
           <p class="text-sm leading-6 text-[#888]">
-            The new token will be shown once. Existing connected sockets can keep running until they disconnect, but future connections and stats reports must use the new token.
+            The new token will be shown once. The active agent connection will be disconnected immediately. In-flight requests through this agent may fail, and future connections and stats reports must use the new token.
           </p>
         </div>
         <div class="rounded-md border border-[#333] bg-[#0b0b0b] p-3">

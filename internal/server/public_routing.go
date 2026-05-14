@@ -928,15 +928,9 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 		return
 	case err := <-pending.ErrorCh:
-		pendingFinishReason = "agent_failed"
+		pendingFinishReason, errorKind = agentPendingFailureReason(err)
 		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
 		statusCode = http.StatusBadGateway
-		if errors.Is(err, errAgentDisconnected) {
-			pendingFinishReason = "agent_disconnected"
-			errorKind = "agent_disconnected"
-		} else {
-			errorKind = "agent_failed"
-		}
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
 		return
 	case firstMsg = <-pending.ResponseCh:
@@ -1029,6 +1023,17 @@ func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
 		})
 	}
 	return a.LoadBalancers.selectAgent(backend, candidates)
+}
+
+func agentPendingFailureReason(err error) (string, string) {
+	switch {
+	case errors.Is(err, errAgentDisconnected):
+		return "agent_disconnected", "agent_disconnected"
+	case errors.Is(err, errAgentTokenRotated):
+		return "agent_token_rotated", "agent_token_rotated"
+	default:
+		return "agent_failed", "agent_failed"
+	}
 }
 
 func (a *App) selectRouteBackend(snap publicProxySnapshot, route publicRouteConfig) (publicBackendConfig, bool, bool) {
