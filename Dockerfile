@@ -7,7 +7,7 @@ RUN bun install --frozen-lockfile
 COPY web/management/ ./
 RUN bun run build
 
-FROM golang:1.25.6-bookworm AS backend
+FROM golang:1.25.10-bookworm AS backend
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -17,7 +17,7 @@ RUN go build -o /out/p2pstream main.go
 FROM scratch AS binary
 COPY --from=backend /out/p2pstream /p2pstream
 
-FROM golang:1.25.6-bookworm AS test-base
+FROM golang:1.25.10-bookworm AS test-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
