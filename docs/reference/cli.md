@@ -18,6 +18,8 @@ The server command reads configuration from `.env` and environment variables. It
 - public listeners from the SQLite configuration,
 - ACME renewal scheduling when the database is available.
 
+Set `MANAGEMENT_UI_DISABLED=true` to serve only the management API and agent WebSocket on the management listener.
+
 Common server invocation:
 
 ```bash

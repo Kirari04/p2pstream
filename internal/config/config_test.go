@@ -65,6 +65,20 @@ func TestLoadWorksWithDockerStyleConfigDir(t *testing.T) {
 	}
 }
 
+func TestLoadSupportsDisablingManagementUI(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+	t.Setenv("MANAGEMENT_UI_DISABLED", "true")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.ManagementUIDisabled {
+		t.Fatal("expected ManagementUIDisabled to be true")
+	}
+}
+
 func TestLoadMigratesLegacyDefaultDatabase(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")

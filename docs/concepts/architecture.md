@@ -19,7 +19,7 @@ The server process runs the management API/UI and the public proxy runtime.
 
 | Component | Role |
 | --- | --- |
-| Management UI/API | Serves the Vue UI and ConnectRPC API on `MANAGEMENT_PORT`, default `8081`. |
+| Management UI/API | Serves the Vue UI, ConnectRPC API, and agent WebSocket on `MANAGEMENT_PORT`, default `8081`. The browser UI can be disabled with `MANAGEMENT_UI_DISABLED=true`. |
 | Public listeners | Bind configured HTTP/HTTPS listener ports and receive public traffic. |
 | WAF | Applies ordered block, captcha, and waiting-room rules before rate limits and routing. |
 | Router | Selects a route by listener, host, path prefix, and priority. |

@@ -12,6 +12,7 @@ Public proxy listener ports are stored in the database and managed through the m
 | `CONFIG_DIR` | `p2pstream-data` | Directory for default SQLite database and certificates. Docker sets this to `/data`. |
 | `DATABASE_URL` | `file:${CONFIG_DIR}/p2pstream.db?...` | SQLite DSN. Leave unset for the managed default. |
 | `ENV` | `development` | Use `production` to mark session cookies secure. |
+| `MANAGEMENT_UI_DISABLED` | `false` | Disable serving the browser management UI. ConnectRPC APIs and the agent WebSocket remain available. |
 | `MANAGEMENT_UI_DIST_DIR` | `web/management/dist` | Built management UI files. Runtime image sets `/app/web/management/dist`. |
 | `MANAGEMENT_UI_DEV_PROXY` | empty | Development-only management UI proxy target. |
 | `MANAGEMENT_COOKIE_SECURE` | `false` | Force Secure cookies even when `ENV` is not `production`. |

@@ -15,6 +15,7 @@ services:
     environment:
       CONFIG_DIR: /data
       MANAGEMENT_PORT: "8081"
+      MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
       MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
       MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
     ports:
@@ -75,6 +76,8 @@ MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
 ```
 
 Agents verify the management certificate with `MANAGEMENT_CA_FILE` or `MANAGEMENT_CA_PEM_BASE64`; they do not skip TLS verification by default.
+
+To run management in API-only mode, set `MANAGEMENT_UI_DISABLED=true`. The browser UI is not served, but ConnectRPC APIs and the agent WebSocket stay available.
 
 ## Port overrides
 

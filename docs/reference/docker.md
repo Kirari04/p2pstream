@@ -46,6 +46,8 @@ The runtime image:
 - exposes `80`, `443`, and `8081`,
 - runs `/app/p2pstream server`.
 
+Set `MANAGEMENT_UI_DISABLED=true` to stop serving the browser UI from the management listener. The ConnectRPC API and agent WebSocket remain available.
+
 The same image also includes local utility commands. For example, reset a forgotten management password against the mounted `/data` database with:
 
 ```bash

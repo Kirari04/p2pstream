@@ -98,7 +98,9 @@ func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws", a.wsHandler)
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a)
 	mux.Handle(path, handler)
-	mux.Handle("/", managementui.NewHandler(a.Config.ManagementUIDevProxy, a.Config.ManagementUIDistDir))
+	if !a.Config.ManagementUIDisabled {
+		mux.Handle("/", managementui.NewHandler(a.Config.ManagementUIDevProxy, a.Config.ManagementUIDistDir))
+	}
 }
 
 // ReportStats implements the ConnectRPC AgentManagementService.

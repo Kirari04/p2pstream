@@ -25,6 +25,7 @@ type Config struct {
 	ConfigDir                   string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
 	DatabaseURL                 string `env:"DATABASE_URL"`
 	Env                         string `env:"ENV" envDefault:"development"` // development or production
+	ManagementUIDisabled        bool   `env:"MANAGEMENT_UI_DISABLED" envDefault:"false"`
 	ManagementUIDevProxy        string `env:"MANAGEMENT_UI_DEV_PROXY"`
 	ManagementUIDistDir         string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
 	ManagementCookieSecure      bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
