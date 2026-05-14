@@ -60,6 +60,7 @@ const form = reactive({
   protocols: [] as PublicListenerProtocol[],
   hostPatternsText: "",
   pathPrefixesText: "",
+  pathSuffixesText: "",
   headers: [] as MatcherForm[],
   cookies: [] as MatcherForm[],
   queryParams: [] as MatcherForm[],
@@ -137,6 +138,7 @@ function resetForm() {
   form.protocols = [];
   form.hostPatternsText = "";
   form.pathPrefixesText = "";
+  form.pathSuffixesText = "";
   form.headers = [];
   form.cookies = [];
   form.queryParams = [];
@@ -175,6 +177,7 @@ function openEdit(ruleId: bigint | string) {
   form.protocols = [...(rule.match?.protocols ?? [])];
   form.hostPatternsText = (rule.match?.hostPatterns ?? []).join("\n");
   form.pathPrefixesText = (rule.match?.pathPrefixes ?? []).join("\n");
+  form.pathSuffixesText = (rule.match?.pathSuffixes ?? []).join("\n");
   form.headers = cloneMatchers(rule.match?.headers ?? []);
   form.cookies = cloneMatchers(rule.match?.cookies ?? []);
   form.queryParams = cloneMatchers(rule.match?.queryParams ?? []);
@@ -335,6 +338,7 @@ async function submitRule() {
         protocols: [...form.protocols],
         hostPatterns: lines(form.hostPatternsText),
         pathPrefixes: lines(form.pathPrefixesText),
+        pathSuffixes: lines(form.pathSuffixesText),
         headers: matcherPayload(form.headers),
         cookies: matcherPayload(form.cookies),
         queryParams: matcherPayload(form.queryParams),
@@ -477,6 +481,10 @@ defineExpose({ openCreate, openEdit, close });
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Path prefixes
             <textarea v-model="form.pathPrefixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder="/assets&#10;/downloads" />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Path suffixes
+            <textarea v-model="form.pathSuffixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder=".mp4&#10;.zip" />
           </label>
         </div>
 

@@ -14,6 +14,7 @@ import {
 import TrafficFlowEdge from "@/components/TrafficFlowEdge.vue";
 import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
 import {
+  CACHE_KEY,
   DEFAULT_ROUTE_KEY,
   RATE_LIMIT_KEY,
   TRAFFIC_SHAPER_KEY,
@@ -28,6 +29,7 @@ import {
   redirectKey,
   routeBackendAssignments,
   requestUsesRateLimitNode,
+  requestUsesCacheNode,
   requestUsesTrafficShaperNode,
   requestUsesWafNode,
   routeConfigForRequest,
@@ -57,7 +59,7 @@ import type { TraceRequest } from "@/types/trafficTrace";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
-export type TrafficNodeKind = "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+export type TrafficNodeKind = "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
 type AgentNodeStatus = {
   state: "connected" | "offline" | "disabled" | "unknown";
   label: string;
@@ -220,10 +222,12 @@ const layout = computed(() => {
   const backends = props.config?.backends ?? [];
   const enabledRateLimitTargets = index.enabledRateLimitTargets;
   const enabledWafTargets = index.enabledWafTargets;
+  const enabledCacheTargets = index.enabledCacheTargets;
   const enabledTrafficShaperTargets = index.enabledTrafficShaperTargets;
   const showWafNode = index.hasEnabledWafRules || props.requests.some((request) => requestUsesWafNode(request, index));
   const showRateLimitNode = index.hasEnabledRateLimitRules || props.requests.some((request) => requestUsesRateLimitNode(request, index));
   const showTrafficShaperNode = index.hasEnabledTrafficShaperRules || props.requests.some((request) => requestUsesTrafficShaperNode(request, index));
+  const showCacheNode = index.hasEnabledCacheRules || props.requests.some((request) => requestUsesCacheNode(request, index));
 
   if (showWafNode) {
     addNode({
@@ -258,11 +262,23 @@ const layout = computed(() => {
     });
   }
 
+  if (showCacheNode) {
+    addNode({
+      key: CACHE_KEY,
+      label: "Cache",
+      subLabel: enabledCacheTargets.length ? `${enabledCacheTargets.length.toString()} enabled` : "Observed",
+      column: 5,
+      kind: "cache",
+      editTargets: enabledCacheTargets,
+    });
+  }
+
   for (const listener of listeners) {
     const listenerNodeKey = listenerKey(listener.id);
-    const routeEntryKey = showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
+    const routeEntryKey = showCacheNode ? CACHE_KEY : showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
     const rateEntryKey = showWafNode ? WAF_KEY : listenerNodeKey;
     const shaperEntryKey = showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
+    const cacheEntryKey = showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
     addNode({
       key: listenerNodeKey,
       label: listener.name || `Listener ${listener.id.toString()}`,
@@ -280,6 +296,9 @@ const layout = computed(() => {
     }
     if (showTrafficShaperNode) {
       addEdge(shaperEntryKey, TRAFFIC_SHAPER_KEY);
+    }
+    if (showCacheNode) {
+      addEdge(cacheEntryKey, CACHE_KEY);
     }
 
     addNode({
@@ -1187,6 +1206,19 @@ function addObservedNodes(
     });
   }
 
+  if (requestUsesCacheNode(request, index)) {
+    addNode({
+      key: CACHE_KEY,
+      label: "Cache",
+      subLabel: request.cacheRuleName || request.cacheStatus || "Observed",
+      column: 5,
+      kind: "cache",
+      editTargets: request.cacheRuleId > 0n
+        ? [cacheEditTarget(request.cacheRuleId, request.cacheRuleName || `Cache ${request.cacheRuleId.toString()}`, request.cacheStatus || "Observed")]
+        : index.enabledCacheTargets,
+    });
+  }
+
   if (request.listenerId > 0n) {
     addNode({
       key: listenerKey(request.listenerId),
@@ -1400,6 +1432,10 @@ function trafficShaperEditTarget(id: bigint | string | number, label: string, su
 
 function wafEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
   return { kind: "waf", id: id.toString(), label, subLabel };
+}
+
+function cacheEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "cache", id: id.toString(), label, subLabel };
 }
 
 function backendTypeLabel(request: TraceRequest): string {

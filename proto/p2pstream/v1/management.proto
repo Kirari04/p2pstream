@@ -120,6 +120,26 @@ enum PublicWafActivationMode {
   PUBLIC_WAF_ACTIVATION_MODE_AUTOMATIC = 2;
 }
 
+enum PublicCacheTtlMode {
+  PUBLIC_CACHE_TTL_MODE_UNSPECIFIED = 0;
+  PUBLIC_CACHE_TTL_MODE_FIXED = 1;
+  PUBLIC_CACHE_TTL_MODE_ORIGIN = 2;
+}
+
+enum PublicCacheQueryMode {
+  PUBLIC_CACHE_QUERY_MODE_UNSPECIFIED = 0;
+  PUBLIC_CACHE_QUERY_MODE_FULL = 1;
+  PUBLIC_CACHE_QUERY_MODE_IGNORE = 2;
+  PUBLIC_CACHE_QUERY_MODE_ALLOWLIST = 3;
+  PUBLIC_CACHE_QUERY_MODE_DENYLIST = 4;
+}
+
+enum PublicCacheScope {
+  PUBLIC_CACHE_SCOPE_UNSPECIFIED = 0;
+  PUBLIC_CACHE_SCOPE_SELECTED_BACKEND = 1;
+  PUBLIC_CACHE_SCOPE_ROUTE = 2;
+}
+
 enum PublicTlsCertificateSource {
   PUBLIC_TLS_CERTIFICATE_SOURCE_UNSPECIFIED = 0;
   PUBLIC_TLS_CERTIFICATE_SOURCE_MANUAL = 1;
@@ -177,6 +197,11 @@ enum TrafficTraceStage {
   TRAFFIC_TRACE_STAGE_WAF_CAPTCHA_CHALLENGED = 13;
   TRAFFIC_TRACE_STAGE_WAF_CAPTCHA_VERIFIED = 14;
   TRAFFIC_TRACE_STAGE_WAF_WAITING_ROOM = 15;
+  TRAFFIC_TRACE_STAGE_CACHE_LOOKUP = 16;
+  TRAFFIC_TRACE_STAGE_CACHE_HIT = 17;
+  TRAFFIC_TRACE_STAGE_CACHE_MISS = 18;
+  TRAFFIC_TRACE_STAGE_CACHE_BYPASS = 19;
+  TRAFFIC_TRACE_STAGE_CACHE_STORED = 20;
 }
 
 message AgentStatsRequest {
@@ -412,6 +437,7 @@ message PublicRateLimitMatch {
   repeated PublicRateLimitValueMatcher headers = 5;
   repeated PublicRateLimitValueMatcher cookies = 6;
   repeated PublicRateLimitValueMatcher query_params = 7;
+  repeated string path_suffixes = 8;
 }
 
 message PublicRateLimitResponseHeader {
@@ -511,6 +537,38 @@ message PublicWafRule {
   int64 updated_at_unix_millis = 18;
 }
 
+message PublicCacheSettings {
+  bool enabled = 1;
+  int64 max_disk_bytes = 2;
+  int64 max_memory_bytes = 3;
+  int64 memory_hot_object_max_bytes = 4;
+  int64 max_entries = 5;
+  int64 cleanup_interval_millis = 6;
+  int64 created_at_unix_millis = 7;
+  int64 updated_at_unix_millis = 8;
+}
+
+message PublicCacheRule {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicRateLimitMatch match = 5;
+  repeated int64 route_ids = 6;
+  repeated int64 backend_ids = 7;
+  PublicCacheScope scope = 8;
+  PublicCacheTtlMode ttl_mode = 9;
+  int64 ttl_millis = 10;
+  PublicCacheQueryMode query_mode = 11;
+  repeated string query_params = 12;
+  repeated string vary_headers = 13;
+  repeated int64 cache_status_codes = 14;
+  int64 max_object_bytes = 15;
+  bool add_cache_status_header = 16;
+  int64 created_at_unix_millis = 17;
+  int64 updated_at_unix_millis = 18;
+}
+
 message PublicListenerStatus {
   int64 listener_id = 1;
   ProxyState state = 2;
@@ -539,6 +597,8 @@ message GetPublicProxyConfigResponse {
   repeated PublicRouteBackend route_backends = 11;
   repeated PublicWafCaptchaProvider waf_captcha_providers = 12;
   repeated PublicWafRule waf_rules = 13;
+  PublicCacheSettings cache_settings = 14;
+  repeated PublicCacheRule cache_rules = 15;
 }
 
 message CreatePublicBackendRequest {
@@ -1023,6 +1083,83 @@ message DeletePublicWafRuleRequest {
 message DeletePublicWafRuleResponse {
 }
 
+message CreatePublicCacheRuleRequest {
+  string name = 1;
+  int64 priority = 2;
+  bool enabled = 3;
+  PublicRateLimitMatch match = 4;
+  repeated int64 route_ids = 5;
+  repeated int64 backend_ids = 6;
+  PublicCacheScope scope = 7;
+  PublicCacheTtlMode ttl_mode = 8;
+  int64 ttl_millis = 9;
+  PublicCacheQueryMode query_mode = 10;
+  repeated string query_params = 11;
+  repeated string vary_headers = 12;
+  repeated int64 cache_status_codes = 13;
+  int64 max_object_bytes = 14;
+  bool add_cache_status_header = 15;
+}
+
+message CreatePublicCacheRuleResponse {
+  PublicCacheRule rule = 1;
+}
+
+message UpdatePublicCacheRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicRateLimitMatch match = 5;
+  repeated int64 route_ids = 6;
+  repeated int64 backend_ids = 7;
+  PublicCacheScope scope = 8;
+  PublicCacheTtlMode ttl_mode = 9;
+  int64 ttl_millis = 10;
+  PublicCacheQueryMode query_mode = 11;
+  repeated string query_params = 12;
+  repeated string vary_headers = 13;
+  repeated int64 cache_status_codes = 14;
+  int64 max_object_bytes = 15;
+  bool add_cache_status_header = 16;
+}
+
+message UpdatePublicCacheRuleResponse {
+  PublicCacheRule rule = 1;
+}
+
+message DeletePublicCacheRuleRequest {
+  int64 id = 1;
+}
+
+message DeletePublicCacheRuleResponse {
+}
+
+message UpdatePublicCacheSettingsRequest {
+  bool enabled = 1;
+  int64 max_disk_bytes = 2;
+  int64 max_memory_bytes = 3;
+  int64 memory_hot_object_max_bytes = 4;
+  int64 max_entries = 5;
+  int64 cleanup_interval_millis = 6;
+}
+
+message UpdatePublicCacheSettingsResponse {
+  PublicCacheSettings settings = 1;
+}
+
+message PurgePublicCacheRequest {
+  bool all = 1;
+  int64 rule_id = 2;
+  string host = 3;
+  string path_prefix = 4;
+}
+
+message PurgePublicCacheResponse {
+  int64 purged_entries = 1;
+  int64 purged_bytes = 2;
+}
+
 message GetDashboardRequest {
 }
 
@@ -1205,6 +1342,10 @@ message TrafficTraceEvent {
   PublicWafActivationMode waf_activation_mode = 43;
   bool waf_automatic_active = 44;
   string waf_challenge_kind = 45;
+  int64 cache_rule_id = 46;
+  string cache_rule_name = 47;
+  string cache_status = 48;
+  string cache_key_digest = 49;
 }
 
 message StreamTrafficTraceEventsResponse {
@@ -1319,4 +1460,9 @@ service AgentManagementService {
   rpc CreatePublicWafRule(CreatePublicWafRuleRequest) returns (CreatePublicWafRuleResponse) {}
   rpc UpdatePublicWafRule(UpdatePublicWafRuleRequest) returns (UpdatePublicWafRuleResponse) {}
   rpc DeletePublicWafRule(DeletePublicWafRuleRequest) returns (DeletePublicWafRuleResponse) {}
+  rpc CreatePublicCacheRule(CreatePublicCacheRuleRequest) returns (CreatePublicCacheRuleResponse) {}
+  rpc UpdatePublicCacheRule(UpdatePublicCacheRuleRequest) returns (UpdatePublicCacheRuleResponse) {}
+  rpc DeletePublicCacheRule(DeletePublicCacheRuleRequest) returns (DeletePublicCacheRuleResponse) {}
+  rpc UpdatePublicCacheSettings(UpdatePublicCacheSettingsRequest) returns (UpdatePublicCacheSettingsResponse) {}
+  rpc PurgePublicCache(PurgePublicCacheRequest) returns (PurgePublicCacheResponse) {}
 }

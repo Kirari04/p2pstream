@@ -1,6 +1,6 @@
 # Routing
 
-Routes decide what a listener does with a matching request. WAF rules, rate limits, and traffic shapers run before route resolution, so challenged, queued, blocked, or rate-limited requests do not reach route backend selection.
+Routes decide what a listener does with a matching request. WAF rules, rate limits, and traffic shapers run before route resolution, so challenged, queued, blocked, or rate-limited requests do not reach route backend selection. Cache rules run after route/backend selection and can serve eligible proxy-forward assets without contacting the upstream.
 
 ## Match fields
 

@@ -152,6 +152,8 @@ type publicProxySnapshot struct {
 	WafCaptchaProviders map[int64]publicWafCaptchaProviderConfig
 	WafRules            []publicWafRuleConfig
 	WafCookieSecret     []byte
+	CacheSettings       publicCacheSettingsConfig
+	CacheRules          []publicCacheRuleConfig
 }
 
 type publicRouteResolution struct {
@@ -180,6 +182,10 @@ type publicRouteResolution struct {
 	WafActivationMode                   string
 	WafAutomaticActive                  bool
 	WafChallengeKind                    string
+	CacheRuleID                         int64
+	CacheRuleName                       string
+	CacheStatus                         string
+	CacheKeyDigest                      string
 	RouteLoadBalancing                  string
 	RouteFallbackSelected               bool
 }
@@ -450,6 +456,63 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			}
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, attributes)
 		}
+		var cacheDecision *publicCacheDecision
+		if resolution.Backend.BackendType == publicBackendTypeProxyForward {
+			decision := a.checkPublicCache(r, resolution)
+			applyCacheResolutionFields(&resolution, decision)
+			if trace != nil {
+				trace.emit(
+					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_LOOKUP,
+					&resolution,
+					nil,
+					0,
+					"",
+					nil,
+					publicCacheTraceAttributes(decision),
+				)
+			}
+			switch decision.Status {
+			case publicCacheStatusHit:
+				if trace != nil {
+					trace.emit(
+						p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_HIT,
+						&resolution,
+						nil,
+						int(decision.Entry.StatusCode),
+						"",
+						nil,
+						publicCacheTraceAttributes(decision),
+					)
+				}
+				a.servePublicCacheHit(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), decision, observability)
+				return
+			case publicCacheStatusMiss:
+				cacheDecision = &decision
+				if trace != nil {
+					trace.emit(
+						p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_MISS,
+						&resolution,
+						nil,
+						0,
+						"",
+						nil,
+						publicCacheTraceAttributes(decision),
+					)
+				}
+			default:
+				if trace != nil {
+					trace.emit(
+						p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_BYPASS,
+						&resolution,
+						nil,
+						0,
+						"",
+						nil,
+						publicCacheTraceAttributes(decision),
+					)
+				}
+			}
+		}
 		if resolution.BackendID.Valid {
 			done := a.beginPublicBackendRequest(resolution.BackendID.Int64)
 			defer done()
@@ -459,10 +522,10 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 			return
 		}
 		if resolution.Backend.ForwardMode == publicBackendForwardModeAgentPool {
-			a.proxyAgentRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), observability)
+			a.proxyAgentRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), cacheDecision, observability)
 			return
 		}
-		a.proxyDirectRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), observability)
+		a.proxyDirectRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), cacheDecision, observability)
 	}
 }
 
@@ -604,7 +667,7 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 	_, _ = io.Copy(w, body)
 }
 
-func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
+func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -616,7 +679,7 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 			}
 			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), map[string]string{"handler": "direct"})
 		}
-		a.recordProxyRequestEventWithIDs(
+		a.recordProxyRequestEventWithCache(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
@@ -625,6 +688,11 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 			resolution.BackendID,
 			resolution.RouteID,
 			sql.NullInt64{},
+			"",
+			sql.NullInt64{},
+			cacheRuleID(cacheDecision),
+			cacheStatus(cacheDecision),
+			cacheBytes(cacheDecision),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
 		)
@@ -659,6 +727,12 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			statusCode = resp.StatusCode
+			if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
+				resp.Header.Set("X-p2pstream-Cache", "MISS")
+			}
+			if cacheDecision != nil && cacheDecision.Cacheable {
+				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
+			}
 			if shaper != nil {
 				resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
 			}
@@ -695,7 +769,7 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 	proxy.ServeHTTP(w, r)
 }
 
-func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
+func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -709,7 +783,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 			}
 			trace.emit(stage, &resolution, agent, statusCode, errorKind, w.Header(), map[string]string{"handler": "agent_pool"})
 		}
-		a.recordProxyRequestEventWithIDs(
+		a.recordProxyRequestEventWithCache(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
@@ -717,7 +791,12 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 			resolution.ListenerID,
 			resolution.BackendID,
 			resolution.RouteID,
+			sql.NullInt64{},
+			"",
 			selectedAgentID,
+			cacheRuleID(cacheDecision),
+			cacheStatus(cacheDecision),
+			cacheBytes(cacheDecision),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
 		)
@@ -884,6 +963,9 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	}
 
 	statusCode = resp.StatusCode
+	if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
+		resp.Header.Set("X-p2pstream-Cache", "MISS")
+	}
 	if trace != nil {
 		trace.emit(
 			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
@@ -904,6 +986,9 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	w.WriteHeader(resp.StatusCode)
 
 	if resp.Body != nil {
+		if cacheDecision != nil && cacheDecision.Cacheable {
+			resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
+		}
 		if shaper != nil {
 			resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
 		}

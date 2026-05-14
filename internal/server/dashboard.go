@@ -198,6 +198,26 @@ func (a *App) recordProxyRequestEventWithPolicyIDs(
 	requestBytes uint64,
 	responseBytes uint64,
 ) {
+	a.recordProxyRequestEventWithCache(ctx, statusCode, duration, errorKind, listenerID, backendID, routeID, wafRuleID, wafAction, agentID, sql.NullInt64{}, "", 0, requestBytes, responseBytes)
+}
+
+func (a *App) recordProxyRequestEventWithCache(
+	ctx context.Context,
+	statusCode int,
+	duration time.Duration,
+	errorKind string,
+	listenerID sql.NullInt64,
+	backendID sql.NullInt64,
+	routeID sql.NullInt64,
+	wafRuleID sql.NullInt64,
+	wafAction string,
+	agentID sql.NullInt64,
+	cacheRuleID sql.NullInt64,
+	cacheStatus string,
+	cacheBytes uint64,
+	requestBytes uint64,
+	responseBytes uint64,
+) {
 	if a.DB == nil {
 		return
 	}
@@ -220,6 +240,9 @@ func (a *App) recordProxyRequestEventWithPolicyIDs(
 		AgentID:       agentID,
 		RequestBytes:  int64FromUint64(requestBytes),
 		ResponseBytes: int64FromUint64(responseBytes),
+		CacheRuleID:   cacheRuleID,
+		CacheStatus:   cacheStatus,
+		CacheBytes:    int64FromUint64(cacheBytes),
 	}); err != nil {
 		log.Warn().Err(err).Msg("Failed to record proxy request event")
 	}

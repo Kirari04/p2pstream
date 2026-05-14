@@ -22,9 +22,9 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetProxyRequestSummarySince :one
@@ -1007,3 +1007,190 @@ ON CONFLICT(id) DO UPDATE SET
     cookie_signing_secret = public_waf_settings.cookie_signing_secret,
     updated_at = public_waf_settings.updated_at
 RETURNING id, cookie_signing_secret, created_at, updated_at;
+
+-- name: GetPublicCacheSettings :one
+SELECT id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at
+FROM public_cache_settings
+WHERE id = 1;
+
+-- name: UpsertPublicCacheSettingsDefaults :one
+INSERT INTO public_cache_settings (id)
+VALUES (1)
+ON CONFLICT(id) DO UPDATE SET updated_at = public_cache_settings.updated_at
+RETURNING id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at;
+
+-- name: UpdatePublicCacheSettings :one
+INSERT INTO public_cache_settings (
+    id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis
+) VALUES (
+    1, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(id) DO UPDATE SET
+    enabled = excluded.enabled,
+    max_disk_bytes = excluded.max_disk_bytes,
+    max_memory_bytes = excluded.max_memory_bytes,
+    memory_hot_object_max_bytes = excluded.memory_hot_object_max_bytes,
+    max_entries = excluded.max_entries,
+    cleanup_interval_millis = excluded.cleanup_interval_millis,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at;
+
+-- name: ListPublicCacheRules :many
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+       query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+       add_cache_status_header, created_at, updated_at
+FROM public_cache_rules
+ORDER BY priority ASC, id ASC;
+
+-- name: GetPublicCacheRule :one
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+       query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+       add_cache_status_header, created_at, updated_at
+FROM public_cache_rules
+WHERE id = ?;
+
+-- name: CreatePublicCacheRule :one
+INSERT INTO public_cache_rules (
+    name,
+    priority,
+    enabled,
+    match_json,
+    route_ids_json,
+    backend_ids_json,
+    scope,
+    ttl_mode,
+    ttl_millis,
+    query_mode,
+    query_params_json,
+    vary_headers_json,
+    cache_status_codes_json,
+    max_object_bytes,
+    add_cache_status_header
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+          query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+          add_cache_status_header, created_at, updated_at;
+
+-- name: UpdatePublicCacheRule :one
+UPDATE public_cache_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    match_json = ?,
+    route_ids_json = ?,
+    backend_ids_json = ?,
+    scope = ?,
+    ttl_mode = ?,
+    ttl_millis = ?,
+    query_mode = ?,
+    query_params_json = ?,
+    vary_headers_json = ?,
+    cache_status_codes_json = ?,
+    max_object_bytes = ?,
+    add_cache_status_header = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+          query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+          add_cache_status_header, created_at, updated_at;
+
+-- name: DeletePublicCacheRule :exec
+DELETE FROM public_cache_rules
+WHERE id = ?;
+
+-- name: GetPublicCacheEntry :one
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+       vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+       last_accessed_at, hit_count
+FROM public_cache_entries
+WHERE key_digest = ?;
+
+-- name: ListPublicCacheEntryCandidates :many
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+       vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+       last_accessed_at, hit_count
+FROM public_cache_entries
+WHERE rule_id = ?
+  AND listener_protocol = ?
+  AND host = ?
+  AND path = ?
+  AND query_key = ?
+  AND COALESCE(route_id, 0) = ?
+  AND COALESCE(backend_id, 0) = ?
+  AND expires_at > ?
+ORDER BY stored_at DESC
+LIMIT 20;
+
+-- name: UpsertPublicCacheEntry :one
+INSERT INTO public_cache_entries (
+    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+    vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+    last_accessed_at, hit_count
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
+)
+ON CONFLICT(key_digest) DO UPDATE SET
+    rule_id = excluded.rule_id,
+    scope = excluded.scope,
+    listener_protocol = excluded.listener_protocol,
+    host = excluded.host,
+    path = excluded.path,
+    query_key = excluded.query_key,
+    route_id = excluded.route_id,
+    backend_id = excluded.backend_id,
+    method = excluded.method,
+    vary_headers_json = excluded.vary_headers_json,
+    response_headers_json = excluded.response_headers_json,
+    status_code = excluded.status_code,
+    body_path = excluded.body_path,
+    size_bytes = excluded.size_bytes,
+    stored_at = CURRENT_TIMESTAMP,
+    expires_at = excluded.expires_at,
+    last_accessed_at = CURRENT_TIMESTAMP,
+    hit_count = 0
+RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+          vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+          last_accessed_at, hit_count;
+
+-- name: TouchPublicCacheEntry :exec
+UPDATE public_cache_entries
+SET last_accessed_at = CURRENT_TIMESTAMP,
+    hit_count = hit_count + 1
+WHERE key_digest = ?;
+
+-- name: DeletePublicCacheEntry :exec
+DELETE FROM public_cache_entries
+WHERE key_digest = ?;
+
+-- name: DeleteExpiredPublicCacheEntries :many
+DELETE FROM public_cache_entries
+WHERE expires_at <= ?
+RETURNING key_digest, body_path, size_bytes;
+
+-- name: ListPublicCacheEntriesForCleanup :many
+SELECT key_digest, body_path, size_bytes
+FROM public_cache_entries
+ORDER BY last_accessed_at ASC
+LIMIT ?;
+
+-- name: SumPublicCacheBytes :one
+SELECT CAST(COALESCE(SUM(size_bytes), 0) AS INTEGER) AS total_bytes,
+       COUNT(*) AS entry_count
+FROM public_cache_entries;
+
+-- name: PurgeAllPublicCacheEntries :many
+DELETE FROM public_cache_entries
+RETURNING key_digest, body_path, size_bytes;
+
+-- name: PurgePublicCacheEntriesByRule :many
+DELETE FROM public_cache_entries
+WHERE rule_id = ?
+RETURNING key_digest, body_path, size_bytes;
+
+-- name: PurgePublicCacheEntriesByHostPath :many
+DELETE FROM public_cache_entries
+WHERE (? = '' OR host = ?)
+  AND (? = '' OR path LIKE ? || '%')
+RETURNING key_digest, body_path, size_bytes;

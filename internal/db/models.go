@@ -57,6 +57,9 @@ type ProxyRequestEvent struct {
 	AgentID       sql.NullInt64 `json:"agent_id"`
 	RequestBytes  int64         `json:"request_bytes"`
 	ResponseBytes int64         `json:"response_bytes"`
+	CacheRuleID   sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus   string        `json:"cache_status"`
+	CacheBytes    int64         `json:"cache_bytes"`
 }
 
 type PublicBackend struct {
@@ -116,6 +119,61 @@ type PublicBackendUpstreamHeader struct {
 	Sensitive int64     `json:"sensitive"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PublicCacheEntry struct {
+	KeyDigest           string        `json:"key_digest"`
+	RuleID              int64         `json:"rule_id"`
+	Scope               string        `json:"scope"`
+	ListenerProtocol    string        `json:"listener_protocol"`
+	Host                string        `json:"host"`
+	Path                string        `json:"path"`
+	QueryKey            string        `json:"query_key"`
+	RouteID             sql.NullInt64 `json:"route_id"`
+	BackendID           sql.NullInt64 `json:"backend_id"`
+	Method              string        `json:"method"`
+	VaryHeadersJson     string        `json:"vary_headers_json"`
+	ResponseHeadersJson string        `json:"response_headers_json"`
+	StatusCode          int64         `json:"status_code"`
+	BodyPath            string        `json:"body_path"`
+	SizeBytes           int64         `json:"size_bytes"`
+	StoredAt            time.Time     `json:"stored_at"`
+	ExpiresAt           time.Time     `json:"expires_at"`
+	LastAccessedAt      time.Time     `json:"last_accessed_at"`
+	HitCount            int64         `json:"hit_count"`
+}
+
+type PublicCacheRule struct {
+	ID                   int64     `json:"id"`
+	Name                 string    `json:"name"`
+	Priority             int64     `json:"priority"`
+	Enabled              int64     `json:"enabled"`
+	MatchJson            string    `json:"match_json"`
+	RouteIdsJson         string    `json:"route_ids_json"`
+	BackendIdsJson       string    `json:"backend_ids_json"`
+	Scope                string    `json:"scope"`
+	TtlMode              string    `json:"ttl_mode"`
+	TtlMillis            int64     `json:"ttl_millis"`
+	QueryMode            string    `json:"query_mode"`
+	QueryParamsJson      string    `json:"query_params_json"`
+	VaryHeadersJson      string    `json:"vary_headers_json"`
+	CacheStatusCodesJson string    `json:"cache_status_codes_json"`
+	MaxObjectBytes       int64     `json:"max_object_bytes"`
+	AddCacheStatusHeader int64     `json:"add_cache_status_header"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+}
+
+type PublicCacheSetting struct {
+	ID                      int64     `json:"id"`
+	Enabled                 int64     `json:"enabled"`
+	MaxDiskBytes            int64     `json:"max_disk_bytes"`
+	MaxMemoryBytes          int64     `json:"max_memory_bytes"`
+	MemoryHotObjectMaxBytes int64     `json:"memory_hot_object_max_bytes"`
+	MaxEntries              int64     `json:"max_entries"`
+	CleanupIntervalMillis   int64     `json:"cleanup_interval_millis"`
+	CreatedAt               time.Time `json:"created_at"`
+	UpdatedAt               time.Time `json:"updated_at"`
 }
 
 type PublicListener struct {

@@ -176,7 +176,10 @@ func (db *DB) migrate() error {
 		waf_action TEXT NOT NULL DEFAULT '',
 		agent_id INTEGER REFERENCES agents(id),
 		request_bytes INTEGER NOT NULL DEFAULT 0,
-		response_bytes INTEGER NOT NULL DEFAULT 0
+		response_bytes INTEGER NOT NULL DEFAULT 0,
+		cache_rule_id INTEGER,
+		cache_status TEXT NOT NULL DEFAULT '',
+		cache_bytes INTEGER NOT NULL DEFAULT 0
 	);
 
 	CREATE TABLE IF NOT EXISTS public_backends (
@@ -453,19 +456,22 @@ func (db *DB) migrate() error {
 		`ALTER TABLE proxy_request_events ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
 		`ALTER TABLE proxy_request_events ADD COLUMN request_bytes INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE proxy_request_events ADD COLUMN response_bytes INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE proxy_request_events ADD COLUMN cache_rule_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN cache_status TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN cache_bytes INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN backend_type TEXT NOT NULL DEFAULT 'proxy_forward'`,
 		`ALTER TABLE public_backends ADD COLUMN forward_mode TEXT NOT NULL DEFAULT 'direct'`,
 		`ALTER TABLE public_backends ADD COLUMN load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
 		`ALTER TABLE public_backends ADD COLUMN tls_skip_verify INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN static_status_code INTEGER NOT NULL DEFAULT 200`,
 		`ALTER TABLE public_backends ADD COLUMN static_response_body TEXT NOT NULL DEFAULT ''`,
-			`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
-			`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
-			`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
-			`ALTER TABLE public_backends ADD COLUMN upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000`,
-			`ALTER TABLE public_backends ADD COLUMN health_check_enabled INTEGER NOT NULL DEFAULT 0`,
-			`ALTER TABLE public_backends ADD COLUMN health_check_method TEXT NOT NULL DEFAULT 'GET'`,
-			`ALTER TABLE public_backends ADD COLUMN health_check_path TEXT NOT NULL DEFAULT '/'`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_enabled INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_method TEXT NOT NULL DEFAULT 'GET'`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_path TEXT NOT NULL DEFAULT '/'`,
 		`ALTER TABLE public_backends ADD COLUMN health_check_interval_millis INTEGER NOT NULL DEFAULT 10000`,
 		`ALTER TABLE public_backends ADD COLUMN health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000`,
 		`ALTER TABLE public_backends ADD COLUMN health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2`,
@@ -720,6 +726,70 @@ func (db *DB) migrate() error {
 	`); err != nil {
 		return err
 	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_cache_settings (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			enabled INTEGER NOT NULL DEFAULT 1,
+			max_disk_bytes INTEGER NOT NULL DEFAULT 1073741824,
+			max_memory_bytes INTEGER NOT NULL DEFAULT 134217728,
+			memory_hot_object_max_bytes INTEGER NOT NULL DEFAULT 262144,
+			max_entries INTEGER NOT NULL DEFAULT 100000,
+			cleanup_interval_millis INTEGER NOT NULL DEFAULT 60000,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_cache_rules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			priority INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			match_json TEXT NOT NULL DEFAULT '{}',
+			route_ids_json TEXT NOT NULL DEFAULT '[]',
+			backend_ids_json TEXT NOT NULL DEFAULT '[]',
+			scope TEXT NOT NULL DEFAULT 'selected_backend',
+			ttl_mode TEXT NOT NULL DEFAULT 'fixed',
+			ttl_millis INTEGER NOT NULL DEFAULT 3600000,
+			query_mode TEXT NOT NULL DEFAULT 'full',
+			query_params_json TEXT NOT NULL DEFAULT '[]',
+			vary_headers_json TEXT NOT NULL DEFAULT '["Accept-Encoding"]',
+			cache_status_codes_json TEXT NOT NULL DEFAULT '[200,203,204,301,308]',
+			max_object_bytes INTEGER NOT NULL DEFAULT 104857600,
+			add_cache_status_header INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_cache_entries (
+			key_digest TEXT PRIMARY KEY,
+			rule_id INTEGER NOT NULL REFERENCES public_cache_rules(id) ON DELETE CASCADE,
+			scope TEXT NOT NULL,
+			listener_protocol TEXT NOT NULL,
+			host TEXT NOT NULL,
+			path TEXT NOT NULL,
+			query_key TEXT NOT NULL,
+			route_id INTEGER,
+			backend_id INTEGER,
+			method TEXT NOT NULL DEFAULT 'GET',
+			vary_headers_json TEXT NOT NULL DEFAULT '[]',
+			response_headers_json TEXT NOT NULL DEFAULT '[]',
+			status_code INTEGER NOT NULL,
+			body_path TEXT NOT NULL,
+			size_bytes INTEGER NOT NULL,
+			stored_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME NOT NULL,
+			last_accessed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			hit_count INTEGER NOT NULL DEFAULT 0
+		)
+	`); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_priority ON public_waf_rules (priority, id)`); err != nil {
 		return err
 	}
@@ -727,6 +797,21 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id ON proxy_request_events (waf_rule_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_cache_rule_id ON proxy_request_events (cache_rule_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_rules_priority ON public_cache_rules (priority, id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_rule_id ON public_cache_entries (rule_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_expires_at ON public_cache_entries (expires_at)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_last_accessed_at ON public_cache_entries (last_accessed_at)`); err != nil {
 		return err
 	}
 	return nil

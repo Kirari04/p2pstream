@@ -37,6 +37,7 @@ type Config struct {
 	ManagementPublicURL         string `env:"MANAGEMENT_PUBLIC_URL"`
 	ManagementAdvertiseHost     string `env:"MANAGEMENT_ADVERTISE_HOST"`
 	ManagementTLSExtraHosts     string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
+	PublicCacheDir              string `env:"PUBLIC_CACHE_DIR"`
 	BootstrapAgentID            string `env:"BOOTSTRAP_AGENT_ID"`
 	BootstrapAgentName          string `env:"BOOTSTRAP_AGENT_NAME"`
 	BootstrapAgentToken         string `env:"BOOTSTRAP_AGENT_TOKEN"`
@@ -71,6 +72,11 @@ func Load() (*Config, error) {
 	}
 	cfg.ConfigDir = filepath.Clean(cfg.ConfigDir)
 	cfg.CertsDir = filepath.Join(cfg.ConfigDir, certsDirName)
+	if strings.TrimSpace(cfg.PublicCacheDir) == "" {
+		cfg.PublicCacheDir = filepath.Join(cfg.ConfigDir, "cache", "public")
+	} else {
+		cfg.PublicCacheDir = filepath.Clean(cfg.PublicCacheDir)
+	}
 
 	if err := prepareConfigDir(cfg.ConfigDir, cfg.CertsDir); err != nil {
 		return nil, err

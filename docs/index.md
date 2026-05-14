@@ -29,7 +29,7 @@ These docs are written for selfhosters operating p2pstream on a VPS, home lab ho
 
 ## Management console
 
-The management UI gives operators one place to inspect runtime health, traffic, agents, listeners, backends, routes, TLS, WAF rules, rate limits, and traffic shaping.
+The management UI gives operators one place to inspect runtime health, traffic, agents, listeners, backends, routes, TLS, WAF rules, rate limits, cache rules, and traffic shaping.
 
 <figure class="doc-screenshot">
   <img src="./assets/overview.png" alt="p2pstream proxy overview dashboard showing proxy status, request metrics, traffic trend, hotspots, and configuration snapshot">
@@ -45,7 +45,7 @@ The management UI gives operators one place to inspect runtime health, traffic, 
 | Backends | Forward directly from the server host, return static responses, or route through an agent pool. |
 | Agents | Keep outbound HTTPS/WSS connections from remote hosts to the management server and forward selected requests there. |
 | TLS | Use manual certificate mappings or ACME HTTP-01, TLS-ALPN-01, and DNS-01 with Cloudflare. |
-| Controls | Apply WAF block/captcha/waiting-room rules, request rate limits, and upload/download traffic shaping rules before forwarding. |
+| Controls | Apply WAF block/captcha/waiting-room rules, request rate limits, cache rules for public assets, and upload/download traffic shaping. |
 | Observability | Use dashboard windows, retained request events, agent stats, and live traffic tracing. |
 
 ## Recommended reading order
@@ -54,5 +54,6 @@ The management UI gives operators one place to inspect runtime health, traffic, 
 2. [First login](./getting-started/first-login)
 3. [Publish a service](./guides/publish-a-service)
 4. [WAF](./concepts/waf)
-5. [Backup and restore](./operations/backup-restore)
-6. [Security hardening](./operations/security-hardening)
+5. [Public asset cache](./concepts/cache)
+6. [Backup and restore](./operations/backup-restore)
+7. [Security hardening](./operations/security-hardening)

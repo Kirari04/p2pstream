@@ -26,6 +26,9 @@ import {
   PublicBackendForwardMode,
   PublicBackendLoadBalancing,
   PublicBackendType,
+  PublicCacheQueryMode,
+  PublicCacheScope,
+  PublicCacheTtlMode,
   PublicListenerProtocol,
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
@@ -44,6 +47,7 @@ import {
   type GetPublicProxyConfigResponse,
   type PublicBackend,
   type PublicBackendAgent,
+  type PublicCacheRule,
   type PublicListener,
   type PublicListenerStatus,
   type PublicRateLimitRule,
@@ -85,6 +89,8 @@ const backendAgents = computed(() => config.value?.backendAgents ?? []);
 const routes = computed(() => config.value?.routes ?? []);
 const routeBackends = computed(() => config.value?.routeBackends ?? []);
 const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
+const cacheRules = computed(() => config.value?.cacheRules ?? []);
+const cacheSettings = computed(() => config.value?.cacheSettings ?? null);
 const wafRules = computed(() => config.value?.wafRules ?? []);
 const wafCaptchaProviders = computed(() => config.value?.wafCaptchaProviders ?? []);
 const trafficShaperRules = computed(() => config.value?.trafficShaperRules ?? []);
@@ -122,6 +128,14 @@ const tlsCredentialForm = reactive({
   enabled: true,
 });
 const tlsCredentialError = ref("");
+const cacheSettingsForm = reactive({
+  enabled: true,
+  maxDiskMiB: 1024,
+  maxMemoryMiB: 128,
+  hotObjectKiB: 256,
+  maxEntries: 100000,
+  cleanupIntervalSeconds: 60,
+});
 
 const proxySeverity = computed(() => severityForState(proxyState.value));
 const tlsHasPartialUpload = computed(() => Boolean(tlsForm.certPem) !== Boolean(tlsForm.keyPem));
@@ -147,6 +161,25 @@ const tlsCredentialSubmitDisabledReason = computed(() => {
   if (!tlsCredentialForm.id && !tlsCredentialForm.apiToken.trim()) return "Enter the Cloudflare API token.";
   return "";
 });
+const cacheSettingsDisabledReason = computed(() => {
+  if (isBusy?.value) return BUSY_REASON;
+  if (cacheSettingsForm.maxDiskMiB < 1) return "Disk budget must be at least 1 MiB.";
+  if (cacheSettingsForm.maxMemoryMiB < 1) return "Memory budget must be at least 1 MiB.";
+  if (cacheSettingsForm.hotObjectKiB < 1) return "Hot-object limit must be at least 1 KiB.";
+  if (cacheSettingsForm.hotObjectKiB > cacheSettingsForm.maxMemoryMiB * 1024) return "Hot-object limit cannot exceed memory budget.";
+  if (cacheSettingsForm.maxEntries < 1) return "Max entries must be at least 1.";
+  if (cacheSettingsForm.cleanupIntervalSeconds < 1 || cacheSettingsForm.cleanupIntervalSeconds > 3600) return "Cleanup interval must be between 1 and 3600 seconds.";
+  return "";
+});
+
+watch(cacheSettings, (settings) => {
+  cacheSettingsForm.enabled = settings?.enabled ?? true;
+  cacheSettingsForm.maxDiskMiB = bytesToMiB(settings?.maxDiskBytes ?? 1073741824n);
+  cacheSettingsForm.maxMemoryMiB = bytesToMiB(settings?.maxMemoryBytes ?? 134217728n);
+  cacheSettingsForm.hotObjectKiB = bytesToKiB(settings?.memoryHotObjectMaxBytes ?? 262144n);
+  cacheSettingsForm.maxEntries = Number(settings?.maxEntries ?? 100000n);
+  cacheSettingsForm.cleanupIntervalSeconds = Math.max(1, Math.round(Number(settings?.cleanupIntervalMillis ?? 60000n) / 1000));
+}, { immediate: true });
 
 function proxyStateLabel(state: ProxyState): string {
   switch (state) {
@@ -328,6 +361,7 @@ function rateLimitMatchSummary(rule: PublicRateLimitRule): string {
   if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
   if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
   if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  if (match.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
   const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
   if (matcherCount) parts.push(`${matcherCount} value matcher${matcherCount === 1 ? "" : "s"}`);
   return parts.length ? parts.join(" / ") : "Any request";
@@ -394,6 +428,7 @@ function wafRuleMatchSummary(rule: PublicWafRule): string {
   if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
   if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
   if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  if (match.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
   const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
   if (matcherCount) parts.push(`${matcherCount} value matcher${matcherCount === 1 ? "" : "s"}`);
   return parts.length ? parts.join(" / ") : "Any request";
@@ -405,6 +440,57 @@ function wafKeySummary(rule: PublicWafRule): string {
     const label = rateLimitKeySourceLabel(part.source);
     return part.name ? `${label}:${part.name}` : label;
   }).join(" + ");
+}
+
+function cacheTtlModeLabel(mode: PublicCacheTtlMode): string {
+  return mode === PublicCacheTtlMode.ORIGIN ? "Origin TTL" : "Fixed TTL";
+}
+
+function cacheScopeLabel(scope: PublicCacheScope): string {
+  return scope === PublicCacheScope.ROUTE ? "Route scope" : "Backend scope";
+}
+
+function cacheQueryModeLabel(mode: PublicCacheQueryMode): string {
+  switch (mode) {
+    case PublicCacheQueryMode.IGNORE: return "ignore query";
+    case PublicCacheQueryMode.ALLOWLIST: return "allowlist query";
+    case PublicCacheQueryMode.DENYLIST: return "denylist query";
+    default: return "full query";
+  }
+}
+
+function cacheRuleSummary(rule: PublicCacheRule): string {
+  const ttl = rateLimitWindowLabel(rule.ttlMillis);
+  const statuses = rule.cacheStatusCodes.length ? rule.cacheStatusCodes.join(",") : "200,203,204,301,308";
+  const maxMb = Math.max(1, Math.round(Number(rule.maxObjectBytes || 0n) / 1024 / 1024));
+  return `${cacheTtlModeLabel(rule.ttlMode)} ${ttl} / status ${statuses} / max ${maxMb.toString()} MiB`;
+}
+
+function cacheRuleMatchSummary(rule: PublicCacheRule): string {
+  const match = rule.match;
+  const parts: string[] = [];
+  if (match?.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
+  if (match?.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  if (match?.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
+  if (rule.routeIds.length) parts.push(`${rule.routeIds.length.toString()} route${rule.routeIds.length === 1 ? "" : "s"}`);
+  if (rule.backendIds.length) parts.push(`${rule.backendIds.length.toString()} backend${rule.backendIds.length === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" / ") : "Any public GET/HEAD without cookies or authorization";
+}
+
+function bytesToMiB(value: bigint): number {
+  return Math.max(1, Math.round(Number(value || 0n) / 1024 / 1024));
+}
+
+function bytesToKiB(value: bigint): number {
+  return Math.max(1, Math.round(Number(value || 0n) / 1024));
+}
+
+function miBToBytes(value: number): bigint {
+  return BigInt(Math.max(1, Math.round(value || 0)) * 1024 * 1024);
+}
+
+function kiBToBytes(value: number): bigint {
+  return BigInt(Math.max(1, Math.round(value || 0)) * 1024);
 }
 
 function trafficShaperScopeLabel(scope: PublicTrafficShaperBudgetScope): string {
@@ -446,6 +532,7 @@ function trafficShaperMatchSummary(rule: PublicTrafficShaperRule): string {
   if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
   if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
   if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  if (match.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
   const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
   if (matcherCount) parts.push(`${matcherCount} value matcher${matcherCount === 1 ? "" : "s"}`);
   return parts.length ? parts.join(" / ") : "Any request";
@@ -595,6 +682,14 @@ function openAddWafRuleModal() {
 
 function editWafRule(id: bigint) {
   editorHost.value?.openWafRule(id);
+}
+
+function openAddCacheRuleModal() {
+  editorHost.value?.openCreateCacheRule();
+}
+
+function editCacheRule(id: bigint) {
+  editorHost.value?.openCacheRule(id);
 }
 
 function openAddWafCaptchaProviderModal() {
@@ -761,6 +856,34 @@ async function deleteWafRule(id: bigint) {
   if (!await confirm("Delete WAF Rule", "This WAF rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicWafRule({ id });
+  });
+}
+
+async function deleteCacheRule(id: bigint) {
+  if (!await confirm("Delete Cache Rule", "This cache rule will be permanently removed. Existing cached objects for the rule may be purged separately.")) return;
+  await run(async () => {
+    await managementClient.deletePublicCacheRule({ id });
+  });
+}
+
+async function purgeAllCache() {
+  if (!await confirm("Purge Cache", "All cached public proxy objects will be removed from the proxy cache.")) return;
+  await run(async () => {
+    await managementClient.purgePublicCache({ all: true });
+  });
+}
+
+async function saveCacheSettings() {
+  if (cacheSettingsDisabledReason.value) return;
+  await run(async () => {
+    await managementClient.updatePublicCacheSettings({
+      enabled: cacheSettingsForm.enabled,
+      maxDiskBytes: miBToBytes(cacheSettingsForm.maxDiskMiB),
+      maxMemoryBytes: miBToBytes(cacheSettingsForm.maxMemoryMiB),
+      memoryHotObjectMaxBytes: kiBToBytes(cacheSettingsForm.hotObjectKiB),
+      maxEntries: BigInt(Math.max(1, Math.round(cacheSettingsForm.maxEntries || 0))),
+      cleanupIntervalMillis: BigInt(Math.max(1, Math.round(cacheSettingsForm.cleanupIntervalSeconds || 0)) * 1000),
+    });
   });
 }
 
@@ -1166,6 +1289,91 @@ watch(tlsDnsCredentials, () => {
           description="WAF rules can block, challenge, or queue selected traffic before rate limits, shapers, routes, and backends."
           action-label="Add Rule"
           @action="openAddWafRuleModal"
+        />
+      </div>
+    </section>
+
+    <!-- Cache List -->
+    <section class="vercel-card overflow-hidden">
+      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Cache</h4>
+          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Cache public static files on the proxy after routing while keeping WAF, rate limits, and shaping active.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <SecondaryButton size="small" label="Purge All" @click="purgeAllCache">
+            <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+          </SecondaryButton>
+          <SecondaryButton size="small" label="Add Rule" @click="openAddCacheRuleModal">
+            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          </SecondaryButton>
+        </div>
+      </div>
+      <div class="grid gap-4 border-b border-[#222] bg-[#050505] px-5 py-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h5 class="text-xs font-semibold uppercase tracking-widest text-[#888]">Cache Settings</h5>
+            <p class="mt-1 text-xs text-[#666]">Bodies are stored under the configured public cache directory; metadata stays in SQLite.</p>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
+            <input v-model="cacheSettingsForm.enabled" type="checkbox" />
+            Enabled
+          </label>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Disk MiB
+            <input v-model.number="cacheSettingsForm.maxDiskMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Memory MiB
+            <input v-model.number="cacheSettingsForm.maxMemoryMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Hot object KiB
+            <input v-model.number="cacheSettingsForm.hotObjectKiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Max entries
+            <input v-model.number="cacheSettingsForm.maxEntries" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Cleanup seconds
+            <input v-model.number="cacheSettingsForm.cleanupIntervalSeconds" type="number" min="1" max="3600" class="vercel-input text-sm normal-case tracking-normal" />
+          </label>
+        </div>
+        <div class="flex justify-end">
+          <Button size="small" label="Save Settings" :disabled="Boolean(cacheSettingsDisabledReason)" :title="cacheSettingsDisabledReason" @click="saveCacheSettings" />
+        </div>
+      </div>
+      <div class="divide-y divide-[#1f1f1f]">
+        <div v-for="rule in cacheRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+          <div class="min-w-0">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <Tag :value="cacheTtlModeLabel(rule.ttlMode)" severity="info" />
+              <Tag :value="cacheScopeLabel(rule.scope)" severity="info" />
+              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
+              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
+            </div>
+            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ cacheRuleSummary(rule) }} / {{ cacheQueryModeLabel(rule.queryMode) }}</p>
+            <p class="mt-1 truncate text-xs text-[#666]">{{ cacheRuleMatchSummary(rule) }}</p>
+          </div>
+          <div class="flex gap-2 lg:justify-end">
+            <SecondaryButton size="small" aria-label="Edit cache rule" title="Edit cache rule" @click="editCacheRule(rule.id)">
+              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <DangerButton size="small" aria-label="Delete cache rule" title="Delete cache rule" @click="deleteCacheRule(rule.id)">
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            </DangerButton>
+          </div>
+        </div>
+        <EmptyState
+          v-if="!cacheRules.length"
+          title="No cache rules configured"
+          description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Cookie and Authorization requests are always bypassed."
+          action-label="Add Rule"
+          @action="openAddCacheRuleModal"
         />
       </div>
     </section>

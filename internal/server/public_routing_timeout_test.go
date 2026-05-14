@@ -38,7 +38,7 @@ func TestDirectProxyResponseHeaderTimeoutReturnsGatewayTimeout(t *testing.T) {
 			ParsedOrigin:                  origin,
 			UpstreamResponseHeaderTimeout: 25 * time.Millisecond,
 		},
-	}, nil, nil, proxyRequestObservability{})
+	}, nil, nil, nil, proxyRequestObservability{})
 
 	if rec.Code != http.StatusGatewayTimeout {
 		t.Fatalf("direct timeout status = %d body=%q, want 504", rec.Code, rec.Body.String())
@@ -132,7 +132,7 @@ func TestAgentProxySendsResponseHeaderTimeoutMetadata(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, proxyRequestObservability{})
+	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
 	if rec.Code != http.StatusOK || rec.Body.String() != "ok" {
 		t.Fatalf("agent proxy response = status %d body %q, want 200 ok", rec.Code, rec.Body.String())
 	}

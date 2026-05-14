@@ -24,6 +24,7 @@ Public proxy listener ports are stored in the database and managed through the m
 | `MANAGEMENT_PUBLIC_URL` | derived | Public management URL used in generated agent setup snippets. |
 | `MANAGEMENT_ADVERTISE_HOST` | detected | Hostname/IP used for auto-generated management certificates and default URL. |
 | `MANAGEMENT_TLS_EXTRA_HOSTS` | empty | Comma-separated extra DNS/IP names for auto management TLS. |
+| `PUBLIC_CACHE_DIR` | `${CONFIG_DIR}/cache/public` | Disk directory for public proxy cache body files. SQLite metadata remains in the configured database. |
 | `BOOTSTRAP_AGENT_ID` | empty | Bootstrap agent public ID. Must be set with name and token. |
 | `BOOTSTRAP_AGENT_NAME` | empty | Bootstrap agent display name. |
 | `BOOTSTRAP_AGENT_TOKEN` | empty | Bootstrap agent token. Stored as a hash. |

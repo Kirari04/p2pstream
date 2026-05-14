@@ -1,6 +1,7 @@
 import {
   PublicBackendForwardMode,
   PublicBackendType,
+  PublicCacheTtlMode,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
   PublicRouteAction,
@@ -10,6 +11,7 @@ import {
   type GetPublicProxyConfigResponse,
   type PublicBackend,
   type PublicBackendAgent,
+  type PublicCacheRule,
   type PublicRouteBackend,
   type PublicRateLimitRule,
   type PublicTrafficShaperRule,
@@ -23,6 +25,7 @@ import type { TraceRequest } from "@/types/trafficTrace";
 export const DEFAULT_ROUTE_KEY = "route:default";
 export const RATE_LIMIT_KEY = "rate-limit";
 export const WAF_KEY = "waf";
+export const CACHE_KEY = "cache";
 export const TRAFFIC_SHAPER_KEY = "traffic-shaper";
 
 export type TrafficFlowConfigIndex = {
@@ -38,6 +41,8 @@ export type TrafficFlowConfigIndex = {
   hasEnabledWafRules: boolean;
   enabledTrafficShaperTargets: TrafficFlowEditTarget[];
   hasEnabledTrafficShaperRules: boolean;
+  enabledCacheTargets: TrafficFlowEditTarget[];
+  hasEnabledCacheRules: boolean;
 };
 
 export type TrafficRequestPathCacheEntry = {
@@ -97,6 +102,10 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
     .filter((rule) => rule.enabled)
     .sort(compareTrafficShaperRules)
     .map(trafficShaperEditTarget);
+  const enabledCacheTargets = [...(config?.cacheRules ?? [])]
+    .filter((rule) => rule.enabled)
+    .sort(compareCacheRules)
+    .map(cacheEditTarget);
 
   for (const route of config?.routes ?? []) {
     routeById.set(route.id.toString(), route);
@@ -146,6 +155,8 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
     hasEnabledWafRules: enabledWafTargets.length > 0,
     enabledTrafficShaperTargets,
     hasEnabledTrafficShaperRules: enabledTrafficShaperTargets.length > 0,
+    enabledCacheTargets,
+    hasEnabledCacheRules: enabledCacheTargets.length > 0,
   };
 }
 
@@ -193,6 +204,14 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
     path.push(DEFAULT_ROUTE_KEY);
   }
 
+  if (requestUsesCacheNode(request, index)) {
+    path.push(CACHE_KEY);
+    if (request.stage === TraceStage.CACHE_HIT) {
+      path.push("response");
+      return dedupeConsecutive(path);
+    }
+  }
+
   const redirectNodeKey = redirectKeyForRequest(request, index);
   if (redirectNodeKey) {
     path.push(redirectNodeKey);
@@ -238,6 +257,8 @@ export function trafficRequestPathSignature(request: TraceRequest): string {
     request.rateLimitRuleId,
     request.wafRuleId,
     request.trafficShaperRuleId,
+    request.cacheRuleId,
+    request.cacheStatus,
   ].join("|");
 }
 
@@ -254,6 +275,11 @@ export function requestUsesWafNode(request: TraceRequest, index: TrafficFlowConf
 export function requestUsesTrafficShaperNode(request: TraceRequest, index: TrafficFlowConfigIndex | null): boolean {
   if (request.trafficShaperRuleId > 0n || request.stage === TraceStage.TRAFFIC_SHAPER_SELECTED) return true;
   return index?.hasEnabledTrafficShaperRules ?? false;
+}
+
+export function requestUsesCacheNode(request: TraceRequest, index: TrafficFlowConfigIndex | null): boolean {
+  if (request.cacheRuleId > 0n || request.stage === TraceStage.CACHE_LOOKUP || request.stage === TraceStage.CACHE_HIT || request.stage === TraceStage.CACHE_MISS || request.stage === TraceStage.CACHE_BYPASS || request.stage === TraceStage.CACHE_STORED) return true;
+  return index?.hasEnabledCacheRules ?? false;
 }
 
 export function routeConfigForRequest(request: TraceRequest, index: TrafficFlowConfigIndex | null): PublicRoute | undefined {
@@ -312,6 +338,12 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
     case TraceStage.WAF_CAPTCHA_VERIFIED:
     case TraceStage.WAF_WAITING_ROOM:
       return WAF_KEY;
+    case TraceStage.CACHE_LOOKUP:
+    case TraceStage.CACHE_HIT:
+    case TraceStage.CACHE_MISS:
+    case TraceStage.CACHE_BYPASS:
+    case TraceStage.CACHE_STORED:
+      return CACHE_KEY;
     case TraceStage.UPSTREAM_STARTED:
       if (request.backendType === PublicBackendType.STATIC) return "static-response";
       if (request.agentId > 0n || request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "upstream";
@@ -364,6 +396,15 @@ function wafEditTarget(rule: PublicWafRule): TrafficFlowEditTarget {
   };
 }
 
+function cacheEditTarget(rule: PublicCacheRule): TrafficFlowEditTarget {
+  return {
+    kind: "cache",
+    id: rule.id.toString(),
+    label: rule.name || `Cache ${rule.id.toString()}`,
+    subLabel: `${cacheTtlModeLabel(rule.ttlMode)} / P${rule.priority.toString()}`,
+  };
+}
+
 function compareRateLimitRules(a: PublicRateLimitRule, b: PublicRateLimitRule): number {
   if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
   if (a.id === b.id) return 0;
@@ -371,6 +412,12 @@ function compareRateLimitRules(a: PublicRateLimitRule, b: PublicRateLimitRule): 
 }
 
 function compareTrafficShaperRules(a: PublicTrafficShaperRule, b: PublicTrafficShaperRule): number {
+  if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+function compareCacheRules(a: PublicCacheRule, b: PublicCacheRule): number {
   if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
   if (a.id === b.id) return 0;
   return a.id < b.id ? -1 : 1;
@@ -430,6 +477,10 @@ function wafActionLabel(action: PublicWafRuleAction): string {
 
 function wafActivationLabel(mode: PublicWafActivationMode): string {
   return mode === PublicWafActivationMode.AUTOMATIC ? "Automatic" : "Always";
+}
+
+function cacheTtlModeLabel(mode: PublicCacheTtlMode): string {
+  return mode === PublicCacheTtlMode.ORIGIN ? "Origin TTL" : "Fixed TTL";
 }
 
 function isWafTerminalStage(stage: TraceStage): boolean {

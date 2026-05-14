@@ -254,6 +254,10 @@ function traceEvent(overrides: Partial<TrafficTraceEvent>): TrafficTraceEvent {
     wafActivationMode: 0,
     wafAutomaticActive: false,
     wafChallengeKind: "",
+    cacheRuleId: 0n,
+    cacheRuleName: "",
+    cacheStatus: "",
+    cacheKeyDigest: "",
     ...overrides,
   };
 }

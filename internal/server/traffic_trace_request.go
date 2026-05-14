@@ -288,6 +288,16 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 		event.WafAutomaticActive = resolution.WafAutomaticActive
 		event.WafChallengeKind = resolution.WafChallengeKind
 	}
+	if resolution.CacheRuleID != 0 {
+		event.CacheRuleId = resolution.CacheRuleID
+		event.CacheRuleName = resolution.CacheRuleName
+	}
+	if resolution.CacheStatus != "" {
+		event.CacheStatus = resolution.CacheStatus
+	}
+	if resolution.CacheKeyDigest != "" {
+		event.CacheKeyDigest = resolution.CacheKeyDigest
+	}
 }
 
 func traceRouteLabel(resolution publicRouteResolution) string {

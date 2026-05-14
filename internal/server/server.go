@@ -49,6 +49,7 @@ type App struct {
 	RateLimiter        *publicRateLimiter
 	TrafficShaper      *publicTrafficShaper
 	PublicWAF          *publicWAF
+	PublicCache        *publicProxyCache
 	PublicACME         *publicACMEManager
 	LoginThrottle      *loginThrottle
 
@@ -84,6 +85,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		RateLimiter:         newPublicRateLimiter(),
 		TrafficShaper:       newPublicTrafficShaper(),
 		PublicWAF:           newPublicWAF(),
+		PublicCache:         newPublicProxyCache(cfg.PublicCacheDir),
 		LoginThrottle:       newLoginThrottle(),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),

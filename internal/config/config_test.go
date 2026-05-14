@@ -63,6 +63,25 @@ func TestLoadWorksWithDockerStyleConfigDir(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(configDir, certsDirName)); err != nil {
 		t.Fatalf("expected Docker-style certs directory to exist: %v", err)
 	}
+	if cfg.PublicCacheDir != filepath.Join(configDir, "cache", "public") {
+		t.Fatalf("PublicCacheDir = %q, want default under CONFIG_DIR", cfg.PublicCacheDir)
+	}
+}
+
+func TestLoadRespectsExplicitPublicCacheDir(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	configDir := filepath.Join(workDir, "data")
+	cacheDir := filepath.Join(workDir, "public-cache")
+	t.Setenv("CONFIG_DIR", configDir)
+	t.Setenv("PUBLIC_CACHE_DIR", cacheDir)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.PublicCacheDir != filepath.Clean(cacheDir) {
+		t.Fatalf("PublicCacheDir = %q, want %q", cfg.PublicCacheDir, filepath.Clean(cacheDir))
+	}
 }
 
 func TestLoadSupportsDisablingManagementUI(t *testing.T) {

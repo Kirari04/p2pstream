@@ -21,6 +21,7 @@ type Querier interface {
 	CreatePublicBackendAgent(ctx context.Context, arg CreatePublicBackendAgentParams) (PublicBackendAgent, error)
 	CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error)
 	CreatePublicBackendUpstreamHeader(ctx context.Context, arg CreatePublicBackendUpstreamHeaderParams) (PublicBackendUpstreamHeader, error)
+	CreatePublicCacheRule(ctx context.Context, arg CreatePublicCacheRuleParams) (PublicCacheRule, error)
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
@@ -35,11 +36,14 @@ type Querier interface {
 	DeleteAgent(ctx context.Context, id int64) error
 	DeleteAgentStatsBefore(ctx context.Context, reportedAt time.Time) error
 	DeleteDisconnectedConnectionsBefore(ctx context.Context, disconnectedAt sql.NullTime) error
+	DeleteExpiredPublicCacheEntries(ctx context.Context, expiresAt time.Time) ([]DeleteExpiredPublicCacheEntriesRow, error)
 	DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error
 	DeletePublicBackend(ctx context.Context, id int64) error
 	DeletePublicBackendAgents(ctx context.Context, backendID int64) error
 	DeletePublicBackendHeaders(ctx context.Context, backendID int64) error
 	DeletePublicBackendUpstreamHeaders(ctx context.Context, backendID int64) error
+	DeletePublicCacheEntry(ctx context.Context, keyDigest string) error
+	DeletePublicCacheRule(ctx context.Context, id int64) error
 	DeletePublicListener(ctx context.Context, id int64) error
 	DeletePublicRateLimitRule(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
@@ -59,6 +63,9 @@ type Querier interface {
 	GetLatestAgentStatByAgent(ctx context.Context, agentID sql.NullInt64) (AgentStat, error)
 	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
 	GetPublicBackend(ctx context.Context, id int64) (PublicBackend, error)
+	GetPublicCacheEntry(ctx context.Context, keyDigest string) (PublicCacheEntry, error)
+	GetPublicCacheRule(ctx context.Context, id int64) (PublicCacheRule, error)
+	GetPublicCacheSettings(ctx context.Context) (PublicCacheSetting, error)
 	GetPublicListener(ctx context.Context, id int64) (PublicListener, error)
 	GetPublicRateLimitRule(ctx context.Context, id int64) (PublicRateLimitRule, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
@@ -83,6 +90,9 @@ type Querier interface {
 	ListPublicBackendUpstreamHeaders(ctx context.Context) ([]PublicBackendUpstreamHeader, error)
 	ListPublicBackendUpstreamHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendUpstreamHeader, error)
 	ListPublicBackends(ctx context.Context) ([]PublicBackend, error)
+	ListPublicCacheEntriesForCleanup(ctx context.Context, limit int64) ([]ListPublicCacheEntriesForCleanupRow, error)
+	ListPublicCacheEntryCandidates(ctx context.Context, arg ListPublicCacheEntryCandidatesParams) ([]PublicCacheEntry, error)
+	ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, error)
 	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
 	ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error)
 	ListPublicRouteBackends(ctx context.Context) ([]PublicRouteBackend, error)
@@ -100,14 +110,21 @@ type Querier interface {
 	ListTopProxyRoutesSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRoutesSinceRow, error)
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
+	PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error)
+	PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error)
+	PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int64) ([]PurgePublicCacheEntriesByRuleRow, error)
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
 	RevokeUserSessions(ctx context.Context, userID int64) (int64, error)
 	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
+	SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesRow, error)
+	TouchPublicCacheEntry(ctx context.Context, keyDigest string) error
 	TouchSession(ctx context.Context, id int64) error
 	UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error)
 	UpdateAgentToken(ctx context.Context, arg UpdateAgentTokenParams) (Agent, error)
 	UpdateConnectionDisconnected(ctx context.Context, id int64) error
 	UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error)
+	UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCacheRuleParams) (PublicCacheRule, error)
+	UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error)
 	UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error)
 	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
@@ -120,6 +137,8 @@ type Querier interface {
 	UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRuleParams) (PublicWafRule, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error)
 	UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapAgentParams) (Agent, error)
+	UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCacheEntryParams) (PublicCacheEntry, error)
+	UpsertPublicCacheSettingsDefaults(ctx context.Context) (PublicCacheSetting, error)
 	UpsertPublicWafSettings(ctx context.Context, cookieSigningSecret string) (PublicWafSetting, error)
 }
 

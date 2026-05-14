@@ -348,6 +348,91 @@ func (q *Queries) CreatePublicBackendUpstreamHeader(ctx context.Context, arg Cre
 	return i, err
 }
 
+const createPublicCacheRule = `-- name: CreatePublicCacheRule :one
+INSERT INTO public_cache_rules (
+    name,
+    priority,
+    enabled,
+    match_json,
+    route_ids_json,
+    backend_ids_json,
+    scope,
+    ttl_mode,
+    ttl_millis,
+    query_mode,
+    query_params_json,
+    vary_headers_json,
+    cache_status_codes_json,
+    max_object_bytes,
+    add_cache_status_header
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+          query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+          add_cache_status_header, created_at, updated_at
+`
+
+type CreatePublicCacheRuleParams struct {
+	Name                 string `json:"name"`
+	Priority             int64  `json:"priority"`
+	Enabled              int64  `json:"enabled"`
+	MatchJson            string `json:"match_json"`
+	RouteIdsJson         string `json:"route_ids_json"`
+	BackendIdsJson       string `json:"backend_ids_json"`
+	Scope                string `json:"scope"`
+	TtlMode              string `json:"ttl_mode"`
+	TtlMillis            int64  `json:"ttl_millis"`
+	QueryMode            string `json:"query_mode"`
+	QueryParamsJson      string `json:"query_params_json"`
+	VaryHeadersJson      string `json:"vary_headers_json"`
+	CacheStatusCodesJson string `json:"cache_status_codes_json"`
+	MaxObjectBytes       int64  `json:"max_object_bytes"`
+	AddCacheStatusHeader int64  `json:"add_cache_status_header"`
+}
+
+func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCacheRuleParams) (PublicCacheRule, error) {
+	row := q.db.QueryRowContext(ctx, createPublicCacheRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.MatchJson,
+		arg.RouteIdsJson,
+		arg.BackendIdsJson,
+		arg.Scope,
+		arg.TtlMode,
+		arg.TtlMillis,
+		arg.QueryMode,
+		arg.QueryParamsJson,
+		arg.VaryHeadersJson,
+		arg.CacheStatusCodesJson,
+		arg.MaxObjectBytes,
+		arg.AddCacheStatusHeader,
+	)
+	var i PublicCacheRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.MatchJson,
+		&i.RouteIdsJson,
+		&i.BackendIdsJson,
+		&i.Scope,
+		&i.TtlMode,
+		&i.TtlMillis,
+		&i.QueryMode,
+		&i.QueryParamsJson,
+		&i.VaryHeadersJson,
+		&i.CacheStatusCodesJson,
+		&i.MaxObjectBytes,
+		&i.AddCacheStatusHeader,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createPublicListener = `-- name: CreatePublicListener :one
 INSERT INTO public_listeners (name, bind_address, port, protocol, enabled, default_backend_id)
 VALUES (?, ?, ?, ?, ?, ?)
@@ -1040,6 +1125,41 @@ func (q *Queries) DeleteDisconnectedConnectionsBefore(ctx context.Context, disco
 	return err
 }
 
+const deleteExpiredPublicCacheEntries = `-- name: DeleteExpiredPublicCacheEntries :many
+DELETE FROM public_cache_entries
+WHERE expires_at <= ?
+RETURNING key_digest, body_path, size_bytes
+`
+
+type DeleteExpiredPublicCacheEntriesRow struct {
+	KeyDigest string `json:"key_digest"`
+	BodyPath  string `json:"body_path"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+func (q *Queries) DeleteExpiredPublicCacheEntries(ctx context.Context, expiresAt time.Time) ([]DeleteExpiredPublicCacheEntriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, deleteExpiredPublicCacheEntries, expiresAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteExpiredPublicCacheEntriesRow
+	for rows.Next() {
+		var i DeleteExpiredPublicCacheEntriesRow
+		if err := rows.Scan(&i.KeyDigest, &i.BodyPath, &i.SizeBytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteProxyRequestEventsBefore = `-- name: DeleteProxyRequestEventsBefore :exec
 DELETE FROM proxy_request_events
 WHERE occurred_at < ?
@@ -1087,6 +1207,26 @@ WHERE backend_id = ?
 
 func (q *Queries) DeletePublicBackendUpstreamHeaders(ctx context.Context, backendID int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicBackendUpstreamHeaders, backendID)
+	return err
+}
+
+const deletePublicCacheEntry = `-- name: DeletePublicCacheEntry :exec
+DELETE FROM public_cache_entries
+WHERE key_digest = ?
+`
+
+func (q *Queries) DeletePublicCacheEntry(ctx context.Context, keyDigest string) error {
+	_, err := q.db.ExecContext(ctx, deletePublicCacheEntry, keyDigest)
+	return err
+}
+
+const deletePublicCacheRule = `-- name: DeletePublicCacheRule :exec
+DELETE FROM public_cache_rules
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicCacheRule(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicCacheRule, id)
 	return err
 }
 
@@ -1516,6 +1656,98 @@ func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend
 	return i, err
 }
 
+const getPublicCacheEntry = `-- name: GetPublicCacheEntry :one
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+       vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+       last_accessed_at, hit_count
+FROM public_cache_entries
+WHERE key_digest = ?
+`
+
+func (q *Queries) GetPublicCacheEntry(ctx context.Context, keyDigest string) (PublicCacheEntry, error) {
+	row := q.db.QueryRowContext(ctx, getPublicCacheEntry, keyDigest)
+	var i PublicCacheEntry
+	err := row.Scan(
+		&i.KeyDigest,
+		&i.RuleID,
+		&i.Scope,
+		&i.ListenerProtocol,
+		&i.Host,
+		&i.Path,
+		&i.QueryKey,
+		&i.RouteID,
+		&i.BackendID,
+		&i.Method,
+		&i.VaryHeadersJson,
+		&i.ResponseHeadersJson,
+		&i.StatusCode,
+		&i.BodyPath,
+		&i.SizeBytes,
+		&i.StoredAt,
+		&i.ExpiresAt,
+		&i.LastAccessedAt,
+		&i.HitCount,
+	)
+	return i, err
+}
+
+const getPublicCacheRule = `-- name: GetPublicCacheRule :one
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+       query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+       add_cache_status_header, created_at, updated_at
+FROM public_cache_rules
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicCacheRule(ctx context.Context, id int64) (PublicCacheRule, error) {
+	row := q.db.QueryRowContext(ctx, getPublicCacheRule, id)
+	var i PublicCacheRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.MatchJson,
+		&i.RouteIdsJson,
+		&i.BackendIdsJson,
+		&i.Scope,
+		&i.TtlMode,
+		&i.TtlMillis,
+		&i.QueryMode,
+		&i.QueryParamsJson,
+		&i.VaryHeadersJson,
+		&i.CacheStatusCodesJson,
+		&i.MaxObjectBytes,
+		&i.AddCacheStatusHeader,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicCacheSettings = `-- name: GetPublicCacheSettings :one
+SELECT id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at
+FROM public_cache_settings
+WHERE id = 1
+`
+
+func (q *Queries) GetPublicCacheSettings(ctx context.Context) (PublicCacheSetting, error) {
+	row := q.db.QueryRowContext(ctx, getPublicCacheSettings)
+	var i PublicCacheSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxDiskBytes,
+		&i.MaxMemoryBytes,
+		&i.MemoryHotObjectMaxBytes,
+		&i.MaxEntries,
+		&i.CleanupIntervalMillis,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPublicListener = `-- name: GetPublicListener :one
 SELECT id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
 FROM public_listeners
@@ -1870,9 +2102,9 @@ func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -1888,6 +2120,9 @@ type InsertProxyRequestEventParams struct {
 	AgentID       sql.NullInt64 `json:"agent_id"`
 	RequestBytes  int64         `json:"request_bytes"`
 	ResponseBytes int64         `json:"response_bytes"`
+	CacheRuleID   sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus   string        `json:"cache_status"`
+	CacheBytes    int64         `json:"cache_bytes"`
 }
 
 func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error {
@@ -1903,6 +2138,9 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.AgentID,
 		arg.RequestBytes,
 		arg.ResponseBytes,
+		arg.CacheRuleID,
+		arg.CacheStatus,
+		arg.CacheBytes,
 	)
 	return err
 }
@@ -2346,6 +2584,172 @@ func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, erro
 			&i.HealthCheckExpectedStatusMin,
 			&i.HealthCheckExpectedStatusMax,
 			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicCacheEntriesForCleanup = `-- name: ListPublicCacheEntriesForCleanup :many
+SELECT key_digest, body_path, size_bytes
+FROM public_cache_entries
+ORDER BY last_accessed_at ASC
+LIMIT ?
+`
+
+type ListPublicCacheEntriesForCleanupRow struct {
+	KeyDigest string `json:"key_digest"`
+	BodyPath  string `json:"body_path"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+func (q *Queries) ListPublicCacheEntriesForCleanup(ctx context.Context, limit int64) ([]ListPublicCacheEntriesForCleanupRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicCacheEntriesForCleanup, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPublicCacheEntriesForCleanupRow
+	for rows.Next() {
+		var i ListPublicCacheEntriesForCleanupRow
+		if err := rows.Scan(&i.KeyDigest, &i.BodyPath, &i.SizeBytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicCacheEntryCandidates = `-- name: ListPublicCacheEntryCandidates :many
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+       vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+       last_accessed_at, hit_count
+FROM public_cache_entries
+WHERE rule_id = ?
+  AND listener_protocol = ?
+  AND host = ?
+  AND path = ?
+  AND query_key = ?
+  AND COALESCE(route_id, 0) = ?
+  AND COALESCE(backend_id, 0) = ?
+  AND expires_at > ?
+ORDER BY stored_at DESC
+LIMIT 20
+`
+
+type ListPublicCacheEntryCandidatesParams struct {
+	RuleID           int64         `json:"rule_id"`
+	ListenerProtocol string        `json:"listener_protocol"`
+	Host             string        `json:"host"`
+	Path             string        `json:"path"`
+	QueryKey         string        `json:"query_key"`
+	RouteID          sql.NullInt64 `json:"route_id"`
+	BackendID        sql.NullInt64 `json:"backend_id"`
+	ExpiresAt        time.Time     `json:"expires_at"`
+}
+
+func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPublicCacheEntryCandidatesParams) ([]PublicCacheEntry, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicCacheEntryCandidates,
+		arg.RuleID,
+		arg.ListenerProtocol,
+		arg.Host,
+		arg.Path,
+		arg.QueryKey,
+		arg.RouteID,
+		arg.BackendID,
+		arg.ExpiresAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicCacheEntry
+	for rows.Next() {
+		var i PublicCacheEntry
+		if err := rows.Scan(
+			&i.KeyDigest,
+			&i.RuleID,
+			&i.Scope,
+			&i.ListenerProtocol,
+			&i.Host,
+			&i.Path,
+			&i.QueryKey,
+			&i.RouteID,
+			&i.BackendID,
+			&i.Method,
+			&i.VaryHeadersJson,
+			&i.ResponseHeadersJson,
+			&i.StatusCode,
+			&i.BodyPath,
+			&i.SizeBytes,
+			&i.StoredAt,
+			&i.ExpiresAt,
+			&i.LastAccessedAt,
+			&i.HitCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicCacheRules = `-- name: ListPublicCacheRules :many
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+       query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+       add_cache_status_header, created_at, updated_at
+FROM public_cache_rules
+ORDER BY priority ASC, id ASC
+`
+
+func (q *Queries) ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicCacheRules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicCacheRule
+	for rows.Next() {
+		var i PublicCacheRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Priority,
+			&i.Enabled,
+			&i.MatchJson,
+			&i.RouteIdsJson,
+			&i.BackendIdsJson,
+			&i.Scope,
+			&i.TtlMode,
+			&i.TtlMillis,
+			&i.QueryMode,
+			&i.QueryParamsJson,
+			&i.VaryHeadersJson,
+			&i.CacheStatusCodesJson,
+			&i.MaxObjectBytes,
+			&i.AddCacheStatusHeader,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -3174,6 +3578,123 @@ func (q *Queries) MarkAgentDisconnected(ctx context.Context, id int64) error {
 	return err
 }
 
+const purgeAllPublicCacheEntries = `-- name: PurgeAllPublicCacheEntries :many
+DELETE FROM public_cache_entries
+RETURNING key_digest, body_path, size_bytes
+`
+
+type PurgeAllPublicCacheEntriesRow struct {
+	KeyDigest string `json:"key_digest"`
+	BodyPath  string `json:"body_path"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+func (q *Queries) PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, purgeAllPublicCacheEntries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurgeAllPublicCacheEntriesRow
+	for rows.Next() {
+		var i PurgeAllPublicCacheEntriesRow
+		if err := rows.Scan(&i.KeyDigest, &i.BodyPath, &i.SizeBytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const purgePublicCacheEntriesByHostPath = `-- name: PurgePublicCacheEntriesByHostPath :many
+DELETE FROM public_cache_entries
+WHERE (? = '' OR host = ?)
+  AND (? = '' OR path LIKE ? || '%')
+RETURNING key_digest, body_path, size_bytes
+`
+
+type PurgePublicCacheEntriesByHostPathParams struct {
+	Column1 interface{}    `json:"column_1"`
+	Host    string         `json:"host"`
+	Column3 interface{}    `json:"column_3"`
+	Column4 sql.NullString `json:"column_4"`
+}
+
+type PurgePublicCacheEntriesByHostPathRow struct {
+	KeyDigest string `json:"key_digest"`
+	BodyPath  string `json:"body_path"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+func (q *Queries) PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error) {
+	rows, err := q.db.QueryContext(ctx, purgePublicCacheEntriesByHostPath,
+		arg.Column1,
+		arg.Host,
+		arg.Column3,
+		arg.Column4,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurgePublicCacheEntriesByHostPathRow
+	for rows.Next() {
+		var i PurgePublicCacheEntriesByHostPathRow
+		if err := rows.Scan(&i.KeyDigest, &i.BodyPath, &i.SizeBytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const purgePublicCacheEntriesByRule = `-- name: PurgePublicCacheEntriesByRule :many
+DELETE FROM public_cache_entries
+WHERE rule_id = ?
+RETURNING key_digest, body_path, size_bytes
+`
+
+type PurgePublicCacheEntriesByRuleRow struct {
+	KeyDigest string `json:"key_digest"`
+	BodyPath  string `json:"body_path"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+func (q *Queries) PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int64) ([]PurgePublicCacheEntriesByRuleRow, error) {
+	rows, err := q.db.QueryContext(ctx, purgePublicCacheEntriesByRule, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PurgePublicCacheEntriesByRuleRow
+	for rows.Next() {
+		var i PurgePublicCacheEntriesByRuleRow
+		if err := rows.Scan(&i.KeyDigest, &i.BodyPath, &i.SizeBytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeSessionByTokenHash = `-- name: RevokeSessionByTokenHash :exec
 UPDATE sessions
 SET revoked_at = CURRENT_TIMESTAMP
@@ -3226,6 +3747,36 @@ func (q *Queries) SetPublicListenerEnabled(ctx context.Context, arg SetPublicLis
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const sumPublicCacheBytes = `-- name: SumPublicCacheBytes :one
+SELECT CAST(COALESCE(SUM(size_bytes), 0) AS INTEGER) AS total_bytes,
+       COUNT(*) AS entry_count
+FROM public_cache_entries
+`
+
+type SumPublicCacheBytesRow struct {
+	TotalBytes int64 `json:"total_bytes"`
+	EntryCount int64 `json:"entry_count"`
+}
+
+func (q *Queries) SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesRow, error) {
+	row := q.db.QueryRowContext(ctx, sumPublicCacheBytes)
+	var i SumPublicCacheBytesRow
+	err := row.Scan(&i.TotalBytes, &i.EntryCount)
+	return i, err
+}
+
+const touchPublicCacheEntry = `-- name: TouchPublicCacheEntry :exec
+UPDATE public_cache_entries
+SET last_accessed_at = CURRENT_TIMESTAMP,
+    hit_count = hit_count + 1
+WHERE key_digest = ?
+`
+
+func (q *Queries) TouchPublicCacheEntry(ctx context.Context, keyDigest string) error {
+	_, err := q.db.ExecContext(ctx, touchPublicCacheEntry, keyDigest)
+	return err
 }
 
 const touchSession = `-- name: TouchSession :exec
@@ -3419,6 +3970,142 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		&i.HealthCheckExpectedStatusMin,
 		&i.HealthCheckExpectedStatusMax,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicCacheRule = `-- name: UpdatePublicCacheRule :one
+UPDATE public_cache_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    match_json = ?,
+    route_ids_json = ?,
+    backend_ids_json = ?,
+    scope = ?,
+    ttl_mode = ?,
+    ttl_millis = ?,
+    query_mode = ?,
+    query_params_json = ?,
+    vary_headers_json = ?,
+    cache_status_codes_json = ?,
+    max_object_bytes = ?,
+    add_cache_status_header = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+          query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
+          add_cache_status_header, created_at, updated_at
+`
+
+type UpdatePublicCacheRuleParams struct {
+	Name                 string `json:"name"`
+	Priority             int64  `json:"priority"`
+	Enabled              int64  `json:"enabled"`
+	MatchJson            string `json:"match_json"`
+	RouteIdsJson         string `json:"route_ids_json"`
+	BackendIdsJson       string `json:"backend_ids_json"`
+	Scope                string `json:"scope"`
+	TtlMode              string `json:"ttl_mode"`
+	TtlMillis            int64  `json:"ttl_millis"`
+	QueryMode            string `json:"query_mode"`
+	QueryParamsJson      string `json:"query_params_json"`
+	VaryHeadersJson      string `json:"vary_headers_json"`
+	CacheStatusCodesJson string `json:"cache_status_codes_json"`
+	MaxObjectBytes       int64  `json:"max_object_bytes"`
+	AddCacheStatusHeader int64  `json:"add_cache_status_header"`
+	ID                   int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCacheRuleParams) (PublicCacheRule, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicCacheRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.MatchJson,
+		arg.RouteIdsJson,
+		arg.BackendIdsJson,
+		arg.Scope,
+		arg.TtlMode,
+		arg.TtlMillis,
+		arg.QueryMode,
+		arg.QueryParamsJson,
+		arg.VaryHeadersJson,
+		arg.CacheStatusCodesJson,
+		arg.MaxObjectBytes,
+		arg.AddCacheStatusHeader,
+		arg.ID,
+	)
+	var i PublicCacheRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.MatchJson,
+		&i.RouteIdsJson,
+		&i.BackendIdsJson,
+		&i.Scope,
+		&i.TtlMode,
+		&i.TtlMillis,
+		&i.QueryMode,
+		&i.QueryParamsJson,
+		&i.VaryHeadersJson,
+		&i.CacheStatusCodesJson,
+		&i.MaxObjectBytes,
+		&i.AddCacheStatusHeader,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicCacheSettings = `-- name: UpdatePublicCacheSettings :one
+INSERT INTO public_cache_settings (
+    id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis
+) VALUES (
+    1, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(id) DO UPDATE SET
+    enabled = excluded.enabled,
+    max_disk_bytes = excluded.max_disk_bytes,
+    max_memory_bytes = excluded.max_memory_bytes,
+    memory_hot_object_max_bytes = excluded.memory_hot_object_max_bytes,
+    max_entries = excluded.max_entries,
+    cleanup_interval_millis = excluded.cleanup_interval_millis,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at
+`
+
+type UpdatePublicCacheSettingsParams struct {
+	Enabled                 int64 `json:"enabled"`
+	MaxDiskBytes            int64 `json:"max_disk_bytes"`
+	MaxMemoryBytes          int64 `json:"max_memory_bytes"`
+	MemoryHotObjectMaxBytes int64 `json:"memory_hot_object_max_bytes"`
+	MaxEntries              int64 `json:"max_entries"`
+	CleanupIntervalMillis   int64 `json:"cleanup_interval_millis"`
+}
+
+func (q *Queries) UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicCacheSettings,
+		arg.Enabled,
+		arg.MaxDiskBytes,
+		arg.MaxMemoryBytes,
+		arg.MemoryHotObjectMaxBytes,
+		arg.MaxEntries,
+		arg.CleanupIntervalMillis,
+	)
+	var i PublicCacheSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxDiskBytes,
+		&i.MaxMemoryBytes,
+		&i.MemoryHotObjectMaxBytes,
+		&i.MaxEntries,
+		&i.CleanupIntervalMillis,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -4180,6 +4867,125 @@ func (q *Queries) UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapA
 		&i.Enabled,
 		&i.LastConnectedAt,
 		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertPublicCacheEntry = `-- name: UpsertPublicCacheEntry :one
+INSERT INTO public_cache_entries (
+    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+    vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+    last_accessed_at, hit_count
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
+)
+ON CONFLICT(key_digest) DO UPDATE SET
+    rule_id = excluded.rule_id,
+    scope = excluded.scope,
+    listener_protocol = excluded.listener_protocol,
+    host = excluded.host,
+    path = excluded.path,
+    query_key = excluded.query_key,
+    route_id = excluded.route_id,
+    backend_id = excluded.backend_id,
+    method = excluded.method,
+    vary_headers_json = excluded.vary_headers_json,
+    response_headers_json = excluded.response_headers_json,
+    status_code = excluded.status_code,
+    body_path = excluded.body_path,
+    size_bytes = excluded.size_bytes,
+    stored_at = CURRENT_TIMESTAMP,
+    expires_at = excluded.expires_at,
+    last_accessed_at = CURRENT_TIMESTAMP,
+    hit_count = 0
+RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+          vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
+          last_accessed_at, hit_count
+`
+
+type UpsertPublicCacheEntryParams struct {
+	KeyDigest           string        `json:"key_digest"`
+	RuleID              int64         `json:"rule_id"`
+	Scope               string        `json:"scope"`
+	ListenerProtocol    string        `json:"listener_protocol"`
+	Host                string        `json:"host"`
+	Path                string        `json:"path"`
+	QueryKey            string        `json:"query_key"`
+	RouteID             sql.NullInt64 `json:"route_id"`
+	BackendID           sql.NullInt64 `json:"backend_id"`
+	Method              string        `json:"method"`
+	VaryHeadersJson     string        `json:"vary_headers_json"`
+	ResponseHeadersJson string        `json:"response_headers_json"`
+	StatusCode          int64         `json:"status_code"`
+	BodyPath            string        `json:"body_path"`
+	SizeBytes           int64         `json:"size_bytes"`
+	ExpiresAt           time.Time     `json:"expires_at"`
+}
+
+func (q *Queries) UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCacheEntryParams) (PublicCacheEntry, error) {
+	row := q.db.QueryRowContext(ctx, upsertPublicCacheEntry,
+		arg.KeyDigest,
+		arg.RuleID,
+		arg.Scope,
+		arg.ListenerProtocol,
+		arg.Host,
+		arg.Path,
+		arg.QueryKey,
+		arg.RouteID,
+		arg.BackendID,
+		arg.Method,
+		arg.VaryHeadersJson,
+		arg.ResponseHeadersJson,
+		arg.StatusCode,
+		arg.BodyPath,
+		arg.SizeBytes,
+		arg.ExpiresAt,
+	)
+	var i PublicCacheEntry
+	err := row.Scan(
+		&i.KeyDigest,
+		&i.RuleID,
+		&i.Scope,
+		&i.ListenerProtocol,
+		&i.Host,
+		&i.Path,
+		&i.QueryKey,
+		&i.RouteID,
+		&i.BackendID,
+		&i.Method,
+		&i.VaryHeadersJson,
+		&i.ResponseHeadersJson,
+		&i.StatusCode,
+		&i.BodyPath,
+		&i.SizeBytes,
+		&i.StoredAt,
+		&i.ExpiresAt,
+		&i.LastAccessedAt,
+		&i.HitCount,
+	)
+	return i, err
+}
+
+const upsertPublicCacheSettingsDefaults = `-- name: UpsertPublicCacheSettingsDefaults :one
+INSERT INTO public_cache_settings (id)
+VALUES (1)
+ON CONFLICT(id) DO UPDATE SET updated_at = public_cache_settings.updated_at
+RETURNING id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at
+`
+
+func (q *Queries) UpsertPublicCacheSettingsDefaults(ctx context.Context) (PublicCacheSetting, error) {
+	row := q.db.QueryRowContext(ctx, upsertPublicCacheSettingsDefaults)
+	var i PublicCacheSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxDiskBytes,
+		&i.MaxMemoryBytes,
+		&i.MemoryHotObjectMaxBytes,
+		&i.MaxEntries,
+		&i.CleanupIntervalMillis,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

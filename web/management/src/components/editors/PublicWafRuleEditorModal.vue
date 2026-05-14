@@ -63,6 +63,7 @@ const form = reactive({
     protocols: [] as PublicListenerProtocol[],
     hostPatternsText: "",
     pathPrefixesText: "",
+    pathSuffixesText: "",
     headers: [] as MatcherForm[],
     cookies: [] as MatcherForm[],
     queryParams: [] as MatcherForm[],
@@ -154,6 +155,7 @@ function resetForm() {
   form.match.protocols = [];
   form.match.hostPatternsText = "";
   form.match.pathPrefixesText = "";
+  form.match.pathSuffixesText = "";
   form.match.headers = [];
   form.match.cookies = [];
   form.match.queryParams = [];
@@ -202,6 +204,7 @@ function openEdit(ruleId: bigint | string) {
   form.match.protocols = [...(rule.match?.protocols ?? [])];
   form.match.hostPatternsText = (rule.match?.hostPatterns ?? []).join("\n");
   form.match.pathPrefixesText = (rule.match?.pathPrefixes ?? []).join("\n");
+  form.match.pathSuffixesText = (rule.match?.pathSuffixes ?? []).join("\n");
   form.match.headers = cloneMatchers(rule.match?.headers ?? []);
   form.match.cookies = cloneMatchers(rule.match?.cookies ?? []);
   form.match.queryParams = cloneMatchers(rule.match?.queryParams ?? []);
@@ -309,6 +312,7 @@ async function submitRule() {
         protocols: [...form.match.protocols],
         hostPatterns: lines(form.match.hostPatternsText),
         pathPrefixes: lines(form.match.pathPrefixesText),
+        pathSuffixes: lines(form.match.pathSuffixesText),
         headers: matcherPayload(form.match.headers),
         cookies: matcherPayload(form.match.cookies),
         queryParams: matcherPayload(form.match.queryParams),

@@ -44,7 +44,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	defer database.Close()
 
-	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings"} {
+	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -52,7 +52,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 
 	proxyEventColumns := tableColumns(t, database, "proxy_request_events")
-	for _, column := range []string{"request_bytes", "response_bytes", "waf_rule_id", "waf_action"} {
+	for _, column := range []string{"request_bytes", "response_bytes", "waf_rule_id", "waf_action", "cache_rule_id", "cache_status", "cache_bytes"} {
 		if !containsString(proxyEventColumns, column) {
 			t.Fatalf("proxy_request_events missing column %s in %v", column, proxyEventColumns)
 		}
@@ -66,12 +66,29 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
 		"idx_proxy_request_events_waf_rule_id",
+		"idx_proxy_request_events_cache_rule_id",
 		"idx_public_waf_rules_priority",
 		"idx_public_waf_rules_captcha_provider_id",
+		"idx_public_cache_rules_priority",
+		"idx_public_cache_entries_rule_id",
+		"idx_public_cache_entries_expires_at",
+		"idx_public_cache_entries_last_accessed_at",
 	} {
 		if !indexExists(t, database, index) {
 			t.Fatalf("expected %s on fresh schema", index)
 		}
+	}
+	cacheSettings, err := database.UpsertPublicCacheSettingsDefaults(context.Background())
+	if err != nil {
+		t.Fatalf("upsert cache settings defaults: %v", err)
+	}
+	if cacheSettings.Enabled != 1 ||
+		cacheSettings.MaxDiskBytes != 1073741824 ||
+		cacheSettings.MaxMemoryBytes != 134217728 ||
+		cacheSettings.MemoryHotObjectMaxBytes != 262144 ||
+		cacheSettings.MaxEntries != 100000 ||
+		cacheSettings.CleanupIntervalMillis != 60000 {
+		t.Fatalf("unexpected cache settings defaults: %+v", cacheSettings)
 	}
 
 	backendColumns := tableColumns(t, database, "public_backends")
@@ -164,7 +181,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
 		"agent_stats":          {"agent_id", "req_internal_error", "cpu_percent"},
-		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes"},
+		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes"},
 		"public_backends":      {"backend_type", "forward_mode", "load_balancing", "tls_skip_verify", "static_status_code", "static_response_body", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"},
 	} {
 		got := tableColumns(t, database, table)
@@ -194,9 +211,16 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
 		"idx_proxy_request_events_waf_rule_id",
+		"idx_proxy_request_events_cache_rule_id",
 	} {
 		if !indexExists(t, database, index) {
 			t.Fatalf("expected %s after migration", index)
+		}
+	}
+	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries"} {
+		var name string
+		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
+			t.Fatalf("expected migrated table %s: %v", table, err)
 		}
 	}
 }

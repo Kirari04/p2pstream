@@ -80,6 +80,7 @@ type publicRateLimitMatchConfig struct {
 	Protocols    []string                            `json:"protocols,omitempty"`
 	HostPatterns []string                            `json:"host_patterns,omitempty"`
 	PathPrefixes []string                            `json:"path_prefixes,omitempty"`
+	PathSuffixes []string                            `json:"path_suffixes,omitempty"`
 	Headers      []publicRateLimitValueMatcherConfig `json:"headers,omitempty"`
 	Cookies      []publicRateLimitValueMatcherConfig `json:"cookies,omitempty"`
 	QueryParams  []publicRateLimitValueMatcherConfig `json:"query_params,omitempty"`
@@ -401,6 +402,18 @@ func (rule publicRateLimitRuleConfig) matches(listener publicListenerConfig, r *
 		matched := false
 		for _, prefix := range rule.Match.PathPrefixes {
 			if pathPrefixMatches(r.URL.Path, prefix) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	if len(rule.Match.PathSuffixes) > 0 {
+		matched := false
+		for _, suffix := range rule.Match.PathSuffixes {
+			if strings.HasSuffix(r.URL.Path, suffix) {
 				matched = true
 				break
 			}
@@ -778,6 +791,16 @@ func validateRateLimitMatch(match *p2pstreamv1.PublicRateLimitMatch) (publicRate
 		}
 		resp.PathPrefixes = append(resp.PathPrefixes, prefix)
 	}
+	for _, suffix := range match.PathSuffixes {
+		suffix = strings.TrimSpace(suffix)
+		if suffix == "" {
+			continue
+		}
+		if strings.ContainsAny(suffix, "/\\") {
+			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit path suffix must not contain a slash"))
+		}
+		resp.PathSuffixes = append(resp.PathSuffixes, suffix)
+	}
 	var err error
 	if resp.Headers, err = validateRateLimitValueMatchers(match.Headers, true); err != nil {
 		return publicRateLimitMatchConfig{}, err
@@ -1076,6 +1099,7 @@ func rateLimitMatchToProto(match publicRateLimitMatchConfig) *p2pstreamv1.Public
 		Protocols:    protocols,
 		HostPatterns: append([]string(nil), match.HostPatterns...),
 		PathPrefixes: append([]string(nil), match.PathPrefixes...),
+		PathSuffixes: append([]string(nil), match.PathSuffixes...),
 		Headers:      rateLimitValueMatchersToProto(match.Headers),
 		Cookies:      rateLimitValueMatchersToProto(match.Cookies),
 		QueryParams:  rateLimitValueMatchersToProto(match.QueryParams),

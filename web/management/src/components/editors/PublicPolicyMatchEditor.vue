@@ -17,6 +17,7 @@ type MatchForm = {
   protocols: PublicListenerProtocol[];
   hostPatternsText: string;
   pathPrefixesText: string;
+  pathSuffixesText: string;
   headers: MatcherForm[];
   cookies: MatcherForm[];
   queryParams: MatcherForm[];
@@ -143,6 +144,10 @@ defineExpose({
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Path prefixes
         <textarea v-model="form.pathPrefixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder="/api&#10;/login" />
+      </label>
+      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        Path suffixes
+        <textarea v-model="form.pathSuffixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder=".css&#10;.js&#10;.webp" />
       </label>
     </div>
 

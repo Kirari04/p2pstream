@@ -42,6 +42,7 @@ The runtime image:
 - sets `MANAGEMENT_UI_DIST_DIR=/app/web/management/dist`,
 - sets `MANAGEMENT_PORT=8081`,
 - sets `CONFIG_DIR=/data`,
+- stores public cache bodies under `/data/cache/public` unless `PUBLIC_CACHE_DIR` is set,
 - declares `/data` as a volume,
 - exposes `80`, `443`, and `8081`,
 - runs `/app/p2pstream server`.

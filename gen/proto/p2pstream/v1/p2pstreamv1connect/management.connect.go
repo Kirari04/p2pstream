@@ -183,6 +183,21 @@ const (
 	// AgentManagementServiceDeletePublicWafRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicWafRule RPC.
 	AgentManagementServiceDeletePublicWafRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicWafRule"
+	// AgentManagementServiceCreatePublicCacheRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicCacheRule RPC.
+	AgentManagementServiceCreatePublicCacheRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicCacheRule"
+	// AgentManagementServiceUpdatePublicCacheRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicCacheRule RPC.
+	AgentManagementServiceUpdatePublicCacheRuleProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicCacheRule"
+	// AgentManagementServiceDeletePublicCacheRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicCacheRule RPC.
+	AgentManagementServiceDeletePublicCacheRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicCacheRule"
+	// AgentManagementServiceUpdatePublicCacheSettingsProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicCacheSettings RPC.
+	AgentManagementServiceUpdatePublicCacheSettingsProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicCacheSettings"
+	// AgentManagementServicePurgePublicCacheProcedure is the fully-qualified name of the
+	// AgentManagementService's PurgePublicCache RPC.
+	AgentManagementServicePurgePublicCacheProcedure = "/p2pstream.v1.AgentManagementService/PurgePublicCache"
 )
 
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
@@ -237,6 +252,11 @@ type AgentManagementServiceClient interface {
 	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
 	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
 	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
+	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
+	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
+	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
+	UpdatePublicCacheSettings(context.Context, *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error)
+	PurgePublicCache(context.Context, *connect.Request[v1.PurgePublicCacheRequest]) (*connect.Response[v1.PurgePublicCacheResponse], error)
 }
 
 // NewAgentManagementServiceClient constructs a client for the p2pstream.v1.AgentManagementService
@@ -550,6 +570,36 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicCacheRule: connect.NewClient[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicCacheRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicCacheRule")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicCacheRule: connect.NewClient[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicCacheRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicCacheRule")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicCacheRule: connect.NewClient[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicCacheRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicCacheRule")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicCacheSettings: connect.NewClient[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicCacheSettingsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicCacheSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		purgePublicCache: connect.NewClient[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse](
+			httpClient,
+			baseURL+AgentManagementServicePurgePublicCacheProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PurgePublicCache")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -605,6 +655,11 @@ type agentManagementServiceClient struct {
 	createPublicWafRule            *connect.Client[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse]
 	updatePublicWafRule            *connect.Client[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse]
 	deletePublicWafRule            *connect.Client[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse]
+	createPublicCacheRule          *connect.Client[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse]
+	updatePublicCacheRule          *connect.Client[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse]
+	deletePublicCacheRule          *connect.Client[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse]
+	updatePublicCacheSettings      *connect.Client[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse]
+	purgePublicCache               *connect.Client[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
@@ -866,6 +921,31 @@ func (c *agentManagementServiceClient) DeletePublicWafRule(ctx context.Context, 
 	return c.deletePublicWafRule.CallUnary(ctx, req)
 }
 
+// CreatePublicCacheRule calls p2pstream.v1.AgentManagementService.CreatePublicCacheRule.
+func (c *agentManagementServiceClient) CreatePublicCacheRule(ctx context.Context, req *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error) {
+	return c.createPublicCacheRule.CallUnary(ctx, req)
+}
+
+// UpdatePublicCacheRule calls p2pstream.v1.AgentManagementService.UpdatePublicCacheRule.
+func (c *agentManagementServiceClient) UpdatePublicCacheRule(ctx context.Context, req *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error) {
+	return c.updatePublicCacheRule.CallUnary(ctx, req)
+}
+
+// DeletePublicCacheRule calls p2pstream.v1.AgentManagementService.DeletePublicCacheRule.
+func (c *agentManagementServiceClient) DeletePublicCacheRule(ctx context.Context, req *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error) {
+	return c.deletePublicCacheRule.CallUnary(ctx, req)
+}
+
+// UpdatePublicCacheSettings calls p2pstream.v1.AgentManagementService.UpdatePublicCacheSettings.
+func (c *agentManagementServiceClient) UpdatePublicCacheSettings(ctx context.Context, req *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error) {
+	return c.updatePublicCacheSettings.CallUnary(ctx, req)
+}
+
+// PurgePublicCache calls p2pstream.v1.AgentManagementService.PurgePublicCache.
+func (c *agentManagementServiceClient) PurgePublicCache(ctx context.Context, req *connect.Request[v1.PurgePublicCacheRequest]) (*connect.Response[v1.PurgePublicCacheResponse], error) {
+	return c.purgePublicCache.CallUnary(ctx, req)
+}
+
 // AgentManagementServiceHandler is an implementation of the p2pstream.v1.AgentManagementService
 // service.
 type AgentManagementServiceHandler interface {
@@ -919,6 +999,11 @@ type AgentManagementServiceHandler interface {
 	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
 	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
 	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
+	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
+	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
+	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
+	UpdatePublicCacheSettings(context.Context, *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error)
+	PurgePublicCache(context.Context, *connect.Request[v1.PurgePublicCacheRequest]) (*connect.Response[v1.PurgePublicCacheResponse], error)
 }
 
 // NewAgentManagementServiceHandler builds an HTTP handler from the service implementation. It
@@ -1228,6 +1313,36 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicCacheRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicCacheRuleProcedure,
+		svc.CreatePublicCacheRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicCacheRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicCacheRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicCacheRuleProcedure,
+		svc.UpdatePublicCacheRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicCacheRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicCacheRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicCacheRuleProcedure,
+		svc.DeletePublicCacheRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicCacheRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicCacheSettingsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicCacheSettingsProcedure,
+		svc.UpdatePublicCacheSettings,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicCacheSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServicePurgePublicCacheHandler := connect.NewUnaryHandler(
+		AgentManagementServicePurgePublicCacheProcedure,
+		svc.PurgePublicCache,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PurgePublicCache")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/p2pstream.v1.AgentManagementService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentManagementServiceReportStatsProcedure:
@@ -1330,6 +1445,16 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicWafRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicWafRuleProcedure:
 			agentManagementServiceDeletePublicWafRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicCacheRuleProcedure:
+			agentManagementServiceCreatePublicCacheRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicCacheRuleProcedure:
+			agentManagementServiceUpdatePublicCacheRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicCacheRuleProcedure:
+			agentManagementServiceDeletePublicCacheRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicCacheSettingsProcedure:
+			agentManagementServiceUpdatePublicCacheSettingsHandler.ServeHTTP(w, r)
+		case AgentManagementServicePurgePublicCacheProcedure:
+			agentManagementServicePurgePublicCacheHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1537,4 +1662,24 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicWafRule(context.Co
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicWafRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicCacheRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicCacheRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicCacheRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicCacheSettings(context.Context, *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicCacheSettings is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) PurgePublicCache(context.Context, *connect.Request[v1.PurgePublicCacheRequest]) (*connect.Response[v1.PurgePublicCacheResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PurgePublicCache is not implemented"))
 }

@@ -1,6 +1,6 @@
 # Backends
 
-Backends describe the destination behavior after routing. WAF, rate limits, and traffic shapers are evaluated before a backend is selected.
+Backends describe the destination behavior after routing. WAF, rate limits, and traffic shapers are evaluated before a backend is selected. Cache rules are evaluated after selection and apply only to proxy-forward backends.
 
 ## Backend types
 
@@ -68,6 +68,12 @@ Automatic WAF waiting-room rules can also use backend active-request pressure an
 Proxy-forward backends can inject upstream request headers. Mark secrets as sensitive so the management UI does not require the value on every edit.
 
 Upstream basic auth is configured separately. When basic auth is enabled, p2pstream controls the `Authorization` header for that backend.
+
+## Cache
+
+Proxy-forward backends can be cached by global cache rules. Direct backend cache misses are fetched from the p2pstream server. Agent-pool cache misses are fetched through the selected agent and stored on the p2pstream server.
+
+Static backends are not cached by the public asset cache. Requests with `Cookie` or `Authorization` are always bypassed.
 
 ## TLS verification
 

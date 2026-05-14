@@ -50,6 +50,10 @@ export type TraceRequest = {
   wafActivationMode: PublicWafActivationMode;
   wafAutomaticActive: boolean;
   wafChallengeKind: string;
+  cacheRuleId: bigint;
+  cacheRuleName: string;
+  cacheStatus: string;
+  cacheKeyDigest: string;
   visible: boolean;
   completedAt: number | null;
   latestEvent: TrafficTraceEvent | null;

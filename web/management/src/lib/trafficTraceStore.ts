@@ -254,6 +254,10 @@ export class TrafficTraceStore {
     request.wafActivationMode = event.wafActivationMode || request.wafActivationMode;
     request.wafAutomaticActive = event.wafAutomaticActive || request.wafAutomaticActive;
     request.wafChallengeKind = event.wafChallengeKind || request.wafChallengeKind;
+    request.cacheRuleId = event.cacheRuleId || request.cacheRuleId;
+    request.cacheRuleName = event.cacheRuleName || request.cacheRuleName;
+    request.cacheStatus = event.cacheStatus || request.cacheStatus;
+    request.cacheKeyDigest = event.cacheKeyDigest || request.cacheKeyDigest;
     request.lastSeenAt = now;
     request.lastEventSequence = event.sequence;
     request.version += 1;
@@ -363,6 +367,10 @@ export function newTraceRequest(requestId: string, now = Date.now()): TraceReque
     wafActivationMode: PublicWafActivationMode.UNSPECIFIED,
     wafAutomaticActive: false,
     wafChallengeKind: "",
+    cacheRuleId: 0n,
+    cacheRuleName: "",
+    cacheStatus: "",
+    cacheKeyDigest: "",
     visible: true,
     completedAt: null,
     latestEvent: null,
@@ -402,6 +410,11 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.WAF_CAPTCHA_CHALLENGED: return "Captcha";
     case TrafficTraceStage.WAF_CAPTCHA_VERIFIED: return "Captcha passed";
     case TrafficTraceStage.WAF_WAITING_ROOM: return "Waiting room";
+    case TrafficTraceStage.CACHE_LOOKUP: return "Cache lookup";
+    case TrafficTraceStage.CACHE_HIT: return "Cache hit";
+    case TrafficTraceStage.CACHE_MISS: return "Cache miss";
+    case TrafficTraceStage.CACHE_BYPASS: return "Cache bypass";
+    case TrafficTraceStage.CACHE_STORED: return "Cache stored";
     case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Shaper";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Responded";
@@ -434,6 +447,10 @@ export function traceFlowLabel(request: TraceRequest): string {
   }
   if (request.trafficShaperRuleName || request.stage === TrafficTraceStage.TRAFFIC_SHAPER_SELECTED) {
     parts.push(request.trafficShaperRuleName ? `Shaper: ${request.trafficShaperRuleName}` : "Traffic shaper");
+  }
+  if (request.cacheRuleName || request.cacheRuleId > 0n || request.cacheStatus) {
+    const label = request.cacheRuleName ? `Cache: ${request.cacheRuleName}` : "Cache";
+    parts.push(request.cacheStatus ? `${label} (${request.cacheStatus})` : label);
   }
   if (request.routeLabel || request.defaultRoute) {
     parts.push(request.routeLabel || "Default route");

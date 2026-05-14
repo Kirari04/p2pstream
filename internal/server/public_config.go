@@ -185,6 +185,8 @@ type publicConfigRows struct {
 	WafCaptchaProviders    []db.PublicWafCaptchaProvider
 	WafRules               []db.PublicWafRule
 	WafSettings            db.PublicWafSetting
+	CacheSettings          db.PublicCacheSetting
+	CacheRules             []db.PublicCacheRule
 }
 
 type publicBackendHeaderInput struct {
@@ -1293,6 +1295,9 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	if a.PublicWAF != nil {
 		a.PublicWAF.reconcile(snap)
 	}
+	if a.PublicCache != nil {
+		a.PublicCache.reconcile(snap.CacheSettings)
+	}
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
 		Backends:            publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents, a.BackendHealth),
@@ -1307,6 +1312,8 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		TrafficShaperRules:  publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
 		WafCaptchaProviders: publicWafCaptchaProvidersToProto(rows.WafCaptchaProviders, false),
 		WafRules:            publicWafRulesToProto(rows.WafRules),
+		CacheSettings:       publicCacheSettingsConfigToProto(snap.CacheSettings),
+		CacheRules:          publicCacheRulesToProto(rows.CacheRules),
 		TlsDnsCredentials:   publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
 	}, nil
 }
@@ -1334,6 +1341,9 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	}
 	if a.PublicWAF != nil {
 		a.PublicWAF.reconcile(snap)
+	}
+	if a.PublicCache != nil {
+		a.PublicCache.reconcile(snap.CacheSettings)
 	}
 	return nil
 }
@@ -1413,6 +1423,14 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, err
 	}
+	cacheSettings, err := a.ensurePublicCacheSettings(ctx)
+	if err != nil {
+		return publicConfigRows{}, err
+	}
+	cacheRules, err := a.DB.ListPublicCacheRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	return publicConfigRows{
 		Backends:               backends,
 		BackendHeaders:         backendHeaders,
@@ -1429,6 +1447,8 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		WafCaptchaProviders:    wafCaptchaProviders,
 		WafRules:               wafRules,
 		WafSettings:            wafSettings,
+		CacheSettings:          cacheSettings,
+		CacheRules:             cacheRules,
 	}, nil
 }
 
@@ -1568,6 +1588,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		CertsByListener:     make(map[int64][]publicTLSCertificateConfig),
 		WafCaptchaProviders: make(map[int64]publicWafCaptchaProviderConfig),
 		WafCookieSecret:     []byte(rows.WafSettings.CookieSigningSecret),
+		CacheSettings:       publicCacheSettingsRowToConfig(rows.CacheSettings),
 	}
 
 	headersByBackend := publicBackendHeadersByBackend(rows.BackendHeaders)
@@ -1698,6 +1719,13 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("WAF rule %q is invalid: %w", row.Name, err))
 		}
 		snap.WafRules = append(snap.WafRules, rule)
+	}
+	for _, row := range rows.CacheRules {
+		rule, err := publicCacheRuleRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("cache rule %q is invalid: %w", row.Name, err))
+		}
+		snap.CacheRules = append(snap.CacheRules, rule)
 	}
 	return snap, nil
 }

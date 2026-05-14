@@ -11,7 +11,7 @@ type AgentNodeStatus = {
 type TrafficNodeData = {
   label: string;
   subLabel: string;
-  kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+  kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
   editTargets: TrafficFlowEditTarget[];
   agentStatus?: AgentNodeStatus;
 };
