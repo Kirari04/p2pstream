@@ -165,7 +165,7 @@ func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testin
 	}
 }
 
-func TestAgentPassiveFailureIsPerAgent(t *testing.T) {
+func TestAgentPassiveFailureAppliesWhenHealthCheckEnabled(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 
@@ -177,6 +177,18 @@ func TestAgentPassiveFailureIsPerAgent(t *testing.T) {
 	}
 	if !app.BackendHealth.available(backend) {
 		t.Fatal("backend should remain available while agent 2 is eligible")
+	}
+}
+
+func TestAgentPassiveFailureIgnoredWhenHealthCheckDisabled(t *testing.T) {
+	app, backend := testAgentPoolAppWithHealth(t, false)
+	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+
+	if !app.BackendHealth.agentAvailable(backend.ID, 1) {
+		t.Fatal("agent 1 should remain available when health checks are disabled")
+	}
+	if !app.BackendHealth.available(backend) {
+		t.Fatal("backend should remain available when health checks are disabled")
 	}
 }
 
@@ -200,9 +212,29 @@ func TestAgentHealthCheckDisconnectedAgentIsUnknownNotUnhealthy(t *testing.T) {
 	}
 }
 
-func TestPublicBackendHealthMonitorPassiveCooldown(t *testing.T) {
+func TestPassiveFailureIgnoredWhenHealthCheckDisabledDirect(t *testing.T) {
 	monitor := newPublicBackendHealthMonitor()
-	backend := publicBackendConfig{ID: 2, Enabled: true}
+	backend := testHealthBackend(t, 2, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	backend.HealthCheck.Enabled = false
+	snap := &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}
+	monitor.reconcile(nil, snap, false)
+
+	monitor.markPassiveFailure(backend.ID, nil)
+	if !monitor.available(backend) {
+		t.Fatal("backend should remain available when health checks are disabled")
+	}
+	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: true})
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
+		t.Fatalf("unexpected disabled health snapshot: %+v", snapshot)
+	}
+}
+
+func TestPassiveFailureAppliesWhenHealthCheckEnabledDirect(t *testing.T) {
+	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthBackend(t, 3, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	snap := &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}
+	monitor.reconcile(nil, snap, false)
+
 	monitor.markPassiveFailure(backend.ID, nil)
 	if monitor.available(backend) {
 		t.Fatal("backend should be unavailable during passive cooldown")
@@ -210,6 +242,84 @@ func TestPublicBackendHealthMonitorPassiveCooldown(t *testing.T) {
 	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: true})
 	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY || snapshot.PassiveUnhealthyUntilUnixMillis == 0 {
 		t.Fatalf("unexpected passive health snapshot: %+v", snapshot)
+	}
+}
+
+func TestDisablingHealthChecksClearsPassiveState(t *testing.T) {
+	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthBackend(t, 4, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.markPassiveFailure(backend.ID, nil)
+	if monitor.available(backend) {
+		t.Fatal("backend should be unavailable while health checks are enabled")
+	}
+
+	disabled := backend
+	disabled.HealthCheck.Enabled = false
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{disabled.ID: disabled}}, false)
+	if !monitor.available(disabled) {
+		t.Fatal("backend should become available after disabling health checks")
+	}
+	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: disabled.ID, enabled: true})
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
+		t.Fatalf("unexpected snapshot after disabling health checks: %+v", snapshot)
+	}
+}
+
+func TestPassiveCooldownExpiryStillRecoversWhenHealthEnabled(t *testing.T) {
+	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthBackend(t, 5, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.markPassiveFailure(backend.ID, nil)
+	if monitor.available(backend) {
+		t.Fatal("backend should be unavailable during passive cooldown")
+	}
+
+	monitor.mu.Lock()
+	monitor.states[backend.ID].direct.passiveUnhealthyUntil = time.Now().Add(-time.Second)
+	monitor.mu.Unlock()
+	if !monitor.available(backend) {
+		t.Fatal("backend should recover after passive cooldown expires")
+	}
+}
+
+func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthBackend(t, 6, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	backend.HealthCheck.Enabled = false
+	snap := publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}
+	app.BackendHealth.reconcile(app, &snap, false)
+	app.BackendHealth.markPassiveFailure(backend.ID, nil)
+
+	route := publicRouteConfig{
+		ID:        60,
+		Enabled:   true,
+		Action:    publicRouteActionForward,
+		BackendID: backend.ID,
+		BackendAssignments: []publicRouteBackendConfig{{
+			RouteID:   60,
+			BackendID: backend.ID,
+			Position:  0,
+			Weight:    100,
+			Enabled:   true,
+		}},
+	}
+	selected, ok, fallback := app.selectRouteBackend(snap, route)
+	if !ok || fallback || selected.ID != backend.ID {
+		t.Fatalf("route backend selection = backend=%d ok=%v fallback=%v, want backend %d", selected.ID, ok, fallback, backend.ID)
+	}
+}
+
+func TestAgentPoolRouteKeepsAgentEligibleAfterPassiveFailureWhenHealthDisabled(t *testing.T) {
+	app, backend := testAgentPoolAppWithHealth(t, false)
+	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+
+	selected := app.selectBackendAgent(backend)
+	if selected == nil {
+		t.Fatal("expected an eligible agent")
+	}
+	if selected.AgentID != 1 {
+		t.Fatalf("selected agent = %d, want passively failed agent to remain eligible", selected.AgentID)
 	}
 }
 
@@ -299,8 +409,14 @@ func serveOneAgentHealthCheck(t *testing.T, app *App, agent *AgentConn, status i
 
 func testAgentPoolApp(t *testing.T) (*App, publicBackendConfig) {
 	t.Helper()
+	return testAgentPoolAppWithHealth(t, true)
+}
+
+func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicBackendConfig) {
+	t.Helper()
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 20, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend.HealthCheck.Enabled = healthEnabled
 	backend.AgentAssignments = []publicBackendAgentConfig{
 		{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true},
 		{BackendID: backend.ID, AgentID: 2, Position: 1, Weight: 100, Enabled: true},

@@ -676,7 +676,9 @@ func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolut
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			log.Error().Err(err).Str("backend", resolution.Backend.Name).Msg("Direct proxy failed")
-			a.markPublicBackendPassiveFailure(resolution.Backend.ID, err)
+			if r.Context().Err() == nil && !errors.Is(err, context.Canceled) {
+				a.markPublicBackendPassiveFailure(resolution.Backend.ID, err)
+			}
 			statusCode = http.StatusBadGateway
 			errorKind = "direct_proxy_failed"
 			http.Error(w, "Bad Gateway", http.StatusBadGateway)

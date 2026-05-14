@@ -139,6 +139,9 @@ func (m *publicBackendHealthMonitor) reconcile(app *App, snap *publicProxySnapsh
 			agentState.stopLocked()
 			delete(state.agentStates, agentID)
 		}
+		if !backend.HealthCheck.Enabled {
+			state.clearHealthStateLocked()
+		}
 	}
 }
 
@@ -190,6 +193,13 @@ func (s *publicBackendAgentHealthState) stopLocked() {
 		s.cancel = nil
 	}
 	s.checkRunning = false
+}
+
+func (s *publicBackendHealthState) clearHealthStateLocked() {
+	s.direct = unknownPublicBackendCheckState()
+	for _, agentState := range s.agentStates {
+		agentState.state = unknownPublicBackendCheckState()
+	}
 }
 
 func (m *publicBackendHealthMonitor) directHealthLoop(ctx context.Context, backendID int64) {
@@ -478,7 +488,14 @@ func (m *publicBackendHealthMonitor) markPassiveFailure(backendID int64, err err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	state := m.ensureStateLocked(backendID)
+	state := m.states[backendID]
+	if state == nil {
+		return
+	}
+	if !m.passiveFailuresEnabledLocked(state) {
+		state.direct = unknownPublicBackendCheckState()
+		return
+	}
 	m.markCheckPassiveFailureLocked(&state.direct, err)
 }
 
@@ -488,9 +505,25 @@ func (m *publicBackendHealthMonitor) markAgentPassiveFailure(backendID int64, ag
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	state := m.ensureStateLocked(backendID)
-	agentState := state.ensureAgentStateLocked(agentID)
+	state := m.states[backendID]
+	if state == nil {
+		return
+	}
+	agentState := state.agentStates[agentID]
+	if !m.passiveFailuresEnabledLocked(state) {
+		if agentState != nil {
+			agentState.state = unknownPublicBackendCheckState()
+		}
+		return
+	}
+	if agentState == nil {
+		agentState = state.ensureAgentStateLocked(agentID)
+	}
 	m.markCheckPassiveFailureLocked(&agentState.state, err)
+}
+
+func (m *publicBackendHealthMonitor) passiveFailuresEnabledLocked(state *publicBackendHealthState) bool {
+	return state != nil && state.backend.HealthCheck.Enabled
 }
 
 func (m *publicBackendHealthMonitor) markCheckPassiveFailureLocked(state *publicBackendCheckState, err error) {
@@ -592,11 +625,11 @@ func (m *publicBackendHealthMonitor) agentAvailableLocked(backendID int64, agent
 }
 
 func checkStateAvailable(state publicBackendCheckState, healthEnabled bool, now time.Time) bool {
-	if state.passiveUnhealthyUntil.After(now) {
-		return false
-	}
 	if !healthEnabled {
 		return true
+	}
+	if state.passiveUnhealthyUntil.After(now) {
+		return false
 	}
 	return state.explicitStatus != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY &&
 		state.explicitStatus != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED
@@ -621,14 +654,20 @@ func (m *publicBackendHealthMonitor) snapshot(backend dbPublicBackendLike) *publ
 func directHealthSnapshot(state *publicBackendHealthState, enabled bool) *publicBackendHealthSnapshot {
 	now := time.Now()
 	status, passiveUntil := checkStateSnapshotStatus(state.direct, state.backend.HealthCheck.Enabled, now)
+	lastChecked := unixMillis(state.direct.lastCheckedAt)
+	lastError := state.direct.lastError
+	if !state.backend.HealthCheck.Enabled {
+		lastChecked = 0
+		lastError = ""
+	}
 	if !enabled {
 		status = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED
 		passiveUntil = 0
 	}
 	return &publicBackendHealthSnapshot{
 		Status:                          status,
-		LastCheckedAtUnixMillis:         unixMillis(state.direct.lastCheckedAt),
-		LastError:                       state.direct.lastError,
+		LastCheckedAtUnixMillis:         lastChecked,
+		LastError:                       lastError,
 		PassiveUnhealthyUntilUnixMillis: passiveUntil,
 	}
 }
@@ -636,6 +675,9 @@ func directHealthSnapshot(state *publicBackendHealthState, enabled bool) *public
 func (m *publicBackendHealthMonitor) agentPoolSnapshotLocked(state *publicBackendHealthState, enabled bool) *publicBackendHealthSnapshot {
 	if !enabled {
 		return &publicBackendHealthSnapshot{Status: p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED}
+	}
+	if !state.backend.HealthCheck.Enabled {
+		return &publicBackendHealthSnapshot{Status: p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN}
 	}
 	now := time.Now()
 	connectedCount := 0
@@ -671,7 +713,7 @@ func (m *publicBackendHealthMonitor) agentPoolSnapshotLocked(state *publicBacken
 		if !agentState.state.lastCheckedAt.IsZero() && agentState.state.lastCheckedAt.After(lastChecked) {
 			lastChecked = agentState.state.lastCheckedAt
 		}
-		if agentState.state.lastError != "" && (lastErrorAt.IsZero() || agentState.state.lastCheckedAt.After(lastErrorAt)) {
+		if state.backend.HealthCheck.Enabled && agentState.state.lastError != "" && (lastErrorAt.IsZero() || agentState.state.lastCheckedAt.After(lastErrorAt)) {
 			lastErrorAt = agentState.state.lastCheckedAt
 			lastError = formatAgentHealthError(publicID, assignment.AgentID, agentState.state.lastError)
 		}
@@ -712,15 +754,15 @@ func (m *publicBackendHealthMonitor) agentPoolSnapshotLocked(state *publicBacken
 }
 
 func checkStateSnapshotStatus(state publicBackendCheckState, healthEnabled bool, now time.Time) (p2pstreamv1.PublicBackendHealthStatus, int64) {
+	if !healthEnabled {
+		return p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN, 0
+	}
 	status := state.explicitStatus
 	if status == p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNSPECIFIED {
 		status = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN
 	}
 	if state.passiveUnhealthyUntil.After(now) {
 		return p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY, state.passiveUnhealthyUntil.UnixMilli()
-	}
-	if !healthEnabled {
-		return p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN, 0
 	}
 	return status, 0
 }

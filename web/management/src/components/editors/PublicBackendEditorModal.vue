@@ -327,6 +327,9 @@ defineExpose({ openCreate, openEdit, close });
             <input v-model="backendForm.healthCheckEnabled" type="checkbox" />
             HTTP health check
           </label>
+          <p v-if="!backendForm.healthCheckEnabled" class="text-xs font-normal normal-case tracking-normal text-[#666]">
+            When health checks are off, transient request failures do not remove this backend from routing.
+          </p>
           <p v-if="backendForm.healthCheckEnabled" class="text-xs font-normal normal-case tracking-normal text-[#666]">
             {{
               backendForm.forwardMode === PublicBackendForwardMode.AGENT_POOL

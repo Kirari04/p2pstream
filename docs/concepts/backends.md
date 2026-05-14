@@ -47,11 +47,11 @@ Proxy-forward backends can define an HTTP health check:
 
 Direct backend health checks run from the p2pstream server. Agent-pool backend health checks run through each enabled assigned connected agent, so a target such as `http://127.0.0.1:8888` is checked on the agent host, not on the server host.
 
-For agent-pool backends, p2pstream tracks health per backend-agent assignment. Routing skips unhealthy or passively cooling-down agents while keeping the backend available if another assigned connected agent is still eligible. The backend-level health status shown in the API and UI is an aggregate: healthy when any assigned connected agent is healthy, unhealthy when all assigned connected agents are unhealthy, and unknown when no connected agent has produced a decisive check.
+For agent-pool backends, p2pstream tracks health per backend-agent assignment. When health checks are enabled, routing skips unhealthy or passively cooling-down agents while keeping the backend available if another assigned connected agent is still eligible. The backend-level health status shown in the API and UI is an aggregate: healthy when any assigned connected agent is healthy, unhealthy when all assigned connected agents are unhealthy, and unknown when no connected agent has produced a decisive check.
 
-If no health check is configured, a backend or agent assignment is eligible until p2pstream observes a connection or timeout failure. Those passive failures mark the direct backend or selected backend-agent assignment temporarily unhealthy for a short cooldown, then it is tried again.
+Passive unhealthy routing skips only apply while health checks are enabled. If health checks are off, transient connection errors or timeouts fail only the current request; later requests can still select the same backend or agent assignment.
 
-p2pstream does not replay the same client request to another backend after an upstream failure. Later requests avoid the temporarily unhealthy backend.
+p2pstream does not replay the same client request to another backend after an upstream failure. With health checks enabled, later requests avoid the temporarily unhealthy backend or agent assignment until the cooldown expires or an explicit check recovers it.
 
 Automatic WAF waiting-room rules can also use backend active-request pressure and agent active-request or CPU pressure as activation signals. Those signals reduce load before new requests reach backend selection.
 
