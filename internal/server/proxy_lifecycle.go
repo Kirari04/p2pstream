@@ -80,7 +80,7 @@ func (a *App) startProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) 
 		a.LoadBalancers.reconcile(snap)
 	}
 	if a.BackendHealth != nil {
-		a.BackendHealth.reconcile(snap, true)
+		a.BackendHealth.reconcile(a, snap, true)
 	}
 
 	for _, listener := range snap.Listeners {
@@ -134,7 +134,7 @@ func (a *App) stopProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
 	status := a.proxyStatusLocked()
 	a.proxyMu.Unlock()
 	if a.BackendHealth != nil {
-		a.BackendHealth.reconcile(nil, false)
+		a.BackendHealth.reconcile(a, nil, false)
 	}
 	if shutdownErr != nil {
 		return status, connect.NewError(connect.CodeInternal, shutdownErr)

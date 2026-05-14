@@ -45,7 +45,11 @@ Proxy-forward backends can define an HTTP health check:
 - healthy and unhealthy thresholds,
 - expected status range.
 
-When a backend health check marks a backend unhealthy, route backend pools skip it. If no health check is configured, the backend is eligible until p2pstream observes a connection or timeout failure. Those passive failures mark the backend temporarily unhealthy for a short cooldown, then it is tried again.
+Direct backend health checks run from the p2pstream server. Agent-pool backend health checks run through each enabled assigned connected agent, so a target such as `http://127.0.0.1:8888` is checked on the agent host, not on the server host.
+
+For agent-pool backends, p2pstream tracks health per backend-agent assignment. Routing skips unhealthy or passively cooling-down agents while keeping the backend available if another assigned connected agent is still eligible. The backend-level health status shown in the API and UI is an aggregate: healthy when any assigned connected agent is healthy, unhealthy when all assigned connected agents are unhealthy, and unknown when no connected agent has produced a decisive check.
+
+If no health check is configured, a backend or agent assignment is eligible until p2pstream observes a connection or timeout failure. Those passive failures mark the direct backend or selected backend-agent assignment temporarily unhealthy for a short cooldown, then it is tried again.
 
 p2pstream does not replay the same client request to another backend after an upstream failure. Later requests avoid the temporarily unhealthy backend.
 

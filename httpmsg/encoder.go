@@ -14,6 +14,7 @@ import (
 const (
 	MaxBodyChunkSize      = msg.MaxBodyChunkSize
 	MetadataTLSSkipVerify = ":p2pstream-tls-skip-verify"
+	MetadataHealthCheck   = ":p2pstream-health-check"
 )
 
 // Encoder takes an HTTP request or response and yields a sequence of msg.Request chunks.

@@ -54,6 +54,46 @@ func TestHandleRequestTLSMetadataControlsVerification(t *testing.T) {
 	}
 }
 
+func TestAgentHealthCheckMetadataDoesNotIncrementRequestCounters(t *testing.T) {
+	originalClient := defaultForwardClient
+	defaultForwardClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Header.Get(httpmsg.MetadataHealthCheck) != "" {
+			t.Fatalf("internal health check metadata was forwarded upstream")
+		}
+		return &http.Response{
+			StatusCode:    http.StatusOK,
+			Status:        http.StatusText(http.StatusOK),
+			Header:        make(http.Header),
+			Body:          io.NopCloser(bytes.NewReader([]byte("ok"))),
+			ContentLength: 2,
+		}, nil
+	})}
+	t.Cleanup(func() {
+		defaultForwardClient = originalClient
+		resetAgentRequestCounters()
+	})
+	resetAgentRequestCounters()
+
+	conn, done := startAgentRequestHandlerWithMetadata(t, "http://upstream.test/health", map[string]string{
+		httpmsg.MetadataHealthCheck: "true",
+	})
+	select {
+	case <-conn.writeCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for response")
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for handler")
+	}
+
+	if activeRequests.Load() != 0 || reqSuccess.Load() != 0 || reqClientError.Load() != 0 || reqServerError.Load() != 0 || reqInternalError.Load() != 0 {
+		t.Fatalf("health check changed counters: active=%d success=%d client=%d server=%d internal=%d",
+			activeRequests.Load(), reqSuccess.Load(), reqClientError.Load(), reqServerError.Load(), reqInternalError.Load())
+	}
+}
+
 func performAgentRequest(t *testing.T, targetURL string, tlsSkipVerify bool) (int, string) {
 	t.Helper()
 
@@ -181,6 +221,11 @@ func TestHandleRequestUsesGenericBadGatewayBody(t *testing.T) {
 
 func startAgentRequestHandler(t *testing.T, targetURL string) (*agentConnection, <-chan struct{}) {
 	t.Helper()
+	return startAgentRequestHandlerWithMetadata(t, targetURL, nil)
+}
+
+func startAgentRequestHandlerWithMetadata(t *testing.T, targetURL string, metadata map[string]string) (*agentConnection, <-chan struct{}) {
+	t.Helper()
 
 	id, err := uuid.NewV7()
 	if err != nil {
@@ -190,7 +235,7 @@ func startAgentRequestHandler(t *testing.T, targetURL string) (*agentConnection,
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
-	enc := httpmsg.NewRequestEncoder(id, req)
+	enc := httpmsg.NewRequestEncoderWithMetadata(id, req, metadata)
 	firstReq, err := enc.Next()
 	if err != nil {
 		t.Fatalf("encode request: %v", err)
@@ -207,4 +252,12 @@ func startAgentRequestHandler(t *testing.T, targetURL string) (*agentConnection,
 		conn.handleRequest(id, reqCh)
 	}()
 	return conn, done
+}
+
+func resetAgentRequestCounters() {
+	activeRequests.Store(0)
+	reqSuccess.Store(0)
+	reqClientError.Store(0)
+	reqServerError.Store(0)
+	reqInternalError.Store(0)
 }

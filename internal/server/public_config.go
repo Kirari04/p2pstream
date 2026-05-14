@@ -1274,7 +1274,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	a.proxyMu.Unlock()
 	a.LoadBalancers.reconcile(snap)
 	if a.BackendHealth != nil {
-		a.BackendHealth.reconcile(snap, active)
+		a.BackendHealth.reconcile(a, snap, active)
 	}
 	if a.RateLimiter != nil {
 		a.RateLimiter.reconcile(snap)
@@ -1316,7 +1316,7 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	a.proxyMu.Unlock()
 	a.LoadBalancers.reconcile(snap)
 	if a.BackendHealth != nil {
-		a.BackendHealth.reconcile(snap, active)
+		a.BackendHealth.reconcile(a, snap, active)
 	}
 	if a.RateLimiter != nil {
 		a.RateLimiter.reconcile(snap)

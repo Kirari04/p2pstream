@@ -327,6 +327,13 @@ defineExpose({ openCreate, openEdit, close });
             <input v-model="backendForm.healthCheckEnabled" type="checkbox" />
             HTTP health check
           </label>
+          <p v-if="backendForm.healthCheckEnabled" class="text-xs font-normal normal-case tracking-normal text-[#666]">
+            {{
+              backendForm.forwardMode === PublicBackendForwardMode.AGENT_POOL
+                ? "Agent health checks run from each enabled assigned agent."
+                : "Direct health checks run from the p2pstream server."
+            }}
+          </p>
           <div v-if="backendForm.healthCheckEnabled" class="grid gap-2 sm:grid-cols-[7rem_1fr]">
             <select v-model="backendForm.healthCheckMethod" class="vercel-input text-sm normal-case tracking-normal">
               <option value="GET">GET</option>

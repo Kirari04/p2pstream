@@ -809,6 +809,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		select {
 		case agent.WriteCh <- m:
 		case <-agent.Done:
+			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, errAgentDisconnected)
 			statusCode = http.StatusBadGateway
 			errorKind = "agent_disconnected"
 			http.Error(w, "Bad Gateway", http.StatusBadGateway)
@@ -826,12 +827,13 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	var firstMsg *msg.Request
 	select {
 	case <-timeoutCtx.Done():
-		a.markPublicBackendPassiveFailure(resolution.Backend.ID, timeoutCtx.Err())
+		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, timeoutCtx.Err())
 		statusCode = http.StatusGatewayTimeout
 		errorKind = "agent_timeout"
 		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 		return
 	case err := <-pending.ErrorCh:
+		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
 		statusCode = http.StatusBadGateway
 		if errors.Is(err, errAgentDisconnected) {
 			errorKind = "agent_disconnected"
@@ -842,6 +844,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		return
 	case firstMsg = <-pending.ResponseCh:
 		if firstMsg == nil {
+			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, errAgentDisconnected)
 			statusCode = http.StatusBadGateway
 			errorKind = "agent_disconnected"
 			http.Error(w, "Bad Gateway", http.StatusBadGateway)
@@ -853,6 +856,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
+		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
 		statusCode = http.StatusBadGateway
 		errorKind = "response_decode_failed"
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
@@ -907,6 +911,9 @@ func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
 		}
 		conn := a.AgentHub.connectedByID(assignment.AgentID)
 		if conn == nil {
+			continue
+		}
+		if a.BackendHealth != nil && !a.BackendHealth.agentAvailable(backend.ID, assignment.AgentID) {
 			continue
 		}
 		candidates = append(candidates, backendAgentCandidate{
@@ -996,7 +1003,8 @@ func (a *App) backendHasEligibleAgent(snap publicProxySnapshot, backend publicBa
 		if !ok || !agentConfig.Enabled {
 			continue
 		}
-		if a.AgentHub.connectedByID(assignment.AgentID) != nil {
+		if a.AgentHub.connectedByID(assignment.AgentID) != nil &&
+			(a.BackendHealth == nil || a.BackendHealth.agentAvailable(backend.ID, assignment.AgentID)) {
 			return true
 		}
 	}
@@ -1015,6 +1023,13 @@ func (a *App) markPublicBackendPassiveFailure(backendID int64, err error) {
 		return
 	}
 	a.BackendHealth.markPassiveFailure(backendID, err)
+}
+
+func (a *App) markPublicBackendAgentPassiveFailure(backendID int64, agentID int64, err error) {
+	if a.BackendHealth == nil {
+		return
+	}
+	a.BackendHealth.markAgentPassiveFailure(backendID, agentID, err)
 }
 
 func applyUpstreamRequestConfig(req *http.Request, backend publicBackendConfig) {

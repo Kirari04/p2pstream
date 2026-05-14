@@ -300,8 +300,6 @@ func connectAndServe(client *http.Client, wsURL string, agentPublicID string, ag
 }
 
 func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
-	activeRequests.Add(1)
-	defer activeRequests.Add(-1)
 	defer conn.incoming.Delete(id)
 
 	stream := &httpmsg.ChannelStream{Ctx: conn.ctx, Ch: reqCh}
@@ -312,11 +310,18 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 		return
 	}
 	tlsSkipVerify := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTLSSkipVerify), "true")
+	isHealthCheck := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataHealthCheck), "true")
+	if !isHealthCheck {
+		activeRequests.Add(1)
+		defer activeRequests.Add(-1)
+	}
 
 	req, err := httpmsg.DecodeRequest(firstMsg, stream)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode request")
-		reqInternalError.Add(1)
+		if !isHealthCheck {
+			reqInternalError.Add(1)
+		}
 		return
 	}
 	req = req.WithContext(conn.ctx)
@@ -329,7 +334,9 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to execute request")
-		reqInternalError.Add(1)
+		if !isHealthCheck {
+			reqInternalError.Add(1)
+		}
 
 		body := []byte("Bad Gateway\n")
 		resp = &http.Response{
@@ -343,12 +350,14 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 		if resp.Body != nil {
 			defer resp.Body.Close()
 		}
-		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-			reqSuccess.Add(1)
-		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-			reqClientError.Add(1)
-		} else {
-			reqServerError.Add(1)
+		if !isHealthCheck {
+			if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+				reqSuccess.Add(1)
+			} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+				reqClientError.Add(1)
+			} else {
+				reqServerError.Add(1)
+			}
 		}
 	}
 
