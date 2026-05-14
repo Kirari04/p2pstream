@@ -107,6 +107,85 @@ func TestPublicWafCaptchaPassCookieAllowsRequest(t *testing.T) {
 	}
 }
 
+func TestPublicProxyCaptchaPassStillHitsRateLimit(t *testing.T) {
+	app := NewApp(nil, nil)
+	wafRule := testWafRule(1, publicWafActionCaptcha)
+	wafRule.Fingerprint = publicWafRuleFingerprint(wafRule)
+	rateLimitRule := publicRateLimitRuleConfig{
+		ID:                  1,
+		Name:                "one-request",
+		Priority:            100,
+		Enabled:             true,
+		Algorithm:           publicRateLimitAlgorithmFixedWindow,
+		Limit:               1,
+		WindowMillis:        60_000,
+		KeyParts:            []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceRemoteIP}},
+		ResponseStatusCode:  http.StatusTooManyRequests,
+		ResponseBody:        "Rate limit exceeded\n",
+		ResponseContentType: "text/plain; charset=utf-8",
+	}
+	rateLimitRule.Fingerprint = publicRateLimitRuleFingerprint(rateLimitRule)
+	snap := &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{
+			1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true, DefaultBackendID: 1},
+		},
+		Backends: map[int64]publicBackendConfig{
+			1: {
+				ID:                 1,
+				Name:               "static",
+				BackendType:        publicBackendTypeStatic,
+				StaticStatusCode:   http.StatusOK,
+				StaticResponseBody: "ok\n",
+				Enabled:            true,
+			},
+		},
+		RoutesByListener: map[int64][]publicRouteConfig{1: nil},
+		WafRules:         []publicWafRuleConfig{wafRule},
+		WafCaptchaProviders: map[int64]publicWafCaptchaProviderConfig{
+			1: {
+				ID:           1,
+				Name:         "turnstile",
+				ProviderType: publicWafCaptchaProviderTurnstile,
+				SiteKey:      "site",
+				SecretKey:    "secret",
+				Enabled:      true,
+			},
+		},
+		WafCookieSecret: []byte("test-secret"),
+		RateLimitRules:  []publicRateLimitRuleConfig{rateLimitRule},
+	}
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+	app.RateLimiter.reconcile(snap)
+	handler := app.publicProxyHandler(1)
+
+	noPassReq := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	noPassResp := httptest.NewRecorder()
+	handler(noPassResp, noPassReq)
+	if noPassResp.Code != http.StatusForbidden {
+		t.Fatalf("request without captcha pass status = %d, want WAF captcha status %d", noPassResp.Code, http.StatusForbidden)
+	}
+
+	passCookie := app.PublicWAF.signedRuleCookie(wafRule.ID, publicWafCaptchaCookieKind, "", time.Minute, time.Now())
+	firstReq := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	firstReq.AddCookie(passCookie)
+	firstResp := httptest.NewRecorder()
+	handler(firstResp, firstReq)
+	if firstResp.Code != http.StatusOK {
+		t.Fatalf("first request with captcha pass status = %d, want %d", firstResp.Code, http.StatusOK)
+	}
+
+	secondReq := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	secondReq.AddCookie(passCookie)
+	secondResp := httptest.NewRecorder()
+	handler(secondResp, secondReq)
+	if secondResp.Code != http.StatusTooManyRequests {
+		t.Fatalf("second request with captcha pass status = %d, want rate limit status %d", secondResp.Code, http.StatusTooManyRequests)
+	}
+}
+
 func TestPublicWafSignedCookiesRejectExpiredAndForgedValues(t *testing.T) {
 	waf := newPublicWAF()
 	waf.cookieSecret = []byte("test-secret")
