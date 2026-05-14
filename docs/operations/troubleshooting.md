@@ -106,6 +106,17 @@ sudo journalctl -u p2pstream-agent -f
 | Rule too broad | Add host/path/method matchers. |
 | Priority conflict | Move specific rules to lower priority numbers. |
 
+## WAF blocks, challenges, or queues unexpectedly
+
+| Cause | Fix |
+| --- | --- |
+| Rule too broad | Narrow the WAF match by host, path, method, header, cookie, or query parameter. |
+| Priority conflict | Lower priority numbers win. Move specific allow-through behavior outside the broad rule's match or adjust priorities. |
+| Captcha provider unavailable | Confirm the provider is enabled and the site key/secret key match the upstream provider configuration. |
+| Waiting room stays active | Check automatic trigger thresholds, active request counts, server CPU, and agent CPU in the dashboard. Use `0` to disable an automatic signal. |
+| All clients share one queue identity | Add key parts that identify visitors better than remote IP when p2pstream is behind another proxy. |
+| Large form or upload must be retried | Captcha and waiting-room admission use `303` redirects and do not replay request bodies. Resubmit after admission. |
+
 ## Trace stream reconnects
 
 | Cause | Fix |

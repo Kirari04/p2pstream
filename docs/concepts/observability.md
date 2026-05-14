@@ -32,6 +32,7 @@ Proxy request events include:
 - listener ID,
 - backend ID,
 - route ID,
+- WAF rule ID and action when a WAF decision handled the request,
 - agent ID,
 - request bytes,
 - response bytes.
@@ -41,6 +42,7 @@ Proxy request events include:
 Agents report runtime stats, including:
 
 - memory,
+- CPU percentage,
 - goroutine count,
 - active requests,
 - request outcome counters,
@@ -53,13 +55,13 @@ Traffic tracing is an admin-controlled live stream. Levels are:
 | Level | Includes |
 | --- | --- |
 | Basic | High-level request stages. |
-| Detailed | Host, query, target origin, backend type, and error kind. |
+| Detailed | Host, query, WAF decision, target origin, backend type, and error kind. |
 | Headers | Request and response headers, redacted where known. |
 | Debug | More detailed event attributes. |
 
 Use headers and debug tracing temporarily. They can expose operational details and request metadata.
 
 <figure class="doc-screenshot">
-  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow view showing a live request path through listener, rate limit, shaper, route, backend, agent, upstream, and response">
-  <figcaption>Traffic Flow renders sampled request paths across listeners, policy checks, routes, backends, agents, and upstreams.</figcaption>
+  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, backend, agent, upstream, and response">
+  <figcaption>Traffic Flow renders sampled request paths across listeners, WAF and policy checks, routes, backends, agents, and upstreams.</figcaption>
 </figure>

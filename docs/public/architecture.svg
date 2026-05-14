@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 520" role="img" aria-labelledby="title desc">
   <title id="title">p2pstream architecture</title>
-  <desc id="desc">Public clients reach HTTP and HTTPS listeners on the p2pstream server. Requests route to direct upstreams, static responses, or remote agents connected over the management WebSocket.</desc>
+  <desc id="desc">Public clients reach HTTP and HTTPS listeners on the p2pstream server. Requests pass through WAF and traffic policy checks, then route to direct upstreams, static responses, or remote agents connected over the management WebSocket.</desc>
   <defs>
     <style>
       .bg { fill: #0d1117; }
@@ -36,18 +36,21 @@
 
   <rect class="panel" x="360" y="46" width="400" height="410" rx="12"/>
   <text class="text" x="390" y="96">p2pstream server</text>
-  <rect class="accent" x="390" y="128" width="310" height="56" rx="8"/>
-  <text class="small" x="414" y="151">Public listeners</text>
-  <text class="mono" x="414" y="170">HTTP, HTTPS, SNI, ACME</text>
-  <rect class="box" x="390" y="214" width="310" height="68" rx="8"/>
-  <text class="small" x="414" y="240">Routing engine</text>
-  <text class="mono" x="414" y="260">host, path, priority, redirects</text>
-  <rect class="box" x="390" y="312" width="146" height="74" rx="8"/>
-  <text class="small" x="414" y="340">Management</text>
-  <text class="mono" x="414" y="360">UI + API :8081</text>
-  <rect class="box" x="554" y="312" width="146" height="74" rx="8"/>
-  <text class="small" x="578" y="340">SQLite</text>
-  <text class="mono" x="578" y="360">/data/*.db</text>
+  <rect class="accent" x="390" y="122" width="310" height="54" rx="8"/>
+  <text class="small" x="414" y="144">Public listeners</text>
+  <text class="mono" x="414" y="163">HTTP, HTTPS, SNI, ACME</text>
+  <rect class="box" x="390" y="194" width="310" height="58" rx="8"/>
+  <text class="small" x="414" y="218">WAF + policy</text>
+  <text class="mono" x="414" y="237">captcha, queue, limits, shapers</text>
+  <rect class="box" x="390" y="270" width="310" height="58" rx="8"/>
+  <text class="small" x="414" y="294">Routing engine</text>
+  <text class="mono" x="414" y="313">host, path, priority, redirects</text>
+  <rect class="box" x="390" y="362" width="146" height="58" rx="8"/>
+  <text class="small" x="414" y="386">Management</text>
+  <text class="mono" x="414" y="405">UI + API :8081</text>
+  <rect class="box" x="554" y="362" width="146" height="58" rx="8"/>
+  <text class="small" x="578" y="386">SQLite</text>
+  <text class="mono" x="578" y="405">/data/*.db</text>
 
   <rect class="panel" x="860" y="46" width="230" height="410" rx="12"/>
   <text class="text" x="890" y="96">Destinations</text>
@@ -61,10 +64,10 @@
   <text class="small" x="914" y="343">Remote agent</text>
   <text class="mono" x="914" y="363">WSS tunnel</text>
 
-  <path class="line" d="M 230 167 C 290 167, 320 156, 390 156" marker-end="url(#arrow)"/>
-  <path class="line" d="M 700 156 C 770 156, 812 167, 890 167" marker-end="url(#arrow)"/>
-  <path class="line" d="M 700 248 C 770 248, 812 257, 890 257" marker-end="url(#arrow)"/>
-  <path class="line2" d="M 700 348 C 770 348, 812 347, 890 347" marker-end="url(#arrow2)"/>
-  <path class="line2" d="M 463 312 C 463 292, 480 284, 510 282" marker-end="url(#arrow2)"/>
-  <path class="line2" d="M 627 312 C 627 292, 610 284, 580 282" marker-end="url(#arrow2)"/>
+  <path class="line" d="M 230 167 C 290 167, 320 149, 390 149" marker-end="url(#arrow)"/>
+  <path class="line" d="M 700 299 C 775 299, 815 167, 890 167" marker-end="url(#arrow)"/>
+  <path class="line" d="M 700 299 C 770 299, 812 257, 890 257" marker-end="url(#arrow)"/>
+  <path class="line2" d="M 700 299 C 770 299, 812 347, 890 347" marker-end="url(#arrow2)"/>
+  <path class="line2" d="M 463 362 C 463 340, 480 330, 510 328" marker-end="url(#arrow2)"/>
+  <path class="line2" d="M 627 362 C 627 340, 610 330, 580 328" marker-end="url(#arrow2)"/>
 </svg>

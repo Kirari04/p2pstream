@@ -25,6 +25,7 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 	"p2pstream/httpmsg"
+	"p2pstream/internal/sysmetrics"
 	"p2pstream/msg"
 )
 
@@ -413,6 +414,7 @@ func startStatsReporter(httpClient *http.Client, mgmtURL string, agentPublicID s
 		mgmtURL,
 		connect.WithGRPC(), // We can use gRPC or Connect protocol, let's use default Connect or GRPC
 	)
+	cpuSampler := sysmetrics.NewProcessCPUSampler()
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -420,10 +422,17 @@ func startStatsReporter(httpClient *http.Client, mgmtURL string, agentPublicID s
 	for range ticker.C {
 		var mem runtime.MemStats
 		runtime.ReadMemStats(&mem)
+		cpuPercent := 0.0
+		if cpuSampler != nil {
+			if sampled, ok, err := cpuSampler.Sample(); err == nil && ok {
+				cpuPercent = sampled
+			}
+		}
 
 		req := &p2pstreamv1.AgentStatsRequest{
 			MemorySysMb:      int64(mem.Alloc / 1024 / 1024),
 			NumGoroutine:     int64(runtime.NumGoroutine()),
+			CpuPercent:       cpuPercent,
 			ActiveRequests:   activeRequests.Load(),
 			ReqSuccess:       int64(reqSuccess.Swap(0)),
 			ReqClientError:   int64(reqClientError.Swap(0)),

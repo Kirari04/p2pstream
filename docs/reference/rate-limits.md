@@ -1,6 +1,6 @@
 # Rate Limits Reference
 
-Rate limit rules are global and evaluated before route resolution.
+Rate limit rules are global and evaluated after WAF rules and before traffic shapers and route resolution.
 
 ## Defaults and limits
 

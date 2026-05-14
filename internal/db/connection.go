@@ -159,7 +159,8 @@ func (db *DB) migrate() error {
 		req_server_error INTEGER NOT NULL,
 		req_internal_error INTEGER NOT NULL DEFAULT 0,
 		bytes_rx INTEGER NOT NULL,
-		bytes_tx INTEGER NOT NULL
+		bytes_tx INTEGER NOT NULL,
+		cpu_percent REAL NOT NULL DEFAULT 0
 	);
 
 	CREATE TABLE IF NOT EXISTS proxy_request_events (
@@ -171,6 +172,8 @@ func (db *DB) migrate() error {
 		listener_id INTEGER,
 		backend_id INTEGER,
 		route_id INTEGER,
+		waf_rule_id INTEGER,
+		waf_action TEXT NOT NULL DEFAULT '',
 		agent_id INTEGER REFERENCES agents(id),
 		request_bytes INTEGER NOT NULL DEFAULT 0,
 		response_bytes INTEGER NOT NULL DEFAULT 0
@@ -283,6 +286,60 @@ func (db *DB) migrate() error {
 		UNIQUE(route_id, position)
 	);
 
+	CREATE TABLE IF NOT EXISTS public_waf_captcha_providers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_type TEXT NOT NULL,
+		site_key TEXT NOT NULL,
+		secret_key TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_waf_rules (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		priority INTEGER NOT NULL DEFAULT 100,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		action TEXT NOT NULL DEFAULT 'block',
+		activation_mode TEXT NOT NULL DEFAULT 'always',
+		match_json TEXT NOT NULL DEFAULT '{}',
+		key_parts_json TEXT NOT NULL DEFAULT '[]',
+		captcha_provider_id INTEGER REFERENCES public_waf_captcha_providers(id),
+		captcha_pass_ttl_millis INTEGER NOT NULL DEFAULT 1800000,
+		waiting_room_max_admitted_sessions INTEGER NOT NULL DEFAULT 50,
+		waiting_room_admission_rate_per_second INTEGER NOT NULL DEFAULT 10,
+		waiting_room_admission_session_ttl_millis INTEGER NOT NULL DEFAULT 600000,
+		waiting_room_queue_poll_interval_millis INTEGER NOT NULL DEFAULT 5000,
+		waiting_room_queue_timeout_millis INTEGER NOT NULL DEFAULT 1800000,
+		waiting_room_page_title TEXT NOT NULL DEFAULT 'Waiting room',
+		waiting_room_page_body TEXT NOT NULL DEFAULT 'Traffic is high. You will be admitted automatically.',
+		trigger_request_window_millis INTEGER NOT NULL DEFAULT 10000,
+		trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
+		trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
+		trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
+		trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+		trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
+		trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
+		trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
+		trigger_minimum_active_millis INTEGER NOT NULL DEFAULT 30000,
+		trigger_quiet_period_millis INTEGER NOT NULL DEFAULT 60000,
+		block_response_status_code INTEGER NOT NULL DEFAULT 403,
+		block_response_body TEXT NOT NULL DEFAULT 'Request blocked',
+		block_response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
+		block_response_headers_json TEXT NOT NULL DEFAULT '[]',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_waf_settings (
+		id INTEGER PRIMARY KEY CHECK (id = 1),
+		cookie_signing_secret TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS public_tls_dns_credentials (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL UNIQUE,
@@ -360,6 +417,12 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id
 	ON public_route_backends (backend_id);
 
+	CREATE INDEX IF NOT EXISTS idx_public_waf_rules_priority
+	ON public_waf_rules (priority, id);
+
+	CREATE INDEX IF NOT EXISTS idx_public_waf_rules_captcha_provider_id
+	ON public_waf_rules (captcha_provider_id);
+
 	CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 	ON public_tls_certificates (listener_id);
 
@@ -380,9 +443,12 @@ func (db *DB) migrate() error {
 	for _, stmt := range []string{
 		`ALTER TABLE connections ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
 		`ALTER TABLE agent_stats ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
+		`ALTER TABLE agent_stats ADD COLUMN cpu_percent REAL NOT NULL DEFAULT 0`,
 		`ALTER TABLE proxy_request_events ADD COLUMN listener_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN backend_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN route_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN waf_rule_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN waf_action TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE proxy_request_events ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
 		`ALTER TABLE proxy_request_events ADD COLUMN request_bytes INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE proxy_request_events ADD COLUMN response_bytes INTEGER NOT NULL DEFAULT 0`,
@@ -587,6 +653,78 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_traffic_shaper_rules_priority ON public_traffic_shaper_rules (priority, id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_waf_captcha_providers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider_type TEXT NOT NULL,
+			site_key TEXT NOT NULL,
+			secret_key TEXT NOT NULL,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_waf_rules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			priority INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			action TEXT NOT NULL DEFAULT 'block',
+			activation_mode TEXT NOT NULL DEFAULT 'always',
+			match_json TEXT NOT NULL DEFAULT '{}',
+			key_parts_json TEXT NOT NULL DEFAULT '[]',
+			captcha_provider_id INTEGER REFERENCES public_waf_captcha_providers(id),
+			captcha_pass_ttl_millis INTEGER NOT NULL DEFAULT 1800000,
+			waiting_room_max_admitted_sessions INTEGER NOT NULL DEFAULT 50,
+			waiting_room_admission_rate_per_second INTEGER NOT NULL DEFAULT 10,
+			waiting_room_admission_session_ttl_millis INTEGER NOT NULL DEFAULT 600000,
+			waiting_room_queue_poll_interval_millis INTEGER NOT NULL DEFAULT 5000,
+			waiting_room_queue_timeout_millis INTEGER NOT NULL DEFAULT 1800000,
+			waiting_room_page_title TEXT NOT NULL DEFAULT 'Waiting room',
+			waiting_room_page_body TEXT NOT NULL DEFAULT 'Traffic is high. You will be admitted automatically.',
+			trigger_request_window_millis INTEGER NOT NULL DEFAULT 10000,
+			trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
+			trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
+			trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
+			trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+			trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
+			trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
+			trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
+			trigger_minimum_active_millis INTEGER NOT NULL DEFAULT 30000,
+			trigger_quiet_period_millis INTEGER NOT NULL DEFAULT 60000,
+			block_response_status_code INTEGER NOT NULL DEFAULT 403,
+			block_response_body TEXT NOT NULL DEFAULT 'Request blocked',
+			block_response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
+			block_response_headers_json TEXT NOT NULL DEFAULT '[]',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_waf_settings (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			cookie_signing_secret TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_priority ON public_waf_rules (priority, id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_captcha_provider_id ON public_waf_rules (captcha_provider_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id ON proxy_request_events (waf_rule_id)`); err != nil {
 		return err
 	}
 	return nil

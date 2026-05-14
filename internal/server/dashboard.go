@@ -86,6 +86,8 @@ func (a *App) GetDashboard(
 			AgentMaxMemoryMb:      agentSummary.MaxMemoryMb,
 			AgentAvgGoroutines:    agentSummary.AvgGoroutines,
 			AgentMaxGoroutines:    agentSummary.MaxGoroutines,
+			AgentAvgCpuPercent:    agentSummary.AvgCpuPercent,
+			AgentMaxCpuPercent:    agentSummary.MaxCpuPercent,
 		})
 	}
 
@@ -179,6 +181,23 @@ func (a *App) recordProxyRequestEventWithIDs(
 	requestBytes uint64,
 	responseBytes uint64,
 ) {
+	a.recordProxyRequestEventWithPolicyIDs(ctx, statusCode, duration, errorKind, listenerID, backendID, routeID, sql.NullInt64{}, "", agentID, requestBytes, responseBytes)
+}
+
+func (a *App) recordProxyRequestEventWithPolicyIDs(
+	ctx context.Context,
+	statusCode int,
+	duration time.Duration,
+	errorKind string,
+	listenerID sql.NullInt64,
+	backendID sql.NullInt64,
+	routeID sql.NullInt64,
+	wafRuleID sql.NullInt64,
+	wafAction string,
+	agentID sql.NullInt64,
+	requestBytes uint64,
+	responseBytes uint64,
+) {
 	if a.DB == nil {
 		return
 	}
@@ -196,6 +215,8 @@ func (a *App) recordProxyRequestEventWithIDs(
 		ListenerID:    listenerID,
 		BackendID:     backendID,
 		RouteID:       routeID,
+		WafRuleID:     wafRuleID,
+		WafAction:     wafAction,
 		AgentID:       agentID,
 		RequestBytes:  int64FromUint64(requestBytes),
 		ResponseBytes: int64FromUint64(responseBytes),

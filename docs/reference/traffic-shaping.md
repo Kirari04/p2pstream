@@ -1,6 +1,6 @@
 # Traffic Shaping Reference
 
-Traffic shaper rules limit upload and/or download throughput for matching requests.
+Traffic shaper rules limit upload and/or download throughput for matching requests. They run after WAF and rate-limit checks and before route/backend forwarding.
 
 ## Settings
 

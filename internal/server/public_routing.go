@@ -141,13 +141,16 @@ type publicTLSCertificateConfig struct {
 }
 
 type publicProxySnapshot struct {
-	Backends           map[int64]publicBackendConfig
-	Agents             map[int64]publicAgentConfig
-	Listeners          map[int64]publicListenerConfig
-	RoutesByListener   map[int64][]publicRouteConfig
-	CertsByListener    map[int64][]publicTLSCertificateConfig
-	RateLimitRules     []publicRateLimitRuleConfig
-	TrafficShaperRules []publicTrafficShaperRuleConfig
+	Backends            map[int64]publicBackendConfig
+	Agents              map[int64]publicAgentConfig
+	Listeners           map[int64]publicListenerConfig
+	RoutesByListener    map[int64][]publicRouteConfig
+	CertsByListener     map[int64][]publicTLSCertificateConfig
+	RateLimitRules      []publicRateLimitRuleConfig
+	TrafficShaperRules  []publicTrafficShaperRuleConfig
+	WafCaptchaProviders map[int64]publicWafCaptchaProviderConfig
+	WafRules            []publicWafRuleConfig
+	WafCookieSecret     []byte
 }
 
 type publicRouteResolution struct {
@@ -170,6 +173,12 @@ type publicRouteResolution struct {
 	TrafficShaperDownloadBytesPerSecond int64
 	TrafficShaperRequestExemptBytes     int64
 	TrafficShaperResponseExemptBytes    int64
+	WafRuleID                           int64
+	WafRuleName                         string
+	WafAction                           string
+	WafActivationMode                   string
+	WafAutomaticActive                  bool
+	WafChallengeKind                    string
 	RouteLoadBalancing                  string
 	RouteFallbackSelected               bool
 }
@@ -221,6 +230,86 @@ func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 				sql.NullInt64{Int64: listenerID, Valid: true},
 				sql.NullInt64{},
 				sql.NullInt64{},
+				sql.NullInt64{},
+				observability.requestBytesValue(),
+				observability.responseBytesValue(),
+			)
+			return
+		}
+
+		if decision, handled := a.servePublicWAFReserved(responseWriter, r, listenerID); handled {
+			statusCode := recorder.statusCode
+			if statusCode == 0 {
+				statusCode = decision.StatusCode
+			}
+			if statusCode == 0 {
+				statusCode = http.StatusOK
+			}
+			if trace != nil && decision.Action != "" {
+				resolution := traceResolutionFromWafDecision(decision, listenerID)
+				trace.emit(
+					wafTraceStage(decision),
+					&resolution,
+					nil,
+					statusCode,
+					decision.ErrorKind,
+					responseWriter.Header(),
+					wafDebugAttributes(decision),
+				)
+			}
+			a.recordProxyRequestEventWithPolicyIDs(
+				context.Background(),
+				statusCode,
+				time.Since(requestStartedAt),
+				decision.ErrorKind,
+				sql.NullInt64{Int64: listenerID, Valid: true},
+				sql.NullInt64{},
+				sql.NullInt64{},
+				sql.NullInt64{Int64: decision.Rule.ID, Valid: decision.Rule.ID != 0},
+				decision.Action,
+				sql.NullInt64{},
+				observability.requestBytesValue(),
+				observability.responseBytesValue(),
+			)
+			return
+		}
+
+		if a.PublicWAF != nil {
+			done := a.PublicWAF.beginProxyRequest()
+			defer done()
+		}
+
+		if decision, allowed := a.checkPublicWAF(listenerID, r); !allowed {
+			writePublicWafResponse(responseWriter, r, decision)
+			statusCode := recorder.statusCode
+			if statusCode == 0 {
+				statusCode = decision.StatusCode
+			}
+			if statusCode == 0 {
+				statusCode = http.StatusForbidden
+			}
+			if trace != nil {
+				resolution := traceResolutionFromWafDecision(decision, listenerID)
+				trace.emit(
+					wafTraceStage(decision),
+					&resolution,
+					nil,
+					statusCode,
+					decision.ErrorKind,
+					responseWriter.Header(),
+					wafDebugAttributes(decision),
+				)
+			}
+			a.recordProxyRequestEventWithPolicyIDs(
+				context.Background(),
+				statusCode,
+				time.Since(requestStartedAt),
+				decision.ErrorKind,
+				sql.NullInt64{Int64: listenerID, Valid: true},
+				sql.NullInt64{},
+				sql.NullInt64{},
+				sql.NullInt64{Int64: decision.Rule.ID, Valid: decision.Rule.ID != 0},
+				decision.Action,
 				sql.NullInt64{},
 				observability.requestBytesValue(),
 				observability.responseBytesValue(),

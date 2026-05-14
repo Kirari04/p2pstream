@@ -1,10 +1,16 @@
 # Limits and Shaping
 
-Rate limits and traffic shaping are global public proxy controls. They are evaluated before normal upstream forwarding.
+Rate limits, WAF rules, and traffic shaping are global public proxy controls. WAF rules run first, then rate limits, then traffic shapers before normal route resolution and upstream forwarding.
+
+| Layer | Runs | Typical use |
+| --- | --- | --- |
+| WAF | Before rate limits | Block, captcha, or queue traffic by HTTP match rules. |
+| Rate limits | Before traffic shaping | Reject repeated requests with `429`. |
+| Traffic shaping | Before route/backend forwarding | Slow upload and download streams without rejecting the request. |
 
 ## Rate limits
 
-Rate limits run before route resolution. Matching can use:
+Rate limits run after the WAF and before route resolution. Matching can use:
 
 - method,
 - protocol,
@@ -31,7 +37,7 @@ If p2pstream sits behind another reverse proxy, the remote IP seen by p2pstream 
 
 ## Traffic shaping
 
-Traffic shapers can limit upload and download throughput in bytes per second.
+Traffic shapers run after WAF and rate-limit checks. They can limit upload and download throughput in bytes per second.
 
 Budget scope controls how buckets are shared:
 
@@ -44,4 +50,4 @@ Rules can exempt the first bytes of a request or response so small requests stay
 
 ## Priority
 
-Rules are evaluated by priority, then ID. Lower priority numbers are evaluated first.
+Within each policy type, rules are evaluated by priority, then ID. Lower priority numbers are evaluated first. A WAF rule that blocks, challenges, or queues a request prevents later rate-limit, shaper, route, and backend work for that request.

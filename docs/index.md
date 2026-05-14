@@ -1,6 +1,6 @@
 # Start with Docker Compose
 
-p2pstream is a public reverse proxy and management server with optional remote agents. It can expose services from the server host, tunnel requests through registered agents, serve static responses, redirect traffic, automate public TLS certificates, apply rate limits, shape traffic, and trace live request flow.
+p2pstream is a public reverse proxy and management server with optional remote agents. It can expose services from the server host, tunnel requests through registered agents, serve static responses, redirect traffic, automate public TLS certificates, apply WAF rules, rate-limit or shape traffic, and trace live request flow.
 
 These docs are written for selfhosters operating p2pstream on a VPS, home lab host, or small private fleet. The recommended setup is Docker Compose with persistent state in the `p2pstream-data` volume.
 
@@ -29,7 +29,7 @@ These docs are written for selfhosters operating p2pstream on a VPS, home lab ho
 
 ## Management console
 
-The management UI gives operators one place to inspect runtime health, traffic, agents, listeners, backends, routes, TLS, rate limits, and traffic shaping.
+The management UI gives operators one place to inspect runtime health, traffic, agents, listeners, backends, routes, TLS, WAF rules, rate limits, and traffic shaping.
 
 <figure class="doc-screenshot">
   <img src="./assets/overview.png" alt="p2pstream proxy overview dashboard showing proxy status, request metrics, traffic trend, hotspots, and configuration snapshot">
@@ -45,7 +45,7 @@ The management UI gives operators one place to inspect runtime health, traffic, 
 | Backends | Forward directly from the server host, return static responses, or route through an agent pool. |
 | Agents | Keep outbound HTTPS/WSS connections from remote hosts to the management server and forward selected requests there. |
 | TLS | Use manual certificate mappings or ACME HTTP-01, TLS-ALPN-01, and DNS-01 with Cloudflare. |
-| Controls | Apply request rate limits and upload/download traffic shaping rules before forwarding. |
+| Controls | Apply WAF block/captcha/waiting-room rules, request rate limits, and upload/download traffic shaping rules before forwarding. |
 | Observability | Use dashboard windows, retained request events, agent stats, and live traffic tracing. |
 
 ## Recommended reading order
@@ -53,5 +53,6 @@ The management UI gives operators one place to inspect runtime health, traffic, 
 1. [Docker Compose quickstart](./getting-started/quickstart)
 2. [First login](./getting-started/first-login)
 3. [Publish a service](./guides/publish-a-service)
-4. [Backup and restore](./operations/backup-restore)
-5. [Security hardening](./operations/security-hardening)
+4. [WAF](./concepts/waf)
+5. [Backup and restore](./operations/backup-restore)
+6. [Security hardening](./operations/security-hardening)

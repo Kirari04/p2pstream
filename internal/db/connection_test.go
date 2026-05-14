@@ -44,7 +44,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	defer database.Close()
 
-	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers"} {
+	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -52,15 +52,22 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 
 	proxyEventColumns := tableColumns(t, database, "proxy_request_events")
-	for _, column := range []string{"request_bytes", "response_bytes"} {
+	for _, column := range []string{"request_bytes", "response_bytes", "waf_rule_id", "waf_action"} {
 		if !containsString(proxyEventColumns, column) {
 			t.Fatalf("proxy_request_events missing column %s in %v", column, proxyEventColumns)
 		}
+	}
+	agentStatColumns := tableColumns(t, database, "agent_stats")
+	if !containsString(agentStatColumns, "cpu_percent") {
+		t.Fatalf("agent_stats missing cpu_percent in %v", agentStatColumns)
 	}
 	for _, index := range []string{
 		"idx_proxy_request_events_backend_id",
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
+		"idx_proxy_request_events_waf_rule_id",
+		"idx_public_waf_rules_priority",
+		"idx_public_waf_rules_captcha_provider_id",
 	} {
 		if !indexExists(t, database, index) {
 			t.Fatalf("expected %s on fresh schema", index)
@@ -153,8 +160,8 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
-		"agent_stats":          {"agent_id", "req_internal_error"},
-		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "request_bytes", "response_bytes"},
+		"agent_stats":          {"agent_id", "req_internal_error", "cpu_percent"},
+		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes"},
 		"public_backends":      {"backend_type", "forward_mode", "load_balancing", "tls_skip_verify", "static_status_code", "static_response_body", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"},
 	} {
 		got := tableColumns(t, database, table)
@@ -173,10 +180,17 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	if !indexExists(t, database, "idx_public_backend_upstream_headers_backend_position") {
 		t.Fatal("expected idx_public_backend_upstream_headers_backend_position after migration")
 	}
+	if !indexExists(t, database, "idx_public_waf_rules_priority") {
+		t.Fatal("expected idx_public_waf_rules_priority after migration")
+	}
+	if !indexExists(t, database, "idx_public_waf_rules_captcha_provider_id") {
+		t.Fatal("expected idx_public_waf_rules_captcha_provider_id after migration")
+	}
 	for _, index := range []string{
 		"idx_proxy_request_events_backend_id",
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
+		"idx_proxy_request_events_waf_rule_id",
 	} {
 		if !indexExists(t, database, index) {
 			t.Fatalf("expected %s after migration", index)

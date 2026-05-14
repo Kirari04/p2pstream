@@ -34,8 +34,12 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
       return "Agent";
     case "rate-limit":
       return "Rate limit";
+    case "waf":
+      return "WAF";
     case "traffic-shaper":
       return "Traffic shaper";
+    default:
+      return "Settings";
   }
 }
 </script>

@@ -761,6 +761,198 @@ func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreateP
 	return i, err
 }
 
+const createPublicWafCaptchaProvider = `-- name: CreatePublicWafCaptchaProvider :one
+INSERT INTO public_waf_captcha_providers (
+    name,
+    provider_type,
+    site_key,
+    secret_key,
+    enabled
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
+`
+
+type CreatePublicWafCaptchaProviderParams struct {
+	Name         string `json:"name"`
+	ProviderType string `json:"provider_type"`
+	SiteKey      string `json:"site_key"`
+	SecretKey    string `json:"secret_key"`
+	Enabled      int64  `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicWafCaptchaProvider(ctx context.Context, arg CreatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error) {
+	row := q.db.QueryRowContext(ctx, createPublicWafCaptchaProvider,
+		arg.Name,
+		arg.ProviderType,
+		arg.SiteKey,
+		arg.SecretKey,
+		arg.Enabled,
+	)
+	var i PublicWafCaptchaProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderType,
+		&i.SiteKey,
+		&i.SecretKey,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicWafRule = `-- name: CreatePublicWafRule :one
+INSERT INTO public_waf_rules (
+    name,
+    priority,
+    enabled,
+    action,
+    activation_mode,
+    match_json,
+    key_parts_json,
+    captcha_provider_id,
+    captcha_pass_ttl_millis,
+    waiting_room_max_admitted_sessions,
+    waiting_room_admission_rate_per_second,
+    waiting_room_admission_session_ttl_millis,
+    waiting_room_queue_poll_interval_millis,
+    waiting_room_queue_timeout_millis,
+    waiting_room_page_title,
+    waiting_room_page_body,
+    trigger_request_window_millis,
+    trigger_minimum_request_rate,
+    trigger_traffic_spike_multiplier,
+    trigger_proxy_active_requests,
+    trigger_backend_active_requests,
+    trigger_agent_active_requests,
+    trigger_server_cpu_percent,
+    trigger_agent_cpu_percent,
+    trigger_minimum_active_millis,
+    trigger_quiet_period_millis,
+    block_response_status_code,
+    block_response_body,
+    block_response_content_type,
+    block_response_headers_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+          waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+          waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+          trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_content_type, block_response_headers_json, created_at, updated_at
+`
+
+type CreatePublicWafRuleParams struct {
+	Name                                 string        `json:"name"`
+	Priority                             int64         `json:"priority"`
+	Enabled                              int64         `json:"enabled"`
+	Action                               string        `json:"action"`
+	ActivationMode                       string        `json:"activation_mode"`
+	MatchJson                            string        `json:"match_json"`
+	KeyPartsJson                         string        `json:"key_parts_json"`
+	CaptchaProviderID                    sql.NullInt64 `json:"captcha_provider_id"`
+	CaptchaPassTtlMillis                 int64         `json:"captcha_pass_ttl_millis"`
+	WaitingRoomMaxAdmittedSessions       int64         `json:"waiting_room_max_admitted_sessions"`
+	WaitingRoomAdmissionRatePerSecond    int64         `json:"waiting_room_admission_rate_per_second"`
+	WaitingRoomAdmissionSessionTtlMillis int64         `json:"waiting_room_admission_session_ttl_millis"`
+	WaitingRoomQueuePollIntervalMillis   int64         `json:"waiting_room_queue_poll_interval_millis"`
+	WaitingRoomQueueTimeoutMillis        int64         `json:"waiting_room_queue_timeout_millis"`
+	WaitingRoomPageTitle                 string        `json:"waiting_room_page_title"`
+	WaitingRoomPageBody                  string        `json:"waiting_room_page_body"`
+	TriggerRequestWindowMillis           int64         `json:"trigger_request_window_millis"`
+	TriggerMinimumRequestRate            int64         `json:"trigger_minimum_request_rate"`
+	TriggerTrafficSpikeMultiplier        float64       `json:"trigger_traffic_spike_multiplier"`
+	TriggerProxyActiveRequests           int64         `json:"trigger_proxy_active_requests"`
+	TriggerBackendActiveRequests         int64         `json:"trigger_backend_active_requests"`
+	TriggerAgentActiveRequests           int64         `json:"trigger_agent_active_requests"`
+	TriggerServerCpuPercent              float64       `json:"trigger_server_cpu_percent"`
+	TriggerAgentCpuPercent               float64       `json:"trigger_agent_cpu_percent"`
+	TriggerMinimumActiveMillis           int64         `json:"trigger_minimum_active_millis"`
+	TriggerQuietPeriodMillis             int64         `json:"trigger_quiet_period_millis"`
+	BlockResponseStatusCode              int64         `json:"block_response_status_code"`
+	BlockResponseBody                    string        `json:"block_response_body"`
+	BlockResponseContentType             string        `json:"block_response_content_type"`
+	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
+}
+
+func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRuleParams) (PublicWafRule, error) {
+	row := q.db.QueryRowContext(ctx, createPublicWafRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.Action,
+		arg.ActivationMode,
+		arg.MatchJson,
+		arg.KeyPartsJson,
+		arg.CaptchaProviderID,
+		arg.CaptchaPassTtlMillis,
+		arg.WaitingRoomMaxAdmittedSessions,
+		arg.WaitingRoomAdmissionRatePerSecond,
+		arg.WaitingRoomAdmissionSessionTtlMillis,
+		arg.WaitingRoomQueuePollIntervalMillis,
+		arg.WaitingRoomQueueTimeoutMillis,
+		arg.WaitingRoomPageTitle,
+		arg.WaitingRoomPageBody,
+		arg.TriggerRequestWindowMillis,
+		arg.TriggerMinimumRequestRate,
+		arg.TriggerTrafficSpikeMultiplier,
+		arg.TriggerProxyActiveRequests,
+		arg.TriggerBackendActiveRequests,
+		arg.TriggerAgentActiveRequests,
+		arg.TriggerServerCpuPercent,
+		arg.TriggerAgentCpuPercent,
+		arg.TriggerMinimumActiveMillis,
+		arg.TriggerQuietPeriodMillis,
+		arg.BlockResponseStatusCode,
+		arg.BlockResponseBody,
+		arg.BlockResponseContentType,
+		arg.BlockResponseHeadersJson,
+	)
+	var i PublicWafRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.Action,
+		&i.ActivationMode,
+		&i.MatchJson,
+		&i.KeyPartsJson,
+		&i.CaptchaProviderID,
+		&i.CaptchaPassTtlMillis,
+		&i.WaitingRoomMaxAdmittedSessions,
+		&i.WaitingRoomAdmissionRatePerSecond,
+		&i.WaitingRoomAdmissionSessionTtlMillis,
+		&i.WaitingRoomQueuePollIntervalMillis,
+		&i.WaitingRoomQueueTimeoutMillis,
+		&i.WaitingRoomPageTitle,
+		&i.WaitingRoomPageBody,
+		&i.TriggerRequestWindowMillis,
+		&i.TriggerMinimumRequestRate,
+		&i.TriggerTrafficSpikeMultiplier,
+		&i.TriggerProxyActiveRequests,
+		&i.TriggerBackendActiveRequests,
+		&i.TriggerAgentActiveRequests,
+		&i.TriggerServerCpuPercent,
+		&i.TriggerAgentCpuPercent,
+		&i.TriggerMinimumActiveMillis,
+		&i.TriggerQuietPeriodMillis,
+		&i.BlockResponseStatusCode,
+		&i.BlockResponseBody,
+		&i.BlockResponseContentType,
+		&i.BlockResponseHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (user_id, token_hash, expires_at)
 VALUES (?, ?, ?)
@@ -964,6 +1156,26 @@ func (q *Queries) DeletePublicTrafficShaperRule(ctx context.Context, id int64) e
 	return err
 }
 
+const deletePublicWafCaptchaProvider = `-- name: DeletePublicWafCaptchaProvider :exec
+DELETE FROM public_waf_captcha_providers
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicWafCaptchaProvider(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicWafCaptchaProvider, id)
+	return err
+}
+
+const deletePublicWafRule = `-- name: DeletePublicWafRule :exec
+DELETE FROM public_waf_rules
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicWafRule(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicWafRule, id)
+	return err
+}
+
 const getActiveConnection = `-- name: GetActiveConnection :one
 SELECT id, connected_at, disconnected_at
 FROM connections
@@ -1085,23 +1297,27 @@ SELECT
     CAST(COALESCE(AVG(memory_mb), 0) AS INTEGER) AS avg_memory_mb,
     CAST(COALESCE(MAX(memory_mb), 0) AS INTEGER) AS max_memory_mb,
     CAST(COALESCE(AVG(goroutines), 0) AS INTEGER) AS avg_goroutines,
-    CAST(COALESCE(MAX(goroutines), 0) AS INTEGER) AS max_goroutines
+    CAST(COALESCE(MAX(goroutines), 0) AS INTEGER) AS max_goroutines,
+    CAST(COALESCE(AVG(cpu_percent), 0) AS REAL) AS avg_cpu_percent,
+    CAST(COALESCE(MAX(cpu_percent), 0) AS REAL) AS max_cpu_percent
 FROM agent_stats
 WHERE reported_at >= ?
 `
 
 type GetAgentStatsSummarySinceRow struct {
-	Samples          int64 `json:"samples"`
-	ReqSuccess       int64 `json:"req_success"`
-	ReqClientError   int64 `json:"req_client_error"`
-	ReqServerError   int64 `json:"req_server_error"`
-	ReqInternalError int64 `json:"req_internal_error"`
-	BytesRx          int64 `json:"bytes_rx"`
-	BytesTx          int64 `json:"bytes_tx"`
-	AvgMemoryMb      int64 `json:"avg_memory_mb"`
-	MaxMemoryMb      int64 `json:"max_memory_mb"`
-	AvgGoroutines    int64 `json:"avg_goroutines"`
-	MaxGoroutines    int64 `json:"max_goroutines"`
+	Samples          int64   `json:"samples"`
+	ReqSuccess       int64   `json:"req_success"`
+	ReqClientError   int64   `json:"req_client_error"`
+	ReqServerError   int64   `json:"req_server_error"`
+	ReqInternalError int64   `json:"req_internal_error"`
+	BytesRx          int64   `json:"bytes_rx"`
+	BytesTx          int64   `json:"bytes_tx"`
+	AvgMemoryMb      int64   `json:"avg_memory_mb"`
+	MaxMemoryMb      int64   `json:"max_memory_mb"`
+	AvgGoroutines    int64   `json:"avg_goroutines"`
+	MaxGoroutines    int64   `json:"max_goroutines"`
+	AvgCpuPercent    float64 `json:"avg_cpu_percent"`
+	MaxCpuPercent    float64 `json:"max_cpu_percent"`
 }
 
 func (q *Queries) GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error) {
@@ -1119,6 +1335,8 @@ func (q *Queries) GetAgentStatsSummarySince(ctx context.Context, reportedAt time
 		&i.MaxMemoryMb,
 		&i.AvgGoroutines,
 		&i.MaxGoroutines,
+		&i.AvgCpuPercent,
+		&i.MaxCpuPercent,
 	)
 	return i, err
 }
@@ -1146,7 +1364,7 @@ func (q *Queries) GetConnectionSummarySince(ctx context.Context, connectedAt tim
 }
 
 const getLatestAgentStat = `-- name: GetLatestAgentStat :one
-SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx FROM agent_stats
+SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent FROM agent_stats
 ORDER BY id DESC
 LIMIT 1
 `
@@ -1166,12 +1384,13 @@ func (q *Queries) GetLatestAgentStat(ctx context.Context) (AgentStat, error) {
 		&i.ReqInternalError,
 		&i.BytesRx,
 		&i.BytesTx,
+		&i.CpuPercent,
 	)
 	return i, err
 }
 
 const getLatestAgentStatByAgent = `-- name: GetLatestAgentStatByAgent :one
-SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent
 FROM agent_stats
 WHERE agent_id = ?
 ORDER BY id DESC
@@ -1193,6 +1412,7 @@ func (q *Queries) GetLatestAgentStatByAgent(ctx context.Context, agentID sql.Nul
 		&i.ReqInternalError,
 		&i.BytesRx,
 		&i.BytesTx,
+		&i.CpuPercent,
 	)
 	return i, err
 }
@@ -1458,6 +1678,99 @@ func (q *Queries) GetPublicTrafficShaperRule(ctx context.Context, id int64) (Pub
 	return i, err
 }
 
+const getPublicWafCaptchaProvider = `-- name: GetPublicWafCaptchaProvider :one
+SELECT id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
+FROM public_waf_captcha_providers
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicWafCaptchaProvider(ctx context.Context, id int64) (PublicWafCaptchaProvider, error) {
+	row := q.db.QueryRowContext(ctx, getPublicWafCaptchaProvider, id)
+	var i PublicWafCaptchaProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderType,
+		&i.SiteKey,
+		&i.SecretKey,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicWafRule = `-- name: GetPublicWafRule :one
+SELECT id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+       waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+       waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+       trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_content_type, block_response_headers_json, created_at, updated_at
+FROM public_waf_rules
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicWafRule(ctx context.Context, id int64) (PublicWafRule, error) {
+	row := q.db.QueryRowContext(ctx, getPublicWafRule, id)
+	var i PublicWafRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.Action,
+		&i.ActivationMode,
+		&i.MatchJson,
+		&i.KeyPartsJson,
+		&i.CaptchaProviderID,
+		&i.CaptchaPassTtlMillis,
+		&i.WaitingRoomMaxAdmittedSessions,
+		&i.WaitingRoomAdmissionRatePerSecond,
+		&i.WaitingRoomAdmissionSessionTtlMillis,
+		&i.WaitingRoomQueuePollIntervalMillis,
+		&i.WaitingRoomQueueTimeoutMillis,
+		&i.WaitingRoomPageTitle,
+		&i.WaitingRoomPageBody,
+		&i.TriggerRequestWindowMillis,
+		&i.TriggerMinimumRequestRate,
+		&i.TriggerTrafficSpikeMultiplier,
+		&i.TriggerProxyActiveRequests,
+		&i.TriggerBackendActiveRequests,
+		&i.TriggerAgentActiveRequests,
+		&i.TriggerServerCpuPercent,
+		&i.TriggerAgentCpuPercent,
+		&i.TriggerMinimumActiveMillis,
+		&i.TriggerQuietPeriodMillis,
+		&i.BlockResponseStatusCode,
+		&i.BlockResponseBody,
+		&i.BlockResponseContentType,
+		&i.BlockResponseHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicWafSettings = `-- name: GetPublicWafSettings :one
+SELECT id, cookie_signing_secret, created_at, updated_at
+FROM public_waf_settings
+WHERE id = 1
+`
+
+func (q *Queries) GetPublicWafSettings(ctx context.Context) (PublicWafSetting, error) {
+	row := q.db.QueryRowContext(ctx, getPublicWafSettings)
+	var i PublicWafSetting
+	err := row.Scan(
+		&i.ID,
+		&i.CookieSigningSecret,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, password_hash, role, created_at, updated_at, disabled_at
 FROM users
@@ -1502,9 +1815,9 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 
 const insertAgentStat = `-- name: InsertAgentStat :exec
 INSERT INTO agent_stats (
-    agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+    agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -1518,6 +1831,7 @@ type InsertAgentStatParams struct {
 	ReqInternalError int64         `json:"req_internal_error"`
 	BytesRx          int64         `json:"bytes_rx"`
 	BytesTx          int64         `json:"bytes_tx"`
+	CpuPercent       float64       `json:"cpu_percent"`
 }
 
 func (q *Queries) InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error {
@@ -1531,6 +1845,7 @@ func (q *Queries) InsertAgentStat(ctx context.Context, arg InsertAgentStatParams
 		arg.ReqInternalError,
 		arg.BytesRx,
 		arg.BytesTx,
+		arg.CpuPercent,
 	)
 	return err
 }
@@ -1550,9 +1865,9 @@ func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id, request_bytes, response_bytes
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -1563,6 +1878,8 @@ type InsertProxyRequestEventParams struct {
 	ListenerID    sql.NullInt64 `json:"listener_id"`
 	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
+	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
+	WafAction     string        `json:"waf_action"`
 	AgentID       sql.NullInt64 `json:"agent_id"`
 	RequestBytes  int64         `json:"request_bytes"`
 	ResponseBytes int64         `json:"response_bytes"`
@@ -1576,6 +1893,8 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.ListenerID,
 		arg.BackendID,
 		arg.RouteID,
+		arg.WafRuleID,
+		arg.WafAction,
 		arg.AgentID,
 		arg.RequestBytes,
 		arg.ResponseBytes,
@@ -2359,6 +2678,113 @@ func (q *Queries) ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTra
 			&i.ResponseExemptBytes,
 			&i.MatchJson,
 			&i.KeyPartsJson,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicWafCaptchaProviders = `-- name: ListPublicWafCaptchaProviders :many
+SELECT id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
+FROM public_waf_captcha_providers
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListPublicWafCaptchaProviders(ctx context.Context) ([]PublicWafCaptchaProvider, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicWafCaptchaProviders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicWafCaptchaProvider
+	for rows.Next() {
+		var i PublicWafCaptchaProvider
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.ProviderType,
+			&i.SiteKey,
+			&i.SecretKey,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicWafRules = `-- name: ListPublicWafRules :many
+SELECT id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+       waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+       waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+       trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_content_type, block_response_headers_json, created_at, updated_at
+FROM public_waf_rules
+ORDER BY priority ASC, id ASC
+`
+
+func (q *Queries) ListPublicWafRules(ctx context.Context) ([]PublicWafRule, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicWafRules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicWafRule
+	for rows.Next() {
+		var i PublicWafRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Priority,
+			&i.Enabled,
+			&i.Action,
+			&i.ActivationMode,
+			&i.MatchJson,
+			&i.KeyPartsJson,
+			&i.CaptchaProviderID,
+			&i.CaptchaPassTtlMillis,
+			&i.WaitingRoomMaxAdmittedSessions,
+			&i.WaitingRoomAdmissionRatePerSecond,
+			&i.WaitingRoomAdmissionSessionTtlMillis,
+			&i.WaitingRoomQueuePollIntervalMillis,
+			&i.WaitingRoomQueueTimeoutMillis,
+			&i.WaitingRoomPageTitle,
+			&i.WaitingRoomPageBody,
+			&i.TriggerRequestWindowMillis,
+			&i.TriggerMinimumRequestRate,
+			&i.TriggerTrafficSpikeMultiplier,
+			&i.TriggerProxyActiveRequests,
+			&i.TriggerBackendActiveRequests,
+			&i.TriggerAgentActiveRequests,
+			&i.TriggerServerCpuPercent,
+			&i.TriggerAgentCpuPercent,
+			&i.TriggerMinimumActiveMillis,
+			&i.TriggerQuietPeriodMillis,
+			&i.BlockResponseStatusCode,
+			&i.BlockResponseBody,
+			&i.BlockResponseContentType,
+			&i.BlockResponseHeadersJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -3495,6 +3921,200 @@ func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdateP
 	return i, err
 }
 
+const updatePublicWafCaptchaProvider = `-- name: UpdatePublicWafCaptchaProvider :one
+UPDATE public_waf_captcha_providers
+SET name = ?,
+    provider_type = ?,
+    site_key = ?,
+    secret_key = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
+`
+
+type UpdatePublicWafCaptchaProviderParams struct {
+	Name         string `json:"name"`
+	ProviderType string `json:"provider_type"`
+	SiteKey      string `json:"site_key"`
+	SecretKey    string `json:"secret_key"`
+	Enabled      int64  `json:"enabled"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicWafCaptchaProvider(ctx context.Context, arg UpdatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicWafCaptchaProvider,
+		arg.Name,
+		arg.ProviderType,
+		arg.SiteKey,
+		arg.SecretKey,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i PublicWafCaptchaProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderType,
+		&i.SiteKey,
+		&i.SecretKey,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicWafRule = `-- name: UpdatePublicWafRule :one
+UPDATE public_waf_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    action = ?,
+    activation_mode = ?,
+    match_json = ?,
+    key_parts_json = ?,
+    captcha_provider_id = ?,
+    captcha_pass_ttl_millis = ?,
+    waiting_room_max_admitted_sessions = ?,
+    waiting_room_admission_rate_per_second = ?,
+    waiting_room_admission_session_ttl_millis = ?,
+    waiting_room_queue_poll_interval_millis = ?,
+    waiting_room_queue_timeout_millis = ?,
+    waiting_room_page_title = ?,
+    waiting_room_page_body = ?,
+    trigger_request_window_millis = ?,
+    trigger_minimum_request_rate = ?,
+    trigger_traffic_spike_multiplier = ?,
+    trigger_proxy_active_requests = ?,
+    trigger_backend_active_requests = ?,
+    trigger_agent_active_requests = ?,
+    trigger_server_cpu_percent = ?,
+    trigger_agent_cpu_percent = ?,
+    trigger_minimum_active_millis = ?,
+    trigger_quiet_period_millis = ?,
+    block_response_status_code = ?,
+    block_response_body = ?,
+    block_response_content_type = ?,
+    block_response_headers_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+          waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+          waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+          trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_content_type, block_response_headers_json, created_at, updated_at
+`
+
+type UpdatePublicWafRuleParams struct {
+	Name                                 string        `json:"name"`
+	Priority                             int64         `json:"priority"`
+	Enabled                              int64         `json:"enabled"`
+	Action                               string        `json:"action"`
+	ActivationMode                       string        `json:"activation_mode"`
+	MatchJson                            string        `json:"match_json"`
+	KeyPartsJson                         string        `json:"key_parts_json"`
+	CaptchaProviderID                    sql.NullInt64 `json:"captcha_provider_id"`
+	CaptchaPassTtlMillis                 int64         `json:"captcha_pass_ttl_millis"`
+	WaitingRoomMaxAdmittedSessions       int64         `json:"waiting_room_max_admitted_sessions"`
+	WaitingRoomAdmissionRatePerSecond    int64         `json:"waiting_room_admission_rate_per_second"`
+	WaitingRoomAdmissionSessionTtlMillis int64         `json:"waiting_room_admission_session_ttl_millis"`
+	WaitingRoomQueuePollIntervalMillis   int64         `json:"waiting_room_queue_poll_interval_millis"`
+	WaitingRoomQueueTimeoutMillis        int64         `json:"waiting_room_queue_timeout_millis"`
+	WaitingRoomPageTitle                 string        `json:"waiting_room_page_title"`
+	WaitingRoomPageBody                  string        `json:"waiting_room_page_body"`
+	TriggerRequestWindowMillis           int64         `json:"trigger_request_window_millis"`
+	TriggerMinimumRequestRate            int64         `json:"trigger_minimum_request_rate"`
+	TriggerTrafficSpikeMultiplier        float64       `json:"trigger_traffic_spike_multiplier"`
+	TriggerProxyActiveRequests           int64         `json:"trigger_proxy_active_requests"`
+	TriggerBackendActiveRequests         int64         `json:"trigger_backend_active_requests"`
+	TriggerAgentActiveRequests           int64         `json:"trigger_agent_active_requests"`
+	TriggerServerCpuPercent              float64       `json:"trigger_server_cpu_percent"`
+	TriggerAgentCpuPercent               float64       `json:"trigger_agent_cpu_percent"`
+	TriggerMinimumActiveMillis           int64         `json:"trigger_minimum_active_millis"`
+	TriggerQuietPeriodMillis             int64         `json:"trigger_quiet_period_millis"`
+	BlockResponseStatusCode              int64         `json:"block_response_status_code"`
+	BlockResponseBody                    string        `json:"block_response_body"`
+	BlockResponseContentType             string        `json:"block_response_content_type"`
+	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
+	ID                                   int64         `json:"id"`
+}
+
+func (q *Queries) UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRuleParams) (PublicWafRule, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicWafRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.Action,
+		arg.ActivationMode,
+		arg.MatchJson,
+		arg.KeyPartsJson,
+		arg.CaptchaProviderID,
+		arg.CaptchaPassTtlMillis,
+		arg.WaitingRoomMaxAdmittedSessions,
+		arg.WaitingRoomAdmissionRatePerSecond,
+		arg.WaitingRoomAdmissionSessionTtlMillis,
+		arg.WaitingRoomQueuePollIntervalMillis,
+		arg.WaitingRoomQueueTimeoutMillis,
+		arg.WaitingRoomPageTitle,
+		arg.WaitingRoomPageBody,
+		arg.TriggerRequestWindowMillis,
+		arg.TriggerMinimumRequestRate,
+		arg.TriggerTrafficSpikeMultiplier,
+		arg.TriggerProxyActiveRequests,
+		arg.TriggerBackendActiveRequests,
+		arg.TriggerAgentActiveRequests,
+		arg.TriggerServerCpuPercent,
+		arg.TriggerAgentCpuPercent,
+		arg.TriggerMinimumActiveMillis,
+		arg.TriggerQuietPeriodMillis,
+		arg.BlockResponseStatusCode,
+		arg.BlockResponseBody,
+		arg.BlockResponseContentType,
+		arg.BlockResponseHeadersJson,
+		arg.ID,
+	)
+	var i PublicWafRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.Action,
+		&i.ActivationMode,
+		&i.MatchJson,
+		&i.KeyPartsJson,
+		&i.CaptchaProviderID,
+		&i.CaptchaPassTtlMillis,
+		&i.WaitingRoomMaxAdmittedSessions,
+		&i.WaitingRoomAdmissionRatePerSecond,
+		&i.WaitingRoomAdmissionSessionTtlMillis,
+		&i.WaitingRoomQueuePollIntervalMillis,
+		&i.WaitingRoomQueueTimeoutMillis,
+		&i.WaitingRoomPageTitle,
+		&i.WaitingRoomPageBody,
+		&i.TriggerRequestWindowMillis,
+		&i.TriggerMinimumRequestRate,
+		&i.TriggerTrafficSpikeMultiplier,
+		&i.TriggerProxyActiveRequests,
+		&i.TriggerBackendActiveRequests,
+		&i.TriggerAgentActiveRequests,
+		&i.TriggerServerCpuPercent,
+		&i.TriggerAgentCpuPercent,
+		&i.TriggerMinimumActiveMillis,
+		&i.TriggerQuietPeriodMillis,
+		&i.BlockResponseStatusCode,
+		&i.BlockResponseBody,
+		&i.BlockResponseContentType,
+		&i.BlockResponseHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUserPassword = `-- name: UpdateUserPassword :one
 UPDATE users
 SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
@@ -3550,6 +4170,27 @@ func (q *Queries) UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapA
 		&i.Enabled,
 		&i.LastConnectedAt,
 		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertPublicWafSettings = `-- name: UpsertPublicWafSettings :one
+INSERT INTO public_waf_settings (id, cookie_signing_secret)
+VALUES (1, ?)
+ON CONFLICT(id) DO UPDATE SET
+    cookie_signing_secret = public_waf_settings.cookie_signing_secret,
+    updated_at = public_waf_settings.updated_at
+RETURNING id, cookie_signing_secret, created_at, updated_at
+`
+
+func (q *Queries) UpsertPublicWafSettings(ctx context.Context, cookieSigningSecret string) (PublicWafSetting, error) {
+	row := q.db.QueryRowContext(ctx, upsertPublicWafSettings, cookieSigningSecret)
+	var i PublicWafSetting
+	err := row.Scan(
+		&i.ID,
+		&i.CookieSigningSecret,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

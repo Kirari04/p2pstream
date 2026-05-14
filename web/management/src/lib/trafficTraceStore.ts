@@ -4,6 +4,8 @@ import {
   PublicBackendType,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
+  PublicWafActivationMode,
+  PublicWafRuleAction,
   TrafficTraceStage,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TraceRenderStats, TraceRequest, TraceRequestView } from "@/types/trafficTrace";
@@ -246,6 +248,12 @@ export class TrafficTraceStore {
     request.trafficShaperDownloadBytesPerSecond = event.trafficShaperDownloadBytesPerSecond || request.trafficShaperDownloadBytesPerSecond;
     request.trafficShaperRequestExemptBytes = event.trafficShaperRequestExemptBytes || request.trafficShaperRequestExemptBytes;
     request.trafficShaperResponseExemptBytes = event.trafficShaperResponseExemptBytes || request.trafficShaperResponseExemptBytes;
+    request.wafRuleId = event.wafRuleId || request.wafRuleId;
+    request.wafRuleName = event.wafRuleName || request.wafRuleName;
+    request.wafAction = event.wafAction || request.wafAction;
+    request.wafActivationMode = event.wafActivationMode || request.wafActivationMode;
+    request.wafAutomaticActive = event.wafAutomaticActive || request.wafAutomaticActive;
+    request.wafChallengeKind = event.wafChallengeKind || request.wafChallengeKind;
     request.lastSeenAt = now;
     request.lastEventSequence = event.sequence;
     request.version += 1;
@@ -349,6 +357,12 @@ export function newTraceRequest(requestId: string, now = Date.now()): TraceReque
     trafficShaperDownloadBytesPerSecond: 0n,
     trafficShaperRequestExemptBytes: 0n,
     trafficShaperResponseExemptBytes: 0n,
+    wafRuleId: 0n,
+    wafRuleName: "",
+    wafAction: PublicWafRuleAction.UNSPECIFIED,
+    wafActivationMode: PublicWafActivationMode.UNSPECIFIED,
+    wafAutomaticActive: false,
+    wafChallengeKind: "",
     visible: true,
     completedAt: null,
     latestEvent: null,
@@ -383,6 +397,11 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.ROUTE_RESOLVED: return "Route";
     case TrafficTraceStage.BACKEND_SELECTED: return "Backend";
     case TrafficTraceStage.AGENT_SELECTED: return "Agent";
+    case TrafficTraceStage.WAF_EVALUATED: return "WAF";
+    case TrafficTraceStage.WAF_BLOCKED: return "WAF blocked";
+    case TrafficTraceStage.WAF_CAPTCHA_CHALLENGED: return "Captcha";
+    case TrafficTraceStage.WAF_CAPTCHA_VERIFIED: return "Captcha passed";
+    case TrafficTraceStage.WAF_WAITING_ROOM: return "Waiting room";
     case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Shaper";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Responded";
@@ -395,6 +414,8 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
 
 export function requestStatusClass(request: Pick<TraceRequest, "stage" | "statusCode">): string {
   if (request.stage === TrafficTraceStage.FAILED) return "text-red-400";
+  if (request.stage === TrafficTraceStage.WAF_BLOCKED) return "text-red-400";
+  if (request.stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || request.stage === TrafficTraceStage.WAF_WAITING_ROOM) return "text-amber-400";
   if (request.stage === TrafficTraceStage.RATE_LIMITED) return "text-amber-400";
   const status = Number(request.statusCode);
   if (status >= 500) return "text-red-400";
@@ -405,6 +426,9 @@ export function requestStatusClass(request: Pick<TraceRequest, "stage" | "status
 
 export function traceFlowLabel(request: TraceRequest): string {
   const parts = [request.listenerName || "Listener"];
+  if (request.wafRuleName || request.wafRuleId > 0n) {
+    parts.push(request.wafRuleName ? `WAF: ${request.wafRuleName}` : "WAF");
+  }
   if (request.rateLimitRuleName || request.stage === TrafficTraceStage.RATE_LIMITED) {
     parts.push(request.rateLimitRuleName ? `Rate limit: ${request.rateLimitRuleName}` : "Rate limit");
   }

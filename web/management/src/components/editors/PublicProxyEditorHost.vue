@@ -6,6 +6,8 @@ import PublicListenerEditorModal from "@/components/editors/PublicListenerEditor
 import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
 import PublicRouteEditorModal from "@/components/editors/PublicRouteEditorModal.vue";
 import PublicTrafficShaperRuleEditorModal from "@/components/editors/PublicTrafficShaperRuleEditorModal.vue";
+import PublicWafCaptchaProviderEditorModal from "@/components/editors/PublicWafCaptchaProviderEditorModal.vue";
+import PublicWafRuleEditorModal from "@/components/editors/PublicWafRuleEditorModal.vue";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -25,6 +27,8 @@ const routeEditor = ref<InstanceType<typeof PublicRouteEditorModal> | null>(null
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
 const trafficShaperEditor = ref<InstanceType<typeof PublicTrafficShaperRuleEditorModal> | null>(null);
+const wafRuleEditor = ref<InstanceType<typeof PublicWafRuleEditorModal> | null>(null);
+const wafCaptchaProviderEditor = ref<InstanceType<typeof PublicWafCaptchaProviderEditorModal> | null>(null);
 
 function openTarget(target: TrafficFlowEditTarget) {
   switch (target.kind) {
@@ -45,6 +49,9 @@ function openTarget(target: TrafficFlowEditTarget) {
       break;
     case "traffic-shaper":
       openTrafficShaperRule(target.id);
+      break;
+    case "waf":
+      openWafRule(target.id);
       break;
   }
 }
@@ -73,6 +80,14 @@ function openTrafficShaperRule(ruleId: bigint | string) {
   trafficShaperEditor.value?.openEdit(ruleId);
 }
 
+function openWafRule(ruleId: bigint | string) {
+  wafRuleEditor.value?.openEdit(ruleId);
+}
+
+function openWafCaptchaProvider(providerId: bigint | string) {
+  wafCaptchaProviderEditor.value?.openEdit(providerId);
+}
+
 function openCreateListener() {
   listenerEditor.value?.openCreate();
 }
@@ -97,6 +112,14 @@ function openCreateTrafficShaperRule() {
   trafficShaperEditor.value?.openCreate();
 }
 
+function openCreateWafRule() {
+  wafRuleEditor.value?.openCreate();
+}
+
+function openCreateWafCaptchaProvider() {
+  wafCaptchaProviderEditor.value?.openCreate();
+}
+
 defineExpose({
   openTarget,
   openListener,
@@ -105,12 +128,16 @@ defineExpose({
   openAgent,
   openRateLimitRule,
   openTrafficShaperRule,
+  openWafRule,
+  openWafCaptchaProvider,
   openCreateListener,
   openCreateRoute,
   openCreateBackend,
   openCreateAgent,
   openCreateRateLimitRule,
   openCreateTrafficShaperRule,
+  openCreateWafRule,
+  openCreateWafCaptchaProvider,
 });
 </script>
 
@@ -120,6 +147,8 @@ defineExpose({
   <PublicRouteEditorModal ref="routeEditor" :config="config" @saved="emit('saved')" />
   <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" @saved="emit('saved')" />
   <PublicTrafficShaperRuleEditorModal ref="trafficShaperEditor" :config="config" @saved="emit('saved')" />
+  <PublicWafRuleEditorModal ref="wafRuleEditor" :config="config" @saved="emit('saved')" />
+  <PublicWafCaptchaProviderEditorModal ref="wafCaptchaProviderEditor" :config="config" @saved="emit('saved')" />
   <AgentEditorModal
     ref="agentEditor"
     :config="config"

@@ -165,6 +165,24 @@ const (
 	// AgentManagementServiceDeletePublicTrafficShaperRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicTrafficShaperRule RPC.
 	AgentManagementServiceDeletePublicTrafficShaperRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTrafficShaperRule"
+	// AgentManagementServiceCreatePublicWafCaptchaProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicWafCaptchaProvider RPC.
+	AgentManagementServiceCreatePublicWafCaptchaProviderProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicWafCaptchaProvider"
+	// AgentManagementServiceUpdatePublicWafCaptchaProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicWafCaptchaProvider RPC.
+	AgentManagementServiceUpdatePublicWafCaptchaProviderProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicWafCaptchaProvider"
+	// AgentManagementServiceDeletePublicWafCaptchaProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicWafCaptchaProvider RPC.
+	AgentManagementServiceDeletePublicWafCaptchaProviderProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicWafCaptchaProvider"
+	// AgentManagementServiceCreatePublicWafRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicWafRule RPC.
+	AgentManagementServiceCreatePublicWafRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicWafRule"
+	// AgentManagementServiceUpdatePublicWafRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicWafRule RPC.
+	AgentManagementServiceUpdatePublicWafRuleProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicWafRule"
+	// AgentManagementServiceDeletePublicWafRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicWafRule RPC.
+	AgentManagementServiceDeletePublicWafRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicWafRule"
 )
 
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
@@ -213,6 +231,12 @@ type AgentManagementServiceClient interface {
 	CreatePublicTrafficShaperRule(context.Context, *connect.Request[v1.CreatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.CreatePublicTrafficShaperRuleResponse], error)
 	UpdatePublicTrafficShaperRule(context.Context, *connect.Request[v1.UpdatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.UpdatePublicTrafficShaperRuleResponse], error)
 	DeletePublicTrafficShaperRule(context.Context, *connect.Request[v1.DeletePublicTrafficShaperRuleRequest]) (*connect.Response[v1.DeletePublicTrafficShaperRuleResponse], error)
+	CreatePublicWafCaptchaProvider(context.Context, *connect.Request[v1.CreatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.CreatePublicWafCaptchaProviderResponse], error)
+	UpdatePublicWafCaptchaProvider(context.Context, *connect.Request[v1.UpdatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.UpdatePublicWafCaptchaProviderResponse], error)
+	DeletePublicWafCaptchaProvider(context.Context, *connect.Request[v1.DeletePublicWafCaptchaProviderRequest]) (*connect.Response[v1.DeletePublicWafCaptchaProviderResponse], error)
+	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
+	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
+	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
 }
 
 // NewAgentManagementServiceClient constructs a client for the p2pstream.v1.AgentManagementService
@@ -490,55 +514,97 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrafficShaperRule")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicWafCaptchaProvider: connect.NewClient[v1.CreatePublicWafCaptchaProviderRequest, v1.CreatePublicWafCaptchaProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicWafCaptchaProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicWafCaptchaProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicWafCaptchaProvider: connect.NewClient[v1.UpdatePublicWafCaptchaProviderRequest, v1.UpdatePublicWafCaptchaProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicWafCaptchaProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicWafCaptchaProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicWafCaptchaProvider: connect.NewClient[v1.DeletePublicWafCaptchaProviderRequest, v1.DeletePublicWafCaptchaProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicWafCaptchaProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafCaptchaProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicWafRule: connect.NewClient[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicWafRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicWafRule")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicWafRule: connect.NewClient[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicWafRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicWafRule")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicWafRule: connect.NewClient[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicWafRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentManagementServiceClient implements AgentManagementServiceClient.
 type agentManagementServiceClient struct {
-	reportStats                   *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
-	getStatus                     *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
-	getDashboard                  *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
-	getTrafficTraceSettings       *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
-	setTrafficTraceSettings       *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
-	streamTrafficTraceEvents      *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
-	getSetupState                 *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
-	setupAdmin                    *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
-	login                         *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	logout                        *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	getCurrentUser                *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
-	startProxy                    *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
-	stopProxy                     *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
-	getPublicProxyConfig          *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
-	createPublicBackend           *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
-	updatePublicBackend           *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
-	deletePublicBackend           *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
-	createAgent                   *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
-	updateAgent                   *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
-	deleteAgent                   *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
-	rotateAgentToken              *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
-	createPublicListener          *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
-	updatePublicListener          *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
-	deletePublicListener          *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
-	enablePublicListener          *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
-	disablePublicListener         *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
-	startPublicListener           *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
-	stopPublicListener            *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
-	createPublicRoute             *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
-	updatePublicRoute             *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
-	deletePublicRoute             *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
-	createPublicTlsDnsCredential  *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
-	updatePublicTlsDnsCredential  *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
-	deletePublicTlsDnsCredential  *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
-	createPublicTlsCertificate    *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
-	updatePublicTlsCertificate    *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
-	deletePublicTlsCertificate    *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
-	renewPublicTlsCertificate     *connect.Client[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse]
-	createPublicRateLimitRule     *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
-	updatePublicRateLimitRule     *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
-	deletePublicRateLimitRule     *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
-	createPublicTrafficShaperRule *connect.Client[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse]
-	updatePublicTrafficShaperRule *connect.Client[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse]
-	deletePublicTrafficShaperRule *connect.Client[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse]
+	reportStats                    *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
+	getStatus                      *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
+	getDashboard                   *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getTrafficTraceSettings        *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
+	setTrafficTraceSettings        *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
+	streamTrafficTraceEvents       *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
+	getSetupState                  *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
+	setupAdmin                     *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
+	login                          *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout                         *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getCurrentUser                 *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
+	startProxy                     *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
+	stopProxy                      *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
+	getPublicProxyConfig           *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
+	createPublicBackend            *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
+	updatePublicBackend            *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
+	deletePublicBackend            *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
+	createAgent                    *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
+	updateAgent                    *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
+	deleteAgent                    *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
+	rotateAgentToken               *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
+	createPublicListener           *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
+	updatePublicListener           *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
+	deletePublicListener           *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
+	enablePublicListener           *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
+	disablePublicListener          *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
+	startPublicListener            *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
+	stopPublicListener             *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
+	createPublicRoute              *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
+	updatePublicRoute              *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
+	deletePublicRoute              *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
+	createPublicTlsDnsCredential   *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
+	updatePublicTlsDnsCredential   *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
+	deletePublicTlsDnsCredential   *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
+	createPublicTlsCertificate     *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
+	updatePublicTlsCertificate     *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
+	deletePublicTlsCertificate     *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
+	renewPublicTlsCertificate      *connect.Client[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse]
+	createPublicRateLimitRule      *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
+	updatePublicRateLimitRule      *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
+	deletePublicRateLimitRule      *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
+	createPublicTrafficShaperRule  *connect.Client[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse]
+	updatePublicTrafficShaperRule  *connect.Client[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse]
+	deletePublicTrafficShaperRule  *connect.Client[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse]
+	createPublicWafCaptchaProvider *connect.Client[v1.CreatePublicWafCaptchaProviderRequest, v1.CreatePublicWafCaptchaProviderResponse]
+	updatePublicWafCaptchaProvider *connect.Client[v1.UpdatePublicWafCaptchaProviderRequest, v1.UpdatePublicWafCaptchaProviderResponse]
+	deletePublicWafCaptchaProvider *connect.Client[v1.DeletePublicWafCaptchaProviderRequest, v1.DeletePublicWafCaptchaProviderResponse]
+	createPublicWafRule            *connect.Client[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse]
+	updatePublicWafRule            *connect.Client[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse]
+	deletePublicWafRule            *connect.Client[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
@@ -767,6 +833,39 @@ func (c *agentManagementServiceClient) DeletePublicTrafficShaperRule(ctx context
 	return c.deletePublicTrafficShaperRule.CallUnary(ctx, req)
 }
 
+// CreatePublicWafCaptchaProvider calls
+// p2pstream.v1.AgentManagementService.CreatePublicWafCaptchaProvider.
+func (c *agentManagementServiceClient) CreatePublicWafCaptchaProvider(ctx context.Context, req *connect.Request[v1.CreatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.CreatePublicWafCaptchaProviderResponse], error) {
+	return c.createPublicWafCaptchaProvider.CallUnary(ctx, req)
+}
+
+// UpdatePublicWafCaptchaProvider calls
+// p2pstream.v1.AgentManagementService.UpdatePublicWafCaptchaProvider.
+func (c *agentManagementServiceClient) UpdatePublicWafCaptchaProvider(ctx context.Context, req *connect.Request[v1.UpdatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.UpdatePublicWafCaptchaProviderResponse], error) {
+	return c.updatePublicWafCaptchaProvider.CallUnary(ctx, req)
+}
+
+// DeletePublicWafCaptchaProvider calls
+// p2pstream.v1.AgentManagementService.DeletePublicWafCaptchaProvider.
+func (c *agentManagementServiceClient) DeletePublicWafCaptchaProvider(ctx context.Context, req *connect.Request[v1.DeletePublicWafCaptchaProviderRequest]) (*connect.Response[v1.DeletePublicWafCaptchaProviderResponse], error) {
+	return c.deletePublicWafCaptchaProvider.CallUnary(ctx, req)
+}
+
+// CreatePublicWafRule calls p2pstream.v1.AgentManagementService.CreatePublicWafRule.
+func (c *agentManagementServiceClient) CreatePublicWafRule(ctx context.Context, req *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error) {
+	return c.createPublicWafRule.CallUnary(ctx, req)
+}
+
+// UpdatePublicWafRule calls p2pstream.v1.AgentManagementService.UpdatePublicWafRule.
+func (c *agentManagementServiceClient) UpdatePublicWafRule(ctx context.Context, req *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error) {
+	return c.updatePublicWafRule.CallUnary(ctx, req)
+}
+
+// DeletePublicWafRule calls p2pstream.v1.AgentManagementService.DeletePublicWafRule.
+func (c *agentManagementServiceClient) DeletePublicWafRule(ctx context.Context, req *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error) {
+	return c.deletePublicWafRule.CallUnary(ctx, req)
+}
+
 // AgentManagementServiceHandler is an implementation of the p2pstream.v1.AgentManagementService
 // service.
 type AgentManagementServiceHandler interface {
@@ -814,6 +913,12 @@ type AgentManagementServiceHandler interface {
 	CreatePublicTrafficShaperRule(context.Context, *connect.Request[v1.CreatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.CreatePublicTrafficShaperRuleResponse], error)
 	UpdatePublicTrafficShaperRule(context.Context, *connect.Request[v1.UpdatePublicTrafficShaperRuleRequest]) (*connect.Response[v1.UpdatePublicTrafficShaperRuleResponse], error)
 	DeletePublicTrafficShaperRule(context.Context, *connect.Request[v1.DeletePublicTrafficShaperRuleRequest]) (*connect.Response[v1.DeletePublicTrafficShaperRuleResponse], error)
+	CreatePublicWafCaptchaProvider(context.Context, *connect.Request[v1.CreatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.CreatePublicWafCaptchaProviderResponse], error)
+	UpdatePublicWafCaptchaProvider(context.Context, *connect.Request[v1.UpdatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.UpdatePublicWafCaptchaProviderResponse], error)
+	DeletePublicWafCaptchaProvider(context.Context, *connect.Request[v1.DeletePublicWafCaptchaProviderRequest]) (*connect.Response[v1.DeletePublicWafCaptchaProviderResponse], error)
+	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
+	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
+	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
 }
 
 // NewAgentManagementServiceHandler builds an HTTP handler from the service implementation. It
@@ -1087,6 +1192,42 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrafficShaperRule")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicWafCaptchaProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicWafCaptchaProviderProcedure,
+		svc.CreatePublicWafCaptchaProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicWafCaptchaProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicWafCaptchaProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicWafCaptchaProviderProcedure,
+		svc.UpdatePublicWafCaptchaProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicWafCaptchaProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicWafCaptchaProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicWafCaptchaProviderProcedure,
+		svc.DeletePublicWafCaptchaProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafCaptchaProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicWafRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicWafRuleProcedure,
+		svc.CreatePublicWafRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicWafRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicWafRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicWafRuleProcedure,
+		svc.UpdatePublicWafRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicWafRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicWafRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicWafRuleProcedure,
+		svc.DeletePublicWafRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/p2pstream.v1.AgentManagementService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentManagementServiceReportStatsProcedure:
@@ -1177,6 +1318,18 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicTrafficShaperRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicTrafficShaperRuleProcedure:
 			agentManagementServiceDeletePublicTrafficShaperRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicWafCaptchaProviderProcedure:
+			agentManagementServiceCreatePublicWafCaptchaProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicWafCaptchaProviderProcedure:
+			agentManagementServiceUpdatePublicWafCaptchaProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicWafCaptchaProviderProcedure:
+			agentManagementServiceDeletePublicWafCaptchaProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicWafRuleProcedure:
+			agentManagementServiceCreatePublicWafRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicWafRuleProcedure:
+			agentManagementServiceUpdatePublicWafRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicWafRuleProcedure:
+			agentManagementServiceDeletePublicWafRuleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1360,4 +1513,28 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicTrafficShaperRule(
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicTrafficShaperRule(context.Context, *connect.Request[v1.DeletePublicTrafficShaperRuleRequest]) (*connect.Response[v1.DeletePublicTrafficShaperRuleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTrafficShaperRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicWafCaptchaProvider(context.Context, *connect.Request[v1.CreatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.CreatePublicWafCaptchaProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicWafCaptchaProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicWafCaptchaProvider(context.Context, *connect.Request[v1.UpdatePublicWafCaptchaProviderRequest]) (*connect.Response[v1.UpdatePublicWafCaptchaProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicWafCaptchaProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicWafCaptchaProvider(context.Context, *connect.Request[v1.DeletePublicWafCaptchaProviderRequest]) (*connect.Response[v1.DeletePublicWafCaptchaProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicWafCaptchaProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicWafRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicWafRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicWafRule is not implemented"))
 }

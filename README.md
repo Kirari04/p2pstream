@@ -1,6 +1,6 @@
 # p2pstream
 
-p2pstream is a public reverse proxy and management server with optional remote agents. It can serve static responses, forward traffic directly from the server host, or route traffic through registered agents with per-backend load balancing, rate limits, traffic shaping, TLS automation, and live traffic tracing.
+p2pstream is a public reverse proxy and management server with optional remote agents. It can serve static responses, forward traffic directly from the server host, or route traffic through registered agents with per-backend load balancing, WAF captcha and waiting-room rules, rate limits, traffic shaping, TLS automation, and live traffic tracing.
 
 ## Run With Docker Compose
 

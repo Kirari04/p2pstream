@@ -4,6 +4,8 @@ import {
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
   PublicRouteAction,
+  PublicWafActivationMode,
+  PublicWafRuleAction,
   type Agent,
   type GetPublicProxyConfigResponse,
   type PublicBackend,
@@ -11,6 +13,7 @@ import {
   type PublicRouteBackend,
   type PublicRateLimitRule,
   type PublicTrafficShaperRule,
+  type PublicWafRule,
   type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceStage as TraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -19,6 +22,7 @@ import type { TraceRequest } from "@/types/trafficTrace";
 
 export const DEFAULT_ROUTE_KEY = "route:default";
 export const RATE_LIMIT_KEY = "rate-limit";
+export const WAF_KEY = "waf";
 export const TRAFFIC_SHAPER_KEY = "traffic-shaper";
 
 export type TrafficFlowConfigIndex = {
@@ -30,6 +34,8 @@ export type TrafficFlowConfigIndex = {
   routeBackendsByRouteId: Map<string, PublicRouteBackend[]>;
   enabledRateLimitTargets: TrafficFlowEditTarget[];
   hasEnabledRateLimitRules: boolean;
+  enabledWafTargets: TrafficFlowEditTarget[];
+  hasEnabledWafRules: boolean;
   enabledTrafficShaperTargets: TrafficFlowEditTarget[];
   hasEnabledTrafficShaperRules: boolean;
 };
@@ -83,6 +89,10 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
     .filter((rule) => rule.enabled)
     .sort(compareRateLimitRules)
     .map(rateLimitEditTarget);
+  const enabledWafTargets = [...(config?.wafRules ?? [])]
+    .filter((rule) => rule.enabled)
+    .sort(compareWafRules)
+    .map(wafEditTarget);
   const enabledTrafficShaperTargets = [...(config?.trafficShaperRules ?? [])]
     .filter((rule) => rule.enabled)
     .sort(compareTrafficShaperRules)
@@ -132,6 +142,8 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
     routeBackendsByRouteId,
     enabledRateLimitTargets,
     hasEnabledRateLimitRules: enabledRateLimitTargets.length > 0,
+    enabledWafTargets,
+    hasEnabledWafRules: enabledWafTargets.length > 0,
     enabledTrafficShaperTargets,
     hasEnabledTrafficShaperRules: enabledTrafficShaperTargets.length > 0,
   };
@@ -151,6 +163,15 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
 
   if (request.listenerId > 0n) {
     path.push(listenerKey(request.listenerId));
+  }
+
+  if (requestUsesWafNode(request, index)) {
+    path.push(WAF_KEY);
+  }
+
+  if (isWafTerminalStage(request.stage)) {
+    path.push("response");
+    return dedupeConsecutive(path);
   }
 
   if (requestUsesRateLimitNode(request, index)) {
@@ -215,6 +236,7 @@ export function trafficRequestPathSignature(request: TraceRequest): string {
     request.forwardMode,
     request.agentId,
     request.rateLimitRuleId,
+    request.wafRuleId,
     request.trafficShaperRuleId,
   ].join("|");
 }
@@ -222,6 +244,11 @@ export function trafficRequestPathSignature(request: TraceRequest): string {
 export function requestUsesRateLimitNode(request: TraceRequest, index: TrafficFlowConfigIndex | null): boolean {
   if (request.rateLimitRuleId > 0n || request.stage === TraceStage.RATE_LIMITED) return true;
   return index?.hasEnabledRateLimitRules ?? false;
+}
+
+export function requestUsesWafNode(request: TraceRequest, index: TrafficFlowConfigIndex | null): boolean {
+  if (request.wafRuleId > 0n || isWafTerminalStage(request.stage)) return true;
+  return index?.hasEnabledWafRules ?? false;
 }
 
 export function requestUsesTrafficShaperNode(request: TraceRequest, index: TrafficFlowConfigIndex | null): boolean {
@@ -237,7 +264,8 @@ export function routeConfigForRequest(request: TraceRequest, index: TrafficFlowC
 export function isTerminalTraceRequest(request: TraceRequest): boolean {
   return request.stage === TraceStage.RESPONSE_SENT ||
     request.stage === TraceStage.FAILED ||
-    request.stage === TraceStage.RATE_LIMITED;
+    request.stage === TraceStage.RATE_LIMITED ||
+    isWafTerminalStage(request.stage);
 }
 
 export function isRedirectRoute(route: PublicRoute): boolean {
@@ -278,6 +306,12 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
       return request.agentId > 0n ? agentKey(request.agentId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TraceStage.TRAFFIC_SHAPER_SELECTED:
       return TRAFFIC_SHAPER_KEY;
+    case TraceStage.WAF_EVALUATED:
+    case TraceStage.WAF_BLOCKED:
+    case TraceStage.WAF_CAPTCHA_CHALLENGED:
+    case TraceStage.WAF_CAPTCHA_VERIFIED:
+    case TraceStage.WAF_WAITING_ROOM:
+      return WAF_KEY;
     case TraceStage.UPSTREAM_STARTED:
       if (request.backendType === PublicBackendType.STATIC) return "static-response";
       if (request.agentId > 0n || request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "upstream";
@@ -321,6 +355,15 @@ function trafficShaperEditTarget(rule: PublicTrafficShaperRule): TrafficFlowEdit
   };
 }
 
+function wafEditTarget(rule: PublicWafRule): TrafficFlowEditTarget {
+  return {
+    kind: "waf",
+    id: rule.id.toString(),
+    label: rule.name || `WAF ${rule.id.toString()}`,
+    subLabel: `${wafActionLabel(rule.action)} / ${wafActivationLabel(rule.activationMode)} / P${rule.priority.toString()}`,
+  };
+}
+
 function compareRateLimitRules(a: PublicRateLimitRule, b: PublicRateLimitRule): number {
   if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
   if (a.id === b.id) return 0;
@@ -328,6 +371,12 @@ function compareRateLimitRules(a: PublicRateLimitRule, b: PublicRateLimitRule): 
 }
 
 function compareTrafficShaperRules(a: PublicTrafficShaperRule, b: PublicTrafficShaperRule): number {
+  if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+function compareWafRules(a: PublicWafRule, b: PublicWafRule): number {
   if (a.priority !== b.priority) return a.priority < b.priority ? -1 : 1;
   if (a.id === b.id) return 0;
   return a.id < b.id ? -1 : 1;
@@ -366,4 +415,25 @@ function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
 
 function trafficShaperScopeLabel(scope: PublicTrafficShaperRule["budgetScope"]): string {
   return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
+}
+
+function wafActionLabel(action: PublicWafRuleAction): string {
+  switch (action) {
+    case PublicWafRuleAction.CAPTCHA:
+      return "Captcha";
+    case PublicWafRuleAction.WAITING_ROOM:
+      return "Waiting room";
+    default:
+      return "Block";
+  }
+}
+
+function wafActivationLabel(mode: PublicWafActivationMode): string {
+  return mode === PublicWafActivationMode.AUTOMATIC ? "Automatic" : "Always";
+}
+
+function isWafTerminalStage(stage: TraceStage): boolean {
+  return stage === TraceStage.WAF_BLOCKED ||
+    stage === TraceStage.WAF_CAPTCHA_CHALLENGED ||
+    stage === TraceStage.WAF_WAITING_ROOM;
 }

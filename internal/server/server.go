@@ -47,6 +47,7 @@ type App struct {
 	TrafficTracer    *trafficTracer
 	RateLimiter      *publicRateLimiter
 	TrafficShaper    *publicTrafficShaper
+	PublicWAF        *publicWAF
 	PublicACME       *publicACMEManager
 	LoginThrottle    *loginThrottle
 
@@ -80,6 +81,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		TrafficTracer:       newTrafficTracer(),
 		RateLimiter:         newPublicRateLimiter(),
 		TrafficShaper:       newPublicTrafficShaper(),
+		PublicWAF:           newPublicWAF(),
 		LoginThrottle:       newLoginThrottle(),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
@@ -116,6 +118,7 @@ func (a *App) ReportStats(
 		NumGoroutine:     int(payload.NumGoroutine),
 		AllocAllocated:   uint64(payload.MemorySysMb),
 		ActiveRequests:   payload.ActiveRequests,
+		CPUPercent:       payload.CpuPercent,
 		ReqSuccess:       int32(payload.ReqSuccess),
 		ReqClientError:   int32(payload.ReqClientError),
 		ReqServerError:   int32(payload.ReqServerError),
@@ -145,6 +148,7 @@ func (a *App) ReportStats(
 			ReqInternalError: payload.ReqInternalError,
 			BytesRx:          int64(payload.BytesReceived),
 			BytesTx:          int64(payload.BytesSent),
+			CpuPercent:       payload.CpuPercent,
 		})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to insert agent stats into DB")
@@ -190,6 +194,7 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 			BytesReceived:        latest.BytesReceived,
 			BytesSent:            latest.BytesSent,
 			ActiveRequests:       latest.ActiveRequests,
+			CpuPercent:           latest.CPUPercent,
 			ReportedAtUnixMillis: latest.Timestamp.UnixMilli(),
 		}
 	}

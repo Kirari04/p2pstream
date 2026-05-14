@@ -130,6 +130,8 @@ function windowSummary(overrides: Partial<DashboardWindowSummary> = {}): Dashboa
     agentMaxMemoryMb: 0n,
     agentAvgGoroutines: 0n,
     agentMaxGoroutines: 0n,
+    agentAvgCpuPercent: 0,
+    agentMaxCpuPercent: 0,
     proxyRequestBytes: 0n,
     proxyResponseBytes: 0n,
     proxyTotalBytes: 0n,

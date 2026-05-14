@@ -353,6 +353,7 @@ func agentStatRowToProto(row db.AgentStat) *p2pstreamv1.AgentStatsSnapshot {
 		ReqInternalError:     row.ReqInternalError,
 		BytesReceived:        uint64(row.BytesRx),
 		BytesSent:            uint64(row.BytesTx),
+		CpuPercent:           row.CpuPercent,
 		ReportedAtUnixMillis: row.ReportedAt.UnixMilli(),
 	}
 }

@@ -13,7 +13,7 @@ Use this page to quickly inspect the management console views used throughout th
 
 <figure class="doc-screenshot">
   <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path">
-  <figcaption>The Traffic page renders sampled request flow across listeners, policy checks, routes, backends, agents, upstreams, and responses.</figcaption>
+  <figcaption>The Traffic page renders sampled request flow across listeners, WAF and policy checks, routes, backends, agents, upstreams, and responses.</figcaption>
 </figure>
 
 ## Agent health
@@ -33,6 +33,6 @@ Use this page to quickly inspect the management console views used throughout th
 ## Management: policy and security
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_2.png" alt="p2pstream management page showing rate limits, traffic shaper, routes, and TLS certificates">
-  <figcaption>The lower Management sections cover rate limits, traffic shapers, routes, TLS mappings, and session controls.</figcaption>
+  <img src="../assets/management_2.png" alt="p2pstream management page showing WAF rules, rate limits, traffic shaper, routes, and TLS certificates">
+  <figcaption>The lower Management sections cover WAF rules, rate limits, traffic shapers, routes, TLS mappings, and session controls.</figcaption>
 </figure>

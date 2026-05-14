@@ -100,6 +100,26 @@ enum PublicTrafficShaperBudgetScope {
   PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST = 2;
 }
 
+enum PublicWafCaptchaProviderType {
+  PUBLIC_WAF_CAPTCHA_PROVIDER_TYPE_UNSPECIFIED = 0;
+  PUBLIC_WAF_CAPTCHA_PROVIDER_TYPE_TURNSTILE = 1;
+  PUBLIC_WAF_CAPTCHA_PROVIDER_TYPE_HCAPTCHA = 2;
+  PUBLIC_WAF_CAPTCHA_PROVIDER_TYPE_RECAPTCHA_V2 = 3;
+}
+
+enum PublicWafRuleAction {
+  PUBLIC_WAF_RULE_ACTION_UNSPECIFIED = 0;
+  PUBLIC_WAF_RULE_ACTION_BLOCK = 1;
+  PUBLIC_WAF_RULE_ACTION_CAPTCHA = 2;
+  PUBLIC_WAF_RULE_ACTION_WAITING_ROOM = 3;
+}
+
+enum PublicWafActivationMode {
+  PUBLIC_WAF_ACTIVATION_MODE_UNSPECIFIED = 0;
+  PUBLIC_WAF_ACTIVATION_MODE_ALWAYS = 1;
+  PUBLIC_WAF_ACTIVATION_MODE_AUTOMATIC = 2;
+}
+
 enum PublicTlsCertificateSource {
   PUBLIC_TLS_CERTIFICATE_SOURCE_UNSPECIFIED = 0;
   PUBLIC_TLS_CERTIFICATE_SOURCE_MANUAL = 1;
@@ -152,6 +172,11 @@ enum TrafficTraceStage {
   TRAFFIC_TRACE_STAGE_FAILED = 8;
   TRAFFIC_TRACE_STAGE_RATE_LIMITED = 9;
   TRAFFIC_TRACE_STAGE_TRAFFIC_SHAPER_SELECTED = 10;
+  TRAFFIC_TRACE_STAGE_WAF_EVALUATED = 11;
+  TRAFFIC_TRACE_STAGE_WAF_BLOCKED = 12;
+  TRAFFIC_TRACE_STAGE_WAF_CAPTCHA_CHALLENGED = 13;
+  TRAFFIC_TRACE_STAGE_WAF_CAPTCHA_VERIFIED = 14;
+  TRAFFIC_TRACE_STAGE_WAF_WAITING_ROOM = 15;
 }
 
 message AgentStatsRequest {
@@ -165,6 +190,7 @@ message AgentStatsRequest {
   uint64 bytes_sent = 8;
   int32 active_requests = 9;
   string agent_public_id = 10;
+  double cpu_percent = 11;
 }
 
 message AgentStatsResponse {
@@ -190,6 +216,7 @@ message AgentStatsSnapshot {
   uint64 bytes_sent = 8;
   int32 active_requests = 9;
   int64 reported_at_unix_millis = 10;
+  double cpu_percent = 11;
 }
 
 message GetStatusResponse {
@@ -427,6 +454,62 @@ message PublicTrafficShaperRule {
   int64 updated_at_unix_millis = 14;
 }
 
+message PublicWafCaptchaProvider {
+  int64 id = 1;
+  string name = 2;
+  PublicWafCaptchaProviderType provider_type = 3;
+  string site_key = 4;
+  string secret_key = 5;
+  bool secret_key_set = 6;
+  bool enabled = 7;
+  int64 created_at_unix_millis = 8;
+  int64 updated_at_unix_millis = 9;
+}
+
+message PublicWafTriggerConfig {
+  int64 request_window_millis = 1;
+  int64 minimum_request_rate = 2;
+  double traffic_spike_multiplier = 3;
+  int64 proxy_active_requests = 4;
+  int64 backend_active_requests = 5;
+  int64 agent_active_requests = 6;
+  double server_cpu_percent = 7;
+  double agent_cpu_percent = 8;
+  int64 minimum_active_millis = 9;
+  int64 quiet_period_millis = 10;
+}
+
+message PublicWafWaitingRoomConfig {
+  int64 max_admitted_sessions = 1;
+  int64 admission_rate_per_second = 2;
+  int64 admission_session_ttl_millis = 3;
+  int64 queue_poll_interval_millis = 4;
+  int64 queue_timeout_millis = 5;
+  string page_title = 6;
+  string page_body = 7;
+}
+
+message PublicWafRule {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicWafRuleAction action = 5;
+  PublicWafActivationMode activation_mode = 6;
+  PublicRateLimitMatch match = 7;
+  repeated PublicRateLimitKeyPart key_parts = 8;
+  int64 captcha_provider_id = 9;
+  int64 captcha_pass_ttl_millis = 10;
+  PublicWafWaitingRoomConfig waiting_room = 11;
+  PublicWafTriggerConfig triggers = 12;
+  int64 block_response_status_code = 13;
+  string block_response_body = 14;
+  string block_response_content_type = 15;
+  repeated PublicRateLimitResponseHeader block_response_headers = 16;
+  int64 created_at_unix_millis = 17;
+  int64 updated_at_unix_millis = 18;
+}
+
 message PublicListenerStatus {
   int64 listener_id = 1;
   ProxyState state = 2;
@@ -453,6 +536,8 @@ message GetPublicProxyConfigResponse {
   repeated PublicTrafficShaperRule traffic_shaper_rules = 9;
   repeated PublicTlsDnsCredential tls_dns_credentials = 10;
   repeated PublicRouteBackend route_backends = 11;
+  repeated PublicWafCaptchaProvider waf_captcha_providers = 12;
+  repeated PublicWafRule waf_rules = 13;
 }
 
 message CreatePublicBackendRequest {
@@ -850,6 +935,91 @@ message DeletePublicTrafficShaperRuleRequest {
 message DeletePublicTrafficShaperRuleResponse {
 }
 
+message CreatePublicWafCaptchaProviderRequest {
+  string name = 1;
+  PublicWafCaptchaProviderType provider_type = 2;
+  string site_key = 3;
+  string secret_key = 4;
+  bool enabled = 5;
+}
+
+message CreatePublicWafCaptchaProviderResponse {
+  PublicWafCaptchaProvider provider = 1;
+}
+
+message UpdatePublicWafCaptchaProviderRequest {
+  int64 id = 1;
+  string name = 2;
+  PublicWafCaptchaProviderType provider_type = 3;
+  string site_key = 4;
+  string secret_key = 5;
+  bool secret_key_set = 6;
+  bool enabled = 7;
+}
+
+message UpdatePublicWafCaptchaProviderResponse {
+  PublicWafCaptchaProvider provider = 1;
+}
+
+message DeletePublicWafCaptchaProviderRequest {
+  int64 id = 1;
+}
+
+message DeletePublicWafCaptchaProviderResponse {
+}
+
+message CreatePublicWafRuleRequest {
+  string name = 1;
+  int64 priority = 2;
+  bool enabled = 3;
+  PublicWafRuleAction action = 4;
+  PublicWafActivationMode activation_mode = 5;
+  PublicRateLimitMatch match = 6;
+  repeated PublicRateLimitKeyPart key_parts = 7;
+  int64 captcha_provider_id = 8;
+  int64 captcha_pass_ttl_millis = 9;
+  PublicWafWaitingRoomConfig waiting_room = 10;
+  PublicWafTriggerConfig triggers = 11;
+  int64 block_response_status_code = 12;
+  string block_response_body = 13;
+  string block_response_content_type = 14;
+  repeated PublicRateLimitResponseHeader block_response_headers = 15;
+}
+
+message CreatePublicWafRuleResponse {
+  PublicWafRule rule = 1;
+}
+
+message UpdatePublicWafRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  PublicWafRuleAction action = 5;
+  PublicWafActivationMode activation_mode = 6;
+  PublicRateLimitMatch match = 7;
+  repeated PublicRateLimitKeyPart key_parts = 8;
+  int64 captcha_provider_id = 9;
+  int64 captcha_pass_ttl_millis = 10;
+  PublicWafWaitingRoomConfig waiting_room = 11;
+  PublicWafTriggerConfig triggers = 12;
+  int64 block_response_status_code = 13;
+  string block_response_body = 14;
+  string block_response_content_type = 15;
+  repeated PublicRateLimitResponseHeader block_response_headers = 16;
+}
+
+message UpdatePublicWafRuleResponse {
+  PublicWafRule rule = 1;
+}
+
+message DeletePublicWafRuleRequest {
+  int64 id = 1;
+}
+
+message DeletePublicWafRuleResponse {
+}
+
 message GetDashboardRequest {
 }
 
@@ -880,6 +1050,8 @@ message DashboardWindowSummary {
   uint64 proxy_avg_response_bytes = 24;
   int64 proxy_max_duration_ms = 25;
   int64 proxy_slow_requests = 26;
+  double agent_avg_cpu_percent = 27;
+  double agent_max_cpu_percent = 28;
 }
 
 enum DashboardProxyDimension {
@@ -1024,6 +1196,12 @@ message TrafficTraceEvent {
   int64 traffic_shaper_download_bytes_per_second = 37;
   int64 traffic_shaper_request_exempt_bytes = 38;
   int64 traffic_shaper_response_exempt_bytes = 39;
+  int64 waf_rule_id = 40;
+  string waf_rule_name = 41;
+  PublicWafRuleAction waf_action = 42;
+  PublicWafActivationMode waf_activation_mode = 43;
+  bool waf_automatic_active = 44;
+  string waf_challenge_kind = 45;
 }
 
 message StreamTrafficTraceEventsResponse {
@@ -1132,4 +1310,10 @@ service AgentManagementService {
   rpc CreatePublicTrafficShaperRule(CreatePublicTrafficShaperRuleRequest) returns (CreatePublicTrafficShaperRuleResponse) {}
   rpc UpdatePublicTrafficShaperRule(UpdatePublicTrafficShaperRuleRequest) returns (UpdatePublicTrafficShaperRuleResponse) {}
   rpc DeletePublicTrafficShaperRule(DeletePublicTrafficShaperRuleRequest) returns (DeletePublicTrafficShaperRuleResponse) {}
+  rpc CreatePublicWafCaptchaProvider(CreatePublicWafCaptchaProviderRequest) returns (CreatePublicWafCaptchaProviderResponse) {}
+  rpc UpdatePublicWafCaptchaProvider(UpdatePublicWafCaptchaProviderRequest) returns (UpdatePublicWafCaptchaProviderResponse) {}
+  rpc DeletePublicWafCaptchaProvider(DeletePublicWafCaptchaProviderRequest) returns (DeletePublicWafCaptchaProviderResponse) {}
+  rpc CreatePublicWafRule(CreatePublicWafRuleRequest) returns (CreatePublicWafRuleResponse) {}
+  rpc UpdatePublicWafRule(UpdatePublicWafRuleRequest) returns (UpdatePublicWafRuleResponse) {}
+  rpc DeletePublicWafRule(DeletePublicWafRuleRequest) returns (DeletePublicWafRuleResponse) {}
 }

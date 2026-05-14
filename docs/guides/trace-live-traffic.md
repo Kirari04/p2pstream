@@ -1,6 +1,6 @@
 # Trace Live Traffic
 
-Traffic tracing shows how a live request moves through listener, route, backend, agent, and upstream stages.
+Traffic tracing shows how a live request moves through listener, WAF, rate-limit, shaper, route, backend, agent, and upstream stages.
 
 ## 1. Open Traffic
 
@@ -35,13 +35,15 @@ curl -v https://app.example.com/api/health
 Watch for stages:
 
 - received,
+- WAF evaluated, blocked, challenged, or waiting-room queued,
+- rate limited,
 - route resolved,
 - backend selected,
 - agent selected when using an agent pool,
 - upstream started,
 - upstream responded,
 - response sent,
-- failed or rate limited.
+- failed.
 
 ## 4. Use the diagram
 

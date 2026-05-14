@@ -10,9 +10,9 @@ WHERE id = ?;
 
 -- name: InsertAgentStat :exec
 INSERT INTO agent_stats (
-    agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+    agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetLatestAgentStat :one
@@ -22,9 +22,9 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, agent_id, request_bytes, response_bytes
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetProxyRequestSummarySince :one
@@ -195,7 +195,9 @@ SELECT
     CAST(COALESCE(AVG(memory_mb), 0) AS INTEGER) AS avg_memory_mb,
     CAST(COALESCE(MAX(memory_mb), 0) AS INTEGER) AS max_memory_mb,
     CAST(COALESCE(AVG(goroutines), 0) AS INTEGER) AS avg_goroutines,
-    CAST(COALESCE(MAX(goroutines), 0) AS INTEGER) AS max_goroutines
+    CAST(COALESCE(MAX(goroutines), 0) AS INTEGER) AS max_goroutines,
+    CAST(COALESCE(AVG(cpu_percent), 0) AS REAL) AS avg_cpu_percent,
+    CAST(COALESCE(MAX(cpu_percent), 0) AS REAL) AS max_cpu_percent
 FROM agent_stats
 WHERE reported_at >= ?;
 
@@ -295,7 +297,7 @@ WHERE pba.agent_id = ?
   );
 
 -- name: GetLatestAgentStatByAgent :one
-SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx
+SELECT id, agent_id, reported_at, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent
 FROM agent_stats
 WHERE agent_id = ?
 ORDER BY id DESC
@@ -842,3 +844,164 @@ RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, do
 -- name: DeletePublicTrafficShaperRule :exec
 DELETE FROM public_traffic_shaper_rules
 WHERE id = ?;
+
+-- name: ListPublicWafCaptchaProviders :many
+SELECT id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
+FROM public_waf_captcha_providers
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicWafCaptchaProvider :one
+SELECT id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
+FROM public_waf_captcha_providers
+WHERE id = ?;
+
+-- name: CreatePublicWafCaptchaProvider :one
+INSERT INTO public_waf_captcha_providers (
+    name,
+    provider_type,
+    site_key,
+    secret_key,
+    enabled
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at;
+
+-- name: UpdatePublicWafCaptchaProvider :one
+UPDATE public_waf_captcha_providers
+SET name = ?,
+    provider_type = ?,
+    site_key = ?,
+    secret_key = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at;
+
+-- name: DeletePublicWafCaptchaProvider :exec
+DELETE FROM public_waf_captcha_providers
+WHERE id = ?;
+
+-- name: ListPublicWafRules :many
+SELECT id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+       waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+       waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+       trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_content_type, block_response_headers_json, created_at, updated_at
+FROM public_waf_rules
+ORDER BY priority ASC, id ASC;
+
+-- name: GetPublicWafRule :one
+SELECT id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+       waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+       waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+       trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_content_type, block_response_headers_json, created_at, updated_at
+FROM public_waf_rules
+WHERE id = ?;
+
+-- name: CreatePublicWafRule :one
+INSERT INTO public_waf_rules (
+    name,
+    priority,
+    enabled,
+    action,
+    activation_mode,
+    match_json,
+    key_parts_json,
+    captcha_provider_id,
+    captcha_pass_ttl_millis,
+    waiting_room_max_admitted_sessions,
+    waiting_room_admission_rate_per_second,
+    waiting_room_admission_session_ttl_millis,
+    waiting_room_queue_poll_interval_millis,
+    waiting_room_queue_timeout_millis,
+    waiting_room_page_title,
+    waiting_room_page_body,
+    trigger_request_window_millis,
+    trigger_minimum_request_rate,
+    trigger_traffic_spike_multiplier,
+    trigger_proxy_active_requests,
+    trigger_backend_active_requests,
+    trigger_agent_active_requests,
+    trigger_server_cpu_percent,
+    trigger_agent_cpu_percent,
+    trigger_minimum_active_millis,
+    trigger_quiet_period_millis,
+    block_response_status_code,
+    block_response_body,
+    block_response_content_type,
+    block_response_headers_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+          waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+          waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+          trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_content_type, block_response_headers_json, created_at, updated_at;
+
+-- name: UpdatePublicWafRule :one
+UPDATE public_waf_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    action = ?,
+    activation_mode = ?,
+    match_json = ?,
+    key_parts_json = ?,
+    captcha_provider_id = ?,
+    captcha_pass_ttl_millis = ?,
+    waiting_room_max_admitted_sessions = ?,
+    waiting_room_admission_rate_per_second = ?,
+    waiting_room_admission_session_ttl_millis = ?,
+    waiting_room_queue_poll_interval_millis = ?,
+    waiting_room_queue_timeout_millis = ?,
+    waiting_room_page_title = ?,
+    waiting_room_page_body = ?,
+    trigger_request_window_millis = ?,
+    trigger_minimum_request_rate = ?,
+    trigger_traffic_spike_multiplier = ?,
+    trigger_proxy_active_requests = ?,
+    trigger_backend_active_requests = ?,
+    trigger_agent_active_requests = ?,
+    trigger_server_cpu_percent = ?,
+    trigger_agent_cpu_percent = ?,
+    trigger_minimum_active_millis = ?,
+    trigger_quiet_period_millis = ?,
+    block_response_status_code = ?,
+    block_response_body = ?,
+    block_response_content_type = ?,
+    block_response_headers_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
+          waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
+          waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
+          trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
+          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_content_type, block_response_headers_json, created_at, updated_at;
+
+-- name: DeletePublicWafRule :exec
+DELETE FROM public_waf_rules
+WHERE id = ?;
+
+-- name: GetPublicWafSettings :one
+SELECT id, cookie_signing_secret, created_at, updated_at
+FROM public_waf_settings
+WHERE id = 1;
+
+-- name: UpsertPublicWafSettings :one
+INSERT INTO public_waf_settings (id, cookie_signing_secret)
+VALUES (1, ?)
+ON CONFLICT(id) DO UPDATE SET
+    cookie_signing_secret = public_waf_settings.cookie_signing_secret,
+    updated_at = public_waf_settings.updated_at
+RETURNING id, cookie_signing_secret, created_at, updated_at;

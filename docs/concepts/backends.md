@@ -1,6 +1,6 @@
 # Backends
 
-Backends describe the destination behavior after routing.
+Backends describe the destination behavior after routing. WAF, rate limits, and traffic shapers are evaluated before a backend is selected.
 
 ## Backend types
 
@@ -48,6 +48,8 @@ Proxy-forward backends can define an HTTP health check:
 When a backend health check marks a backend unhealthy, route backend pools skip it. If no health check is configured, the backend is eligible until p2pstream observes a connection or timeout failure. Those passive failures mark the backend temporarily unhealthy for a short cooldown, then it is tried again.
 
 p2pstream does not replay the same client request to another backend after an upstream failure. Later requests avoid the temporarily unhealthy backend.
+
+Automatic WAF waiting-room rules can also use backend active-request pressure and agent active-request or CPU pressure as activation signals. Those signals reduce load before new requests reach backend selection.
 
 ## Upstream headers and basic auth
 

@@ -7,6 +7,8 @@ import {
   PublicBackendType,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
+  PublicWafActivationMode,
+  PublicWafRuleAction,
   TrafficTraceLevel,
   TrafficTraceStage,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -33,6 +35,8 @@ const showDebug = computed(() => props.level >= TrafficTraceLevel.DEBUG);
 
 function statusClass(status: bigint, stage: TrafficTraceStage): string {
   if (stage === TrafficTraceStage.FAILED) return "text-red-400";
+  if (stage === TrafficTraceStage.WAF_BLOCKED) return "text-red-400";
+  if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM) return "text-amber-400";
   if (stage === TrafficTraceStage.RATE_LIMITED) return "text-amber-400";
   const code = Number(status);
   if (code >= 500) return "text-red-400";
@@ -47,6 +51,11 @@ function stageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.ROUTE_RESOLVED: return "Route resolved";
     case TrafficTraceStage.BACKEND_SELECTED: return "Backend selected";
     case TrafficTraceStage.AGENT_SELECTED: return "Agent selected";
+    case TrafficTraceStage.WAF_EVALUATED: return "WAF evaluated";
+    case TrafficTraceStage.WAF_BLOCKED: return "WAF blocked";
+    case TrafficTraceStage.WAF_CAPTCHA_CHALLENGED: return "Captcha challenge";
+    case TrafficTraceStage.WAF_CAPTCHA_VERIFIED: return "Captcha verified";
+    case TrafficTraceStage.WAF_WAITING_ROOM: return "Waiting room";
     case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Traffic shaper selected";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream started";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Upstream responded";
@@ -69,6 +78,21 @@ function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
 
 function trafficShaperScopeLabel(scope: PublicTrafficShaperBudgetScope): string {
   return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
+}
+
+function wafActionLabel(action: PublicWafRuleAction): string {
+  switch (action) {
+    case PublicWafRuleAction.CAPTCHA: return "Captcha";
+    case PublicWafRuleAction.WAITING_ROOM: return "Waiting room";
+    case PublicWafRuleAction.BLOCK: return "Block";
+    default: return "-";
+  }
+}
+
+function wafActivationLabel(mode: PublicWafActivationMode): string {
+  if (mode === PublicWafActivationMode.AUTOMATIC) return "Automatic";
+  if (mode === PublicWafActivationMode.ALWAYS) return "Always";
+  return "-";
 }
 
 function formatRate(value: bigint): string {
@@ -175,6 +199,17 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <strong>
             {{ request.rateLimitRuleName || `#${request.rateLimitRuleId.toString()}` }}
             <span class="text-[#888]">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
+          </strong>
+        </div>
+        <div v-if="request.wafRuleId" class="trace-field sm:col-span-2">
+          <span>WAF</span>
+          <strong>
+            {{ request.wafRuleName || `#${request.wafRuleId.toString()}` }}
+            <span class="text-[#888]">
+              / {{ wafActionLabel(request.wafAction) }}
+              / {{ wafActivationLabel(request.wafActivationMode) }}
+              <template v-if="request.wafChallengeKind"> / {{ request.wafChallengeKind }}</template>
+            </span>
           </strong>
         </div>
         <div v-if="request.trafficShaperRuleId" class="trace-field sm:col-span-2">

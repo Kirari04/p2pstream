@@ -1,6 +1,6 @@
 # Routing
 
-Routes decide what a listener does with a matching request.
+Routes decide what a listener does with a matching request. WAF rules, rate limits, and traffic shapers run before route resolution, so challenged, queued, blocked, or rate-limited requests do not reach route backend selection.
 
 ## Match fields
 
@@ -75,3 +75,5 @@ The listener default backend is still only used when no enabled route matches th
 ## Operational advice
 
 Keep broad routes at higher numeric priorities, such as `100` or `1000`. Use low numbers for specific host/path rules that must win.
+
+Captcha and waiting-room challenges are handled before routing and do not replay request bodies after admission. Design form and upload clients so they can resubmit after the browser receives the pass or admission cookie.

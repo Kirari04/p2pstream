@@ -42,7 +42,7 @@ After login, the operator lands in the management console and can move between O
 
 <figure class="doc-screenshot">
   <img src="../assets/management_1.png" alt="p2pstream management page showing public listeners and backend configuration">
-  <figcaption>The Management tab is where listeners, backends, routes, TLS mappings, rate limits, and shapers are created and edited.</figcaption>
+  <figcaption>The Management tab is where listeners, backends, routes, TLS mappings, WAF rules, rate limits, and shapers are created and edited.</figcaption>
 </figure>
 
 ## If you lock yourself out

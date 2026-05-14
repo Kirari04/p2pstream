@@ -11,7 +11,7 @@ type AgentNodeStatus = {
 type TrafficNodeData = {
   label: string;
   subLabel: string;
-  kind: "ingress" | "listener" | "rate-limit" | "traffic-shaper" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+  kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
   editTargets: TrafficFlowEditTarget[];
   agentStatus?: AgentNodeStatus;
 };
@@ -83,6 +83,10 @@ defineProps<NodeProps<TrafficNodeData>>();
 
 .traffic-flow-node-rate-limit {
   border-color: #f59e0b;
+}
+
+.traffic-flow-node-waf {
+  border-color: #fb7185;
 }
 
 .traffic-flow-node-traffic-shaper {

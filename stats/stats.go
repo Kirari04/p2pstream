@@ -7,6 +7,7 @@ type AgentStats struct {
 	NumGoroutine   int       `json:"num_goroutine"`
 	AllocAllocated uint64    `json:"memory_allocated_mb"`
 	ActiveRequests int32     `json:"active_requests"`
+	CPUPercent     float64   `json:"cpu_percent"`
 
 	// Traffic & Request metrics (since last report)
 	ReqSuccess       int32  `json:"req_success_2xx_3xx"`

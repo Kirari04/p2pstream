@@ -49,6 +49,12 @@ Open only required ports:
 | Management `8081` | Private, VPN, allowlisted, or exposed only for agents. |
 | Extra listeners | Publish only when actively used. |
 
+## WAF boundaries
+
+Use WAF rules to reduce application load before traffic reaches routes and backends. Captcha and waiting-room rules are useful for HTTP floods, login pressure, and short traffic surges that still reach p2pstream.
+
+Do not treat the WAF as a substitute for upstream DDoS protection. Network saturation, SYN floods, and other volumetric attacks must be handled by the hosting provider, firewall, CDN, or DDoS mitigation service before they reach the server.
+
 ## Review checklist
 
 - [ ] `/data` is persistent and backed up.
@@ -57,5 +63,6 @@ Open only required ports:
 - [ ] password reset recovery uses the documented local CLI path.
 - [ ] `MANAGEMENT_PUBLIC_URL` is correct.
 - [ ] unused listeners are disabled.
+- [ ] WAF, rate-limit, and shaper rules are scoped to the hosts and paths they are meant to protect.
 - [ ] unused agents are disabled or deleted.
 - [ ] tracing is disabled after troubleshooting.

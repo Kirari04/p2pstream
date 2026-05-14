@@ -33,6 +33,7 @@ type AgentStat struct {
 	ReqInternalError int64         `json:"req_internal_error"`
 	BytesRx          int64         `json:"bytes_rx"`
 	BytesTx          int64         `json:"bytes_tx"`
+	CpuPercent       float64       `json:"cpu_percent"`
 }
 
 type Connection struct {
@@ -51,6 +52,8 @@ type ProxyRequestEvent struct {
 	ListenerID    sql.NullInt64 `json:"listener_id"`
 	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
+	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
+	WafAction     string        `json:"waf_action"`
 	AgentID       sql.NullInt64 `json:"agent_id"`
 	RequestBytes  int64         `json:"request_bytes"`
 	ResponseBytes int64         `json:"response_bytes"`
@@ -223,6 +226,60 @@ type PublicTrafficShaperRule struct {
 	KeyPartsJson           string    `json:"key_parts_json"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
+}
+
+type PublicWafCaptchaProvider struct {
+	ID           int64     `json:"id"`
+	Name         string    `json:"name"`
+	ProviderType string    `json:"provider_type"`
+	SiteKey      string    `json:"site_key"`
+	SecretKey    string    `json:"secret_key"`
+	Enabled      int64     `json:"enabled"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type PublicWafRule struct {
+	ID                                   int64         `json:"id"`
+	Name                                 string        `json:"name"`
+	Priority                             int64         `json:"priority"`
+	Enabled                              int64         `json:"enabled"`
+	Action                               string        `json:"action"`
+	ActivationMode                       string        `json:"activation_mode"`
+	MatchJson                            string        `json:"match_json"`
+	KeyPartsJson                         string        `json:"key_parts_json"`
+	CaptchaProviderID                    sql.NullInt64 `json:"captcha_provider_id"`
+	CaptchaPassTtlMillis                 int64         `json:"captcha_pass_ttl_millis"`
+	WaitingRoomMaxAdmittedSessions       int64         `json:"waiting_room_max_admitted_sessions"`
+	WaitingRoomAdmissionRatePerSecond    int64         `json:"waiting_room_admission_rate_per_second"`
+	WaitingRoomAdmissionSessionTtlMillis int64         `json:"waiting_room_admission_session_ttl_millis"`
+	WaitingRoomQueuePollIntervalMillis   int64         `json:"waiting_room_queue_poll_interval_millis"`
+	WaitingRoomQueueTimeoutMillis        int64         `json:"waiting_room_queue_timeout_millis"`
+	WaitingRoomPageTitle                 string        `json:"waiting_room_page_title"`
+	WaitingRoomPageBody                  string        `json:"waiting_room_page_body"`
+	TriggerRequestWindowMillis           int64         `json:"trigger_request_window_millis"`
+	TriggerMinimumRequestRate            int64         `json:"trigger_minimum_request_rate"`
+	TriggerTrafficSpikeMultiplier        float64       `json:"trigger_traffic_spike_multiplier"`
+	TriggerProxyActiveRequests           int64         `json:"trigger_proxy_active_requests"`
+	TriggerBackendActiveRequests         int64         `json:"trigger_backend_active_requests"`
+	TriggerAgentActiveRequests           int64         `json:"trigger_agent_active_requests"`
+	TriggerServerCpuPercent              float64       `json:"trigger_server_cpu_percent"`
+	TriggerAgentCpuPercent               float64       `json:"trigger_agent_cpu_percent"`
+	TriggerMinimumActiveMillis           int64         `json:"trigger_minimum_active_millis"`
+	TriggerQuietPeriodMillis             int64         `json:"trigger_quiet_period_millis"`
+	BlockResponseStatusCode              int64         `json:"block_response_status_code"`
+	BlockResponseBody                    string        `json:"block_response_body"`
+	BlockResponseContentType             string        `json:"block_response_content_type"`
+	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
+	CreatedAt                            time.Time     `json:"created_at"`
+	UpdatedAt                            time.Time     `json:"updated_at"`
+}
+
+type PublicWafSetting struct {
+	ID                  int64     `json:"id"`
+	CookieSigningSecret string    `json:"cookie_signing_secret"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type Session struct {

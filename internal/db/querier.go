@@ -28,6 +28,8 @@ type Querier interface {
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
+	CreatePublicWafCaptchaProvider(ctx context.Context, arg CreatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error)
+	CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRuleParams) (PublicWafRule, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	DeleteAgent(ctx context.Context, id int64) error
@@ -45,6 +47,8 @@ type Querier interface {
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
+	DeletePublicWafCaptchaProvider(ctx context.Context, id int64) error
+	DeletePublicWafRule(ctx context.Context, id int64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
 	GetAgent(ctx context.Context, id int64) (Agent, error)
@@ -61,6 +65,9 @@ type Querier interface {
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
 	GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error)
+	GetPublicWafCaptchaProvider(ctx context.Context, id int64) (PublicWafCaptchaProvider, error)
+	GetPublicWafRule(ctx context.Context, id int64) (PublicWafRule, error)
+	GetPublicWafSettings(ctx context.Context) (PublicWafSetting, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error
@@ -84,6 +91,8 @@ type Querier interface {
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
+	ListPublicWafCaptchaProviders(ctx context.Context) ([]PublicWafCaptchaProvider, error)
+	ListPublicWafRules(ctx context.Context) ([]PublicWafRule, error)
 	ListTopProxyAgentsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyAgentsSinceRow, error)
 	ListTopProxyBackendsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyBackendsSinceRow, error)
 	ListTopProxyErrorKindsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyErrorKindsSinceRow, error)
@@ -107,8 +116,11 @@ type Querier interface {
 	UpdatePublicTlsCertificateStatus(ctx context.Context, arg UpdatePublicTlsCertificateStatusParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsDnsCredential(ctx context.Context, arg UpdatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
+	UpdatePublicWafCaptchaProvider(ctx context.Context, arg UpdatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error)
+	UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRuleParams) (PublicWafRule, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error)
 	UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapAgentParams) (Agent, error)
+	UpsertPublicWafSettings(ctx context.Context, cookieSigningSecret string) (PublicWafSetting, error)
 }
 
 var _ Querier = (*Queries)(nil)

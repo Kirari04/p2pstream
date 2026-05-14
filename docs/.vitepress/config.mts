@@ -59,6 +59,7 @@ export default defineConfig({
           { text: "Agents", link: "/concepts/agents" },
           { text: "TLS", link: "/concepts/tls" },
           { text: "Limits and Shaping", link: "/concepts/limits-and-shaping" },
+          { text: "WAF", link: "/concepts/waf" },
           { text: "Observability", link: "/concepts/observability" }
         ]
       },
@@ -99,6 +100,7 @@ export default defineConfig({
           { text: "Public TLS and ACME", link: "/reference/public-tls-acme" },
           { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "Rate Limits", link: "/reference/rate-limits" },
+          { text: "WAF", link: "/reference/waf" },
           { text: "Traffic Shaping", link: "/reference/traffic-shaping" }
         ]
       }

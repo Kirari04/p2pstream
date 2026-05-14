@@ -21,6 +21,7 @@ The server process runs the management API/UI and the public proxy runtime.
 | --- | --- |
 | Management UI/API | Serves the Vue UI and ConnectRPC API on `MANAGEMENT_PORT`, default `8081`. |
 | Public listeners | Bind configured HTTP/HTTPS listener ports and receive public traffic. |
+| WAF | Applies ordered block, captcha, and waiting-room rules before rate limits and routing. |
 | Router | Selects a route by listener, host, path prefix, and priority. |
 | Backend executor | Forwards directly, returns static responses, redirects, or sends requests to an agent. |
 | SQLite | Stores users, sessions, agents, public proxy config, TLS metadata, and observability events. |
@@ -28,11 +29,13 @@ The server process runs the management API/UI and the public proxy runtime.
 ## Direct backend flow
 
 1. A client connects to a public listener.
-2. Rate limit rules run before route resolution.
-3. A traffic shaper rule may wrap the upload/download body.
-4. The router selects a route or the listener default backend.
-5. The server forwards the request from the server host to the upstream origin.
-6. Observability records status, duration, listener/backend/route IDs, and byte counts.
+2. ACME HTTP challenges and reserved WAF endpoints are handled before normal policy evaluation.
+3. WAF rules may block, require captcha, or place the visitor in a waiting room.
+4. Rate limit rules run before route resolution.
+5. A traffic shaper rule may wrap the upload/download body.
+6. The router selects a route or the listener default backend.
+7. The server forwards the request from the server host to the upstream origin.
+8. Observability records status, duration, policy IDs, listener/backend/route IDs, and byte counts.
 
 Direct mode is simplest when the upstream is reachable from the p2pstream server.
 

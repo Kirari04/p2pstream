@@ -4,6 +4,8 @@ import {
   PublicBackendType,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
+  PublicWafActivationMode,
+  PublicWafRuleAction,
   TrafficTraceStage,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -42,6 +44,12 @@ export type TraceRequest = {
   trafficShaperDownloadBytesPerSecond: bigint;
   trafficShaperRequestExemptBytes: bigint;
   trafficShaperResponseExemptBytes: bigint;
+  wafRuleId: bigint;
+  wafRuleName: string;
+  wafAction: PublicWafRuleAction;
+  wafActivationMode: PublicWafActivationMode;
+  wafAutomaticActive: boolean;
+  wafChallengeKind: string;
   visible: boolean;
   completedAt: number | null;
   latestEvent: TrafficTraceEvent | null;

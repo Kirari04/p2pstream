@@ -70,8 +70,8 @@ Create a route:
 | Enabled | On |
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_2.png" alt="p2pstream management console showing rate limits, traffic shaper, routes, and TLS certificates">
-  <figcaption>Routes, TLS mappings, rate limits, and traffic shapers complete the public service configuration.</figcaption>
+  <img src="../assets/management_2.png" alt="p2pstream management console showing WAF rules, rate limits, traffic shaper, routes, and TLS certificates">
+  <figcaption>Routes, TLS mappings, WAF rules, rate limits, and traffic shapers complete the public service configuration.</figcaption>
 </figure>
 
 ## 4. Configure public TLS

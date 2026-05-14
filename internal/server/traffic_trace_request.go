@@ -280,6 +280,14 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 		event.TrafficShaperRequestExemptBytes = resolution.TrafficShaperRequestExemptBytes
 		event.TrafficShaperResponseExemptBytes = resolution.TrafficShaperResponseExemptBytes
 	}
+	if resolution.WafRuleID != 0 {
+		event.WafRuleId = resolution.WafRuleID
+		event.WafRuleName = resolution.WafRuleName
+		event.WafAction = protoWafRuleActionFromString(resolution.WafAction)
+		event.WafActivationMode = protoWafActivationModeFromString(resolution.WafActivationMode)
+		event.WafAutomaticActive = resolution.WafAutomaticActive
+		event.WafChallengeKind = resolution.WafChallengeKind
+	}
 }
 
 func traceRouteLabel(resolution publicRouteResolution) string {

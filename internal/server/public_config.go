@@ -179,6 +179,9 @@ type publicConfigRows struct {
 	TLSDNSCredentials      []db.PublicTlsDnsCredential
 	RateLimitRules         []db.PublicRateLimitRule
 	TrafficShaperRules     []db.PublicTrafficShaperRule
+	WafCaptchaProviders    []db.PublicWafCaptchaProvider
+	WafRules               []db.PublicWafRule
+	WafSettings            db.PublicWafSetting
 }
 
 type publicBackendHeaderInput struct {
@@ -1279,19 +1282,24 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	if a.TrafficShaper != nil {
 		a.TrafficShaper.reconcile(snap)
 	}
+	if a.PublicWAF != nil {
+		a.PublicWAF.reconcile(snap)
+	}
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
-		Backends:           publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents, a.BackendHealth),
-		Listeners:          publicListenersToProto(rows.Listeners),
-		Routes:             publicRoutesToProto(rows.Routes, rows.RouteBackends),
-		RouteBackends:      publicRouteBackendsToProto(rows.RouteBackends),
-		TlsCertificates:    publicTLSCertificatesToProto(rows.TLSCertificates),
-		Proxy:              proxy,
-		Agents:             a.publicAgentsToProto(ctx, rows.Agents),
-		BackendAgents:      publicBackendAgentsToProto(rows.BackendAgents),
-		RateLimitRules:     publicRateLimitRulesToProto(rows.RateLimitRules),
-		TrafficShaperRules: publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
-		TlsDnsCredentials:  publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
+		Backends:            publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents, a.BackendHealth),
+		Listeners:           publicListenersToProto(rows.Listeners),
+		Routes:              publicRoutesToProto(rows.Routes, rows.RouteBackends),
+		RouteBackends:       publicRouteBackendsToProto(rows.RouteBackends),
+		TlsCertificates:     publicTLSCertificatesToProto(rows.TLSCertificates),
+		Proxy:               proxy,
+		Agents:              a.publicAgentsToProto(ctx, rows.Agents),
+		BackendAgents:       publicBackendAgentsToProto(rows.BackendAgents),
+		RateLimitRules:      publicRateLimitRulesToProto(rows.RateLimitRules),
+		TrafficShaperRules:  publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
+		WafCaptchaProviders: publicWafCaptchaProvidersToProto(rows.WafCaptchaProviders, false),
+		WafRules:            publicWafRulesToProto(rows.WafRules),
+		TlsDnsCredentials:   publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
 	}, nil
 }
 
@@ -1315,6 +1323,9 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	}
 	if a.TrafficShaper != nil {
 		a.TrafficShaper.reconcile(snap)
+	}
+	if a.PublicWAF != nil {
+		a.PublicWAF.reconcile(snap)
 	}
 	return nil
 }
@@ -1382,6 +1393,18 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
+	wafCaptchaProviders, err := a.DB.ListPublicWafCaptchaProviders(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafRules, err := a.DB.ListPublicWafRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafSettings, err := a.ensurePublicWafSettings(ctx)
+	if err != nil {
+		return publicConfigRows{}, err
+	}
 	return publicConfigRows{
 		Backends:               backends,
 		BackendHeaders:         backendHeaders,
@@ -1395,6 +1418,9 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		TLSDNSCredentials:      tlsDNSCredentials,
 		RateLimitRules:         rateLimitRules,
 		TrafficShaperRules:     trafficShaperRules,
+		WafCaptchaProviders:    wafCaptchaProviders,
+		WafRules:               wafRules,
+		WafSettings:            wafSettings,
 	}, nil
 }
 
@@ -1526,11 +1552,13 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
 	snap := &publicProxySnapshot{
-		Backends:         make(map[int64]publicBackendConfig),
-		Agents:           make(map[int64]publicAgentConfig),
-		Listeners:        make(map[int64]publicListenerConfig),
-		RoutesByListener: make(map[int64][]publicRouteConfig),
-		CertsByListener:  make(map[int64][]publicTLSCertificateConfig),
+		Backends:            make(map[int64]publicBackendConfig),
+		Agents:              make(map[int64]publicAgentConfig),
+		Listeners:           make(map[int64]publicListenerConfig),
+		RoutesByListener:    make(map[int64][]publicRouteConfig),
+		CertsByListener:     make(map[int64][]publicTLSCertificateConfig),
+		WafCaptchaProviders: make(map[int64]publicWafCaptchaProviderConfig),
+		WafCookieSecret:     []byte(rows.WafSettings.CookieSigningSecret),
 	}
 
 	headersByBackend := publicBackendHeadersByBackend(rows.BackendHeaders)
@@ -1649,6 +1677,17 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("traffic shaper rule %q is invalid: %w", row.Name, err))
 		}
 		snap.TrafficShaperRules = append(snap.TrafficShaperRules, rule)
+	}
+	for _, row := range rows.WafCaptchaProviders {
+		provider := publicWafCaptchaProviderRowToConfig(row, true)
+		snap.WafCaptchaProviders[provider.ID] = provider
+	}
+	for _, row := range rows.WafRules {
+		rule, err := publicWafRuleRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("WAF rule %q is invalid: %w", row.Name, err))
+		}
+		snap.WafRules = append(snap.WafRules, rule)
 	}
 	return snap, nil
 }

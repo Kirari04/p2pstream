@@ -17,6 +17,7 @@ import {
   DEFAULT_ROUTE_KEY,
   RATE_LIMIT_KEY,
   TRAFFIC_SHAPER_KEY,
+  WAF_KEY,
   TrafficRequestPathCache,
   agentKey,
   backendKey,
@@ -28,6 +29,7 @@ import {
   routeBackendAssignments,
   requestUsesRateLimitNode,
   requestUsesTrafficShaperNode,
+  requestUsesWafNode,
   routeConfigForRequest,
   routeKey,
   type TrafficRequestPathCacheEntry,
@@ -55,7 +57,7 @@ import type { TraceRequest } from "@/types/trafficTrace";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
-export type TrafficNodeKind = "ingress" | "listener" | "rate-limit" | "traffic-shaper" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+export type TrafficNodeKind = "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
 type AgentNodeStatus = {
   state: "connected" | "offline" | "disabled" | "unknown";
   label: string;
@@ -144,7 +146,7 @@ const emit = defineEmits<{
 
 const NODE_WIDTH = 152;
 const NODE_HEIGHT = 58;
-const COLUMN_X = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600];
+const COLUMN_X = [0, 190, 380, 570, 760, 950, 1140, 1330, 1520, 1710];
 const ROW_GAP = 92;
 const MIN_CENTER_Y = 92;
 const FLOW_ID = "traffic-flow-diagram";
@@ -212,21 +214,34 @@ const layout = computed(() => {
   const index = configIndex.value;
 
   addNode({ key: "ingress", label: "Ingress", subLabel: "Public request", column: 0, kind: "ingress", editTargets: [] });
-  addNode({ key: "response", label: "Response", subLabel: "Client", column: 8, kind: "response", editTargets: [] });
+  addNode({ key: "response", label: "Response", subLabel: "Client", column: 9, kind: "response", editTargets: [] });
 
   const listeners = props.config?.listeners ?? [];
   const backends = props.config?.backends ?? [];
   const enabledRateLimitTargets = index.enabledRateLimitTargets;
+  const enabledWafTargets = index.enabledWafTargets;
   const enabledTrafficShaperTargets = index.enabledTrafficShaperTargets;
+  const showWafNode = index.hasEnabledWafRules || props.requests.some((request) => requestUsesWafNode(request, index));
   const showRateLimitNode = index.hasEnabledRateLimitRules || props.requests.some((request) => requestUsesRateLimitNode(request, index));
   const showTrafficShaperNode = index.hasEnabledTrafficShaperRules || props.requests.some((request) => requestUsesTrafficShaperNode(request, index));
+
+  if (showWafNode) {
+    addNode({
+      key: WAF_KEY,
+      label: "WAF",
+      subLabel: enabledWafTargets.length ? `${enabledWafTargets.length.toString()} enabled` : "Observed",
+      column: 2,
+      kind: "waf",
+      editTargets: enabledWafTargets,
+    });
+  }
 
   if (showRateLimitNode) {
     addNode({
       key: RATE_LIMIT_KEY,
       label: "Rate limit",
       subLabel: enabledRateLimitTargets.length ? `${enabledRateLimitTargets.length.toString()} enabled` : "Observed",
-      column: 2,
+      column: 3,
       kind: "rate-limit",
       editTargets: enabledRateLimitTargets,
     });
@@ -237,7 +252,7 @@ const layout = computed(() => {
       key: TRAFFIC_SHAPER_KEY,
       label: "Traffic shaper",
       subLabel: enabledTrafficShaperTargets.length ? `${enabledTrafficShaperTargets.length.toString()} enabled` : "Observed",
-      column: 3,
+      column: 4,
       kind: "traffic-shaper",
       editTargets: enabledTrafficShaperTargets,
     });
@@ -245,8 +260,9 @@ const layout = computed(() => {
 
   for (const listener of listeners) {
     const listenerNodeKey = listenerKey(listener.id);
-    const routeEntryKey = showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : listenerNodeKey;
-    const shaperEntryKey = showRateLimitNode ? RATE_LIMIT_KEY : listenerNodeKey;
+    const routeEntryKey = showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
+    const rateEntryKey = showWafNode ? WAF_KEY : listenerNodeKey;
+    const shaperEntryKey = showRateLimitNode ? RATE_LIMIT_KEY : showWafNode ? WAF_KEY : listenerNodeKey;
     addNode({
       key: listenerNodeKey,
       label: listener.name || `Listener ${listener.id.toString()}`,
@@ -256,8 +272,11 @@ const layout = computed(() => {
       editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, `${listener.bindAddress || "*"}:${listener.port.toString()}`)],
     });
     addEdge("ingress", listenerNodeKey);
+    if (showWafNode) {
+      addEdge(listenerNodeKey, WAF_KEY);
+    }
     if (showRateLimitNode) {
-      addEdge(listenerNodeKey, RATE_LIMIT_KEY);
+      addEdge(rateEntryKey, RATE_LIMIT_KEY);
     }
     if (showTrafficShaperNode) {
       addEdge(shaperEntryKey, TRAFFIC_SHAPER_KEY);
@@ -267,7 +286,7 @@ const layout = computed(() => {
       key: DEFAULT_ROUTE_KEY,
       label: "Default route",
       subLabel: "Listener fallbacks",
-      column: 4,
+      column: 5,
       kind: "route",
       editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, "Default backend")],
     });
@@ -280,7 +299,7 @@ const layout = computed(() => {
         key,
         label: routeLabel(route.hostPattern, route.pathPrefix, route.id),
         subLabel: `P${route.priority.toString()}`,
-        column: 4,
+        column: 5,
         kind: "route",
         editTargets: [routeEditTarget(route)],
       });
@@ -313,7 +332,7 @@ const layout = computed(() => {
       key,
       label: backend.name || `Backend ${backend.id.toString()}`,
       subLabel: isStatic ? "Static" : isAgentPool ? "Agent pool" : "Direct",
-      column: 5,
+      column: 6,
       kind: "backend",
       editTargets: [backendEditTarget(backend.id, backend.name || `Backend ${backend.id.toString()}`, isStatic ? "Static" : isAgentPool ? "Agent pool" : "Direct")],
     });
@@ -339,7 +358,7 @@ const layout = computed(() => {
             key: agentNodeKey,
             label: agent?.name || `Agent ${assignment.agentId.toString()}`,
             subLabel: agent?.publicId || `x${assignment.weight.toString()}`,
-            column: 6,
+            column: 7,
             kind: "agent",
             agentStatus: agentNodeStatus(agent),
             editTargets: [agentEditTarget(assignment.agentId, agent?.name || `Agent ${assignment.agentId.toString()}`, agent?.publicId || "")],
@@ -368,18 +387,21 @@ const layout = computed(() => {
     }
   }
 
-  if (!listeners.length && !props.requests.length && showRateLimitNode && showTrafficShaperNode) {
-    addEdge("ingress", RATE_LIMIT_KEY);
-    addEdge(RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY);
-    addEdge(TRAFFIC_SHAPER_KEY, "response", "intermediate-bypass");
-  } else if (!listeners.length && !props.requests.length && showRateLimitNode) {
-    addEdge("ingress", RATE_LIMIT_KEY);
-    addEdge(RATE_LIMIT_KEY, "response", "intermediate-bypass");
-  } else if (!listeners.length && !props.requests.length && showTrafficShaperNode) {
-    addEdge("ingress", TRAFFIC_SHAPER_KEY);
-    addEdge(TRAFFIC_SHAPER_KEY, "response", "intermediate-bypass");
-  } else if (!listeners.length && !props.requests.length) {
-    addEdge("ingress", "response");
+  if (!listeners.length && !props.requests.length) {
+    const policyPath = [
+      showWafNode ? WAF_KEY : "",
+      showRateLimitNode ? RATE_LIMIT_KEY : "",
+      showTrafficShaperNode ? TRAFFIC_SHAPER_KEY : "",
+    ].filter(Boolean);
+    if (policyPath.length) {
+      addEdge("ingress", policyPath[0]);
+      for (let index = 0; index < policyPath.length - 1; index += 1) {
+        addEdge(policyPath[index], policyPath[index + 1]);
+      }
+      addEdge(policyPath[policyPath.length - 1], "response", "intermediate-bypass");
+    } else {
+      addEdge("ingress", "response");
+    }
   }
 
   const byColumn = new Map<number, Omit<DiagramNode, "x" | "y">[]>();
@@ -1128,12 +1150,25 @@ function addObservedNodes(
   addNode: (node: DiagramNodeInput) => void,
 ) {
   const index = configIndex.value;
+  if (requestUsesWafNode(request, index)) {
+    addNode({
+      key: WAF_KEY,
+      label: "WAF",
+      subLabel: request.wafRuleName || "Observed",
+      column: 2,
+      kind: "waf",
+      editTargets: request.wafRuleId > 0n
+        ? [wafEditTarget(request.wafRuleId, request.wafRuleName || `WAF ${request.wafRuleId.toString()}`, "Observed")]
+        : index.enabledWafTargets,
+    });
+  }
+
   if (requestUsesRateLimitNode(request, index)) {
     addNode({
       key: RATE_LIMIT_KEY,
       label: "Rate limit",
       subLabel: request.rateLimitRuleName || "Observed",
-      column: 2,
+      column: 3,
       kind: "rate-limit",
       editTargets: index.enabledRateLimitTargets,
     });
@@ -1144,7 +1179,7 @@ function addObservedNodes(
       key: TRAFFIC_SHAPER_KEY,
       label: "Traffic shaper",
       subLabel: request.trafficShaperRuleName || "Observed",
-      column: 3,
+      column: 4,
       kind: "traffic-shaper",
       editTargets: request.trafficShaperRuleId > 0n
         ? [trafficShaperEditTarget(request.trafficShaperRuleId, request.trafficShaperRuleName || `Traffic shaper ${request.trafficShaperRuleId.toString()}`, "Observed")]
@@ -1168,7 +1203,7 @@ function addObservedNodes(
       key: routeKey(request.routeId),
       label: request.routeLabel || `Route ${request.routeId.toString()}`,
       subLabel: "Observed",
-      column: 4,
+      column: 5,
       kind: "route",
       editTargets: [routeEditTargetByID(request.routeId, request.routeLabel || `Route ${request.routeId.toString()}`, "Observed")],
     });
@@ -1181,7 +1216,7 @@ function addObservedNodes(
       key: DEFAULT_ROUTE_KEY,
       label: "Default route",
       subLabel: "Observed fallback",
-      column: 4,
+      column: 5,
       kind: "route",
       editTargets: request.listenerId > 0n
         ? [listenerEditTarget(request.listenerId, request.listenerName || `Listener ${request.listenerId.toString()}`, "Default backend")]
@@ -1194,7 +1229,7 @@ function addObservedNodes(
       key: backendKey(request.backendId),
       label: request.backendName || `Backend ${request.backendId.toString()}`,
       subLabel: backendTypeLabel(request),
-      column: 5,
+      column: 6,
       kind: "backend",
       editTargets: [backendEditTarget(request.backendId, request.backendName || `Backend ${request.backendId.toString()}`, backendTypeLabel(request))],
     });
@@ -1212,7 +1247,7 @@ function addObservedNodes(
       key: agentKey(request.agentId),
       label: request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`,
       subLabel: request.agentPublicId || "Observed",
-      column: 6,
+      column: 7,
       kind: "agent",
       agentStatus: agentNodeStatus(agent),
       editTargets: [agentEditTarget(request.agentId, request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`, request.agentPublicId || "Observed")],
@@ -1222,11 +1257,11 @@ function addObservedNodes(
 }
 
 function addStaticNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
-  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 7, kind: "upstream", editTargets: target ? [target] : [] });
+  addNode({ key: "static-response", label: "Static", subLabel: "Generated", column: 8, kind: "upstream", editTargets: target ? [target] : [] });
 }
 
 function addUpstreamNode(addNode: (node: DiagramNodeInput) => void, target?: TrafficFlowEditTarget) {
-  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 7, kind: "upstream", editTargets: target ? [target] : [] });
+  addNode({ key: "upstream", label: "Upstream", subLabel: "Origin", column: 8, kind: "upstream", editTargets: target ? [target] : [] });
 }
 
 function addRedirectNode(route: PublicRoute, addNode: (node: DiagramNodeInput) => void) {
@@ -1234,7 +1269,7 @@ function addRedirectNode(route: PublicRoute, addNode: (node: DiagramNodeInput) =
     key: redirectKey(route.id),
     label: "Redirect",
     subLabel: redirectNodeSubLabel(route),
-    column: 5,
+    column: 6,
     kind: "redirect",
     editTargets: [routeEditTarget(route)],
   });
@@ -1321,14 +1356,15 @@ function kindOrder(kind: TrafficNodeKind): number {
   switch (kind) {
     case "ingress": return 0;
     case "listener": return 1;
-    case "rate-limit": return 2;
-    case "traffic-shaper": return 3;
-    case "route": return 4;
-    case "backend": return 5;
-    case "redirect": return 5;
-    case "agent": return 6;
-    case "upstream": return 7;
-    case "response": return 8;
+    case "waf": return 2;
+    case "rate-limit": return 3;
+    case "traffic-shaper": return 4;
+    case "route": return 5;
+    case "backend": return 6;
+    case "redirect": return 6;
+    case "agent": return 7;
+    case "upstream": return 8;
+    case "response": return 9;
     default: return 99;
   }
 }
@@ -1360,6 +1396,10 @@ function agentEditTarget(id: bigint | string | number, label: string, subLabel?:
 
 function trafficShaperEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
   return { kind: "traffic-shaper", id: id.toString(), label, subLabel };
+}
+
+function wafEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "waf", id: id.toString(), label, subLabel };
 }
 
 function backendTypeLabel(request: TraceRequest): string {

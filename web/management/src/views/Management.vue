@@ -30,6 +30,9 @@ import {
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
   PublicTrafficShaperBudgetScope,
+  PublicWafActivationMode,
+  PublicWafCaptchaProviderType,
+  PublicWafRuleAction,
   PublicAcmeCa,
   PublicAcmeChallengeType,
   PublicDnsProvider,
@@ -44,6 +47,8 @@ import {
   type PublicListener,
   type PublicListenerStatus,
   type PublicRateLimitRule,
+  type PublicWafCaptchaProvider,
+  type PublicWafRule,
   type PublicTrafficShaperRule,
   type PublicRoute,
   type PublicTlsCertificate,
@@ -80,6 +85,8 @@ const backendAgents = computed(() => config.value?.backendAgents ?? []);
 const routes = computed(() => config.value?.routes ?? []);
 const routeBackends = computed(() => config.value?.routeBackends ?? []);
 const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
+const wafRules = computed(() => config.value?.wafRules ?? []);
+const wafCaptchaProviders = computed(() => config.value?.wafCaptchaProviders ?? []);
 const trafficShaperRules = computed(() => config.value?.trafficShaperRules ?? []);
 const tlsCertificates = computed(() => config.value?.tlsCertificates ?? []);
 const tlsDnsCredentials = computed(() => config.value?.tlsDnsCredentials ?? []);
@@ -347,6 +354,59 @@ function rateLimitKeySourceLabel(source: PublicRateLimitKeySource): string {
   }
 }
 
+function wafActionLabel(action: PublicWafRuleAction): string {
+  switch (action) {
+    case PublicWafRuleAction.CAPTCHA: return "Captcha";
+    case PublicWafRuleAction.WAITING_ROOM: return "Waiting room";
+    default: return "Block";
+  }
+}
+
+function wafActivationLabel(mode: PublicWafActivationMode): string {
+  return mode === PublicWafActivationMode.AUTOMATIC ? "Automatic" : "Always";
+}
+
+function wafProviderLabel(type: PublicWafCaptchaProviderType): string {
+  switch (type) {
+    case PublicWafCaptchaProviderType.HCAPTCHA: return "hCaptcha";
+    case PublicWafCaptchaProviderType.RECAPTCHA_V2: return "reCAPTCHA v2";
+    default: return "Turnstile";
+  }
+}
+
+function wafRuleSummary(rule: PublicWafRule): string {
+  if (rule.action === PublicWafRuleAction.CAPTCHA) {
+    const provider = wafCaptchaProviders.value.find((item) => item.id === rule.captchaProviderId);
+    return `provider ${provider?.name ?? "missing"} / pass ${rateLimitWindowLabel(rule.captchaPassTtlMillis)}`;
+  }
+  if (rule.action === PublicWafRuleAction.WAITING_ROOM) {
+    const room = rule.waitingRoom;
+    return `capacity ${room?.maxAdmittedSessions?.toString() ?? "50"} / admit ${room?.admissionRatePerSecond?.toString() ?? "10"}/s`;
+  }
+  return `response ${rule.blockResponseStatusCode.toString()}`;
+}
+
+function wafRuleMatchSummary(rule: PublicWafRule): string {
+  const match = rule.match;
+  if (!match) return "Any request";
+  const parts: string[] = [];
+  if (match.methods.length) parts.push(match.methods.join(","));
+  if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
+  if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
+  if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
+  const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
+  if (matcherCount) parts.push(`${matcherCount} value matcher${matcherCount === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" / ") : "Any request";
+}
+
+function wafKeySummary(rule: PublicWafRule): string {
+  const parts = rule.keyParts.length ? rule.keyParts : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
+  return parts.map((part) => {
+    const label = rateLimitKeySourceLabel(part.source);
+    return part.name ? `${label}:${part.name}` : label;
+  }).join(" + ");
+}
+
 function trafficShaperScopeLabel(scope: PublicTrafficShaperBudgetScope): string {
   return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
 }
@@ -529,6 +589,22 @@ function editRateLimitRule(id: bigint) {
   editorHost.value?.openRateLimitRule(id);
 }
 
+function openAddWafRuleModal() {
+  editorHost.value?.openCreateWafRule();
+}
+
+function editWafRule(id: bigint) {
+  editorHost.value?.openWafRule(id);
+}
+
+function openAddWafCaptchaProviderModal() {
+  editorHost.value?.openCreateWafCaptchaProvider();
+}
+
+function editWafCaptchaProvider(provider: PublicWafCaptchaProvider) {
+  editorHost.value?.openWafCaptchaProvider(provider.id);
+}
+
 function openAddTrafficShaperRuleModal() {
   editorHost.value?.openCreateTrafficShaperRule();
 }
@@ -678,6 +754,20 @@ async function deleteRateLimitRule(id: bigint) {
   if (!await confirm("Delete Rate Limit Rule", "This rate-limit rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicRateLimitRule({ id });
+  });
+}
+
+async function deleteWafRule(id: bigint) {
+  if (!await confirm("Delete WAF Rule", "This WAF rule will be permanently removed.")) return;
+  await run(async () => {
+    await managementClient.deletePublicWafRule({ id });
+  });
+}
+
+async function deleteWafCaptchaProvider(id: bigint) {
+  if (!await confirm("Delete Captcha Provider", "This captcha provider will be permanently removed. Captcha rules using it must be updated first.")) return;
+  await run(async () => {
+    await managementClient.deletePublicWafCaptchaProvider({ id });
   });
 }
 
@@ -1009,6 +1099,73 @@ watch(tlsDnsCredentials, () => {
           description="Rate limits protect your backends from excessive traffic by throttling requests per client or route."
           action-label="Add Rule"
           @action="openAddRateLimitRuleModal"
+        />
+      </div>
+    </section>
+
+    <!-- WAF List -->
+    <section class="vercel-card overflow-hidden">
+      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">WAF</h4>
+          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Block, challenge, or queue matching application traffic before it reaches routes.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <SecondaryButton size="small" label="Add Provider" @click="openAddWafCaptchaProviderModal">
+            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          </SecondaryButton>
+          <SecondaryButton size="small" label="Add Rule" @click="openAddWafRuleModal">
+            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          </SecondaryButton>
+        </div>
+      </div>
+      <div class="divide-y divide-[#1f1f1f]">
+        <div v-for="provider in wafCaptchaProviders" :key="`provider-${provider.id.toString()}`" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+          <div class="min-w-0">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <p class="truncate text-sm font-medium text-white">{{ provider.name }}</p>
+              <Tag :value="wafProviderLabel(provider.providerType)" severity="info" />
+              <Tag :value="provider.secretKeySet ? 'Secret saved' : 'Secret missing'" :severity="provider.secretKeySet ? 'success' : 'danger'" />
+              <Tag v-if="!provider.enabled" value="Disabled" severity="warn" />
+            </div>
+            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ provider.siteKey }}</p>
+          </div>
+          <div class="flex gap-2 lg:justify-end">
+            <SecondaryButton size="small" aria-label="Edit captcha provider" title="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
+              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <DangerButton size="small" aria-label="Delete captcha provider" title="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            </DangerButton>
+          </div>
+        </div>
+        <div v-for="rule in wafRules" :key="`rule-${rule.id.toString()}`" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+          <div class="min-w-0">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <Tag :value="wafActionLabel(rule.action)" severity="info" />
+              <Tag :value="wafActivationLabel(rule.activationMode)" severity="info" />
+              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
+              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
+            </div>
+            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ wafRuleSummary(rule) }} / key {{ wafKeySummary(rule) }}</p>
+            <p class="mt-1 truncate text-xs text-[#666]">{{ wafRuleMatchSummary(rule) }}</p>
+          </div>
+          <div class="flex gap-2 lg:justify-end">
+            <SecondaryButton size="small" aria-label="Edit WAF rule" title="Edit WAF rule" @click="editWafRule(rule.id)">
+              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <DangerButton size="small" aria-label="Delete WAF rule" title="Delete WAF rule" @click="deleteWafRule(rule.id)">
+              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            </DangerButton>
+          </div>
+        </div>
+        <EmptyState
+          v-if="!wafRules.length && !wafCaptchaProviders.length"
+          title="No WAF policy configured"
+          description="WAF rules can block, challenge, or queue selected traffic before rate limits, shapers, routes, and backends."
+          action-label="Add Rule"
+          @action="openAddWafRuleModal"
         />
       </div>
     </section>

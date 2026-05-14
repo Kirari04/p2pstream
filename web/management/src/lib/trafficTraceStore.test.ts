@@ -248,6 +248,12 @@ function traceEvent(overrides: Partial<TrafficTraceEvent>): TrafficTraceEvent {
     trafficShaperDownloadBytesPerSecond: 0n,
     trafficShaperRequestExemptBytes: 0n,
     trafficShaperResponseExemptBytes: 0n,
+    wafRuleId: 0n,
+    wafRuleName: "",
+    wafAction: 0,
+    wafActivationMode: 0,
+    wafAutomaticActive: false,
+    wafChallengeKind: "",
     ...overrides,
   };
 }

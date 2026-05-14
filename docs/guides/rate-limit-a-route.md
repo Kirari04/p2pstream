@@ -6,7 +6,7 @@ Example: limit login attempts for one host and path.
 
 ## 1. Open rate limits
 
-Open **Management -> Rate Limits** and create a rule.
+Open **Management -> Traffic Policy -> Rate Limits** and create a rule.
 
 ## 2. Configure the match
 
