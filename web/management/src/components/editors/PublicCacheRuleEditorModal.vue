@@ -536,6 +536,15 @@ defineExpose({ openCreate, openEdit, close });
           <input v-model="form.enabled" type="checkbox" />
           Enabled
         </label>
+        <label class="sm:col-span-4 flex items-start gap-3 rounded-md border border-[#2f3f46] bg-[#071316] p-3 text-sm text-[#d4d4d8]">
+          <input v-model="form.allowCookieRequests" type="checkbox" class="mt-0.5" />
+          <span class="grid gap-1">
+            <span class="font-medium text-white">Cache requests with Cookie headers</span>
+            <span class="text-xs leading-5 text-[#8ba6ad]">
+              Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
+            </span>
+          </span>
+        </label>
       </section>
 
       <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
@@ -567,12 +576,8 @@ defineExpose({ openCreate, openEdit, close });
             <input v-model.number="form.maxObjectMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
           </label>
         </div>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="form.allowCookieRequests" type="checkbox" />
-          Cache requests with Cookie headers
-        </label>
         <p class="text-xs leading-5 text-[#777]">
-          Use only for public static asset rules. Cookie values are ignored and are not part of the cache key. Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored.
+          Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored, even when cookie requests are enabled above.
         </p>
       </section>
 
@@ -905,6 +910,7 @@ defineExpose({ openCreate, openEdit, close });
   height: 2.25rem;
   font-size: 0.8rem;
   letter-spacing: 0;
+  text-align: left;
   text-transform: none;
 }
 

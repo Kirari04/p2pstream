@@ -382,7 +382,7 @@ async function deleteTrafficShaperRule(id: bigint) {
               <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
               <Tag :value="cacheTtlModeLabel(rule.ttlMode)" severity="info" />
               <Tag :value="cacheScopeLabel(rule.scope)" severity="info" />
-              <Tag v-if="rule.allowCookieRequests" value="Cookie requests" severity="warn" />
+              <Tag :value="rule.allowCookieRequests ? 'Cookies allowed' : 'Cookies blocked'" :severity="rule.allowCookieRequests ? 'warn' : 'info'" />
               <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
               <Tag :value="`P${rule.priority.toString()}`" severity="info" />
             </div>
