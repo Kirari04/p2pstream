@@ -7,3 +7,4 @@ p2pstream-data/
 *-wal
 web/management/node_modules/
 web/management/dist/
+SECURITY_AUDIT.md
