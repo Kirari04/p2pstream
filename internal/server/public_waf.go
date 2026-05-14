@@ -160,14 +160,16 @@ type publicWafRuleMutationInput struct {
 }
 
 type publicWAF struct {
-	mu                  sync.Mutex
-	rules               map[int64]*publicWafRuleRuntime
-	cookieSecret        []byte
-	proxyActiveRequests atomic.Int64
-	captchaHTTPClient   *http.Client
-	cpuSampler          *sysmetrics.ProcessCPUSampler
-	lastCPUSampleAt     time.Time
-	lastCPUPercent      float64
+	mu                   sync.Mutex
+	rules                map[int64]*publicWafRuleRuntime
+	cookieSecret         []byte
+	proxyActiveRequests  atomic.Int64
+	captchaHTTPClient    *http.Client
+	captchaVerifyLimiter *publicWafCaptchaVerifyLimiter
+	captchaVerifySlots   chan struct{}
+	cpuSampler           *sysmetrics.ProcessCPUSampler
+	lastCPUSampleAt      time.Time
+	lastCPUPercent       float64
 }
 
 type publicWafRuleRuntime struct {
@@ -181,28 +183,32 @@ type publicWafRuleRuntime struct {
 }
 
 type publicWafDecision struct {
-	Rule             publicWafRuleConfig
-	Listener         publicListenerConfig
-	Action           string
-	StatusCode       int
-	ErrorKind        string
-	Body             string
-	ContentType      string
-	Headers          http.Header
-	RetryAfter       time.Duration
-	Cookies          []*http.Cookie
-	RedirectLocation string
-	AutomaticActive  bool
-	ChallengeKind    string
-	QueuePosition    int64
-	CaptchaProvider  publicWafCaptchaProviderConfig
+	Rule                  publicWafRuleConfig
+	Listener              publicListenerConfig
+	Action                string
+	StatusCode            int
+	ErrorKind             string
+	Body                  string
+	ContentType           string
+	Headers               http.Header
+	RetryAfter            time.Duration
+	Cookies               []*http.Cookie
+	RedirectLocation      string
+	AutomaticActive       bool
+	ChallengeKind         string
+	QueuePosition         int64
+	CaptchaProvider       publicWafCaptchaProviderConfig
+	CaptchaChallengeToken string
+	CaptchaReturnTo       string
 }
 
 func newPublicWAF() *publicWAF {
 	return &publicWAF{
-		rules:             make(map[int64]*publicWafRuleRuntime),
-		captchaHTTPClient: &http.Client{Timeout: publicWafChallengeTimeoutSeconds * time.Second},
-		cpuSampler:        sysmetrics.NewProcessCPUSampler(),
+		rules:                make(map[int64]*publicWafRuleRuntime),
+		captchaHTTPClient:    &http.Client{Timeout: publicWafChallengeTimeoutSeconds * time.Second},
+		captchaVerifyLimiter: newPublicWafCaptchaVerifyLimiter(),
+		captchaVerifySlots:   make(chan struct{}, publicWafCaptchaVerifyMaxConcurrentCalls),
+		cpuSampler:           sysmetrics.NewProcessCPUSampler(),
 	}
 }
 
@@ -308,15 +314,18 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 					ChallengeKind:   publicWafActionCaptcha,
 				}, false
 			}
+			returnTo := sanitizeWAFReturnTo(r.URL.RequestURI())
 			return publicWafDecision{
-				Rule:            rule,
-				Listener:        listener,
-				Action:          rule.Action,
-				StatusCode:      http.StatusForbidden,
-				ErrorKind:       "waf_captcha_required",
-				AutomaticActive: automaticActive,
-				ChallengeKind:   provider.ProviderType,
-				CaptchaProvider: provider,
+				Rule:                  rule,
+				Listener:              listener,
+				Action:                rule.Action,
+				StatusCode:            http.StatusForbidden,
+				ErrorKind:             "waf_captcha_required",
+				AutomaticActive:       automaticActive,
+				ChallengeKind:         provider.ProviderType,
+				CaptchaProvider:       provider,
+				CaptchaChallengeToken: w.signCaptchaChallenge(rule, listener, r, returnTo, now),
+				CaptchaReturnTo:       returnTo,
 			}, false
 		case publicWafActionWaitingRoom:
 			decision, allowed := runtime.waitingRoom.evaluateLocked(w, rule, listener, r, now, automaticActive)

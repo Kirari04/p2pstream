@@ -25,6 +25,28 @@ type publicWafCookiePayload struct {
 	OriginalPathKey string `json:"original_path_key,omitempty"`
 }
 
+type publicWafCaptchaChallengePayload struct {
+	RuleID          int64  `json:"rule_id"`
+	ListenerID      int64  `json:"listener_id"`
+	RuleFingerprint string `json:"rule_fingerprint"`
+	Host            string `json:"host"`
+	Method          string `json:"method"`
+	ReturnTo        string `json:"return_to"`
+	ExpiresUnixMs   int64  `json:"expires_unix_ms"`
+}
+
+const (
+	publicWafCaptchaVerifyMaxFormBytes       = 16 * 1024
+	publicWafCaptchaChallengeTTL             = 10 * time.Minute
+	publicWafCaptchaVerifyWindow             = time.Minute
+	publicWafCaptchaVerifyIPLimit            = 10
+	publicWafCaptchaVerifyRuleLimit          = 120
+	publicWafCaptchaVerifyMaxKeys            = 20000
+	publicWafCaptchaVerifyIdleTTL            = 15 * time.Minute
+	publicWafCaptchaVerifyPruneInterval      = time.Minute
+	publicWafCaptchaVerifyMaxConcurrentCalls = 32
+)
+
 var publicWafCaptchaVerifyEndpoints = map[string]string{
 	publicWafCaptchaProviderTurnstile: "https://challenges.cloudflare.com/turnstile/v0/siteverify",
 	publicWafCaptchaProviderHCaptcha:  "https://hcaptcha.com/siteverify",
@@ -61,12 +83,28 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return publicWafDecision{Action: publicWafActionCaptcha, StatusCode: http.StatusMethodNotAllowed, ErrorKind: "waf_captcha_method_not_allowed", ChallengeKind: publicWafActionCaptcha}
 	}
+	if a == nil || a.PublicWAF == nil {
+		http.Error(w, "captcha rule unavailable", http.StatusServiceUnavailable)
+		return publicWafDecision{Action: publicWafActionCaptcha, StatusCode: http.StatusServiceUnavailable, ErrorKind: "waf_captcha_provider_unavailable", ChallengeKind: publicWafActionCaptcha}
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, publicWafCaptchaVerifyMaxFormBytes)
 	if err := r.ParseForm(); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			http.Error(w, "captcha submission too large", http.StatusRequestEntityTooLarge)
+			return publicWafDecision{Action: publicWafActionCaptcha, StatusCode: http.StatusRequestEntityTooLarge, ErrorKind: "waf_captcha_form_too_large", ChallengeKind: publicWafActionCaptcha}
+		}
 		http.Error(w, "invalid captcha submission", http.StatusBadRequest)
 		return publicWafDecision{Action: publicWafActionCaptcha, StatusCode: http.StatusBadRequest, ErrorKind: "waf_captcha_invalid_form", ChallengeKind: publicWafActionCaptcha}
 	}
 	ruleID, _ := strconv.ParseInt(r.Form.Get("rule_id"), 10, 64)
 	returnTo := sanitizeWAFReturnTo(r.Form.Get("return_to"))
+	now := time.Now()
+	challenge, ok := a.PublicWAF.verifyCaptchaChallenge(strings.TrimSpace(r.Form.Get("captcha_challenge")), now)
+	if !ok || ruleID <= 0 || ruleID != challenge.RuleID || listenerID != challenge.ListenerID || returnTo != challenge.ReturnTo || publicWafChallengeRequestHost(r) != challenge.Host {
+		http.Error(w, "invalid captcha challenge", http.StatusBadRequest)
+		return publicWafDecision{Action: publicWafActionCaptcha, StatusCode: http.StatusBadRequest, ErrorKind: "waf_captcha_invalid_challenge", ChallengeKind: publicWafActionCaptcha}
+	}
 	token := strings.TrimSpace(r.Form.Get("cf-turnstile-response"))
 	if token == "" {
 		token = strings.TrimSpace(r.Form.Get("h-captcha-response"))
@@ -79,20 +117,49 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 		http.Error(w, "captcha rule unavailable", http.StatusServiceUnavailable)
 		return decision
 	}
+	if rule.Fingerprint != challenge.RuleFingerprint {
+		http.Error(w, "invalid captcha challenge", http.StatusBadRequest)
+		decision.StatusCode = http.StatusBadRequest
+		decision.ErrorKind = "waf_captcha_invalid_challenge"
+		return decision
+	}
 	decision.Action = publicWafActionCaptcha
 	decision.StatusCode = http.StatusForbidden
 	decision.ErrorKind = "waf_captcha_failed"
 	decision.ChallengeKind = provider.ProviderType
 	decision.CaptchaProvider = provider
+	decision.CaptchaReturnTo = returnTo
 	if token == "" {
-		writeCaptchaChallenge(w, r, publicWafDecision{Rule: rule, Listener: decision.Listener, Action: publicWafActionCaptcha, StatusCode: http.StatusForbidden, ErrorKind: "waf_captcha_required", ChallengeKind: provider.ProviderType, CaptchaProvider: provider})
+		decision.ErrorKind = "waf_captcha_required"
+		decision.CaptchaChallengeToken = a.PublicWAF.signCaptchaChallenge(rule, decision.Listener, r, returnTo, now)
+		writeCaptchaChallenge(w, r, decision)
 		return decision
 	}
-	if err := a.PublicWAF.verifyCaptcha(provider, token, remoteIPForRateLimit(r)); err != nil {
-		writeCaptchaChallenge(w, r, publicWafDecision{Rule: rule, Listener: decision.Listener, Action: publicWafActionCaptcha, StatusCode: http.StatusForbidden, ErrorKind: "waf_captcha_failed", ChallengeKind: provider.ProviderType, CaptchaProvider: provider})
+	remoteIP := remoteIPForRateLimit(r)
+	if a.PublicWAF.captchaVerifyLimiter != nil {
+		if retryAfter, allowed := a.PublicWAF.captchaVerifyLimiter.allow(listenerID, rule.ID, remoteIP, now); !allowed {
+			w.Header().Set("Retry-After", captchaRetryAfterSeconds(retryAfter))
+			http.Error(w, "captcha verification rate limit exceeded", http.StatusTooManyRequests)
+			decision.StatusCode = http.StatusTooManyRequests
+			decision.ErrorKind = "waf_captcha_rate_limited"
+			return decision
+		}
+	}
+	release, acquired := a.PublicWAF.tryAcquireCaptchaVerifySlot()
+	if !acquired {
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "captcha verification busy", http.StatusTooManyRequests)
+		decision.StatusCode = http.StatusTooManyRequests
+		decision.ErrorKind = "waf_captcha_busy"
 		return decision
 	}
-	cookie := a.PublicWAF.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, time.Now())
+	defer release()
+	if err := a.PublicWAF.verifyCaptcha(provider, token, remoteIP); err != nil {
+		decision.CaptchaChallengeToken = a.PublicWAF.signCaptchaChallenge(rule, decision.Listener, r, returnTo, now)
+		writeCaptchaChallenge(w, r, decision)
+		return decision
+	}
+	cookie := a.PublicWAF.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, now)
 	http.SetCookie(w, cookie)
 	http.Redirect(w, r, returnTo, http.StatusSeeOther)
 	decision.StatusCode = http.StatusSeeOther
@@ -175,6 +242,20 @@ func (w *publicWAF) verifyCaptcha(provider publicWafCaptchaProviderConfig, token
 	return nil
 }
 
+func (w *publicWAF) tryAcquireCaptchaVerifySlot() (func(), bool) {
+	if w == nil || w.captchaVerifySlots == nil {
+		return func() {}, true
+	}
+	select {
+	case w.captchaVerifySlots <- struct{}{}:
+		return func() {
+			<-w.captchaVerifySlots
+		}, true
+	default:
+		return nil, false
+	}
+}
+
 func writePublicWafResponse(w http.ResponseWriter, r *http.Request, decision publicWafDecision) {
 	for _, cookie := range decision.Cookies {
 		http.SetCookie(w, cookie)
@@ -218,12 +299,18 @@ func writeCaptchaChallenge(w http.ResponseWriter, r *http.Request, decision publ
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	returnTo := html.EscapeString(sanitizeWAFReturnTo(r.URL.RequestURI()))
+	returnToValue := decision.CaptchaReturnTo
+	if returnToValue == "" {
+		returnToValue = sanitizeWAFReturnTo(r.URL.RequestURI())
+	}
+	returnTo := html.EscapeString(sanitizeWAFReturnTo(returnToValue))
+	challengeToken := html.EscapeString(decision.CaptchaChallengeToken)
 	script, widgetClass, responseName := captchaWidgetParts(provider.ProviderType)
 	primaryHTML := fmt.Sprintf(`<script src="%s" async defer></script>
       <form class="cf-challenge-form" method="post" action="%s">
         <input type="hidden" name="rule_id" value="%d">
         <input type="hidden" name="return_to" value="%s">
+        <input type="hidden" name="captcha_challenge" value="%s">
         <div class="cf-widget %s" data-sitekey="%s"></div>
         <noscript><p class="cf-noscript">JavaScript is required for %s.</p></noscript>
         <button class="cf-button" type="submit">Continue</button>
@@ -232,6 +319,7 @@ func writeCaptchaChallenge(w http.ResponseWriter, r *http.Request, decision publ
 		html.EscapeString(publicWafCaptchaVerifyPath),
 		decision.Rule.ID,
 		returnTo,
+		challengeToken,
 		html.EscapeString(widgetClass),
 		html.EscapeString(provider.SiteKey),
 		html.EscapeString(responseName),
@@ -278,6 +366,78 @@ func sanitizeWAFReturnTo(value string) string {
 		return "/"
 	}
 	return parsed.RequestURI()
+}
+
+func publicWafChallengeRequestHost(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host := normalizeRequestHost(r.Host)
+	if host == "" && r.URL != nil {
+		host = normalizeRequestHost(r.URL.Host)
+	}
+	return host
+}
+
+func (w *publicWAF) signCaptchaChallenge(rule publicWafRuleConfig, listener publicListenerConfig, r *http.Request, returnTo string, now time.Time) string {
+	if w == nil || len(w.cookieSecret) == 0 {
+		return ""
+	}
+	method := ""
+	if r != nil {
+		method = strings.ToUpper(strings.TrimSpace(r.Method))
+	}
+	payload := publicWafCaptchaChallengePayload{
+		RuleID:          rule.ID,
+		ListenerID:      listener.ID,
+		RuleFingerprint: rule.Fingerprint,
+		Host:            publicWafChallengeRequestHost(r),
+		Method:          method,
+		ReturnTo:        sanitizeWAFReturnTo(returnTo),
+		ExpiresUnixMs:   now.Add(publicWafCaptchaChallengeTTL).UnixMilli(),
+	}
+	body, _ := json.Marshal(payload)
+	encoded := base64.RawURLEncoding.EncodeToString(body)
+	mac := hmac.New(sha256.New, w.cookieSecret)
+	mac.Write([]byte(encoded))
+	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return encoded + "." + signature
+}
+
+func (w *publicWAF) verifyCaptchaChallenge(value string, now time.Time) (publicWafCaptchaChallengePayload, bool) {
+	encoded, signature, ok := strings.Cut(value, ".")
+	if w == nil || !ok || encoded == "" || signature == "" || len(w.cookieSecret) == 0 {
+		return publicWafCaptchaChallengePayload{}, false
+	}
+	mac := hmac.New(sha256.New, w.cookieSecret)
+	mac.Write([]byte(encoded))
+	expected := mac.Sum(nil)
+	actual, err := base64.RawURLEncoding.DecodeString(signature)
+	if err != nil || !hmac.Equal(expected, actual) {
+		return publicWafCaptchaChallengePayload{}, false
+	}
+	body, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return publicWafCaptchaChallengePayload{}, false
+	}
+	var payload publicWafCaptchaChallengePayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return publicWafCaptchaChallengePayload{}, false
+	}
+	if payload.RuleID <= 0 || payload.ListenerID <= 0 || payload.RuleFingerprint == "" || payload.Method == "" || payload.ExpiresUnixMs <= now.UnixMilli() {
+		return publicWafCaptchaChallengePayload{}, false
+	}
+	if payload.ReturnTo == "" || payload.ReturnTo != sanitizeWAFReturnTo(payload.ReturnTo) {
+		return publicWafCaptchaChallengePayload{}, false
+	}
+	return payload, true
+}
+
+func captchaRetryAfterSeconds(d time.Duration) string {
+	if d <= time.Second {
+		return "1"
+	}
+	return strconv.FormatInt(int64((d+time.Second-time.Nanosecond)/time.Second), 10)
 }
 
 func (w *publicWAF) validRuleCookieLocked(r *http.Request, ruleID int64, kind string, now time.Time) bool {
