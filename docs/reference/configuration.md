@@ -4,9 +4,10 @@ p2pstream reads `.env` if present, then environment variables.
 
 ## Server variables
 
+Public proxy listener ports are stored in the database and managed through the management UI/API. A new database seeds HTTP `80` and HTTPS `443`. Docker host port publishing is controlled by Compose variables such as `P2PSTREAM_HTTP_PORT`.
+
 | Variable | Default | Description |
 | --- | --- | --- |
-| `PORT` | `80` | Legacy/default public HTTP port value. Public listeners are primarily configured in the management UI. |
 | `MANAGEMENT_PORT` | `8081` | Management UI/API port. |
 | `CONFIG_DIR` | `p2pstream-data` | Directory for default SQLite database and certificates. Docker sets this to `/data`. |
 | `DATABASE_URL` | `file:${CONFIG_DIR}/p2pstream.db?...` | SQLite DSN. Leave unset for the managed default. |

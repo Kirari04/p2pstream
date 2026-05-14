@@ -69,7 +69,6 @@ USER p2pstream:p2pstream
 ENV ENV=production
 ENV MANAGEMENT_UI_DIST_DIR=/app/web/management/dist
 ENV MANAGEMENT_PORT=8081
-ENV PORT=80
 ENV CONFIG_DIR=/data
 
 VOLUME /data

@@ -21,7 +21,6 @@ const (
 )
 
 type Config struct {
-	Port                        string `env:"PORT" envDefault:"80"`
 	ManagementPort              string `env:"MANAGEMENT_PORT" envDefault:"8081"`
 	ConfigDir                   string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
 	DatabaseURL                 string `env:"DATABASE_URL"`
@@ -37,7 +36,6 @@ type Config struct {
 	ManagementPublicURL         string `env:"MANAGEMENT_PUBLIC_URL"`
 	ManagementAdvertiseHost     string `env:"MANAGEMENT_ADVERTISE_HOST"`
 	ManagementTLSExtraHosts     string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
-	AgentToken                  string `env:"AGENT_TOKEN"`
 	BootstrapAgentID            string `env:"BOOTSTRAP_AGENT_ID"`
 	BootstrapAgentName          string `env:"BOOTSTRAP_AGENT_NAME"`
 	BootstrapAgentToken         string `env:"BOOTSTRAP_AGENT_TOKEN"`

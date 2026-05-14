@@ -41,7 +41,6 @@ The runtime image:
 - includes the built management UI,
 - sets `MANAGEMENT_UI_DIST_DIR=/app/web/management/dist`,
 - sets `MANAGEMENT_PORT=8081`,
-- sets `PORT=80`,
 - sets `CONFIG_DIR=/data`,
 - declares `/data` as a volume,
 - exposes `80`, `443`, and `8081`,
@@ -56,6 +55,8 @@ docker compose exec p2pstream p2pstream users reset-password admin
 ## Published ports
 
 The runtime image exposes `80`, `443`, and `8081`, but Docker only publishes what the Compose file maps.
+
+The application does not read a `PORT` environment variable; public listener ports are stored in the database, while Compose controls which container ports are published on the host.
 
 ```yaml
 ports:
