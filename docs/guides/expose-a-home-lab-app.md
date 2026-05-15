@@ -48,6 +48,8 @@ sudo systemctl status p2pstream-agent
 sudo journalctl -u p2pstream-agent -f
 ```
 
+To uninstall this shell-installed agent later, use the uninstall command from the Agents page or follow the [systemd uninstall steps](../operations/systemd.md#uninstall-agent). Full purge removes `/etc/p2pstream`, `/usr/local/bin/p2pstream`, and the `p2pstream` service user from that host.
+
 ## 3. Create an agent-pool backend
 
 Open **Proxy -> Backends**.

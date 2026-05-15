@@ -66,7 +66,12 @@ EnvironmentFile=/etc/p2pstream/agent.env
 ExecStart=/usr/local/bin/p2pstream agent
 Restart=always
 RestartSec=5s
-User=root
+User=p2pstream
+Group=p2pstream
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
 ```
 
 Operate it with:
@@ -78,3 +83,36 @@ sudo journalctl -u p2pstream-agent -f
 ```
 
 After rotating an agent token, update `/etc/p2pstream/agent.env` and restart the agent.
+
+## Uninstall agent
+
+Use this only for agents installed with the generated Linux systemd installer. Docker Compose agents should be removed with your Compose workflow instead.
+
+The full-purge uninstall removes the agent service, `/etc/p2pstream`, `/usr/local/bin/p2pstream`, and the `p2pstream` service user and group. Do not run it on a host where those paths or that user are shared with a p2pstream server or another install you want to keep.
+
+Generated command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/uninstall-agent.sh | sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash
+```
+
+Manual equivalent:
+
+```bash
+sudo systemctl disable --now p2pstream-agent || true
+sudo rm -f /etc/systemd/system/p2pstream-agent.service
+sudo systemctl daemon-reload
+sudo systemctl reset-failed p2pstream-agent || true
+sudo rm -rf /etc/p2pstream
+sudo rm -f /usr/local/bin/p2pstream
+sudo userdel p2pstream || true
+sudo groupdel p2pstream || true
+```
+
+Uninstalling the host service does not remove the management record. After the remote host is removed, delete or disable the agent from the Agents page.
+
+To preview the shell script actions without changing the host:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/uninstall-agent.sh | env P2PSTREAM_UNINSTALL_DRY_RUN=true P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash
+```

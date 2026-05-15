@@ -103,9 +103,91 @@ const activationOptions = [
   { label: "Always", value: PublicWafActivationMode.ALWAYS },
   { label: "Automatic", value: PublicWafActivationMode.AUTOMATIC },
 ];
+const automaticFlowSteps = [
+  {
+    label: "1. Match",
+    body: "Only requests that match this rule's method, host, path, header, cookie, and query filters are counted or challenged.",
+  },
+  {
+    label: "2. Measure",
+    body: "Matching requests update the rule's request-rate window. Proxy, backend, agent, and CPU pressure are checked at the same point.",
+  },
+  {
+    label: "3. Activate",
+    body: "Any enabled trigger can create pressure. Pressure must stay present for the minimum active time before the WAF action starts.",
+  },
+  {
+    label: "4. Cool down",
+    body: "After all pressure clears, the rule remains active for the quiet period, then matching requests pass normally again.",
+  },
+];
+const automaticRequestSignalHints = [
+  {
+    label: "Window seconds",
+    body: "Rolling window used by Min RPS and Spike x.",
+  },
+  {
+    label: "Min RPS",
+    body: "Matching requests per second inside the window. Set 0 to ignore this signal.",
+  },
+  {
+    label: "Spike x",
+    body: "Current matching RPS compared with the learned inactive baseline. Set 0 to ignore this signal.",
+  },
+];
+const automaticPressureSignalHints = [
+  {
+    label: "Proxy active",
+    body: "Total active public proxy requests. Set 0 to ignore this signal.",
+  },
+  {
+    label: "Backend active",
+    body: "Highest active request count on any backend. Set 0 to ignore this signal.",
+  },
+  {
+    label: "Agent active",
+    body: "Highest active request count on connected agents or latest agent stats. Set 0 to ignore this signal.",
+  },
+  {
+    label: "Server CPU %",
+    body: "Proxy server CPU pressure. Samples are cached briefly. Set 0 to ignore this signal.",
+  },
+  {
+    label: "Agent CPU %",
+    body: "Latest reported agent CPU pressure. Set 0 to ignore this signal.",
+  },
+];
+const automaticTimingHints = [
+  {
+    label: "Min active sec",
+    body: "Pressure must persist this long before the action begins. Use a positive value; 0 is treated as the server default.",
+  },
+  {
+    label: "Quiet sec",
+    body: "How long the action stays active after pressure clears. Use a positive value; 0 is treated as the server default.",
+  },
+];
 
 const enabledProviders = computed(() => providers.value.filter((provider) => provider.enabled));
 const selectedCaptchaProvider = computed(() => providers.value.find((provider) => provider.id.toString() === form.captchaProviderId) ?? null);
+const selectedActionDescription = computed(() => {
+  switch (form.action) {
+    case PublicWafRuleAction.CAPTCHA:
+      return "Challenges matching requests; successful clients receive a temporary pass cookie.";
+    case PublicWafRuleAction.WAITING_ROOM:
+      return "Queues matching clients and admits them gradually according to the waiting-room limits.";
+    default:
+      return "Returns the configured block response immediately.";
+  }
+});
+const selectedActivationTitle = computed(() => (
+  form.activationMode === PublicWafActivationMode.AUTOMATIC ? "Automatic mode" : "Always mode"
+));
+const selectedActivationDescription = computed(() => (
+  form.activationMode === PublicWafActivationMode.AUTOMATIC
+    ? "After match filters pass, requests are normally allowed while this rule is inactive. The rule starts applying the selected action only when pressure triggers stay active long enough."
+    : "After match filters pass, the selected action runs immediately on every matching request. Automatic trigger thresholds are ignored."
+));
 const submitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (!form.name.trim()) return "Enter a rule name.";
@@ -397,6 +479,7 @@ defineExpose({ openCreate, openEdit, close });
             {{ option.label }}
           </button>
         </div>
+        <p class="text-xs leading-5 text-[#888]">{{ selectedActionDescription }}</p>
         <div class="grid grid-cols-2 overflow-hidden rounded-md border border-[#333] bg-[#0b0b0b] p-1">
           <button
             v-for="option in activationOptions"
@@ -408,6 +491,13 @@ defineExpose({ openCreate, openEdit, close });
           >
             {{ option.label }}
           </button>
+        </div>
+        <div class="grid gap-1 border-l border-[#333] pl-3">
+          <p class="text-xs font-semibold text-[#d4d4d8]">{{ selectedActivationTitle }}</p>
+          <p class="text-xs leading-5 text-[#888]">{{ selectedActivationDescription }}</p>
+          <p class="text-xs leading-5 text-[#666]">
+            WAF runs before rate limits, traffic shaping, routing, cache, and backend forwarding. Lower priority numbers are evaluated first.
+          </p>
         </div>
       </section>
 
@@ -487,51 +577,93 @@ defineExpose({ openCreate, openEdit, close });
         </div>
       </section>
 
-      <section v-if="form.activationMode === PublicWafActivationMode.AUTOMATIC" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Automatic triggers</h4>
-        <div class="grid gap-4 sm:grid-cols-5">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Window seconds
-            <input v-model.number="form.triggerWindowSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Min RPS
-            <input v-model.number="form.triggerMinimumRps" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Spike x
-            <input v-model.number="form.triggerSpikeMultiplier" type="number" min="0" step="0.1" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Server CPU %
-            <input v-model.number="form.triggerServerCpu" type="number" min="0" max="100" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Agent CPU %
-            <input v-model.number="form.triggerAgentCpu" type="number" min="0" max="100" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
+      <section v-if="form.activationMode === PublicWafActivationMode.AUTOMATIC" class="grid gap-5 rounded-md border border-[#222] bg-[#050505] p-4">
+        <div class="grid gap-1">
+          <h4 class="text-sm font-semibold text-white">Automatic trigger behavior</h4>
+          <p class="text-xs leading-5 text-[#888]">
+            These settings decide when the selected WAF action temporarily turns on for matching traffic.
+            Trigger signals are combined as OR conditions: any enabled signal can create pressure.
+          </p>
         </div>
-        <div class="grid gap-4 sm:grid-cols-5">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Proxy active
-            <input v-model.number="form.triggerProxyActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Backend active
-            <input v-model.number="form.triggerBackendActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Agent active
-            <input v-model.number="form.triggerAgentActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Min active sec
-            <input v-model.number="form.triggerMinimumActiveSeconds" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Quiet sec
-            <input v-model.number="form.triggerQuietSeconds" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
+        <div class="grid gap-3 sm:grid-cols-4">
+          <div v-for="step in automaticFlowSteps" :key="step.label" class="border-l border-[#333] pl-3">
+            <p class="text-xs font-semibold text-[#d4d4d8]">{{ step.label }}</p>
+            <p class="mt-1 text-xs leading-5 text-[#888]">{{ step.body }}</p>
+          </div>
+        </div>
+        <div class="grid gap-3">
+          <div class="grid gap-1">
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">Request rate signals</h5>
+            <p class="text-xs leading-5 text-[#666]">These signals are based only on requests that match this WAF rule.</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-3">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticRequestSignalHints[0]?.label }}
+              <input v-model.number="form.triggerWindowSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticRequestSignalHints[0]?.body }}</p>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticRequestSignalHints[1]?.label }}
+              <input v-model.number="form.triggerMinimumRps" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticRequestSignalHints[1]?.body }}</p>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticRequestSignalHints[2]?.label }}
+              <input v-model.number="form.triggerSpikeMultiplier" type="number" min="0" step="0.1" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticRequestSignalHints[2]?.body }}</p>
+            </label>
+          </div>
+        </div>
+        <div class="grid gap-3">
+          <div class="grid gap-1">
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">System pressure signals</h5>
+            <p class="text-xs leading-5 text-[#666]">These signals reflect current load. They can activate the rule even when request rate is not high.</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-5">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticPressureSignalHints[0]?.label }}
+              <input v-model.number="form.triggerProxyActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[0]?.body }}</p>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticPressureSignalHints[1]?.label }}
+              <input v-model.number="form.triggerBackendActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[1]?.body }}</p>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticPressureSignalHints[2]?.label }}
+              <input v-model.number="form.triggerAgentActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[2]?.body }}</p>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticPressureSignalHints[3]?.label }}
+              <input v-model.number="form.triggerServerCpu" type="number" min="0" max="100" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[3]?.body }}</p>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticPressureSignalHints[4]?.label }}
+              <input v-model.number="form.triggerAgentCpu" type="number" min="0" max="100" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[4]?.body }}</p>
+            </label>
+          </div>
+        </div>
+        <div class="grid gap-3">
+          <div class="grid gap-1">
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">Activation timing</h5>
+            <p class="text-xs leading-5 text-[#666]">Timing controls prevent brief spikes from rapidly turning the rule on and off.</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticTimingHints[0]?.label }}
+              <input v-model.number="form.triggerMinimumActiveSeconds" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticTimingHints[0]?.body }}</p>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              {{ automaticTimingHints[1]?.label }}
+              <input v-model.number="form.triggerQuietSeconds" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticTimingHints[1]?.body }}</p>
+            </label>
+          </div>
         </div>
       </section>
 

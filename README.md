@@ -103,6 +103,8 @@ Create an agent in the management UI. The setup dialog gives you an `AGENT_ID` a
 
 Agents connect to `MANAGEMENT_PUBLIC_URL`, usually `https://your-server:8081`. If p2pstream generated the management TLS certificate, use the CA material from the setup dialog so the agent can verify management HTTPS.
 
+For shell-installed agents, uninstall and full-purge commands are documented in the [systemd operations guide](https://kirari04.github.io/p2pstream/operations/systemd#uninstall-agent).
+
 ## Local Development
 
 ```bash

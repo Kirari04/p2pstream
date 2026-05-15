@@ -5,6 +5,7 @@ import {
   dockerImageForRepository,
   isValidRepository,
   linuxInstallSnippet,
+  linuxUninstallSnippet,
   normalizeRepository,
   shellQuote,
   yamlQuote,
@@ -47,6 +48,7 @@ describe("agentSetupSnippets", () => {
       expect(isValidRepository(repository)).toBe(false);
       expect(() => normalizeRepository(repository)).toThrow("GitHub repository must use owner/repo");
       expect(() => linuxInstallSnippet({ ...baseInput, repository })).toThrow("GitHub repository must use owner/repo");
+      expect(() => linuxUninstallSnippet({ repository })).toThrow("GitHub repository must use owner/repo");
     }
   });
 
@@ -64,6 +66,23 @@ describe("agentSetupSnippets", () => {
     expect(snippet).toContain("AGENT_TOKEN='token'\\''value'");
     expect(snippet).toContain("P2PSTREAM_REPOSITORY='ExampleUser/p2pstream'");
     expect(snippet).not.toContain("\n");
+  });
+
+  test("builds Linux uninstall snippet with default repository", () => {
+    const snippet = linuxUninstallSnippet({ repository: "" });
+
+    expect(snippet).toBe("curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/uninstall-agent.sh | sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash");
+    expect(snippet).not.toContain("\n");
+  });
+
+  test("builds Linux uninstall snippet with normalized repository and no agent secrets", () => {
+    const snippet = linuxUninstallSnippet({ repository: "https://github.com/ExampleUser/p2pstream.git" });
+
+    expect(snippet).toContain("curl -fsSL https://raw.githubusercontent.com/ExampleUser/p2pstream/main/scripts/uninstall-agent.sh");
+    expect(snippet).toContain("sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash");
+    expect(snippet).not.toContain("AGENT_TOKEN");
+    expect(snippet).not.toContain("AGENT_ID");
+    expect(snippet).not.toContain("MANAGEMENT_URL");
   });
 
   test("adds TLS variables only when enabled", () => {

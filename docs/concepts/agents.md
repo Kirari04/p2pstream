@@ -27,6 +27,14 @@ The Agent Setup dialog can generate:
 
 The installer downloads the release binary, verifies the checksum, writes `/etc/p2pstream/agent.env`, and enables `p2pstream-agent.service`.
 
+## Rotation, deletion, and uninstall
+
+Token rotation revokes the active connection and issues a new secret for the same registered agent.
+
+Deleting an agent from the management UI removes the registry entry and backend assignments, but it does not log in to the remote host or remove files there.
+
+To remove a shell-installed Linux agent from its host, use the uninstall command from the Agents page or follow the [systemd uninstall steps](../operations/systemd.md#uninstall-agent). The full-purge uninstall removes the service, config directory, binary, and service user from that host.
+
 ## TLS trust
 
 For auto-generated management TLS, pass one of:

@@ -52,6 +52,11 @@ export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
   return `curl -fsSL https://raw.githubusercontent.com/${repository}/main/scripts/install-agent.sh | sudo env ${parts.join(" ")} bash`;
 }
 
+export function linuxUninstallSnippet(input: Pick<AgentSetupSnippetInput, "repository">): string {
+  const repository = normalizeRepository(input.repository);
+  return `curl -fsSL https://raw.githubusercontent.com/${repository}/main/scripts/uninstall-agent.sh | sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash`;
+}
+
 export function dockerComposeSnippet(input: AgentSetupSnippetInput): string {
   const image = input.dockerImage?.trim() || dockerImageForRepository(input.repository);
   return `services:

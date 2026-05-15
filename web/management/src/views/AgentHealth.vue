@@ -6,6 +6,7 @@ import CheckIcon from "@primevue/icons/check";
 import PencilIcon from "@primevue/icons/pencil";
 import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
+import TimesCircleIcon from "@primevue/icons/timescircle";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -19,6 +20,7 @@ import {
   dockerComposeSnippet as buildDockerComposeSnippet,
   dockerImageForRepository,
   linuxInstallSnippet,
+  linuxUninstallSnippet,
   normalizeManagementUrl as normalizeSetupManagementUrl,
 } from "@/lib/agentSetupSnippets";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -62,7 +64,11 @@ const setupDockerImage = ref(dockerImageForRepository(setupReleaseRepository.val
 const setupDockerImageTouched = ref(false);
 const setupTab = ref<"install" | "docker" | "cli">("install");
 const setupCopyLabel = ref("Copy");
+const uninstallAgent = ref<Agent | null>(null);
+const uninstallReleaseRepository = ref(defaultReleaseRepository());
+const uninstallCopyLabel = ref("Copy");
 let setupCopyReset: number | undefined;
+let uninstallCopyReset: number | undefined;
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
@@ -84,6 +90,18 @@ const setupSnippetError = computed(() => {
 const setupSnippet = computed(() => {
   if (setupSnippetError.value) return "";
   return buildSetupSnippet();
+});
+const uninstallSnippetError = computed(() => {
+  try {
+    buildUninstallSnippet();
+    return "";
+  } catch (err) {
+    return err instanceof Error ? err.message : "Agent uninstall values are invalid.";
+  }
+});
+const uninstallSnippet = computed(() => {
+  if (uninstallSnippetError.value) return "";
+  return buildUninstallSnippet();
 });
 
 function buildSetupSnippet(): string {
@@ -120,6 +138,17 @@ function openAddAgentModal() {
 
 function editAgent(agent: Agent) {
   agentEditor.value?.openEdit(agent.id);
+}
+
+function openUninstallModal(agent: Agent) {
+  uninstallAgent.value = agent;
+  uninstallReleaseRepository.value = defaultReleaseRepository();
+  uninstallCopyLabel.value = "Copy";
+}
+
+function closeUninstallModal() {
+  uninstallAgent.value = null;
+  uninstallCopyLabel.value = "Copy";
 }
 
 function deleteAgentDisabledReason(agent: Agent): string {
@@ -231,6 +260,10 @@ function cliSnippet(): string {
   return buildCliSnippet(setupSnippetInput());
 }
 
+function buildUninstallSnippet(): string {
+  return linuxUninstallSnippet({ repository: uninstallReleaseRepository.value });
+}
+
 function setupSnippetInput() {
   return {
     managementUrl: normalizedManagementUrl.value,
@@ -265,6 +298,25 @@ async function copySetupSnippet() {
   }
   setupCopyReset = window.setTimeout(() => {
     setupCopyLabel.value = "Copy";
+  }, 1500);
+}
+
+async function copyUninstallSnippet() {
+  if (uninstallSnippetError.value) {
+    uninstallCopyLabel.value = "Invalid";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(uninstallSnippet.value);
+    uninstallCopyLabel.value = "Copied";
+  } catch {
+    uninstallCopyLabel.value = "Select text";
+  }
+  if (uninstallCopyReset !== undefined) {
+    window.clearTimeout(uninstallCopyReset);
+  }
+  uninstallCopyReset = window.setTimeout(() => {
+    uninstallCopyLabel.value = "Copy";
   }, 1500);
 }
 </script>
@@ -370,6 +422,9 @@ async function copySetupSnippet() {
                       <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
                     </SecondaryButton>
                   </DisabledHint>
+                  <SecondaryButton size="small" aria-label="Show uninstall command" title="Show uninstall command" @click="openUninstallModal(agent)">
+                    <template #icon><TimesCircleIcon class="h-3.5 w-3.5" /></template>
+                  </SecondaryButton>
                   <DisabledHint :disabled="Boolean(deleteAgentDisabledReason(agent))" :reason="deleteAgentDisabledReason(agent)">
                     <DangerButton size="small" aria-label="Delete agent" title="Delete agent" :disabled="Boolean(deleteAgentDisabledReason(agent))" @click="deleteAgent(agent)">
                       <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
@@ -442,6 +497,44 @@ async function copySetupSnippet() {
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
             <DangerButton type="button" label="Rotate Token" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken" />
           </DisabledHint>
+        </div>
+      </div>
+    </Modal>
+
+    <Modal :model-value="Boolean(uninstallAgent)" title="Agent Uninstall" max-width="46rem" @update:model-value="closeUninstallModal">
+      <div v-if="uninstallAgent" class="grid gap-5">
+        <div class="grid gap-3 md:grid-cols-2">
+          <div class="grid gap-1.5">
+            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent</span>
+            <span class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-sm text-white">{{ uninstallAgent.name }}</span>
+          </div>
+          <div class="grid gap-1.5">
+            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent ID</span>
+            <code class="overflow-x-auto rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 font-mono text-xs text-white">{{ uninstallAgent.publicId }}</code>
+          </div>
+        </div>
+
+        <div class="rounded-md border border-[#5f3b1d] bg-[#160d05] p-3 text-xs leading-5 text-[#f5c28b]">
+          <p class="font-semibold uppercase tracking-wider">Remote host full purge</p>
+          <p class="mt-1 text-[#c79866]">
+            Run this command on the Linux host where the shell installer was used. It stops and removes the systemd service, deletes the config directory and binary, and removes the p2pstream service user and group.
+          </p>
+          <p class="mt-2 text-[#c79866]">
+            This does not delete the management agent record. Delete or disable the agent here after the host is removed.
+          </p>
+        </div>
+
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          GitHub Repository
+          <input v-model="uninstallReleaseRepository" class="vercel-input text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+        </label>
+
+        <p v-if="uninstallSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ uninstallSnippetError }}</p>
+        <pre v-else class="max-h-[260px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ uninstallSnippet }}</code></pre>
+
+        <div class="flex justify-end gap-3">
+          <SecondaryButton type="button" :label="uninstallCopyLabel" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet" />
+          <Button label="Done" @click="closeUninstallModal" />
         </div>
       </div>
     </Modal>
