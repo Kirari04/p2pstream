@@ -5,6 +5,7 @@ import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { suggestBackendCloneName } from "@/lib/publicBackendClone";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
@@ -21,6 +22,7 @@ type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type StaticHeaderForm = { name: string; value: string };
 type UpstreamHeaderForm = { id: string; name: string; value: string; sensitive: boolean };
 type BackendAgentForm = { agentId: string; weight: number; enabled: boolean };
+type BackendFormMode = "create" | "edit" | "clone";
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -34,6 +36,8 @@ const runManagementAction = inject<Runner>("runManagementAction");
 const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
+const backendFormMode = ref<BackendFormMode>("create");
+const cloneOmittedSecretSummary = ref("");
 const backends = computed(() => props.config?.backends ?? []);
 const agents = computed(() => props.config?.agents ?? []);
 const backendAgents = computed(() => props.config?.backendAgents ?? []);
@@ -47,11 +51,11 @@ const backendForm = reactive({
   targetOrigin: "",
   tlsVerify: true,
   upstreamBasicAuthEnabled: false,
-	  upstreamBasicAuthUsername: "",
-	  upstreamBasicAuthPassword: "",
-	  upstreamBasicAuthPasswordSaved: false,
-	  upstreamResponseHeaderTimeoutMillis: 60000,
-	  upstreamRequestHeaders: [] as UpstreamHeaderForm[],
+  upstreamBasicAuthUsername: "",
+  upstreamBasicAuthPassword: "",
+  upstreamBasicAuthPasswordSaved: false,
+  upstreamResponseHeaderTimeoutMillis: 60000,
+  upstreamRequestHeaders: [] as UpstreamHeaderForm[],
   healthCheckEnabled: false,
   healthCheckMethod: "GET",
   healthCheckPath: "/",
@@ -68,6 +72,16 @@ const backendForm = reactive({
   enabled: true,
 });
 
+const modalTitle = computed(() => (
+  backendFormMode.value === "edit" ? "Edit Backend" :
+    backendFormMode.value === "clone" ? "Clone Backend" :
+      "Add Backend"
+));
+const submitLabel = computed(() => (
+  backendFormMode.value === "edit" ? "Save Changes" :
+    backendFormMode.value === "clone" ? "Create Clone" :
+      "Create Backend"
+));
 const backendSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (backendForm.backendType !== PublicBackendType.PROXY_FORWARD) return "";
@@ -89,6 +103,7 @@ function assignmentsForBackend(backend: PublicBackend) {
 }
 
 function resetForm() {
+  cloneOmittedSecretSummary.value = "";
   backendForm.id = "";
   backendForm.name = "";
   backendForm.backendType = PublicBackendType.PROXY_FORWARD;
@@ -97,11 +112,11 @@ function resetForm() {
   backendForm.targetOrigin = "";
   backendForm.tlsVerify = true;
   backendForm.upstreamBasicAuthEnabled = false;
-	  backendForm.upstreamBasicAuthUsername = "";
-	  backendForm.upstreamBasicAuthPassword = "";
-	  backendForm.upstreamBasicAuthPasswordSaved = false;
-	  backendForm.upstreamResponseHeaderTimeoutMillis = 60000;
-	  backendForm.upstreamRequestHeaders = [];
+  backendForm.upstreamBasicAuthUsername = "";
+  backendForm.upstreamBasicAuthPassword = "";
+  backendForm.upstreamBasicAuthPasswordSaved = false;
+  backendForm.upstreamResponseHeaderTimeoutMillis = 60000;
+  backendForm.upstreamRequestHeaders = [];
   backendForm.healthCheckEnabled = false;
   backendForm.healthCheckMethod = "GET";
   backendForm.healthCheckPath = "/";
@@ -120,31 +135,44 @@ function resetForm() {
 
 function openCreate() {
   resetForm();
+  backendFormMode.value = "create";
   isOpen.value = true;
 }
 
-function openEdit(backendId: bigint | string) {
-  const id = backendId.toString();
-  const backend = backends.value.find((item) => item.id.toString() === id);
-  if (!backend) return;
-  backendForm.id = backend.id.toString();
-  backendForm.name = backend.name;
+function populateBackendForm(backend: PublicBackend, mode: "edit" | "clone") {
+  const clone = mode === "clone";
+  resetForm();
+  backendFormMode.value = mode;
+  backendForm.id = clone ? "" : backend.id.toString();
+  backendForm.name = clone ? suggestBackendCloneName(backend.name, backends.value.map((item) => item.name)) : backend.name;
   backendForm.backendType = backend.backendType || PublicBackendType.PROXY_FORWARD;
   backendForm.forwardMode = backend.forwardMode || PublicBackendForwardMode.DIRECT;
   backendForm.loadBalancing = backend.loadBalancing || PublicBackendLoadBalancing.ROUND_ROBIN;
   backendForm.targetOrigin = backend.targetOrigin;
   backendForm.tlsVerify = !backend.tlsSkipVerify;
-  backendForm.upstreamBasicAuthEnabled = backend.upstreamBasicAuth?.enabled ?? false;
-	  backendForm.upstreamBasicAuthUsername = backend.upstreamBasicAuth?.username ?? "";
-	  backendForm.upstreamBasicAuthPassword = "";
-	  backendForm.upstreamBasicAuthPasswordSaved = backend.upstreamBasicAuth?.passwordSet ?? false;
-	  backendForm.upstreamResponseHeaderTimeoutMillis = Number(backend.upstreamResponseHeaderTimeoutMillis || 60000n);
-	  backendForm.upstreamRequestHeaders = backend.upstreamRequestHeaders.map((header) => ({
-    id: header.id.toString(),
-    name: header.name,
-    value: header.sensitive ? "" : header.value,
-    sensitive: header.sensitive,
-  }));
+  if (clone) {
+    backendForm.upstreamBasicAuthEnabled = false;
+    backendForm.upstreamBasicAuthUsername = "";
+    backendForm.upstreamBasicAuthPassword = "";
+    backendForm.upstreamBasicAuthPasswordSaved = false;
+    cloneOmittedSecretSummary.value = (backend.upstreamBasicAuth?.enabled || backend.upstreamRequestHeaders.some((header) => header.sensitive))
+      ? "Stored upstream credentials were not copied to this clone."
+      : "";
+  } else {
+    backendForm.upstreamBasicAuthEnabled = backend.upstreamBasicAuth?.enabled ?? false;
+    backendForm.upstreamBasicAuthUsername = backend.upstreamBasicAuth?.username ?? "";
+    backendForm.upstreamBasicAuthPassword = "";
+    backendForm.upstreamBasicAuthPasswordSaved = backend.upstreamBasicAuth?.passwordSet ?? false;
+  }
+  backendForm.upstreamResponseHeaderTimeoutMillis = Number(backend.upstreamResponseHeaderTimeoutMillis || 60000n);
+  backendForm.upstreamRequestHeaders = backend.upstreamRequestHeaders
+    .filter((header) => !clone || !header.sensitive)
+    .map((header) => ({
+      id: clone ? "" : header.id.toString(),
+      name: header.name,
+      value: header.sensitive ? "" : header.value,
+      sensitive: header.sensitive,
+    }));
   backendForm.healthCheckEnabled = backend.healthCheck?.enabled ?? false;
   backendForm.healthCheckMethod = backend.healthCheck?.method || "GET";
   backendForm.healthCheckPath = backend.healthCheck?.path || "/";
@@ -167,6 +195,20 @@ function openEdit(backendId: bigint | string) {
   backendForm.staticResponseBody = backend.staticResponseBody;
   backendForm.enabled = backend.enabled;
   isOpen.value = true;
+}
+
+function openEdit(backendId: bigint | string) {
+  const id = backendId.toString();
+  const backend = backends.value.find((item) => item.id.toString() === id);
+  if (!backend) return;
+  populateBackendForm(backend, "edit");
+}
+
+function openClone(backendId: bigint | string) {
+  const id = backendId.toString();
+  const backend = backends.value.find((item) => item.id.toString() === id);
+  if (!backend) return;
+  populateBackendForm(backend, "clone");
 }
 
 function close() {
@@ -225,9 +267,9 @@ async function submitBackend() {
           enabled: assignment.enabled,
         }))
         : [],
-	      tlsSkipVerify: !isStatic && !backendForm.tlsVerify,
-	      upstreamResponseHeaderTimeoutMillis: BigInt(isStatic ? 60000 : backendForm.upstreamResponseHeaderTimeoutMillis || 60000),
-	      upstreamRequestHeaders: isStatic
+      tlsSkipVerify: !isStatic && !backendForm.tlsVerify,
+      upstreamResponseHeaderTimeoutMillis: BigInt(isStatic ? 60000 : backendForm.upstreamResponseHeaderTimeoutMillis || 60000),
+      upstreamRequestHeaders: isStatic
         ? []
         : backendForm.upstreamRequestHeaders.map((header, index) => ({
           id: BigInt(header.id || "0"),
@@ -284,16 +326,22 @@ async function submitBackend() {
   }
 }
 
-defineExpose({ openCreate, openEdit, close });
+defineExpose({ openCreate, openEdit, openClone, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="backendForm.id ? 'Edit Backend' : 'Add Backend'" max-width="36rem">
+  <Modal v-model="isOpen" :title="modalTitle" max-width="36rem">
     <form @submit.prevent="submitBackend" class="grid gap-4">
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Name
         <input v-model="backendForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
       </label>
+      <p
+        v-if="backendFormMode === 'clone' && cloneOmittedSecretSummary"
+        class="rounded-md border border-[#3f3220] bg-[#171108] px-3 py-2 text-xs font-normal normal-case tracking-normal text-[#d6a85f]"
+      >
+        {{ cloneOmittedSecretSummary }}
+      </p>
       <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Type
         <div class="grid grid-cols-2 rounded-md border border-[#333] bg-[#0b0b0b] p-1">
@@ -522,7 +570,7 @@ defineExpose({ openCreate, openEdit, close });
       <div class="mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
         <DisabledHint :disabled="Boolean(backendSubmitDisabledReason)" :reason="backendSubmitDisabledReason">
-          <Button :label="backendForm.id ? 'Save Changes' : 'Create Backend'" type="submit" :disabled="backendSubmitDisabled" />
+          <Button :label="submitLabel" type="submit" :disabled="backendSubmitDisabled" />
         </DisabledHint>
       </div>
     </form>

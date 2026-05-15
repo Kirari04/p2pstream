@@ -73,6 +73,10 @@ function openBackend(backendId: bigint | string) {
   backendEditor.value?.openEdit(backendId);
 }
 
+function openCloneBackend(backendId: bigint | string) {
+  backendEditor.value?.openClone(backendId);
+}
+
 function openAgent(agentId: bigint | string) {
   agentEditor.value?.openEdit(agentId);
 }
@@ -138,6 +142,7 @@ defineExpose({
   openListener,
   openRoute,
   openBackend,
+  openCloneBackend,
   openAgent,
   openRateLimitRule,
   openTrafficShaperRule,

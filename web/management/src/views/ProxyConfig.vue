@@ -7,6 +7,7 @@ import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
 import TimesIcon from "@primevue/icons/times";
 import TrashIcon from "@primevue/icons/trash";
+import WindowMaximizeIcon from "@primevue/icons/windowmaximize";
 import { managementClient } from "@/api/managementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -112,6 +113,10 @@ function openAddBackendModal() {
 
 function editBackend(backend: PublicBackend) {
   editorHost.value?.openBackend(backend.id);
+}
+
+function cloneBackend(backend: PublicBackend) {
+  editorHost.value?.openCloneBackend(backend.id);
 }
 
 function openAddRouteModal() {
@@ -352,6 +357,9 @@ async function deleteRoute(id: bigint) {
           <div class="flex gap-2">
             <SecondaryButton size="small" aria-label="Edit backend" title="Edit backend" @click="editBackend(backend)">
               <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <SecondaryButton size="small" aria-label="Clone backend" title="Clone backend" @click="cloneBackend(backend)">
+              <template #icon><WindowMaximizeIcon class="h-3.5 w-3.5" /></template>
             </SecondaryButton>
             <DangerButton size="small" aria-label="Delete backend" title="Delete backend" @click="deleteBackend(backend.id)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
