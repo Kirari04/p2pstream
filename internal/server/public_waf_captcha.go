@@ -380,7 +380,8 @@ func publicWafChallengeRequestHost(r *http.Request) string {
 }
 
 func (w *publicWAF) signCaptchaChallenge(rule publicWafRuleConfig, listener publicListenerConfig, r *http.Request, returnTo string, now time.Time) string {
-	if w == nil || len(w.cookieSecret) == 0 {
+	secret := w.loadCookieSecret()
+	if len(secret) == 0 {
 		return ""
 	}
 	method := ""
@@ -398,7 +399,7 @@ func (w *publicWAF) signCaptchaChallenge(rule publicWafRuleConfig, listener publ
 	}
 	body, _ := json.Marshal(payload)
 	encoded := base64.RawURLEncoding.EncodeToString(body)
-	mac := hmac.New(sha256.New, w.cookieSecret)
+	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(encoded))
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	return encoded + "." + signature
@@ -406,10 +407,11 @@ func (w *publicWAF) signCaptchaChallenge(rule publicWafRuleConfig, listener publ
 
 func (w *publicWAF) verifyCaptchaChallenge(value string, now time.Time) (publicWafCaptchaChallengePayload, bool) {
 	encoded, signature, ok := strings.Cut(value, ".")
-	if w == nil || !ok || encoded == "" || signature == "" || len(w.cookieSecret) == 0 {
+	secret := w.loadCookieSecret()
+	if !ok || encoded == "" || signature == "" || len(secret) == 0 {
 		return publicWafCaptchaChallengePayload{}, false
 	}
-	mac := hmac.New(sha256.New, w.cookieSecret)
+	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(encoded))
 	expected := mac.Sum(nil)
 	actual, err := base64.RawURLEncoding.DecodeString(signature)
@@ -480,9 +482,13 @@ func (w *publicWAF) signedRuleCookie(ruleID int64, kind string, sessionID string
 }
 
 func (w *publicWAF) signCookieValue(payload publicWafCookiePayload) string {
+	secret := w.loadCookieSecret()
+	if len(secret) == 0 {
+		return ""
+	}
 	body, _ := json.Marshal(payload)
 	encoded := base64.RawURLEncoding.EncodeToString(body)
-	mac := hmac.New(sha256.New, w.cookieSecret)
+	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(encoded))
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	return encoded + "." + signature
@@ -490,10 +496,11 @@ func (w *publicWAF) signCookieValue(payload publicWafCookiePayload) string {
 
 func (w *publicWAF) verifyCookieValueLocked(value string, now time.Time) (publicWafCookiePayload, bool) {
 	encoded, signature, ok := strings.Cut(value, ".")
-	if !ok || encoded == "" || signature == "" || len(w.cookieSecret) == 0 {
+	secret := w.loadCookieSecret()
+	if !ok || encoded == "" || signature == "" || len(secret) == 0 {
 		return publicWafCookiePayload{}, false
 	}
-	mac := hmac.New(sha256.New, w.cookieSecret)
+	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(encoded))
 	expected := mac.Sum(nil)
 	actual, err := base64.RawURLEncoding.DecodeString(signature)

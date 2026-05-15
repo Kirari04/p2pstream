@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -581,7 +582,7 @@ func TestPublicProxyCaptchaPassStillHitsRateLimit(t *testing.T) {
 
 func TestPublicWafSignedCookiesRejectExpiredAndForgedValues(t *testing.T) {
 	waf := newPublicWAF()
-	waf.cookieSecret = []byte("test-secret")
+	waf.storeCookieSecret([]byte("test-secret"))
 	now := time.Unix(100, 0)
 	cookie := waf.signedRuleCookie(7, publicWafCaptchaCookieKind, "", time.Minute, now, publicListenerConfig{Protocol: publicListenerProtocolHTTP}, nil)
 
@@ -603,6 +604,71 @@ func TestPublicWafSignedCookiesRejectExpiredAndForgedValues(t *testing.T) {
 	}
 	if waf.validRuleCookieLocked(req, 8, publicWafCaptchaCookieKind, now.Add(time.Second)) {
 		t.Fatal("cookie signed for another rule was accepted")
+	}
+}
+
+func TestPublicWafCookieSecretConcurrentReconcileAndSigning(t *testing.T) {
+	waf := newPublicWAF()
+	rule := testWafRule(1, publicWafActionCaptcha)
+	snap := testWafSnapshot(rule, map[int64]publicWafCaptchaProviderConfig{
+		1: {
+			ID:           1,
+			Name:         "turnstile",
+			ProviderType: publicWafCaptchaProviderTurnstile,
+			SiteKey:      "site",
+			SecretKey:    "secret",
+			Enabled:      true,
+		},
+	})
+	waf.reconcile(snap)
+	listener := snap.Listeners[1]
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/protected?x=1", nil)
+	returnTo := req.URL.RequestURI()
+
+	const iterations = 2000
+	errCh := make(chan string, 3)
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterations; i++ {
+			next := *snap
+			next.WafCookieSecret = []byte("test-secret-" + strconv.Itoa(i))
+			waf.reconcile(&next)
+		}
+	}()
+
+	signAndVerify := func() {
+		defer wg.Done()
+		for i := 0; i < iterations; i++ {
+			now := time.Unix(100, int64(i))
+			challenge := waf.signCaptchaChallenge(rule, listener, req, returnTo, now)
+			if challenge == "" {
+				errCh <- "empty captcha challenge"
+				return
+			}
+			waf.verifyCaptchaChallenge(challenge, now)
+
+			cookie := waf.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", time.Minute, now, listener, req)
+			if cookie == nil || cookie.Value == "" {
+				errCh <- "empty signed WAF cookie"
+				return
+			}
+			cookieReq := httptest.NewRequest(http.MethodGet, "http://example.com/protected?x=1", nil)
+			cookieReq.AddCookie(cookie)
+			waf.validRuleCookieLocked(cookieReq, rule.ID, publicWafCaptchaCookieKind, now)
+		}
+	}
+	go signAndVerify()
+	go signAndVerify()
+
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != "" {
+			t.Fatal(err)
+		}
 	}
 }
 

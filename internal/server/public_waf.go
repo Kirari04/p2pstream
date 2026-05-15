@@ -162,7 +162,7 @@ type publicWafRuleMutationInput struct {
 type publicWAF struct {
 	mu                   sync.Mutex
 	rules                map[int64]*publicWafRuleRuntime
-	cookieSecret         []byte
+	cookieSecret         atomic.Value // stores immutable []byte
 	proxyActiveRequests  atomic.Int64
 	captchaHTTPClient    *http.Client
 	captchaVerifyLimiter *publicWafCaptchaVerifyLimiter
@@ -212,6 +212,21 @@ func newPublicWAF() *publicWAF {
 	}
 }
 
+func (w *publicWAF) storeCookieSecret(secret []byte) {
+	if w == nil || len(secret) == 0 {
+		return
+	}
+	w.cookieSecret.Store(append([]byte(nil), secret...))
+}
+
+func (w *publicWAF) loadCookieSecret() []byte {
+	if w == nil {
+		return nil
+	}
+	secret, _ := w.cookieSecret.Load().([]byte)
+	return secret
+}
+
 func (w *publicWAF) beginProxyRequest() func() {
 	if w == nil {
 		return func() {}
@@ -238,7 +253,7 @@ func (w *publicWAF) reconcile(snap *publicProxySnapshot) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if snap != nil && len(snap.WafCookieSecret) > 0 {
-		w.cookieSecret = append(w.cookieSecret[:0], snap.WafCookieSecret...)
+		w.storeCookieSecret(snap.WafCookieSecret)
 	}
 	for id, runtime := range w.rules {
 		if fingerprint, ok := keep[id]; !ok || runtime.fingerprint != fingerprint {
