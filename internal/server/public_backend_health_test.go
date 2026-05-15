@@ -166,6 +166,63 @@ func TestDirectHealthTraceRecordsSuccessAndFailure(t *testing.T) {
 	}
 }
 
+func TestListHealthTracesReturnsDeepClonedTrace(t *testing.T) {
+	if cloneHealthTrace(nil) != nil {
+		t.Fatal("nil health trace clone should remain nil")
+	}
+	nilDebugClone := cloneHealthTrace(&p2pstreamv1.PublicBackendHealthTrace{Sequence: 1})
+	if nilDebugClone == nil {
+		t.Fatal("nil-debug health trace clone is nil")
+	}
+	if nilDebugClone.DebugAttributes != nil {
+		t.Fatalf("nil debug attributes clone = %+v, want nil", nilDebugClone.DebugAttributes)
+	}
+
+	backend := testHealthBackend(t, 105, publicBackendForwardModeDirect, "http://127.0.0.1:8888")
+	monitor := newPublicBackendHealthMonitor()
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+
+	attempt := newPublicBackendHealthCheckAttempt(backend)
+	attempt.StatusCode = http.StatusOK
+	finishPublicBackendHealthCheckAttempt(&attempt)
+	monitor.recordDirectExplicitCheck(backend.ID, attempt)
+
+	traces, retained := monitor.listHealthTraces(backend.ID, 0, 100, false)
+	if retained != 1 || len(traces) != 1 {
+		t.Fatalf("trace count = retained %d len %d, want 1", retained, len(traces))
+	}
+	if traces[0] == nil {
+		t.Fatal("returned trace is nil")
+	}
+	if traces[0].DebugAttributes == nil {
+		t.Fatal("returned trace debug attributes are nil")
+	}
+	if traces[0].ErrorKind != "success" {
+		t.Fatalf("returned trace error kind = %q, want success", traces[0].ErrorKind)
+	}
+	if traces[0].DebugAttributes["transport"] != "direct" {
+		t.Fatalf("returned trace transport = %q, want direct", traces[0].DebugAttributes["transport"])
+	}
+
+	traces[0].ErrorKind = "caller_mutated"
+	traces[0].DebugAttributes["transport"] = "caller_mutated"
+	traces[0].DebugAttributes["caller_added"] = "true"
+
+	traces, retained = monitor.listHealthTraces(backend.ID, 0, 100, false)
+	if retained != 1 || len(traces) != 1 {
+		t.Fatalf("trace count after mutation = retained %d len %d, want 1", retained, len(traces))
+	}
+	if traces[0].ErrorKind != "success" {
+		t.Fatalf("stored trace error kind = %q, want success", traces[0].ErrorKind)
+	}
+	if traces[0].DebugAttributes["transport"] != "direct" {
+		t.Fatalf("stored trace transport = %q, want direct", traces[0].DebugAttributes["transport"])
+	}
+	if _, ok := traces[0].DebugAttributes["caller_added"]; ok {
+		t.Fatalf("stored trace retained caller mutation: %+v", traces[0].DebugAttributes)
+	}
+}
+
 func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 102, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")

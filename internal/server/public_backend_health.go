@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/httpmsg"
@@ -1064,9 +1065,11 @@ func cloneHealthTrace(trace *p2pstreamv1.PublicBackendHealthTrace) *p2pstreamv1.
 	if trace == nil {
 		return nil
 	}
-	copyTrace := *trace
-	copyTrace.DebugAttributes = cloneStringMap(trace.DebugAttributes)
-	return &copyTrace
+	copyTrace, ok := proto.Clone(trace).(*p2pstreamv1.PublicBackendHealthTrace)
+	if !ok {
+		return &p2pstreamv1.PublicBackendHealthTrace{}
+	}
+	return copyTrace
 }
 
 func minInt64(a int64, b int64) int64 {
