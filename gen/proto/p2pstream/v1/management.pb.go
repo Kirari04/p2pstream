@@ -11255,6 +11255,13 @@ type DashboardWindowSummary struct {
 	ProxySlowRequests     int64                  `protobuf:"varint,26,opt,name=proxy_slow_requests,json=proxySlowRequests,proto3" json:"proxy_slow_requests,omitempty"`
 	AgentAvgCpuPercent    float64                `protobuf:"fixed64,27,opt,name=agent_avg_cpu_percent,json=agentAvgCpuPercent,proto3" json:"agent_avg_cpu_percent,omitempty"`
 	AgentMaxCpuPercent    float64                `protobuf:"fixed64,28,opt,name=agent_max_cpu_percent,json=agentMaxCpuPercent,proto3" json:"agent_max_cpu_percent,omitempty"`
+	ProxyCacheHits        int64                  `protobuf:"varint,29,opt,name=proxy_cache_hits,json=proxyCacheHits,proto3" json:"proxy_cache_hits,omitempty"`
+	ProxyCacheMisses      int64                  `protobuf:"varint,30,opt,name=proxy_cache_misses,json=proxyCacheMisses,proto3" json:"proxy_cache_misses,omitempty"`
+	ProxyCacheBypasses    int64                  `protobuf:"varint,31,opt,name=proxy_cache_bypasses,json=proxyCacheBypasses,proto3" json:"proxy_cache_bypasses,omitempty"`
+	ProxyCacheStored      int64                  `protobuf:"varint,32,opt,name=proxy_cache_stored,json=proxyCacheStored,proto3" json:"proxy_cache_stored,omitempty"`
+	ProxyCacheStoreFailed int64                  `protobuf:"varint,33,opt,name=proxy_cache_store_failed,json=proxyCacheStoreFailed,proto3" json:"proxy_cache_store_failed,omitempty"`
+	ProxyCacheHitBytes    uint64                 `protobuf:"varint,34,opt,name=proxy_cache_hit_bytes,json=proxyCacheHitBytes,proto3" json:"proxy_cache_hit_bytes,omitempty"`
+	ProxyCacheStoredBytes uint64                 `protobuf:"varint,35,opt,name=proxy_cache_stored_bytes,json=proxyCacheStoredBytes,proto3" json:"proxy_cache_stored_bytes,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -11481,6 +11488,55 @@ func (x *DashboardWindowSummary) GetAgentAvgCpuPercent() float64 {
 func (x *DashboardWindowSummary) GetAgentMaxCpuPercent() float64 {
 	if x != nil {
 		return x.AgentMaxCpuPercent
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyCacheHits() int64 {
+	if x != nil {
+		return x.ProxyCacheHits
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyCacheMisses() int64 {
+	if x != nil {
+		return x.ProxyCacheMisses
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyCacheBypasses() int64 {
+	if x != nil {
+		return x.ProxyCacheBypasses
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyCacheStored() int64 {
+	if x != nil {
+		return x.ProxyCacheStored
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyCacheStoreFailed() int64 {
+	if x != nil {
+		return x.ProxyCacheStoreFailed
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyCacheHitBytes() uint64 {
+	if x != nil {
+		return x.ProxyCacheHitBytes
+	}
+	return 0
+}
+
+func (x *DashboardWindowSummary) GetProxyCacheStoredBytes() uint64 {
+	if x != nil {
+		return x.ProxyCacheStoredBytes
 	}
 	return 0
 }
@@ -14322,8 +14378,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x18PurgePublicCacheResponse\x12%\n" +
 	"\x0epurged_entries\x18\x01 \x01(\x03R\rpurgedEntries\x12!\n" +
 	"\fpurged_bytes\x18\x02 \x01(\x03R\vpurgedBytes\"\x15\n" +
-	"\x13GetDashboardRequest\"\xc0\n" +
-	"\n" +
+	"\x13GetDashboardRequest\"\x9d\r\n" +
 	"\x16DashboardWindowSummary\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12*\n" +
 	"\x11since_unix_millis\x18\x02 \x01(\x03R\x0fsinceUnixMillis\x12%\n" +
@@ -14353,7 +14408,14 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x15proxy_max_duration_ms\x18\x19 \x01(\x03R\x12proxyMaxDurationMs\x12.\n" +
 	"\x13proxy_slow_requests\x18\x1a \x01(\x03R\x11proxySlowRequests\x121\n" +
 	"\x15agent_avg_cpu_percent\x18\x1b \x01(\x01R\x12agentAvgCpuPercent\x121\n" +
-	"\x15agent_max_cpu_percent\x18\x1c \x01(\x01R\x12agentMaxCpuPercent\"\xa2\x03\n" +
+	"\x15agent_max_cpu_percent\x18\x1c \x01(\x01R\x12agentMaxCpuPercent\x12(\n" +
+	"\x10proxy_cache_hits\x18\x1d \x01(\x03R\x0eproxyCacheHits\x12,\n" +
+	"\x12proxy_cache_misses\x18\x1e \x01(\x03R\x10proxyCacheMisses\x120\n" +
+	"\x14proxy_cache_bypasses\x18\x1f \x01(\x03R\x12proxyCacheBypasses\x12,\n" +
+	"\x12proxy_cache_stored\x18  \x01(\x03R\x10proxyCacheStored\x127\n" +
+	"\x18proxy_cache_store_failed\x18! \x01(\x03R\x15proxyCacheStoreFailed\x121\n" +
+	"\x15proxy_cache_hit_bytes\x18\" \x01(\x04R\x12proxyCacheHitBytes\x127\n" +
+	"\x18proxy_cache_stored_bytes\x18# \x01(\x04R\x15proxyCacheStoredBytes\"\xa2\x03\n" +
 	"\x1eDashboardProxyDimensionSummary\x12C\n" +
 	"\tdimension\x18\x01 \x01(\x0e2%.p2pstream.v1.DashboardProxyDimensionR\tdimension\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\x03R\x02id\x12\x14\n" +

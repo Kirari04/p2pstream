@@ -12,6 +12,9 @@ import {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   bytesPerSecond,
+  cacheActivityRequests,
+  cacheHitRate,
+  cacheLookupRequests,
   errorRate,
   filledTrafficBuckets,
   formatByteRate,
@@ -62,6 +65,9 @@ const activeAgentRequests = computed(() => agents.value.reduce((sum, agent) => s
 const statusCounts = computed(() => statusClassCounts(dashboardValue.value?.statusClasses));
 const trafficBuckets = computed(() => filledTrafficBuckets(dashboardValue.value?.trafficBuckets, generatedAt.value));
 const maxBucketRequests = computed(() => Math.max(1, ...trafficBuckets.value.map((bucket) => Number(bucket.requests))));
+const cacheLookups = computed(() => cacheLookupRequests(selectedWindow.value));
+const cacheActivity = computed(() => cacheActivityRequests(selectedWindow.value));
+const cacheHasActivity = computed(() => cacheActivity.value > 0n);
 
 const hotspotTabs: Array<{ key: HotspotTab; label: string }> = [
   { key: "listeners", label: "Listeners" },
@@ -232,6 +238,43 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
         <div class="metric-value">{{ connectedAgents }}/{{ enabledAgents }}</div>
         <p class="metric-subline">{{ formatNumber(activeAgentRequests) }} active requests</p>
       </div>
+    </section>
+
+    <section class="dashboard-panel cache-panel">
+      <div class="panel-heading">
+        <div>
+          <h4>Cache Behavior</h4>
+          <p>Selected window, based on retained proxy request events.</p>
+        </div>
+        <span class="signal-pill" :class="cacheHasActivity ? '' : 'warn'">
+          {{ formatNumber(cacheActivity) }} cache events
+        </span>
+      </div>
+
+      <div class="cache-stat-grid">
+        <div class="cache-stat">
+          <span>Hit rate</span>
+          <strong>{{ formatPercent(cacheHitRate(selectedWindow)) }}</strong>
+          <small>{{ formatNumber(cacheLookups) }} lookups</small>
+        </div>
+        <div class="cache-stat">
+          <span>Hits</span>
+          <strong>{{ formatNumber(selectedWindow?.proxyCacheHits) }}</strong>
+          <small>served {{ formatBytes(selectedWindow?.proxyCacheHitBytes) }}</small>
+        </div>
+        <div class="cache-stat">
+          <span>Misses</span>
+          <strong>{{ formatNumber(selectedWindow?.proxyCacheMisses) }}</strong>
+          <small>{{ formatNumber(selectedWindow?.proxyCacheStored) }} stored, {{ formatBytes(selectedWindow?.proxyCacheStoredBytes) }}</small>
+        </div>
+        <div class="cache-stat">
+          <span>Bypass</span>
+          <strong>{{ formatNumber(selectedWindow?.proxyCacheBypasses) }}</strong>
+          <small>{{ formatNumber(selectedWindow?.proxyCacheStoreFailed) }} store failed</small>
+        </div>
+      </div>
+
+      <p v-if="!cacheHasActivity" class="cache-empty">No cache activity in this window.</p>
     </section>
 
     <section v-if="!hasAnyProxyEvents" class="empty-panel">
@@ -599,7 +642,8 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 }
 
 .status-class-grid,
-.snapshot-grid {
+.snapshot-grid,
+.cache-stat-grid {
   display: grid;
   gap: 0.6rem;
 }
@@ -608,8 +652,13 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.cache-stat-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
 .status-class,
-.snapshot-item {
+.snapshot-item,
+.cache-stat {
   display: grid;
   gap: 0.2rem;
   min-width: 0;
@@ -620,25 +669,33 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 }
 
 .status-class span,
-.snapshot-item span {
+.snapshot-item span,
+.cache-stat span {
   color: #888;
   font-size: 0.72rem;
   font-weight: 650;
 }
 
 .status-class strong,
-.snapshot-item strong {
+.snapshot-item strong,
+.cache-stat strong {
   color: #fff;
   font-size: 1rem;
   font-weight: 700;
 }
 
-.snapshot-item small {
+.snapshot-item small,
+.cache-stat small {
   overflow: hidden;
   color: #777;
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cache-empty {
+  color: #777;
+  font-size: 0.8rem;
 }
 
 .error-list {
@@ -750,6 +807,10 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 
   .snapshot-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cache-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

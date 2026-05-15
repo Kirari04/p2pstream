@@ -7,6 +7,9 @@ import type {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   bytesPerSecond,
+  cacheActivityRequests,
+  cacheHitRate,
+  cacheLookupRequests,
   filledTrafficBuckets,
   formatByteRate,
   formatBytes,
@@ -39,6 +42,19 @@ describe("dashboardStats", () => {
     expect(successRate(window)).toBe(0.7);
     expect(errorRate(window)).toBe(0.3);
     expect(successRate(windowSummary({ proxyRequests: 0n }))).toBe(0);
+  });
+
+  test("computes cache hit rate from lookups and excludes bypasses", () => {
+    const window = windowSummary({
+      proxyCacheHits: 7n,
+      proxyCacheMisses: 3n,
+      proxyCacheBypasses: 20n,
+    });
+
+    expect(cacheHitRate(window)).toBe(0.7);
+    expect(cacheLookupRequests(window)).toBe(10n);
+    expect(cacheActivityRequests(window)).toBe(30n);
+    expect(cacheHitRate(windowSummary())).toBe(0);
   });
 
   test("formats byte sizes and rates", () => {
@@ -139,6 +155,13 @@ function windowSummary(overrides: Partial<DashboardWindowSummary> = {}): Dashboa
     proxyAvgResponseBytes: 0n,
     proxyMaxDurationMs: 0n,
     proxySlowRequests: 0n,
+    proxyCacheHits: 0n,
+    proxyCacheMisses: 0n,
+    proxyCacheBypasses: 0n,
+    proxyCacheStored: 0n,
+    proxyCacheStoreFailed: 0n,
+    proxyCacheHitBytes: 0n,
+    proxyCacheStoredBytes: 0n,
     ...overrides,
   };
 }

@@ -1272,6 +1272,13 @@ message DashboardWindowSummary {
   int64 proxy_slow_requests = 26;
   double agent_avg_cpu_percent = 27;
   double agent_max_cpu_percent = 28;
+  int64 proxy_cache_hits = 29;
+  int64 proxy_cache_misses = 30;
+  int64 proxy_cache_bypasses = 31;
+  int64 proxy_cache_stored = 32;
+  int64 proxy_cache_store_failed = 33;
+  uint64 proxy_cache_hit_bytes = 34;
+  uint64 proxy_cache_stored_bytes = 35;
 }
 
 enum DashboardProxyDimension {

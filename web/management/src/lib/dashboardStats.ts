@@ -55,6 +55,20 @@ export function errorRate(window: DashboardWindowSummary | null | undefined): nu
   return ratio(errors, window.proxyRequests);
 }
 
+export function cacheLookupRequests(window: DashboardWindowSummary | null | undefined): bigint {
+  return (window?.proxyCacheHits ?? 0n) + (window?.proxyCacheMisses ?? 0n);
+}
+
+export function cacheActivityRequests(window: DashboardWindowSummary | null | undefined): bigint {
+  return cacheLookupRequests(window) + (window?.proxyCacheBypasses ?? 0n);
+}
+
+export function cacheHitRate(window: DashboardWindowSummary | null | undefined): number {
+  const lookups = cacheLookupRequests(window);
+  if (lookups === 0n) return 0;
+  return ratio(window?.proxyCacheHits ?? 0n, lookups);
+}
+
 export function requestsPerSecond(window: DashboardWindowSummary | null | undefined, nowMillis: bigint | number): number | null {
   if (!window) return null;
   const seconds = elapsedSeconds(window, nowMillis);

@@ -41,7 +41,14 @@ SELECT
     CAST(COALESCE(AVG(request_bytes), 0) AS INTEGER) AS avg_request_bytes,
     CAST(COALESCE(AVG(response_bytes), 0) AS INTEGER) AS avg_response_bytes,
     CAST(COALESCE(MAX(duration_ms), 0) AS INTEGER) AS max_duration_ms,
-    CAST(COALESCE(SUM(CASE WHEN duration_ms >= 1000 THEN 1 ELSE 0 END), 0) AS INTEGER) AS slow_requests
+    CAST(COALESCE(SUM(CASE WHEN duration_ms >= 1000 THEN 1 ELSE 0 END), 0) AS INTEGER) AS slow_requests,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_hits,
+    CAST(COALESCE(SUM(CASE WHEN cache_status IN ('miss', 'stored', 'store_failed') THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_misses,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'bypass' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_bypasses,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'stored' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_stored,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'store_failed' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_store_failed,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN cache_bytes ELSE 0 END), 0) AS INTEGER) AS cache_hit_bytes,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'stored' THEN cache_bytes ELSE 0 END), 0) AS INTEGER) AS cache_stored_bytes
 FROM proxy_request_events
 WHERE occurred_at >= ?;
 

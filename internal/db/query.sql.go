@@ -1579,7 +1579,14 @@ SELECT
     CAST(COALESCE(AVG(request_bytes), 0) AS INTEGER) AS avg_request_bytes,
     CAST(COALESCE(AVG(response_bytes), 0) AS INTEGER) AS avg_response_bytes,
     CAST(COALESCE(MAX(duration_ms), 0) AS INTEGER) AS max_duration_ms,
-    CAST(COALESCE(SUM(CASE WHEN duration_ms >= 1000 THEN 1 ELSE 0 END), 0) AS INTEGER) AS slow_requests
+    CAST(COALESCE(SUM(CASE WHEN duration_ms >= 1000 THEN 1 ELSE 0 END), 0) AS INTEGER) AS slow_requests,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_hits,
+    CAST(COALESCE(SUM(CASE WHEN cache_status IN ('miss', 'stored', 'store_failed') THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_misses,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'bypass' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_bypasses,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'stored' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_stored,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'store_failed' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_store_failed,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN cache_bytes ELSE 0 END), 0) AS INTEGER) AS cache_hit_bytes,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'stored' THEN cache_bytes ELSE 0 END), 0) AS INTEGER) AS cache_stored_bytes
 FROM proxy_request_events
 WHERE occurred_at >= ?
 `
@@ -1598,6 +1605,13 @@ type GetProxyRequestSummarySinceRow struct {
 	AvgResponseBytes int64 `json:"avg_response_bytes"`
 	MaxDurationMs    int64 `json:"max_duration_ms"`
 	SlowRequests     int64 `json:"slow_requests"`
+	CacheHits        int64 `json:"cache_hits"`
+	CacheMisses      int64 `json:"cache_misses"`
+	CacheBypasses    int64 `json:"cache_bypasses"`
+	CacheStored      int64 `json:"cache_stored"`
+	CacheStoreFailed int64 `json:"cache_store_failed"`
+	CacheHitBytes    int64 `json:"cache_hit_bytes"`
+	CacheStoredBytes int64 `json:"cache_stored_bytes"`
 }
 
 func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error) {
@@ -1617,6 +1631,13 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 		&i.AvgResponseBytes,
 		&i.MaxDurationMs,
 		&i.SlowRequests,
+		&i.CacheHits,
+		&i.CacheMisses,
+		&i.CacheBypasses,
+		&i.CacheStored,
+		&i.CacheStoreFailed,
+		&i.CacheHitBytes,
+		&i.CacheStoredBytes,
 	)
 	return i, err
 }
