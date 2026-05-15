@@ -69,6 +69,10 @@ function openRoute(routeId: bigint | string) {
   routeEditor.value?.openEdit(routeId);
 }
 
+function openCloneRoute(routeId: bigint | string) {
+  routeEditor.value?.openClone(routeId);
+}
+
 function openBackend(backendId: bigint | string) {
   backendEditor.value?.openEdit(backendId);
 }
@@ -141,6 +145,7 @@ defineExpose({
   openTarget,
   openListener,
   openRoute,
+  openCloneRoute,
   openBackend,
   openCloneBackend,
   openAgent,

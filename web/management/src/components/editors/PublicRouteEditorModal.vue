@@ -19,6 +19,7 @@ import {
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type RouteBackendAssignmentForm = { backendId: string; weight: number; enabled: boolean };
+type RouteFormMode = "create" | "edit" | "clone";
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -32,6 +33,7 @@ const runManagementAction = inject<Runner>("runManagementAction");
 const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
+const routeFormMode = ref<RouteFormMode>("create");
 const listeners = computed(() => props.config?.listeners ?? []);
 const backends = computed(() => props.config?.backends ?? []);
 const routeBackends = computed(() => props.config?.routeBackends ?? []);
@@ -57,6 +59,16 @@ const routeForm = reactive({
 });
 
 const routeIsRedirect = computed(() => routeForm.action === PublicRouteAction.REDIRECT);
+const modalTitle = computed(() => (
+  routeFormMode.value === "edit" ? "Edit Route" :
+    routeFormMode.value === "clone" ? "Clone Route" :
+      "Add Route"
+));
+const submitLabel = computed(() => (
+  routeFormMode.value === "edit" ? "Save Changes" :
+    routeFormMode.value === "clone" ? "Create Clone" :
+      "Create Route"
+));
 const routeSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (!listeners.value.length) return "Create a listener before creating a route.";
@@ -122,23 +134,27 @@ function assignmentsForRoute(route: PublicRoute): RouteBackendAssignmentForm[] {
 
 function openCreate() {
   resetForm();
+  routeFormMode.value = "create";
   isOpen.value = true;
 }
 
-function openEdit(routeId: bigint | string) {
-  const id = routeId.toString();
-  const route = routes.value.find((item) => item.id.toString() === id);
-  if (!route) return;
-  routeForm.id = route.id.toString();
+function populateRouteForm(route: PublicRoute, mode: "edit" | "clone") {
+  resetForm();
+  routeFormMode.value = mode;
+  const action = routeAction(route);
+  const assignments = action === PublicRouteAction.REDIRECT ? [] : assignmentsForRoute(route);
+  routeForm.id = mode === "clone" ? "" : route.id.toString();
   routeForm.listenerId = route.listenerId.toString();
-  routeForm.action = routeAction(route);
+  routeForm.action = action;
   routeForm.priority = Number(route.priority);
   routeForm.hostPattern = route.hostPattern;
   routeForm.pathPrefix = route.pathPrefix;
-  routeForm.backendId = route.backendId > 0n ? route.backendId.toString() : backends.value[0]?.id.toString() ?? "";
+  routeForm.backendId = action === PublicRouteAction.REDIRECT
+    ? backends.value[0]?.id.toString() ?? ""
+    : route.backendId > 0n ? route.backendId.toString() : assignments[0]?.backendId ?? backends.value[0]?.id.toString() ?? "";
   routeForm.loadBalancing = route.loadBalancing || PublicBackendLoadBalancing.ROUND_ROBIN;
-  routeForm.backendAssignments = assignmentsForRoute(route);
-  routeForm.fallbackBackendId = route.fallbackBackendId > 0n ? route.fallbackBackendId.toString() : "";
+  routeForm.backendAssignments = assignments;
+  routeForm.fallbackBackendId = action === PublicRouteAction.REDIRECT ? "" : route.fallbackBackendId > 0n ? route.fallbackBackendId.toString() : "";
   routeForm.redirectTargetMode = route.redirectTargetMode || PublicRouteRedirectTargetMode.SAME_HOST_PATH;
   routeForm.redirectTarget = route.redirectTarget;
   routeForm.redirectStatusCode = Number(route.redirectStatusCode || 302);
@@ -146,6 +162,20 @@ function openEdit(routeId: bigint | string) {
   routeForm.redirectPreserveQuery = route.redirectPreserveQuery;
   routeForm.enabled = route.enabled;
   isOpen.value = true;
+}
+
+function openEdit(routeId: bigint | string) {
+  const id = routeId.toString();
+  const route = routes.value.find((item) => item.id.toString() === id);
+  if (!route) return;
+  populateRouteForm(route, "edit");
+}
+
+function openClone(routeId: bigint | string) {
+  const id = routeId.toString();
+  const route = routes.value.find((item) => item.id.toString() === id);
+  if (!route) return;
+  populateRouteForm(route, "clone");
 }
 
 function addRouteBackendAssignment() {
@@ -243,11 +273,11 @@ watch(
   },
 );
 
-defineExpose({ openCreate, openEdit, close });
+defineExpose({ openCreate, openEdit, openClone, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="routeForm.id ? 'Edit Route' : 'Add Route'" max-width="42rem">
+  <Modal v-model="isOpen" :title="modalTitle" max-width="42rem">
     <form @submit.prevent="submitRoute" class="grid gap-4 sm:grid-cols-2">
       <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
         Action
@@ -388,7 +418,7 @@ defineExpose({ openCreate, openEdit, close });
       <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
         <SecondaryButton type="button" label="Cancel" @click="close" />
         <DisabledHint :disabled="Boolean(routeSubmitDisabledReason)" :reason="routeSubmitDisabledReason">
-          <Button :label="routeForm.id ? 'Save Changes' : 'Create Route'" type="submit" :disabled="routeSubmitDisabled" />
+          <Button :label="submitLabel" type="submit" :disabled="routeSubmitDisabled" />
         </DisabledHint>
       </div>
     </form>

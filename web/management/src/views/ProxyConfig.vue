@@ -127,6 +127,10 @@ function editRoute(routeId: bigint) {
   editorHost.value?.openRoute(routeId);
 }
 
+function cloneRoute(routeId: bigint) {
+  editorHost.value?.openCloneRoute(routeId);
+}
+
 async function deleteBackend(id: bigint) {
   if (!await confirm("Delete Backend", "This backend and all its agent assignments will be permanently removed.")) return;
   await run(async () => {
@@ -408,6 +412,9 @@ async function deleteRoute(id: bigint) {
           <div class="flex gap-2">
             <SecondaryButton size="small" aria-label="Edit route" title="Edit route" @click="editRoute(route.id)">
               <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+            </SecondaryButton>
+            <SecondaryButton size="small" aria-label="Clone route" title="Clone route" @click="cloneRoute(route.id)">
+              <template #icon><WindowMaximizeIcon class="h-3.5 w-3.5" /></template>
             </SecondaryButton>
             <DangerButton size="small" aria-label="Delete route" title="Delete route" @click="deleteRoute(route.id)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
