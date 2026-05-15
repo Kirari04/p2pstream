@@ -75,6 +75,9 @@ const (
 	// AgentManagementServiceGetPublicProxyConfigProcedure is the fully-qualified name of the
 	// AgentManagementService's GetPublicProxyConfig RPC.
 	AgentManagementServiceGetPublicProxyConfigProcedure = "/p2pstream.v1.AgentManagementService/GetPublicProxyConfig"
+	// AgentManagementServiceListPublicBackendHealthTracesProcedure is the fully-qualified name of the
+	// AgentManagementService's ListPublicBackendHealthTraces RPC.
+	AgentManagementServiceListPublicBackendHealthTracesProcedure = "/p2pstream.v1.AgentManagementService/ListPublicBackendHealthTraces"
 	// AgentManagementServiceCreatePublicBackendProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicBackend RPC.
 	AgentManagementServiceCreatePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicBackend"
@@ -216,6 +219,7 @@ type AgentManagementServiceClient interface {
 	StartProxy(context.Context, *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error)
 	StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error)
 	GetPublicProxyConfig(context.Context, *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error)
+	ListPublicBackendHealthTraces(context.Context, *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error)
 	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
 	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
 	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
@@ -352,6 +356,12 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceGetPublicProxyConfigProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("GetPublicProxyConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		listPublicBackendHealthTraces: connect.NewClient[v1.ListPublicBackendHealthTracesRequest, v1.ListPublicBackendHealthTracesResponse](
+			httpClient,
+			baseURL+AgentManagementServiceListPublicBackendHealthTracesProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ListPublicBackendHealthTraces")),
 			connect.WithClientOptions(opts...),
 		),
 		createPublicBackend: connect.NewClient[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse](
@@ -619,6 +629,7 @@ type agentManagementServiceClient struct {
 	startProxy                     *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
 	stopProxy                      *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
 	getPublicProxyConfig           *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
+	listPublicBackendHealthTraces  *connect.Client[v1.ListPublicBackendHealthTracesRequest, v1.ListPublicBackendHealthTracesResponse]
 	createPublicBackend            *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
 	updatePublicBackend            *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
 	deletePublicBackend            *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
@@ -730,6 +741,12 @@ func (c *agentManagementServiceClient) StopProxy(ctx context.Context, req *conne
 // GetPublicProxyConfig calls p2pstream.v1.AgentManagementService.GetPublicProxyConfig.
 func (c *agentManagementServiceClient) GetPublicProxyConfig(ctx context.Context, req *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error) {
 	return c.getPublicProxyConfig.CallUnary(ctx, req)
+}
+
+// ListPublicBackendHealthTraces calls
+// p2pstream.v1.AgentManagementService.ListPublicBackendHealthTraces.
+func (c *agentManagementServiceClient) ListPublicBackendHealthTraces(ctx context.Context, req *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error) {
+	return c.listPublicBackendHealthTraces.CallUnary(ctx, req)
 }
 
 // CreatePublicBackend calls p2pstream.v1.AgentManagementService.CreatePublicBackend.
@@ -963,6 +980,7 @@ type AgentManagementServiceHandler interface {
 	StartProxy(context.Context, *connect.Request[v1.StartProxyRequest]) (*connect.Response[v1.StartProxyResponse], error)
 	StopProxy(context.Context, *connect.Request[v1.StopProxyRequest]) (*connect.Response[v1.StopProxyResponse], error)
 	GetPublicProxyConfig(context.Context, *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error)
+	ListPublicBackendHealthTraces(context.Context, *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error)
 	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
 	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
 	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
@@ -1095,6 +1113,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceGetPublicProxyConfigProcedure,
 		svc.GetPublicProxyConfig,
 		connect.WithSchema(agentManagementServiceMethods.ByName("GetPublicProxyConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceListPublicBackendHealthTracesHandler := connect.NewUnaryHandler(
+		AgentManagementServiceListPublicBackendHealthTracesProcedure,
+		svc.ListPublicBackendHealthTraces,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ListPublicBackendHealthTraces")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceCreatePublicBackendHandler := connect.NewUnaryHandler(
@@ -1373,6 +1397,8 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceStopProxyHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetPublicProxyConfigProcedure:
 			agentManagementServiceGetPublicProxyConfigHandler.ServeHTTP(w, r)
+		case AgentManagementServiceListPublicBackendHealthTracesProcedure:
+			agentManagementServiceListPublicBackendHealthTracesHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicBackendProcedure:
 			agentManagementServiceCreatePublicBackendHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicBackendProcedure:
@@ -1518,6 +1544,10 @@ func (UnimplementedAgentManagementServiceHandler) StopProxy(context.Context, *co
 
 func (UnimplementedAgentManagementServiceHandler) GetPublicProxyConfig(context.Context, *connect.Request[v1.GetPublicProxyConfigRequest]) (*connect.Response[v1.GetPublicProxyConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetPublicProxyConfig is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ListPublicBackendHealthTraces(context.Context, *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ListPublicBackendHealthTraces is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error) {

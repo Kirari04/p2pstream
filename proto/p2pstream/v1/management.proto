@@ -53,6 +53,20 @@ enum PublicBackendHealthStatus {
   PUBLIC_BACKEND_HEALTH_STATUS_DISCONNECTED = 5;
 }
 
+enum PublicBackendHealthTraceSource {
+  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_UNSPECIFIED = 0;
+  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_ACTIVE_CHECK = 1;
+  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE = 2;
+  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY = 3;
+}
+
+enum PublicBackendHealthTraceOutcome {
+  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_UNSPECIFIED = 0;
+  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS = 1;
+  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE = 2;
+  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED = 3;
+}
+
 enum PublicRouteAction {
   PUBLIC_ROUTE_ACTION_UNSPECIFIED = 0;
   PUBLIC_ROUTE_ACTION_FORWARD = 1;
@@ -356,6 +370,40 @@ message PublicBackendAgent {
   PublicBackendAgentHealth health = 6;
 }
 
+message PublicBackendHealthTrace {
+  uint64 sequence = 1;
+  int64 backend_id = 2;
+  string backend_name = 3;
+  PublicBackendForwardMode forward_mode = 4;
+  PublicBackendHealthTraceSource source = 5;
+  PublicBackendHealthTraceOutcome outcome = 6;
+  int64 agent_id = 7;
+  string agent_public_id = 8;
+  string agent_name = 9;
+  int64 started_at_unix_millis = 10;
+  int64 finished_at_unix_millis = 11;
+  int64 duration_millis = 12;
+  string method = 13;
+  string url = 14;
+  int64 status_code = 15;
+  int64 expected_status_min = 16;
+  int64 expected_status_max = 17;
+  int64 timeout_millis = 18;
+  bool tls_skip_verify = 19;
+  PublicBackendHealthStatus status_before = 20;
+  PublicBackendHealthStatus status_after = 21;
+  bool available_before = 22;
+  bool available_after = 23;
+  int64 healthy_streak_before = 24;
+  int64 healthy_streak_after = 25;
+  int64 unhealthy_streak_before = 26;
+  int64 unhealthy_streak_after = 27;
+  int64 passive_unhealthy_until_unix_millis = 28;
+  string error_kind = 29;
+  string error = 30;
+  map<string, string> debug_attributes = 31;
+}
+
 message PublicRouteBackend {
   int64 route_id = 1;
   int64 backend_id = 2;
@@ -612,6 +660,19 @@ message GetPublicProxyConfigResponse {
   repeated PublicWafRule waf_rules = 13;
   PublicCacheSettings cache_settings = 14;
   repeated PublicCacheRule cache_rules = 15;
+}
+
+message ListPublicBackendHealthTracesRequest {
+  int64 backend_id = 1;
+  int64 agent_id = 2;
+  int64 limit = 3;
+  bool failures_only = 4;
+}
+
+message ListPublicBackendHealthTracesResponse {
+  repeated PublicBackendHealthTrace traces = 1;
+  int64 retained_count = 2;
+  int64 max_retained_per_target = 3;
 }
 
 message CreatePublicBackendRequest {
@@ -1443,6 +1504,7 @@ service AgentManagementService {
   rpc StartProxy(StartProxyRequest) returns (StartProxyResponse) {}
   rpc StopProxy(StopProxyRequest) returns (StopProxyResponse) {}
   rpc GetPublicProxyConfig(GetPublicProxyConfigRequest) returns (GetPublicProxyConfigResponse) {}
+  rpc ListPublicBackendHealthTraces(ListPublicBackendHealthTracesRequest) returns (ListPublicBackendHealthTracesResponse) {}
   rpc CreatePublicBackend(CreatePublicBackendRequest) returns (CreatePublicBackendResponse) {}
   rpc UpdatePublicBackend(UpdatePublicBackendRequest) returns (UpdatePublicBackendResponse) {}
   rpc DeletePublicBackend(DeletePublicBackendRequest) returns (DeletePublicBackendResponse) {}

@@ -13,6 +13,7 @@ import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
+import PublicBackendHealthTraceModal from "@/components/PublicBackendHealthTraceModal.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -76,6 +77,8 @@ const runningListeners = computed(() => listeners.value.filter((listener) => lis
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
 
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
+const selectedHealthBackend = ref<PublicBackend | null>(null);
+const isHealthTraceOpen = ref(false);
 const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
 
 const summaryCards = computed(() => [
@@ -118,6 +121,11 @@ function editBackend(backend: PublicBackend) {
 
 function cloneBackend(backend: PublicBackend) {
   editorHost.value?.openCloneBackend(backend.id);
+}
+
+function openHealthTraces(backend: PublicBackend) {
+  selectedHealthBackend.value = backend;
+  isHealthTraceOpen.value = true;
 }
 
 function openAddRouteModal() {
@@ -344,11 +352,18 @@ async function deleteRoute(id: bigint) {
                 :value="`${upstreamHeaderCount(backend).toString()} upstream headers`"
                 severity="info"
               />
-              <Tag
+              <button
                 v-if="backend.backendType === PublicBackendType.PROXY_FORWARD"
-                :value="backendHealthLabel(backend)"
-                :severity="backendHealthSeverity(backend)"
-              />
+                type="button"
+                class="rounded-md transition hover:brightness-125"
+                title="Open health check traces"
+                @click="openHealthTraces(backend)"
+              >
+                <Tag
+                  :value="backendHealthLabel(backend)"
+                  :severity="backendHealthSeverity(backend)"
+                />
+              </button>
               <Tag v-if="!backend.enabled" value="Disabled" severity="warn" />
             </div>
             <p class="truncate text-xs text-[#888] mt-1">{{ backendSummary(backend) }}</p>
@@ -433,6 +448,12 @@ async function deleteRoute(id: bigint) {
     </section>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
+    <PublicBackendHealthTraceModal
+      v-model="isHealthTraceOpen"
+      :backend="selectedHealthBackend"
+      :backend-agents="backendAgents"
+      :agents="agents"
+    />
     <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
   </div>
 </template>

@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   PublicBackendForwardMode,
   PublicBackendHealthStatus,
+  PublicBackendHealthTraceOutcome,
+  PublicBackendHealthTraceSource,
   PublicBackendLoadBalancing,
   PublicBackendType,
   PublicAcmeChallengeType,
@@ -11,6 +13,7 @@ import {
   type Agent,
   type PublicBackend,
   type PublicBackendAgent,
+  type PublicBackendHealthTrace,
   type PublicTlsCertificate,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
@@ -20,6 +23,12 @@ import {
   backendHealthLabel,
   backendHealthSeverity,
   formatUnixMillis,
+  healthTraceOutcomeLabel,
+  healthTraceOutcomeSeverity,
+  healthTraceReasonSummary,
+  healthTraceSourceLabel,
+  healthTraceTargetLabel,
+  healthTraceTransitionSummary,
   tlsCertificateRenewalSummary,
   tlsCertificateValiditySummary,
 } from "@/lib/publicProxyLabels";
@@ -83,6 +92,29 @@ describe("publicProxyLabels", () => {
     expect(backendAgentSummary(backend, [], agents)).toBe(
       "agent-a (agent-a) healthy x100, agent-b (agent-b) disconnected x100, agent-c (agent-c) unhealthy x100",
     );
+  });
+
+  test("formats health trace labels and summaries", () => {
+    const trace = healthTrace({
+      outcome: PublicBackendHealthTraceOutcome.FAILURE,
+      source: PublicBackendHealthTraceSource.ACTIVE_CHECK,
+      agentId: 2n,
+      agentPublicId: "agent-b",
+      statusCode: 503n,
+      expectedStatusMin: 200n,
+      expectedStatusMax: 399n,
+      statusBefore: PublicBackendHealthStatus.HEALTHY,
+      statusAfter: PublicBackendHealthStatus.UNHEALTHY,
+      availableAfter: false,
+      errorKind: "unexpected_status",
+    });
+
+    expect(healthTraceOutcomeLabel(trace.outcome)).toBe("Failed");
+    expect(healthTraceOutcomeSeverity(trace.outcome)).toBe("danger");
+    expect(healthTraceSourceLabel(trace.source)).toBe("Active check");
+    expect(healthTraceReasonSummary(trace)).toBe("HTTP 503 outside 200-399");
+    expect(healthTraceTransitionSummary(trace)).toBe("Healthy -> Unhealthy / unavailable");
+    expect(healthTraceTargetLabel(trace, [agent(2n, "agent-b")])).toBe("agent-b (agent-b)");
   });
 });
 
@@ -172,5 +204,43 @@ function agent(id: bigint, publicId: string): Agent {
     lastConnectedAtUnixMillis: 0n,
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
+  };
+}
+
+function healthTrace(overrides: Partial<PublicBackendHealthTrace> = {}): PublicBackendHealthTrace {
+  return {
+    $typeName: "p2pstream.v1.PublicBackendHealthTrace",
+    sequence: 1n,
+    backendId: 1n,
+    backendName: "backend",
+    forwardMode: PublicBackendForwardMode.DIRECT,
+    source: PublicBackendHealthTraceSource.ACTIVE_CHECK,
+    outcome: PublicBackendHealthTraceOutcome.SUCCESS,
+    agentId: 0n,
+    agentPublicId: "",
+    agentName: "",
+    startedAtUnixMillis: 0n,
+    finishedAtUnixMillis: 0n,
+    durationMillis: 0n,
+    method: "GET",
+    url: "http://example.test/health",
+    statusCode: 200n,
+    expectedStatusMin: 200n,
+    expectedStatusMax: 399n,
+    timeoutMillis: 2000n,
+    tlsSkipVerify: false,
+    statusBefore: PublicBackendHealthStatus.UNKNOWN,
+    statusAfter: PublicBackendHealthStatus.HEALTHY,
+    availableBefore: true,
+    availableAfter: true,
+    healthyStreakBefore: 0n,
+    healthyStreakAfter: 1n,
+    unhealthyStreakBefore: 0n,
+    unhealthyStreakAfter: 0n,
+    passiveUnhealthyUntilUnixMillis: 0n,
+    errorKind: "success",
+    error: "",
+    debugAttributes: {},
+    ...overrides,
   };
 }

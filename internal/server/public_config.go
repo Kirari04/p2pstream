@@ -285,6 +285,32 @@ func (a *App) GetPublicProxyConfig(
 	return connect.NewResponse(resp), nil
 }
 
+func (a *App) ListPublicBackendHealthTraces(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.ListPublicBackendHealthTracesRequest],
+) (*connect.Response[p2pstreamv1.ListPublicBackendHealthTracesResponse], error) {
+	if _, err := a.requireUser(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	if req.Msg.BackendId <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("backend id is required"))
+	}
+	limit := req.Msg.Limit
+	if limit <= 0 || limit > publicBackendHealthTraceLimitPerTarget {
+		limit = publicBackendHealthTraceLimitPerTarget
+	}
+	var traces []*p2pstreamv1.PublicBackendHealthTrace
+	var retained int64
+	if a.BackendHealth != nil {
+		traces, retained = a.BackendHealth.listHealthTraces(req.Msg.BackendId, req.Msg.AgentId, limit, req.Msg.FailuresOnly)
+	}
+	return connect.NewResponse(&p2pstreamv1.ListPublicBackendHealthTracesResponse{
+		Traces:               traces,
+		RetainedCount:        retained,
+		MaxRetainedPerTarget: publicBackendHealthTraceLimitPerTarget,
+	}), nil
+}
+
 func (a *App) CreatePublicBackend(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.CreatePublicBackendRequest],

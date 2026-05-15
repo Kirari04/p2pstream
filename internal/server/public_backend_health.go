@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -19,7 +20,10 @@ import (
 	"p2pstream/msg"
 )
 
-const publicBackendPassiveUnhealthyCooldown = 30 * time.Second
+const (
+	publicBackendPassiveUnhealthyCooldown  = 30 * time.Second
+	publicBackendHealthTraceLimitPerTarget = 100
+)
 
 type publicBackendHealthSnapshot struct {
 	Status                          p2pstreamv1.PublicBackendHealthStatus
@@ -39,9 +43,10 @@ type publicBackendAgentHealthSnapshot struct {
 }
 
 type publicBackendHealthMonitor struct {
-	mu     sync.Mutex
-	app    *App
-	states map[int64]*publicBackendHealthState
+	mu       sync.Mutex
+	app      *App
+	sequence uint64
+	states   map[int64]*publicBackendHealthState
 }
 
 type publicBackendHealthState struct {
@@ -49,6 +54,7 @@ type publicBackendHealthState struct {
 	directCancel       context.CancelFunc
 	directCheckRunning bool
 	direct             publicBackendCheckState
+	directTraces       []*p2pstreamv1.PublicBackendHealthTrace
 	agentStates        map[int64]*publicBackendAgentHealthState
 	activeRequests     atomic.Int64
 }
@@ -60,6 +66,7 @@ type publicBackendAgentHealthState struct {
 	cancel        context.CancelFunc
 	checkRunning  bool
 	state         publicBackendCheckState
+	traces        []*p2pstreamv1.PublicBackendHealthTrace
 }
 
 type publicBackendCheckState struct {
@@ -69,6 +76,32 @@ type publicBackendCheckState struct {
 	passiveUnhealthyUntil time.Time
 	healthyStreak         int64
 	unhealthyStreak       int64
+}
+
+type publicBackendHealthCheckAttempt struct {
+	StartedAt       time.Time
+	FinishedAt      time.Time
+	Method          string
+	URL             string
+	StatusCode      int64
+	ExpectedMin     int64
+	ExpectedMax     int64
+	Timeout         time.Duration
+	TLSSkipVerify   bool
+	AgentID         int64
+	AgentPublicID   string
+	AgentName       string
+	ErrorKind       string
+	Err             error
+	DebugAttributes map[string]string
+}
+
+type publicBackendHealthTraceState struct {
+	status          p2pstreamv1.PublicBackendHealthStatus
+	available       bool
+	healthyStreak   int64
+	unhealthyStreak int64
+	passiveUntil    int64
 }
 
 func newPublicBackendHealthMonitor() *publicBackendHealthMonitor {
@@ -218,7 +251,7 @@ func (m *publicBackendHealthMonitor) directHealthLoop(ctx context.Context, backe
 		if !ok {
 			return
 		}
-		m.recordDirectExplicitCheck(backendID, checkPublicBackendHealth(ctx, backend))
+		m.recordDirectExplicitCheck(backendID, runPublicBackendHealthCheck(ctx, backend))
 		if !waitPublicBackendHealthInterval(ctx, backend.HealthCheck.Interval) {
 			return
 		}
@@ -237,9 +270,10 @@ func (m *publicBackendHealthMonitor) agentHealthLoop(ctx context.Context, app *A
 		}
 		if agent == nil {
 			m.recordAgentDisconnected(backendID, agentID)
+			m.recordAgentActiveCheckSkipped(backendID, agentID, backend, "agent_disconnected", errAgentDisconnected)
 		} else {
 			m.recordAgentConnected(backendID, agentID, agent.PublicID)
-			m.recordAgentExplicitCheck(backendID, agentID, app.checkPublicBackendHealthViaAgent(ctx, backend, agent))
+			m.recordAgentExplicitCheck(backendID, agentID, app.runPublicBackendHealthCheckViaAgent(ctx, backend, agent))
 		}
 		if !waitPublicBackendHealthInterval(ctx, backend.HealthCheck.Interval) {
 			return
@@ -298,10 +332,19 @@ func publicBackendHealthCheckURL(backend publicBackendConfig) (*url.URL, error) 
 }
 
 func checkPublicBackendHealth(parent context.Context, backend publicBackendConfig) error {
+	return runPublicBackendHealthCheck(parent, backend).Err
+}
+
+func runPublicBackendHealthCheck(parent context.Context, backend publicBackendConfig) publicBackendHealthCheckAttempt {
+	attempt := newPublicBackendHealthCheckAttempt(backend)
+	defer finishPublicBackendHealthCheckAttempt(&attempt)
+
 	checkURL, err := publicBackendHealthCheckURL(backend)
 	if err != nil {
-		return err
+		attempt.fail("request_failed", err)
+		return attempt
 	}
+	attempt.URL = redactSensitiveTraceURL(checkURL.String())
 	timeout := backend.HealthCheck.Timeout
 	if timeout <= 0 {
 		timeout = time.Duration(defaultBackendHealthCheckTimeoutMillis) * time.Millisecond
@@ -310,35 +353,58 @@ func checkPublicBackendHealth(parent context.Context, backend publicBackendConfi
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, backend.HealthCheck.Method, checkURL.String(), nil)
 	if err != nil {
-		return err
+		attempt.fail("request_failed", err)
+		return attempt
 	}
 	applyUpstreamRequestConfig(req, backend)
 	client := &http.Client{Transport: directProxyTransport(backend.TLSSkipVerify, timeout)}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		attempt.fail(classifyHealthCheckErrorKind(ctx, err), err)
+		return attempt
 	}
 	defer resp.Body.Close()
+	attempt.StatusCode = int64(resp.StatusCode)
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-		return fmt.Errorf("drain health check response: %w", err)
+		attempt.fail("response_body_read_failed", fmt.Errorf("drain health check response: %w", err))
+		return attempt
 	}
 	if int64(resp.StatusCode) < backend.HealthCheck.ExpectedStatusMin || int64(resp.StatusCode) > backend.HealthCheck.ExpectedStatusMax {
-		return fmt.Errorf("health check status %d outside expected range %d-%d", resp.StatusCode, backend.HealthCheck.ExpectedStatusMin, backend.HealthCheck.ExpectedStatusMax)
+		attempt.fail("unexpected_status", fmt.Errorf("health check status %d outside expected range %d-%d", resp.StatusCode, backend.HealthCheck.ExpectedStatusMin, backend.HealthCheck.ExpectedStatusMax))
+		return attempt
 	}
-	return nil
+	attempt.ErrorKind = "success"
+	return attempt
 }
 
 func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend publicBackendConfig, agent *AgentConn) error {
+	return a.runPublicBackendHealthCheckViaAgent(parent, backend, agent).Err
+}
+
+func (a *App) runPublicBackendHealthCheckViaAgent(parent context.Context, backend publicBackendConfig, agent *AgentConn) publicBackendHealthCheckAttempt {
+	attempt := newPublicBackendHealthCheckAttempt(backend)
+	attempt.DebugAttributes["transport"] = "agent_pool"
+	defer finishPublicBackendHealthCheckAttempt(&attempt)
+
 	if a == nil {
-		return errors.New("app is not configured")
+		attempt.fail("request_failed", errors.New("app is not configured"))
+		return attempt
 	}
 	if agent == nil {
-		return errAgentDisconnected
+		attempt.fail("agent_disconnected", errAgentDisconnected)
+		return attempt
 	}
+	attempt.AgentID = agent.AgentID
+	attempt.AgentPublicID = agent.PublicID
+	attempt.AgentName = agent.Name
+	attempt.DebugAttributes["agent_id"] = strconv.FormatInt(agent.AgentID, 10)
+	attempt.DebugAttributes["agent_public_id"] = agent.PublicID
 	checkURL, err := publicBackendHealthCheckURL(backend)
 	if err != nil {
-		return err
+		attempt.fail("request_failed", err)
+		return attempt
 	}
+	attempt.URL = redactSensitiveTraceURL(checkURL.String())
 	timeout := backend.HealthCheck.Timeout
 	if timeout <= 0 {
 		timeout = time.Duration(defaultBackendHealthCheckTimeoutMillis) * time.Millisecond
@@ -347,14 +413,18 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 	defer cancel()
 	req, err := http.NewRequestWithContext(waitCtx, backend.HealthCheck.Method, checkURL.String(), nil)
 	if err != nil {
-		return err
+		attempt.fail("request_failed", err)
+		return attempt
 	}
 	applyUpstreamRequestConfig(req, backend)
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return fmt.Errorf("generate health check request id: %w", err)
+		attempt.fail("request_failed", fmt.Errorf("generate health check request id: %w", err))
+		return attempt
 	}
+	attempt.DebugAttributes["agent_request_id"] = id.String()
+	attempt.DebugAttributes["response_header_timeout_ms"] = strconv.FormatInt(int64(timeout/time.Millisecond), 10)
 	pendingCtx, pendingCancel := context.WithCancel(waitCtx)
 	defer pendingCancel()
 	pending := &pendingAgentRequest{
@@ -368,6 +438,7 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 	a.PendingRequests.Store(id, pending)
 	pendingFinishReason := "health_check_completed"
 	defer func() {
+		attempt.DebugAttributes["pending_finish_reason"] = pendingFinishReason
 		a.finishPendingAgentRequest(id, pendingFinishReason)
 	}()
 
@@ -382,16 +453,19 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("encode health check request: %w", err)
+			attempt.fail("request_encode_failed", fmt.Errorf("encode health check request: %w", err))
+			return attempt
 		}
 		select {
 		case agent.WriteCh <- chunk:
 		case <-agent.Done:
 			pendingFinishReason = "agent_disconnected"
-			return errAgentDisconnected
+			attempt.fail("agent_disconnected", errAgentDisconnected)
+			return attempt
 		case <-waitCtx.Done():
 			pendingFinishReason = "health_check_timeout"
-			return waitCtx.Err()
+			attempt.fail("timeout", waitCtx.Err())
+			return attempt
 		}
 	}
 
@@ -399,43 +473,133 @@ func (a *App) checkPublicBackendHealthViaAgent(parent context.Context, backend p
 	select {
 	case <-waitCtx.Done():
 		pendingFinishReason = "health_check_timeout"
-		return waitCtx.Err()
+		attempt.fail("timeout", waitCtx.Err())
+		return attempt
 	case err := <-pending.ErrorCh:
 		pendingFinishReason = "agent_failed"
-		return err
+		attempt.fail("agent_failed", err)
+		return attempt
 	case firstMsg = <-pending.ResponseCh:
 		if firstMsg == nil {
 			pendingFinishReason = "agent_disconnected"
-			return errAgentDisconnected
+			attempt.fail("agent_disconnected", errAgentDisconnected)
+			return attempt
 		}
 	}
 	stream := &httpmsg.ChannelStream{Ctx: pendingCtx, Ch: pending.ResponseCh}
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
 		pendingFinishReason = "health_check_decode_failed"
-		return fmt.Errorf("decode health check response: %w", err)
+		attempt.fail("response_decode_failed", fmt.Errorf("decode health check response: %w", err))
+		return attempt
 	}
 	defer resp.Body.Close()
+	attempt.StatusCode = int64(resp.StatusCode)
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-		return fmt.Errorf("drain health check response: %w", err)
+		attempt.fail("response_body_read_failed", fmt.Errorf("drain health check response: %w", err))
+		return attempt
 	}
 	if int64(resp.StatusCode) < backend.HealthCheck.ExpectedStatusMin || int64(resp.StatusCode) > backend.HealthCheck.ExpectedStatusMax {
-		return fmt.Errorf("health check status %d outside expected range %d-%d", resp.StatusCode, backend.HealthCheck.ExpectedStatusMin, backend.HealthCheck.ExpectedStatusMax)
+		attempt.fail("unexpected_status", fmt.Errorf("health check status %d outside expected range %d-%d", resp.StatusCode, backend.HealthCheck.ExpectedStatusMin, backend.HealthCheck.ExpectedStatusMax))
+		return attempt
 	}
-	return nil
+	attempt.ErrorKind = "success"
+	return attempt
 }
 
-func (m *publicBackendHealthMonitor) recordDirectExplicitCheck(backendID int64, err error) {
+func newPublicBackendHealthCheckAttempt(backend publicBackendConfig) publicBackendHealthCheckAttempt {
+	timeout := backend.HealthCheck.Timeout
+	if timeout <= 0 {
+		timeout = time.Duration(defaultBackendHealthCheckTimeoutMillis) * time.Millisecond
+	}
+	attempt := publicBackendHealthCheckAttempt{
+		StartedAt:     time.Now(),
+		Method:        backend.HealthCheck.Method,
+		ExpectedMin:   backend.HealthCheck.ExpectedStatusMin,
+		ExpectedMax:   backend.HealthCheck.ExpectedStatusMax,
+		Timeout:       timeout,
+		TLSSkipVerify: backend.TLSSkipVerify,
+		ErrorKind:     "success",
+		DebugAttributes: map[string]string{
+			"transport":    "direct",
+			"timeout_ms":   strconv.FormatInt(int64(timeout/time.Millisecond), 10),
+			"check_method": backend.HealthCheck.Method,
+			"check_path":   backend.HealthCheck.Path,
+		},
+	}
+	if checkURL, err := publicBackendHealthCheckURL(backend); err == nil {
+		attempt.URL = redactSensitiveTraceURL(checkURL.String())
+	}
+	return attempt
+}
+
+func finishPublicBackendHealthCheckAttempt(attempt *publicBackendHealthCheckAttempt) {
+	if attempt == nil {
+		return
+	}
+	if attempt.FinishedAt.IsZero() {
+		attempt.FinishedAt = time.Now()
+	}
+	if attempt.ErrorKind == "" {
+		attempt.ErrorKind = "success"
+	}
+}
+
+func (a *publicBackendHealthCheckAttempt) fail(kind string, err error) {
+	if kind == "" {
+		kind = "request_failed"
+	}
+	a.ErrorKind = kind
+	a.Err = err
+}
+
+func newPassiveHealthTraceAttempt(backend publicBackendConfig, agentID int64, agentPublicID string, agentName string, err error) publicBackendHealthCheckAttempt {
+	if err == nil {
+		err = errors.New("temporary upstream failure")
+	}
+	attempt := newPublicBackendHealthCheckAttempt(backend)
+	finishPublicBackendHealthCheckAttempt(&attempt)
+	attempt.AgentID = agentID
+	attempt.AgentPublicID = agentPublicID
+	attempt.AgentName = agentName
+	attempt.ErrorKind = "passive_failure"
+	attempt.Err = err
+	attempt.DebugAttributes["passive_cooldown_ms"] = strconv.FormatInt(int64(publicBackendPassiveUnhealthyCooldown/time.Millisecond), 10)
+	if agentID > 0 {
+		attempt.DebugAttributes["transport"] = "agent_pool"
+	}
+	return attempt
+}
+
+func classifyHealthCheckErrorKind(ctx context.Context, err error) string {
+	if errors.Is(err, context.DeadlineExceeded) || (ctx != nil && errors.Is(ctx.Err(), context.DeadlineExceeded)) {
+		return "timeout"
+	}
+	return "request_failed"
+}
+
+func (m *publicBackendHealthMonitor) recordDirectExplicitCheck(backendID int64, attempt publicBackendHealthCheckAttempt) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	state := m.states[backendID]
 	if state == nil {
 		return
 	}
-	recordPublicBackendCheckResult(&state.direct, state.backend.HealthCheck, err)
+	now := time.Now()
+	before := publicBackendHealthTraceStateFromCheck(state.direct, state.backend.HealthCheck.Enabled, now)
+	recordPublicBackendCheckResult(&state.direct, state.backend.HealthCheck, attempt.Err)
+	after := publicBackendHealthTraceStateFromCheck(state.direct, state.backend.HealthCheck.Enabled, time.Now())
+	trace := m.newHealthTraceLocked(
+		state.backend,
+		p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_ACTIVE_CHECK,
+		attempt,
+		before,
+		after,
+	)
+	m.appendHealthTraceLocked(&state.directTraces, trace)
 }
 
-func (m *publicBackendHealthMonitor) recordAgentExplicitCheck(backendID int64, agentID int64, err error) {
+func (m *publicBackendHealthMonitor) recordAgentExplicitCheck(backendID int64, agentID int64, attempt publicBackendHealthCheckAttempt) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	state := m.states[backendID]
@@ -443,7 +607,55 @@ func (m *publicBackendHealthMonitor) recordAgentExplicitCheck(backendID int64, a
 		return
 	}
 	agentState := state.ensureAgentStateLocked(agentID)
-	recordPublicBackendCheckResult(&agentState.state, state.backend.HealthCheck, err)
+	if attempt.AgentID == 0 {
+		attempt.AgentID = agentID
+	}
+	if attempt.AgentPublicID == "" {
+		attempt.AgentPublicID = agentState.agentPublicID
+	}
+	now := time.Now()
+	before := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, now)
+	recordPublicBackendCheckResult(&agentState.state, state.backend.HealthCheck, attempt.Err)
+	after := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
+	trace := m.newHealthTraceLocked(
+		state.backend,
+		p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_ACTIVE_CHECK,
+		attempt,
+		before,
+		after,
+	)
+	m.appendHealthTraceLocked(&agentState.traces, trace)
+}
+
+func (m *publicBackendHealthMonitor) recordAgentActiveCheckSkipped(backendID int64, agentID int64, backend publicBackendConfig, errorKind string, err error) {
+	if m == nil {
+		return
+	}
+	attempt := newPublicBackendHealthCheckAttempt(backend)
+	finishPublicBackendHealthCheckAttempt(&attempt)
+	attempt.AgentID = agentID
+	attempt.ErrorKind = errorKind
+	attempt.Err = err
+	attempt.DebugAttributes["transport"] = "agent_pool"
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state := m.states[backendID]
+	if state == nil {
+		return
+	}
+	agentState := state.ensureAgentStateLocked(agentID)
+	attempt.AgentPublicID = agentState.agentPublicID
+	before := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
+	after := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
+	trace := m.newHealthTraceLocked(
+		state.backend,
+		p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_ACTIVE_CHECK,
+		attempt,
+		before,
+		after,
+	)
+	trace.Outcome = p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED
+	m.appendHealthTraceLocked(&agentState.traces, trace)
 }
 
 func recordPublicBackendCheckResult(state *publicBackendCheckState, config publicBackendHealthCheckConfig, err error) {
@@ -467,6 +679,106 @@ func recordPublicBackendCheckResult(state *publicBackendCheckState, config publi
 	if state.unhealthyStreak >= normalizedThreshold(config.UnhealthyThreshold, defaultBackendHealthCheckUnhealthyThreshold) {
 		state.explicitStatus = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY
 	}
+}
+
+func publicBackendHealthTraceStateFromCheck(state publicBackendCheckState, healthEnabled bool, now time.Time) publicBackendHealthTraceState {
+	status, passiveUntil := checkStateSnapshotStatus(state, healthEnabled, now)
+	return publicBackendHealthTraceState{
+		status:          status,
+		available:       checkStateAvailable(state, healthEnabled, now),
+		healthyStreak:   state.healthyStreak,
+		unhealthyStreak: state.unhealthyStreak,
+		passiveUntil:    passiveUntil,
+	}
+}
+
+func (m *publicBackendHealthMonitor) newHealthTraceLocked(
+	backend publicBackendConfig,
+	source p2pstreamv1.PublicBackendHealthTraceSource,
+	attempt publicBackendHealthCheckAttempt,
+	before publicBackendHealthTraceState,
+	after publicBackendHealthTraceState,
+) *p2pstreamv1.PublicBackendHealthTrace {
+	outcome := p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS
+	if attempt.Err != nil {
+		outcome = p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE
+	}
+	if attempt.FinishedAt.IsZero() {
+		attempt.FinishedAt = time.Now()
+	}
+	errorMessage := ""
+	if attempt.Err != nil {
+		errorMessage = attempt.Err.Error()
+	}
+	duration := attempt.FinishedAt.Sub(attempt.StartedAt).Milliseconds()
+	if duration < 0 {
+		duration = 0
+	}
+	trace := &p2pstreamv1.PublicBackendHealthTrace{
+		Sequence:                        m.nextHealthTraceSequenceLocked(),
+		BackendId:                       backend.ID,
+		BackendName:                     backend.Name,
+		ForwardMode:                     protoForwardModeFromString(backend.ForwardMode),
+		Source:                          source,
+		Outcome:                         outcome,
+		AgentId:                         attempt.AgentID,
+		AgentPublicId:                   attempt.AgentPublicID,
+		AgentName:                       attempt.AgentName,
+		StartedAtUnixMillis:             unixMillis(attempt.StartedAt),
+		FinishedAtUnixMillis:            unixMillis(attempt.FinishedAt),
+		DurationMillis:                  duration,
+		Method:                          attempt.Method,
+		Url:                             attempt.URL,
+		StatusCode:                      attempt.StatusCode,
+		ExpectedStatusMin:               attempt.ExpectedMin,
+		ExpectedStatusMax:               attempt.ExpectedMax,
+		TimeoutMillis:                   int64(attempt.Timeout / time.Millisecond),
+		TlsSkipVerify:                   attempt.TLSSkipVerify,
+		StatusBefore:                    before.status,
+		StatusAfter:                     after.status,
+		AvailableBefore:                 before.available,
+		AvailableAfter:                  after.available,
+		HealthyStreakBefore:             before.healthyStreak,
+		HealthyStreakAfter:              after.healthyStreak,
+		UnhealthyStreakBefore:           before.unhealthyStreak,
+		UnhealthyStreakAfter:            after.unhealthyStreak,
+		PassiveUnhealthyUntilUnixMillis: after.passiveUntil,
+		ErrorKind:                       attempt.ErrorKind,
+		Error:                           errorMessage,
+		DebugAttributes:                 cloneStringMap(attempt.DebugAttributes),
+	}
+	if trace.ErrorKind == "" {
+		trace.ErrorKind = "success"
+	}
+	return trace
+}
+
+func (m *publicBackendHealthMonitor) nextHealthTraceSequenceLocked() uint64 {
+	m.sequence++
+	return m.sequence
+}
+
+func (m *publicBackendHealthMonitor) appendHealthTraceLocked(target *[]*p2pstreamv1.PublicBackendHealthTrace, trace *p2pstreamv1.PublicBackendHealthTrace) {
+	if trace == nil {
+		return
+	}
+	*target = append(*target, trace)
+	if len(*target) <= publicBackendHealthTraceLimitPerTarget {
+		return
+	}
+	copy(*target, (*target)[len(*target)-publicBackendHealthTraceLimitPerTarget:])
+	*target = (*target)[:publicBackendHealthTraceLimitPerTarget]
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	output := make(map[string]string, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
 }
 
 func (m *publicBackendHealthMonitor) recordAgentConnected(backendID int64, agentID int64, publicID string) {
@@ -496,11 +808,39 @@ func (m *publicBackendHealthMonitor) recordAgentConnectedForAll(agentID int64, p
 func (m *publicBackendHealthMonitor) recordAgentConnectedLocked(state *publicBackendHealthState, agentID int64, publicID string) {
 	agentState := state.ensureAgentStateLocked(agentID)
 	wasConnected := agentState.connected
+	before := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
 	agentState.connected = true
 	agentState.agentPublicID = publicID
 	if !wasConnected {
 		agentState.state = unknownPublicBackendCheckState()
 	}
+	if wasConnected {
+		return
+	}
+	agentName := ""
+	if conn := m.connectedAgentLocked(agentID); conn != nil {
+		agentName = conn.Name
+		if publicID == "" {
+			publicID = conn.PublicID
+		}
+	}
+	after := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
+	attempt := newPublicBackendHealthCheckAttempt(state.backend)
+	finishPublicBackendHealthCheckAttempt(&attempt)
+	attempt.AgentID = agentID
+	attempt.AgentPublicID = publicID
+	attempt.AgentName = agentName
+	attempt.ErrorKind = "agent_connected"
+	attempt.DebugAttributes["transport"] = "agent_pool"
+	attempt.DebugAttributes["agent_event"] = "connected"
+	trace := m.newHealthTraceLocked(
+		state.backend,
+		p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY,
+		attempt,
+		before,
+		after,
+	)
+	m.appendHealthTraceLocked(&agentState.traces, trace)
 }
 
 func (m *publicBackendHealthMonitor) recordAgentDisconnected(backendID int64, agentID int64) {
@@ -529,10 +869,32 @@ func (m *publicBackendHealthMonitor) recordAgentDisconnectedForAll(agentID int64
 
 func (m *publicBackendHealthMonitor) recordAgentDisconnectedLocked(state *publicBackendHealthState, agentID int64) {
 	agentState := state.ensureAgentStateLocked(agentID)
+	wasConnected := agentState.connected
+	before := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
 	agentState.connected = false
 	agentState.state.explicitStatus = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN
 	agentState.state.healthyStreak = 0
 	agentState.state.unhealthyStreak = 0
+	if !wasConnected {
+		return
+	}
+	after := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
+	attempt := newPublicBackendHealthCheckAttempt(state.backend)
+	finishPublicBackendHealthCheckAttempt(&attempt)
+	attempt.AgentID = agentID
+	attempt.AgentPublicID = agentState.agentPublicID
+	attempt.ErrorKind = "agent_disconnected_event"
+	attempt.Err = errAgentDisconnected
+	attempt.DebugAttributes["transport"] = "agent_pool"
+	attempt.DebugAttributes["agent_event"] = "disconnected"
+	trace := m.newHealthTraceLocked(
+		state.backend,
+		p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY,
+		attempt,
+		before,
+		after,
+	)
+	m.appendHealthTraceLocked(&agentState.traces, trace)
 }
 
 func backendHasAgentAssignment(backend publicBackendConfig, agentID int64) bool {
@@ -565,7 +927,18 @@ func (m *publicBackendHealthMonitor) markPassiveFailure(backendID int64, err err
 		state.direct = unknownPublicBackendCheckState()
 		return
 	}
+	before := publicBackendHealthTraceStateFromCheck(state.direct, state.backend.HealthCheck.Enabled, time.Now())
 	m.markCheckPassiveFailureLocked(&state.direct, err)
+	after := publicBackendHealthTraceStateFromCheck(state.direct, state.backend.HealthCheck.Enabled, time.Now())
+	attempt := newPassiveHealthTraceAttempt(state.backend, 0, "", "", err)
+	trace := m.newHealthTraceLocked(
+		state.backend,
+		p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE,
+		attempt,
+		before,
+		after,
+	)
+	m.appendHealthTraceLocked(&state.directTraces, trace)
 }
 
 func (m *publicBackendHealthMonitor) markAgentPassiveFailure(backendID int64, agentID int64, err error) {
@@ -588,7 +961,18 @@ func (m *publicBackendHealthMonitor) markAgentPassiveFailure(backendID int64, ag
 	if agentState == nil {
 		agentState = state.ensureAgentStateLocked(agentID)
 	}
+	before := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
 	m.markCheckPassiveFailureLocked(&agentState.state, err)
+	after := publicBackendHealthTraceStateFromCheck(agentState.state, state.backend.HealthCheck.Enabled, time.Now())
+	attempt := newPassiveHealthTraceAttempt(state.backend, agentID, agentState.agentPublicID, "", err)
+	trace := m.newHealthTraceLocked(
+		state.backend,
+		p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE,
+		attempt,
+		before,
+		after,
+	)
+	m.appendHealthTraceLocked(&agentState.traces, trace)
 }
 
 func (m *publicBackendHealthMonitor) passiveFailuresEnabledLocked(state *publicBackendHealthState) bool {
@@ -628,6 +1012,68 @@ func (m *publicBackendHealthMonitor) activeRequests(backendID int64) int64 {
 		return 0
 	}
 	return state.activeRequests.Load()
+}
+
+func (m *publicBackendHealthMonitor) listHealthTraces(backendID int64, agentID int64, limit int64, failuresOnly bool) ([]*p2pstreamv1.PublicBackendHealthTrace, int64) {
+	if limit <= 0 || limit > publicBackendHealthTraceLimitPerTarget {
+		limit = publicBackendHealthTraceLimitPerTarget
+	}
+	if m == nil || backendID <= 0 {
+		return nil, 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state := m.states[backendID]
+	if state == nil {
+		return nil, 0
+	}
+	traces := make([]*p2pstreamv1.PublicBackendHealthTrace, 0)
+	if state.backend.ForwardMode == publicBackendForwardModeAgentPool {
+		if agentID > 0 {
+			if agentState := state.agentStates[agentID]; agentState != nil {
+				traces = append(traces, agentState.traces...)
+			}
+		} else {
+			for _, agentState := range state.agentStates {
+				traces = append(traces, agentState.traces...)
+			}
+		}
+	} else if agentID <= 0 {
+		traces = append(traces, state.directTraces...)
+	}
+	retained := int64(len(traces))
+	sort.Slice(traces, func(i int, j int) bool {
+		return traces[i].Sequence > traces[j].Sequence
+	})
+	resp := make([]*p2pstreamv1.PublicBackendHealthTrace, 0, minInt64(limit, retained))
+	for _, trace := range traces {
+		if failuresOnly &&
+			trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE &&
+			trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED {
+			continue
+		}
+		resp = append(resp, cloneHealthTrace(trace))
+		if int64(len(resp)) >= limit {
+			break
+		}
+	}
+	return resp, retained
+}
+
+func cloneHealthTrace(trace *p2pstreamv1.PublicBackendHealthTrace) *p2pstreamv1.PublicBackendHealthTrace {
+	if trace == nil {
+		return nil
+	}
+	copyTrace := *trace
+	copyTrace.DebugAttributes = cloneStringMap(trace.DebugAttributes)
+	return &copyTrace
+}
+
+func minInt64(a int64, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (m *publicBackendHealthMonitor) available(backend publicBackendConfig) bool {

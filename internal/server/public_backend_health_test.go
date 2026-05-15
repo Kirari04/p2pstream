@@ -120,6 +120,157 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 	waitForHealthStatus(t, app.BackendHealth, backend.ID, p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY)
 }
 
+func TestDirectHealthTraceRecordsSuccessAndFailure(t *testing.T) {
+	var status atomic.Int64
+	status.Store(http.StatusOK)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(int(status.Load()))
+	}))
+	defer srv.Close()
+	backend := testHealthBackend(t, 101, publicBackendForwardModeDirect, srv.URL+"?token=secret")
+	monitor := newPublicBackendHealthMonitor()
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+
+	monitor.recordDirectExplicitCheck(backend.ID, runPublicBackendHealthCheck(context.Background(), backend))
+	traces, retained := monitor.listHealthTraces(backend.ID, 0, 100, false)
+	if retained != 1 || len(traces) != 1 {
+		t.Fatalf("trace count = retained %d len %d, want 1", retained, len(traces))
+	}
+	trace := traces[0]
+	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS || trace.StatusCode != http.StatusOK {
+		t.Fatalf("success trace = %+v", trace)
+	}
+	if trace.StatusAfter != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY || trace.HealthyStreakAfter != 1 {
+		t.Fatalf("success trace state = %+v, want healthy streak", trace)
+	}
+	if strings.Contains(trace.Url, "secret") || strings.Contains(trace.Url, "token") {
+		t.Fatalf("health trace URL leaked sensitive query: %q", trace.Url)
+	}
+
+	status.Store(http.StatusServiceUnavailable)
+	monitor.recordDirectExplicitCheck(backend.ID, runPublicBackendHealthCheck(context.Background(), backend))
+	traces, retained = monitor.listHealthTraces(backend.ID, 0, 100, false)
+	if retained != 2 || len(traces) != 2 {
+		t.Fatalf("trace count after failure = retained %d len %d, want 2", retained, len(traces))
+	}
+	trace = traces[0]
+	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE ||
+		trace.ErrorKind != "unexpected_status" ||
+		trace.StatusCode != http.StatusServiceUnavailable ||
+		trace.UnhealthyStreakAfter != 1 {
+		t.Fatalf("failure trace = %+v", trace)
+	}
+	failures, retained := monitor.listHealthTraces(backend.ID, 0, 100, true)
+	if retained != 2 || len(failures) != 1 || failures[0].Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE {
+		t.Fatalf("failure filter = retained %d traces %+v", retained, failures)
+	}
+}
+
+func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthBackend(t, 102, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
+	agent := testAgentConn(7, "agent-7")
+	agent.Name = "Agent Seven"
+	if err := app.AgentHub.connect(agent); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	defer app.AgentHub.disconnect(agent)
+	app.BackendHealth.reconcile(app, &publicProxySnapshot{
+		Backends: map[int64]publicBackendConfig{backend.ID: backend},
+		Agents:   map[int64]publicAgentConfig{7: {ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true}},
+	}, false)
+	served := serveOneAgentHealthCheck(t, app, agent, http.StatusOK, nil)
+
+	attempt := app.runPublicBackendHealthCheckViaAgent(context.Background(), backend, agent)
+	select {
+	case <-served:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for served health check")
+	}
+	app.BackendHealth.recordAgentExplicitCheck(backend.ID, 7, attempt)
+	traces, retained := app.BackendHealth.listHealthTraces(backend.ID, 7, 100, false)
+	if retained != 1 || len(traces) != 1 {
+		t.Fatalf("agent trace count = retained %d len %d", retained, len(traces))
+	}
+	trace := traces[0]
+	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS ||
+		trace.AgentId != 7 ||
+		trace.AgentPublicId != "agent-7" ||
+		trace.AgentName != "Agent Seven" ||
+		trace.DebugAttributes["agent_request_id"] == "" ||
+		trace.DebugAttributes["transport"] != "agent_pool" {
+		t.Fatalf("agent trace = %+v", trace)
+	}
+}
+
+func TestHealthTraceRecordsSkippedDisconnectedAgent(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthBackend(t, 103, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 9, Position: 0, Weight: 100, Enabled: true}}
+	app.BackendHealth.reconcile(app, &publicProxySnapshot{
+		Backends: map[int64]publicBackendConfig{backend.ID: backend},
+		Agents:   map[int64]publicAgentConfig{9: {ID: 9, PublicID: "agent-9", Enabled: true}},
+	}, false)
+
+	app.BackendHealth.recordAgentDisconnected(backend.ID, 9)
+	app.BackendHealth.recordAgentActiveCheckSkipped(backend.ID, 9, backend, "agent_disconnected", errAgentDisconnected)
+	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, 9, 100, false)
+	if len(traces) != 1 {
+		t.Fatalf("skipped trace count = %d, want 1", len(traces))
+	}
+	trace := traces[0]
+	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED ||
+		trace.ErrorKind != "agent_disconnected" ||
+		trace.StatusCode != 0 {
+		t.Fatalf("skipped trace = %+v", trace)
+	}
+}
+
+func TestPassiveAndConnectivityHealthTraces(t *testing.T) {
+	app, backend := testAgentPoolApp(t)
+	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, errors.New("agent timeout"))
+	agentOneTraces, _ := app.BackendHealth.listHealthTraces(backend.ID, 1, 100, false)
+	agentTwoTraces, _ := app.BackendHealth.listHealthTraces(backend.ID, 2, 100, false)
+	if len(agentOneTraces) != 1 || len(agentTwoTraces) != 0 {
+		t.Fatalf("agent passive traces agent1=%d agent2=%d, want 1/0", len(agentOneTraces), len(agentTwoTraces))
+	}
+	if agentOneTraces[0].Source != p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE ||
+		agentOneTraces[0].PassiveUnhealthyUntilUnixMillis == 0 {
+		t.Fatalf("passive trace = %+v", agentOneTraces[0])
+	}
+
+	app.BackendHealth.recordAgentConnected(backend.ID, 1, "agent-a")
+	app.BackendHealth.recordAgentDisconnected(backend.ID, 1)
+	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, 1, 100, false)
+	if len(traces) < 3 {
+		t.Fatalf("connectivity traces = %+v, want passive plus connect/disconnect", traces)
+	}
+	if traces[0].Source != p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY ||
+		traces[0].ErrorKind != "agent_disconnected_event" {
+		t.Fatalf("latest connectivity trace = %+v", traces[0])
+	}
+}
+
+func TestDirectHealthTraceRetentionCapsPerTarget(t *testing.T) {
+	backend := testHealthBackend(t, 104, publicBackendForwardModeDirect, "http://127.0.0.1:8888")
+	monitor := newPublicBackendHealthMonitor()
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	for range publicBackendHealthTraceLimitPerTarget + 5 {
+		attempt := newPublicBackendHealthCheckAttempt(backend)
+		attempt.StatusCode = http.StatusOK
+		finishPublicBackendHealthCheckAttempt(&attempt)
+		monitor.recordDirectExplicitCheck(backend.ID, attempt)
+	}
+	traces, retained := monitor.listHealthTraces(backend.ID, 0, 200, false)
+	if retained != publicBackendHealthTraceLimitPerTarget || len(traces) != publicBackendHealthTraceLimitPerTarget {
+		t.Fatalf("retention = retained %d len %d, want %d", retained, len(traces), publicBackendHealthTraceLimitPerTarget)
+	}
+	if traces[0].Sequence <= traces[len(traces)-1].Sequence {
+		t.Fatalf("traces not newest first: first=%d last=%d", traces[0].Sequence, traces[len(traces)-1].Sequence)
+	}
+}
+
 func TestAgentPoolHealthCheckUnhealthySkipsOnlyThatAgent(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)

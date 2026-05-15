@@ -2,6 +2,8 @@ import {
   ProxyState,
   PublicAcmeChallengeType,
   PublicBackendForwardMode,
+  PublicBackendHealthTraceOutcome,
+  PublicBackendHealthTraceSource,
   PublicBackendHealthStatus,
   PublicBackendLoadBalancing,
   PublicBackendType,
@@ -22,6 +24,7 @@ import {
   type Agent,
   type PublicBackend,
   type PublicBackendAgent,
+  type PublicBackendHealthTrace,
   type PublicCacheRule,
   type PublicListener,
   type PublicListenerStatus,
@@ -182,6 +185,101 @@ export function backendHealthSeverity(backend: PublicBackend): "success" | "warn
       return "warn";
     default:
       return "info";
+  }
+}
+
+export function healthTraceOutcomeLabel(outcome: PublicBackendHealthTraceOutcome): string {
+  switch (outcome) {
+    case PublicBackendHealthTraceOutcome.SUCCESS:
+      return "Success";
+    case PublicBackendHealthTraceOutcome.FAILURE:
+      return "Failed";
+    case PublicBackendHealthTraceOutcome.SKIPPED:
+      return "Skipped";
+    default:
+      return "Unknown";
+  }
+}
+
+export function healthTraceOutcomeSeverity(outcome: PublicBackendHealthTraceOutcome): "success" | "warn" | "danger" | "info" {
+  switch (outcome) {
+    case PublicBackendHealthTraceOutcome.SUCCESS:
+      return "success";
+    case PublicBackendHealthTraceOutcome.FAILURE:
+      return "danger";
+    case PublicBackendHealthTraceOutcome.SKIPPED:
+      return "warn";
+    default:
+      return "info";
+  }
+}
+
+export function healthTraceSourceLabel(source: PublicBackendHealthTraceSource): string {
+  switch (source) {
+    case PublicBackendHealthTraceSource.ACTIVE_CHECK:
+      return "Active check";
+    case PublicBackendHealthTraceSource.PASSIVE_FAILURE:
+      return "Passive failure";
+    case PublicBackendHealthTraceSource.AGENT_CONNECTIVITY:
+      return "Agent connectivity";
+    default:
+      return "Unknown";
+  }
+}
+
+export function healthTraceReasonSummary(trace: PublicBackendHealthTrace): string {
+  if (trace.errorKind === "success" || trace.outcome === PublicBackendHealthTraceOutcome.SUCCESS) {
+    return trace.statusCode ? `HTTP ${trace.statusCode.toString()}` : "OK";
+  }
+  if (trace.errorKind === "unexpected_status" && trace.statusCode) {
+    return `HTTP ${trace.statusCode.toString()} outside ${trace.expectedStatusMin.toString()}-${trace.expectedStatusMax.toString()}`;
+  }
+  if (trace.error) return trace.error;
+  switch (trace.errorKind) {
+    case "timeout": return "Timed out";
+    case "request_failed": return "Request failed";
+    case "response_body_read_failed": return "Response body read failed";
+    case "request_encode_failed": return "Request encode failed";
+    case "agent_disconnected": return "Agent disconnected";
+    case "agent_failed": return "Agent failed";
+    case "response_decode_failed": return "Response decode failed";
+    case "health_check_skipped": return "Health check skipped";
+    case "passive_failure": return "Passive failure";
+    case "agent_connected": return "Agent connected";
+    case "agent_disconnected_event": return "Agent disconnected";
+    default: return trace.errorKind || "No reason captured";
+  }
+}
+
+export function healthTraceTransitionSummary(trace: PublicBackendHealthTrace): string {
+  const before = healthStatusLabel(trace.statusBefore);
+  const after = healthStatusLabel(trace.statusAfter);
+  const availability = trace.availableAfter ? "available" : "unavailable";
+  if (before === after) return `${after} / ${availability}`;
+  return `${before} -> ${after} / ${availability}`;
+}
+
+export function healthTraceTargetLabel(trace: PublicBackendHealthTrace, agents: readonly Agent[] = []): string {
+  if (!trace.agentId) return "Direct";
+  const agent = agents.find((item) => item.id === trace.agentId);
+  if (agent) return agentName(trace.agentId, agents);
+  if (trace.agentName) return trace.agentPublicId ? `${trace.agentName} (${trace.agentPublicId})` : trace.agentName;
+  if (trace.agentPublicId) return trace.agentPublicId;
+  return `#${trace.agentId.toString()}`;
+}
+
+function healthStatusLabel(status: PublicBackendHealthStatus): string {
+  switch (status) {
+    case PublicBackendHealthStatus.HEALTHY:
+      return "Healthy";
+    case PublicBackendHealthStatus.UNHEALTHY:
+      return "Unhealthy";
+    case PublicBackendHealthStatus.DISABLED:
+      return "Disabled";
+    case PublicBackendHealthStatus.DISCONNECTED:
+      return "Disconnected";
+    default:
+      return "Unknown";
   }
 }
 
