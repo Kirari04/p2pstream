@@ -1,6 +1,10 @@
 # Screenshots
 
-A quick visual tour of the p2pstream management console.
+A visual reference for the current p2pstream management console.
+
+## Exact Screens
+
+The screenshots in this page are source assets under `docs/assets/` and are used throughout the docs for the current management UI structure.
 
 <div class="screenshot-gallery">
   <figure class="doc-screenshot screenshot-tile">
@@ -28,3 +32,13 @@ A quick visual tour of the p2pstream management console.
     <figcaption>Traffic Policy and TLS</figcaption>
   </figure>
 </div>
+
+## Runtime Effects
+
+These images are documentation assets only. They do not change product behavior and should be refreshed when the management UI layout changes.
+
+## Related Tasks
+
+- [First login](../getting-started/first-login)
+- [Trace live traffic](../guides/trace-live-traffic)
+- [Observability](../concepts/observability)

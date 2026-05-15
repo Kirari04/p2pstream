@@ -1,42 +1,20 @@
 # CLI Reference
 
-The runtime image and release archive contain one binary:
+The runtime image and release archive contain one binary: `p2pstream`.
 
-```bash
-p2pstream
-```
+## Exact Commands And Flags
 
-## Server
+Start the server:
 
 ```bash
 p2pstream server
 ```
 
-The server command reads configuration from `.env` and environment variables. It starts:
-
-- management UI/API on `MANAGEMENT_PORT`, default `8081`,
-- public listeners from the SQLite configuration,
-- ACME renewal scheduling when the database is available.
-
-Set `MANAGEMENT_UI_DISABLED=true` to serve only the management API and agent WebSocket on the management listener.
-
-Common server invocation:
-
-```bash
-CONFIG_DIR=/var/lib/p2pstream \
-MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
-p2pstream server
-```
-
-## Users
+Reset a management user's password:
 
 ```bash
 p2pstream users reset-password USERNAME [flags]
 ```
-
-`users reset-password` is an offline recovery command. It updates the management user directly in the configured SQLite database and revokes that user's active login sessions. Run it on the host or container that can access the same `CONFIG_DIR` or `DATABASE_URL` used by the server.
-
-Flags:
 
 | Flag | Description |
 | --- | --- |
@@ -44,34 +22,7 @@ Flags:
 | `--password-env` | Read the new password from the named environment variable. |
 | `--password-file` | Read the new password from a file. |
 
-Interactive reset:
-
-```bash
-CONFIG_DIR=/var/lib/p2pstream \
-p2pstream users reset-password admin
-```
-
-Noninteractive reset from an environment variable:
-
-```bash
-RESET_PASSWORD='new long password value' \
-p2pstream users reset-password admin --password-env RESET_PASSWORD
-```
-
-Reset from a secret file:
-
-```bash
-p2pstream users reset-password admin --password-file /run/secrets/admin-password
-```
-
-Reset against an explicit database:
-
-```bash
-p2pstream users reset-password admin \
-  --database-url 'file:/var/lib/p2pstream/p2pstream.db?mode=rwc'
-```
-
-## Agent
+Start an agent:
 
 ```bash
 p2pstream agent [flags]
@@ -89,7 +40,46 @@ p2pstream agent [flags]
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
 
-Example:
+## Validation Rules
+
+- `users reset-password` requires a valid username and a password with at least 12 characters.
+- Use only one password source: prompt, `--password-env`, or `--password-file`.
+- `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
+- Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
+
+## Runtime Effects
+
+`p2pstream server` reads `.env` and environment variables, starts management on `MANAGEMENT_PORT`, starts public listeners from SQLite configuration, and starts ACME scheduling when available.
+
+`users reset-password` updates the configured SQLite database directly and revokes active sessions for that user. Run it where the same `CONFIG_DIR` or `DATABASE_URL` is available.
+
+If no management URL is provided to the agent, it guesses `https://<local-route-ip>:8081`; production agents should use an explicit URL from the Agent Setup dialog.
+
+## Examples
+
+Server:
+
+```bash
+CONFIG_DIR=/var/lib/p2pstream \
+MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
+p2pstream server
+```
+
+Interactive password reset:
+
+```bash
+CONFIG_DIR=/var/lib/p2pstream \
+p2pstream users reset-password admin
+```
+
+Noninteractive reset:
+
+```bash
+RESET_PASSWORD='new long password value' \
+p2pstream users reset-password admin --password-env RESET_PASSWORD
+```
+
+Agent:
 
 ```bash
 p2pstream agent \
@@ -99,4 +89,8 @@ p2pstream agent \
   --agent-token "$AGENT_TOKEN"
 ```
 
-If no management URL is provided, the agent guesses `https://<local-route-ip>:8081`. Production agents should use an explicit URL.
+## Related Tasks
+
+- [First login](../getting-started/first-login)
+- [Release binary](../getting-started/binary)
+- [Expose a home lab app](../guides/expose-a-home-lab-app)

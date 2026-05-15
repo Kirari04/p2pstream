@@ -1,8 +1,8 @@
 # Public TLS and ACME Reference
 
-Public TLS is configured per HTTPS listener.
+Public TLS is configured per HTTPS listener with certificate mappings.
 
-## Certificate mappings
+## Exact Fields And Defaults
 
 Mappings include:
 
@@ -10,25 +10,12 @@ Mappings include:
 - hostname pattern,
 - source,
 - certificate/key material or ACME settings,
+- enabled flag,
 - status and renewal timestamps.
 
 Hostname patterns support exact names and wildcards such as `*.example.com`.
 
-## Manual certificates
-
-Manual mode accepts either:
-
-- uploaded PEM certificate and key,
-- filesystem paths to certificate and key.
-- a GUI-generated self-signed certificate with a selected validity period.
-
-Uploaded material is written under the configured certs directory.
-Generated self-signed certificates are written to the same managed location and are intended for internal or test deployments, not trusted public clients.
-The management UI shows certificate validity when metadata is stored or the certificate file can be parsed.
-
-## ACME certificates
-
-ACME source supports:
+Manual source accepts uploaded PEM certificate/key, server file paths, or GUI-generated self-signed material. ACME source supports:
 
 | Setting | Values |
 | --- | --- |
@@ -36,23 +23,52 @@ ACME source supports:
 | CA | Let's Encrypt production or staging |
 | DNS provider | Cloudflare for DNS-01 |
 
-ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after a delay.
-
-## Challenge requirements
-
-| Challenge | Requirement |
-| --- | --- |
-| HTTP-01 | Public HTTP listener receives the challenge path. |
-| TLS-ALPN-01 | Public HTTPS listener receives the ALPN challenge. |
-| DNS-01 | Enabled Cloudflare DNS credential. Required for wildcards. |
-
-ACME hostnames must be public fully-qualified DNS names.
-
-## Statuses
+Statuses:
 
 | Status | Meaning |
 | --- | --- |
 | Pending | Waiting for initial issuance. |
 | Renewing | Issuance or renewal is running. |
 | Ready | Certificate material is available. |
-| Error | Last issuance attempt failed. Check `last_error`. |
+| Error | Last issuance attempt failed; check `last_error`. |
+
+## Validation Rules
+
+- ACME hostnames must be public fully-qualified DNS names.
+- ACME does not accept `localhost`, `p2pstream.local`, IP addresses, or internal-only names.
+- Wildcard ACME certificates require DNS-01.
+- DNS-01 currently requires an enabled Cloudflare DNS credential.
+- Uploaded manual certificates require both PEM certificate and key.
+- Manual file-path certificates require both paths.
+
+## Runtime Effects
+
+Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after a delay.
+
+The management UI shows certificate validity when metadata is stored or the certificate file can be parsed.
+
+## Examples
+
+HTTP-01 mapping:
+
+```text
+Listener: public-https
+Hostname pattern: app.example.com
+Method: HTTP-01
+CA: Let's Encrypt staging, then production
+```
+
+DNS-01 wildcard mapping:
+
+```text
+Listener: public-https
+Hostname pattern: *.example.com
+Method: DNS-01
+DNS credential: cloudflare-example
+```
+
+## Related Tasks
+
+- [ACME HTTP/TLS-ALPN](../guides/acme-http-tls-alpn)
+- [ACME Cloudflare DNS](../guides/acme-cloudflare-dns)
+- [TLS](../concepts/tls)

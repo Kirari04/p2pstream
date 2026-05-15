@@ -1,22 +1,22 @@
 # Rate Limits Reference
 
-Rate limit rules are global and evaluated after WAF rules and before traffic shapers and route resolution.
+Rate limit rules are global public proxy rules evaluated after WAF rules and before traffic shapers and route resolution.
 
-## Defaults and limits
+## Exact Fields And Defaults
 
 | Setting | Default or limit |
 | --- | --- |
 | Name | `rate-limit` when empty |
 | Limit | `60` |
 | Window | `60000` ms |
-| Window range | 1 second to 1 day |
 | Response status | `429` |
 | Response body | `Rate limit exceeded\n` |
+| Response content type | `text/plain; charset=utf-8` |
 | Default key | remote IP |
 | Max key parts | `8` |
 | Max value matchers | `32` |
 
-## Algorithms
+Algorithms:
 
 | Algorithm | Notes |
 | --- | --- |
@@ -25,19 +25,16 @@ Rate limit rules are global and evaluated after WAF rules and before traffic sha
 | Token bucket | Allows bursts up to burst capacity. |
 | Leaky bucket | Smooths bursty traffic. |
 
-For token and leaky bucket rules, burst defaults to the effective limit when unset.
+## Validation Rules
 
-## Match fields
+- Limit must be at least `1`.
+- Window must be between 1 second and 1 day.
+- Burst must be non-negative and cannot exceed 10x limit.
+- Response status must be between `400` and `599`.
+- Header matcher names and response header names must be valid HTTP tokens.
+- Protected generated headers such as `RateLimit-*`, `X-RateLimit-*`, `Retry-After`, `Content-Length`, and `Connection` cannot be configured as custom response headers.
 
-Rules can match:
-
-- methods,
-- protocols,
-- host patterns,
-- path prefixes,
-- headers,
-- cookies,
-- query parameters.
+Rules can match methods, protocols, host patterns, path prefixes, headers, cookies, and query parameters.
 
 Value matcher operators:
 
@@ -46,8 +43,6 @@ Value matcher operators:
 - prefix,
 - suffix,
 - contains.
-
-## Key parts
 
 Key sources:
 
@@ -60,8 +55,28 @@ Key sources:
 - cookie,
 - query parameter.
 
-Use multiple key parts to avoid grouping unrelated clients together.
+## Runtime Effects
 
-## Generated headers
+When a request exceeds the selected rule's budget, p2pstream returns the configured response and does not run traffic shaping, route resolution, backend selection, or cache lookup for that request.
 
-Rate-limit responses include generated rate-limit metadata headers and any configured response headers.
+Token and leaky bucket burst defaults to the effective limit when unset.
+
+## Examples
+
+Login rule:
+
+```text
+Method: POST
+Host pattern: app.example.com
+Path prefix: /login
+Algorithm: Sliding window
+Limit: 10
+Window: 60000 ms
+Key: remote IP
+```
+
+## Related Tasks
+
+- [Rate limit a route](../guides/rate-limit-a-route)
+- [Limits and shaping](../concepts/limits-and-shaping)
+- [Troubleshooting rate limits](../operations/troubleshooting#rate-limits-affect-every-user)

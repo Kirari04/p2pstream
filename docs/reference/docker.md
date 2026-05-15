@@ -1,22 +1,8 @@
 # Docker Reference
 
-Docker Compose is the recommended server deployment path for p2pstream. The repository includes a root `compose.yaml` that runs the management server, publishes the default public listener ports, and persists state in the `p2pstream-data` volume.
+Docker Compose is the recommended p2pstream server deployment path.
 
-Start the server:
-
-```bash
-cp .env.example .env
-# edit MANAGEMENT_PUBLIC_URL in .env
-docker compose up -d
-```
-
-Follow logs:
-
-```bash
-docker compose logs -f p2pstream
-```
-
-## Image
+## Exact Fields And Defaults
 
 Released images are published at:
 
@@ -31,35 +17,21 @@ latest
 vX.Y.Z
 ```
 
-For repeatable deployments, pin a release tag in `compose.yaml` instead of using `latest`.
-
-## Runtime image
-
 The runtime image:
 
-- includes `/app/p2pstream`,
-- includes the built management UI,
-- sets `MANAGEMENT_UI_DIST_DIR=/app/web/management/dist`,
-- sets `MANAGEMENT_PORT=8081`,
-- sets `CONFIG_DIR=/data`,
-- stores public cache bodies under `/data/cache/public` unless `PUBLIC_CACHE_DIR` is set,
-- declares `/data` as a volume,
-- exposes `80`, `443`, and `8081`,
-- runs `/app/p2pstream server`.
+| Runtime detail | Value |
+| --- | --- |
+| Binary | `/app/p2pstream` |
+| Management UI dist | `/app/web/management/dist` |
+| `ENV` | `production` |
+| `MANAGEMENT_UI_DIST_DIR` | `/app/web/management/dist` |
+| `MANAGEMENT_PORT` | `8081` |
+| `CONFIG_DIR` | `/data` |
+| Volume | `/data` |
+| Exposed ports | `80`, `443`, `8081` |
+| Command | `/app/p2pstream server` |
 
-Set `MANAGEMENT_UI_DISABLED=true` to stop serving the browser UI from the management listener. The ConnectRPC API and agent WebSocket remain available.
-
-The same image also includes local utility commands. For example, reset a forgotten management password against the mounted `/data` database with:
-
-```bash
-docker compose exec p2pstream p2pstream users reset-password admin
-```
-
-## Published ports
-
-The runtime image exposes `80`, `443`, and `8081`, but Docker only publishes what the Compose file maps.
-
-The application does not read a `PORT` environment variable; public listener ports are stored in the database, while Compose controls which container ports are published on the host.
+The root Compose file maps:
 
 ```yaml
 ports:
@@ -68,11 +40,37 @@ ports:
   - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
 ```
 
-If you create listeners on ports other than `80` and `443`, publish them explicitly. Docker cannot expose ports created later in the management UI unless the host mapping exists.
+## Validation Rules
 
-## Agent container
+- Docker only publishes what Compose maps; creating a listener in the UI does not create a new host mapping.
+- The application does not read a `PORT` environment variable for public listeners.
+- Public listener ports are stored in SQLite and managed through **Proxy**.
+- Use a pinned release tag instead of `latest` when repeatability matters.
 
-The Agent Setup dialog can generate a Docker Compose service for an agent:
+## Runtime Effects
+
+The runtime image creates a non-root `p2pstream` user and grants the binary `cap_net_bind_service` so it can bind low ports. State is stored in `/data`, including SQLite, generated certificates, ACME material, and default public cache storage.
+
+`MANAGEMENT_UI_DISABLED=true` stops serving the browser UI from the management listener. The ConnectRPC API and agent WebSocket remain available.
+
+## Examples
+
+Start the server:
+
+```bash
+cp .env.example .env
+# edit MANAGEMENT_PUBLIC_URL in .env
+docker compose up -d
+docker compose logs -f p2pstream
+```
+
+Reset a forgotten password against the mounted `/data` database:
+
+```bash
+docker compose exec p2pstream p2pstream users reset-password admin
+```
+
+Generated agent container shape:
 
 ```yaml
 services:
@@ -87,4 +85,8 @@ services:
     restart: unless-stopped
 ```
 
-Use the generated `AGENT_ID`, `AGENT_TOKEN`, and CA material from the management UI.
+## Related Tasks
+
+- [Docker Compose quickstart](../getting-started/quickstart)
+- [Docker Compose details](../getting-started/docker-compose)
+- [Upgrades](../operations/upgrades)

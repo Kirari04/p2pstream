@@ -1,8 +1,54 @@
 # Cache Reference
 
-Cache rules are global public proxy policy rules for public static assets. They run after route/backend selection and before forwarding a cache miss upstream.
+Cache rules are global public proxy policy rules for public static assets.
 
-## Request order
+## Exact Fields And Defaults
+
+Cache rules run after route/backend selection and before forwarding a cache miss upstream.
+
+| Field | Default | Description |
+| --- | --- | --- |
+| `name` | operator value | Rule label. |
+| `priority` | `100` in database defaults | Lower numbers evaluate first. |
+| `enabled` | `true` | Disabled rules are ignored. |
+| `match` | empty | Method, protocol, host, path prefix, path suffix, header, cookie, and query matches. |
+| `route_ids` | empty | Optional route filter. |
+| `backend_ids` | empty | Optional backend filter. |
+| `scope` | selected backend | Isolate by selected backend or route. |
+| `ttl_mode` | `fixed` | `fixed` or `origin`. |
+| `ttl_millis` | `3600000` | Rule TTL, or origin-TTL fallback. |
+| `query_mode` | full query | `full`, `ignore`, `allowlist`, or `denylist`. |
+| `query_params` | empty | Query names used by allowlist or denylist modes. |
+| `vary_headers` | `Accept-Encoding` | Request headers included in the cache key. |
+| `cache_status_codes` | `200`, `203`, `204`, `301`, `308` | Statuses that may be stored. |
+| `max_object_bytes` | `104857600` | Maximum stored response size. |
+| `add_cache_status_header` | false unless enabled | Adds `X-p2pstream-Cache`. |
+| `allow_cookie_requests` | `false` | Allows matching requests with `Cookie` headers to use cache; cookie values are ignored and never stored. |
+
+Storage defaults:
+
+| Setting | Default |
+| --- | --- |
+| Disk directory | `${CONFIG_DIR}/cache/public`, or `PUBLIC_CACHE_DIR` |
+| Max disk bytes | `1073741824` |
+| Max memory bytes | `134217728` |
+| Memory hot object max bytes | `262144` |
+| Max entries | `100000` |
+| Cleanup interval | `60000` ms |
+
+## Validation Rules
+
+p2pstream always bypasses cache for requests with `Authorization`, non-GET/HEAD methods, request bodies, `Range`, and upgrades.
+
+Requests with `Cookie` bypass by default unless the matching rule enables `allow_cookie_requests`. Use that only for precise public static asset rules.
+
+p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
+
+Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
+
+## Runtime Effects
+
+Request order:
 
 1. ACME HTTP challenge bypass
 2. Reserved WAF endpoints
@@ -14,94 +60,22 @@ Cache rules are global public proxy policy rules for public static assets. They 
 8. Cache hit response, or upstream forwarding and cache store
 9. Final response
 
-Cache hits still consume rate-limit buckets and still use traffic shaping. They do not bypass WAF, rate limits, or shapers.
+Cache hits still consume rate-limit buckets and still use traffic shaping. Redirect routes and static backends are not cached. `HEAD` requests can be served from a cached `GET` object, but `HEAD` does not create a new cache object.
 
-## Rule fields
-
-| Field | Description |
-| --- | --- |
-| `name` | Operator label. |
-| `priority` | Lower numbers evaluate first. |
-| `enabled` | Disabled rules are ignored. |
-| `match` | Method, protocol, host, path prefix, path suffix, header, cookie, and query matches. |
-| `route_ids` | Optional route filter. |
-| `backend_ids` | Optional backend filter. |
-| `scope` | `selected_backend` isolates by selected backend; `route` shares across backends for the route. |
-| `ttl_mode` | `fixed` or `origin`. |
-| `ttl_millis` | Rule TTL, or origin-TTL fallback. Default `3600000`. |
-| `query_mode` | `full`, `ignore`, `allowlist`, or `denylist`. |
-| `query_params` | Query names used by allowlist or denylist modes. |
-| `vary_headers` | Request headers included in the cache key. Default `Accept-Encoding`. |
-| `cache_status_codes` | Statuses that may be stored. Default `200`, `203`, `204`, `301`, `308`. |
-| `max_object_bytes` | Maximum stored response size. Default `104857600`. |
-| `add_cache_status_header` | Adds `X-p2pstream-Cache: HIT` or `MISS`. |
-| `allow_cookie_requests` | Allows matching requests with `Cookie` headers to use the cache after the rule matches. Default `false`; cookie values are ignored and never stored. |
-
-## Safe bypasses
-
-p2pstream always bypasses cache for requests with `Authorization`. It also bypasses non-GET/HEAD methods, request bodies, `Range`, and upgrades.
-
-Requests with `Cookie` bypass by default unless the matching rule enables `allow_cookie_requests`. Use that only for precise public static asset rules. Cookie values are ignored for cache keys and are never stored.
-
-p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
-
-| Request or response condition | Result |
-| --- | --- |
-| `Authorization` request | Always bypasses cache. |
-| `Cookie` request, rule does not allow cookies | Bypasses cache. |
-| `Cookie` request, rule allows cookies | Eligible for lookup and store when every other safety check passes. |
-| Response has `Set-Cookie` | Not stored. |
-| Response has `Cache-Control: no-store`, `private`, or `no-cache` | Not stored. |
-| Response has `Vary: Cookie`, `Vary: Authorization`, or `Vary: *` | Not stored. |
-| Response has `Vary: Accept-Encoding` | Supported variant key for compressed and uncompressed responses. |
-
-Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
-
-## TTL
-
-Fixed TTL stores for the configured rule TTL.
-
-Origin TTL reads `s-maxage`, then `max-age`, then `Expires`. If no usable origin TTL exists, the rule TTL is used. Origin denial headers are always respected.
-
-## Cache key
-
-The key includes listener protocol, normalized host, route or selected backend scope, normalized GET method for GET/HEAD sharing, path, query string according to query mode, configured vary headers, and origin `Vary` headers.
-
-Raw cookies, authorization headers, and full cache keys are not stored in proxy event rows. Cookies and authorization headers are never included in cache keys.
-
-## Verify a cache rule
-
-When `add_cache_status_header` is enabled, p2pstream adds `X-p2pstream-Cache` to eligible responses. The first request for a cacheable object should usually return `MISS`; a later request with the same cache key should return `HIT`.
-
-If a matching request has cookies, it can only hit cache when the cache rule enables `allow_cookie_requests`. A request with `Authorization` always bypasses and should not produce a cache hit.
-
-## Cache statuses
-
-Cache status is recorded in live traces and proxy request events.
+Cache statuses in traces and events:
 
 | Status | Meaning |
 | --- | --- |
 | `hit` | A valid cached object was served. |
 | `miss` | A rule matched, no valid object was available, and the request was forwarded upstream. |
-| `bypass` | Cache was skipped because a safety rule or request condition prevented lookup or store. |
+| `bypass` | Cache was skipped because a safety rule or request condition prevented lookup/store. |
 | `expired` | A matching entry existed but was expired, so the request was forwarded upstream. |
 | `stored` | A complete upstream response was committed to cache. |
 | `store_failed` | p2pstream attempted to capture a miss response but did not commit it. |
 
-## Storage settings
+## Examples
 
-| Setting | Default |
-| --- | --- |
-| Disk directory | `${CONFIG_DIR}/cache/public`, or `PUBLIC_CACHE_DIR` |
-| Max disk bytes | `1073741824` |
-| Max memory bytes | `134217728` |
-| Memory hot object max bytes | `262144` |
-| Max entries | `100000` |
-| Cleanup interval | `60000` ms |
-
-## Example asset rule
-
-Use a host match for the public domain, a path prefix such as `/assets/`, and suffixes:
+Static asset suffixes:
 
 ```text
 .css
@@ -114,10 +88,18 @@ Use a host match for the public domain, a path prefix such as `/assets/`, and su
 .woff2
 ```
 
-Set fixed TTL to `3600000` ms for a one-hour cache, or use origin TTL when the upstream already sends cache headers.
+Nuxt-style rule:
 
-For a Nuxt app, use a path prefix such as `/_nuxt/` with hashed asset suffixes. If logged-in browsers send cookies for those assets, enable `allow_cookie_requests` on that rule. Responses with `Set-Cookie`, private/no-store/no-cache, `Vary: Cookie`, or `Vary: Authorization` still will not be stored.
+```text
+Host: app.example.com
+Path prefix: /_nuxt/
+Path suffixes: .js, .css, .png, .webp, .svg, .woff2
+TTL mode: Origin TTL
+Cache requests with Cookie headers: On only if those assets are public
+```
 
-## Limitations
+## Related Tasks
 
-The first version does not cache redirect routes or static backends, does not serve stale-if-error, and does not implement stale-while-revalidate.
+- [Public asset cache](../concepts/cache)
+- [Trace live traffic](../guides/trace-live-traffic)
+- [Troubleshooting cache misses](../operations/troubleshooting#static-asset-is-not-cached)

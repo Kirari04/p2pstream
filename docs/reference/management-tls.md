@@ -1,8 +1,8 @@
 # Management TLS Reference
 
-Management TLS protects the management UI/API and agent connections.
+Management TLS protects the management UI/API and agent HTTPS/WSS connections.
 
-## Modes
+## Exact Fields And Defaults
 
 | Mode | Required variables | Behavior |
 | --- | --- | --- |
@@ -11,8 +11,6 @@ Management TLS protects the management UI/API and agent connections.
 | `off` | `MANAGEMENT_ALLOW_INSECURE_HTTP=true` | Serve management over HTTP. |
 
 `MANAGEMENT_TLS_MODE` defaults to `auto`.
-
-## Auto-generated files
 
 Auto mode writes:
 
@@ -23,23 +21,19 @@ ${CONFIG_DIR}/certs/management/server.crt.pem
 ${CONFIG_DIR}/certs/management/server.key.pem
 ```
 
-The CA and server certificate are valid for 10 years. The server certificate is regenerated if the hostnames no longer match.
+The generated CA and server certificate are valid for 10 years. The server certificate is regenerated if the hostname set no longer matches.
 
-## Certificate names
+## Validation Rules
 
-Auto mode includes:
+- Cert and key files must be set together.
+- Provided mode requires cert and key files.
+- Off mode requires `MANAGEMENT_ALLOW_INSECURE_HTTP=true`.
+- `MANAGEMENT_TLS_CLIENT_CA_FILE` requires TLS.
+- `MANAGEMENT_PUBLIC_URL` must use `https` unless management TLS is off and insecure HTTP is explicitly allowed.
 
-- detected advertise host,
-- `localhost`,
-- `p2pstream.local`,
-- `server`,
-- `127.0.0.1`,
-- `::1`,
-- entries from `MANAGEMENT_TLS_EXTRA_HOSTS`.
+## Runtime Effects
 
-Set `MANAGEMENT_PUBLIC_URL` to override the generated default management URL used by setup snippets.
-
-## Agent trust
+Auto mode certificate names include the detected advertise host, `localhost`, `p2pstream.local`, `server`, `127.0.0.1`, `::1`, and entries from `MANAGEMENT_TLS_EXTRA_HOSTS`.
 
 Agents verify management TLS. Pass either:
 
@@ -53,13 +47,32 @@ or:
 MANAGEMENT_CA_PEM_BASE64=...
 ```
 
-## Agent mTLS
-
-Set `MANAGEMENT_TLS_CLIENT_CA_FILE` on the server to verify optional agent client certificates. Agents then need:
+For agent mTLS, set `MANAGEMENT_TLS_CLIENT_CA_FILE` on the server and configure agents with:
 
 ```text
 AGENT_TLS_CERT_FILE=/etc/p2pstream/agent.crt.pem
 AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 ```
 
-The certificate must identify the correct agent ID.
+## Examples
+
+Auto TLS with extra names:
+
+```dotenv
+MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
+MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
+```
+
+Provided TLS:
+
+```dotenv
+MANAGEMENT_TLS_MODE=provided
+MANAGEMENT_TLS_CERT_FILE=/etc/p2pstream/management.crt.pem
+MANAGEMENT_TLS_KEY_FILE=/etc/p2pstream/management.key.pem
+```
+
+## Related Tasks
+
+- [TLS](../concepts/tls)
+- [Security hardening](../operations/security-hardening)
+- [Expose a home lab app](../guides/expose-a-home-lab-app)

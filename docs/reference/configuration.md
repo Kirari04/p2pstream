@@ -1,21 +1,21 @@
 # Configuration Reference
 
-p2pstream reads `.env` if present, then environment variables.
+p2pstream loads `.env` when present, then environment variables, and derives defaults for SQLite, certificate, cache, and management URL settings.
 
-## Server variables
+## Exact Fields And Defaults
 
-Public proxy listener ports are stored in the database and managed through the management UI/API. A new database seeds HTTP `80` and HTTPS `443`. Docker host port publishing is controlled by Compose variables such as `P2PSTREAM_HTTP_PORT`.
+Public proxy listener ports are stored in SQLite and managed through the management UI/API. A new database seeds HTTP `80` and HTTPS `443`. Docker host port publishing is controlled by Compose variables such as `P2PSTREAM_HTTP_PORT`.
 
-| Variable | Default | Description |
+| Server variable | Default | Description |
 | --- | --- | --- |
-| `MANAGEMENT_PORT` | `8081` | Management UI/API port. |
-| `CONFIG_DIR` | `p2pstream-data` | Directory for default SQLite database and certificates. Docker sets this to `/data`. |
-| `DATABASE_URL` | `file:${CONFIG_DIR}/p2pstream.db?...` | SQLite DSN. Leave unset for the managed default. |
-| `ENV` | `development` | Use `production` to mark session cookies secure. |
-| `MANAGEMENT_UI_DISABLED` | `false` | Disable serving the browser management UI. ConnectRPC APIs and the agent WebSocket remain available. |
+| `MANAGEMENT_PORT` | `8081` | Management UI/API and agent HTTPS/WSS port. |
+| `CONFIG_DIR` | `p2pstream-data` | Directory for default SQLite database and certificates. Docker sets `/data`. |
+| `DATABASE_URL` | derived | SQLite DSN. When unset, uses `${CONFIG_DIR}/p2pstream.db` with WAL and foreign keys enabled. |
+| `ENV` | `development` | Use `production` for production logging/cookie behavior. |
+| `MANAGEMENT_UI_DISABLED` | `false` | Disable browser UI; ConnectRPC APIs and agent WebSocket remain available. |
 | `MANAGEMENT_UI_DIST_DIR` | `web/management/dist` | Built management UI files. Runtime image sets `/app/web/management/dist`. |
 | `MANAGEMENT_UI_DEV_PROXY` | empty | Development-only management UI proxy target. |
-| `MANAGEMENT_COOKIE_SECURE` | `false` | Force Secure cookies even when `ENV` is not `production`. |
+| `MANAGEMENT_COOKIE_SECURE` | `false` | Force Secure cookies even when other secure-cookie conditions are absent. |
 | `MANAGEMENT_TLS_MODE` | `auto` | `auto`, `provided`, or `off`. |
 | `MANAGEMENT_TLS_CERT_FILE` | empty | Management server certificate for `provided` mode. |
 | `MANAGEMENT_TLS_KEY_FILE` | empty | Management server private key for `provided` mode. |
@@ -24,39 +24,69 @@ Public proxy listener ports are stored in the database and managed through the m
 | `MANAGEMENT_PUBLIC_URL` | derived | Public management URL used in generated agent setup snippets. |
 | `MANAGEMENT_ADVERTISE_HOST` | detected | Hostname/IP used for auto-generated management certificates and default URL. |
 | `MANAGEMENT_TLS_EXTRA_HOSTS` | empty | Comma-separated extra DNS/IP names for auto management TLS. |
-| `PUBLIC_CACHE_DIR` | `${CONFIG_DIR}/cache/public` | Disk directory for public proxy cache body files. SQLite metadata remains in the configured database. |
+| `PUBLIC_CACHE_DIR` | `${CONFIG_DIR}/cache/public` | Disk directory for public cache body files. |
 | `BOOTSTRAP_AGENT_ID` | empty | Bootstrap agent public ID. Must be set with name and token. |
 | `BOOTSTRAP_AGENT_NAME` | empty | Bootstrap agent display name. |
 | `BOOTSTRAP_AGENT_TOKEN` | empty | Bootstrap agent token. Stored as a hash. |
-| `OBSERVABILITY_RETENTION_DAYS` | `30` | Retention window for recorded request and agent observability data. |
+| `OBSERVABILITY_RETENTION_DAYS` | `30` | Retention window for recorded observability data. |
 
-## Agent variables
-
-| Variable | Description |
+| Agent variable | Description |
 | --- | --- |
 | `MANAGEMENT_URL` | Management server URL, for example `https://proxy.example.com:8081`. |
-| `AGENT_ID` | Generated agent public ID from the management UI. |
-| `AGENT_TOKEN` | One-time generated or rotated token from the management UI. |
-| `AGENT_NAME` | Optional agent display name for local command use. |
+| `AGENT_ID` | Generated agent public ID from management. |
+| `AGENT_TOKEN` | One-time generated or rotated token from management. |
+| `AGENT_NAME` | Optional local display name. |
 | `MANAGEMENT_CA_FILE` | PEM CA bundle used to verify management HTTPS. |
 | `MANAGEMENT_CA_PEM_BASE64` | Base64 PEM CA bundle used to verify management HTTPS. |
 | `AGENT_TLS_CERT_FILE` | Optional client certificate for management mTLS. |
 | `AGENT_TLS_KEY_FILE` | Optional client private key for management mTLS. |
-| `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when set to a truthy value. |
+| `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy. |
 
-## Installer variables
-
-| Variable | Default | Description |
+| Installer variable | Default | Description |
 | --- | --- | --- |
 | `P2PSTREAM_REPOSITORY` | `Kirari04/p2pstream` | GitHub owner/repo used by the installer. |
-| `P2PSTREAM_VERSION` | `latest` | Release tag such as `v0.1.0`, or `latest`. |
+| `P2PSTREAM_VERSION` | `latest` | Release tag such as `vX.Y.Z`, or `latest`. |
 | `P2PSTREAM_CONFIG_DIR` | `/etc/p2pstream` | Agent config directory created by installer. |
 | `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path. |
 
-## Truthy agent booleans
+## Validation Rules
 
-Agent boolean env parsing accepts:
+- `MANAGEMENT_TLS_MODE` must be `auto`, `provided`, or `off`.
+- `MANAGEMENT_TLS_CERT_FILE` and `MANAGEMENT_TLS_KEY_FILE` must be set together.
+- `MANAGEMENT_TLS_MODE=provided` requires both cert and key files.
+- `MANAGEMENT_TLS_MODE=off` requires `MANAGEMENT_ALLOW_INSECURE_HTTP=true`.
+- `MANAGEMENT_PUBLIC_URL` must be absolute and must use `https`, unless management TLS is off and insecure HTTP is explicitly allowed.
+- Bootstrap agent ID, name, and token must all be set together.
+- Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 
-```text
-1, true, yes, y, on
+## Runtime Effects
+
+`CONFIG_DIR` is created with `0700` permissions. The managed certificate directory is `${CONFIG_DIR}/certs`. If `DATABASE_URL` is unset, p2pstream also migrates a legacy local `p2pstream.db` into `${CONFIG_DIR}/p2pstream.db` when needed.
+
+Management session cookies are Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`.
+
+## Examples
+
+Compose `.env`:
+
+```dotenv
+MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
+MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
+P2PSTREAM_HTTP_PORT=80
+P2PSTREAM_HTTPS_PORT=443
+P2PSTREAM_MANAGEMENT_PORT=8081
 ```
+
+Binary/systemd server environment:
+
+```ini
+CONFIG_DIR=/var/lib/p2pstream
+MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
+ENV=production
+```
+
+## Related Tasks
+
+- [Docker Compose details](../getting-started/docker-compose)
+- [Systemd](../operations/systemd)
+- [Management TLS reference](./management-tls)
