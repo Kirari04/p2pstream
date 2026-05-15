@@ -7,6 +7,13 @@ import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import {
+  defaultWafTriggerForm,
+  setWafTriggerMetricEnabled,
+  wafTriggerFormFromProto,
+  wafTriggerPayloadFromForm,
+  type WafTriggerMetric,
+} from "@/lib/publicWafTriggerForm";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
@@ -33,6 +40,20 @@ type KeyPartForm = {
 type HeaderForm = {
   name: string;
   value: string;
+};
+type AutomaticTriggerMetricControl = {
+  key: WafTriggerMetric;
+  label: string;
+  unit: string;
+  min: number;
+  max?: number;
+  step?: number;
+  body: string;
+};
+type AutomaticTriggerGroup = {
+  title: string;
+  body: string;
+  metrics: AutomaticTriggerMetricControl[];
 };
 
 const props = defineProps<{
@@ -78,16 +99,7 @@ const form = reactive({
   waitingRoomTimeoutMinutes: 30,
   waitingRoomPageTitle: "Waiting room",
   waitingRoomPageBody: "Traffic is high. You will be admitted automatically.",
-  triggerWindowSeconds: 10,
-  triggerMinimumRps: 50,
-  triggerSpikeMultiplier: 4,
-  triggerProxyActive: 100,
-  triggerBackendActive: 100,
-  triggerAgentActive: 50,
-  triggerServerCpu: 85,
-  triggerAgentCpu: 85,
-  triggerMinimumActiveSeconds: 30,
-  triggerQuietSeconds: 60,
+  triggers: defaultWafTriggerForm(),
   blockResponseStatusCode: 403,
   blockResponseContentType: "text/plain; charset=utf-8",
   blockResponseBody: "Request blocked\n",
@@ -110,61 +122,88 @@ const automaticFlowSteps = [
   },
   {
     label: "2. Measure",
-    body: "Matching requests update the rule's request-rate window. Proxy, backend, agent, and CPU pressure are checked at the same point.",
+    body: "Only enabled metrics are allowed to create pressure. Disabled metrics are saved as 0 and ignored by the server.",
   },
   {
     label: "3. Activate",
-    body: "Any enabled trigger can create pressure. Pressure must stay present for the minimum active time before the WAF action starts.",
+    body: "Any enabled metric can activate the rule after pressure stays above its threshold for the minimum active time.",
   },
   {
     label: "4. Cool down",
     body: "After all pressure clears, the rule remains active for the quiet period, then matching requests pass normally again.",
   },
 ];
-const automaticRequestSignalHints = [
+const automaticTriggerGroups: AutomaticTriggerGroup[] = [
   {
-    label: "Window seconds",
-    body: "Rolling window used by Min RPS and Spike x.",
+    title: "Request volume",
+    body: "Metrics derived from requests that match this rule.",
+    metrics: [
+      {
+        key: "minimumRequestRate",
+        label: "Minimum RPS",
+        unit: "rps",
+        min: 1,
+        body: "Activates when matching request rate reaches this threshold inside the request window.",
+      },
+      {
+        key: "trafficSpikeMultiplier",
+        label: "Traffic spike",
+        unit: "x",
+        min: 0.1,
+        max: 100,
+        step: 0.1,
+        body: "Activates when current matching RPS exceeds the learned inactive baseline by this multiplier.",
+      },
+    ],
   },
   {
-    label: "Min RPS",
-    body: "Matching requests per second inside the window. Set 0 to ignore this signal.",
+    title: "Active requests",
+    body: "Metrics derived from concurrent work already in progress.",
+    metrics: [
+      {
+        key: "proxyActiveRequests",
+        label: "Proxy active",
+        unit: "requests",
+        min: 1,
+        body: "Activates when total active public proxy requests reaches this threshold.",
+      },
+      {
+        key: "backendActiveRequests",
+        label: "Backend active",
+        unit: "requests",
+        min: 1,
+        body: "Activates when any backend reaches this active request count.",
+      },
+      {
+        key: "agentActiveRequests",
+        label: "Agent active",
+        unit: "requests",
+        min: 1,
+        body: "Activates when a connected agent reports this active request count.",
+      },
+    ],
   },
   {
-    label: "Spike x",
-    body: "Current matching RPS compared with the learned inactive baseline. Set 0 to ignore this signal.",
-  },
-];
-const automaticPressureSignalHints = [
-  {
-    label: "Proxy active",
-    body: "Total active public proxy requests. Set 0 to ignore this signal.",
-  },
-  {
-    label: "Backend active",
-    body: "Highest active request count on any backend. Set 0 to ignore this signal.",
-  },
-  {
-    label: "Agent active",
-    body: "Highest active request count on connected agents or latest agent stats. Set 0 to ignore this signal.",
-  },
-  {
-    label: "Server CPU %",
-    body: "Proxy server CPU pressure. Samples are cached briefly. Set 0 to ignore this signal.",
-  },
-  {
-    label: "Agent CPU %",
-    body: "Latest reported agent CPU pressure. Set 0 to ignore this signal.",
-  },
-];
-const automaticTimingHints = [
-  {
-    label: "Min active sec",
-    body: "Pressure must persist this long before the action begins. Use a positive value; 0 is treated as the server default.",
-  },
-  {
-    label: "Quiet sec",
-    body: "How long the action stays active after pressure clears. Use a positive value; 0 is treated as the server default.",
+    title: "CPU pressure",
+    body: "Metrics for proxy or agent CPU load. Use these for CPU-only waiting-room activation.",
+    metrics: [
+      {
+        key: "serverCpuPercent",
+        label: "Server CPU",
+        unit: "%",
+        min: 1,
+        max: 100,
+        body: "Activates when proxy server CPU stays at or above this percentage.",
+      },
+      {
+        key: "agentCpuPercent",
+        label: "Agent CPU",
+        unit: "%",
+        min: 1,
+        max: 100,
+        body: "Activates when any agent reports CPU at or above this percentage.",
+      },
+    ],
   },
 ];
 
@@ -188,6 +227,21 @@ const selectedActivationDescription = computed(() => (
     ? "After match filters pass, requests are normally allowed while this rule is inactive. The rule starts applying the selected action only when pressure triggers stay active long enough."
     : "After match filters pass, the selected action runs immediately on every matching request. Automatic trigger thresholds are ignored."
 ));
+const triggerValidationMessage = computed(() => {
+  if (form.activationMode !== PublicWafActivationMode.AUTOMATIC) return "";
+  if (form.triggers.requestWindowSeconds < 1) return "Request window must be at least 1 second.";
+  if (form.triggers.minimumActiveSeconds < 1) return "Minimum active time must be at least 1 second.";
+  if (form.triggers.quietSeconds < 1) return "Quiet period must be at least 1 second.";
+  for (const group of automaticTriggerGroups) {
+    for (const metric of group.metrics) {
+      const state = form.triggers.metrics[metric.key];
+      if (!state.enabled) continue;
+      if (state.value < metric.min) return `${metric.label} must be at least ${metric.min.toString()} when enabled.`;
+      if (metric.max !== undefined && state.value > metric.max) return `${metric.label} must be at most ${metric.max.toString()}.`;
+    }
+  }
+  return "";
+});
 const submitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (!form.name.trim()) return "Enter a rule name.";
@@ -200,7 +254,7 @@ const submitDisabledReason = computed(() => {
     if (!selectedCaptchaProvider.value.enabled) return "Selected captcha provider is disabled.";
   }
   if (form.action === PublicWafRuleAction.WAITING_ROOM && form.waitingRoomAdmissionRate < 1) return "Admission rate must be at least 1.";
-  if (form.activationMode === PublicWafActivationMode.AUTOMATIC && form.triggerWindowSeconds < 1) return "Request window must be at least 1 second.";
+  if (triggerValidationMessage.value) return triggerValidationMessage.value;
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -251,16 +305,7 @@ function resetForm() {
   form.waitingRoomTimeoutMinutes = 30;
   form.waitingRoomPageTitle = "Waiting room";
   form.waitingRoomPageBody = "Traffic is high. You will be admitted automatically.";
-  form.triggerWindowSeconds = 10;
-  form.triggerMinimumRps = 50;
-  form.triggerSpikeMultiplier = 4;
-  form.triggerProxyActive = 100;
-  form.triggerBackendActive = 100;
-  form.triggerAgentActive = 50;
-  form.triggerServerCpu = 85;
-  form.triggerAgentCpu = 85;
-  form.triggerMinimumActiveSeconds = 30;
-  form.triggerQuietSeconds = 60;
+  form.triggers = defaultWafTriggerForm();
   form.blockResponseStatusCode = 403;
   form.blockResponseContentType = "text/plain; charset=utf-8";
   form.blockResponseBody = "Request blocked\n";
@@ -302,16 +347,7 @@ function openEdit(ruleId: bigint | string) {
   form.waitingRoomTimeoutMinutes = millisToMinutes(rule.waitingRoom?.queueTimeoutMillis || 1800000n);
   form.waitingRoomPageTitle = rule.waitingRoom?.pageTitle || "Waiting room";
   form.waitingRoomPageBody = rule.waitingRoom?.pageBody || "Traffic is high. You will be admitted automatically.";
-  form.triggerWindowSeconds = millisToSeconds(rule.triggers?.requestWindowMillis || 10000n);
-  form.triggerMinimumRps = Number(rule.triggers?.minimumRequestRate || 50n);
-  form.triggerSpikeMultiplier = rule.triggers?.trafficSpikeMultiplier || 4;
-  form.triggerProxyActive = Number(rule.triggers?.proxyActiveRequests || 100n);
-  form.triggerBackendActive = Number(rule.triggers?.backendActiveRequests || 100n);
-  form.triggerAgentActive = Number(rule.triggers?.agentActiveRequests || 50n);
-  form.triggerServerCpu = rule.triggers?.serverCpuPercent || 85;
-  form.triggerAgentCpu = rule.triggers?.agentCpuPercent || 85;
-  form.triggerMinimumActiveSeconds = millisToSeconds(rule.triggers?.minimumActiveMillis || 30000n);
-  form.triggerQuietSeconds = millisToSeconds(rule.triggers?.quietPeriodMillis || 60000n);
+  form.triggers = wafTriggerFormFromProto(rule.triggers);
   form.blockResponseStatusCode = Number(rule.blockResponseStatusCode || 403n);
   form.blockResponseContentType = rule.blockResponseContentType || "text/plain; charset=utf-8";
   form.blockResponseBody = rule.blockResponseBody || "Request blocked\n";
@@ -376,6 +412,10 @@ function removeBlockHeader(index: number) {
   form.blockResponseHeaders.splice(index, 1);
 }
 
+function updateTriggerMetricEnabled(metric: WafTriggerMetric, event: Event) {
+  form.triggers = setWafTriggerMetricEnabled(form.triggers, metric, (event.target as HTMLInputElement).checked);
+}
+
 async function run(action: () => Promise<void>): Promise<boolean> {
   if (!runManagementAction) return false;
   return runManagementAction(action);
@@ -414,18 +454,7 @@ async function submitRule() {
         pageTitle: form.waitingRoomPageTitle,
         pageBody: form.waitingRoomPageBody,
       },
-      triggers: {
-        requestWindowMillis: secondsToMillis(form.triggerWindowSeconds),
-        minimumRequestRate: BigInt(form.triggerMinimumRps || 0),
-        trafficSpikeMultiplier: form.triggerSpikeMultiplier || 0,
-        proxyActiveRequests: BigInt(form.triggerProxyActive || 0),
-        backendActiveRequests: BigInt(form.triggerBackendActive || 0),
-        agentActiveRequests: BigInt(form.triggerAgentActive || 0),
-        serverCpuPercent: form.triggerServerCpu || 0,
-        agentCpuPercent: form.triggerAgentCpu || 0,
-        minimumActiveMillis: secondsToMillis(form.triggerMinimumActiveSeconds),
-        quietPeriodMillis: secondsToMillis(form.triggerQuietSeconds),
-      },
+      triggers: wafTriggerPayloadFromForm(form.triggers),
       blockResponseStatusCode: BigInt(form.blockResponseStatusCode || 403),
       blockResponseBody: form.blockResponseBody,
       blockResponseContentType: form.blockResponseContentType,
@@ -582,7 +611,7 @@ defineExpose({ openCreate, openEdit, close });
           <h4 class="text-sm font-semibold text-white">Automatic trigger behavior</h4>
           <p class="text-xs leading-5 text-[#888]">
             These settings decide when the selected WAF action temporarily turns on for matching traffic.
-            Trigger signals are combined as OR conditions: any enabled signal can create pressure.
+            Enabled metrics are combined as OR conditions; disabled metrics are saved as 0 and ignored.
           </p>
         </div>
         <div class="grid gap-3 sm:grid-cols-4">
@@ -591,77 +620,74 @@ defineExpose({ openCreate, openEdit, close });
             <p class="mt-1 text-xs leading-5 text-[#888]">{{ step.body }}</p>
           </div>
         </div>
-        <div class="grid gap-3">
+        <div class="grid gap-4 sm:grid-cols-3">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Window seconds
+            <input v-model.number="form.triggers.requestWindowSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Rolling window used by request-volume metrics.</p>
+          </label>
+        </div>
+        <div v-for="group in automaticTriggerGroups" :key="group.title" class="grid gap-3 rounded-md border border-[#222] bg-[#070707] p-3">
           <div class="grid gap-1">
-            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">Request rate signals</h5>
-            <p class="text-xs leading-5 text-[#666]">These signals are based only on requests that match this WAF rule.</p>
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">{{ group.title }}</h5>
+            <p class="text-xs leading-5 text-[#666]">{{ group.body }}</p>
           </div>
-          <div class="grid gap-4 sm:grid-cols-3">
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticRequestSignalHints[0]?.label }}
-              <input v-model.number="form.triggerWindowSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticRequestSignalHints[0]?.body }}</p>
-            </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticRequestSignalHints[1]?.label }}
-              <input v-model.number="form.triggerMinimumRps" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticRequestSignalHints[1]?.body }}</p>
-            </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticRequestSignalHints[2]?.label }}
-              <input v-model.number="form.triggerSpikeMultiplier" type="number" min="0" step="0.1" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticRequestSignalHints[2]?.body }}</p>
-            </label>
+          <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div
+              v-for="metric in group.metrics"
+              :key="metric.key"
+              class="grid gap-3 rounded border border-[#222] bg-[#0b0b0b] p-3"
+              :class="form.triggers.metrics[metric.key].enabled ? 'border-[#333]' : 'opacity-70'"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <label class="flex min-w-0 items-center gap-2 text-sm font-medium text-[#d4d4d8]">
+                  <input
+                    type="checkbox"
+                    :checked="form.triggers.metrics[metric.key].enabled"
+                    @change="updateTriggerMetricEnabled(metric.key, $event)"
+                  />
+                  <span class="truncate">{{ metric.label }}</span>
+                </label>
+                <span
+                  class="shrink-0 rounded border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-wider"
+                  :class="form.triggers.metrics[metric.key].enabled ? 'border-emerald-500/30 text-emerald-300' : 'border-[#333] text-[#777]'"
+                >
+                  {{ form.triggers.metrics[metric.key].enabled ? 'Enabled' : 'Disabled' }}
+                </span>
+              </div>
+              <div class="grid gap-1.5">
+                <div class="flex items-center gap-2">
+                  <input
+                    v-model.number="form.triggers.metrics[metric.key].value"
+                    type="number"
+                    :min="metric.min"
+                    :max="metric.max"
+                    :step="metric.step ?? 1"
+                    :disabled="!form.triggers.metrics[metric.key].enabled"
+                    class="vercel-input min-w-0 flex-1 text-sm normal-case tracking-normal disabled:cursor-not-allowed disabled:border-[#222] disabled:bg-[#111] disabled:text-[#555]"
+                  />
+                  <span class="w-16 shrink-0 text-xs text-[#777]">{{ metric.unit }}</span>
+                </div>
+                <p class="text-xs leading-5 text-[#666]">{{ metric.body }}</p>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="grid gap-3">
-          <div class="grid gap-1">
-            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">System pressure signals</h5>
-            <p class="text-xs leading-5 text-[#666]">These signals reflect current load. They can activate the rule even when request rate is not high.</p>
-          </div>
-          <div class="grid gap-4 sm:grid-cols-5">
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticPressureSignalHints[0]?.label }}
-              <input v-model.number="form.triggerProxyActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[0]?.body }}</p>
-            </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticPressureSignalHints[1]?.label }}
-              <input v-model.number="form.triggerBackendActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[1]?.body }}</p>
-            </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticPressureSignalHints[2]?.label }}
-              <input v-model.number="form.triggerAgentActive" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[2]?.body }}</p>
-            </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticPressureSignalHints[3]?.label }}
-              <input v-model.number="form.triggerServerCpu" type="number" min="0" max="100" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[3]?.body }}</p>
-            </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticPressureSignalHints[4]?.label }}
-              <input v-model.number="form.triggerAgentCpu" type="number" min="0" max="100" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticPressureSignalHints[4]?.body }}</p>
-            </label>
-          </div>
-        </div>
-        <div class="grid gap-3">
+        <div class="grid gap-3 rounded-md border border-[#222] bg-[#070707] p-3">
           <div class="grid gap-1">
             <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">Activation timing</h5>
-            <p class="text-xs leading-5 text-[#666]">Timing controls prevent brief spikes from rapidly turning the rule on and off.</p>
+            <p class="text-xs leading-5 text-[#666]">Timing controls prevent brief spikes from rapidly turning the rule on and off. They are not detection metrics.</p>
           </div>
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticTimingHints[0]?.label }}
-              <input v-model.number="form.triggerMinimumActiveSeconds" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticTimingHints[0]?.body }}</p>
+              Minimum active seconds
+              <input v-model.number="form.triggers.minimumActiveSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Pressure must persist this long before the action begins.</p>
             </label>
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-              {{ automaticTimingHints[1]?.label }}
-              <input v-model.number="form.triggerQuietSeconds" type="number" min="0" class="vercel-input text-sm normal-case tracking-normal" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">{{ automaticTimingHints[1]?.body }}</p>
+              Quiet seconds
+              <input v-model.number="form.triggers.quietSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">The action stays active this long after all pressure clears.</p>
             </label>
           </div>
         </div>

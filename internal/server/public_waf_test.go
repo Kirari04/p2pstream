@@ -786,6 +786,33 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 	}
 }
 
+func TestPublicWafTriggerValidationPreservesDisabledSignals(t *testing.T) {
+	cfg, err := validatePublicWafTriggers(&p2pstreamv1.PublicWafTriggerConfig{
+		RequestWindowMillis:    10000,
+		MinimumRequestRate:     0,
+		TrafficSpikeMultiplier: 0,
+		ProxyActiveRequests:    0,
+		BackendActiveRequests:  0,
+		AgentActiveRequests:    0,
+		ServerCpuPercent:       0,
+		AgentCpuPercent:        0,
+		MinimumActiveMillis:    30000,
+		QuietPeriodMillis:      60000,
+	})
+	if err != nil {
+		t.Fatalf("validate triggers: %v", err)
+	}
+	if cfg.MinimumRequestRate != 0 ||
+		cfg.TrafficSpikeMultiplier != 0 ||
+		cfg.ProxyActiveRequests != 0 ||
+		cfg.BackendActiveRequests != 0 ||
+		cfg.AgentActiveRequests != 0 ||
+		cfg.ServerCPUPercent != 0 ||
+		cfg.AgentCPUPercent != 0 {
+		t.Fatalf("disabled trigger signals were not preserved: %#v", cfg)
+	}
+}
+
 func newTestCaptchaVerifyApp(t *testing.T, provider http.HandlerFunc) (*App, http.HandlerFunc, publicWafRuleConfig, *atomic.Int64) {
 	t.Helper()
 	var calls atomic.Int64
