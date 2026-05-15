@@ -1,70 +1,72 @@
 # Security Hardening
 
-Treat the management surface as administrative infrastructure. Public listeners can be internet-facing; management should be restricted.
+Restrict management access, protect persistent state, and scope public controls so the deployment is safer to operate.
 
-## Management access
+## Use This When
 
-- Keep management HTTPS enabled.
-- Do not expose `8081` publicly unless you need remote agents or remote administration.
-- Prefer firewall allowlists, VPN, or a private admin network.
-- Set `MANAGEMENT_PUBLIC_URL` to the real management URL used by browsers and agents.
-- Use `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true` when management is accessed over HTTPS.
-- For headless deployments, set `MANAGEMENT_UI_DISABLED=true` to stop serving the browser UI while keeping the API and agent WebSocket available.
+Use this before exposing management beyond a private network, after adding agents, before publishing production hostnames, and during periodic self-hosting reviews.
 
-## Data protection
+## Prerequisites
 
-Protect `/data`. It contains:
+- p2pstream is running with persistent `CONFIG_DIR`, `/data` in Compose.
+- You know whether management must be reachable by remote agents, remote admins, or both.
+- You have a backup path for the persistent data directory.
 
-- SQLite database,
-- user sessions,
-- agent token hashes,
-- public TLS certificate material,
-- management CA and key when auto TLS is used.
+## Steps
 
-Back up `/data` and restrict host access to trusted administrators.
+1. Harden management access:
 
-Anyone with write access to the database can reset management credentials with the local CLI. Treat host access, volume access, and database backups as administrative access.
+   - Keep management HTTPS enabled.
+   - Prefer firewall allowlists, VPN, or a private admin network for `8081`.
+   - Set `MANAGEMENT_PUBLIC_URL` to the real management URL used by browsers and agents.
+   - Use `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true` when management is accessed over HTTPS.
+   - For API-only management, set `MANAGEMENT_UI_DISABLED=true`; the ConnectRPC API and agent WebSocket stay available.
 
-## Agent security
+2. Protect `/data`:
 
-- Store generated agent tokens as secrets.
-- Rotate agent tokens if a host or snippet leaks.
-- Disable or delete unused agents.
-- Use agent mTLS with `MANAGEMENT_TLS_CLIENT_CA_FILE` when token-only auth is not enough.
-- Keep `AGENT_ALLOW_INSECURE_MANAGEMENT` unset unless using isolated development.
+   - Back up the full `CONFIG_DIR`.
+   - Restrict host, volume, and backup access to trusted administrators.
+   - Treat database write access as administrative access, because the local CLI can reset management credentials.
 
-## TLS practices
+3. Harden agents:
 
-- Use ACME or trusted manual certificates for public hostnames.
-- Avoid relying on fallback self-signed public HTTPS certificates.
-- Avoid backend `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
-- Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
+   - Store generated agent tokens as secrets.
+   - Rotate tokens if a host or setup snippet leaks.
+   - Disable or delete unused agents.
+   - Use agent mTLS with `MANAGEMENT_TLS_CLIENT_CA_FILE` when token-only auth is not enough.
+   - Keep `AGENT_ALLOW_INSECURE_MANAGEMENT` unset except for isolated development.
 
-## Least exposure
+4. Harden public TLS and upstreams:
 
-Open only required ports:
+   - Use ACME or trusted manual certificates for public hostnames.
+   - Avoid relying on fallback self-signed public HTTPS certificates.
+   - Avoid backend `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
+   - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
 
-| Surface | Recommended exposure |
+5. Scope WAF, rate-limit, shaper, and cache rules by host/path/method so broad policies do not catch unrelated traffic.
+
+## Verification
+
+Review:
+
+- `/data` is persistent and backed up.
+- Management is HTTPS.
+- Management exposure is intentional and firewall/VPN rules match that decision.
+- `MANAGEMENT_PUBLIC_URL` is correct.
+- Unused listeners and agents are disabled or deleted.
+- Tracing is disabled after troubleshooting.
+
+## Troubleshooting
+
+| Symptom | Check |
 | --- | --- |
-| Public HTTP/HTTPS | Internet-facing as needed. |
-| Management `8081` | Private, VPN, allowlisted, or exposed only for agents. |
-| Extra listeners | Publish only when actively used. |
+| Browser UI returns `404` | `MANAGEMENT_UI_DISABLED=true` intentionally disables only the browser UI. |
+| Agents fail after restore | Restore the old management CA or update agent CA material. |
+| Everyone hits one rate-limit bucket | A front proxy may hide client IPs; change key parts. |
+| WAF does not stop network saturation | WAF is HTTP-layer only; use upstream DDoS/network protection. |
 
-## WAF boundaries
+## Next Steps
 
-Use WAF rules to reduce application load before traffic reaches routes and backends. Captcha and waiting-room rules are useful for HTTP floods, login pressure, and short traffic surges that still reach p2pstream.
-
-Do not treat the WAF as a substitute for upstream DDoS protection. Network saturation, SYN floods, and other volumetric attacks must be handled by the hosting provider, firewall, CDN, or DDoS mitigation service before they reach the server.
-
-## Review checklist
-
-- [ ] `/data` is persistent and backed up.
-- [ ] management is HTTPS.
-- [ ] admin password is stored in a password manager.
-- [ ] password reset recovery uses the documented local CLI path.
-- [ ] `MANAGEMENT_PUBLIC_URL` is correct.
-- [ ] browser UI exposure is intentional, or `MANAGEMENT_UI_DISABLED=true` is set for API-only management.
-- [ ] unused listeners are disabled.
-- [ ] WAF, rate-limit, and shaper rules are scoped to the hosts and paths they are meant to protect.
-- [ ] unused agents are disabled or deleted.
-- [ ] tracing is disabled after troubleshooting.
+- [Backup and restore](./backup-restore)
+- [Management TLS reference](../reference/management-tls)
+- [WAF reference](../reference/waf)

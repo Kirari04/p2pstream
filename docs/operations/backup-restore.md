@@ -1,65 +1,69 @@
 # Backup and Restore
 
-Back up the full `CONFIG_DIR`, mounted at `/data` from the `p2pstream-data` Docker volume in the recommended Compose setup.
+Back up and restore the full `CONFIG_DIR`, mounted at `/data` from the `p2pstream-data` Docker volume in the recommended Compose setup.
 
-## What to back up
+## Use This When
 
-Include:
+Use this before upgrades, host moves, disaster recovery tests, or any change that could replace the persistent data volume.
 
-```text
-/data/p2pstream.db
-/data/p2pstream.db-wal
-/data/p2pstream.db-shm
-/data/certs/
-```
+## Prerequisites
 
-The database stores proxy config, users, sessions, agent registry, and observability. The cert directory stores management TLS and public TLS material.
+- Shell access to the Docker host or binary install host.
+- Enough storage for the SQLite database, WAL files, certificates, ACME state, and cache metadata.
+- A maintenance window if you want the simplest consistent SQLite backup.
 
-## Simple Compose backup
+## Steps
 
-The safest simple backup is to stop the service, copy the volume, then start it again.
+1. Include at least:
 
-```bash
-docker compose stop p2pstream
+   ```text
+   /data/p2pstream.db
+   /data/p2pstream.db-wal
+   /data/p2pstream.db-shm
+   /data/certs/
+   ```
 
-docker run --rm \
-  -v p2pstream-data:/data:ro \
-  -v "$PWD:/backup" \
-  debian:bookworm-slim \
-  tar -C /data -czf /backup/p2pstream-data.tar.gz .
+   The database stores proxy config, users, sessions, agent registry, TLS metadata, and observability. The cert directory stores management TLS and public TLS material.
 
-docker compose start p2pstream
-```
+2. For the safest simple Compose backup, stop the service, copy the volume, then start it again:
 
-Stopping the container avoids copying SQLite while WAL files are changing.
+   ```bash
+   docker compose stop p2pstream
 
-## Restore
+   docker run --rm \
+     -v p2pstream-data:/data:ro \
+     -v "$PWD:/backup" \
+     debian:bookworm-slim \
+     tar -C /data -czf /backup/p2pstream-data.tar.gz .
 
-Stop Compose and recreate the named data volume:
+   docker compose start p2pstream
+   ```
 
-```bash
-docker compose down
-docker volume rm p2pstream-data
-docker volume create p2pstream-data
-```
+3. To restore, stop Compose and recreate the named data volume:
 
-Extract the backup into the restored volume:
+   ```bash
+   docker compose down
+   docker volume rm p2pstream-data
+   docker volume create p2pstream-data
+   ```
 
-```bash
-docker run --rm \
-  -v p2pstream-data:/data \
-  -v "$PWD:/backup" \
-  debian:bookworm-slim \
-  tar -C /data -xzf /backup/p2pstream-data.tar.gz
-```
+4. Extract the backup into the restored volume:
 
-Start p2pstream with the restored volume:
+   ```bash
+   docker run --rm \
+     -v p2pstream-data:/data \
+     -v "$PWD:/backup" \
+     debian:bookworm-slim \
+     tar -C /data -xzf /backup/p2pstream-data.tar.gz
+   ```
 
-```bash
-docker compose up -d
-```
+5. Start p2pstream with the restored volume:
 
-## Restore checks
+   ```bash
+   docker compose up -d
+   ```
+
+## Verification
 
 After restore:
 
@@ -69,6 +73,17 @@ After restore:
 4. Confirm agents reconnect.
 5. Send a test request through each important public hostname.
 
-## Management CA warning
+## Troubleshooting
 
-If you restore without `/data/certs/management`, agents that trust the previous auto-generated CA will fail TLS verification. Restore the management CA or update each agent with the new CA.
+| Symptom | Check |
+| --- | --- |
+| Agents fail TLS after restore | Restore `/data/certs/management` or update each agent with the new CA. |
+| Public TLS mappings are missing | Confirm `/data/certs/` and SQLite were restored together. |
+| Login state changed | Sessions are stored in SQLite and depend on the restored database. |
+| Cache files missing | Cache can refill; SQLite and certs are more critical than cached bodies. |
+
+## Next Steps
+
+- [Upgrades](./upgrades)
+- [Database reference](../reference/database)
+- [Security hardening](./security-hardening)

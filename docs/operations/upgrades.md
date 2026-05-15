@@ -1,59 +1,69 @@
 # Upgrades
 
-p2pstream stores runtime state in `/data`, mounted from the `p2pstream-data` Docker volume in the recommended Compose setup. Keep the same volume when upgrading.
+Upgrade the p2pstream image or binary while keeping the same persistent data directory.
 
-## Docker Compose upgrade
+## Use This When
 
-```bash
-docker compose pull
-docker compose up -d
-```
+Use this when moving to a new container tag, updating a binary/systemd install, or rolling back after an upgrade.
 
-Follow logs after the restart:
+## Prerequisites
 
-```bash
-docker compose logs -f p2pstream
-```
+- A current backup of `CONFIG_DIR`, `/data` in Compose.
+- The same `p2pstream-data` volume or binary install data directory will remain mounted.
+- Optional: a pinned image tag for repeatable deployments.
 
-## Pinned versions
+## Steps
 
-For repeatable deployments, pin a tag instead of `latest` in `compose.yaml`:
+1. For Docker Compose, pull and restart:
 
-```yaml
-image: ghcr.io/kirari04/p2pstream:v0.1.0
-```
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
 
-Use the same tag for agents when you want server and agent binaries to move together.
+2. Follow logs after the restart:
 
-## Advanced binary upgrade
+   ```bash
+   docker compose logs -f p2pstream
+   ```
 
-Binary/systemd installs are an advanced deployment path. To upgrade one:
+3. For repeatable deployments, pin a tag instead of `latest`:
 
-1. Download the new release archive.
-2. Verify `checksums.txt`.
-3. Replace `/usr/local/bin/p2pstream`.
-4. Restart the systemd service.
+   ```yaml
+   image: ghcr.io/kirari04/p2pstream:vX.Y.Z
+   ```
 
-```bash
-sudo install -m 0755 p2pstream /usr/local/bin/p2pstream
-sudo systemctl restart p2pstream
-```
+4. For binary/systemd installs:
 
-## Post-upgrade checks
+   ```bash
+   sudo install -m 0755 p2pstream /usr/local/bin/p2pstream
+   sudo systemctl restart p2pstream
+   ```
+
+5. Use the same server and agent tag when you want server and agent capabilities to move together.
+
+## Verification
+
+After upgrade:
 
 - Management UI loads.
-- Overview shows proxy running.
+- **Overview** shows proxy running.
 - Expected listeners are running.
 - Agents reconnect.
 - ACME certificate statuses are ready.
 - A test request succeeds for each important hostname.
 
-## Rollback
+## Troubleshooting
 
-Keep the previous image tag or binary archive available. If rollback is needed, switch `compose.yaml` back to the previous image tag and run:
+| Symptom | Check |
+| --- | --- |
+| Container restarts repeatedly | Read `docker compose logs -f p2pstream`. |
+| Agent-pool backend still uses old timeout behavior | Upgrade the agents too. |
+| Public listener missing | Confirm the same `/data` volume is mounted. |
+| Rollback needed | Switch `compose.yaml` back to the previous image tag and run `docker compose up -d`. |
 
-```bash
-docker compose up -d
-```
+## Next Steps
 
-Use the same `p2pstream-data` volume. Back up the volume before major upgrades.
+- [Backup and restore](./backup-restore)
+- [Docker reference](../reference/docker)
+- [Troubleshooting](./troubleshooting)

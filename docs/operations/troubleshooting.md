@@ -1,29 +1,39 @@
 # Troubleshooting
 
+Diagnose management, agent, listener, TLS, route, backend, WAF, rate-limit, cache, and trace problems from the same operational checklist.
+
+## Use This When
+
+Use this when a request fails, management does not load, an agent will not connect, ACME is stuck, or a traffic policy behaves unexpectedly.
+
+## Prerequisites
+
 Start with logs:
 
 ```bash
 docker compose logs -f p2pstream
 ```
 
-For advanced systemd installs:
+For systemd installs:
 
 ```bash
 sudo journalctl -u p2pstream -f
 sudo journalctl -u p2pstream-agent -f
 ```
 
-## Management UI will not open
+When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the request, and then turn tracing off.
+
+## Management UI Will Not Open
 
 | Check | Fix |
 | --- | --- |
-| Container running | `docker ps` or `systemctl status p2pstream`. |
+| Container or service running | `docker ps` or `systemctl status p2pstream`. |
 | Port published | Publish `8081:8081` or use the actual host port. |
 | Scheme | Use `https://host:8081` unless management TLS is explicitly off. |
 | Firewall | Allow the management port from your admin network. |
-| Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; ConnectRPC APIs and the agent WebSocket remain available. |
+| Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; APIs and agent WebSocket remain available. |
 
-## Browser certificate warning
+## Browser Certificate Warning
 
 | Cause | Fix |
 | --- | --- |
@@ -31,15 +41,15 @@ sudo journalctl -u p2pstream-agent -f
 | Wrong hostname | Set `MANAGEMENT_PUBLIC_URL` and `MANAGEMENT_TLS_EXTRA_HOSTS`, then restart if needed. |
 | Management behind another proxy | Terminate trusted TLS at that proxy or pass the correct public URL to agents. |
 
-## Cannot log in
+## Cannot Log In
 
 | Cause | Fix |
 | --- | --- |
-| Wrong or forgotten password | Reset it with `p2pstream users reset-password USERNAME` on a host or container with access to the same database. |
-| Setup window expired and no users exist | Restart the server to reopen the setup window. |
-| Reset command used the wrong database | Run it with the same `CONFIG_DIR` as the server or pass `--database-url` for the server's SQLite database. |
+| Wrong or forgotten password | Reset it with `p2pstream users reset-password USERNAME` against the same database. |
+| Setup window expired and no users exist | Restart the server to reopen the 5 minute setup window. |
+| Reset command used the wrong database | Run it with the same `CONFIG_DIR` as the server or pass `--database-url`. |
 
-## Agent will not connect
+## Agent Will Not Connect
 
 | Check | Fix |
 | --- | --- |
@@ -50,7 +60,7 @@ sudo journalctl -u p2pstream-agent -f
 | Firewall/NAT | Agent host must reach management HTTPS/WSS. |
 | Insecure URL | HTTP requires `AGENT_ALLOW_INSECURE_MANAGEMENT=true`, intended for development only. |
 
-## Public listener fails to bind
+## Public Listener Fails To Bind
 
 | Cause | Fix |
 | --- | --- |
@@ -59,16 +69,16 @@ sudo journalctl -u p2pstream-agent -f
 | Privileged port with non-root user | Run with enough privileges or bind a high port. |
 | Bind address not present | Use an empty bind address or a real local address. |
 
-## HTTPS serves fallback/self-signed certificate
+## HTTPS Serves Fallback/Self-Signed Certificate
 
 | Cause | Fix |
 | --- | --- |
-| No matching certificate mapping | Add a mapping for the exact host or wildcard. |
+| No matching certificate mapping | Add a mapping for the exact host or wildcard in **TLS**. |
 | ACME certificate not ready | Check certificate status and last error. |
 | Request SNI mismatch | Test with the real hostname, not the IP address. |
 | Listener not restarted | Stop/start the listener or wait for automatic restart after certificate issuance. |
 
-## ACME fails
+## ACME Fails
 
 | Check | Fix |
 | --- | --- |
@@ -79,7 +89,7 @@ sudo journalctl -u p2pstream-agent -f
 | Wildcard | Use DNS-01; HTTP-01 and TLS-ALPN-01 do not support wildcard issuance. |
 | CA | Test with staging before production. |
 
-## Route does not match
+## Route Does Not Match
 
 | Check | Fix |
 | --- | --- |
@@ -89,7 +99,7 @@ sudo journalctl -u p2pstream-agent -f
 | Priority | Lower numbers win. Put specific routes first. |
 | Default backend | If no route matches, the listener default backend handles the request. |
 
-## Backend returns bad gateway
+## Backend Returns Bad Gateway
 
 | Cause | Fix |
 | --- | --- |
@@ -98,22 +108,22 @@ sudo journalctl -u p2pstream-agent -f
 | Agent offline | Reconnect or enable an assigned agent. |
 | Upstream TLS error | Fix the upstream certificate; use skip verify only as a temporary internal workaround. |
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
-| Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. Wait for recovery, fix the upstream, or adjust health-check settings. |
+| Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. |
 
 When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_backend_available`.
 
-## Backend returns gateway timeout
+## Backend Returns Gateway Timeout
 
 | Cause | Fix |
 | --- | --- |
 | Upstream is slow to send response headers | Increase the backend response-header timeout. The default is `60000` ms. |
-| Agent-pool backend waits on a private app | Test the target origin from the selected agent host and raise the backend timeout if the app legitimately takes longer before headers. |
-| Health check timeout confusion | Health-check timeout is separate. Raising the backend response-header timeout does not change health-check timing. |
-| Old agent binary | Upgrade agents so they honor the per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
+| Agent-pool backend waits on a private app | Test the target origin from the selected agent host and raise the backend timeout if valid. |
+| Health check timeout confusion | Health-check timeout is separate. |
+| Old agent binary | Upgrade agents so they honor per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
 
 The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
 
-## Static asset is not cached
+## Static Asset Is Not Cached
 
 | Cause | Fix |
 | --- | --- |
@@ -123,10 +133,10 @@ The backend response-header timeout limits only the wait for first upstream head
 | Origin sends `Set-Cookie` | p2pstream will not store the response. |
 | Origin sends `private`, `no-store`, or `no-cache` | p2pstream respects the origin denial. |
 | Origin sends `Vary: Cookie`, `Vary: Authorization`, or `Vary: *` | p2pstream will not store the response. |
-| Origin sends `Vary: Accept-Encoding` | This is supported; it creates separate variants and is not a problem by itself. |
+| Origin sends `Vary: Accept-Encoding` | This is supported; it creates separate variants. |
 | Status or object size not allowed | Adjust rule status codes or max object size if appropriate. |
 
-## Rate limits affect every user
+## Rate Limits Affect Every User
 
 | Cause | Fix |
 | --- | --- |
@@ -134,22 +144,32 @@ The backend response-header timeout limits only the wait for first upstream head
 | Rule too broad | Add host/path/method matchers. |
 | Priority conflict | Move specific rules to lower priority numbers. |
 
-## WAF blocks, challenges, or queues unexpectedly
+## WAF Blocks, Challenges, Or Queues Unexpectedly
 
 | Cause | Fix |
 | --- | --- |
 | Rule too broad | Narrow the WAF match by host, path, method, header, cookie, or query parameter. |
-| Priority conflict | Lower priority numbers win. Move specific allow-through behavior outside the broad rule's match or adjust priorities. |
-| Captcha provider unavailable | Confirm the provider is enabled and the site key/secret key match the upstream provider configuration. |
-| Waiting room stays active | Check automatic trigger thresholds, active request counts, server CPU, and agent CPU in the dashboard. Use `0` to disable an automatic signal. |
-| All clients share one queue identity | Add key parts that identify visitors better than remote IP when p2pstream is behind another proxy. |
-| Large form or upload must be retried | Captcha and waiting-room admission use `303` redirects and do not replay request bodies. Resubmit after admission. |
+| Priority conflict | Lower priority numbers win. Adjust priorities or matches. |
+| Captcha provider unavailable | Confirm the provider is enabled and site key/secret key match upstream configuration. |
+| Waiting room stays active | Check trigger thresholds, active request counts, server CPU, and agent CPU in the dashboard. Use `0` to disable an automatic signal. |
+| All clients share one queue identity | Add key parts that identify visitors better than remote IP when behind another proxy. |
+| Large form or upload must be retried | Captcha and waiting-room admission use `303` redirects and do not replay request bodies. |
 
-## Trace stream reconnects
+## Trace Stream Reconnects
 
 | Cause | Fix |
 | --- | --- |
 | Management connection interrupted | Check browser network and management logs. |
-| Server restarted | Reopen Traffic after restart. |
+| Server restarted | Reopen **Traffic** after restart. |
 | Too much trace volume | Use Basic or Detailed level and clear old traces. |
 | Auth session expired | Log in again. |
+
+## Verification
+
+After applying a fix, rerun the exact failing request, check **Overview** status classes, and use **Traffic** tracing only long enough to confirm the request path.
+
+## Next Steps
+
+- [Trace live traffic](../guides/trace-live-traffic)
+- [Routing rules reference](../reference/routing-rules)
+- [Cache reference](../reference/cache)

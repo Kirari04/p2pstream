@@ -1,81 +1,65 @@
 # Trace Live Traffic
 
-Traffic tracing shows how a live request moves through listener, WAF, rate-limit, shaper, route, backend, agent, and upstream stages.
+Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, backends, cache, agents, upstreams, and responses.
 
-## 1. Open Traffic
+## Use This When
 
-Open **Traffic** in the management UI.
+Use tracing while diagnosing why a request did not match a route, hit a backend, use cache, pass WAF, or select the expected agent.
 
-Enable **Tracing**.
+## Prerequisites
+
+- You are logged in to management.
+- The client request reaches a p2pstream public listener.
+- You can reproduce the request while tracing is enabled.
+
+## Steps
+
+1. Open **Traffic**.
+2. Enable **Tracing**.
+3. Select a level:
+
+   | Level | Use |
+   | --- | --- |
+   | Basic | Confirm requests are received and completed. |
+   | Detailed | Diagnose route, backend, cache, and agent selection. |
+   | Headers | Inspect selected request/response headers. |
+   | Debug | Temporary deep troubleshooting. |
+
+   Use Headers and Debug only while diagnosing. They can expose request metadata.
+
+4. From another shell, reproduce the request:
+
+   ```bash
+   curl -v https://app.example.com/api/health
+   ```
+
+5. Select the request in **Traffic Flow** and inspect stages and details.
 
 <figure class="doc-screenshot">
   <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path through policy, routing, cache, agents, and upstreams">
   <figcaption>With tracing enabled, the Traffic view shows how sampled requests move through policy, routing, backend selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
-## 2. Select a level
+## Runtime Effects
 
-| Level | Use |
+Traffic tracing is an admin-controlled live stream. It is meant for temporary diagnosis. Turn tracing off when finished, especially at Headers or Debug level.
+
+Common stages include received, WAF evaluated, rate limited, route resolved, backend selected, cache lookup, cache hit, cache miss, cache bypass, cache stored, agent selected, upstream started, upstream responded, response sent, and failed.
+
+## Verification
+
+A matching request should appear in **Traffic Flow** shortly after you reproduce it. Cache is shown as a decision gateway after backend selection: hits exit to response, misses and bypasses continue to the direct upstream or selected agent.
+
+## Troubleshooting
+
+| Symptom | Check |
 | --- | --- |
-| Basic | Confirm requests are received and completed. |
-| Detailed | Diagnose route/backend/agent selection. |
-| Headers | Inspect selected request/response headers. |
-| Debug | Temporary deep troubleshooting. |
+| Request does not appear | Confirm tracing is enabled and the request hits a p2pstream public listener. |
+| Expected asset is not cached | Check cache rule match, `Cookie`, `Authorization`, origin cache headers, status code, and object size. |
+| Stream reconnects | Check management network, auth session, server restarts, and trace volume. |
 
-Use Headers and Debug only while diagnosing. Turn tracing off when finished.
+## Next Steps
 
-## 3. Reproduce the request
-
-From another shell:
-
-```bash
-curl -v https://app.example.com/api/health
-```
-
-Watch for stages:
-
-- received,
-- WAF evaluated, blocked, challenged, or waiting-room queued,
-- rate limited,
-- route resolved,
-- backend selected,
-- cache lookup,
-- cache hit,
-- cache miss,
-- cache bypass,
-- cache stored,
-- agent selected when using an agent pool,
-- upstream started,
-- upstream responded,
-- response sent,
-- failed.
-
-## 4. Use the diagram
-
-The Traffic page renders recent requests across listeners, routes, backends, agents, and upstreams. Select a request to inspect details.
-
-Cache is shown as a decision gateway after backend selection:
-
-| Cache result | Diagram behavior |
-| --- | --- |
-| `HIT` | The dot enters Cache and exits directly to Response. |
-| `MISS` | The dot enters Cache and continues to the direct upstream or selected agent. |
-| `BYPASS` | The dot enters Cache and continues upstream with muted cache styling. |
-| `STORED` | The Cache node shows a stored pulse while the request dot continues forward. |
-
-If an expected asset is not hitting cache, check:
-
-- no cache rule matched the host, path prefix, suffix, method, route, or backend,
-- the browser sent cookies and the matching rule does not enable `allow_cookie_requests`,
-- the request includes `Authorization`,
-- the origin response includes `Set-Cookie`,
-- the origin response includes `Cache-Control: no-store`, `private`, or `no-cache`,
-- the origin response includes `Vary: Cookie`, `Vary: Authorization`, or `Vary: *`,
-- the status code or object size is not allowed by the rule.
-
-If the request does not appear, check that:
-
-- tracing is enabled,
-- you are hitting a p2pstream public listener,
-- the browser or client is not using cached redirects,
-- the listener port is published and reachable.
+- [Observability](../concepts/observability)
+- [Troubleshooting](../operations/troubleshooting)
+- [Cache reference](../reference/cache)
