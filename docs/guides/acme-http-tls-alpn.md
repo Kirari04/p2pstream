@@ -1,50 +1,57 @@
 # Issue ACME Certificates with HTTP-01 or TLS-ALPN-01
 
-Use HTTP-01 or TLS-ALPN-01 when the public DNS hostname points directly to p2pstream and inbound validation ports are available.
+Issue a trusted public certificate when the requested hostname reaches p2pstream on the required inbound validation port.
 
-## Requirements
+## Use This When
+
+Use HTTP-01 or TLS-ALPN-01 when public DNS points directly to p2pstream and inbound port `80` or `443` is available.
+
+## Prerequisites
 
 | Challenge | Required public reachability |
 | --- | --- |
 | HTTP-01 | `http://hostname/.well-known/acme-challenge/...` reaches a p2pstream HTTP listener. |
 | TLS-ALPN-01 | `https://hostname:443` reaches a p2pstream HTTPS listener. |
 
-The hostname must be public DNS, not `localhost`, an IP address, or an internal-only name.
+The hostname must be a public fully-qualified DNS name, not `localhost`, an IP address, or an internal-only name. Wildcards require DNS-01.
 
-## 1. Create the listener
+## Steps
 
-Open **Proxy -> Listeners**.
+1. Open **Proxy -> Listeners**.
+2. For HTTP-01, ensure an HTTP listener is enabled and running on container port `80`.
+3. For TLS-ALPN-01, ensure an HTTPS listener is enabled and running on container port `443`.
+4. Open **TLS** and add a certificate mapping:
 
-For HTTP-01, ensure an HTTP listener is enabled on port `80`.
+   | Field | Value |
+   | --- | --- |
+   | Listener | `public-https` |
+   | Hostname pattern | `app.example.com` |
+   | Method | `HTTP-01` or `TLS-ALPN` |
+   | CA | Let's Encrypt staging for testing, production when ready |
+   | Email | your ACME account email |
+   | Enabled | On |
 
-For TLS-ALPN-01, ensure an HTTPS listener is enabled on port `443`.
+## Verification
 
-## 2. Add the certificate mapping
+The certificate status should move from pending or renewing to ready.
 
-Open **TLS** and add:
-
-| Field | Value |
-| --- | --- |
-| Listener | `public-https` |
-| Hostname pattern | `app.example.com` |
-| Method | `HTTP-01` or `TLS-ALPN` |
-| CA | Let's Encrypt staging for testing, production when ready |
-| Email | your ACME account email |
-| Enabled | On |
-
-## 3. Verify issuance
-
-The certificate status should move from pending/renewing to ready.
-
-Test:
+Run:
 
 ```bash
 curl -I https://app.example.com
 ```
 
-If issuance fails, check:
+## Troubleshooting
 
-- DNS points to the p2pstream host,
-- ports `80` and/or `443` are open through firewall and NAT,
-- the listener is enabled and running,
-- the hostname pattern matches the requested name.
+| Symptom | Check |
+| --- | --- |
+| Status stays error | Open **TLS** and read `last_error`. |
+| HTTP-01 fails | DNS and firewall must send port `80` to the p2pstream HTTP listener. |
+| TLS-ALPN-01 fails | DNS and firewall must send port `443` to the p2pstream HTTPS listener. |
+| Wildcard rejected | Use DNS-01 with a Cloudflare DNS credential. |
+
+## Next Steps
+
+- [Issue a wildcard certificate with Cloudflare DNS-01](./acme-cloudflare-dns)
+- [TLS](../concepts/tls)
+- [Public TLS and ACME reference](../reference/public-tls-acme)

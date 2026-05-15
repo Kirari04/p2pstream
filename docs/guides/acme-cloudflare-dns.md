@@ -1,58 +1,74 @@
 # Issue a Wildcard Certificate with Cloudflare DNS-01
 
-DNS-01 is required for wildcard ACME certificates and useful when ports `80` or `443` cannot be used for validation.
+Issue an ACME certificate through Cloudflare DNS-01 for wildcard hosts or deployments where validation ports cannot be exposed.
 
-## 1. Create a Cloudflare token
+## Use This When
 
-Create a Cloudflare API token with permission to edit DNS records for the target zone.
+Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot reach p2pstream from the public internet.
 
-Record:
+## Prerequisites
 
-- Cloudflare zone ID,
-- API token.
+- The domain is hosted in Cloudflare DNS.
+- A Cloudflare API token that can edit DNS records for the target zone.
+- The Cloudflare zone ID.
+- An HTTPS listener such as `public-https`.
 
-## 2. Add the DNS credential
+## Steps
 
-Open **TLS -> DNS Credentials**.
+1. In Cloudflare, create a scoped API token with DNS edit permission for the target zone.
+2. Open **TLS -> DNS Credentials** and create:
 
-Create:
+   | Field | Value |
+   | --- | --- |
+   | Name | `cloudflare-example` |
+   | Provider | Cloudflare |
+   | Zone ID | your Cloudflare zone ID |
+   | API token | your scoped token |
+   | Enabled | On |
 
-| Field | Value |
+   The API token is stored server-side and later shown as set, not echoed back in full.
+
+3. Open **TLS** and create the certificate mapping:
+
+   | Field | Value |
+   | --- | --- |
+   | Listener | `public-https` |
+   | Hostname pattern | `*.example.com` |
+   | Method | `DNS-01` |
+   | CA | Let's Encrypt staging first |
+   | Email | your ACME account email |
+   | DNS credential | `cloudflare-example` |
+   | Enabled | On |
+
+4. After staging issuance works, switch the CA to Let's Encrypt production and renew.
+
+5. Create matching routes. Wildcard TLS only provides the certificate.
+
+   | Host pattern | Path prefix | Backend |
+   | --- | --- | --- |
+   | `app.example.com` | `/` | `app` |
+   | `media.example.com` | `/` | `media` |
+   | `*.example.com` | `/` | `fallback` |
+
+## Verification
+
+The certificate status should become ready. Then test a routed wildcard host:
+
+```bash
+curl -I https://app.example.com
+```
+
+## Troubleshooting
+
+| Symptom | Check |
 | --- | --- |
-| Name | `cloudflare-example` |
-| Provider | Cloudflare |
-| Zone ID | your Cloudflare zone ID |
-| API token | your scoped token |
-| Enabled | On |
+| DNS credential rejected | Zone ID cannot be empty or contain whitespace/path characters. |
+| Certificate issuance fails | Token must edit DNS records for the zone. |
+| TLS works but route fails | Add or fix **Proxy -> Routes** for the hostname. |
+| Apex host not covered | `*.example.com` does not cover `example.com`; add a separate mapping if needed. |
 
-The API token is stored and later shown as set, not echoed back in full.
+## Next Steps
 
-## 3. Add the wildcard certificate
-
-Open **TLS** and create:
-
-| Field | Value |
-| --- | --- |
-| Listener | `public-https` |
-| Hostname pattern | `*.example.com` |
-| Method | `DNS-01` |
-| CA | Let's Encrypt staging first |
-| Email | your ACME account email |
-| DNS credential | `cloudflare-example` |
-| Enabled | On |
-
-After the staging test works, switch the CA to Let's Encrypt production and renew.
-
-## 4. Route wildcard hosts
-
-Wildcard TLS only provides the certificate. You still need matching routes.
-
-Example:
-
-| Host pattern | Path prefix | Backend |
-| --- | --- | --- |
-| `app.example.com` | `/` | `app` |
-| `media.example.com` | `/` | `media` |
-| `*.example.com` | `/` | `fallback` |
-
-Use specific exact-host routes before broad wildcard routes.
+- [ACME HTTP/TLS-ALPN](./acme-http-tls-alpn)
+- [Public TLS and ACME reference](../reference/public-tls-acme)
+- [Routing rules reference](../reference/routing-rules)

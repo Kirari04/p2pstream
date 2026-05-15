@@ -1,66 +1,79 @@
 # Rate Limit a Route
 
-Use rate limits to slow repeated requests before they reach the upstream.
+Reject repeated requests before they reach route resolution and the upstream backend.
 
-Example: limit login attempts for one host and path.
+## Use This When
 
-## 1. Open rate limits
+Use rate limits for login forms, expensive API endpoints, public probes, or client budgets that should fail fast with `429`.
 
-Open **Traffic Policy -> Rate Limits** and create a rule.
+## Prerequisites
 
-## 2. Configure the match
+- A route or hostname/path you can match precisely.
+- A keying strategy that identifies clients correctly in your network layout.
 
-| Field | Value |
+## Steps
+
+1. Open **Traffic Policy -> Rate Limits** and create a rule.
+
+2. Configure the match:
+
+   | Field | Value |
+   | --- | --- |
+   | Name | `login-limit` |
+   | Priority | `10` |
+   | Enabled | On |
+   | Methods | `POST` |
+   | Protocols | HTTPS |
+   | Host patterns | `app.example.com` |
+   | Path prefixes | `/login` |
+
+3. Configure the algorithm. For login protection:
+
+   | Field | Value |
+   | --- | --- |
+   | Algorithm | Sliding window |
+   | Limit | `10` |
+   | Window | `60000` ms |
+   | Burst | `0` |
+
+   For APIs that should allow short bursts, use token bucket:
+
+   | Field | Value |
+   | --- | --- |
+   | Algorithm | Token bucket |
+   | Limit | `120` |
+   | Window | `60000` ms |
+   | Burst | `240` |
+
+4. Configure key parts. Default key is remote IP. Add key parts when you need a more specific budget:
+
+   - remote IP + host,
+   - remote IP + path,
+   - header `Authorization` for authenticated API clients,
+   - cookie or query parameter for known client identifiers.
+
+5. Configure the response:
+
+   | Field | Value |
+   | --- | --- |
+   | Status | `429` |
+   | Content-Type | `text/plain; charset=utf-8` |
+   | Body | `Rate limit exceeded` |
+
+## Verification
+
+Send repeated matching requests and watch **Overview -> Problem Signals** or **Traffic** tracing. A limited request should return `429` and should not reach route/backend selection.
+
+## Troubleshooting
+
+| Symptom | Check |
 | --- | --- |
-| Name | `login-limit` |
-| Priority | `10` |
-| Enabled | On |
-| Methods | `POST` |
-| Protocols | HTTPS |
-| Host patterns | `app.example.com` |
-| Path prefixes | `/login` |
+| Every user is limited together | p2pstream may see one reverse-proxy IP; add key parts or place p2pstream at the edge. |
+| Rule never fires | Confirm method, protocol, host pattern, path prefix, and priority. |
+| Bursts are too large | Burst cannot exceed 10x limit and should be set intentionally. |
 
-## 3. Configure the algorithm
+## Next Steps
 
-For login protection:
-
-| Field | Value |
-| --- | --- |
-| Algorithm | Sliding window |
-| Limit | `10` |
-| Window | `60000` ms |
-| Burst | `0` |
-
-For APIs that should allow short bursts, use token bucket:
-
-| Field | Value |
-| --- | --- |
-| Algorithm | Token bucket |
-| Limit | `120` |
-| Window | `60000` ms |
-| Burst | `240` |
-
-## 4. Configure the key
-
-Default key is remote IP. Add key parts when you need a more specific budget:
-
-- remote IP + host,
-- remote IP + path,
-- header `Authorization` for authenticated API clients,
-- cookie or query parameter for known client identifiers.
-
-::: warning Behind another reverse proxy
-If all traffic arrives from one proxy IP, a remote-IP-only key can rate-limit every user together.
-:::
-
-## 5. Response
-
-Use:
-
-| Field | Value |
-| --- | --- |
-| Status | `429` |
-| Content-Type | `text/plain; charset=utf-8` |
-| Body | `Rate limit exceeded` |
-
-Test with repeated requests and watch **Overview -> Problem Signals**.
+- [Limits and shaping](../concepts/limits-and-shaping)
+- [Rate limits reference](../reference/rate-limits)
+- [Trace live traffic](./trace-live-traffic)
