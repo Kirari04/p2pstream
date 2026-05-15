@@ -32,79 +32,94 @@ export default defineConfig({
     search: {
       provider: "local"
     },
+    outline: {
+      level: [2, 3],
+      label: "On this page"
+    },
     nav: [
-      { text: "Guide", link: "/getting-started/quickstart" },
-      { text: "Screenshots", link: "/reference/screenshots" },
-      { text: "Concepts", link: "/concepts/architecture" },
-      { text: "Operations", link: "/operations/security-hardening" },
+      { text: "Start", link: "/getting-started/quickstart" },
+      { text: "Publish", link: "/guides/publish-a-service" },
+      { text: "TLS/Security", link: "/concepts/tls" },
+      { text: "Operate", link: "/operations/troubleshooting" },
       { text: "Reference", link: "/reference/configuration" },
       { text: "GitHub", link: "https://github.com/Kirari04/p2pstream" }
     ],
     sidebar: [
       {
-        text: "Get Started",
+        text: "Start Here",
         items: [
           { text: "Docker Compose Quickstart", link: "/getting-started/quickstart" },
+          { text: "First Login", link: "/getting-started/first-login" },
           { text: "Docker Compose Details", link: "/getting-started/docker-compose" },
-          { text: "Release Binary (advanced)", link: "/getting-started/binary" },
-          { text: "First Login", link: "/getting-started/first-login" }
+          { text: "Release Binary", link: "/getting-started/binary" }
         ]
       },
       {
-        text: "Core Concepts",
+        text: "Publish Apps",
         items: [
+          { text: "Publish a Service", link: "/guides/publish-a-service" },
+          { text: "Expose a Home Lab App", link: "/guides/expose-a-home-lab-app" },
+          { text: "Build an Agent Pool", link: "/guides/agent-pool" },
+          { text: "Redirects and Static Responses", link: "/guides/redirects-and-static-responses" },
           { text: "Architecture", link: "/concepts/architecture" },
           { text: "Listeners", link: "/concepts/listeners" },
           { text: "Routing", link: "/concepts/routing" },
           { text: "Backends", link: "/concepts/backends" },
-          { text: "Agents", link: "/concepts/agents" },
+          { text: "Agents", link: "/concepts/agents" }
+        ]
+      },
+      {
+        text: "TLS and Security",
+        items: [
           { text: "TLS", link: "/concepts/tls" },
+          { text: "ACME HTTP/TLS-ALPN", link: "/guides/acme-http-tls-alpn" },
+          { text: "ACME Cloudflare DNS", link: "/guides/acme-cloudflare-dns" },
+          { text: "Security Hardening", link: "/operations/security-hardening" },
+          { text: "Management TLS Reference", link: "/reference/management-tls" },
+          { text: "Public TLS and ACME", link: "/reference/public-tls-acme" }
+        ]
+      },
+      {
+        text: "Traffic Controls",
+        items: [
+          { text: "Rate Limit a Route", link: "/guides/rate-limit-a-route" },
+          { text: "Shape Bandwidth", link: "/guides/shape-bandwidth" },
           { text: "Limits and Shaping", link: "/concepts/limits-and-shaping" },
           { text: "WAF", link: "/concepts/waf" },
           { text: "Public Asset Cache", link: "/concepts/cache" },
-          { text: "Observability", link: "/concepts/observability" }
+          { text: "Rate Limits Reference", link: "/reference/rate-limits" },
+          { text: "Traffic Shaping Reference", link: "/reference/traffic-shaping" },
+          { text: "WAF Reference", link: "/reference/waf" },
+          { text: "Cache Reference", link: "/reference/cache" }
         ]
       },
       {
-        text: "Guides",
+        text: "Operate",
         items: [
-          { text: "Publish a Service", link: "/guides/publish-a-service" },
-          { text: "Expose a Home Lab App", link: "/guides/expose-a-home-lab-app" },
-          { text: "Agent Pool", link: "/guides/agent-pool" },
-          { text: "Redirects and Static Responses", link: "/guides/redirects-and-static-responses" },
-          { text: "ACME HTTP/TLS-ALPN", link: "/guides/acme-http-tls-alpn" },
-          { text: "ACME Cloudflare DNS", link: "/guides/acme-cloudflare-dns" },
-          { text: "Rate Limit a Route", link: "/guides/rate-limit-a-route" },
-          { text: "Shape Bandwidth", link: "/guides/shape-bandwidth" },
-          { text: "Trace Live Traffic", link: "/guides/trace-live-traffic" }
-        ]
-      },
-      {
-        text: "Operations",
-        items: [
-          { text: "Security Hardening", link: "/operations/security-hardening" },
+          { text: "Troubleshooting", link: "/operations/troubleshooting" },
+          { text: "Trace Live Traffic", link: "/guides/trace-live-traffic" },
+          { text: "Observability", link: "/concepts/observability" },
           { text: "Backup and Restore", link: "/operations/backup-restore" },
           { text: "Upgrades", link: "/operations/upgrades" },
-          { text: "Systemd (advanced)", link: "/operations/systemd" },
-          { text: "Troubleshooting", link: "/operations/troubleshooting" }
+          { text: "Systemd", link: "/operations/systemd" },
+          { text: "Screenshots", link: "/reference/screenshots" }
         ]
       },
       {
         text: "Reference",
         items: [
           { text: "Configuration", link: "/reference/configuration" },
-          { text: "Screenshot Overview", link: "/reference/screenshots" },
           { text: "CLI", link: "/reference/cli" },
+          { text: "Docker", link: "/reference/docker" },
           { text: "Ports", link: "/reference/ports" },
           { text: "Database", link: "/reference/database" },
-          { text: "Docker", link: "/reference/docker" },
+          { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "Management TLS", link: "/reference/management-tls" },
           { text: "Public TLS and ACME", link: "/reference/public-tls-acme" },
-          { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "Rate Limits", link: "/reference/rate-limits" },
+          { text: "Traffic Shaping", link: "/reference/traffic-shaping" },
           { text: "WAF", link: "/reference/waf" },
-          { text: "Cache", link: "/reference/cache" },
-          { text: "Traffic Shaping", link: "/reference/traffic-shaping" }
+          { text: "Cache", link: "/reference/cache" }
         ]
       }
     ],
