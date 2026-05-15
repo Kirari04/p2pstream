@@ -191,6 +191,18 @@ func (c *publicProxyCache) reconcile(settings publicCacheSettingsConfig) {
 	c.mu.Unlock()
 }
 
+func (c *publicProxyCache) memoryHotObjectMaxBytesSnapshot() int64 {
+	if c == nil {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.settings.Enabled || c.settings.MaxMemoryBytes <= 0 || c.settings.MemoryHotObjectMaxBytes <= 0 {
+		return 0
+	}
+	return c.settings.MemoryHotObjectMaxBytes
+}
+
 func (c *publicProxyCache) cacheDir() string {
 	if c == nil || strings.TrimSpace(c.dir) == "" {
 		return filepath.Join(config.DefaultConfigDir, "cache", "public")
@@ -704,55 +716,62 @@ func (a *App) capturePublicCacheResponseBody(ctx context.Context, r *http.Reques
 		return resp.Body
 	}
 	varyJSON := publicCacheStringListJSON(varyHeaders)
+	memoryHotObjectMaxBytes := a.PublicCache.memoryHotObjectMaxBytesSnapshot()
+	var memoryBuffer *bytes.Buffer
+	if memoryHotObjectMaxBytes > 0 {
+		memoryBuffer = &bytes.Buffer{}
+	}
 	return &publicCacheStoreReadCloser{
-		ctx:          ctx,
-		source:       resp.Body,
-		tmp:          tmp,
-		tmpPath:      tmp.Name(),
-		finalPath:    bodyPath,
-		app:          a,
-		trace:        trace,
-		decision:     decision,
-		rule:         decision.Rule,
-		keyDigest:    keyDigest,
-		resolution:   resolution,
-		requestHost:  decision.Host,
-		requestPath:  decision.Path,
-		queryKey:     decision.QueryKey,
-		statusCode:   int64(resp.StatusCode),
-		headersJSON:  headersJSON,
-		varyJSON:     varyJSON,
-		maxBytes:     decision.Rule.MaxObjectBytes,
-		expiresAt:    time.Now().Add(ttl),
-		memoryBuffer: &bytes.Buffer{},
+		ctx:                     ctx,
+		source:                  resp.Body,
+		tmp:                     tmp,
+		tmpPath:                 tmp.Name(),
+		finalPath:               bodyPath,
+		app:                     a,
+		trace:                   trace,
+		decision:                decision,
+		rule:                    decision.Rule,
+		keyDigest:               keyDigest,
+		resolution:              resolution,
+		requestHost:             decision.Host,
+		requestPath:             decision.Path,
+		queryKey:                decision.QueryKey,
+		statusCode:              int64(resp.StatusCode),
+		headersJSON:             headersJSON,
+		varyJSON:                varyJSON,
+		maxBytes:                decision.Rule.MaxObjectBytes,
+		expiresAt:               time.Now().Add(ttl),
+		memoryBuffer:            memoryBuffer,
+		memoryHotObjectMaxBytes: memoryHotObjectMaxBytes,
 	}
 }
 
 type publicCacheStoreReadCloser struct {
-	ctx          context.Context
-	source       io.ReadCloser
-	tmp          *os.File
-	tmpPath      string
-	finalPath    string
-	app          *App
-	trace        *trafficRequestTrace
-	decision     *publicCacheDecision
-	rule         publicCacheRuleConfig
-	keyDigest    string
-	resolution   publicRouteResolution
-	requestHost  string
-	requestPath  string
-	queryKey     string
-	statusCode   int64
-	headersJSON  string
-	varyJSON     string
-	maxBytes     int64
-	expiresAt    time.Time
-	memoryBuffer *bytes.Buffer
-	bytesWritten int64
-	tooLarge     bool
-	committed    bool
-	closed       bool
+	ctx                     context.Context
+	source                  io.ReadCloser
+	tmp                     *os.File
+	tmpPath                 string
+	finalPath               string
+	app                     *App
+	trace                   *trafficRequestTrace
+	decision                *publicCacheDecision
+	rule                    publicCacheRuleConfig
+	keyDigest               string
+	resolution              publicRouteResolution
+	requestHost             string
+	requestPath             string
+	queryKey                string
+	statusCode              int64
+	headersJSON             string
+	varyJSON                string
+	maxBytes                int64
+	expiresAt               time.Time
+	memoryBuffer            *bytes.Buffer
+	memoryHotObjectMaxBytes int64
+	bytesWritten            int64
+	tooLarge                bool
+	committed               bool
+	closed                  bool
 }
 
 func (r *publicCacheStoreReadCloser) Read(p []byte) (int, error) {
@@ -766,8 +785,7 @@ func (r *publicCacheStoreReadCloser) Read(p []byte) (int, error) {
 			if _, writeErr := r.tmp.Write(chunk); writeErr != nil {
 				r.tooLarge = true
 			}
-			settings := r.app.PublicCache.settings
-			if r.memoryBuffer != nil && int64(r.memoryBuffer.Len()+n) <= settings.MemoryHotObjectMaxBytes {
+			if r.memoryBuffer != nil && int64(r.memoryBuffer.Len()+n) <= r.memoryHotObjectMaxBytes {
 				_, _ = r.memoryBuffer.Write(chunk)
 			} else {
 				r.memoryBuffer = nil

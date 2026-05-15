@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -410,6 +411,84 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	}
 	if originHits != 1 {
 		t.Fatalf("origin hits = %d, want 1", originHits)
+	}
+}
+
+func TestPublicCacheStoreReadCloserDoesNotRaceWithReconcile(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/race.txt", nil)
+	decision := app.checkPublicCache(req, resolution)
+	if decision.Status != publicCacheStatusMiss {
+		t.Fatalf("cache status = %q/%q, want miss", decision.Status, decision.BypassReason)
+	}
+
+	reader, writer := io.Pipe()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Cache-Control": []string{"max-age=300"},
+			"Content-Type":  []string{"text/plain"},
+		},
+		Body: reader,
+	}
+	body := app.capturePublicCacheResponseBody(context.Background(), req, resolution, &decision, resp, nil)
+	if body == nil {
+		t.Fatal("expected cache store wrapper")
+	}
+	if _, ok := body.(*publicCacheStoreReadCloser); !ok {
+		t.Fatalf("cache response body type = %T, want *publicCacheStoreReadCloser", body)
+	}
+
+	readDone := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(io.Discard, body)
+		if closeErr := body.Close(); err == nil {
+			err = closeErr
+		}
+		readDone <- err
+	}()
+
+	stopReconcile := make(chan struct{})
+	reconcileDone := make(chan struct{})
+	go func() {
+		defer close(reconcileDone)
+		for i := 0; ; i++ {
+			select {
+			case <-stopReconcile:
+				return
+			default:
+			}
+			settings := defaultPublicCacheSettings()
+			if i%2 == 0 {
+				settings.MemoryHotObjectMaxBytes = 32
+			} else {
+				settings.MemoryHotObjectMaxBytes = defaultPublicCacheMemoryHotObjectBytes
+			}
+			app.PublicCache.reconcile(settings)
+		}
+	}()
+	defer func() {
+		close(stopReconcile)
+		<-reconcileDone
+	}()
+
+	chunk := []byte("cache-race-body-chunk\n")
+	for i := 0; i < 512; i++ {
+		if _, err := writer.Write(chunk); err != nil {
+			_ = writer.CloseWithError(err)
+			t.Fatalf("write response chunk: %v", err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close response writer: %v", err)
+	}
+	if err := <-readDone; err != nil {
+		t.Fatalf("read cached response body: %v", err)
+	}
+	if decision.Status != publicCacheStatusStored {
+		t.Fatalf("final cache status = %q, want stored", decision.Status)
 	}
 }
 
