@@ -150,6 +150,9 @@ export function loadBalancingLabel(algorithm: PublicBackendLoadBalancing): strin
 }
 
 export function backendHealthLabel(backend: PublicBackend): string {
+  if (backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode === PublicBackendForwardMode.AGENT_POOL) {
+    return backendAgentAvailabilitySummary(backend, []);
+  }
   if (!backend.healthCheck?.enabled) return "Health unknown";
   switch (backend.healthCheck.status) {
     case PublicBackendHealthStatus.HEALTHY:
@@ -164,6 +167,12 @@ export function backendHealthLabel(backend: PublicBackend): string {
 }
 
 export function backendHealthSeverity(backend: PublicBackend): "success" | "warn" | "danger" | "info" {
+  if (backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode === PublicBackendForwardMode.AGENT_POOL) {
+    const { available, total } = backendAgentAvailability(backend, []);
+    if (total === 0) return "warn";
+    if (available === 0) return "danger";
+    return available === total ? "success" : "warn";
+  }
   switch (backend.healthCheck?.status) {
     case PublicBackendHealthStatus.HEALTHY:
       return "success";
@@ -378,7 +387,40 @@ export function backendAgentSummary(backend: PublicBackend, backendAgents: reado
   }
   const assignments = assignmentsForBackend(backend, backendAgents).filter((assignment) => assignment.enabled);
   if (!assignments.length) return "No enabled agents";
-  return assignments.map((assignment) => `${agentName(assignment.agentId, agents)} x${assignment.weight.toString()}`).join(", ");
+  return assignments.map((assignment) => `${agentName(assignment.agentId, agents)} ${backendAgentHealthLabel(assignment)} x${assignment.weight.toString()}`).join(", ");
+}
+
+export function backendAgentAvailability(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[]): { available: number; total: number } {
+  if (backend.backendType !== PublicBackendType.PROXY_FORWARD || backend.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
+    return { available: 0, total: 0 };
+  }
+  const assignments = assignmentsForBackend(backend, backendAgents).filter((assignment) => assignment.enabled);
+  return {
+    available: assignments.filter((assignment) => assignment.health?.available).length,
+    total: assignments.length,
+  };
+}
+
+export function backendAgentAvailabilitySummary(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[]): string {
+  const { available, total } = backendAgentAvailability(backend, backendAgents);
+  if (total === 0) return "No enabled agents";
+  return `${available.toString()}/${total.toString()} ${total === 1 ? "agent" : "agents"} available`;
+}
+
+export function backendAgentHealthLabel(assignment: PublicBackendAgent): string {
+  if (!assignment.enabled) return "disabled";
+  switch (assignment.health?.status) {
+    case PublicBackendHealthStatus.HEALTHY:
+      return "healthy";
+    case PublicBackendHealthStatus.UNHEALTHY:
+      return "unhealthy";
+    case PublicBackendHealthStatus.DISCONNECTED:
+      return "disconnected";
+    case PublicBackendHealthStatus.DISABLED:
+      return "disabled";
+    default:
+      return "unknown";
+  }
 }
 
 export function upstreamHeaderCount(backend: PublicBackend): number {

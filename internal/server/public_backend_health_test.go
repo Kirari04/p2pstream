@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,6 +15,7 @@ import (
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/httpmsg"
+	"p2pstream/internal/db"
 	"p2pstream/msg"
 )
 
@@ -135,6 +138,48 @@ func TestAgentPoolHealthCheckUnhealthySkipsOnlyThatAgent(t *testing.T) {
 	}
 }
 
+func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthBackend(t, 21, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	snap := &publicProxySnapshot{
+		Backends: map[int64]publicBackendConfig{backend.ID: backend},
+		Agents:   make(map[int64]publicAgentConfig),
+	}
+	for i := int64(1); i <= 5; i++ {
+		backend.AgentAssignments = append(backend.AgentAssignments, publicBackendAgentConfig{
+			BackendID: backend.ID,
+			AgentID:   i,
+			Position:  i - 1,
+			Weight:    100,
+			Enabled:   true,
+		})
+		snap.Agents[i] = publicAgentConfig{ID: i, PublicID: "agent-" + strconv.FormatInt(i, 10), Enabled: true}
+	}
+	snap.Backends[backend.ID] = backend
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.BackendHealth.reconcile(app, snap, false)
+	for i := int64(1); i <= 4; i++ {
+		agent := testAgentConn(i, "agent-"+strconv.FormatInt(i, 10))
+		if err := app.AgentHub.connect(agent); err != nil {
+			t.Fatalf("connect agent %d: %v", i, err)
+		}
+		t.Cleanup(func() { app.AgentHub.disconnect(agent) })
+	}
+	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+
+	for range 25 {
+		selected := app.selectBackendAgent(backend)
+		if selected == nil {
+			t.Fatal("expected an eligible agent")
+		}
+		if selected.AgentID == 5 {
+			t.Fatal("disconnected agent was selected")
+		}
+	}
+}
+
 func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
@@ -168,6 +213,63 @@ func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testin
 	}
 }
 
+func TestDefaultBackendRequiresEligibleAgent(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthBackend(t, 70, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	snap := &publicProxySnapshot{
+		Backends:  map[int64]publicBackendConfig{backend.ID: backend},
+		Agents:    map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
+		Listeners: map[int64]publicListenerConfig{10: {ID: 10, Enabled: true, DefaultBackendID: backend.ID}},
+	}
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.BackendHealth.reconcile(app, snap, false)
+	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
+	_, err := app.resolvePublicRoute(10, req)
+	if !errors.Is(err, errNoRouteBackendAvailable) {
+		t.Fatalf("resolve default backend error = %v, want %v", err, errNoRouteBackendAvailable)
+	}
+}
+
+func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
+	app := NewApp(nil, nil)
+	primary := testHealthBackend(t, 80, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	primary.AgentAssignments = []publicBackendAgentConfig{{BackendID: primary.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	fallback := testHealthBackend(t, 81, publicBackendForwardModeDirect, "http://127.0.0.1:9999")
+	route := publicRouteConfig{
+		ID:                90,
+		Enabled:           true,
+		Action:            publicRouteActionForward,
+		BackendID:         primary.ID,
+		FallbackBackendID: fallback.ID,
+		BackendAssignments: []publicRouteBackendConfig{{
+			RouteID:   90,
+			BackendID: primary.ID,
+			Position:  0,
+			Weight:    100,
+			Enabled:   true,
+		}},
+	}
+	snap := publicProxySnapshot{
+		Backends: map[int64]publicBackendConfig{
+			primary.ID:  primary,
+			fallback.ID: fallback,
+		},
+		Agents: map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
+	}
+	app.BackendHealth.reconcile(app, &snap, false)
+	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+
+	selected, ok, fallbackSelected := app.selectRouteBackend(snap, route)
+	if !ok || !fallbackSelected || selected.ID != fallback.ID {
+		t.Fatalf("route backend selection = backend=%d ok=%v fallback=%v, want fallback %d", selected.ID, ok, fallbackSelected, fallback.ID)
+	}
+}
+
 func TestAgentPassiveFailureAppliesWhenHealthCheckEnabled(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
@@ -180,6 +282,73 @@ func TestAgentPassiveFailureAppliesWhenHealthCheckEnabled(t *testing.T) {
 	}
 	if !app.BackendHealth.available(backend) {
 		t.Fatal("backend should remain available while agent 2 is eligible")
+	}
+}
+
+func TestAgentReconnectClearsPassiveCooldownToUnknown(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthBackend(t, 22, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	snap := &publicProxySnapshot{
+		Backends: map[int64]publicBackendConfig{backend.ID: backend},
+		Agents:   map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
+	}
+	app.BackendHealth.reconcile(app, snap, false)
+	agent := testAgentConn(1, "agent-a")
+	if err := app.AgentHub.connect(agent); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	app.BackendHealth.recordAgentConnected(backend.ID, 1, "agent-a")
+	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+	if app.BackendHealth.agentAvailable(backend.ID, 1) {
+		t.Fatal("agent should be unavailable during passive cooldown")
+	}
+	app.AgentHub.disconnect(agent)
+	app.BackendHealth.recordAgentDisconnected(backend.ID, 1)
+	reconnected := testAgentConn(1, "agent-a")
+	if err := app.AgentHub.connect(reconnected); err != nil {
+		t.Fatalf("reconnect agent: %v", err)
+	}
+	t.Cleanup(func() { app.AgentHub.disconnect(reconnected) })
+	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+
+	app.BackendHealth.recordAgentConnected(backend.ID, 1, "agent-a")
+	snapshot := app.BackendHealth.agentSnapshot(backend.ID, 1, true, true)
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || !snapshot.Available || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
+		t.Fatalf("agent snapshot after reconnect = %+v, want available UNKNOWN without passive cooldown", snapshot)
+	}
+}
+
+func TestPublicBackendAgentProtoIncludesHealth(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthBackend(t, 23, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	snap := &publicProxySnapshot{
+		Backends: map[int64]publicBackendConfig{backend.ID: backend},
+		Agents:   map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
+	}
+	app.BackendHealth.reconcile(app, snap, false)
+	agent := testAgentConn(1, "agent-a")
+	agent.ActiveRequests.Store(3)
+	if err := app.AgentHub.connect(agent); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	t.Cleanup(func() { app.AgentHub.disconnect(agent) })
+	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+
+	assignments := publicBackendAgentsToProto([]db.PublicBackendAgent{{
+		BackendID: backend.ID,
+		AgentID:   1,
+		Position:  0,
+		Weight:    100,
+		Enabled:   1,
+	}}, map[int64]bool{1: true}, app.BackendHealth)
+	if len(assignments) != 1 || assignments[0].Health == nil {
+		t.Fatalf("agent assignments = %+v, want health", assignments)
+	}
+	health := assignments[0].Health
+	if !health.Connected || !health.Available || health.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || health.ActiveRequests != 3 {
+		t.Fatalf("agent health = %+v, want connected available UNKNOWN with active requests", health)
 	}
 }
 

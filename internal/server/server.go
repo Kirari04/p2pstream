@@ -254,8 +254,14 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 		c.Close(websocket.StatusPolicyViolation, err.Error())
 		return
 	}
+	if a.BackendHealth != nil {
+		a.BackendHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
+	}
 	defer func() {
 		a.AgentHub.disconnect(agent)
+		if a.BackendHealth != nil {
+			a.BackendHealth.recordAgentDisconnectedForAll(agent.AgentID)
+		}
 		a.failPendingRequestsForAgent(agent.AgentID, errAgentDisconnected)
 	}()
 

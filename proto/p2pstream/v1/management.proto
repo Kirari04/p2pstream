@@ -50,6 +50,7 @@ enum PublicBackendHealthStatus {
   PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY = 2;
   PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY = 3;
   PUBLIC_BACKEND_HEALTH_STATUS_DISABLED = 4;
+  PUBLIC_BACKEND_HEALTH_STATUS_DISCONNECTED = 5;
 }
 
 enum PublicRouteAction {
@@ -322,6 +323,16 @@ message PublicBackendHealthCheck {
   int64 passive_unhealthy_until_unix_millis = 13;
 }
 
+message PublicBackendAgentHealth {
+  PublicBackendHealthStatus status = 1;
+  bool connected = 2;
+  bool available = 3;
+  int64 last_checked_at_unix_millis = 4;
+  string last_error = 5;
+  int64 passive_unhealthy_until_unix_millis = 6;
+  int64 active_requests = 7;
+}
+
 message Agent {
   int64 id = 1;
   string public_id = 2;
@@ -342,6 +353,7 @@ message PublicBackendAgent {
   int64 position = 3;
   int64 weight = 4;
   bool enabled = 5;
+  PublicBackendAgentHealth health = 6;
 }
 
 message PublicRouteBackend {

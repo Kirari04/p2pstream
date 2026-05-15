@@ -321,7 +321,7 @@ func (a *App) CreatePublicBackend(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&p2pstreamv1.CreatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders, storedUpstreamHeaders, storedAgents, a.BackendHealth)}), nil
+	return connect.NewResponse(&p2pstreamv1.CreatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders, storedUpstreamHeaders, storedAgents, nil, a.BackendHealth)}), nil
 }
 
 func (a *App) UpdatePublicBackend(
@@ -369,7 +369,7 @@ func (a *App) UpdatePublicBackend(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&p2pstreamv1.UpdatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders, storedUpstreamHeaders, storedAgents, a.BackendHealth)}), nil
+	return connect.NewResponse(&p2pstreamv1.UpdatePublicBackendResponse{Backend: publicBackendToProto(backend, storedHeaders, storedUpstreamHeaders, storedAgents, nil, a.BackendHealth)}), nil
 }
 
 func (a *App) DeletePublicBackend(
@@ -1315,14 +1315,14 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	}
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
-		Backends:            publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents, a.BackendHealth),
+		Backends:            publicBackendsToProto(rows.Backends, rows.BackendHeaders, rows.BackendUpstreamHeaders, rows.BackendAgents, rows.Agents, a.BackendHealth),
 		Listeners:           publicListenersToProto(rows.Listeners),
 		Routes:              publicRoutesToProto(rows.Routes, rows.RouteBackends),
 		RouteBackends:       publicRouteBackendsToProto(rows.RouteBackends),
 		TlsCertificates:     publicTLSCertificatesToProto(rows.TLSCertificates),
 		Proxy:               proxy,
 		Agents:              a.publicAgentsToProto(ctx, rows.Agents),
-		BackendAgents:       publicBackendAgentsToProto(rows.BackendAgents),
+		BackendAgents:       publicBackendAgentsToProto(rows.BackendAgents, publicAgentEnabledByID(rows.Agents), a.BackendHealth),
 		RateLimitRules:      publicRateLimitRulesToProto(rows.RateLimitRules),
 		TrafficShaperRules:  publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
 		WafCaptchaProviders: publicWafCaptchaProvidersToProto(rows.WafCaptchaProviders, false),
@@ -3325,7 +3325,7 @@ func publicDBError(err error) error {
 	return connect.NewError(connect.CodeInternal, err)
 }
 
-func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHeader, upstreamHeaders []db.PublicBackendUpstreamHeader, agents []db.PublicBackendAgent, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicBackend {
+func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHeader, upstreamHeaders []db.PublicBackendUpstreamHeader, agents []db.PublicBackendAgent, agentEnabled map[int64]bool, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicBackend {
 	var healthSnapshot *publicBackendHealthSnapshot
 	if monitor != nil {
 		healthSnapshot = monitor.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: backend.Enabled != 0})
@@ -3344,7 +3344,7 @@ func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHe
 		StaticStatusCode:                    backend.StaticStatusCode,
 		StaticResponseHeaders:               publicBackendHeaderRowsToProto(headers),
 		StaticResponseBody:                  backend.StaticResponseBody,
-		AgentAssignments:                    publicBackendAgentsToProto(agents),
+		AgentAssignments:                    publicBackendAgentsToProto(agents, agentEnabled, monitor),
 		UpstreamRequestHeaders:              publicBackendUpstreamHeaderRowsToProto(upstreamHeaders),
 		UpstreamBasicAuth:                   publicBackendBasicAuthToProto(backend),
 		HealthCheck:                         publicBackendHealthCheckToProto(backend, healthSnapshot),
@@ -3380,13 +3380,14 @@ func publicBackendHealthCheckToProto(backend db.PublicBackend, status *publicBac
 	return resp
 }
 
-func publicBackendsToProto(backends []db.PublicBackend, headers []db.PublicBackendHeader, upstreamHeaders []db.PublicBackendUpstreamHeader, agents []db.PublicBackendAgent, monitor *publicBackendHealthMonitor) []*p2pstreamv1.PublicBackend {
+func publicBackendsToProto(backends []db.PublicBackend, headers []db.PublicBackendHeader, upstreamHeaders []db.PublicBackendUpstreamHeader, agents []db.PublicBackendAgent, allAgents []db.Agent, monitor *publicBackendHealthMonitor) []*p2pstreamv1.PublicBackend {
 	headersByBackend := publicBackendHeadersByBackend(headers)
 	upstreamHeadersByBackend := publicBackendUpstreamHeadersByBackend(upstreamHeaders)
 	agentsByBackend := publicBackendAgentsByBackend(agents)
+	agentEnabled := publicAgentEnabledByID(allAgents)
 	resp := make([]*p2pstreamv1.PublicBackend, 0, len(backends))
 	for _, backend := range backends {
-		resp = append(resp, publicBackendToProto(backend, headersByBackend[backend.ID], upstreamHeadersByBackend[backend.ID], agentsByBackend[backend.ID], monitor))
+		resp = append(resp, publicBackendToProto(backend, headersByBackend[backend.ID], upstreamHeadersByBackend[backend.ID], agentsByBackend[backend.ID], agentEnabled, monitor))
 	}
 	return resp
 }
@@ -3485,18 +3486,57 @@ func publicBackendHealthCheckRowToConfig(backend db.PublicBackend) publicBackend
 	}
 }
 
-func publicBackendAgentsToProto(agents []db.PublicBackendAgent) []*p2pstreamv1.PublicBackendAgent {
+func publicAgentEnabledByID(agents []db.Agent) map[int64]bool {
+	resp := make(map[int64]bool, len(agents))
+	for _, agent := range agents {
+		resp[agent.ID] = agent.Enabled != 0
+	}
+	return resp
+}
+
+func publicBackendAgentsToProto(agents []db.PublicBackendAgent, agentEnabled map[int64]bool, monitor *publicBackendHealthMonitor) []*p2pstreamv1.PublicBackendAgent {
 	resp := make([]*p2pstreamv1.PublicBackendAgent, 0, len(agents))
 	for _, agent := range agents {
+		enabled := agent.Enabled != 0
+		configEnabled, ok := agentEnabled[agent.AgentID]
+		if agentEnabled == nil {
+			configEnabled = true
+		} else if !ok {
+			configEnabled = false
+		}
 		resp = append(resp, &p2pstreamv1.PublicBackendAgent{
 			BackendId: agent.BackendID,
 			AgentId:   agent.AgentID,
 			Position:  agent.Position,
 			Weight:    agent.Weight,
-			Enabled:   agent.Enabled != 0,
+			Enabled:   enabled,
+			Health:    publicBackendAgentHealthToProto(agent.BackendID, agent.AgentID, enabled, configEnabled, monitor),
 		})
 	}
 	return resp
+}
+
+func publicBackendAgentHealthToProto(backendID int64, agentID int64, assignmentEnabled bool, agentEnabled bool, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicBackendAgentHealth {
+	var snapshot *publicBackendAgentHealthSnapshot
+	if monitor != nil {
+		snapshot = monitor.agentSnapshot(backendID, agentID, assignmentEnabled, agentEnabled)
+	}
+	if snapshot == nil {
+		status := p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN
+		if !assignmentEnabled || !agentEnabled {
+			status = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED
+		}
+		snapshot = &publicBackendAgentHealthSnapshot{Status: status}
+	}
+	return &p2pstreamv1.PublicBackendAgentHealth{
+		Status:                          snapshot.Status,
+		Connected:                       snapshot.Connected,
+		Available:                       snapshot.Available,
+		LastCheckedAtUnixMillis:         snapshot.LastCheckedAtUnixMillis,
+		LastError:                       snapshot.LastError,
+		PassiveUnhealthyUntilUnixMillis: snapshot.PassiveUnhealthyUntilUnixMillis,
+		ActiveRequests:                  snapshot.ActiveRequests,
+	}
 }
 
 func publicRouteBackendsByRoute(backends []db.PublicRouteBackend) map[int64][]db.PublicRouteBackend {

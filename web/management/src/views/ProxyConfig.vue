@@ -18,6 +18,7 @@ import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import {
   backendAgentSummary,
+  backendAgentAvailabilitySummary,
   backendHealthLabel,
   backendHealthSeverity,
   backendName,
@@ -355,7 +356,7 @@ async function deleteRoute(id: bigint) {
               v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode === PublicBackendForwardMode.AGENT_POOL"
               class="truncate text-xs text-[#666] mt-1"
             >
-              {{ loadBalancingLabel(backend.loadBalancing) }} / {{ backendAgentSummary(backend, backendAgents, agents) }}
+              {{ loadBalancingLabel(backend.loadBalancing) }} / {{ backendAgentAvailabilitySummary(backend, backendAgents) }} / {{ backendAgentSummary(backend, backendAgents, agents) }}
             </p>
           </div>
           <div class="flex gap-2">

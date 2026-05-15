@@ -203,6 +203,9 @@ func (a *App) revokeAgentConnection(agentID int64, err error) bool {
 	if a.AgentHub != nil {
 		disconnected = a.AgentHub.disconnectByID(agentID) != nil
 	}
+	if disconnected && a.BackendHealth != nil {
+		a.BackendHealth.recordAgentDisconnectedForAll(agentID)
+	}
 	a.failPendingRequestsForAgent(agentID, err)
 	return disconnected
 }

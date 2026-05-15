@@ -28,6 +28,16 @@ type publicBackendHealthSnapshot struct {
 	PassiveUnhealthyUntilUnixMillis int64
 }
 
+type publicBackendAgentHealthSnapshot struct {
+	Status                          p2pstreamv1.PublicBackendHealthStatus
+	Connected                       bool
+	Available                       bool
+	LastCheckedAtUnixMillis         int64
+	LastError                       string
+	PassiveUnhealthyUntilUnixMillis int64
+	ActiveRequests                  int64
+}
+
 type publicBackendHealthMonitor struct {
 	mu     sync.Mutex
 	app    *App
@@ -466,9 +476,31 @@ func (m *publicBackendHealthMonitor) recordAgentConnected(backendID int64, agent
 	if state == nil {
 		return
 	}
+	m.recordAgentConnectedLocked(state, agentID, publicID)
+}
+
+func (m *publicBackendHealthMonitor) recordAgentConnectedForAll(agentID int64, publicID string) {
+	if m == nil || agentID <= 0 {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, state := range m.states {
+		if !backendHasAgentAssignment(state.backend, agentID) {
+			continue
+		}
+		m.recordAgentConnectedLocked(state, agentID, publicID)
+	}
+}
+
+func (m *publicBackendHealthMonitor) recordAgentConnectedLocked(state *publicBackendHealthState, agentID int64, publicID string) {
 	agentState := state.ensureAgentStateLocked(agentID)
+	wasConnected := agentState.connected
 	agentState.connected = true
 	agentState.agentPublicID = publicID
+	if !wasConnected {
+		agentState.state = unknownPublicBackendCheckState()
+	}
 }
 
 func (m *publicBackendHealthMonitor) recordAgentDisconnected(backendID int64, agentID int64) {
@@ -478,11 +510,38 @@ func (m *publicBackendHealthMonitor) recordAgentDisconnected(backendID int64, ag
 	if state == nil {
 		return
 	}
+	m.recordAgentDisconnectedLocked(state, agentID)
+}
+
+func (m *publicBackendHealthMonitor) recordAgentDisconnectedForAll(agentID int64) {
+	if m == nil || agentID <= 0 {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, state := range m.states {
+		if !backendHasAgentAssignment(state.backend, agentID) {
+			continue
+		}
+		m.recordAgentDisconnectedLocked(state, agentID)
+	}
+}
+
+func (m *publicBackendHealthMonitor) recordAgentDisconnectedLocked(state *publicBackendHealthState, agentID int64) {
 	agentState := state.ensureAgentStateLocked(agentID)
 	agentState.connected = false
 	agentState.state.explicitStatus = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN
 	agentState.state.healthyStreak = 0
 	agentState.state.unhealthyStreak = 0
+}
+
+func backendHasAgentAssignment(backend publicBackendConfig, agentID int64) bool {
+	for _, assignment := range backend.AgentAssignments {
+		if assignment.AgentID == agentID {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizedThreshold(value int64, fallback int64) int64 {
@@ -659,6 +718,73 @@ func (m *publicBackendHealthMonitor) snapshot(backend dbPublicBackendLike) *publ
 		return m.agentPoolSnapshotLocked(state, backend.backendEnabled())
 	}
 	return directHealthSnapshot(state, backend.backendEnabled())
+}
+
+func (m *publicBackendHealthMonitor) agentSnapshot(backendID int64, agentID int64, assignmentEnabled bool, agentEnabled bool) *publicBackendAgentHealthSnapshot {
+	if !assignmentEnabled || !agentEnabled {
+		return &publicBackendAgentHealthSnapshot{
+			Status:    p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED,
+			Available: false,
+		}
+	}
+	if m == nil || backendID <= 0 || agentID <= 0 {
+		return &publicBackendAgentHealthSnapshot{
+			Status:    p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN,
+			Available: false,
+		}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	conn := m.connectedAgentLocked(agentID)
+	if conn == nil {
+		return &publicBackendAgentHealthSnapshot{
+			Status:    p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISCONNECTED,
+			Available: false,
+		}
+	}
+
+	activeRequests := conn.ActiveRequests.Load()
+	state := m.states[backendID]
+	healthEnabled := false
+	if state != nil {
+		healthEnabled = state.backend.HealthCheck.Enabled
+	}
+	if state == nil {
+		return &publicBackendAgentHealthSnapshot{
+			Status:         p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN,
+			Connected:      true,
+			Available:      true,
+			ActiveRequests: activeRequests,
+		}
+	}
+
+	agentState := state.agentStates[agentID]
+	if agentState == nil {
+		return &publicBackendAgentHealthSnapshot{
+			Status:         p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN,
+			Connected:      true,
+			Available:      true,
+			ActiveRequests: activeRequests,
+		}
+	}
+
+	now := time.Now()
+	status, passiveUntil := checkStateSnapshotStatus(agentState.state, healthEnabled, now)
+	lastChecked := unixMillis(agentState.state.lastCheckedAt)
+	lastError := ""
+	if healthEnabled {
+		lastError = agentState.state.lastError
+	}
+	return &publicBackendAgentHealthSnapshot{
+		Status:                          status,
+		Connected:                       true,
+		Available:                       checkStateAvailable(agentState.state, healthEnabled, now),
+		LastCheckedAtUnixMillis:         lastChecked,
+		LastError:                       lastError,
+		PassiveUnhealthyUntilUnixMillis: passiveUntil,
+		ActiveRequests:                  activeRequests,
+	}
 }
 
 func directHealthSnapshot(state *publicBackendHealthState, enabled bool) *publicBackendHealthSnapshot {

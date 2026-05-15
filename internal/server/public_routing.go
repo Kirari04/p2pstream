@@ -999,30 +999,41 @@ func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
 	snap := a.publicSnapshot
 	a.proxyMu.Unlock()
 	for _, assignment := range backend.AgentAssignments {
-		if !assignment.Enabled {
+		candidate, ok := a.eligibleBackendAgentCandidate(snap, backend, assignment)
+		if !ok {
 			continue
 		}
-		if snap != nil {
-			agentConfig, ok := snap.Agents[assignment.AgentID]
-			if !ok || !agentConfig.Enabled {
-				continue
-			}
-		}
-		conn := a.AgentHub.connectedByID(assignment.AgentID)
-		if conn == nil {
-			continue
-		}
-		if a.BackendHealth != nil && !a.BackendHealth.agentAvailable(backend.ID, assignment.AgentID) {
-			continue
-		}
-		candidates = append(candidates, backendAgentCandidate{
-			Conn:     conn,
-			AgentID:  assignment.AgentID,
-			Position: assignment.Position,
-			Weight:   assignment.Weight,
-		})
+		candidates = append(candidates, candidate)
 	}
 	return a.LoadBalancers.selectAgent(backend, candidates)
+}
+
+func (a *App) eligibleBackendAgentCandidate(snap *publicProxySnapshot, backend publicBackendConfig, assignment publicBackendAgentConfig) (backendAgentCandidate, bool) {
+	if a == nil || !assignment.Enabled {
+		return backendAgentCandidate{}, false
+	}
+	if snap != nil {
+		agentConfig, ok := snap.Agents[assignment.AgentID]
+		if !ok || !agentConfig.Enabled {
+			return backendAgentCandidate{}, false
+		}
+	}
+	if a.AgentHub == nil {
+		return backendAgentCandidate{}, false
+	}
+	conn := a.AgentHub.connectedByID(assignment.AgentID)
+	if conn == nil {
+		return backendAgentCandidate{}, false
+	}
+	if a.BackendHealth != nil && !a.BackendHealth.agentAvailable(backend.ID, assignment.AgentID) {
+		return backendAgentCandidate{}, false
+	}
+	return backendAgentCandidate{
+		Conn:     conn,
+		AgentID:  assignment.AgentID,
+		Position: assignment.Position,
+		Weight:   assignment.Weight,
+	}, true
 }
 
 func agentPendingFailureReason(err error) (string, string) {
@@ -1106,15 +1117,7 @@ func (a *App) backendEligibleForRoute(snap publicProxySnapshot, backend publicBa
 
 func (a *App) backendHasEligibleAgent(snap publicProxySnapshot, backend publicBackendConfig) bool {
 	for _, assignment := range backend.AgentAssignments {
-		if !assignment.Enabled {
-			continue
-		}
-		agentConfig, ok := snap.Agents[assignment.AgentID]
-		if !ok || !agentConfig.Enabled {
-			continue
-		}
-		if a.AgentHub.connectedByID(assignment.AgentID) != nil &&
-			(a.BackendHealth == nil || a.BackendHealth.agentAvailable(backend.ID, assignment.AgentID)) {
+		if _, ok := a.eligibleBackendAgentCandidate(&snap, backend, assignment); ok {
 			return true
 		}
 	}
@@ -1267,11 +1270,11 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 	}
 
 	backend, ok := snap.Backends[backendID]
-	if !ok || !backend.Enabled {
+	if !ok {
 		return publicRouteResolution{}, errors.New("selected backend is unavailable")
 	}
-	if backend.BackendType == publicBackendTypeProxyForward && backend.ParsedOrigin == nil {
-		return publicRouteResolution{}, errors.New("selected backend is unavailable")
+	if !a.backendEligibleForRoute(*snap, backend) {
+		return publicRouteResolution{}, errNoRouteBackendAvailable
 	}
 
 	return publicRouteResolution{
