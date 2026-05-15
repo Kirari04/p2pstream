@@ -1,57 +1,28 @@
 # Observability
 
-p2pstream records enough operational data to answer whether traffic is flowing, which routes are hot, and where failures occur.
+p2pstream records operational data for traffic flow, proxy health, agent state, policy decisions, and live request tracing.
 
-## Dashboard windows
+## What It Is
 
-The Overview page summarizes retained proxy request events over:
+Observability combines retained proxy request events, agent stats, dashboard summaries, and an admin-controlled trace stream.
 
-- `5m`,
-- `1h`,
-- `24h`,
-- `30d`.
+## When It Matters
 
-The default retention period is controlled by:
+Use observability when checking whether traffic is flowing, which routes are hot, which agents are serving requests, why a request failed, or whether cache/WAF/rate/shaping policies were selected.
+
+## Runtime Behavior
+
+The **Overview** page summarizes retained proxy request events over `5m`, `1h`, `24h`, and `30d`. The retention window is controlled by:
 
 ```text
 OBSERVABILITY_RETENTION_DAYS=30
 ```
 
-<figure class="doc-screenshot">
-  <img src="../assets/overview.png" alt="p2pstream overview dashboard with request counts, success rate, throughput, traffic trend, and hotspots">
-  <figcaption>Overview combines retained request events with current proxy and agent state.</figcaption>
-</figure>
+Proxy request events include status code, duration, error kind, listener ID, backend ID, route ID, WAF rule/action, cache rule/status/bytes, agent ID, request bytes, and response bytes.
 
-## Recorded request fields
+Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 
-Proxy request events include:
-
-- status code,
-- duration,
-- error kind,
-- listener ID,
-- backend ID,
-- route ID,
-- WAF rule ID and action when a WAF decision handled the request,
-- cache rule ID, cache status, and cache bytes when cache handled or stored an object,
-- agent ID,
-- request bytes,
-- response bytes.
-
-## Agent stats
-
-Agents report runtime stats, including:
-
-- memory,
-- CPU percentage,
-- goroutine count,
-- active requests,
-- request outcome counters,
-- bytes received and sent.
-
-## Traffic tracing
-
-Traffic tracing is an admin-controlled live stream. Levels are:
+Traffic tracing levels:
 
 | Level | Includes |
 | --- | --- |
@@ -60,9 +31,24 @@ Traffic tracing is an admin-controlled live stream. Levels are:
 | Headers | Request and response headers, redacted where known. |
 | Debug | More detailed event attributes. |
 
-Use headers and debug tracing temporarily. They can expose operational details and request metadata.
+Use Headers and Debug temporarily because they can expose operational details and request metadata.
 
-Traffic Flow renders cache as a decision point after backend selection. A cache hit exits from Cache to Response. A miss or bypass continues from Cache to the selected direct upstream or agent. When an upstream response is stored, the Cache node pulses; the main request path does not move backward.
+## Common Mistakes
+
+- Leaving high-volume tracing enabled after troubleshooting.
+- Expecting deleted old events to remain beyond `OBSERVABILITY_RETENTION_DAYS`.
+- Looking only at Overview when **Traffic** tracing is needed for stage-level behavior.
+
+## Related Links
+
+- [Trace live traffic](../guides/trace-live-traffic)
+- [Troubleshooting](../operations/troubleshooting)
+- [Configuration reference](../reference/configuration)
+
+<figure class="doc-screenshot">
+  <img src="../assets/overview.png" alt="p2pstream overview dashboard with request counts, success rate, throughput, traffic trend, and hotspots">
+  <figcaption>Overview combines retained request events with current proxy and agent state.</figcaption>
+</figure>
 
 <figure class="doc-screenshot">
   <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, backend, cache, agent, upstream, and response">

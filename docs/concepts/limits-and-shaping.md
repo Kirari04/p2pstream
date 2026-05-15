@@ -1,6 +1,10 @@
 # Limits and Shaping
 
-Rate limits, WAF rules, traffic shaping, and cache rules are global public proxy controls. WAF rules run first, then rate limits, then traffic shapers before normal route resolution. Cache rules run after route/backend selection so they can key by the selected route or backend.
+WAF rules, rate limits, traffic shapers, and cache rules are global public proxy controls.
+
+## What It Is
+
+These controls protect, slow, or cache public traffic around route/backend selection.
 
 | Layer | Runs | Typical use |
 | --- | --- | --- |
@@ -9,54 +13,39 @@ Rate limits, WAF rules, traffic shaping, and cache rules are global public proxy
 | Traffic shaping | Before route/backend forwarding | Slow upload and download streams without rejecting the request. |
 | Cache | After route/backend selection | Serve eligible public proxy-forward assets from proxy storage. |
 
-## Rate limits
+## When It Matters
 
-Rate limits run after the WAF and before route resolution. Matching can use:
+Use these controls when protecting login endpoints, controlling API budgets, slowing large transfers, queuing short traffic surges, or caching public static assets.
 
-- method,
-- protocol,
-- host pattern,
-- path prefix,
-- headers,
-- cookies,
-- query parameters.
+## Runtime Behavior
 
-Supported algorithms:
+Evaluation order:
 
-| Algorithm | Behavior |
-| --- | --- |
-| Fixed window | Counts requests in fixed time windows. |
-| Sliding window | Counts recent requests across a moving window. |
-| Token bucket | Allows bursts and refills over time. |
-| Leaky bucket | Smooths bursts by draining over time. |
+1. ACME HTTP challenge bypass
+2. Reserved WAF endpoints
+3. WAF rules
+4. Rate limits
+5. Traffic shapers
+6. Route and backend selection
+7. Cache rule evaluation and lookup
+8. Upstream forwarding or cached response
 
-If no key parts are configured, the default key is remote IP.
+Rate limits and traffic shapers can match method, protocol, host pattern, path prefix, headers, cookies, and query parameters. If no key parts are configured, remote IP is used.
 
-::: warning Reverse proxy in front
-If p2pstream sits behind another reverse proxy, the remote IP seen by p2pstream may be the proxy, not the original client. Design rate-limit keys accordingly.
-:::
+Traffic shaping uses byte-per-second token buckets. `per_key` shares a bucket for requests with the same key; `per_request` gives each request its own bucket.
 
-## Traffic shaping
+Cache rules store eligible public `GET`/`HEAD` responses for proxy-forward backends after route/backend selection. Cache hits still pass through WAF, rate limits, and traffic shaping first.
 
-Traffic shapers run after WAF and rate-limit checks. They can limit upload and download throughput in bytes per second.
+## Common Mistakes
 
-Budget scope controls how buckets are shared:
+- Using remote IP as the only key when p2pstream sits behind another reverse proxy.
+- Creating broad rules with low priority numbers that catch unrelated traffic.
+- Expecting cache hits to bypass rate limits or WAF.
+- Allowing cookie-bearing cache requests on broad dynamic paths instead of precise static asset paths.
 
-| Scope | Behavior |
-| --- | --- |
-| Per key | Requests sharing the same key share the bandwidth budget. |
-| Per request | Every request gets its own bandwidth budget. |
+## Related Links
 
-Rules can exempt the first bytes of a request or response so small requests stay responsive while large transfers are shaped.
-
-## Cache
-
-Cache rules store eligible public `GET` responses for proxy-forward backends after a route and backend have been selected. This order lets the cache key isolate entries by route or selected backend.
-
-`Authorization` requests always bypass. Cookie requests bypass by default, but a cache rule can explicitly allow them for precise public asset matches. Responses with `Set-Cookie`, `no-store`, `private`, or `no-cache` are not stored.
-
-Cache hits still pass through WAF, rate limits, and traffic shaping. They consume rate-limit buckets and traffic shaping still applies to cached response bodies, so a cache hit does not bypass earlier traffic policy.
-
-## Priority
-
-Within each policy type, rules are evaluated by priority, then ID. Lower priority numbers are evaluated first. A WAF rule that blocks, challenges, or queues a request prevents later rate-limit, shaper, route, and backend work for that request.
+- [Rate limit a route](../guides/rate-limit-a-route)
+- [Shape bandwidth](../guides/shape-bandwidth)
+- [WAF](./waf)
+- [Public asset cache](./cache)
