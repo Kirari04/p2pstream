@@ -1,56 +1,56 @@
 # Docker Compose Quickstart
 
-This starts the management server, public HTTP listener, and public HTTPS listener in one container. Configuration, SQLite, and generated certificates are persisted in the `p2pstream-data` Docker volume.
+Start p2pstream with Docker Compose, persist runtime state in the `p2pstream-data` volume, and open the management UI over HTTPS.
 
-## Start with Compose
+## Use This When
 
-From the repository root, copy the example environment file and set the management URL that browsers and agents will use:
+Use this path for the normal self-hosted server deployment on a VPS, home lab host, or small private fleet. Compose starts one server container with the management UI/API on `8081`, a seeded HTTP listener on `80`, and a seeded HTTPS listener on `443`.
 
-```bash
-cp .env.example .env
-```
+## Prerequisites
 
-Edit `.env`:
+- Docker Engine with the Docker Compose plugin.
+- Host ports `80`, `443`, and `8081` available, or adjusted host port mappings in `.env`.
+- A management hostname or IP address that browsers and agents can reach.
 
-```dotenv
-MANAGEMENT_PUBLIC_URL=https://your-server:8081
-```
+## Steps
 
-Start p2pstream:
+1. Clone the repository and enter it:
 
-```bash
-docker compose up -d
-docker compose logs -f p2pstream
-```
+   ```bash
+   git clone https://github.com/Kirari04/p2pstream.git
+   cd p2pstream
+   ```
 
-Open the management UI:
+2. Copy the example environment file:
 
-```text
-https://your-server:8081
-```
+   ```bash
+   cp .env.example .env
+   ```
 
-The management server uses HTTPS by default. If you did not provide a certificate, p2pstream creates a local management CA and server certificate under `/data/certs/management`. Your browser will warn about the certificate until you trust that local CA or place management behind your own trusted TLS endpoint.
+3. Edit `.env` so generated browser links and agent snippets use the real management URL:
 
-If management is reachable through NAT, Docker port publishing, or another reverse proxy, `MANAGEMENT_PUBLIC_URL` must contain the externally reachable URL so generated agent setup commands contain the correct URL and certificate names.
+   ```dotenv
+   MANAGEMENT_PUBLIC_URL=https://your-server:8081
+   ```
 
-## Complete first setup
+4. Start the server:
 
-The first admin user can be created only while the setup window is open. The setup window lasts 5 minutes after server start when no users exist.
+   ```bash
+   docker compose up -d
+   docker compose logs -f p2pstream
+   ```
 
-1. Open `https://your-server:8081`.
-2. Create the admin user.
-3. Use a password with at least 12 characters.
-4. Log in and open the Proxy page when you are ready to configure listeners, backends, and routes.
+5. Open management:
 
-If the setup window expires before any user exists, restart the container and try again:
+   ```text
+   https://your-server:8081
+   ```
 
-```bash
-docker compose restart p2pstream
-```
+The management server uses HTTPS by default. In auto mode, p2pstream creates a local management CA and server certificate under `/data/certs/management`; browsers warn until you trust that CA or place management behind trusted TLS.
 
-If you later forget the admin password, reset it with `p2pstream users reset-password USERNAME` against the same persisted `/data` database. See [First login](./first-login#if-you-lock-yourself-out) for the recovery command.
+## Verification
 
-## Default welcome site
+The first browser visit should show **Setup Admin**. After setup, **Overview** should load and the **Proxy** page should show the seeded `public-http` and `public-https` listeners plus the `default` static backend.
 
 On a new database, p2pstream seeds:
 
@@ -62,22 +62,21 @@ On a new database, p2pstream seeds:
 | Routes | catch-all `/` routes to the `default` backend |
 | HTTPS fallback certificate | self-signed mapping for `p2pstream.local` |
 
-The seeded backend serves a local `Welcome to p2pstream proxy` page. Replace the backend, add routes, or disable listeners when you are ready to publish real traffic.
+The seeded backend serves a local `Welcome to p2pstream proxy` page. Replace it or add more specific routes before publishing real traffic.
 
-## Firewall checklist
+## Troubleshooting
 
-Open only the ports you need:
-
-| Port | Use |
+| Symptom | Check |
 | --- | --- |
-| `80/tcp` | public HTTP listener and ACME HTTP-01 |
-| `443/tcp` | public HTTPS listener and ACME TLS-ALPN-01 |
-| `8081/tcp` | management UI/API and agent connections |
+| Browser cannot connect | Confirm `docker ps`, host firewall, and `P2PSTREAM_MANAGEMENT_PORT`. |
+| Certificate warning | Expected with auto management TLS until the generated CA is trusted. |
+| Agent snippets use the wrong URL | Fix `MANAGEMENT_PUBLIC_URL` and restart with `docker compose up -d`. |
+| Public listener does not answer | Confirm the listener exists in **Proxy** and the port is published by Compose. |
 
-Docker only publishes the ports listed in `compose.yaml`. If you add listeners on other ports in the management UI, publish those ports in Compose too.
+See [Troubleshooting](../operations/troubleshooting) for route, TLS, agent, and cache-specific checks.
 
-## Next
+## Next Steps
 
+- [First login](./first-login)
 - [Docker Compose details](./docker-compose)
-- [First login details](./first-login)
 - [Publish a service](../guides/publish-a-service)

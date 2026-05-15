@@ -1,58 +1,73 @@
 # First Login
 
-When p2pstream starts with an empty user table, the management UI enters setup mode.
+Create the first admin account during the setup window, then use the management console to configure the proxy.
 
-## Setup window
+## Use This When
 
-The first admin user can be created for 5 minutes after server start. If no user exists and the window expires, restart the server to open setup again.
+Use this on a new installation, after restoring an empty database, or when you need to recover a forgotten management password.
 
-This is intentionally short so an unattended public management port does not stay in setup mode indefinitely.
+## Prerequisites
 
-## Username rules
+- The server is running.
+- No management users exist yet for first setup.
+- You can reach the management URL, usually `https://your-server:8081`.
 
-Admin usernames must be:
+## Steps
 
-- 3 to 64 characters,
-- lowercase letters, numbers, underscores, or hyphens,
-- stored lowercase.
+1. Open the management URL in a browser.
+2. On **Setup Admin**, create the primary administrator account.
+3. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
+4. Use a password with at least 12 characters.
+5. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, backends, and routes.
 
-Examples:
+The setup window is available for 5 minutes after server start when the user table is empty. If the window expires before any user exists, restart the server:
 
-```text
-admin
-homelab-admin
-ops_1
+```bash
+docker compose restart p2pstream
 ```
 
-## Password rules
+## Runtime Rules
 
-Passwords must be at least 12 characters. Use a password manager and store the admin credential with your other infrastructure secrets.
+| Area | Behavior |
+| --- | --- |
+| Usernames | Normalized to lowercase and limited to lowercase letters, numbers, underscores, and hyphens. |
+| Passwords | Minimum length is 12 characters. |
+| Sessions | Stored in SQLite and expire after 7 days. |
+| Cookie security | Session cookie is HTTP-only, SameSite Lax, and Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`. |
 
-## Sessions
+## Verification
 
-Login sessions are stored in SQLite and expire after 7 days. The session cookie is:
-
-- HTTP-only,
-- SameSite Lax,
-- marked Secure when `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true`.
-
-## After Login
-
-After login, the operator lands in the management console and can move between Overview, Traffic, Agents, Proxy, Traffic Policy, and TLS.
+After login, the navigation should show **Overview**, **Traffic**, **Agents**, **Proxy**, **Traffic Policy**, and **TLS**.
 
 <figure class="doc-screenshot">
   <img src="../assets/management_1.png" alt="p2pstream Proxy page showing public listeners and backend configuration">
   <figcaption>The Proxy page is where listeners, backends, and routes are created and edited. Traffic Policy contains WAF, rate limits, cache, and shapers; TLS contains certificate mappings and DNS credentials.</figcaption>
 </figure>
 
-## If you lock yourself out
+## Troubleshooting
 
-Reset an existing management user's password from the host or container that can access the same database:
+| Symptom | Fix |
+| --- | --- |
+| Setup window expired and no users exist | Restart the server and create the first admin within 5 minutes. |
+| Forgot an existing password | Reset the user against the same SQLite database. |
+| Reset command uses the wrong database | Run it in the container or pass the same `CONFIG_DIR` or `--database-url` used by the server. |
+
+Docker Compose recovery:
+
+```bash
+docker compose exec p2pstream p2pstream users reset-password admin
+```
+
+Binary/systemd recovery:
 
 ```bash
 CONFIG_DIR=/var/lib/p2pstream p2pstream users reset-password admin
 ```
 
-Docker Compose deployments store that database in the `/data` volume. Run the command with the same mounted volume or point it at the same database with `--database-url`. The reset command revokes existing sessions for that user.
+The reset command updates the user password and revokes active sessions for that user.
 
-If this is a new empty installation and no user was created, restart the server during the setup window.
+## Next Steps
+
+- [Publish a service](../guides/publish-a-service)
+- [Security hardening](../operations/security-hardening)
+- [CLI reference](../reference/cli)

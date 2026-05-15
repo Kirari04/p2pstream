@@ -1,106 +1,84 @@
 # Docker Compose Details
 
-Use Compose for the self-hosted p2pstream server. Compose restarts the container after host reboots and keeps runtime state in the named `p2pstream-data` volume.
+Run the p2pstream server container with persistent `/data`, explicit management URL settings, and only the host ports you intend to expose.
 
-## Compose file
+## Use This When
 
-The repository includes this root `compose.yaml`:
+Use this page after the quickstart when you need to change ports, understand what the Compose file does, or operate the container lifecycle.
 
-```yaml
-services:
-  p2pstream:
-    image: ghcr.io/kirari04/p2pstream:latest
-    container_name: p2pstream
-    restart: unless-stopped
-    environment:
-      CONFIG_DIR: /data
-      MANAGEMENT_PORT: "8081"
-      MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
-      MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
-      MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
-    ports:
-      - "${P2PSTREAM_HTTP_PORT:-80}:80"
-      - "${P2PSTREAM_HTTPS_PORT:-443}:443"
-      - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
-    volumes:
-      - p2pstream-data:/data
+## Prerequisites
 
-volumes:
-  p2pstream-data:
-    name: p2pstream-data
-```
+- The repository `compose.yaml`.
+- A `.env` file copied from `.env.example`.
+- A decision about which host ports should reach container ports `80`, `443`, and `8081`.
 
-Create `.env` from the example and set the public management URL:
+## Steps
 
-```bash
-cp .env.example .env
-```
+1. Review the included root `compose.yaml`:
 
-```dotenv
-MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
-```
+   ```yaml
+   services:
+     p2pstream:
+       image: ghcr.io/kirari04/p2pstream:latest
+       container_name: p2pstream
+       restart: unless-stopped
+       environment:
+         CONFIG_DIR: /data
+         MANAGEMENT_PORT: "8081"
+         MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
+         MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
+         MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
+       ports:
+         - "${P2PSTREAM_HTTP_PORT:-80}:80"
+         - "${P2PSTREAM_HTTPS_PORT:-443}:443"
+         - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
+       volumes:
+         - p2pstream-data:/data
 
-Start it:
+   volumes:
+     p2pstream-data:
+       name: p2pstream-data
+   ```
 
-```bash
-docker compose up -d
-```
+2. Set the externally reachable management URL:
 
-Open:
+   ```dotenv
+   MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
+   ```
 
-```text
-https://proxy.example.com:8081
-```
+3. Add extra certificate names for auto management TLS when needed:
 
-Follow logs:
+   ```dotenv
+   MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
+   ```
 
-```bash
-docker compose logs -f p2pstream
-```
+4. Override host ports only when the defaults are not usable:
 
-## Management URL and TLS
+   ```dotenv
+   P2PSTREAM_HTTP_PORT=8080
+   P2PSTREAM_HTTPS_PORT=8443
+   P2PSTREAM_MANAGEMENT_PORT=9443
+   MANAGEMENT_PUBLIC_URL=https://proxy.example.com:9443
+   ```
 
-Set `MANAGEMENT_PUBLIC_URL` to the URL that browsers and agents should use for the management UI/API. This is especially important when:
+5. Start or update the container:
 
-- the container port is published to a different host port,
-- the server is behind NAT,
-- management is behind another reverse proxy,
-- the auto-generated management certificate needs the public hostname or IP address.
+   ```bash
+   docker compose up -d
+   docker compose logs -f p2pstream
+   ```
 
-Management HTTPS is enabled by default. When no certificate is provided, p2pstream creates a persisted local management CA and server certificate under `/data/certs/management`.
+## Runtime Effects
 
-For extra certificate names in auto TLS mode, set `MANAGEMENT_TLS_EXTRA_HOSTS` in `.env`:
+| Setting | Effect |
+| --- | --- |
+| `CONFIG_DIR=/data` | Stores SQLite, certificates, ACME state, and cache defaults in the named volume. |
+| `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent WSS listener bind inside the container. |
+| `MANAGEMENT_PUBLIC_URL` | Controls generated links, agent snippets, and management certificate naming. |
+| `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and agent WebSocket remain available. |
+| `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 
-```dotenv
-MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
-```
-
-Agents verify the management certificate with `MANAGEMENT_CA_FILE` or `MANAGEMENT_CA_PEM_BASE64`; they do not skip TLS verification by default.
-
-To run management in API-only mode, set `MANAGEMENT_UI_DISABLED=true`. The browser UI is not served, but ConnectRPC APIs and the agent WebSocket stay available.
-
-## Port overrides
-
-The default Compose file publishes:
-
-| Host port | Container port | Use |
-| --- | --- | --- |
-| `80` | `80` | public HTTP listener and ACME HTTP-01 |
-| `443` | `443` | public HTTPS listener and ACME TLS-ALPN-01 |
-| `8081` | `8081` | management UI/API and agent HTTPS/WSS |
-
-Override host ports in `.env` when needed:
-
-```dotenv
-P2PSTREAM_HTTP_PORT=8080
-P2PSTREAM_HTTPS_PORT=8443
-P2PSTREAM_MANAGEMENT_PORT=9443
-MANAGEMENT_PUBLIC_URL=https://proxy.example.com:9443
-```
-
-Docker only exposes ports listed under `ports`. If you create an extra listener in the management UI, publish that port in Compose too.
-
-Example for an additional listener on container port `8088`:
+Docker only exposes ports listed under `ports`. If you create an additional listener on container port `8088`, publish it explicitly:
 
 ```yaml
 ports:
@@ -110,54 +88,27 @@ ports:
   - "8088:8088"
 ```
 
-If the server is behind NAT, forward public ports from the router or cloud firewall to the Docker host. Agents must reach the management URL, not the public listener URL.
+## Verification
 
-## Persistent data
-
-Keep the `p2pstream-data` volume mounted at `/data`. It contains:
-
-- the SQLite database,
-- management TLS certificates,
-- public TLS certificates,
-- generated ACME material.
-
-Do not delete this volume during upgrades.
-
-To reset a forgotten management password in the recommended Compose deployment, run the recovery command inside the server container so it uses the mounted `/data` volume:
+Run:
 
 ```bash
-docker compose exec p2pstream p2pstream users reset-password admin
+docker compose ps
+docker compose logs -f p2pstream
 ```
 
-## Lifecycle
+Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should show proxy state, listeners, backends, routes, TLS counts, and recent traffic once requests arrive.
 
-Stop and start the service:
+## Troubleshooting
 
-```bash
-docker compose stop p2pstream
-docker compose start p2pstream
-```
+| Symptom | Check |
+| --- | --- |
+| Browser opens the wrong host or port | `MANAGEMENT_PUBLIC_URL` must match the external URL. |
+| Agent cannot connect | Agent must reach management HTTPS/WSS, not a public listener URL. |
+| Extra listener is unreachable | Add a Compose port mapping for that listener port. |
+| Forgot the admin password | Run `docker compose exec p2pstream p2pstream users reset-password admin`. |
 
-Restart after editing `.env` or `compose.yaml`:
-
-```bash
-docker compose up -d
-```
-
-Upgrade the image:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-For repeatable deployments, pin a release tag in `compose.yaml`:
-
-```yaml
-image: ghcr.io/kirari04/p2pstream:v0.1.0
-```
-
-## Next
+## Next Steps
 
 - [Backup and restore](../operations/backup-restore)
 - [Docker reference](../reference/docker)

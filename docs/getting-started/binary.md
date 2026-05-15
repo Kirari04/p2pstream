@@ -1,39 +1,53 @@
 # Release Binary
 
-Use the binary install when you want p2pstream managed directly by the host instead of Docker.
+Install the release binary directly on a Linux host when you do not want Docker to manage the server.
 
-## Install
+## Use This When
 
-Download the Linux archive for your architecture from the GitHub release page:
+Use this advanced path for a systemd-managed host install, custom networking, or environments where Docker is not available. Most selfhosters should start with [Docker Compose](./quickstart).
 
-```bash
-curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/p2pstream_vX.Y.Z_linux_amd64.tar.gz
-curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/checksums.txt
-sha256sum -c checksums.txt --ignore-missing
-tar -xzf p2pstream_vX.Y.Z_linux_amd64.tar.gz
-sudo install -m 0755 p2pstream /usr/local/bin/p2pstream
-```
+## Prerequisites
 
-Use `linux_arm64` on ARM hosts.
+- Linux `amd64` or `arm64`.
+- A release archive and `checksums.txt` from GitHub Releases.
+- A persistent data directory such as `/var/lib/p2pstream`.
+- Root or equivalent privileges when binding low ports such as `80` and `443`.
 
-## Run the server
+## Steps
 
-```bash
-sudo install -d -m 0700 /var/lib/p2pstream
-sudo env CONFIG_DIR=/var/lib/p2pstream \
-  MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
-  /usr/local/bin/p2pstream server
-```
+1. Download and verify the archive:
 
-The management UI listens on `https://host:8081` by default. The public HTTP and HTTPS listeners use ports configured in the management UI.
+   ```bash
+   curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/p2pstream_vX.Y.Z_linux_amd64.tar.gz
+   curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/checksums.txt
+   sha256sum -c checksums.txt --ignore-missing
+   tar -xzf p2pstream_vX.Y.Z_linux_amd64.tar.gz
+   ```
 
-## Persistent service
+   Use `linux_arm64` on ARM hosts.
 
-For production, run p2pstream with systemd and a dedicated data directory. See [Systemd](../operations/systemd).
+2. Install the binary:
 
-## Agent binary
+   ```bash
+   sudo install -m 0755 p2pstream /usr/local/bin/p2pstream
+   sudo install -d -m 0700 /var/lib/p2pstream
+   ```
 
-The same binary includes the agent command:
+3. Start the server for an initial test:
+
+   ```bash
+   sudo env CONFIG_DIR=/var/lib/p2pstream \
+     MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
+     /usr/local/bin/p2pstream server
+   ```
+
+4. For production, create a systemd unit instead of running the foreground command.
+
+## Runtime Effects
+
+`p2pstream server` reads `.env` and environment variables, starts management on `MANAGEMENT_PORT` default `8081`, loads public listeners from SQLite, and stores generated files under `CONFIG_DIR` when `DATABASE_URL` is unset.
+
+The same binary also includes the agent command:
 
 ```bash
 p2pstream agent \
@@ -43,4 +57,34 @@ p2pstream agent \
   --agent-token ...
 ```
 
-Most selfhosters should use the one-line installer from the Agent Setup dialog instead of building this command by hand.
+Most agent installs should still use the generated **Agents** setup command so the ID, token, URL, and CA material match the registered agent.
+
+## Verification
+
+Open:
+
+```text
+https://proxy.example.com:8081
+```
+
+Then confirm **Overview** loads and **Proxy** shows any configured listeners. If you run systemd, verify:
+
+```bash
+sudo systemctl status p2pstream
+sudo journalctl -u p2pstream -f
+```
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Cannot bind `80` or `443` | Run with enough privileges, grant capabilities, or use high ports. |
+| Data disappears after restart | Ensure `CONFIG_DIR` points to persistent storage. |
+| Browser warns about management TLS | Trust the generated CA or provide trusted management TLS. |
+| Agents cannot verify management | Pass the generated management CA to the agent. |
+
+## Next Steps
+
+- [Systemd](../operations/systemd)
+- [Configuration reference](../reference/configuration)
+- [CLI reference](../reference/cli)
