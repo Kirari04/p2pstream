@@ -427,16 +427,48 @@ func TestPublicWafCaptchaVerifySuccessSetsCookieAndRedirects(t *testing.T) {
 	if location := resp.Header().Get("Location"); location != "/private?x=1" {
 		t.Fatalf("Location = %q, want %q", location, "/private?x=1")
 	}
-	foundCookie := false
+	var passCookie *http.Cookie
 	for _, cookie := range resp.Result().Cookies() {
 		if cookie.Name == wafCookieName(rule.ID, publicWafCaptchaCookieKind) {
-			foundCookie = true
+			passCookie = cookie
 			break
 		}
 	}
-	if !foundCookie {
+	if passCookie == nil {
 		t.Fatalf("missing WAF pass cookie %q", wafCookieName(rule.ID, publicWafCaptchaCookieKind))
 	}
+	assertPublicWafCookieAttributes(t, passCookie, false)
+}
+
+func TestPublicWafCaptchaVerifySuccessSetsSecureCookieForHTTPSListener(t *testing.T) {
+	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parse form: %v", err)
+		}
+		if r.Form.Get("response") == "token" {
+			_, _ = w.Write([]byte(`{"success":true}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	app.proxyMu.Lock()
+	snap := app.publicSnapshot
+	listener := snap.Listeners[1]
+	listener.Protocol = publicListenerProtocolHTTPS
+	snap.Listeners[1] = listener
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+	form := captchaVerifyForm(rule.ID, "/private", challenge, "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusSeeOther)
+	}
+	passCookie := requirePublicWafCookie(t, resp.Result().Cookies(), wafCookieName(rule.ID, publicWafCaptchaCookieKind))
+	assertPublicWafCookieAttributes(t, passCookie, true)
 }
 
 func TestPublicWafCaptchaPassCookieAllowsRequest(t *testing.T) {
@@ -462,7 +494,7 @@ func TestPublicWafCaptchaPassCookieAllowsRequest(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
-	req.AddCookie(waf.signedRuleCookie(1, publicWafCaptchaCookieKind, "", time.Minute, now))
+	req.AddCookie(waf.signedRuleCookie(1, publicWafCaptchaCookieKind, "", time.Minute, now, snap.Listeners[1], req))
 	if _, allowed := waf.evaluate(snap, snap.Listeners[1], req, now.Add(time.Second), nil); !allowed {
 		t.Fatal("request with valid captcha cookie was not allowed")
 	}
@@ -529,7 +561,7 @@ func TestPublicProxyCaptchaPassStillHitsRateLimit(t *testing.T) {
 		t.Fatalf("request without captcha pass status = %d, want WAF captcha status %d", noPassResp.Code, http.StatusForbidden)
 	}
 
-	passCookie := app.PublicWAF.signedRuleCookie(wafRule.ID, publicWafCaptchaCookieKind, "", time.Minute, time.Now())
+	passCookie := app.PublicWAF.signedRuleCookie(wafRule.ID, publicWafCaptchaCookieKind, "", time.Minute, time.Now(), snap.Listeners[1], nil)
 	firstReq := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
 	firstReq.AddCookie(passCookie)
 	firstResp := httptest.NewRecorder()
@@ -551,7 +583,7 @@ func TestPublicWafSignedCookiesRejectExpiredAndForgedValues(t *testing.T) {
 	waf := newPublicWAF()
 	waf.cookieSecret = []byte("test-secret")
 	now := time.Unix(100, 0)
-	cookie := waf.signedRuleCookie(7, publicWafCaptchaCookieKind, "", time.Minute, now)
+	cookie := waf.signedRuleCookie(7, publicWafCaptchaCookieKind, "", time.Minute, now, publicListenerConfig{Protocol: publicListenerProtocolHTTP}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
 	req.AddCookie(cookie)
@@ -606,6 +638,45 @@ func TestPublicWafWaitingRoomFIFOAdmission(t *testing.T) {
 	admitDecision, admitAllowed := waf.evaluate(snap, snap.Listeners[1], queuedReq, now.Add(1200*time.Millisecond), nil)
 	if admitAllowed || admitDecision.StatusCode != http.StatusSeeOther {
 		t.Fatalf("queued decision = %#v allowed=%v, want admission after first TTL", admitDecision, admitAllowed)
+	}
+}
+
+func TestPublicWafWaitingRoomCookiesFollowListenerProtocol(t *testing.T) {
+	tests := []struct {
+		name       string
+		protocol   string
+		targetURL  string
+		wantSecure bool
+	}{
+		{name: "http-listener", protocol: publicListenerProtocolHTTP, targetURL: "http://example.com/", wantSecure: false},
+		{name: "https-listener", protocol: publicListenerProtocolHTTPS, targetURL: "http://example.com/", wantSecure: true},
+		{name: "tls-request", protocol: publicListenerProtocolHTTP, targetURL: "https://example.com/", wantSecure: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			waf := newPublicWAF()
+			rule := testWafRule(1, publicWafActionWaitingRoom)
+			rule.WaitingRoom.MaxAdmittedSessions = 1
+			rule.WaitingRoom.AdmissionRatePerSecond = 1
+			rule.Fingerprint = publicWafRuleFingerprint(rule)
+			snap := testWafSnapshot(rule, nil)
+			listener := snap.Listeners[1]
+			listener.Protocol = tt.protocol
+			snap.Listeners[1] = listener
+			waf.reconcile(snap)
+
+			req := httptest.NewRequest(http.MethodGet, tt.targetURL, nil)
+			decision, allowed := waf.evaluate(snap, snap.Listeners[1], req, time.Unix(100, 0), nil)
+			if allowed || decision.StatusCode != http.StatusSeeOther {
+				t.Fatalf("decision = %#v allowed=%v, want immediate admission", decision, allowed)
+			}
+
+			queueCookie := requirePublicWafCookie(t, decision.Cookies, wafCookieName(rule.ID, publicWafQueueCookieKind))
+			admissionCookie := requirePublicWafCookie(t, decision.Cookies, wafCookieName(rule.ID, publicWafAdmissionCookieKind))
+			assertPublicWafCookieAttributes(t, queueCookie, tt.wantSecure)
+			assertPublicWafCookieAttributes(t, admissionCookie, tt.wantSecure)
+		})
 	}
 }
 
@@ -825,4 +896,31 @@ func testWafRule(id int64, action string) publicWafRuleConfig {
 	}
 	rule.Fingerprint = publicWafRuleFingerprint(rule)
 	return rule
+}
+
+func requirePublicWafCookie(t *testing.T, cookies []*http.Cookie, name string) *http.Cookie {
+	t.Helper()
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+	t.Fatalf("missing WAF cookie %q", name)
+	return nil
+}
+
+func assertPublicWafCookieAttributes(t *testing.T, cookie *http.Cookie, wantSecure bool) {
+	t.Helper()
+	if cookie.Secure != wantSecure {
+		t.Fatalf("cookie %q Secure = %v, want %v", cookie.Name, cookie.Secure, wantSecure)
+	}
+	if !cookie.HttpOnly {
+		t.Fatalf("cookie %q HttpOnly = false, want true", cookie.Name)
+	}
+	if cookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("cookie %q SameSite = %v, want %v", cookie.Name, cookie.SameSite, http.SameSiteLaxMode)
+	}
+	if cookie.Path != "/" {
+		t.Fatalf("cookie %q Path = %q, want /", cookie.Name, cookie.Path)
+	}
 }

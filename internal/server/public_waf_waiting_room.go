@@ -47,7 +47,7 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 		rt.queue = append(rt.queue, sessionID)
 	}
 	position := rt.positionLocked(sessionID)
-	queueCookie := w.signedRuleCookie(rule.ID, publicWafQueueCookieKind, sessionID, queueTimeout, now)
+	queueCookie := w.signedRuleCookie(rule.ID, publicWafQueueCookieKind, sessionID, queueTimeout, now, listener, r)
 	if rt.canAdmitLocked(rule, now, sessionID) {
 		admissionTTL := time.Duration(rule.WaitingRoom.AdmissionSessionTTLMillis) * time.Millisecond
 		if admissionTTL <= 0 {
@@ -62,7 +62,7 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 			Action:           publicWafActionWaitingRoom,
 			StatusCode:       http.StatusSeeOther,
 			RedirectLocation: sanitizeWAFReturnTo(r.URL.RequestURI()),
-			Cookies:          []*http.Cookie{queueCookie, w.signedRuleCookie(rule.ID, publicWafAdmissionCookieKind, sessionID, admissionTTL, now)},
+			Cookies:          []*http.Cookie{queueCookie, w.signedRuleCookie(rule.ID, publicWafAdmissionCookieKind, sessionID, admissionTTL, now, listener, r)},
 			AutomaticActive:  automaticActive,
 			ChallengeKind:    publicWafActionWaitingRoom,
 			QueuePosition:    position,

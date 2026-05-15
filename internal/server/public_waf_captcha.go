@@ -159,7 +159,7 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 		writeCaptchaChallenge(w, r, decision)
 		return decision
 	}
-	cookie := a.PublicWAF.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, now)
+	cookie := a.PublicWAF.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, now, decision.Listener, r)
 	http.SetCookie(w, cookie)
 	http.Redirect(w, r, returnTo, http.StatusSeeOther)
 	decision.StatusCode = http.StatusSeeOther
@@ -450,7 +450,14 @@ func (w *publicWAF) validRuleCookieLocked(r *http.Request, ruleID int64, kind st
 	return ok && payload.RuleID == ruleID && payload.Kind == kind
 }
 
-func (w *publicWAF) signedRuleCookie(ruleID int64, kind string, sessionID string, ttl time.Duration, now time.Time) *http.Cookie {
+func publicWafCookieSecure(listener publicListenerConfig, r *http.Request) bool {
+	if listener.Protocol == publicListenerProtocolHTTPS {
+		return true
+	}
+	return r != nil && r.TLS != nil
+}
+
+func (w *publicWAF) signedRuleCookie(ruleID int64, kind string, sessionID string, ttl time.Duration, now time.Time, listener publicListenerConfig, r *http.Request) *http.Cookie {
 	if ttl <= 0 {
 		ttl = defaultWafCaptchaPassTTL
 	}
@@ -468,7 +475,7 @@ func (w *publicWAF) signedRuleCookie(ruleID int64, kind string, sessionID string
 		MaxAge:   int(ttl.Seconds()),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
+		Secure:   publicWafCookieSecure(listener, r),
 	}
 }
 
