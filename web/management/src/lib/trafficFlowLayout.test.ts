@@ -28,6 +28,7 @@ import {
   listenerKey,
   redirectKey,
   routeKey,
+  requestUsesCacheNode,
   targetIndexForTraceRequest,
 } from "@/lib/trafficFlowLayout";
 import { DEFAULT_ROUTE_KEY, RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY } from "@/lib/trafficFlowLayout";
@@ -189,10 +190,10 @@ describe("trafficFlowLayout", () => {
       listenerKey(1n),
       routeKey(3n),
       backendKey(2n),
-      CACHE_KEY,
       "upstream",
       "response",
     ]);
+    expect(buildTrafficFlowRequestPath(request, emptyIndex())).not.toContain(CACHE_KEY);
   });
 
   test("cache bypass path continues through selected agent", () => {
@@ -213,11 +214,11 @@ describe("trafficFlowLayout", () => {
       listenerKey(1n),
       routeKey(3n),
       backendKey(2n),
-      CACHE_KEY,
       agentKey(7n),
       "upstream",
       "response",
     ]);
+    expect(buildTrafficFlowRequestPath(request, emptyIndex())).not.toContain(CACHE_KEY);
   });
 
   test("static backend does not include cache", () => {
@@ -267,14 +268,37 @@ describe("trafficFlowLayout", () => {
       listenerKey(1n),
       routeKey(3n),
       backendKey(2n),
-      CACHE_KEY,
       "upstream",
       "response",
     ]);
+    expect(path).not.toContain(CACHE_KEY);
     expect(targetIndexForTraceRequest(request, path)).toBe(path.indexOf("response"));
   });
 
-  test("enabled cache config keeps cache node available for proxy-forward path", () => {
+  test("cache lookup path targets cache", () => {
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      backendId: 2n,
+      backendType: PublicBackendType.PROXY_FORWARD,
+      forwardMode: PublicBackendForwardMode.DIRECT,
+      cacheRuleId: 4n,
+      cacheStatus: "miss",
+      stage: TrafficTraceStage.CACHE_LOOKUP,
+    });
+    const path = buildTrafficFlowRequestPath(request, emptyIndex());
+
+    expect(path).toEqual([
+      "ingress",
+      listenerKey(1n),
+      routeKey(3n),
+      backendKey(2n),
+      CACHE_KEY,
+    ]);
+    expect(targetIndexForTraceRequest(request, path)).toBe(path.indexOf(CACHE_KEY));
+  });
+
+  test("enabled cache config keeps cache node visible without forcing path hop", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       cacheRules: [cacheRule({ id: 4n, enabled: true })],
     }));
@@ -287,7 +311,8 @@ describe("trafficFlowLayout", () => {
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
-    expect(buildTrafficFlowRequestPath(request, index)).toContain(CACHE_KEY);
+    expect(requestUsesCacheNode(request, index)).toBe(true);
+    expect(buildTrafficFlowRequestPath(request, index)).not.toContain(CACHE_KEY);
   });
 
   test("path cache returns stable paths and invalidates on signature changes", () => {

@@ -163,6 +163,7 @@ const NODE_HEIGHT = 58;
 const COLUMN_X = [0, 190, 380, 570, 760, 950, 1140, 1330, 1520, 1710, 1900];
 const ROW_GAP = 92;
 const MIN_CENTER_Y = 92;
+const CACHE_SIDE_CENTER_Y = MIN_CENTER_Y;
 const FLOW_ID = "traffic-flow-diagram";
 const EDGE_CURVATURE = 0.25;
 const BEZIER_LENGTH_SAMPLES = 32;
@@ -400,10 +401,8 @@ const layout = computed(() => {
           if (showCacheNode) {
             addEdge(key, CACHE_KEY);
             addEdge(CACHE_KEY, "response", "intermediate-bypass");
-            addEdge(CACHE_KEY, agentNodeKey);
-          } else {
-            addEdge(key, agentNodeKey);
           }
+          addEdge(key, agentNodeKey);
           addEdge(agentNodeKey, "upstream");
           addEdge("upstream", "response");
         }
@@ -411,9 +410,8 @@ const layout = computed(() => {
         if (showCacheNode) {
           addEdge(key, CACHE_KEY);
           addEdge(CACHE_KEY, "response", "agent-bypass");
-        } else {
-          addEdge(key, "response", "agent-bypass");
         }
+        addEdge(key, "response", "agent-bypass");
       }
       continue;
     }
@@ -422,10 +420,8 @@ const layout = computed(() => {
     if (showCacheNode) {
       addEdge(key, CACHE_KEY);
       addEdge(CACHE_KEY, "response", "intermediate-bypass");
-      addEdge(CACHE_KEY, "upstream", "agent-bypass");
-    } else {
-      addEdge(key, "upstream", "agent-bypass");
     }
+    addEdge(key, "upstream", "agent-bypass");
     addEdge("upstream", "response");
   }
 
@@ -465,10 +461,11 @@ const layout = computed(() => {
   for (const [column, group] of byColumn.entries()) {
     group.sort((a, b) => kindOrder(a.kind) - kindOrder(b.kind) || a.label.localeCompare(b.label));
     group.forEach((node, index) => {
+      const centerY = node.key === CACHE_KEY ? CACHE_SIDE_CENTER_Y : yPosition(index, group.length);
       positioned.push({
         ...node,
         x: COLUMN_X[column] ?? COLUMN_X[0],
-        y: yPosition(index, group.length) - NODE_HEIGHT / 2,
+        y: centerY - NODE_HEIGHT / 2,
       });
     });
   }
@@ -834,7 +831,7 @@ function updateToken(token: VisualToken, request: TraceRequest) {
 
 function maybeEnqueueCacheStorePulse(request: TraceRequest): boolean {
   if (cacheToneForRequest(request) !== "stored") return false;
-  if (!cachedRequestPath(request).path.includes(CACHE_KEY)) return false;
+  if (!requestUsesCacheNode(request, configIndex.value)) return false;
   if (seenCacheStorePulseRequestIds.has(request.requestId)) return false;
   seenCacheStorePulseRequestIds.add(request.requestId);
   cacheStorePulses.value.push({ requestId: request.requestId, startedAt: nowMs() });
@@ -1020,7 +1017,6 @@ function routeForRequestSegment(request: TraceRequest, from: string, to: string)
   if (from === RATE_LIMIT_KEY && to === "response") return "intermediate-bypass";
   if (from === TRAFFIC_SHAPER_KEY && to === "response") return "intermediate-bypass";
   if (from === CACHE_KEY && to === "response") return "intermediate-bypass";
-  if (from === CACHE_KEY && to === "upstream") return "agent-bypass";
   const backendNode = request.backendId > 0n ? backendKey(request.backendId) : "";
   if (from !== backendNode) return "default";
   if (to === CACHE_KEY) return "default";

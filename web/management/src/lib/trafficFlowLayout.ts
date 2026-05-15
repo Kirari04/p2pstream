@@ -217,9 +217,12 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
     if (request.backendType === PublicBackendType.STATIC) {
       path.push("static-response");
     } else if (request.backendType === PublicBackendType.PROXY_FORWARD) {
-      if (requestUsesCacheNode(request, index)) {
+      if (requestTraversesCacheNode(request)) {
         path.push(CACHE_KEY);
-        if (request.stage === TraceStage.CACHE_HIT) {
+        if (request.stage === TraceStage.CACHE_LOOKUP) {
+          return dedupeConsecutive(path);
+        }
+        if (request.stage === TraceStage.CACHE_HIT || request.cacheStatus.toLowerCase() === "hit") {
           path.push("response");
           return dedupeConsecutive(path);
         }
@@ -287,6 +290,12 @@ export function requestUsesCacheNode(request: TraceRequest, index: TrafficFlowCo
   return index?.hasEnabledCacheRules ?? false;
 }
 
+function requestTraversesCacheNode(request: TraceRequest): boolean {
+  return request.stage === TraceStage.CACHE_LOOKUP ||
+    request.stage === TraceStage.CACHE_HIT ||
+    request.cacheStatus.toLowerCase() === "hit";
+}
+
 export function routeConfigForRequest(request: TraceRequest, index: TrafficFlowConfigIndex | null): PublicRoute | undefined {
   if (request.routeId <= 0n) return undefined;
   return index?.routeById.get(request.routeId.toString());
@@ -343,12 +352,14 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
     case TraceStage.WAF_CAPTCHA_VERIFIED:
     case TraceStage.WAF_WAITING_ROOM:
       return WAF_KEY;
-    case TraceStage.CACHE_LOOKUP:
     case TraceStage.CACHE_HIT:
+    case TraceStage.CACHE_LOOKUP:
+      return CACHE_KEY;
     case TraceStage.CACHE_MISS:
     case TraceStage.CACHE_BYPASS:
+      return request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TraceStage.CACHE_STORED:
-      return CACHE_KEY;
+      return "response";
     case TraceStage.UPSTREAM_STARTED:
       if (request.backendType === PublicBackendType.STATIC) return "static-response";
       if (request.agentId > 0n || request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "upstream";
