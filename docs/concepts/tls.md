@@ -30,7 +30,10 @@ HTTPS listeners select certificates by SNI. Certificate mappings belong to HTTPS
 
 - manual uploads,
 - manual file paths,
+- GUI-generated self-signed certificates,
 - ACME-managed certificates.
+
+The TLS page shows certificate validity when it can read it from stored certificate metadata or from the configured certificate file. GUI-generated self-signed public certificates are useful for internal testing, but public hostnames should use ACME or another trusted certificate.
 
 If no configured certificate matches a hostname, the HTTPS listener can serve a fallback self-signed certificate. Treat that as a failure for public clients.
 

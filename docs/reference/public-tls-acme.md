@@ -20,8 +20,11 @@ Manual mode accepts either:
 
 - uploaded PEM certificate and key,
 - filesystem paths to certificate and key.
+- a GUI-generated self-signed certificate with a selected validity period.
 
 Uploaded material is written under the configured certs directory.
+Generated self-signed certificates are written to the same managed location and are intended for internal or test deployments, not trusted public clients.
+The management UI shows certificate validity when metadata is stored or the certificate file can be parsed.
 
 ## ACME certificates
 

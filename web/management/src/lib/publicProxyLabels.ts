@@ -392,13 +392,23 @@ export function isDefaultSelfSignedCertificate(cert: PublicTlsCertificate): bool
 export function tlsCertificateSummary(cert: PublicTlsCertificate): string {
   if (isDefaultSelfSignedCertificate(cert)) return "Default self-signed certificate";
   if (cert.source === PublicTlsCertificateSource.ACME) {
-    const expiry = formatUnixMillis(cert.expiresAtUnixMillis);
-    const renewal = formatUnixMillis(cert.nextRenewalAtUnixMillis);
-    if (expiry && renewal) return `Expires ${expiry} / renews ${renewal}`;
-    if (expiry) return `Expires ${expiry}`;
     return "Managed by Let's Encrypt";
   }
-  return "Uploaded certificate";
+  return "Manual certificate";
+}
+
+export function tlsCertificateValiditySummary(cert: PublicTlsCertificate): string {
+  const issued = formatUnixMillis(cert.issuedAtUnixMillis);
+  const expires = formatUnixMillis(cert.expiresAtUnixMillis);
+  if (issued && expires) return `Valid ${issued} - ${expires}`;
+  if (expires) return `Valid until ${expires}`;
+  return "";
+}
+
+export function tlsCertificateRenewalSummary(cert: PublicTlsCertificate): string {
+  if (cert.source !== PublicTlsCertificateSource.ACME) return "";
+  const renewal = formatUnixMillis(cert.nextRenewalAtUnixMillis);
+  return renewal ? `Renews ${renewal}` : "";
 }
 
 export function tlsMethodForCertificate(cert: PublicTlsCertificate): TlsMethod {

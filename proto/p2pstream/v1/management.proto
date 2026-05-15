@@ -866,6 +866,8 @@ message CreatePublicTlsCertificateRequest {
   PublicAcmeCa acme_ca = 10;
   string acme_email = 11;
   int64 dns_credential_id = 12;
+  bool generate_self_signed = 13;
+  int64 self_signed_validity_days = 14;
 }
 
 message CreatePublicTlsCertificateResponse {
@@ -886,6 +888,8 @@ message UpdatePublicTlsCertificateRequest {
   PublicAcmeCa acme_ca = 11;
   string acme_email = 12;
   int64 dns_credential_id = 13;
+  bool generate_self_signed = 14;
+  int64 self_signed_validity_days = 15;
 }
 
 message UpdatePublicTlsCertificateResponse {

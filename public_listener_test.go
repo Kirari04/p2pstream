@@ -96,6 +96,9 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	}
 	assertFileMode(t, seededCert.GetCertPath(), 0600)
 	assertFileMode(t, seededCert.GetKeyPath(), 0600)
+	if seededCert.GetIssuedAtUnixMillis() == 0 || seededCert.GetExpiresAtUnixMillis() == 0 || seededCert.GetExpiresAtUnixMillis() <= seededCert.GetIssuedAtUnixMillis() {
+		t.Fatalf("expected seeded TLS certificate validity, got issued=%d expires=%d", seededCert.GetIssuedAtUnixMillis(), seededCert.GetExpiresAtUnixMillis())
+	}
 
 	cfgAgain := getPublicProxyConfig(t, client, cookie)
 	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.Backends) != 1 || len(cfgAgain.Routes) != 2 || len(cfgAgain.TlsCertificates) != 1 {
@@ -466,6 +469,9 @@ func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
 	if cert.GetHostnamePattern() != "upload.example.com" {
 		t.Fatalf("hostname pattern = %q, want normalized upload.example.com", cert.GetHostnamePattern())
 	}
+	if cert.GetIssuedAtUnixMillis() == 0 || cert.GetExpiresAtUnixMillis() == 0 || cert.GetExpiresAtUnixMillis() <= cert.GetIssuedAtUnixMillis() {
+		t.Fatalf("expected uploaded TLS validity, got issued=%d expires=%d", cert.GetIssuedAtUnixMillis(), cert.GetExpiresAtUnixMillis())
+	}
 
 	wantCertPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", listener.ID), fmt.Sprintf("tls-%d.crt.pem", cert.GetId()))
 	wantKeyPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", listener.ID), fmt.Sprintf("tls-%d.key.pem", cert.GetId()))
@@ -494,6 +500,89 @@ func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
 	updated := updateResp.Msg.GetTlsCertificate()
 	if updated.GetCertPath() != wantCertPath || updated.GetKeyPath() != wantKeyPath {
 		t.Fatalf("update should preserve managed paths, got cert=%q key=%q", updated.GetCertPath(), updated.GetKeyPath())
+	}
+	if updated.GetIssuedAtUnixMillis() != cert.GetIssuedAtUnixMillis() || updated.GetExpiresAtUnixMillis() != cert.GetExpiresAtUnixMillis() {
+		t.Fatalf("update should preserve validity, got issued=%d expires=%d", updated.GetIssuedAtUnixMillis(), updated.GetExpiresAtUnixMillis())
+	}
+}
+
+func TestPublicTLSCertificateGeneratedSelfSignedMaterial(t *testing.T) {
+	database := newTestDB(t)
+	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
+		Name:         "default",
+		TargetOrigin: "http://127.0.0.1:8080",
+		Enabled:      1,
+	})
+	if err != nil {
+		t.Fatalf("seed backend: %v", err)
+	}
+	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
+		Name:             "generated-https",
+		BindAddress:      "127.0.0.1",
+		Port:             0,
+		Protocol:         "https",
+		Enabled:          1,
+		DefaultBackendID: backend.ID,
+	})
+	if err != nil {
+		t.Fatalf("seed https listener: %v", err)
+	}
+
+	configDir := t.TempDir()
+	app := server.NewApp(&config.Config{
+		ConfigDir: configDir,
+		CertsDir:  filepath.Join(configDir, "certs"),
+	}, database)
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+
+	req := connect.NewRequest(&p2pstreamv1.CreatePublicTlsCertificateRequest{
+		ListenerId:             listener.ID,
+		HostnamePattern:        "Generated.Example.COM",
+		Enabled:                true,
+		GenerateSelfSigned:     true,
+		SelfSignedValidityDays: 30,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.CreatePublicTlsCertificate(context.Background(), req)
+	if err != nil {
+		t.Fatalf("create generated self-signed TLS certificate: %v", err)
+	}
+	cert := resp.Msg.GetTlsCertificate()
+	if cert.GetHostnamePattern() != "generated.example.com" {
+		t.Fatalf("hostname pattern = %q, want normalized generated.example.com", cert.GetHostnamePattern())
+	}
+	if cert.GetIssuedAtUnixMillis() == 0 || cert.GetExpiresAtUnixMillis() == 0 || cert.GetExpiresAtUnixMillis() <= cert.GetIssuedAtUnixMillis() {
+		t.Fatalf("expected generated TLS validity, got issued=%d expires=%d", cert.GetIssuedAtUnixMillis(), cert.GetExpiresAtUnixMillis())
+	}
+	leaf := parseTestCertificateFile(t, cert.GetCertPath())
+	if err := leaf.VerifyHostname("generated.example.com"); err != nil {
+		t.Fatalf("generated certificate hostname verification failed: %v", err)
+	}
+	if leaf.NotAfter.Before(time.Now().Add(29*24*time.Hour)) || leaf.NotAfter.After(time.Now().Add(31*24*time.Hour)) {
+		t.Fatalf("generated certificate validity = %s, want around 30 days", leaf.NotAfter)
+	}
+
+	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicTlsCertificateRequest{
+		Id:                     cert.GetId(),
+		ListenerId:             listener.ID,
+		HostnamePattern:        "Renewed.Example.COM",
+		Enabled:                true,
+		GenerateSelfSigned:     true,
+		SelfSignedValidityDays: 14,
+	})
+	updateReq.Header().Set("Cookie", cookie)
+	updateResp, err := client.UpdatePublicTlsCertificate(context.Background(), updateReq)
+	if err != nil {
+		t.Fatalf("update generated self-signed TLS certificate: %v", err)
+	}
+	updated := updateResp.Msg.GetTlsCertificate()
+	if updated.GetCertPath() != cert.GetCertPath() || updated.GetKeyPath() != cert.GetKeyPath() {
+		t.Fatalf("generated update should preserve managed paths, got cert=%q key=%q", updated.GetCertPath(), updated.GetKeyPath())
+	}
+	updatedLeaf := parseTestCertificateFile(t, updated.GetCertPath())
+	if err := updatedLeaf.VerifyHostname("renewed.example.com"); err != nil {
+		t.Fatalf("updated generated certificate hostname verification failed: %v", err)
 	}
 }
 
@@ -660,4 +749,21 @@ func assertFileMode(t *testing.T, path string, want os.FileMode) {
 	if got := info.Mode().Perm(); got != want {
 		t.Fatalf("%s mode = %o, want %o", path, got, want)
 	}
+}
+
+func parseTestCertificateFile(t *testing.T, path string) *x509.Certificate {
+	t.Helper()
+	certPEM, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read certificate %s: %v", path, err)
+	}
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		t.Fatalf("certificate %s is not PEM", path)
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("parse certificate %s: %v", path, err)
+	}
+	return cert
 }

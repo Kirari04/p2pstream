@@ -24,12 +24,15 @@ import (
 )
 
 const (
-	defaultPublicHTTPPort      = int64(80)
-	defaultPublicRoutePriority = int64(1000)
-	defaultSelfSignedTLSHost   = "p2pstream.local"
-	defaultWelcomeContentType  = "text/html; charset=utf-8"
-	defaultWelcomeCacheControl = "no-store"
-	defaultWelcomeBody         = `<!doctype html>
+	defaultPublicHTTPPort               = int64(80)
+	defaultPublicRoutePriority          = int64(1000)
+	defaultPublicSelfSignedValidityDays = int64(3650)
+	minPublicSelfSignedValidityDays     = int64(1)
+	maxPublicSelfSignedValidityDays     = int64(3650)
+	defaultSelfSignedTLSHost            = "p2pstream.local"
+	defaultWelcomeContentType           = "text/html; charset=utf-8"
+	defaultWelcomeCacheControl          = "no-store"
+	defaultWelcomeBody                  = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -260,6 +263,12 @@ type publicTLSCertificateMutationInput struct {
 	ExpiresAt            sql.NullTime
 	NextRenewalAt        sql.NullTime
 	LastRenewalAttemptAt sql.NullTime
+}
+
+type publicTLSCertificateMaterial struct {
+	Replace bool
+	CertPEM []byte
+	KeyPEM  []byte
 }
 
 func (a *App) GetPublicProxyConfig(
@@ -1031,7 +1040,7 @@ func (a *App) CreatePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, hasUpload, err := a.validatePublicTLSCertificateInput(
+	params, material, err := a.validatePublicTLSCertificateInput(
 		ctx,
 		req.Msg.ListenerId,
 		req.Msg.HostnamePattern,
@@ -1045,6 +1054,8 @@ func (a *App) CreatePublicTlsCertificate(
 		req.Msg.AcmeCa,
 		req.Msg.AcmeEmail,
 		req.Msg.DnsCredentialId,
+		req.Msg.GenerateSelfSigned,
+		req.Msg.SelfSignedValidityDays,
 		nil,
 		false,
 	)
@@ -1053,8 +1064,8 @@ func (a *App) CreatePublicTlsCertificate(
 	}
 
 	var cert db.PublicTlsCertificate
-	if hasUpload {
-		cert, err = a.createUploadedPublicTLSCertificate(ctx, params, req.Msg.CertPem, req.Msg.KeyPem)
+	if material.Replace {
+		cert, err = a.createUploadedPublicTLSCertificate(ctx, params, material.CertPEM, material.KeyPEM)
 	} else {
 		cert, err = a.DB.CreatePublicTlsCertificate(ctx, publicTLSCertificateCreateParams(params))
 	}
@@ -1080,7 +1091,7 @@ func (a *App) UpdatePublicTlsCertificate(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	params, hasUpload, err := a.validatePublicTLSCertificateInput(
+	params, material, err := a.validatePublicTLSCertificateInput(
 		ctx,
 		req.Msg.ListenerId,
 		req.Msg.HostnamePattern,
@@ -1094,6 +1105,8 @@ func (a *App) UpdatePublicTlsCertificate(
 		req.Msg.AcmeCa,
 		req.Msg.AcmeEmail,
 		req.Msg.DnsCredentialId,
+		req.Msg.GenerateSelfSigned,
+		req.Msg.SelfSignedValidityDays,
 		&existing,
 		true,
 	)
@@ -1111,8 +1124,8 @@ func (a *App) UpdatePublicTlsCertificate(
 	}
 
 	var cert db.PublicTlsCertificate
-	if hasUpload {
-		cert, err = a.updateUploadedPublicTLSCertificate(ctx, params, req.Msg.CertPem, req.Msg.KeyPem)
+	if material.Replace {
+		cert, err = a.updateUploadedPublicTLSCertificate(ctx, params, material.CertPEM, material.KeyPEM)
 	} else {
 		cert, err = a.DB.UpdatePublicTlsCertificate(ctx, publicTLSCertificateUpdateParams(params))
 	}
@@ -1184,6 +1197,7 @@ func (a *App) createUploadedPublicTLSCertificate(
 	certPEM []byte,
 	keyPEM []byte,
 ) (db.PublicTlsCertificate, error) {
+	params = publicTLSCertificateInputWithPEMValidity(params, certPEM)
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return db.PublicTlsCertificate{}, err
@@ -1245,6 +1259,7 @@ func (a *App) updateUploadedPublicTLSCertificate(
 	certPEM []byte,
 	keyPEM []byte,
 ) (db.PublicTlsCertificate, error) {
+	params = publicTLSCertificateInputWithPEMValidity(params, certPEM)
 	certPath, keyPath, err := a.writePublicTLSCertificateFiles(params.ListenerID, params.ID, certPEM, keyPEM)
 	if err != nil {
 		return db.PublicTlsCertificate{}, err
@@ -2259,24 +2274,26 @@ func (a *App) validatePublicTLSCertificateInput(
 	caProto p2pstreamv1.PublicAcmeCa,
 	acmeEmail string,
 	dnsCredentialID int64,
+	generateSelfSigned bool,
+	selfSignedValidityDays int64,
 	existing *db.PublicTlsCertificate,
 	allowMissingMaterial bool,
-) (publicTLSCertificateMutationInput, bool, error) {
+) (publicTLSCertificateMutationInput, publicTLSCertificateMaterial, error) {
 	listener, err := a.DB.GetPublicListener(ctx, listenerID)
 	if err != nil {
-		return publicTLSCertificateMutationInput{}, false, publicDBError(err)
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, publicDBError(err)
 	}
 	if listener.Protocol != publicListenerProtocolHTTPS {
-		return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("TLS certificates can only be configured on HTTPS listeners"))
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("TLS certificates can only be configured on HTTPS listeners"))
 	}
 	hostnamePattern = normalizeHostPattern(hostnamePattern)
 	if err := validateHostPattern(hostnamePattern); err != nil {
-		return publicTLSCertificateMutationInput{}, false, err
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, err
 	}
 
 	source, err := tlsCertificateSourceStringFromProto(sourceProto)
 	if err != nil {
-		return publicTLSCertificateMutationInput{}, false, err
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, err
 	}
 	if sourceProto == p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_UNSPECIFIED && existing != nil {
 		source = normalizePublicTLSCertificateSource(existing.Source)
@@ -2288,38 +2305,41 @@ func (a *App) validatePublicTLSCertificateInput(
 	hasKeyUpload := len(keyPEM) > 0
 
 	if source == publicTLSCertificateSourceACME {
+		if generateSelfSigned {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("self-signed generation is only available for manual certificates"))
+		}
 		if hasCertUpload || hasKeyUpload || certPath != "" || keyPath != "" {
-			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates manage certificate material automatically"))
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates manage certificate material automatically"))
 		}
 		challengeType, err := acmeChallengeTypeStringFromProto(challengeProto)
 		if err != nil {
-			return publicTLSCertificateMutationInput{}, false, err
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, err
 		}
 		ca, err := acmeCAStringFromProto(caProto)
 		if err != nil {
-			return publicTLSCertificateMutationInput{}, false, err
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, err
 		}
 		acmeEmail = strings.TrimSpace(strings.ToLower(acmeEmail))
 		if _, err := mail.ParseAddress(acmeEmail); err != nil {
-			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("ACME email must be a valid email address"))
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("ACME email must be a valid email address"))
 		}
 		if err := validateACMEHostPattern(hostnamePattern, challengeType); err != nil {
-			return publicTLSCertificateMutationInput{}, false, err
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, err
 		}
 		var credentialID sql.NullInt64
 		if challengeType == publicACMEChallengeDNS01 {
 			if dnsCredentialID <= 0 {
-				return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("DNS-01 requires a DNS credential"))
+				return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("DNS-01 requires a DNS credential"))
 			}
 			credential, err := a.DB.GetPublicTlsDnsCredential(ctx, dnsCredentialID)
 			if err != nil {
-				return publicTLSCertificateMutationInput{}, false, publicDBError(err)
+				return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, publicDBError(err)
 			}
 			if credential.Enabled == 0 {
-				return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("DNS-01 requires an enabled DNS credential"))
+				return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("DNS-01 requires an enabled DNS credential"))
 			}
 			if normalizePublicDNSProvider(credential.Provider) != publicDNSProviderCloudflare {
-				return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("DNS-01 currently supports Cloudflare credentials only"))
+				return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("DNS-01 currently supports Cloudflare credentials only"))
 			}
 			credentialID = sql.NullInt64{Int64: dnsCredentialID, Valid: true}
 		}
@@ -2342,15 +2362,45 @@ func (a *App) validatePublicTLSCertificateInput(
 			ExpiresAt:            nullTimeFromExisting(existing, "expires_at"),
 			NextRenewalAt:        nullTimeFromExisting(existing, "next_renewal_at"),
 			LastRenewalAttemptAt: nullTimeFromExisting(existing, "last_renewal_attempt_at"),
-		}, false, nil
+		}, publicTLSCertificateMaterial{}, nil
+	}
+
+	if generateSelfSigned {
+		if hasCertUpload || hasKeyUpload || certPath != "" || keyPath != "" {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("self-signed generation cannot be combined with certificate uploads or file paths"))
+		}
+		validityDays, err := validatePublicSelfSignedValidityDays(selfSignedValidityDays)
+		if err != nil {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, err
+		}
+		certPEM, keyPEM, leaf, err := generatePublicSelfSignedCertificatePEM(hostnamePattern, time.Duration(validityDays)*24*time.Hour)
+		if err != nil {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInternal, err)
+		}
+		return publicTLSCertificateMutationInput{
+			ListenerID:      listenerID,
+			HostnamePattern: hostnamePattern,
+			Enabled:         boolInt(enabled),
+			Source:          publicTLSCertificateSourceManual,
+			Status:          publicTLSCertificateStatusReady,
+			IssuedAt:        sql.NullTime{Time: leaf.NotBefore.UTC(), Valid: true},
+			ExpiresAt:       sql.NullTime{Time: leaf.NotAfter.UTC(), Valid: true},
+		}, publicTLSCertificateMaterial{Replace: true, CertPEM: certPEM, KeyPEM: keyPEM}, nil
+	}
+	if selfSignedValidityDays != 0 {
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("self-signed validity days require self-signed generation"))
 	}
 
 	if hasCertUpload || hasKeyUpload {
 		if !hasCertUpload || !hasKeyUpload {
-			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and private key uploads are both required"))
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and private key uploads are both required"))
 		}
 		if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
-			return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("certificate and private key must be a valid PEM pair: %w", err))
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("certificate and private key must be a valid PEM pair: %w", err))
+		}
+		issuedAt, expiresAt, err := publicTLSCertificateValidityFromPEM(certPEM)
+		if err != nil {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		return publicTLSCertificateMutationInput{
 			ListenerID:      listenerID,
@@ -2358,21 +2408,31 @@ func (a *App) validatePublicTLSCertificateInput(
 			Enabled:         boolInt(enabled),
 			Source:          publicTLSCertificateSourceManual,
 			Status:          publicTLSCertificateStatusReady,
-		}, true, nil
+			IssuedAt:        issuedAt,
+			ExpiresAt:       expiresAt,
+		}, publicTLSCertificateMaterial{Replace: true, CertPEM: certPEM, KeyPEM: keyPEM}, nil
 	}
 
 	if certPath == "" && keyPath == "" && allowMissingMaterial {
+		if existing == nil || normalizePublicTLSCertificateSource(existing.Source) != publicTLSCertificateSourceManual {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("manual certificates require uploaded files, server file paths, or self-signed generation"))
+		}
 		return publicTLSCertificateMutationInput{
-			ListenerID:      listenerID,
-			HostnamePattern: hostnamePattern,
-			Enabled:         boolInt(enabled),
-			Source:          publicTLSCertificateSourceManual,
-			Status:          publicTLSCertificateStatusReady,
-		}, false, nil
+			ListenerID:           listenerID,
+			HostnamePattern:      hostnamePattern,
+			Enabled:              boolInt(enabled),
+			Source:               publicTLSCertificateSourceManual,
+			Status:               publicTLSCertificateStatusReady,
+			IssuedAt:             nullTimeFromExisting(existing, "issued_at"),
+			ExpiresAt:            nullTimeFromExisting(existing, "expires_at"),
+			NextRenewalAt:        nullTimeFromExisting(existing, "next_renewal_at"),
+			LastRenewalAttemptAt: nullTimeFromExisting(existing, "last_renewal_attempt_at"),
+		}, publicTLSCertificateMaterial{}, nil
 	}
 	if certPath == "" || keyPath == "" {
-		return publicTLSCertificateMutationInput{}, false, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and key paths are required"))
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and key paths are required"))
 	}
+	issuedAt, expiresAt := publicTLSCertificateValidityFromFile(certPath)
 	return publicTLSCertificateMutationInput{
 		ListenerID:      listenerID,
 		HostnamePattern: hostnamePattern,
@@ -2381,7 +2441,9 @@ func (a *App) validatePublicTLSCertificateInput(
 		Enabled:         boolInt(enabled),
 		Source:          publicTLSCertificateSourceManual,
 		Status:          publicTLSCertificateStatusReady,
-	}, false, nil
+		IssuedAt:        issuedAt,
+		ExpiresAt:       expiresAt,
+	}, publicTLSCertificateMaterial{}, nil
 }
 
 func (a *App) validatePublicTLSDNSCredentialInput(
@@ -2486,6 +2548,50 @@ func nullTimeFromExisting(existing *db.PublicTlsCertificate, field string) sql.N
 	default:
 		return sql.NullTime{}
 	}
+}
+
+func validatePublicSelfSignedValidityDays(days int64) (int64, error) {
+	if days < minPublicSelfSignedValidityDays || days > maxPublicSelfSignedValidityDays {
+		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("self-signed certificate validity must be between %d and %d days", minPublicSelfSignedValidityDays, maxPublicSelfSignedValidityDays))
+	}
+	return days, nil
+}
+
+func publicTLSCertificateInputWithPEMValidity(input publicTLSCertificateMutationInput, certPEM []byte) publicTLSCertificateMutationInput {
+	if input.IssuedAt.Valid && input.ExpiresAt.Valid {
+		return input
+	}
+	issuedAt, expiresAt, err := publicTLSCertificateValidityFromPEM(certPEM)
+	if err != nil {
+		return input
+	}
+	if !input.IssuedAt.Valid {
+		input.IssuedAt = issuedAt
+	}
+	if !input.ExpiresAt.Valid {
+		input.ExpiresAt = expiresAt
+	}
+	return input
+}
+
+func publicTLSCertificateValidityFromPEM(certPEM []byte) (sql.NullTime, sql.NullTime, error) {
+	leaf, err := parseLeafCertificate(certPEM)
+	if err != nil {
+		return sql.NullTime{}, sql.NullTime{}, fmt.Errorf("certificate PEM must contain a valid leaf certificate: %w", err)
+	}
+	return sql.NullTime{Time: leaf.NotBefore.UTC(), Valid: true}, sql.NullTime{Time: leaf.NotAfter.UTC(), Valid: true}, nil
+}
+
+func publicTLSCertificateValidityFromFile(certPath string) (sql.NullTime, sql.NullTime) {
+	certPEM, err := os.ReadFile(strings.TrimSpace(certPath))
+	if err != nil {
+		return sql.NullTime{}, sql.NullTime{}
+	}
+	issuedAt, expiresAt, err := publicTLSCertificateValidityFromPEM(certPEM)
+	if err != nil {
+		return sql.NullTime{}, sql.NullTime{}
+	}
+	return issuedAt, expiresAt
 }
 
 func validateACMEHostPattern(pattern string, challengeType string) error {
@@ -3514,6 +3620,17 @@ func publicRoutesToProto(routes []db.PublicRoute, assignments []db.PublicRouteBa
 }
 
 func publicTLSCertificateToProto(cert db.PublicTlsCertificate) *p2pstreamv1.PublicTlsCertificate {
+	issuedAt := cert.IssuedAt
+	expiresAt := cert.ExpiresAt
+	if (!issuedAt.Valid || !expiresAt.Valid) && strings.TrimSpace(cert.CertPath) != "" {
+		fileIssuedAt, fileExpiresAt := publicTLSCertificateValidityFromFile(cert.CertPath)
+		if !issuedAt.Valid {
+			issuedAt = fileIssuedAt
+		}
+		if !expiresAt.Valid {
+			expiresAt = fileExpiresAt
+		}
+	}
 	return &p2pstreamv1.PublicTlsCertificate{
 		Id:                             cert.ID,
 		ListenerId:                     cert.ListenerID,
@@ -3530,8 +3647,8 @@ func publicTLSCertificateToProto(cert db.PublicTlsCertificate) *p2pstreamv1.Publ
 		DnsCredentialId:                nullInt64Value(cert.DnsCredentialID),
 		Status:                         protoTLSCertificateStatusFromString(cert.Status),
 		LastError:                      cert.LastError,
-		IssuedAtUnixMillis:             nullTimeUnixMillis(cert.IssuedAt),
-		ExpiresAtUnixMillis:            nullTimeUnixMillis(cert.ExpiresAt),
+		IssuedAtUnixMillis:             nullTimeUnixMillis(issuedAt),
+		ExpiresAtUnixMillis:            nullTimeUnixMillis(expiresAt),
 		NextRenewalAtUnixMillis:        nullTimeUnixMillis(cert.NextRenewalAt),
 		LastRenewalAttemptAtUnixMillis: nullTimeUnixMillis(cert.LastRenewalAttemptAt),
 	}

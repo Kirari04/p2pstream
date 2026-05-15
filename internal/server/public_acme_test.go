@@ -183,6 +183,8 @@ func TestPublicTLSCertificateValidationAllowsWildcardOnlyForDNS01(t *testing.T) 
 		p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING,
 		"admin@example.com",
 		0,
+		false,
+		0,
 		nil,
 		false,
 	)
@@ -204,11 +206,161 @@ func TestPublicTLSCertificateValidationAllowsWildcardOnlyForDNS01(t *testing.T) 
 		p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING,
 		"admin@example.com",
 		credential.ID,
+		false,
+		0,
 		nil,
 		false,
 	)
 	if err != nil {
 		t.Fatalf("DNS-01 wildcard validation failed: %v", err)
+	}
+}
+
+func TestPublicSelfSignedCertificateGenerationUsesHostPatternSAN(t *testing.T) {
+	_, _, wildcardLeaf, err := generatePublicSelfSignedCertificatePEM("*.Example.COM", 24*time.Hour)
+	if err != nil {
+		t.Fatalf("generate wildcard certificate: %v", err)
+	}
+	if err := wildcardLeaf.VerifyHostname("app.example.com"); err != nil {
+		t.Fatalf("wildcard generated certificate did not verify for app.example.com: %v", err)
+	}
+
+	if err := validateHostPattern("127.0.0.1"); err != nil {
+		t.Fatalf("expected IPv4 host pattern to be valid: %v", err)
+	}
+	_, _, ipLeaf, err := generatePublicSelfSignedCertificatePEM("127.0.0.1", 24*time.Hour)
+	if err != nil {
+		t.Fatalf("generate IPv4 certificate: %v", err)
+	}
+	if err := ipLeaf.VerifyHostname("127.0.0.1"); err != nil {
+		t.Fatalf("IPv4 generated certificate did not verify for 127.0.0.1: %v", err)
+	}
+}
+
+func TestPublicTLSCertificateValidationRejectsInvalidSelfSignedGeneration(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	app := NewApp(&config.Config{}, database)
+	certPEM, keyPEM, err := generateSelfSignedCertificatePEM(time.Hour)
+	if err != nil {
+		t.Fatalf("generate uploaded certificate: %v", err)
+	}
+
+	tests := []struct {
+		name         string
+		source       p2pstreamv1.PublicTlsCertificateSource
+		certPath     string
+		keyPath      string
+		certPEM      []byte
+		keyPEM       []byte
+		generate     bool
+		validityDays int64
+	}{
+		{
+			name:         "ACME source",
+			source:       p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_ACME,
+			generate:     true,
+			validityDays: 30,
+		},
+		{
+			name:     "zero validity",
+			generate: true,
+		},
+		{
+			name:         "too much validity",
+			generate:     true,
+			validityDays: maxPublicSelfSignedValidityDays + 1,
+		},
+		{
+			name:         "mixed upload",
+			certPEM:      certPEM,
+			keyPEM:       keyPEM,
+			generate:     true,
+			validityDays: 30,
+		},
+		{
+			name:         "mixed paths",
+			certPath:     "/tmp/server.crt.pem",
+			keyPath:      "/tmp/server.key.pem",
+			generate:     true,
+			validityDays: 30,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := app.validatePublicTLSCertificateInput(
+				context.Background(),
+				listener.ID,
+				"generated.example.com",
+				tt.certPath,
+				tt.keyPath,
+				tt.certPEM,
+				tt.keyPEM,
+				true,
+				tt.source,
+				p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_HTTP_01,
+				p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING,
+				"admin@example.com",
+				0,
+				tt.generate,
+				tt.validityDays,
+				nil,
+				false,
+			)
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}
+
+func TestPublicProxyConfigBackfillsLegacyCertificateValidityFromFile(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	certPEM, keyPEM, leaf, err := generatePublicSelfSignedCertificatePEM("legacy.example.com", 24*time.Hour)
+	if err != nil {
+		t.Fatalf("generate legacy certificate: %v", err)
+	}
+	certPath := filepath.Join(t.TempDir(), "legacy.crt.pem")
+	keyPath := filepath.Join(t.TempDir(), "legacy.key.pem")
+	if err := os.WriteFile(certPath, certPEM, 0600); err != nil {
+		t.Fatalf("write legacy certificate: %v", err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		t.Fatalf("write legacy key: %v", err)
+	}
+	row, err := database.CreatePublicTlsCertificate(context.Background(), db.CreatePublicTlsCertificateParams{
+		ListenerID:      listener.ID,
+		HostnamePattern: "legacy.example.com",
+		CertPath:        certPath,
+		KeyPath:         keyPath,
+		Enabled:         1,
+		Source:          publicTLSCertificateSourceManual,
+		Status:          publicTLSCertificateStatusReady,
+	})
+	if err != nil {
+		t.Fatalf("create legacy certificate row: %v", err)
+	}
+
+	app := NewApp(&config.Config{}, database)
+	resp, err := app.publicProxyConfigResponse(context.Background())
+	if err != nil {
+		t.Fatalf("load public proxy config: %v", err)
+	}
+	var gotIssued, gotExpires int64
+	for _, cert := range resp.GetTlsCertificates() {
+		if cert.GetId() == row.ID {
+			gotIssued = cert.GetIssuedAtUnixMillis()
+			gotExpires = cert.GetExpiresAtUnixMillis()
+			break
+		}
+	}
+	if gotIssued == 0 || gotExpires == 0 {
+		t.Fatalf("expected legacy certificate validity from file, got issued=%d expires=%d", gotIssued, gotExpires)
+	}
+	if gotIssued != leaf.NotBefore.UnixMilli() || gotExpires != leaf.NotAfter.UnixMilli() {
+		t.Fatalf("validity = %d/%d, want %d/%d", gotIssued, gotExpires, leaf.NotBefore.UnixMilli(), leaf.NotAfter.UnixMilli())
 	}
 }
 

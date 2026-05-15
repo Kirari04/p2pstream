@@ -17,6 +17,8 @@ import {
   isDefaultSelfSignedCertificate,
   listenerName,
   tlsCertificateSummary,
+  tlsCertificateRenewalSummary,
+  tlsCertificateValiditySummary,
   tlsMethodForCertificate,
   tlsSourceForMethod,
   tlsSourceLabel,
@@ -40,12 +42,17 @@ import {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type TlsFileField = "cert" | "key";
+type ManualTlsMaterialMode = "generate" | "upload";
 
 const tlsMethodOptions: Array<{ value: TlsMethod; label: string }> = [
   { value: "manual", label: "Manual" },
   { value: "http_01", label: "HTTP-01" },
   { value: "tls_alpn_01", label: "TLS-ALPN" },
   { value: "dns_01", label: "DNS-01" },
+];
+const manualTlsMaterialOptions: Array<{ value: ManualTlsMaterialMode; label: string }> = [
+  { value: "generate", label: "Generate self-signed" },
+  { value: "upload", label: "Upload PEM" },
 ];
 
 const {
@@ -81,6 +88,8 @@ const tlsForm = reactive({
   listenerId: "",
   hostnamePattern: "",
   method: "manual" as TlsMethod,
+  manualMode: "generate" as ManualTlsMaterialMode,
+  selfSignedValidityDays: 3650,
   acmeEmail: "",
   acmeCa: PublicAcmeCa.LETS_ENCRYPT_PRODUCTION,
   dnsCredentialId: "",
@@ -105,6 +114,12 @@ const tlsSubmitDisabledReason = computed(() => {
   if (isBusy.value) return BUSY_REASON;
   if (!httpsListeners.value.length) return "Create an HTTPS listener before adding a TLS mapping.";
   if (tlsForm.method === "manual") {
+    if (tlsForm.manualMode === "generate") {
+      if (!Number.isInteger(tlsForm.selfSignedValidityDays) || tlsForm.selfSignedValidityDays < 1 || tlsForm.selfSignedValidityDays > 3650) {
+        return "Enter certificate validity between 1 and 3650 days.";
+      }
+      return "";
+    }
     if (!tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) return "Upload both the certificate and private key files.";
     if (tlsHasPartialUpload.value) return "Upload both files to replace the certificate.";
     return "";
@@ -138,6 +153,8 @@ function resetTlsForm() {
   tlsForm.listenerId = httpsListeners.value[0]?.id.toString() ?? "";
   tlsForm.hostnamePattern = "";
   tlsForm.method = "manual";
+  tlsForm.manualMode = "generate";
+  tlsForm.selfSignedValidityDays = 3650;
   tlsForm.acmeEmail = "";
   tlsForm.acmeCa = PublicAcmeCa.LETS_ENCRYPT_PRODUCTION;
   tlsForm.dnsCredentialId = tlsDnsCredentials.value[0]?.id.toString() ?? "";
@@ -156,6 +173,8 @@ function editTlsCertificate(certId: bigint) {
   tlsForm.listenerId = cert.listenerId.toString();
   tlsForm.hostnamePattern = cert.hostnamePattern;
   tlsForm.method = tlsMethodForCertificate(cert);
+  tlsForm.manualMode = tlsForm.method === "manual" ? "upload" : "generate";
+  tlsForm.selfSignedValidityDays = 3650;
   tlsForm.acmeEmail = cert.acmeEmail;
   tlsForm.acmeCa = cert.acmeCa || PublicAcmeCa.LETS_ENCRYPT_PRODUCTION;
   tlsForm.dnsCredentialId = cert.dnsCredentialId ? cert.dnsCredentialId.toString() : (tlsDnsCredentials.value[0]?.id.toString() ?? "");
@@ -221,12 +240,18 @@ async function handleTlsFileChange(field: TlsFileField, event: Event) {
 
 async function submitTlsCertificate() {
   tlsUploadError.value = "";
-  if (tlsForm.method === "manual" && !tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) {
+  const isManualUpload = tlsForm.method === "manual" && tlsForm.manualMode === "upload";
+  const isGeneratedSelfSigned = tlsForm.method === "manual" && tlsForm.manualMode === "generate";
+  if (isManualUpload && !tlsForm.id && (!tlsForm.certPem || !tlsForm.keyPem)) {
     tlsUploadError.value = "Upload both the certificate and private key.";
     return;
   }
-  if (tlsForm.method === "manual" && tlsHasPartialUpload.value) {
+  if (isManualUpload && tlsHasPartialUpload.value) {
     tlsUploadError.value = "Upload both files to replace the certificate.";
+    return;
+  }
+  if (isGeneratedSelfSigned && (!Number.isInteger(tlsForm.selfSignedValidityDays) || tlsForm.selfSignedValidityDays < 1 || tlsForm.selfSignedValidityDays > 3650)) {
+    tlsUploadError.value = "Enter certificate validity between 1 and 3650 days.";
     return;
   }
   if (tlsForm.method !== "manual" && tlsForm.method !== "dns_01" && tlsForm.hostnamePattern.trim().startsWith("*.")) {
@@ -240,13 +265,15 @@ async function submitTlsCertificate() {
       listenerId: BigInt(tlsForm.listenerId || "0"),
       hostnamePattern: tlsForm.hostnamePattern,
       enabled: tlsForm.enabled,
-      certPem: isManual ? (tlsForm.certPem ?? new Uint8Array()) : new Uint8Array(),
-      keyPem: isManual ? (tlsForm.keyPem ?? new Uint8Array()) : new Uint8Array(),
+      certPem: isManualUpload ? (tlsForm.certPem ?? new Uint8Array()) : new Uint8Array(),
+      keyPem: isManualUpload ? (tlsForm.keyPem ?? new Uint8Array()) : new Uint8Array(),
       source: tlsSourceForMethod(tlsForm.method),
       acmeChallengeType: isManual ? PublicAcmeChallengeType.UNSPECIFIED : acmeChallengeTypeForMethod(tlsForm.method),
       acmeCa: isManual ? PublicAcmeCa.UNSPECIFIED : tlsForm.acmeCa,
       acmeEmail: isManual ? "" : tlsForm.acmeEmail,
       dnsCredentialId: !isManual && tlsForm.method === "dns_01" ? BigInt(tlsForm.dnsCredentialId || "0") : 0n,
+      generateSelfSigned: isGeneratedSelfSigned,
+      selfSignedValidityDays: isGeneratedSelfSigned ? BigInt(tlsForm.selfSignedValidityDays) : 0n,
     };
     if (tlsForm.id) {
       await managementClient.updatePublicTlsCertificate({ id: BigInt(tlsForm.id), ...payload });
@@ -359,6 +386,8 @@ watch(tlsDnsCredentials, () => {
               <Tag :value="tlsStatusLabel(cert)" :severity="tlsStatusSeverity(cert)" />
             </div>
             <p class="truncate text-xs text-[#888]">{{ tlsCertificateSummary(cert) }}</p>
+            <p v-if="tlsCertificateValiditySummary(cert)" class="truncate text-xs text-[#777]">{{ tlsCertificateValiditySummary(cert) }}</p>
+            <p v-if="tlsCertificateRenewalSummary(cert)" class="truncate text-xs text-[#666]">{{ tlsCertificateRenewalSummary(cert) }}</p>
             <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="truncate text-xs text-[#666]">
               Cloudflare / {{ dnsCredentialName(cert.dnsCredentialId, tlsDnsCredentials) }}
             </p>
@@ -495,31 +524,52 @@ watch(tlsDnsCredentials, () => {
             </select>
           </label>
         </div>
-        <div v-if="tlsForm.method === 'manual'" class="grid gap-3 sm:grid-cols-2">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Certificate file
-            <input
-              class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
-              type="file"
-              accept=".pem,.crt,.cer"
-              :required="!tlsForm.id"
-              @change="handleTlsFileChange('cert', $event)"
-            />
-            <span v-if="tlsForm.certFileName" class="truncate text-xs normal-case tracking-normal text-[#d4d4d8]">{{ tlsForm.certFileName }}</span>
+        <div v-if="tlsForm.method === 'manual'" class="grid gap-3">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Certificate material
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="option in manualTlsMaterialOptions"
+                :key="option.value"
+                type="button"
+                class="rounded-md border px-2.5 py-2 text-xs font-semibold normal-case tracking-normal transition"
+                :class="tlsForm.manualMode === option.value ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555]'"
+                @click="tlsForm.manualMode = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+          <label v-if="tlsForm.manualMode === 'generate'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Validity days
+            <input v-model.number="tlsForm.selfSignedValidityDays" class="vercel-input text-sm normal-case tracking-normal" type="number" min="1" max="3650" step="1" required />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Private key file
-            <input
-              class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
-              type="file"
-              accept=".pem,.key"
-              :required="!tlsForm.id"
-              @change="handleTlsFileChange('key', $event)"
-            />
-            <span v-if="tlsForm.keyFileName" class="truncate text-xs normal-case tracking-normal text-[#d4d4d8]">{{ tlsForm.keyFileName }}</span>
-          </label>
+          <div v-else class="grid gap-3 sm:grid-cols-2">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Certificate file
+              <input
+                class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
+                type="file"
+                accept=".pem,.crt,.cer"
+                :required="!tlsForm.id"
+                @change="handleTlsFileChange('cert', $event)"
+              />
+              <span v-if="tlsForm.certFileName" class="truncate text-xs normal-case tracking-normal text-[#d4d4d8]">{{ tlsForm.certFileName }}</span>
+            </label>
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+              Private key file
+              <input
+                class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
+                type="file"
+                accept=".pem,.key"
+                :required="!tlsForm.id"
+                @change="handleTlsFileChange('key', $event)"
+              />
+              <span v-if="tlsForm.keyFileName" class="truncate text-xs normal-case tracking-normal text-[#d4d4d8]">{{ tlsForm.keyFileName }}</span>
+            </label>
+          </div>
         </div>
-        <p v-if="tlsForm.id && tlsForm.method === 'manual'" class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs text-[#888]">
+        <p v-if="tlsForm.id && tlsForm.method === 'manual' && tlsForm.manualMode === 'upload'" class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs text-[#888]">
           Current certificate is stored in the app config directory.
         </p>
         <p v-if="tlsUploadError" class="rounded-md border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-400">

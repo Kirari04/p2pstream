@@ -120,7 +120,55 @@ func generateFallbackCertificate() (*tls.Certificate, error) {
 }
 
 func generateManagedSelfSignedCertificatePEM() ([]byte, []byte, error) {
-	return generateSelfSignedCertificatePEM(10 * 365 * 24 * time.Hour)
+	return generateSelfSignedCertificatePEM(time.Duration(defaultPublicSelfSignedValidityDays) * 24 * time.Hour)
+}
+
+func generatePublicSelfSignedCertificatePEM(hostnamePattern string, validFor time.Duration) ([]byte, []byte, *x509.Certificate, error) {
+	hostnamePattern = normalizeHostPattern(hostnamePattern)
+	if hostnamePattern == "" {
+		return nil, nil, nil, errors.New("hostname pattern is required")
+	}
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serial, err := rand.Int(rand.Reader, serialLimit)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	now := time.Now().UTC()
+	template := &x509.Certificate{
+		SerialNumber: serial,
+		Subject: pkix.Name{
+			CommonName: hostnamePattern,
+		},
+		NotBefore:             now.Add(-time.Minute),
+		NotAfter:              now.Add(validFor),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+	if ip := net.ParseIP(hostnamePattern); ip != nil {
+		template.IPAddresses = []net.IP{ip}
+	} else {
+		template.DNSNames = []string{hostnamePattern}
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	return certPEM, keyPEM, cert, nil
 }
 
 func generateSelfSignedCertificatePEM(validFor time.Duration) ([]byte, []byte, error) {

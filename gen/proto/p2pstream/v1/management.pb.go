@@ -7555,21 +7555,23 @@ func (*DeletePublicTlsDnsCredentialResponse) Descriptor() ([]byte, []int) {
 }
 
 type CreatePublicTlsCertificateRequest struct {
-	state             protoimpl.MessageState     `protogen:"open.v1"`
-	ListenerId        int64                      `protobuf:"varint,1,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
-	HostnamePattern   string                     `protobuf:"bytes,2,opt,name=hostname_pattern,json=hostnamePattern,proto3" json:"hostname_pattern,omitempty"`
-	CertPath          string                     `protobuf:"bytes,3,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
-	KeyPath           string                     `protobuf:"bytes,4,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
-	Enabled           bool                       `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	CertPem           []byte                     `protobuf:"bytes,6,opt,name=cert_pem,json=certPem,proto3" json:"cert_pem,omitempty"`
-	KeyPem            []byte                     `protobuf:"bytes,7,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
-	Source            PublicTlsCertificateSource `protobuf:"varint,8,opt,name=source,proto3,enum=p2pstream.v1.PublicTlsCertificateSource" json:"source,omitempty"`
-	AcmeChallengeType PublicAcmeChallengeType    `protobuf:"varint,9,opt,name=acme_challenge_type,json=acmeChallengeType,proto3,enum=p2pstream.v1.PublicAcmeChallengeType" json:"acme_challenge_type,omitempty"`
-	AcmeCa            PublicAcmeCa               `protobuf:"varint,10,opt,name=acme_ca,json=acmeCa,proto3,enum=p2pstream.v1.PublicAcmeCa" json:"acme_ca,omitempty"`
-	AcmeEmail         string                     `protobuf:"bytes,11,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
-	DnsCredentialId   int64                      `protobuf:"varint,12,opt,name=dns_credential_id,json=dnsCredentialId,proto3" json:"dns_credential_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                  protoimpl.MessageState     `protogen:"open.v1"`
+	ListenerId             int64                      `protobuf:"varint,1,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	HostnamePattern        string                     `protobuf:"bytes,2,opt,name=hostname_pattern,json=hostnamePattern,proto3" json:"hostname_pattern,omitempty"`
+	CertPath               string                     `protobuf:"bytes,3,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
+	KeyPath                string                     `protobuf:"bytes,4,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	Enabled                bool                       `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CertPem                []byte                     `protobuf:"bytes,6,opt,name=cert_pem,json=certPem,proto3" json:"cert_pem,omitempty"`
+	KeyPem                 []byte                     `protobuf:"bytes,7,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
+	Source                 PublicTlsCertificateSource `protobuf:"varint,8,opt,name=source,proto3,enum=p2pstream.v1.PublicTlsCertificateSource" json:"source,omitempty"`
+	AcmeChallengeType      PublicAcmeChallengeType    `protobuf:"varint,9,opt,name=acme_challenge_type,json=acmeChallengeType,proto3,enum=p2pstream.v1.PublicAcmeChallengeType" json:"acme_challenge_type,omitempty"`
+	AcmeCa                 PublicAcmeCa               `protobuf:"varint,10,opt,name=acme_ca,json=acmeCa,proto3,enum=p2pstream.v1.PublicAcmeCa" json:"acme_ca,omitempty"`
+	AcmeEmail              string                     `protobuf:"bytes,11,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
+	DnsCredentialId        int64                      `protobuf:"varint,12,opt,name=dns_credential_id,json=dnsCredentialId,proto3" json:"dns_credential_id,omitempty"`
+	GenerateSelfSigned     bool                       `protobuf:"varint,13,opt,name=generate_self_signed,json=generateSelfSigned,proto3" json:"generate_self_signed,omitempty"`
+	SelfSignedValidityDays int64                      `protobuf:"varint,14,opt,name=self_signed_validity_days,json=selfSignedValidityDays,proto3" json:"self_signed_validity_days,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *CreatePublicTlsCertificateRequest) Reset() {
@@ -7686,6 +7688,20 @@ func (x *CreatePublicTlsCertificateRequest) GetDnsCredentialId() int64 {
 	return 0
 }
 
+func (x *CreatePublicTlsCertificateRequest) GetGenerateSelfSigned() bool {
+	if x != nil {
+		return x.GenerateSelfSigned
+	}
+	return false
+}
+
+func (x *CreatePublicTlsCertificateRequest) GetSelfSignedValidityDays() int64 {
+	if x != nil {
+		return x.SelfSignedValidityDays
+	}
+	return 0
+}
+
 type CreatePublicTlsCertificateResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TlsCertificate *PublicTlsCertificate  `protobuf:"bytes,1,opt,name=tls_certificate,json=tlsCertificate,proto3" json:"tls_certificate,omitempty"`
@@ -7731,22 +7747,24 @@ func (x *CreatePublicTlsCertificateResponse) GetTlsCertificate() *PublicTlsCerti
 }
 
 type UpdatePublicTlsCertificateRequest struct {
-	state             protoimpl.MessageState     `protogen:"open.v1"`
-	Id                int64                      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	ListenerId        int64                      `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
-	HostnamePattern   string                     `protobuf:"bytes,3,opt,name=hostname_pattern,json=hostnamePattern,proto3" json:"hostname_pattern,omitempty"`
-	CertPath          string                     `protobuf:"bytes,4,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
-	KeyPath           string                     `protobuf:"bytes,5,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
-	Enabled           bool                       `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	CertPem           []byte                     `protobuf:"bytes,7,opt,name=cert_pem,json=certPem,proto3" json:"cert_pem,omitempty"`
-	KeyPem            []byte                     `protobuf:"bytes,8,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
-	Source            PublicTlsCertificateSource `protobuf:"varint,9,opt,name=source,proto3,enum=p2pstream.v1.PublicTlsCertificateSource" json:"source,omitempty"`
-	AcmeChallengeType PublicAcmeChallengeType    `protobuf:"varint,10,opt,name=acme_challenge_type,json=acmeChallengeType,proto3,enum=p2pstream.v1.PublicAcmeChallengeType" json:"acme_challenge_type,omitempty"`
-	AcmeCa            PublicAcmeCa               `protobuf:"varint,11,opt,name=acme_ca,json=acmeCa,proto3,enum=p2pstream.v1.PublicAcmeCa" json:"acme_ca,omitempty"`
-	AcmeEmail         string                     `protobuf:"bytes,12,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
-	DnsCredentialId   int64                      `protobuf:"varint,13,opt,name=dns_credential_id,json=dnsCredentialId,proto3" json:"dns_credential_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                  protoimpl.MessageState     `protogen:"open.v1"`
+	Id                     int64                      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ListenerId             int64                      `protobuf:"varint,2,opt,name=listener_id,json=listenerId,proto3" json:"listener_id,omitempty"`
+	HostnamePattern        string                     `protobuf:"bytes,3,opt,name=hostname_pattern,json=hostnamePattern,proto3" json:"hostname_pattern,omitempty"`
+	CertPath               string                     `protobuf:"bytes,4,opt,name=cert_path,json=certPath,proto3" json:"cert_path,omitempty"`
+	KeyPath                string                     `protobuf:"bytes,5,opt,name=key_path,json=keyPath,proto3" json:"key_path,omitempty"`
+	Enabled                bool                       `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CertPem                []byte                     `protobuf:"bytes,7,opt,name=cert_pem,json=certPem,proto3" json:"cert_pem,omitempty"`
+	KeyPem                 []byte                     `protobuf:"bytes,8,opt,name=key_pem,json=keyPem,proto3" json:"key_pem,omitempty"`
+	Source                 PublicTlsCertificateSource `protobuf:"varint,9,opt,name=source,proto3,enum=p2pstream.v1.PublicTlsCertificateSource" json:"source,omitempty"`
+	AcmeChallengeType      PublicAcmeChallengeType    `protobuf:"varint,10,opt,name=acme_challenge_type,json=acmeChallengeType,proto3,enum=p2pstream.v1.PublicAcmeChallengeType" json:"acme_challenge_type,omitempty"`
+	AcmeCa                 PublicAcmeCa               `protobuf:"varint,11,opt,name=acme_ca,json=acmeCa,proto3,enum=p2pstream.v1.PublicAcmeCa" json:"acme_ca,omitempty"`
+	AcmeEmail              string                     `protobuf:"bytes,12,opt,name=acme_email,json=acmeEmail,proto3" json:"acme_email,omitempty"`
+	DnsCredentialId        int64                      `protobuf:"varint,13,opt,name=dns_credential_id,json=dnsCredentialId,proto3" json:"dns_credential_id,omitempty"`
+	GenerateSelfSigned     bool                       `protobuf:"varint,14,opt,name=generate_self_signed,json=generateSelfSigned,proto3" json:"generate_self_signed,omitempty"`
+	SelfSignedValidityDays int64                      `protobuf:"varint,15,opt,name=self_signed_validity_days,json=selfSignedValidityDays,proto3" json:"self_signed_validity_days,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *UpdatePublicTlsCertificateRequest) Reset() {
@@ -7866,6 +7884,20 @@ func (x *UpdatePublicTlsCertificateRequest) GetAcmeEmail() string {
 func (x *UpdatePublicTlsCertificateRequest) GetDnsCredentialId() int64 {
 	if x != nil {
 		return x.DnsCredentialId
+	}
+	return 0
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetGenerateSelfSigned() bool {
+	if x != nil {
+		return x.GenerateSelfSigned
+	}
+	return false
+}
+
+func (x *UpdatePublicTlsCertificateRequest) GetSelfSignedValidityDays() int64 {
+	if x != nil {
+		return x.SelfSignedValidityDays
 	}
 	return 0
 }
@@ -13354,7 +13386,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"credential\"5\n" +
 	"#DeletePublicTlsDnsCredentialRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"&\n" +
-	"$DeletePublicTlsDnsCredentialResponse\"\x8e\x04\n" +
+	"$DeletePublicTlsDnsCredentialResponse\"\xfb\x04\n" +
 	"!CreatePublicTlsCertificateRequest\x12\x1f\n" +
 	"\vlistener_id\x18\x01 \x01(\x03R\n" +
 	"listenerId\x12)\n" +
@@ -13370,9 +13402,11 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	" \x01(\x0e2\x1a.p2pstream.v1.PublicAcmeCaR\x06acmeCa\x12\x1d\n" +
 	"\n" +
 	"acme_email\x18\v \x01(\tR\tacmeEmail\x12*\n" +
-	"\x11dns_credential_id\x18\f \x01(\x03R\x0fdnsCredentialId\"q\n" +
+	"\x11dns_credential_id\x18\f \x01(\x03R\x0fdnsCredentialId\x120\n" +
+	"\x14generate_self_signed\x18\r \x01(\bR\x12generateSelfSigned\x129\n" +
+	"\x19self_signed_validity_days\x18\x0e \x01(\x03R\x16selfSignedValidityDays\"q\n" +
 	"\"CreatePublicTlsCertificateResponse\x12K\n" +
-	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"\x9e\x04\n" +
+	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"\x8b\x05\n" +
 	"!UpdatePublicTlsCertificateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vlistener_id\x18\x02 \x01(\x03R\n" +
@@ -13389,7 +13423,9 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\aacme_ca\x18\v \x01(\x0e2\x1a.p2pstream.v1.PublicAcmeCaR\x06acmeCa\x12\x1d\n" +
 	"\n" +
 	"acme_email\x18\f \x01(\tR\tacmeEmail\x12*\n" +
-	"\x11dns_credential_id\x18\r \x01(\x03R\x0fdnsCredentialId\"q\n" +
+	"\x11dns_credential_id\x18\r \x01(\x03R\x0fdnsCredentialId\x120\n" +
+	"\x14generate_self_signed\x18\x0e \x01(\bR\x12generateSelfSigned\x129\n" +
+	"\x19self_signed_validity_days\x18\x0f \x01(\x03R\x16selfSignedValidityDays\"q\n" +
 	"\"UpdatePublicTlsCertificateResponse\x12K\n" +
 	"\x0ftls_certificate\x18\x01 \x01(\v2\".p2pstream.v1.PublicTlsCertificateR\x0etlsCertificate\"3\n" +
 	"!DeletePublicTlsCertificateRequest\x12\x0e\n" +
