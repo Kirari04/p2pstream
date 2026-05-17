@@ -24,6 +24,7 @@ type Querier interface {
 	CreatePublicCacheRule(ctx context.Context, arg CreatePublicCacheRuleParams) (PublicCacheRule, error)
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
+	CreatePublicResponseTemplate(ctx context.Context, arg CreatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
 	CreatePublicRouteBackend(ctx context.Context, arg CreatePublicRouteBackendParams) (PublicRouteBackend, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
@@ -46,6 +47,7 @@ type Querier interface {
 	DeletePublicCacheRule(ctx context.Context, id int64) error
 	DeletePublicListener(ctx context.Context, id int64) error
 	DeletePublicRateLimitRule(ctx context.Context, id int64) error
+	DeletePublicResponseTemplate(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
 	DeletePublicRouteBackends(ctx context.Context, routeID int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
@@ -68,6 +70,8 @@ type Querier interface {
 	GetPublicCacheSettings(ctx context.Context) (PublicCacheSetting, error)
 	GetPublicListener(ctx context.Context, id int64) (PublicListener, error)
 	GetPublicRateLimitRule(ctx context.Context, id int64) (PublicRateLimitRule, error)
+	GetPublicResponseTemplate(ctx context.Context, id int64) (PublicResponseTemplate, error)
+	GetPublicResponseTemplateByName(ctx context.Context, name string) (PublicResponseTemplate, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
@@ -95,6 +99,7 @@ type Querier interface {
 	ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, error)
 	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
 	ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error)
+	ListPublicResponseTemplates(ctx context.Context) ([]PublicResponseTemplate, error)
 	ListPublicRouteBackends(ctx context.Context) ([]PublicRouteBackend, error)
 	ListPublicRouteBackendsByRoute(ctx context.Context, routeID int64) ([]PublicRouteBackend, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
@@ -127,6 +132,7 @@ type Querier interface {
 	UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error)
 	UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error)
 	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
+	UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error)

@@ -6,6 +6,7 @@ import {
   PublicBackendHealthTraceSource,
   PublicBackendLoadBalancing,
   PublicBackendType,
+  PublicResponseBodyMode,
   PublicAcmeChallengeType,
   PublicAcmeCa,
   PublicTlsCertificateSource,
@@ -165,6 +166,8 @@ function publicBackend(overrides: Partial<PublicBackend> = {}): PublicBackend {
     upstreamBasicAuth: undefined,
     healthCheck: undefined,
     upstreamResponseHeaderTimeoutMillis: 0n,
+    staticResponseBodyMode: PublicResponseBodyMode.INLINE,
+    staticResponseTemplateId: 0n,
     ...overrides,
   };
 }

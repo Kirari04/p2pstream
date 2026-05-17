@@ -39,6 +39,8 @@ type publicBackendConfig struct {
 	StaticStatusCode              int
 	StaticResponseHeaders         []publicResponseHeader
 	StaticResponseBody            string
+	StaticResponseBodyMode        string
+	StaticResponseTemplateID      int64
 	UpstreamRequestHeaders        []publicRequestHeader
 	UpstreamBasicAuth             publicBackendBasicAuthConfig
 	UpstreamResponseHeaderTimeout time.Duration
@@ -154,6 +156,7 @@ type publicProxySnapshot struct {
 	WafCookieSecret     []byte
 	CacheSettings       publicCacheSettingsConfig
 	CacheRules          []publicCacheRuleConfig
+	ResponseTemplates   map[int64]publicResponseTemplateConfig
 }
 
 type publicRouteResolution struct {
