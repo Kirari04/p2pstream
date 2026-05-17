@@ -56,7 +56,7 @@ Run p2pstream as a self-hosted public reverse proxy with a management console, o
 
 ## Management Console
 
-The management UI is where selfhosters inspect runtime health and manage agents, listeners, backends, routes, TLS, WAF rules, rate limits, cache rules, traffic shapers, and live traces.
+The management UI is where selfhosters inspect runtime health and manage agents, listeners, backends, routes, TLS, response templates, WAF rules, rate limits, cache rules, traffic shapers, and live traces.
 
 <figure class="doc-screenshot">
   <img src="./assets/overview.png" alt="p2pstream proxy overview dashboard showing proxy status, request metrics, traffic trend, hotspots, and configuration snapshot">
@@ -82,5 +82,6 @@ The management UI is where selfhosters inspect runtime health and manage agents,
 | CLI commands | [CLI reference](./reference/cli) |
 | Docker image and ports | [Docker reference](./reference/docker) |
 | Route matching behavior | [Routing rules reference](./reference/routing-rules) |
+| Reusable response bodies and WAF pages | [Response templates reference](./reference/response-templates) |
 | WAF, rate limits, shapers, cache | [Traffic controls](./concepts/limits-and-shaping) |
 | Visual tour | [Screenshots](./reference/screenshots) |

@@ -38,7 +38,7 @@ Conceptual table groups:
 | --- | --- |
 | Auth | `users`, `sessions` |
 | Agents | `agents`, `connections`, `agent_stats` |
-| Public proxy | `public_backends`, `public_listeners`, `public_routes`, `public_route_backends`, `public_backend_agents` |
+| Public proxy | `public_backends`, `public_listeners`, `public_routes`, `public_route_backends`, `public_backend_agents`, `public_response_templates` |
 | Headers | `public_backend_headers`, `public_backend_upstream_headers` |
 | TLS | `public_tls_certificates`, `public_tls_dns_credentials` |
 | Controls | `public_rate_limit_rules`, `public_waf_captcha_providers`, `public_waf_rules`, `public_waf_settings`, `public_traffic_shaper_rules`, `public_cache_settings`, `public_cache_rules`, `public_cache_entries` |

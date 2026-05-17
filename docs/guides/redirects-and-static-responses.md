@@ -50,8 +50,11 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | Name | `maintenance` |
    | Type | Static |
    | Status code | `503` |
+   | Body source | Inline |
    | Response body | `Maintenance in progress` |
    | Header | `Retry-After: 300` |
+
+   For reusable HTML maintenance pages, first open **Templates**, create a **Generic body** template, then set the static backend body source to **Template** and select it. Keep response headers, especially `Content-Type`, on the static backend.
 
 4. Add a route to that static backend with a lower priority number than the normal app route:
 
@@ -80,9 +83,11 @@ Redirect routes should return `301`, `302`, `307`, or `308`. Static routes shoul
 | Redirect target rejected | Same-host targets must be root-relative paths; external-origin targets must be HTTP/HTTPS origins. |
 | Wrong route wins | Lower priority numbers run first. |
 | Static route affects all traffic | Narrow host/path match or disable the route after maintenance. |
+| Template option rejected | Static backends can only use generic body templates. |
 
 ## Next Steps
 
 - [Routing](../concepts/routing)
+- [Response templates reference](../reference/response-templates)
 - [Routing rules reference](../reference/routing-rules)
 - [Troubleshooting](../operations/troubleshooting#route-does-not-match)
