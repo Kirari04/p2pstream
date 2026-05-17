@@ -163,7 +163,14 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 	}
 	cookie := a.PublicWAF.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, now, decision.Listener, r)
 	http.SetCookie(w, cookie)
-	http.Redirect(w, r, returnTo, http.StatusSeeOther)
+	redirectTo := sanitizeWAFReturnTo(returnTo)
+	redirectTo = strings.ReplaceAll(redirectTo, `\`, "/")
+	redirectURL, err := url.Parse(redirectTo)
+	if err == nil && redirectURL.Hostname() == "" {
+		http.Redirect(w, r, redirectURL.String(), http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
 	decision.StatusCode = http.StatusSeeOther
 	decision.ErrorKind = ""
 	return decision
@@ -383,8 +390,17 @@ func sanitizeWAFReturnTo(value string) string {
 		return "/"
 	}
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/") {
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Opaque != "" {
 		return "/"
+	}
+	if !isSafeLocalRedirectTarget(parsed.Path) {
+		return "/"
+	}
+	if escapedPath := parsed.EscapedPath(); escapedPath != "" {
+		unescapedPath, err := url.PathUnescape(escapedPath)
+		if err != nil || !isSafeLocalRedirectTarget(unescapedPath) {
+			return "/"
+		}
 	}
 	if isPublicWAFReservedPath(parsed.Path) {
 		return "/"

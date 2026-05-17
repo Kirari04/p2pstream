@@ -495,6 +495,31 @@ func TestPublicWafCaptchaVerifySuccessSetsCookieAndRedirects(t *testing.T) {
 	assertPublicWafCookieAttributes(t, passCookie, false)
 }
 
+func TestPublicWafCaptchaVerifySanitizesUnsafeReturnRedirect(t *testing.T) {
+	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parse form: %v", err)
+		}
+		if r.Form.Get("response") == "token" {
+			_, _ = w.Write([]byte(`{"success":true}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	unsafeReturnTo := "//evil.example/private"
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", unsafeReturnTo)
+	form := captchaVerifyForm(rule.ID, unsafeReturnTo, challenge, "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusSeeOther)
+	}
+	if location := resp.Header().Get("Location"); location != "/" {
+		t.Fatalf("Location = %q, want /", location)
+	}
+}
+
 func TestPublicWafCaptchaVerifySuccessSetsSecureCookieForHTTPSListener(t *testing.T) {
 	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -524,6 +549,54 @@ func TestPublicWafCaptchaVerifySuccessSetsSecureCookieForHTTPSListener(t *testin
 	}
 	passCookie := requirePublicWafCookie(t, resp.Result().Cookies(), wafCookieName(rule.ID, publicWafCaptchaCookieKind))
 	assertPublicWafCookieAttributes(t, passCookie, true)
+}
+
+func TestSanitizeWAFReturnTo(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "empty", value: "", want: "/"},
+		{name: "valid path and query", value: "/private?x=1", want: "/private?x=1"},
+		{name: "absolute URL", value: "https://evil.example/private", want: "/"},
+		{name: "scheme relative URL", value: "//evil.example/private", want: "/"},
+		{name: "backslash-prefixed path", value: `/\evil.example/private`, want: "/"},
+		{name: "encoded slash prefix", value: "/%2fevil.example/private", want: "/"},
+		{name: "encoded backslash prefix", value: "/%5cevil.example/private", want: "/"},
+		{name: "relative path", value: "private", want: "/"},
+		{name: "reserved captcha path", value: publicWafCaptchaVerifyPath, want: "/"},
+		{name: "reserved waiting room path with query", value: publicWafWaitingRoomStatusPath + "?rule_id=1", want: "/"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sanitizeWAFReturnTo(tc.value); got != tc.want {
+				t.Fatalf("sanitizeWAFReturnTo(%q) = %q, want %q", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPublicWafWaitingRoomStatusSanitizesUnsafeReturnRedirect(t *testing.T) {
+	app := NewApp(nil, nil)
+	rule := testWafRule(1, publicWafActionWaitingRoom)
+	snap := testWafSnapshot(rule, nil)
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com"+publicWafWaitingRoomStatusPath+"?rule_id=1&return_to=%2F%2Fevil.example%2Fprivate", nil)
+	req.AddCookie(app.PublicWAF.signedRuleCookie(rule.ID, publicWafAdmissionCookieKind, "session", time.Minute, time.Now(), snap.Listeners[1], req))
+	resp := httptest.NewRecorder()
+
+	decision := app.servePublicWAFWaitingRoomStatus(resp, req, 1)
+
+	if decision.StatusCode != http.StatusSeeOther {
+		t.Fatalf("decision status = %d, want %d", decision.StatusCode, http.StatusSeeOther)
+	}
+	if location := resp.Header().Get("Location"); location != "/" {
+		t.Fatalf("Location = %q, want /", location)
+	}
 }
 
 func TestPublicWafCaptchaPassCookieAllowsRequest(t *testing.T) {

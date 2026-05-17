@@ -60,7 +60,10 @@ func serveManagementUIFile(w http.ResponseWriter, r *http.Request, distFS fs.FS,
 	if !ok {
 		return false
 	}
-	defer file.Close()
+	defer func() {
+		// Best-effort close; response may already be in-flight.
+		_ = file.Close()
+	}()
 	seeker, ok := file.(io.ReadSeeker)
 	if !ok {
 		return false
