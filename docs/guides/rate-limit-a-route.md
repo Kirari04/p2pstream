@@ -58,7 +58,10 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
    | --- | --- |
    | Status | `429` |
    | Content-Type | `text/plain; charset=utf-8` |
+   | Body source | Inline |
    | Body | `Rate limit exceeded` |
+
+   To reuse the same denial body across rules, open **Templates**, create a **Generic body** template, then set the rate-limit response body source to **Template** and select it. The rate-limit rule still controls the response status, content type, generated rate-limit headers, and custom response headers.
 
 ## Verification
 
@@ -71,9 +74,11 @@ Send repeated matching requests and watch **Overview -> Problem Signals** or **T
 | Every user is limited together | p2pstream may see one reverse-proxy IP; add key parts or place p2pstream at the edge. |
 | Rule never fires | Confirm method, protocol, host pattern, path prefix, and priority. |
 | Bursts are too large | Burst cannot exceed 10x limit and should be set intentionally. |
+| Template option rejected | Rate-limit responses can only use generic body templates. |
 
 ## Next Steps
 
 - [Limits and shaping](../concepts/limits-and-shaping)
+- [Response templates reference](../reference/response-templates)
 - [Rate limits reference](../reference/rate-limits)
 - [Trace live traffic](./trace-live-traffic)

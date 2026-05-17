@@ -10,6 +10,7 @@ Rate limit rules are global public proxy rules evaluated after WAF rules and bef
 | Limit | `60` |
 | Window | `60000` ms |
 | Response status | `429` |
+| Response body source | Inline |
 | Response body | `Rate limit exceeded\n` |
 | Response content type | `text/plain; charset=utf-8` |
 | Default key | remote IP |
@@ -31,6 +32,7 @@ Algorithms:
 - Window must be between 1 second and 1 day.
 - Burst must be non-negative and cannot exceed 10x limit.
 - Response status must be between `400` and `599`.
+- Template-mode responses require a selected `generic_body` response template.
 - Header matcher names and response header names must be valid HTTP tokens.
 - Protected generated headers such as `RateLimit-*`, `X-RateLimit-*`, `Retry-After`, `Content-Length`, and `Connection` cannot be configured as custom response headers.
 
@@ -59,6 +61,8 @@ Key sources:
 
 When a request exceeds the selected rule's budget, p2pstream returns the configured response and does not run traffic shaping, route resolution, backend selection, or cache lookup for that request.
 
+When response body source is **Template**, p2pstream resolves the selected generic template body into the rule before serving the denial response. The rule's configured status, content type, generated rate-limit headers, and custom response headers still apply.
+
 Token and leaky bucket burst defaults to the effective limit when unset.
 
 ## Examples
@@ -78,5 +82,6 @@ Key: remote IP
 ## Related Tasks
 
 - [Rate limit a route](../guides/rate-limit-a-route)
+- [Response templates reference](./response-templates)
 - [Limits and shaping](../concepts/limits-and-shaping)
 - [Troubleshooting rate limits](../operations/troubleshooting#rate-limits-affect-every-user)
