@@ -171,6 +171,8 @@ func decodePublicPolicyMatchJSON(raw string) (publicRateLimitMatchConfig, error)
 
 func validatePublicPolicyMatch(match *p2pstreamv1.PublicRateLimitMatch, matchRule *p2pstreamv1.PublicPolicyMatchRule) (publicRateLimitMatchConfig, error) {
 	if matchRule != nil {
+		// match_rule intentionally takes precedence over legacy match so old clients can keep sending match
+		// while newer clients opt into CEL without ambiguity.
 		config, err := publicPolicyMatchConfigFromProto(matchRule)
 		if err != nil {
 			return publicRateLimitMatchConfig{}, err
@@ -463,12 +465,16 @@ func publicPolicyMatchConfigFromProto(rule *p2pstreamv1.PublicPolicyMatchRule) (
 		CELExpression: strings.TrimSpace(rule.CelExpression),
 		Builder:       builder,
 	}
-	if config.CELExpression == "" && config.Builder != nil {
+	if config.Builder != nil {
 		expr, err := publicPolicyMatchBuilderExpression(config.Builder)
 		if err != nil {
 			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		config.CELExpression = expr
+		if config.CELExpression == "" {
+			config.CELExpression = expr
+		} else if config.CELExpression != strings.TrimSpace(expr) {
+			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("policy match cel_expression does not match builder"))
+		}
 	}
 	return config, nil
 }

@@ -3,8 +3,12 @@ import { create } from "@bufbuild/protobuf";
 import {
   PublicListenerProtocol,
   PublicPolicyMatchBooleanOperator,
+  PublicPolicyMatchBuilderSchema,
+  PublicPolicyMatchConditionSchema,
   PublicPolicyMatchConditionOperator,
   PublicPolicyMatchField,
+  PublicPolicyMatchGroupSchema,
+  PublicPolicyMatchRuleSchema,
   PublicRateLimitMatchSchema,
   PublicRateLimitMatchOperator,
   PublicRateLimitValueMatcherSchema,
@@ -15,6 +19,7 @@ import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
   policyMatchRulePayload,
+  syncGeneratedExpressionForExpertMode,
 } from "@/lib/publicPolicyMatch";
 
 describe("publicPolicyMatch", () => {
@@ -75,6 +80,90 @@ describe("publicPolicyMatch", () => {
     expect(policyMatchRulePayload(form)?.celExpression).toContain('"free\\"tier"');
   });
 
+  test("splits values according to operator semantics", () => {
+    const equalsForm = defaultPolicyMatchForm();
+    equalsForm.root.conditions.push({
+      field: PublicPolicyMatchField.HEADER,
+      name: "X-Plan",
+      operator: PublicPolicyMatchConditionOperator.EQUALS,
+      valuesText: "free,tier",
+      negated: false,
+    });
+
+    const regexForm = defaultPolicyMatchForm();
+    regexForm.root.conditions.push({
+      field: PublicPolicyMatchField.PATH,
+      name: "",
+      operator: PublicPolicyMatchConditionOperator.MATCHES,
+      valuesText: "^/items/(a,b)$",
+      negated: false,
+    });
+
+    const inForm = defaultPolicyMatchForm();
+    inForm.root.conditions.push({
+      field: PublicPolicyMatchField.METHOD,
+      name: "",
+      operator: PublicPolicyMatchConditionOperator.IN,
+      valuesText: "get, post\nPUT",
+      negated: false,
+    });
+
+    expect(policyMatchRulePayload(equalsForm)?.builder?.root?.conditions[0]?.values).toEqual(["free,tier"]);
+    expect(policyMatchRulePayload(equalsForm)?.celExpression).toContain('"free,tier"');
+    expect(policyMatchRulePayload(regexForm)?.builder?.root?.conditions[0]?.values).toEqual(["^/items/(a,b)$"]);
+    expect(policyMatchRulePayload(regexForm)?.celExpression).toContain('path.matches("^/items/(a,b)$")');
+    expect(policyMatchRulePayload(inForm)?.builder?.root?.conditions[0]?.values).toEqual(["GET", "POST", "PUT"]);
+    expect(policyMatchRulePayload(inForm)?.celExpression).toContain('method in ["GET", "POST", "PUT"]');
+  });
+
+  test("ignores empty nested groups without widening ANY expressions", () => {
+    const form = defaultPolicyMatchForm();
+    form.root.operator = PublicPolicyMatchBooleanOperator.ANY;
+    form.root.conditions.push({
+      field: PublicPolicyMatchField.PATH,
+      name: "",
+      operator: PublicPolicyMatchConditionOperator.PREFIX,
+      valuesText: "/api",
+      negated: false,
+    });
+    form.root.groups.push({
+      operator: PublicPolicyMatchBooleanOperator.ALL,
+      negated: false,
+      conditions: [],
+      groups: [],
+    });
+
+    const expression = builderToCEL(form.root);
+
+    expect(builderToCEL(defaultPolicyMatchForm().root)).toBe("true");
+    expect(expression).not.toContain("|| true");
+    expect(expression).not.toBe("true");
+    expect(expression).toContain('path_prefix(path, "/api")');
+  });
+
+  test("preserves manual CEL when switching to expert mode", () => {
+    const form = defaultPolicyMatchForm();
+    form.root.conditions.push({
+      field: PublicPolicyMatchField.PATH,
+      name: "",
+      operator: PublicPolicyMatchConditionOperator.PREFIX,
+      valuesText: "/assets",
+      negated: false,
+    });
+
+    syncGeneratedExpressionForExpertMode(form);
+    expect(form.expression).toContain('path_prefix(path, "/assets")');
+
+    form.root.conditions[0].valuesText = "/api";
+    syncGeneratedExpressionForExpertMode(form);
+    expect(form.expression).toContain('path_prefix(path, "/api")');
+
+    form.expression = 'method == "POST"';
+    form.root.conditions[0].valuesText = "/admin";
+    syncGeneratedExpressionForExpertMode(form);
+    expect(form.expression).toBe('method == "POST"');
+  });
+
   test("converts legacy matches into builder rules", () => {
     const form = policyMatchFormFromProto(undefined, create(PublicRateLimitMatchSchema, {
       methods: ["GET"],
@@ -108,6 +197,26 @@ describe("publicPolicyMatch", () => {
 
     form.expression = " ";
     expect(policyMatchRulePayload(form)).toBeUndefined();
+  });
+
+  test("builder proto forms track generated expressions separately", () => {
+    const form = policyMatchFormFromProto(create(PublicPolicyMatchRuleSchema, {
+      celExpression: 'method == "POST"',
+      builder: create(PublicPolicyMatchBuilderSchema, {
+        root: create(PublicPolicyMatchGroupSchema, {
+          conditions: [create(PublicPolicyMatchConditionSchema, {
+            field: PublicPolicyMatchField.METHOD,
+            operator: PublicPolicyMatchConditionOperator.EQUALS,
+            values: ["GET"],
+          })],
+        }),
+      }),
+    }));
+
+    syncGeneratedExpressionForExpertMode(form);
+
+    expect(form.expression).toBe('method == "POST"');
+    expect(form.lastGeneratedExpression).toContain('method == "GET"');
   });
 
   test("normalizes invalid present operators before payload generation", () => {

@@ -148,6 +148,45 @@ func TestPublicPolicyMatchValidationRejectsInvalidBuilder(t *testing.T) {
 	}
 }
 
+func TestPublicPolicyMatchValidationAcceptsEquivalentBuilderAndCEL(t *testing.T) {
+	config, err := validatePublicPolicyMatch(nil, &p2pstreamv1.PublicPolicyMatchRule{
+		CelExpression: `(((method == "GET")))`,
+		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
+			Root: &p2pstreamv1.PublicPolicyMatchGroup{
+				Conditions: []*p2pstreamv1.PublicPolicyMatchCondition{{
+					Field:    p2pstreamv1.PublicPolicyMatchField_PUBLIC_POLICY_MATCH_FIELD_METHOD,
+					Operator: p2pstreamv1.PublicPolicyMatchConditionOperator_PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_EQUALS,
+					Values:   []string{http.MethodGet},
+				}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("equivalent builder and CEL should be accepted: %v", err)
+	}
+	if config.Builder == nil || config.CELExpression != `(((method == "GET")))` {
+		t.Fatalf("equivalent builder and CEL were not preserved: %#v", config)
+	}
+}
+
+func TestPublicPolicyMatchValidationRejectsMismatchedBuilderAndCEL(t *testing.T) {
+	_, err := validatePublicPolicyMatch(nil, &p2pstreamv1.PublicPolicyMatchRule{
+		CelExpression: `method == "POST"`,
+		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
+			Root: &p2pstreamv1.PublicPolicyMatchGroup{
+				Conditions: []*p2pstreamv1.PublicPolicyMatchCondition{{
+					Field:    p2pstreamv1.PublicPolicyMatchField_PUBLIC_POLICY_MATCH_FIELD_METHOD,
+					Operator: p2pstreamv1.PublicPolicyMatchConditionOperator_PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_EQUALS,
+					Values:   []string{http.MethodGet},
+				}},
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected mismatched builder and CEL to be rejected")
+	}
+}
+
 func TestPublicPolicyMatchRuntimeErrorsFailClosed(t *testing.T) {
 	match := mustPublicPolicyMatchCEL(t, `headers["missing"][0] == "x"`)
 	if match.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/", nil)) {

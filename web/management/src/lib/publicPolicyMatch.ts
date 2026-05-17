@@ -4,7 +4,6 @@ import {
   PublicPolicyMatchConditionOperator,
   PublicPolicyMatchField,
   PublicRateLimitMatchOperator,
-  type PublicPolicyMatchBuilder,
   type PublicPolicyMatchCondition,
   type PublicPolicyMatchGroup,
   type PublicPolicyMatchRule,
@@ -32,6 +31,7 @@ export type PolicyMatchGroupForm = {
 export type PolicyMatchForm = {
   mode: PolicyMatchMode;
   expression: string;
+  lastGeneratedExpression?: string;
   root: PolicyMatchGroupForm;
 };
 
@@ -61,6 +61,7 @@ export function defaultPolicyMatchForm(): PolicyMatchForm {
   return {
     mode: "builder",
     expression: "",
+    lastGeneratedExpression: "",
     root: emptyGroup(),
   };
 }
@@ -89,22 +90,27 @@ export function policyMatchFormFromProto(
   legacy?: PublicRateLimitMatch,
 ): PolicyMatchForm {
   if (rule?.builder?.root) {
+    const root = groupFormFromProto(rule.builder.root);
+    const generatedExpression = builderToCEL(root);
     return {
       mode: "builder",
-      expression: rule.celExpression || builderToCEL(builderFormFromProto(rule.builder)),
-      root: groupFormFromProto(rule.builder.root),
+      expression: rule.celExpression || generatedExpression,
+      lastGeneratedExpression: generatedExpression,
+      root,
     };
   }
   if (rule?.celExpression?.trim()) {
     return {
       mode: "expression",
       expression: rule.celExpression,
+      lastGeneratedExpression: "",
       root: legacyMatchToBuilder(legacy),
     };
   }
   return {
     mode: "builder",
     expression: "",
+    lastGeneratedExpression: "",
     root: legacyMatchToBuilder(legacy),
   };
 }
@@ -130,10 +136,25 @@ export function builderToCEL(builder: PolicyMatchGroupForm | { root?: PolicyMatc
 }
 
 export function splitValues(text: string): string[] {
+  return splitValuesForOperator(text, PublicPolicyMatchConditionOperator.IN);
+}
+
+export function splitValuesForOperator(text: string, operator: PublicPolicyMatchConditionOperator): string[] {
+  const separator = operator === PublicPolicyMatchConditionOperator.IN ? /\r?\n|,/ : /\r?\n/;
   return text
-    .split(/\r?\n|,/)
+    .split(separator)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+export function syncGeneratedExpressionForExpertMode(form: PolicyMatchForm): void {
+  const generatedExpression = builderToCEL(form.root);
+  const currentExpression = form.expression.trim();
+  const lastGeneratedExpression = (form.lastGeneratedExpression ?? "").trim();
+  if (!currentExpression || currentExpression === lastGeneratedExpression) {
+    form.expression = generatedExpression;
+  }
+  form.lastGeneratedExpression = generatedExpression;
 }
 
 export function celString(value: string): string {
@@ -191,17 +212,13 @@ function groupValidationReason(group: PolicyMatchGroupForm): string {
     const normalized = { ...condition };
     normalizeConditionForField(normalized);
     if (conditionNeedsName(normalized.field) && !normalized.name.trim()) return "Name is required for header, cookie, and query match conditions.";
-    if (conditionUsesValues(normalized.operator) && splitValues(normalized.valuesText).length === 0) return "Comparison conditions require at least one value.";
+    if (conditionUsesValues(normalized.operator) && splitValuesForOperator(normalized.valuesText, normalized.operator).length === 0) return "Comparison conditions require at least one value.";
   }
   for (const child of group.groups) {
     const reason = groupValidationReason(child);
     if (reason) return reason;
   }
   return "";
-}
-
-function builderFormFromProto(builder: PublicPolicyMatchBuilder): PolicyMatchGroupForm {
-  return builder.root ? groupFormFromProto(builder.root) : emptyGroup();
 }
 
 function groupFormFromProto(group: PublicPolicyMatchGroup): PolicyMatchGroupForm {
@@ -298,11 +315,14 @@ function groupPayloadFromForm(group: PolicyMatchGroupForm): PublicPolicyMatchGro
 function conditionPayloadFromForm(condition: PolicyMatchConditionForm): PublicPolicyMatchConditionPayload {
   const normalized = { ...condition };
   normalizeConditionForField(normalized);
+  const values = conditionUsesValues(normalized.operator)
+    ? normalizeConditionValues(normalized, splitValuesForOperator(normalized.valuesText, normalized.operator))
+    : [];
   return {
     field: normalized.field,
     name: conditionNeedsName(normalized.field) ? normalized.name.trim() : "",
     operator: normalized.operator,
-    values: conditionUsesValues(normalized.operator) ? splitValues(normalized.valuesText) : [],
+    values,
     negated: normalized.negated,
   };
 }
@@ -332,10 +352,20 @@ function groupHasContent(group: PublicPolicyMatchGroupPayload): boolean {
   return group.conditions.length > 0 || group.groups.length > 0;
 }
 
+export function groupHasFormContent(group: PolicyMatchGroupForm): boolean {
+  return group.conditions.some(conditionHasFormContent) || group.groups.some(groupHasFormContent);
+}
+
+function conditionHasFormContent(condition: PolicyMatchConditionForm): boolean {
+  const normalized = { ...condition };
+  normalizeConditionForField(normalized);
+  return !conditionUsesValues(normalized.operator) || splitValuesForOperator(normalized.valuesText, normalized.operator).length > 0;
+}
+
 function groupToCEL(group: PolicyMatchGroupForm): string {
   const parts = [
-    ...group.conditions.map(conditionToCEL),
-    ...group.groups.map(groupToCEL),
+    ...group.conditions.filter(conditionHasFormContent).map(conditionToCEL),
+    ...group.groups.filter(groupHasFormContent).map(groupToCEL),
   ].filter(Boolean);
   const joiner = group.operator === PublicPolicyMatchBooleanOperator.ANY ? " || " : " && ";
   let expression = parts.length ? `(${parts.join(joiner)})` : "true";
@@ -344,45 +374,65 @@ function groupToCEL(group: PolicyMatchGroupForm): string {
 }
 
 function conditionToCEL(condition: PolicyMatchConditionForm): string {
-  normalizeConditionForField(condition);
-  const values = splitValues(condition.valuesText);
+  const normalized = { ...condition };
+  normalizeConditionForField(normalized);
+  const values = normalizeConditionValues(normalized, splitValuesForOperator(normalized.valuesText, normalized.operator));
   let expression = "";
-  switch (condition.field) {
+  switch (normalized.field) {
     case PublicPolicyMatchField.HEADER:
-      expression = repeatedMapCondition("headers", condition.name.trim().toLowerCase(), condition.operator, values);
+      expression = repeatedMapCondition("headers", normalized.name.trim().toLowerCase(), normalized.operator, values);
       break;
     case PublicPolicyMatchField.QUERY_PARAM:
-      expression = repeatedMapCondition("query", condition.name.trim(), condition.operator, values);
+      expression = repeatedMapCondition("query", normalized.name.trim(), normalized.operator, values);
       break;
     case PublicPolicyMatchField.COOKIE:
-      expression = stringMapCondition("cookies", condition.name.trim(), condition.operator, values);
+      expression = stringMapCondition("cookies", normalized.name.trim(), normalized.operator, values);
       break;
     case PublicPolicyMatchField.HOST:
-      expression = condition.operator === PublicPolicyMatchConditionOperator.HOST_PATTERN
+      expression = normalized.operator === PublicPolicyMatchConditionOperator.HOST_PATTERN
         ? anyValue(values, (value) => `host_match(host, ${celString(value)})`)
-        : scalarCondition("host", condition.operator, values);
+        : scalarCondition("host", normalized.operator, values);
       break;
     case PublicPolicyMatchField.PATH:
-      expression = condition.operator === PublicPolicyMatchConditionOperator.PREFIX
+      expression = normalized.operator === PublicPolicyMatchConditionOperator.PREFIX
         ? anyValue(values, (value) => `path_prefix(path, ${celString(value)})`)
-        : scalarCondition("path", condition.operator, values);
+        : scalarCondition("path", normalized.operator, values);
       break;
     case PublicPolicyMatchField.REMOTE_IP:
-      expression = condition.operator === PublicPolicyMatchConditionOperator.CIDR
+      expression = normalized.operator === PublicPolicyMatchConditionOperator.CIDR
         ? anyValue(values, (value) => `cidr(remote_ip, ${celString(value)})`)
-        : scalarCondition("remote_ip", condition.operator, values);
+        : scalarCondition("remote_ip", normalized.operator, values);
       break;
     case PublicPolicyMatchField.METHOD:
-      expression = scalarCondition("method", condition.operator, values);
+      expression = scalarCondition("method", normalized.operator, values);
       break;
     case PublicPolicyMatchField.PROTOCOL:
-      expression = scalarCondition("protocol", condition.operator, values);
+      expression = scalarCondition("protocol", normalized.operator, values);
       break;
     default:
       expression = "false";
   }
-  if (condition.negated) expression = `!(${expression})`;
+  if (normalized.negated) expression = `!(${expression})`;
   return `(${expression})`;
+}
+
+function normalizeConditionValues(condition: PolicyMatchConditionForm, values: string[]): string[] {
+  switch (condition.field) {
+    case PublicPolicyMatchField.METHOD:
+      return values.map((value) => value.trim().toUpperCase());
+    case PublicPolicyMatchField.PROTOCOL:
+      return values.map((value) => value.trim().toLowerCase());
+    case PublicPolicyMatchField.HOST:
+      return values.map((value) => {
+        const host = value.trim().toLowerCase();
+        return condition.operator === PublicPolicyMatchConditionOperator.HOST_PATTERN ? host.replace(/\.$/, "") : host;
+      });
+    case PublicPolicyMatchField.PATH:
+    case PublicPolicyMatchField.REMOTE_IP:
+      return values.map((value) => value.trim());
+    default:
+      return values;
+  }
 }
 
 function scalarCondition(source: string, operator: PublicPolicyMatchConditionOperator, values: string[]): string {
