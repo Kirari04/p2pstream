@@ -1,11 +1,13 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 )
@@ -38,82 +40,44 @@ func TestPublicPolicyMatchCELRequestFields(t *testing.T) {
 	}
 }
 
-func TestPublicPolicyMatchEmptyAndLegacyJSON(t *testing.T) {
-	var empty publicRateLimitMatchConfig
+func TestPublicPolicyMatchEmptyJSON(t *testing.T) {
+	var empty publicPolicyMatchConfig
 	if !empty.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/", nil)) {
 		t.Fatal("empty policy match should match every request")
 	}
 
-	legacy := publicRateLimitMatchConfig{
-		Methods:      []string{http.MethodGet},
-		HostPatterns: []string{"assets.example.test"},
-		PathPrefixes: []string{"/assets"},
-		Headers: []publicRateLimitValueMatcherConfig{{
-			Name:     "X-Asset-Class",
-			Operator: publicRateLimitMatchOperatorEquals,
-			Value:    "public",
-		}},
-	}
-	raw, err := json.Marshal(legacy)
+	decoded, err := decodePublicPolicyMatchJSON("{}")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("decode empty match JSON: %v", err)
 	}
-	decoded, err := decodePublicPolicyMatchJSON(string(raw))
-	if err != nil {
-		t.Fatalf("decode legacy match JSON: %v", err)
-	}
-	if decoded.CELExpression == "" || decoded.Builder == nil {
-		t.Fatal("legacy match JSON was not upgraded to a CEL rule shape")
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "https://assets.example.test/assets/app.css", nil)
-	req.Header.Set("X-Asset-Class", "public")
-	if !decoded.matches(publicListenerConfig{Protocol: publicListenerProtocolHTTPS}, req) {
-		t.Fatal("decoded legacy match did not preserve existing behavior")
-	}
-	confusing := httptest.NewRequest(http.MethodGet, "https://assets.example.test/assets-v2/app.css", nil)
-	confusing.Header.Set("X-Asset-Class", "public")
-	if decoded.matches(publicListenerConfig{Protocol: publicListenerProtocolHTTPS}, confusing) {
-		t.Fatal("decoded legacy path prefix matched a sibling path segment")
+	if !decoded.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/", nil)) {
+		t.Fatal("decoded empty policy match should match every request")
 	}
 }
 
-func TestPublicPolicyMatchRuleWinsOverLegacyMatch(t *testing.T) {
-	legacy := &p2pstreamv1.PublicRateLimitMatch{Methods: []string{http.MethodPost}}
-	rule := &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET"`}
-	params, err := validatePublicRateLimitRuleInput(
-		"new-match",
-		10,
-		true,
-		p2pstreamv1.PublicRateLimitAlgorithm_PUBLIC_RATE_LIMIT_ALGORITHM_FIXED_WINDOW,
-		1,
-		1000,
-		0,
-		legacy,
-		nil,
-		http.StatusTooManyRequests,
-		"",
-		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
-		0,
-		"",
-		nil,
-		rule,
-	)
+func TestPublicPolicyMatchBuilderOnlyRule(t *testing.T) {
+	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
+		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
+			Root: &p2pstreamv1.PublicPolicyMatchGroup{
+				Conditions: []*p2pstreamv1.PublicPolicyMatchCondition{{
+					Field:    p2pstreamv1.PublicPolicyMatchField_PUBLIC_POLICY_MATCH_FIELD_METHOD,
+					Operator: p2pstreamv1.PublicPolicyMatchConditionOperator_PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_EQUALS,
+					Values:   []string{http.MethodGet},
+				}},
+			},
+		},
+	})
 	if err != nil {
-		t.Fatalf("validate rate limit rule: %v", err)
+		t.Fatalf("validate builder-only rule: %v", err)
 	}
-	decoded, err := decodePublicPolicyMatchJSON(params.MatchJSON)
-	if err != nil {
-		t.Fatalf("decode match JSON: %v", err)
+	if config.CELExpression == "" || config.Builder == nil {
+		t.Fatalf("builder-only rule was not normalized: %#v", config)
 	}
-	if len(decoded.Methods) != 0 {
-		t.Fatalf("legacy match methods survived match_rule precedence: %v", decoded.Methods)
+	if !config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/", nil)) {
+		t.Fatal("builder-only rule did not match GET")
 	}
-	if !decoded.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/", nil)) {
-		t.Fatal("new match_rule did not match GET")
-	}
-	if decoded.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodPost, "http://example.test/", nil)) {
-		t.Fatal("legacy match won over match_rule")
+	if config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodPost, "http://example.test/", nil)) {
+		t.Fatal("builder-only rule matched POST")
 	}
 }
 
@@ -125,14 +89,14 @@ func TestPublicPolicyMatchValidationRejectsInvalidCEL(t *testing.T) {
 		`cidr(remote_ip, "not-a-cidr")`,
 		`path_prefix(path, "api")`,
 	} {
-		if _, err := validatePublicPolicyMatch(nil, &p2pstreamv1.PublicPolicyMatchRule{CelExpression: expr}); err == nil {
+		if _, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{CelExpression: expr}); err == nil {
 			t.Fatalf("expected invalid expression %q to be rejected", expr)
 		}
 	}
 }
 
 func TestPublicPolicyMatchValidationRejectsInvalidBuilder(t *testing.T) {
-	_, err := validatePublicPolicyMatch(nil, &p2pstreamv1.PublicPolicyMatchRule{
+	_, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
 		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
 			Root: &p2pstreamv1.PublicPolicyMatchGroup{
 				Conditions: []*p2pstreamv1.PublicPolicyMatchCondition{{
@@ -149,7 +113,7 @@ func TestPublicPolicyMatchValidationRejectsInvalidBuilder(t *testing.T) {
 }
 
 func TestPublicPolicyMatchValidationAcceptsEquivalentBuilderAndCEL(t *testing.T) {
-	config, err := validatePublicPolicyMatch(nil, &p2pstreamv1.PublicPolicyMatchRule{
+	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
 		CelExpression: `(((method == "GET")))`,
 		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
 			Root: &p2pstreamv1.PublicPolicyMatchGroup{
@@ -170,7 +134,7 @@ func TestPublicPolicyMatchValidationAcceptsEquivalentBuilderAndCEL(t *testing.T)
 }
 
 func TestPublicPolicyMatchValidationRejectsMismatchedBuilderAndCEL(t *testing.T) {
-	_, err := validatePublicPolicyMatch(nil, &p2pstreamv1.PublicPolicyMatchRule{
+	_, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
 		CelExpression: `method == "POST"`,
 		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
 			Root: &p2pstreamv1.PublicPolicyMatchGroup{
@@ -184,6 +148,33 @@ func TestPublicPolicyMatchValidationRejectsMismatchedBuilderAndCEL(t *testing.T)
 	})
 	if err == nil {
 		t.Fatal("expected mismatched builder and CEL to be rejected")
+	}
+}
+
+func TestRemovedLegacyMatchUnknownFieldsRejected(t *testing.T) {
+	tests := []struct {
+		name   string
+		msg    proto.Message
+		number protowire.Number
+	}{
+		{name: "create rate limit", msg: &p2pstreamv1.CreatePublicRateLimitRuleRequest{}, number: 8},
+		{name: "update rate limit", msg: &p2pstreamv1.UpdatePublicRateLimitRuleRequest{}, number: 9},
+		{name: "create shaper", msg: &p2pstreamv1.CreatePublicTrafficShaperRuleRequest{}, number: 10},
+		{name: "update shaper", msg: &p2pstreamv1.UpdatePublicTrafficShaperRuleRequest{}, number: 11},
+		{name: "create waf", msg: &p2pstreamv1.CreatePublicWafRuleRequest{}, number: 6},
+		{name: "update waf", msg: &p2pstreamv1.UpdatePublicWafRuleRequest{}, number: 7},
+		{name: "create cache", msg: &p2pstreamv1.CreatePublicCacheRuleRequest{}, number: 4},
+		{name: "update cache", msg: &p2pstreamv1.UpdatePublicCacheRuleRequest{}, number: 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := protowire.AppendTag(nil, tt.number, protowire.BytesType)
+			raw = protowire.AppendBytes(raw, nil)
+			tt.msg.ProtoReflect().SetUnknown(raw)
+			if err := rejectRemovedPolicyMatchField(tt.msg, tt.number); err == nil {
+				t.Fatal("expected removed match field to be rejected")
+			}
+		})
 	}
 }
 
@@ -244,9 +235,9 @@ func TestPublicCacheRouteAndBackendFiltersRemainOutsideCEL(t *testing.T) {
 	}
 }
 
-func mustPublicPolicyMatchCEL(t *testing.T, expr string) publicRateLimitMatchConfig {
+func mustPublicPolicyMatchCEL(t *testing.T, expr string) publicPolicyMatchConfig {
 	t.Helper()
-	match := publicRateLimitMatchConfig{CELExpression: strings.TrimSpace(expr)}
+	match := publicPolicyMatchConfig{CELExpression: strings.TrimSpace(expr)}
 	if err := compilePublicPolicyMatch(&match); err != nil {
 		t.Fatalf("compile policy match %q: %v", expr, err)
 	}

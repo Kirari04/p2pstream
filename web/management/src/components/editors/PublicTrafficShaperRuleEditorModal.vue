@@ -130,7 +130,7 @@ function openEdit(ruleId: bigint | string) {
   form.burstKib = bytesToKib(rule.burstBytes);
   form.requestFreeKib = bytesToKib(rule.requestExemptBytes);
   form.responseFreeKib = bytesToKib(rule.responseExemptBytes);
-  form.match = policyMatchFormFromProto(rule.matchRule, rule.match);
+  form.match = policyMatchFormFromProto(rule.matchRule);
   form.keyParts = rule.keyParts.length
     ? rule.keyParts.map((part) => ({ source: part.source, name: part.name }))
     : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];

@@ -36,7 +36,9 @@ Algorithms:
 - Header matcher names and response header names must be valid HTTP tokens.
 - Protected generated headers such as `RateLimit-*`, `X-RateLimit-*`, `Retry-After`, `Content-Length`, and `Connection` cannot be configured as custom response headers.
 
-Rules use request-only CEL match rules. Empty match rules match every request.
+Rules use request-only CEL `match_rule` rules. Empty match rules match every request.
+
+`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
 
 Available CEL variables:
 

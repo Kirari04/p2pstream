@@ -11,6 +11,8 @@ import {
   PublicCacheScope,
   PublicCacheTtlMode,
   PublicListenerProtocol,
+  PublicPolicyMatchConditionOperator,
+  PublicPolicyMatchField,
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
   PublicRouteAction,
@@ -28,6 +30,9 @@ import {
   type PublicCacheRule,
   type PublicListener,
   type PublicListenerStatus,
+  type PublicPolicyMatchCondition,
+  type PublicPolicyMatchGroup,
+  type PublicPolicyMatchRule,
   type PublicRateLimitRule,
   type PublicRoute,
   type PublicRouteBackend,
@@ -307,17 +312,86 @@ export function rateLimitRuleSummary(rule: PublicRateLimitRule): string {
 }
 
 export function publicPolicyMatchSummary(rule: PublicRateLimitRule | PublicWafRule | PublicTrafficShaperRule): string {
-  const match = rule.match;
-  if (!match) return "Any request";
-  const parts: string[] = [];
-  if (match.methods.length) parts.push(match.methods.join(","));
-  if (match.protocols.length) parts.push(match.protocols.map(protocolLabel).join(","));
-  if (match.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
-  if (match.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
-  if (match.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
-  const matcherCount = match.headers.length + match.cookies.length + match.queryParams.length;
-  if (matcherCount) parts.push(`${matcherCount.toString()} value matcher${matcherCount === 1 ? "" : "s"}`);
-  return parts.length ? parts.join(" / ") : "Any request";
+  return policyMatchRuleSummary(rule.matchRule);
+}
+
+function policyMatchRuleSummary(rule?: PublicPolicyMatchRule): string {
+  const builderSummary = rule?.builder?.root ? policyMatchBuilderSummary(rule.builder.root) : "";
+  if (builderSummary) return builderSummary;
+  const expression = rule?.celExpression?.trim() ?? "";
+  if (!expression || expression === "true") return "Any request";
+  return `CEL: ${truncateText(expression, 72)}`;
+}
+
+function policyMatchBuilderSummary(root: PublicPolicyMatchGroup): string {
+  const conditions = collectPolicyMatchConditions(root);
+  if (!conditions.length) return "";
+  const visible = conditions.slice(0, 3).map(policyMatchConditionSummary);
+  const extra = conditions.length - visible.length;
+  return extra > 0 ? `${visible.join(" / ")} / +${extra.toString()}` : visible.join(" / ");
+}
+
+function collectPolicyMatchConditions(group: PublicPolicyMatchGroup): PublicPolicyMatchCondition[] {
+  return [
+    ...group.conditions.filter(policyMatchConditionHasContent),
+    ...group.groups.flatMap(collectPolicyMatchConditions),
+  ];
+}
+
+function policyMatchConditionHasContent(condition: PublicPolicyMatchCondition): boolean {
+  if ((condition.field === PublicPolicyMatchField.HEADER ||
+    condition.field === PublicPolicyMatchField.COOKIE ||
+    condition.field === PublicPolicyMatchField.QUERY_PARAM) && !condition.name.trim()) {
+    return false;
+  }
+  return condition.operator === PublicPolicyMatchConditionOperator.PRESENT || condition.values.length > 0;
+}
+
+function policyMatchConditionSummary(condition: PublicPolicyMatchCondition): string {
+  const target = policyMatchConditionTarget(condition);
+  if (condition.operator === PublicPolicyMatchConditionOperator.PRESENT) {
+    return condition.negated ? `not ${target} present` : `${target} present`;
+  }
+  const body = `${target} ${policyMatchOperatorLabel(condition.operator)} ${policyMatchValuesSummary(condition.values)}`;
+  return condition.negated ? `not ${body}` : body;
+}
+
+function policyMatchConditionTarget(condition: PublicPolicyMatchCondition): string {
+  const name = condition.name.trim();
+  switch (condition.field) {
+    case PublicPolicyMatchField.METHOD: return "method";
+    case PublicPolicyMatchField.PROTOCOL: return "protocol";
+    case PublicPolicyMatchField.HOST: return "host";
+    case PublicPolicyMatchField.REMOTE_IP: return "ip";
+    case PublicPolicyMatchField.HEADER: return name ? `header:${name}` : "header";
+    case PublicPolicyMatchField.COOKIE: return name ? `cookie:${name}` : "cookie";
+    case PublicPolicyMatchField.QUERY_PARAM: return name ? `query:${name}` : "query";
+    default: return "path";
+  }
+}
+
+function policyMatchOperatorLabel(operator: PublicPolicyMatchConditionOperator): string {
+  switch (operator) {
+    case PublicPolicyMatchConditionOperator.PREFIX: return "prefix";
+    case PublicPolicyMatchConditionOperator.SUFFIX: return "suffix";
+    case PublicPolicyMatchConditionOperator.CONTAINS: return "contains";
+    case PublicPolicyMatchConditionOperator.MATCHES: return "matches";
+    case PublicPolicyMatchConditionOperator.IN: return "in";
+    case PublicPolicyMatchConditionOperator.CIDR: return "cidr";
+    case PublicPolicyMatchConditionOperator.HOST_PATTERN: return "matches";
+    default: return "=";
+  }
+}
+
+function policyMatchValuesSummary(values: readonly string[]): string {
+  const visible = values.slice(0, 2);
+  const extra = values.length - visible.length;
+  const suffix = extra > 0 ? `,+${extra.toString()}` : "";
+  return `${visible.join(",")}${suffix}`;
+}
+
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, Math.max(0, maxLength - 3))}...` : value;
 }
 
 export function rateLimitKeySummary(rule: PublicRateLimitRule | PublicWafRule): string {
@@ -399,14 +473,12 @@ export function cacheRuleSummary(rule: PublicCacheRule): string {
 }
 
 export function cacheRuleMatchSummary(rule: PublicCacheRule): string {
-  const match = rule.match;
   const parts: string[] = [];
-  if (match?.hostPatterns.length) parts.push(match.hostPatterns.join(", "));
-  if (match?.pathPrefixes.length) parts.push(match.pathPrefixes.join(", "));
-  if (match?.pathSuffixes.length) parts.push(match.pathSuffixes.join(", "));
+  const matchSummary = policyMatchRuleSummary(rule.matchRule);
+  if (matchSummary !== "Any request") parts.push(matchSummary);
   if (rule.routeIds.length) parts.push(`${rule.routeIds.length.toString()} route${rule.routeIds.length === 1 ? "" : "s"}`);
   if (rule.backendIds.length) parts.push(`${rule.backendIds.length.toString()} backend${rule.backendIds.length === 1 ? "" : "s"}`);
-  return parts.length ? parts.join(" / ") : "Any public GET/HEAD without authorization";
+  return parts.length ? parts.join(" / ") : "Any request";
 }
 
 export function bytesToMiB(value: bigint): number {

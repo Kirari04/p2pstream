@@ -30,7 +30,9 @@ Evaluation order:
 7. Cache rule evaluation and lookup
 8. Upstream forwarding or cached response
 
-Rate limits and traffic shapers can match method, protocol, host pattern, path prefix, headers, cookies, and query parameters. If no key parts are configured, remote IP is used.
+Policy matching uses request-only CEL `match_rule` expressions for method, protocol, host, path, remote IP/CIDR, headers, cookies, and query parameters. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically. If no key parts are configured, remote IP is used.
+
+Cache `route_ids` and `backend_ids` remain separate filters evaluated after route/backend selection.
 
 Traffic shaping uses byte-per-second token buckets. `per_key` shares a bucket for requests with the same key; `per_request` gives each request its own bucket.
 

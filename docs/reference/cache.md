@@ -12,7 +12,6 @@ Cache rules run after route/backend selection and before forwarding a cache miss
 | `priority` | `100` in database defaults | Lower numbers evaluate first. |
 | `enabled` | `true` | Disabled rules are ignored. |
 | `match_rule` | empty | Request-only CEL match rule. Empty matches every request. |
-| `match` | empty | Legacy matcher shape, still accepted for existing clients. |
 | `route_ids` | empty | Optional route filter. |
 | `backend_ids` | empty | Optional backend filter. |
 | `scope` | selected backend | Isolate by selected backend or route. |
@@ -46,6 +45,8 @@ Requests with `Cookie` bypass by default unless the matching rule enables `allow
 p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
 
 Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
+
+`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
 
 Cache rule matches inspect only request data through CEL.
 

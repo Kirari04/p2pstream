@@ -17,7 +17,9 @@ Traffic shaper rules limit upload and/or download throughput for matching reques
 
 ## Validation Rules
 
-Traffic shapers use the same request-only CEL match rules as rate limits. Empty match rules match every request.
+Traffic shapers use the same request-only CEL `match_rule` rules as rate limits. Empty match rules match every request.
+
+`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
 
 Available CEL variables:
 

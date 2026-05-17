@@ -111,7 +111,7 @@ type publicWafRuleConfig struct {
 	Enabled                     bool
 	Action                      string
 	ActivationMode              string
-	Match                       publicRateLimitMatchConfig
+	Match                       publicPolicyMatchConfig
 	KeyParts                    []publicRateLimitKeyPartConfig
 	CaptchaProviderID           int64
 	CaptchaPassTTL              time.Duration
@@ -705,7 +705,7 @@ func publicWafRuleFingerprint(rule publicWafRuleConfig) string {
 	type fingerprint struct {
 		Action                      string
 		ActivationMode              string
-		Match                       publicRateLimitMatchConfig
+		Match                       publicPolicyMatchConfig
 		KeyParts                    []publicRateLimitKeyPartConfig
 		CaptchaProviderID           int64
 		CaptchaPassTTL              time.Duration
@@ -790,7 +790,6 @@ func publicWafRuleConfigToProto(rule publicWafRuleConfig) *p2pstreamv1.PublicWaf
 		Enabled:                   rule.Enabled,
 		Action:                    protoWafRuleActionFromString(rule.Action),
 		ActivationMode:            protoWafActivationModeFromString(rule.ActivationMode),
-		Match:                     rateLimitMatchToProto(rule.Match),
 		KeyParts:                  rateLimitKeyPartsToProto(rule.KeyParts),
 		CaptchaProviderId:         rule.CaptchaProviderID,
 		CaptchaPassTtlMillis:      int64(rule.CaptchaPassTTL / time.Millisecond),
@@ -875,7 +874,6 @@ func (a *App) validatePublicWafRuleInput(
 	enabled bool,
 	action p2pstreamv1.PublicWafRuleAction,
 	activationMode p2pstreamv1.PublicWafActivationMode,
-	match *p2pstreamv1.PublicRateLimitMatch,
 	keyParts []*p2pstreamv1.PublicRateLimitKeyPart,
 	captchaProviderID int64,
 	captchaPassTTLMillis int64,
@@ -889,7 +887,7 @@ func (a *App) validatePublicWafRuleInput(
 	waitingRoomPageTemplateID int64,
 	blockContentType string,
 	blockHeaders []*p2pstreamv1.PublicRateLimitResponseHeader,
-	matchRules ...*p2pstreamv1.PublicPolicyMatchRule,
+	matchRule *p2pstreamv1.PublicPolicyMatchRule,
 ) (publicWafRuleMutationInput, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -906,7 +904,7 @@ func (a *App) validatePublicWafRuleInput(
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
-	matchConfig, err := validatePublicPolicyMatch(match, firstPublicPolicyMatchRule(matchRules))
+	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
@@ -1306,6 +1304,9 @@ func (a *App) CreatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	if err := rejectRemovedPolicyMatchField(req.Msg, 6); err != nil {
+		return nil, err
+	}
 	params, err := a.validatePublicWafRuleInput(
 		ctx,
 		req.Msg.Name,
@@ -1313,7 +1314,6 @@ func (a *App) CreatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 		req.Msg.Enabled,
 		req.Msg.Action,
 		req.Msg.ActivationMode,
-		req.Msg.Match,
 		req.Msg.KeyParts,
 		req.Msg.CaptchaProviderId,
 		req.Msg.CaptchaPassTtlMillis,
@@ -1350,6 +1350,9 @@ func (a *App) UpdatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	if err := rejectRemovedPolicyMatchField(req.Msg, 7); err != nil {
+		return nil, err
+	}
 	params, err := a.validatePublicWafRuleInput(
 		ctx,
 		req.Msg.Name,
@@ -1357,7 +1360,6 @@ func (a *App) UpdatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 		req.Msg.Enabled,
 		req.Msg.Action,
 		req.Msg.ActivationMode,
-		req.Msg.Match,
 		req.Msg.KeyParts,
 		req.Msg.CaptchaProviderId,
 		req.Msg.CaptchaPassTtlMillis,

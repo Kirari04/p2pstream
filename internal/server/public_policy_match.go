@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"net/textproto"
 	"regexp"
 	"strconv"
 	"strings"
@@ -155,55 +154,32 @@ func publicPolicyMatchCIDR(rawIP string, rawCIDR string) bool {
 	return prefix.Contains(addr)
 }
 
-func decodePublicPolicyMatchJSON(raw string) (publicRateLimitMatchConfig, error) {
-	var match publicRateLimitMatchConfig
+func decodePublicPolicyMatchJSON(raw string) (publicPolicyMatchConfig, error) {
+	var match publicPolicyMatchConfig
 	if strings.TrimSpace(raw) == "" {
 		return match, nil
 	}
 	if err := json.Unmarshal([]byte(raw), &match); err != nil {
-		return publicRateLimitMatchConfig{}, err
+		return publicPolicyMatchConfig{}, err
 	}
 	if err := compilePublicPolicyMatch(&match); err != nil {
-		return publicRateLimitMatchConfig{}, err
+		return publicPolicyMatchConfig{}, err
 	}
 	return match, nil
 }
 
-func validatePublicPolicyMatch(match *p2pstreamv1.PublicRateLimitMatch, matchRule *p2pstreamv1.PublicPolicyMatchRule) (publicRateLimitMatchConfig, error) {
-	if matchRule != nil {
-		// match_rule intentionally takes precedence over legacy match so old clients can keep sending match
-		// while newer clients opt into CEL without ambiguity.
-		config, err := publicPolicyMatchConfigFromProto(matchRule)
-		if err != nil {
-			return publicRateLimitMatchConfig{}, err
-		}
-		if err := compilePublicPolicyMatch(&config); err != nil {
-			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		return config, nil
-	}
-	config, err := validateRateLimitMatch(match)
+func validatePublicPolicyMatch(matchRule *p2pstreamv1.PublicPolicyMatchRule) (publicPolicyMatchConfig, error) {
+	config, err := publicPolicyMatchConfigFromProto(matchRule)
 	if err != nil {
-		return publicRateLimitMatchConfig{}, err
-	}
-	if publicPolicyMatchHasLegacy(config) {
-		config.CELExpression = publicPolicyMatchLegacyExpression(config)
-		config.Builder = publicPolicyMatchLegacyBuilder(config)
+		return publicPolicyMatchConfig{}, err
 	}
 	if err := compilePublicPolicyMatch(&config); err != nil {
-		return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, err)
+		return publicPolicyMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return config, nil
 }
 
-func firstPublicPolicyMatchRule(rules []*p2pstreamv1.PublicPolicyMatchRule) *p2pstreamv1.PublicPolicyMatchRule {
-	if len(rules) == 0 {
-		return nil
-	}
-	return rules[0]
-}
-
-func compilePublicPolicyMatch(match *publicRateLimitMatchConfig) error {
+func compilePublicPolicyMatch(match *publicPolicyMatchConfig) error {
 	if match == nil {
 		return nil
 	}
@@ -213,10 +189,6 @@ func compilePublicPolicyMatch(match *publicRateLimitMatchConfig) error {
 			return err
 		}
 		match.CELExpression = expr
-	}
-	if strings.TrimSpace(match.CELExpression) == "" && publicPolicyMatchHasLegacy(*match) {
-		match.CELExpression = publicPolicyMatchLegacyExpression(*match)
-		match.Builder = publicPolicyMatchLegacyBuilder(*match)
 	}
 	match.CELExpression = strings.TrimSpace(match.CELExpression)
 	if match.CELExpression == "" {
@@ -316,7 +288,7 @@ func publicPolicyMatchStringLiteral(expr celast.Expr) (string, bool) {
 	return value, ok
 }
 
-func (match publicRateLimitMatchConfig) matches(listener publicListenerConfig, r *http.Request) bool {
+func (match publicPolicyMatchConfig) matches(listener publicListenerConfig, r *http.Request) bool {
 	if program, ok := match.program.(cel.Program); ok && program != nil {
 		return publicPolicyMatchProgramMatches(program, listener, r)
 	}
@@ -330,7 +302,7 @@ func (match publicRateLimitMatchConfig) matches(listener publicListenerConfig, r
 		}
 		return true
 	}
-	return publicPolicyMatchLegacyMatches(match, listener, r)
+	return true
 }
 
 func publicPolicyMatchProgramMatches(program cel.Program, listener publicListenerConfig, r *http.Request) bool {
@@ -378,102 +350,27 @@ func publicPolicyMatchRemoteIP(remoteAddr string) string {
 	return strings.Trim(strings.TrimSpace(remoteAddr), "[]")
 }
 
-func publicPolicyMatchLegacyMatches(match publicRateLimitMatchConfig, listener publicListenerConfig, r *http.Request) bool {
-	if len(match.Methods) > 0 && !stringInSlice(strings.ToUpper(r.Method), match.Methods) {
-		return false
-	}
-	if len(match.Protocols) > 0 && !stringInSlice(listener.Protocol, match.Protocols) {
-		return false
-	}
-	host := normalizeRequestHost(r.Host)
-	if len(match.HostPatterns) > 0 {
-		matched := false
-		for _, pattern := range match.HostPatterns {
-			if hostMatchesPattern(host, pattern) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	if len(match.PathPrefixes) > 0 {
-		matched := false
-		for _, prefix := range match.PathPrefixes {
-			if pathPrefixMatches(r.URL.Path, prefix) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	if len(match.PathSuffixes) > 0 {
-		matched := false
-		for _, suffix := range match.PathSuffixes {
-			if strings.HasSuffix(r.URL.Path, suffix) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	for _, matcher := range match.Headers {
-		_, present := r.Header[textproto.CanonicalMIMEHeaderKey(matcher.Name)]
-		if !rateLimitValueMatches(r.Header.Get(matcher.Name), present, matcher) {
-			return false
-		}
-	}
-	for _, matcher := range match.Cookies {
-		cookie, err := r.Cookie(matcher.Name)
-		value := ""
-		present := err == nil
-		if err == nil {
-			value = cookie.Value
-		}
-		if !rateLimitValueMatches(value, present, matcher) {
-			return false
-		}
-	}
-	query := r.URL.Query()
-	for _, matcher := range match.QueryParams {
-		values, present := query[matcher.Name]
-		value := ""
-		if len(values) > 0 {
-			value = values[0]
-		}
-		if !rateLimitValueMatches(value, present, matcher) {
-			return false
-		}
-	}
-	return true
-}
-
-func publicPolicyMatchConfigFromProto(rule *p2pstreamv1.PublicPolicyMatchRule) (publicRateLimitMatchConfig, error) {
+func publicPolicyMatchConfigFromProto(rule *p2pstreamv1.PublicPolicyMatchRule) (publicPolicyMatchConfig, error) {
 	if rule == nil {
-		return publicRateLimitMatchConfig{}, nil
+		return publicPolicyMatchConfig{}, nil
 	}
 	builder, err := publicPolicyMatchBuilderFromProto(rule.Builder)
 	if err != nil {
-		return publicRateLimitMatchConfig{}, err
+		return publicPolicyMatchConfig{}, err
 	}
-	config := publicRateLimitMatchConfig{
+	config := publicPolicyMatchConfig{
 		CELExpression: strings.TrimSpace(rule.CelExpression),
 		Builder:       builder,
 	}
 	if config.Builder != nil {
 		expr, err := publicPolicyMatchBuilderExpression(config.Builder)
 		if err != nil {
-			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, err)
+			return publicPolicyMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		if config.CELExpression == "" {
 			config.CELExpression = expr
 		} else if config.CELExpression != strings.TrimSpace(expr) {
-			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("policy match cel_expression does not match builder"))
+			return publicPolicyMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("policy match cel_expression does not match builder"))
 		}
 	}
 	return config, nil
@@ -831,126 +728,9 @@ func publicPolicyMatchCELStringList(values []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func publicPolicyMatchHasLegacy(match publicRateLimitMatchConfig) bool {
-	return len(match.Methods) > 0 ||
-		len(match.Protocols) > 0 ||
-		len(match.HostPatterns) > 0 ||
-		len(match.PathPrefixes) > 0 ||
-		len(match.PathSuffixes) > 0 ||
-		len(match.Headers) > 0 ||
-		len(match.Cookies) > 0 ||
-		len(match.QueryParams) > 0
-}
-
-func publicPolicyMatchLegacyExpression(match publicRateLimitMatchConfig) string {
-	parts := make([]string, 0)
-	if len(match.Methods) > 0 {
-		parts = append(parts, "method in "+publicPolicyMatchCELStringList(match.Methods))
-	}
-	if len(match.Protocols) > 0 {
-		parts = append(parts, "protocol in "+publicPolicyMatchCELStringList(match.Protocols))
-	}
-	if len(match.HostPatterns) > 0 {
-		parts = append(parts, publicPolicyMatchAnyValueExpression(match.HostPatterns, func(value string) string {
-			return "host_match(host, " + publicPolicyMatchCELQuote(value) + ")"
-		}))
-	}
-	if len(match.PathPrefixes) > 0 {
-		parts = append(parts, publicPolicyMatchAnyValueExpression(match.PathPrefixes, func(value string) string {
-			return "path_prefix(path, " + publicPolicyMatchCELQuote(value) + ")"
-		}))
-	}
-	if len(match.PathSuffixes) > 0 {
-		parts = append(parts, publicPolicyMatchAnyValueExpression(match.PathSuffixes, func(value string) string {
-			return "path.endsWith(" + publicPolicyMatchCELQuote(value) + ")"
-		}))
-	}
-	for _, matcher := range match.Headers {
-		parts = append(parts, publicPolicyMatchLegacyRepeatedMatcherExpression("headers", strings.ToLower(matcher.Name), matcher))
-	}
-	for _, matcher := range match.Cookies {
-		parts = append(parts, publicPolicyMatchLegacyMapMatcherExpression("cookies", matcher.Name, matcher))
-	}
-	for _, matcher := range match.QueryParams {
-		parts = append(parts, publicPolicyMatchLegacyRepeatedMatcherExpression("query", matcher.Name, matcher))
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	return "(" + strings.Join(parts, " && ") + ")"
-}
-
-func publicPolicyMatchLegacyRepeatedMatcherExpression(mapName string, name string, matcher publicRateLimitValueMatcherConfig) string {
-	key := publicPolicyMatchCELQuote(name)
-	present := key + " in " + mapName
-	if matcher.Operator == publicRateLimitMatchOperatorPresent {
-		return "(" + present + ")"
-	}
-	valueExpr := mapName + "[" + key + "][0]"
-	return "(" + present + " && " + publicPolicyMatchStringComparison(valueExpr, matcher.Operator, matcher.Value) + ")"
-}
-
-func publicPolicyMatchLegacyMapMatcherExpression(mapName string, name string, matcher publicRateLimitValueMatcherConfig) string {
-	key := publicPolicyMatchCELQuote(name)
-	present := key + " in " + mapName
-	if matcher.Operator == publicRateLimitMatchOperatorPresent {
-		return "(" + present + ")"
-	}
-	valueExpr := mapName + "[" + key + "]"
-	return "(" + present + " && " + publicPolicyMatchStringComparison(valueExpr, matcher.Operator, matcher.Value) + ")"
-}
-
-func publicPolicyMatchLegacyBuilder(match publicRateLimitMatchConfig) *publicPolicyMatchBuilderConfig {
-	root := publicPolicyMatchGroupConfig{Operator: publicPolicyMatchBooleanAll}
-	if len(match.Methods) > 0 {
-		root.Conditions = append(root.Conditions, publicPolicyMatchConditionConfig{Field: publicPolicyMatchFieldMethod, Operator: publicPolicyMatchOperatorIn, Values: append([]string(nil), match.Methods...)})
-	}
-	if len(match.Protocols) > 0 {
-		root.Conditions = append(root.Conditions, publicPolicyMatchConditionConfig{Field: publicPolicyMatchFieldProtocol, Operator: publicPolicyMatchOperatorIn, Values: append([]string(nil), match.Protocols...)})
-	}
-	if len(match.HostPatterns) > 0 {
-		root.Conditions = append(root.Conditions, publicPolicyMatchConditionConfig{Field: publicPolicyMatchFieldHost, Operator: publicPolicyMatchOperatorHostPattern, Values: append([]string(nil), match.HostPatterns...)})
-	}
-	if len(match.PathPrefixes) > 0 {
-		root.Conditions = append(root.Conditions, publicPolicyMatchConditionConfig{Field: publicPolicyMatchFieldPath, Operator: publicPolicyMatchOperatorPrefix, Values: append([]string(nil), match.PathPrefixes...)})
-	}
-	if len(match.PathSuffixes) > 0 {
-		root.Conditions = append(root.Conditions, publicPolicyMatchConditionConfig{Field: publicPolicyMatchFieldPath, Operator: publicPolicyMatchOperatorSuffix, Values: append([]string(nil), match.PathSuffixes...)})
-	}
-	for _, matcher := range match.Headers {
-		root.Conditions = append(root.Conditions, publicPolicyMatchLegacyMatcherCondition(publicPolicyMatchFieldHeader, strings.ToLower(matcher.Name), matcher))
-	}
-	for _, matcher := range match.Cookies {
-		root.Conditions = append(root.Conditions, publicPolicyMatchLegacyMatcherCondition(publicPolicyMatchFieldCookie, matcher.Name, matcher))
-	}
-	for _, matcher := range match.QueryParams {
-		root.Conditions = append(root.Conditions, publicPolicyMatchLegacyMatcherCondition(publicPolicyMatchFieldQueryParam, matcher.Name, matcher))
-	}
-	if len(root.Conditions) == 0 {
-		return nil
-	}
-	return &publicPolicyMatchBuilderConfig{Root: &root}
-}
-
-func publicPolicyMatchLegacyMatcherCondition(field string, name string, matcher publicRateLimitValueMatcherConfig) publicPolicyMatchConditionConfig {
-	condition := publicPolicyMatchConditionConfig{
-		Field:    field,
-		Name:     name,
-		Operator: matcher.Operator,
-	}
-	if matcher.Operator != publicRateLimitMatchOperatorPresent {
-		condition.Values = []string{matcher.Value}
-	}
-	return condition
-}
-
-func publicPolicyMatchRuleToProto(match publicRateLimitMatchConfig) *p2pstreamv1.PublicPolicyMatchRule {
+func publicPolicyMatchRuleToProto(match publicPolicyMatchConfig) *p2pstreamv1.PublicPolicyMatchRule {
 	expression := strings.TrimSpace(match.CELExpression)
 	builder := publicPolicyMatchBuilderToProto(match.Builder)
-	if expression == "" && builder == nil && publicPolicyMatchHasLegacy(match) {
-		expression = publicPolicyMatchLegacyExpression(match)
-		builder = publicPolicyMatchBuilderToProto(publicPolicyMatchLegacyBuilder(match))
-	}
 	if expression == "" && builder == nil {
 		return nil
 	}

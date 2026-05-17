@@ -190,7 +190,7 @@ function openEdit(ruleId: bigint | string) {
   form.name = rule.name;
   form.enabled = rule.enabled;
   form.priority = Number(rule.priority);
-  form.match = policyMatchFormFromProto(rule.matchRule, rule.match);
+  form.match = policyMatchFormFromProto(rule.matchRule);
   form.routeIds = rule.routeIds.map((value) => value.toString());
   form.backendIds = rule.backendIds.map((value) => value.toString());
   form.scope = rule.scope || PublicCacheScope.SELECTED_BACKEND;

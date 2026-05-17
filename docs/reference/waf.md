@@ -70,7 +70,9 @@ Captcha page templates can only be selected for captcha WAF rules. The selected 
 
 Waiting-room page templates can only be selected for waiting-room WAF rules. The selected template must have kind `waf_waiting_room_page` and include both <code v-pre>{{ .queue_position }}</code> and <code v-pre>{{ .retry_after_seconds }}</code>.
 
-WAF rules use request-only CEL match rules. Empty match rules match every request.
+WAF rules use request-only CEL `match_rule` rules. Empty match rules match every request.
+
+`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
 
 Available CEL variables:
 

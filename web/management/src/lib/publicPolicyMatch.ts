@@ -1,14 +1,10 @@
 import {
-  PublicListenerProtocol,
   PublicPolicyMatchBooleanOperator,
   PublicPolicyMatchConditionOperator,
   PublicPolicyMatchField,
-  PublicRateLimitMatchOperator,
   type PublicPolicyMatchCondition,
   type PublicPolicyMatchGroup,
   type PublicPolicyMatchRule,
-  type PublicRateLimitMatch,
-  type PublicRateLimitValueMatcher,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 export type PolicyMatchMode = "builder" | "expression";
@@ -85,10 +81,7 @@ export function emptyCondition(field = PublicPolicyMatchField.PATH): PolicyMatch
   };
 }
 
-export function policyMatchFormFromProto(
-  rule?: PublicPolicyMatchRule,
-  legacy?: PublicRateLimitMatch,
-): PolicyMatchForm {
+export function policyMatchFormFromProto(rule?: PublicPolicyMatchRule): PolicyMatchForm {
   if (rule?.builder?.root) {
     const root = groupFormFromProto(rule.builder.root);
     const generatedExpression = builderToCEL(root);
@@ -104,14 +97,14 @@ export function policyMatchFormFromProto(
       mode: "expression",
       expression: rule.celExpression,
       lastGeneratedExpression: "",
-      root: legacyMatchToBuilder(legacy),
+      root: emptyGroup(),
     };
   }
   return {
     mode: "builder",
     expression: "",
     lastGeneratedExpression: "",
-    root: legacyMatchToBuilder(legacy),
+    root: emptyGroup(),
   };
 }
 
@@ -238,67 +231,6 @@ function conditionFormFromProto(condition: PublicPolicyMatchCondition): PolicyMa
     valuesText: condition.values.join("\n"),
     negated: condition.negated,
   };
-}
-
-function legacyMatchToBuilder(match?: PublicRateLimitMatch): PolicyMatchGroupForm {
-  const root = emptyGroup();
-  if (!match) return root;
-  if (match.methods.length) {
-    root.conditions.push({ field: PublicPolicyMatchField.METHOD, name: "", operator: PublicPolicyMatchConditionOperator.IN, valuesText: match.methods.join("\n"), negated: false });
-  }
-  if (match.protocols.length) {
-    root.conditions.push({
-      field: PublicPolicyMatchField.PROTOCOL,
-      name: "",
-      operator: PublicPolicyMatchConditionOperator.IN,
-      valuesText: match.protocols.map(protocolValue).filter(Boolean).join("\n"),
-      negated: false,
-    });
-  }
-  if (match.hostPatterns.length) {
-    root.conditions.push({ field: PublicPolicyMatchField.HOST, name: "", operator: PublicPolicyMatchConditionOperator.HOST_PATTERN, valuesText: match.hostPatterns.join("\n"), negated: false });
-  }
-  if (match.pathPrefixes.length) {
-    root.conditions.push({ field: PublicPolicyMatchField.PATH, name: "", operator: PublicPolicyMatchConditionOperator.PREFIX, valuesText: match.pathPrefixes.join("\n"), negated: false });
-  }
-  if (match.pathSuffixes.length) {
-    root.conditions.push({ field: PublicPolicyMatchField.PATH, name: "", operator: PublicPolicyMatchConditionOperator.SUFFIX, valuesText: match.pathSuffixes.join("\n"), negated: false });
-  }
-  root.conditions.push(...legacyValueMatchers(PublicPolicyMatchField.HEADER, match.headers));
-  root.conditions.push(...legacyValueMatchers(PublicPolicyMatchField.COOKIE, match.cookies));
-  root.conditions.push(...legacyValueMatchers(PublicPolicyMatchField.QUERY_PARAM, match.queryParams));
-  return root;
-}
-
-function protocolValue(protocol: PublicListenerProtocol): string {
-  if (protocol === PublicListenerProtocol.HTTP) return "http";
-  if (protocol === PublicListenerProtocol.HTTPS) return "https";
-  return "";
-}
-
-function legacyValueMatchers(field: PublicPolicyMatchField, matchers: readonly PublicRateLimitValueMatcher[]): PolicyMatchConditionForm[] {
-  return matchers.map((matcher) => ({
-    field,
-    name: matcher.name,
-    operator: legacyOperator(matcher.operator),
-    valuesText: matcher.operator === PublicRateLimitMatchOperator.PRESENT ? "" : matcher.value,
-    negated: false,
-  }));
-}
-
-function legacyOperator(operator: PublicRateLimitMatchOperator): PublicPolicyMatchConditionOperator {
-  switch (operator) {
-    case PublicRateLimitMatchOperator.PRESENT:
-      return PublicPolicyMatchConditionOperator.PRESENT;
-    case PublicRateLimitMatchOperator.PREFIX:
-      return PublicPolicyMatchConditionOperator.PREFIX;
-    case PublicRateLimitMatchOperator.SUFFIX:
-      return PublicPolicyMatchConditionOperator.SUFFIX;
-    case PublicRateLimitMatchOperator.CONTAINS:
-      return PublicPolicyMatchConditionOperator.CONTAINS;
-    default:
-      return PublicPolicyMatchConditionOperator.EQUALS;
-  }
 }
 
 function groupPayloadFromForm(group: PolicyMatchGroupForm): PublicPolicyMatchGroupPayload {

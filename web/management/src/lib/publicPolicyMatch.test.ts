@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import {
-  PublicListenerProtocol,
+  PublicCacheRuleSchema,
   PublicPolicyMatchBooleanOperator,
   PublicPolicyMatchBuilderSchema,
   PublicPolicyMatchConditionSchema,
@@ -9,9 +9,7 @@ import {
   PublicPolicyMatchField,
   PublicPolicyMatchGroupSchema,
   PublicPolicyMatchRuleSchema,
-  PublicRateLimitMatchSchema,
-  PublicRateLimitMatchOperator,
-  PublicRateLimitValueMatcherSchema,
+  PublicRateLimitRuleSchema,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   builderToCEL,
@@ -21,6 +19,7 @@ import {
   policyMatchRulePayload,
   syncGeneratedExpressionForExpertMode,
 } from "@/lib/publicPolicyMatch";
+import { cacheRuleMatchSummary, publicPolicyMatchSummary } from "@/lib/publicProxyLabels";
 
 describe("publicPolicyMatch", () => {
   test("generates CEL from nested builder groups", () => {
@@ -164,30 +163,6 @@ describe("publicPolicyMatch", () => {
     expect(form.expression).toBe('method == "POST"');
   });
 
-  test("converts legacy matches into builder rules", () => {
-    const form = policyMatchFormFromProto(undefined, create(PublicRateLimitMatchSchema, {
-      methods: ["GET"],
-      protocols: [PublicListenerProtocol.HTTPS],
-      hostPatterns: ["*.example.com"],
-      pathPrefixes: ["/api"],
-      pathSuffixes: [".json"],
-      headers: [create(PublicRateLimitValueMatcherSchema, { name: "X-Plan", operator: PublicRateLimitMatchOperator.EQUALS, value: "free" })],
-      cookies: [create(PublicRateLimitValueMatcherSchema, { name: "session", operator: PublicRateLimitMatchOperator.PRESENT, value: "" })],
-      queryParams: [create(PublicRateLimitValueMatcherSchema, { name: "page", operator: PublicRateLimitMatchOperator.PREFIX, value: "1" })],
-    }));
-
-    const payload = policyMatchRulePayload(form);
-
-    expect(form.mode).toBe("builder");
-    expect(form.root.conditions).toHaveLength(8);
-    expect(payload?.builder?.root?.conditions).toHaveLength(8);
-    expect(payload?.celExpression).toContain('host_match(host, "*.example.com")');
-    expect(payload?.celExpression).toContain('path_prefix(path, "/api")');
-    expect(payload?.celExpression).toContain('"x-plan" in headers');
-    expect(payload?.celExpression).toContain('"session" in cookies');
-    expect(payload?.celExpression).toContain('query["page"].exists');
-  });
-
   test("expert mode stores only the CEL expression", () => {
     const form = defaultPolicyMatchForm();
     form.mode = "expression";
@@ -255,5 +230,61 @@ describe("publicPolicyMatch", () => {
 
     expect(matchRule?.builder?.root?.conditions[0]?.values).toEqual(["/assets"]);
     expect(saves.every((payload) => payload.matchRule === matchRule)).toBe(true);
+  });
+
+  test("summarizes matchRule builder, CEL-only, and empty rules", () => {
+    const builderRule = create(PublicRateLimitRuleSchema, {
+      matchRule: create(PublicPolicyMatchRuleSchema, {
+        builder: create(PublicPolicyMatchBuilderSchema, {
+          root: create(PublicPolicyMatchGroupSchema, {
+            conditions: [
+              create(PublicPolicyMatchConditionSchema, {
+                field: PublicPolicyMatchField.METHOD,
+                operator: PublicPolicyMatchConditionOperator.IN,
+                values: ["GET", "POST"],
+              }),
+              create(PublicPolicyMatchConditionSchema, {
+                field: PublicPolicyMatchField.HEADER,
+                name: "X-Plan",
+                operator: PublicPolicyMatchConditionOperator.EQUALS,
+                values: ["free"],
+              }),
+              create(PublicPolicyMatchConditionSchema, {
+                field: PublicPolicyMatchField.QUERY_PARAM,
+                name: "debug",
+                operator: PublicPolicyMatchConditionOperator.PRESENT,
+              }),
+              create(PublicPolicyMatchConditionSchema, {
+                field: PublicPolicyMatchField.REMOTE_IP,
+                operator: PublicPolicyMatchConditionOperator.CIDR,
+                values: ["198.51.100.0/24"],
+              }),
+            ],
+          }),
+        }),
+      }),
+    });
+    const expertRule = create(PublicRateLimitRuleSchema, {
+      matchRule: create(PublicPolicyMatchRuleSchema, {
+        celExpression: 'method == "GET" && path_prefix(path, "/assets")',
+      }),
+    });
+
+    expect(publicPolicyMatchSummary(create(PublicRateLimitRuleSchema))).toBe("Any request");
+    expect(publicPolicyMatchSummary(builderRule)).toBe("method in GET,POST / header:X-Plan = free / query:debug present / +1");
+    expect(publicPolicyMatchSummary(expertRule)).toBe('CEL: method == "GET" && path_prefix(path, "/assets")');
+  });
+
+  test("summarizes cache matchRule with route and backend filters", () => {
+    const cacheRule = create(PublicCacheRuleSchema, {
+      matchRule: create(PublicPolicyMatchRuleSchema, {
+        celExpression: 'host_match(host, "*.example.com")',
+      }),
+      routeIds: [1n, 2n],
+      backendIds: [3n],
+    });
+
+    expect(cacheRuleMatchSummary(create(PublicCacheRuleSchema))).toBe("Any request");
+    expect(cacheRuleMatchSummary(cacheRule)).toBe('CEL: host_match(host, "*.example.com") / 2 routes / 1 backend');
   });
 });

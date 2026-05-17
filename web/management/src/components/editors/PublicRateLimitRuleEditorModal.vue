@@ -149,7 +149,7 @@ function openEdit(ruleId: bigint | string) {
   form.limit = Number(rule.limit || 60n);
   form.windowSeconds = Math.max(1, Number(rule.windowMillis || 60000n) / 1000);
   form.burst = Number(rule.burst || 0n);
-  form.match = policyMatchFormFromProto(rule.matchRule, rule.match);
+  form.match = policyMatchFormFromProto(rule.matchRule);
   form.keyParts = rule.keyParts.length
     ? rule.keyParts.map((part) => ({ source: part.source, name: part.name }))
     : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
