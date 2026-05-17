@@ -61,6 +61,42 @@ func TestHandlerFallsBackToIndexForSPARoute(t *testing.T) {
 	}
 }
 
+func TestHandlerDoesNotServeTraversalOutsideDist(t *testing.T) {
+	rootDir := t.TempDir()
+	distDir := filepath.Join(rootDir, "dist")
+	if err := os.Mkdir(distDir, 0755); err != nil {
+		t.Fatalf("mkdir dist: %v", err)
+	}
+	writeFile(t, filepath.Join(rootDir, "secret.txt"), "outside-secret")
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+	writeFile(t, filepath.Join(distDir, "asset.js"), "console.log('asset')")
+
+	for _, target := range []string{
+		"/../secret.txt",
+		"/%2e%2e/secret.txt",
+		"/assets/../../secret.txt",
+		"/assets/%2e%2e/%2e%2e/secret.txt",
+	} {
+		t.Run(target, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+
+			NewHandler("", distDir).ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("expected status 200, got %d", rec.Code)
+			}
+			body := rec.Body.String()
+			if strings.Contains(body, "outside-secret") {
+				t.Fatalf("served file outside dist for %q: %q", target, body)
+			}
+			if !strings.Contains(body, "app shell") {
+				t.Fatalf("expected index fallback for %q, got %q", target, body)
+			}
+		})
+	}
+}
+
 func TestHandlerReturnsUnavailableWhenDistMissing(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
