@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
@@ -109,6 +110,38 @@ func TestPublicPolicyMatchValidationRejectsInvalidBuilder(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected invalid builder CIDR to be rejected")
+	}
+}
+
+func TestPublicPolicyMatchValidationRejectsInvalidProtoBuilderOperator(t *testing.T) {
+	_, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
+		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
+			Root: &p2pstreamv1.PublicPolicyMatchGroup{
+				Conditions: []*p2pstreamv1.PublicPolicyMatchCondition{{
+					Field:    p2pstreamv1.PublicPolicyMatchField_PUBLIC_POLICY_MATCH_FIELD_METHOD,
+					Operator: p2pstreamv1.PublicPolicyMatchConditionOperator(999),
+					Values:   []string{http.MethodGet},
+				}},
+			},
+		},
+	})
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid proto builder operator to be rejected, got %v", err)
+	}
+}
+
+func TestPublicPolicyMatchValidationRejectsInvalidStoredBuilderOperator(t *testing.T) {
+	_, err := decodePublicPolicyMatchJSON(`{
+		"builder": {
+			"root": {
+				"conditions": [
+					{"field": "method", "operator": "bogus", "values": ["GET"]}
+				]
+			}
+		}
+	}`)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid stored builder operator to be rejected, got %v", err)
 	}
 }
 

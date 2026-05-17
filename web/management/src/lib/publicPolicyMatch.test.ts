@@ -174,7 +174,7 @@ describe("publicPolicyMatch", () => {
     expect(policyMatchRulePayload(form)).toBeUndefined();
   });
 
-  test("builder proto forms track generated expressions separately", () => {
+  test("builder proto forms use generated builder CEL as sync baseline", () => {
     const form = policyMatchFormFromProto(create(PublicPolicyMatchRuleSchema, {
       celExpression: 'method == "POST"',
       builder: create(PublicPolicyMatchBuilderSchema, {
@@ -190,8 +190,20 @@ describe("publicPolicyMatch", () => {
 
     syncGeneratedExpressionForExpertMode(form);
 
-    expect(form.expression).toBe('method == "POST"');
+    expect(form.expression).toContain('method == "GET"');
     expect(form.lastGeneratedExpression).toContain('method == "GET"');
+  });
+
+  test("empty builder payloads only save when the root is negated", () => {
+    const emptyForm = defaultPolicyMatchForm();
+    expect(policyMatchRulePayload(emptyForm)).toBeUndefined();
+
+    const negatedForm = defaultPolicyMatchForm();
+    negatedForm.root.negated = true;
+    const payload = policyMatchRulePayload(negatedForm);
+
+    expect(payload?.builder?.root?.negated).toBe(true);
+    expect(payload?.celExpression).toBe("!(true)");
   });
 
   test("normalizes invalid present operators before payload generation", () => {

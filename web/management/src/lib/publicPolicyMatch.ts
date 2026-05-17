@@ -87,7 +87,7 @@ export function policyMatchFormFromProto(rule?: PublicPolicyMatchRule): PolicyMa
     const generatedExpression = builderToCEL(root);
     return {
       mode: "builder",
-      expression: rule.celExpression || generatedExpression,
+      expression: generatedExpression,
       lastGeneratedExpression: generatedExpression,
       root,
     };
@@ -281,11 +281,11 @@ function groupFormFromPayload(group: PublicPolicyMatchGroupPayload): PolicyMatch
 }
 
 function groupHasContent(group: PublicPolicyMatchGroupPayload): boolean {
-  return group.conditions.length > 0 || group.groups.length > 0;
+  return group.negated || group.conditions.length > 0 || group.groups.length > 0;
 }
 
 export function groupHasFormContent(group: PolicyMatchGroupForm): boolean {
-  return group.conditions.some(conditionHasFormContent) || group.groups.some(groupHasFormContent);
+  return group.negated || group.conditions.some(conditionHasFormContent) || group.groups.some(groupHasFormContent);
 }
 
 function conditionHasFormContent(condition: PolicyMatchConditionForm): boolean {

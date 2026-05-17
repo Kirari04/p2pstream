@@ -453,6 +453,10 @@ func publicPolicyMatchConditionFromProto(condition *p2pstreamv1.PublicPolicyMatc
 }
 
 func normalizePublicPolicyMatchCondition(condition *publicPolicyMatchConditionConfig) error {
+	condition.Operator = strings.TrimSpace(condition.Operator)
+	if !validPublicPolicyMatchOperator(condition.Operator) {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("policy match operator is invalid"))
+	}
 	switch condition.Field {
 	case publicPolicyMatchFieldHeader:
 		condition.Name = strings.ToLower(strings.TrimSpace(condition.Name))
@@ -538,6 +542,23 @@ func normalizePublicPolicyMatchCondition(condition *publicPolicyMatchConditionCo
 		}
 	}
 	return nil
+}
+
+func validPublicPolicyMatchOperator(operator string) bool {
+	switch operator {
+	case publicPolicyMatchOperatorPresent,
+		publicPolicyMatchOperatorEquals,
+		publicPolicyMatchOperatorPrefix,
+		publicPolicyMatchOperatorSuffix,
+		publicPolicyMatchOperatorContains,
+		publicPolicyMatchOperatorMatches,
+		publicPolicyMatchOperatorIn,
+		publicPolicyMatchOperatorCIDR,
+		publicPolicyMatchOperatorHostPattern:
+		return true
+	default:
+		return false
+	}
 }
 
 func publicPolicyMatchBuilderExpression(builder *publicPolicyMatchBuilderConfig) (string, error) {
@@ -692,6 +713,8 @@ func publicPolicyMatchRepeatedFieldExpression(mapName string, condition publicPo
 func publicPolicyMatchStringComparison(lhs string, operator string, value string) string {
 	quoted := publicPolicyMatchCELQuote(value)
 	switch operator {
+	case publicPolicyMatchOperatorEquals:
+		return lhs + " == " + quoted
 	case publicPolicyMatchOperatorPrefix:
 		return lhs + ".startsWith(" + quoted + ")"
 	case publicPolicyMatchOperatorSuffix:
@@ -701,7 +724,7 @@ func publicPolicyMatchStringComparison(lhs string, operator string, value string
 	case publicPolicyMatchOperatorMatches:
 		return lhs + ".matches(" + quoted + ")"
 	default:
-		return lhs + " == " + quoted
+		return "false"
 	}
 }
 
