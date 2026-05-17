@@ -11,6 +11,7 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
 - A current backup of `CONFIG_DIR`, `/data` in Compose.
 - The same `p2pstream-data` volume or binary install data directory will remain mounted.
 - Optional: a pinned image tag for repeatable deployments.
+- Avoid `nightly` for production upgrades unless you are intentionally testing unreleased development changes.
 
 ## Steps
 
@@ -33,14 +34,22 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
    image: ghcr.io/kirari04/p2pstream:vX.Y.Z
    ```
 
-4. For binary/systemd installs:
+4. Use the Docker-only `nightly` tag only for development validation:
+
+   ```yaml
+   image: ghcr.io/kirari04/p2pstream:nightly
+   ```
+
+   `nightly` is rebuilt from the `dev` branch and can change without a stable release.
+
+5. For binary/systemd installs:
 
    ```bash
    sudo install -m 0755 p2pstream /usr/local/bin/p2pstream
    sudo systemctl restart p2pstream
    ```
 
-5. Use the same server and agent tag when you want server and agent capabilities to move together.
+6. Use the same server and agent tag when you want server and agent capabilities to move together.
 
 ## Verification
 
@@ -55,12 +64,12 @@ After upgrade:
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| Container restarts repeatedly | Read `docker compose logs -f p2pstream`. |
-| Agent-pool backend still uses old timeout behavior | Upgrade the agents too. |
-| Public listener missing | Confirm the same `/data` volume is mounted. |
-| Rollback needed | Switch `compose.yaml` back to the previous image tag and run `docker compose up -d`. |
+| Symptom                                            | Check                                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Container restarts repeatedly                      | Read `docker compose logs -f p2pstream`.                                             |
+| Agent-pool backend still uses old timeout behavior | Upgrade the agents too.                                                              |
+| Public listener missing                            | Confirm the same `/data` volume is mounted.                                          |
+| Rollback needed                                    | Switch `compose.yaml` back to the previous image tag and run `docker compose up -d`. |
 
 ## Next Steps
 

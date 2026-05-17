@@ -125,6 +125,7 @@ jobs:
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >>"$GITHUB_OUTPUT"
 
   binary:
+    if: github.ref == 'refs/heads/main'
     name: Build Linux ${{ matrix.arch }} binary
     needs: verify
     runs-on: ${{ matrix.runner }}
@@ -166,6 +167,7 @@ jobs:
           if-no-files-found: error
 
   image:
+    if: github.ref == 'refs/heads/main'
     name: Build Linux ${{ matrix.arch }} image
     needs: verify
     runs-on: ${{ matrix.runner }}
@@ -205,6 +207,7 @@ jobs:
             ${{ needs.verify.outputs.image }}:sha-${{ needs.verify.outputs.short_sha }}-linux-${{ matrix.arch }}
 
   publish:
+    if: github.ref == 'refs/heads/main'
     name: Publish release
     needs:
       - verify
