@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -68,6 +69,8 @@ type publicRateLimitRuleConfig struct {
 	KeyParts            []publicRateLimitKeyPartConfig
 	ResponseStatusCode  int
 	ResponseBody        string
+	ResponseBodyMode    string
+	ResponseTemplateID  int64
 	ResponseContentType string
 	ResponseHeaders     []publicRateLimitResponseHeaderConfig
 	CreatedAt           time.Time
@@ -114,6 +117,8 @@ type publicRateLimitRuleMutationInput struct {
 	KeyPartsJSON        string
 	ResponseStatusCode  int64
 	ResponseBody        string
+	ResponseBodyMode    string
+	ResponseTemplateID  sql.NullInt64
 	ResponseContentType string
 	ResponseHeadersJSON string
 }
@@ -595,6 +600,8 @@ func publicRateLimitRuleRowToConfig(row db.PublicRateLimitRule) (publicRateLimit
 		KeyParts:            keyParts,
 		ResponseStatusCode:  int(row.ResponseStatusCode),
 		ResponseBody:        row.ResponseBody,
+		ResponseBodyMode:    normalizePublicResponseBodyMode(row.ResponseBodyMode),
+		ResponseTemplateID:  nullInt64Value(row.ResponseBodyTemplateID),
 		ResponseContentType: row.ResponseContentType,
 		ResponseHeaders:     responseHeaders,
 		CreatedAt:           row.CreatedAt,
@@ -629,6 +636,8 @@ func publicRateLimitRuleFingerprint(rule publicRateLimitRuleConfig) string {
 		KeyParts            []publicRateLimitKeyPartConfig
 		ResponseStatusCode  int
 		ResponseBody        string
+		ResponseBodyMode    string
+		ResponseTemplateID  int64
 		ResponseContentType string
 		ResponseHeaders     []publicRateLimitResponseHeaderConfig
 		UpdatedAt           int64
@@ -642,6 +651,8 @@ func publicRateLimitRuleFingerprint(rule publicRateLimitRuleConfig) string {
 		KeyParts:            rule.KeyParts,
 		ResponseStatusCode:  rule.ResponseStatusCode,
 		ResponseBody:        rule.ResponseBody,
+		ResponseBodyMode:    rule.ResponseBodyMode,
+		ResponseTemplateID:  rule.ResponseTemplateID,
 		ResponseContentType: rule.ResponseContentType,
 		ResponseHeaders:     rule.ResponseHeaders,
 		UpdatedAt:           rule.UpdatedAt.UnixNano(),
@@ -662,6 +673,8 @@ func validatePublicRateLimitRuleInput(
 	keyParts []*p2pstreamv1.PublicRateLimitKeyPart,
 	responseStatusCode int64,
 	responseBody string,
+	responseBodyMode p2pstreamv1.PublicResponseBodyMode,
+	responseBodyTemplateID int64,
 	responseContentType string,
 	responseHeaders []*p2pstreamv1.PublicRateLimitResponseHeader,
 ) (publicRateLimitRuleMutationInput, error) {
@@ -714,6 +727,17 @@ func validatePublicRateLimitRuleInput(
 	if len(responseBody) > maxRateLimitResponseBodyBytes {
 		return publicRateLimitRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit response body is too large"))
 	}
+	bodyMode, err := publicResponseBodyModeStringFromProto(responseBodyMode)
+	if err != nil {
+		return publicRateLimitRuleMutationInput{}, err
+	}
+	templateRef := sql.NullInt64{}
+	if bodyMode == publicResponseBodyModeTemplate {
+		if responseBodyTemplateID <= 0 {
+			return publicRateLimitRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit response template id is required"))
+		}
+		templateRef = sql.NullInt64{Int64: responseBodyTemplateID, Valid: true}
+	}
 	if responseContentType == "" {
 		responseContentType = defaultRateLimitContentType
 	}
@@ -745,6 +769,8 @@ func validatePublicRateLimitRuleInput(
 		KeyPartsJSON:        string(keyPartsJSON),
 		ResponseStatusCode:  responseStatusCode,
 		ResponseBody:        responseBody,
+		ResponseBodyMode:    bodyMode,
+		ResponseTemplateID:  templateRef,
 		ResponseContentType: responseContentType,
 		ResponseHeadersJSON: string(responseHeadersJSON),
 	}, nil
@@ -1070,22 +1096,24 @@ func publicRateLimitRulesToProto(rows []db.PublicRateLimitRule) []*p2pstreamv1.P
 
 func publicRateLimitConfigToProto(rule publicRateLimitRuleConfig) *p2pstreamv1.PublicRateLimitRule {
 	return &p2pstreamv1.PublicRateLimitRule{
-		Id:                  rule.ID,
-		Name:                rule.Name,
-		Priority:            rule.Priority,
-		Enabled:             rule.Enabled,
-		Algorithm:           protoRateLimitAlgorithmFromString(rule.Algorithm),
-		Limit:               rule.Limit,
-		WindowMillis:        rule.WindowMillis,
-		Burst:               rule.Burst,
-		Match:               rateLimitMatchToProto(rule.Match),
-		KeyParts:            rateLimitKeyPartsToProto(rule.KeyParts),
-		ResponseStatusCode:  int64(rule.ResponseStatusCode),
-		ResponseBody:        rule.ResponseBody,
-		ResponseContentType: rule.ResponseContentType,
-		ResponseHeaders:     rateLimitResponseHeadersToProto(rule.ResponseHeaders),
-		CreatedAtUnixMillis: rule.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis: rule.UpdatedAt.UnixMilli(),
+		Id:                     rule.ID,
+		Name:                   rule.Name,
+		Priority:               rule.Priority,
+		Enabled:                rule.Enabled,
+		Algorithm:              protoRateLimitAlgorithmFromString(rule.Algorithm),
+		Limit:                  rule.Limit,
+		WindowMillis:           rule.WindowMillis,
+		Burst:                  rule.Burst,
+		Match:                  rateLimitMatchToProto(rule.Match),
+		KeyParts:               rateLimitKeyPartsToProto(rule.KeyParts),
+		ResponseStatusCode:     int64(rule.ResponseStatusCode),
+		ResponseBody:           rule.ResponseBody,
+		ResponseBodyMode:       protoPublicResponseBodyMode(rule.ResponseBodyMode),
+		ResponseBodyTemplateId: rule.ResponseTemplateID,
+		ResponseContentType:    rule.ResponseContentType,
+		ResponseHeaders:        rateLimitResponseHeadersToProto(rule.ResponseHeaders),
+		CreatedAtUnixMillis:    rule.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:    rule.UpdatedAt.UnixMilli(),
 	}
 }
 
@@ -1156,26 +1184,35 @@ func (a *App) CreatePublicRateLimitRule(
 		req.Msg.KeyParts,
 		req.Msg.ResponseStatusCode,
 		req.Msg.ResponseBody,
+		req.Msg.ResponseBodyMode,
+		req.Msg.ResponseBodyTemplateId,
 		req.Msg.ResponseContentType,
 		req.Msg.ResponseHeaders,
 	)
 	if err != nil {
 		return nil, err
 	}
+	if params.ResponseBodyMode == publicResponseBodyModeTemplate {
+		if _, err := a.validatePublicResponseTemplateReference(ctx, params.ResponseTemplateID.Int64, publicResponseTemplateKindGenericBody); err != nil {
+			return nil, err
+		}
+	}
 	row, err := a.DB.CreatePublicRateLimitRule(ctx, db.CreatePublicRateLimitRuleParams{
-		Name:                params.Name,
-		Priority:            params.Priority,
-		Enabled:             params.Enabled,
-		Algorithm:           params.Algorithm,
-		LimitCount:          params.LimitCount,
-		WindowMillis:        params.WindowMillis,
-		Burst:               params.Burst,
-		MatchJson:           params.MatchJSON,
-		KeyPartsJson:        params.KeyPartsJSON,
-		ResponseStatusCode:  params.ResponseStatusCode,
-		ResponseBody:        params.ResponseBody,
-		ResponseContentType: params.ResponseContentType,
-		ResponseHeadersJson: params.ResponseHeadersJSON,
+		Name:                   params.Name,
+		Priority:               params.Priority,
+		Enabled:                params.Enabled,
+		Algorithm:              params.Algorithm,
+		LimitCount:             params.LimitCount,
+		WindowMillis:           params.WindowMillis,
+		Burst:                  params.Burst,
+		MatchJson:              params.MatchJSON,
+		KeyPartsJson:           params.KeyPartsJSON,
+		ResponseStatusCode:     params.ResponseStatusCode,
+		ResponseBody:           params.ResponseBody,
+		ResponseBodyMode:       params.ResponseBodyMode,
+		ResponseBodyTemplateID: params.ResponseTemplateID,
+		ResponseContentType:    params.ResponseContentType,
+		ResponseHeadersJson:    params.ResponseHeadersJSON,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -1209,27 +1246,36 @@ func (a *App) UpdatePublicRateLimitRule(
 		req.Msg.KeyParts,
 		req.Msg.ResponseStatusCode,
 		req.Msg.ResponseBody,
+		req.Msg.ResponseBodyMode,
+		req.Msg.ResponseBodyTemplateId,
 		req.Msg.ResponseContentType,
 		req.Msg.ResponseHeaders,
 	)
 	if err != nil {
 		return nil, err
 	}
+	if params.ResponseBodyMode == publicResponseBodyModeTemplate {
+		if _, err := a.validatePublicResponseTemplateReference(ctx, params.ResponseTemplateID.Int64, publicResponseTemplateKindGenericBody); err != nil {
+			return nil, err
+		}
+	}
 	row, err := a.DB.UpdatePublicRateLimitRule(ctx, db.UpdatePublicRateLimitRuleParams{
-		ID:                  req.Msg.Id,
-		Name:                params.Name,
-		Priority:            params.Priority,
-		Enabled:             params.Enabled,
-		Algorithm:           params.Algorithm,
-		LimitCount:          params.LimitCount,
-		WindowMillis:        params.WindowMillis,
-		Burst:               params.Burst,
-		MatchJson:           params.MatchJSON,
-		KeyPartsJson:        params.KeyPartsJSON,
-		ResponseStatusCode:  params.ResponseStatusCode,
-		ResponseBody:        params.ResponseBody,
-		ResponseContentType: params.ResponseContentType,
-		ResponseHeadersJson: params.ResponseHeadersJSON,
+		ID:                     req.Msg.Id,
+		Name:                   params.Name,
+		Priority:               params.Priority,
+		Enabled:                params.Enabled,
+		Algorithm:              params.Algorithm,
+		LimitCount:             params.LimitCount,
+		WindowMillis:           params.WindowMillis,
+		Burst:                  params.Burst,
+		MatchJson:              params.MatchJSON,
+		KeyPartsJson:           params.KeyPartsJSON,
+		ResponseStatusCode:     params.ResponseStatusCode,
+		ResponseBody:           params.ResponseBody,
+		ResponseBodyMode:       params.ResponseBodyMode,
+		ResponseBodyTemplateID: params.ResponseTemplateID,
+		ResponseContentType:    params.ResponseContentType,
+		ResponseHeadersJson:    params.ResponseHeadersJSON,
 	})
 	if err != nil {
 		return nil, publicDBError(err)

@@ -390,6 +390,48 @@ SELECT COUNT(*) FROM public_backends;
 -- name: CountPublicListeners :one
 SELECT COUNT(*) FROM public_listeners;
 
+-- name: ListPublicResponseTemplates :many
+SELECT id, name, kind, description, content_type, body, created_at, updated_at
+FROM public_response_templates
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicResponseTemplate :one
+SELECT id, name, kind, description, content_type, body, created_at, updated_at
+FROM public_response_templates
+WHERE id = ?;
+
+-- name: GetPublicResponseTemplateByName :one
+SELECT id, name, kind, description, content_type, body, created_at, updated_at
+FROM public_response_templates
+WHERE name = ?;
+
+-- name: CreatePublicResponseTemplate :one
+INSERT INTO public_response_templates (
+    name,
+    kind,
+    description,
+    content_type,
+    body
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING id, name, kind, description, content_type, body, created_at, updated_at;
+
+-- name: UpdatePublicResponseTemplate :one
+UPDATE public_response_templates
+SET name = ?,
+    kind = ?,
+    description = ?,
+    content_type = ?,
+    body = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, kind, description, content_type, body, created_at, updated_at;
+
+-- name: DeletePublicResponseTemplate :exec
+DELETE FROM public_response_templates
+WHERE id = ?;
+
 -- name: CreatePublicBackend :one
 INSERT INTO public_backends (
     name,
@@ -400,6 +442,8 @@ INSERT INTO public_backends (
     tls_skip_verify,
     static_status_code,
     static_response_body,
+    static_response_body_mode,
+    static_response_template_id,
     upstream_basic_auth_enabled,
     upstream_basic_auth_username,
     upstream_basic_auth_password,
@@ -415,17 +459,17 @@ INSERT INTO public_backends (
     health_check_expected_status_max,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
 
 -- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC;
 
 -- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?;
 
@@ -439,6 +483,8 @@ SET name = ?,
     tls_skip_verify = ?,
     static_status_code = ?,
     static_response_body = ?,
+    static_response_body_mode = ?,
+    static_response_template_id = ?,
     upstream_basic_auth_enabled = ?,
     upstream_basic_auth_username = ?,
     upstream_basic_auth_password = ?,
@@ -455,7 +501,7 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at;
 
 -- name: DeletePublicBackend :exec
 DELETE FROM public_backends
@@ -753,12 +799,12 @@ DELETE FROM public_tls_certificates
 WHERE id = ?;
 
 -- name: ListPublicRateLimitRules :many
-SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at
 FROM public_rate_limit_rules
 ORDER BY priority ASC, id ASC;
 
 -- name: GetPublicRateLimitRule :one
-SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at
 FROM public_rate_limit_rules
 WHERE id = ?;
 
@@ -775,12 +821,14 @@ INSERT INTO public_rate_limit_rules (
     key_parts_json,
     response_status_code,
     response_body,
+    response_body_mode,
+    response_body_template_id,
     response_content_type,
     response_headers_json
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at;
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at;
 
 -- name: UpdatePublicRateLimitRule :one
 UPDATE public_rate_limit_rules
@@ -795,11 +843,13 @@ SET name = ?,
     key_parts_json = ?,
     response_status_code = ?,
     response_body = ?,
+    response_body_mode = ?,
+    response_body_template_id = ?,
     response_content_type = ?,
     response_headers_json = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at;
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at;
 
 -- name: DeletePublicRateLimitRule :exec
 DELETE FROM public_rate_limit_rules
@@ -898,6 +948,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
        trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
 FROM public_waf_rules
 ORDER BY priority ASC, id ASC;
@@ -909,6 +960,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
        trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
 FROM public_waf_rules
 WHERE id = ?;
@@ -943,10 +995,14 @@ INSERT INTO public_waf_rules (
     trigger_quiet_period_millis,
     block_response_status_code,
     block_response_body,
+    block_response_body_mode,
+    block_response_template_id,
+    captcha_page_template_id,
+    waiting_room_page_template_id,
     block_response_content_type,
     block_response_headers_json
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
@@ -954,6 +1010,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
           trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at;
 
 -- name: UpdatePublicWafRule :one
@@ -986,6 +1043,10 @@ SET name = ?,
     trigger_quiet_period_millis = ?,
     block_response_status_code = ?,
     block_response_body = ?,
+    block_response_body_mode = ?,
+    block_response_template_id = ?,
+    captcha_page_template_id = ?,
+    waiting_room_page_template_id = ?,
     block_response_content_type = ?,
     block_response_headers_json = ?,
     updated_at = CURRENT_TIMESTAMP
@@ -996,6 +1057,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
           trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at;
 
 -- name: DeletePublicWafRule :exec

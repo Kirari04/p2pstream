@@ -26,9 +26,12 @@ WAF rule defaults:
 | Captcha pass TTL range | 1 minute to 24 hours |
 | Default key | remote IP |
 | Block status | `403` |
+| Block body source | Inline |
 | Block content type | `text/plain; charset=utf-8` |
 | Block body | `Request blocked\n` |
 | Block body limit | 64 KiB |
+| Captcha page template | None |
+| Waiting-room page template | None |
 
 Waiting-room defaults:
 
@@ -61,6 +64,12 @@ Automatic activation defaults:
 
 Captcha providers are created under **Traffic Policy -> WAF** and support Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and not sent back to the UI after creation. Captcha rules require an enabled provider.
 
+Block response template mode requires a selected `generic_body` response template.
+
+Captcha page templates can only be selected for captcha WAF rules. The selected template must have kind `waf_captcha_page` and include <code v-pre>{{ .captcha_element_html }}</code>.
+
+Waiting-room page templates can only be selected for waiting-room WAF rules. The selected template must have kind `waf_waiting_room_page` and include both <code v-pre>{{ .queue_position }}</code> and <code v-pre>{{ .retry_after_seconds }}</code>.
+
 WAF match fields reuse the rate-limit matcher model: methods, protocols, host patterns, path prefixes, headers, cookies, and query parameters.
 
 WAF key parts reuse rate-limit key sources: remote IP, host, method, path, protocol, header, cookie, and query parameter.
@@ -74,6 +83,8 @@ Rules are ordered by priority, then ID. The first enabled matching rule wins.
 p2pstream verifies captcha tokens against the provider `siteverify` endpoint with a 3 second timeout. After success, it sets a signed `p2pstream_waf_<rule_id>` pass cookie and redirects with `303 See Other`.
 
 Waiting-room state is in memory. Admission and queue identity are stored in signed cookies. Valid admission cookies continue to pass after restart until expiry; queue cookies are accepted after restart, but visitors are re-enqueued because FIFO state is not persisted.
+
+Custom WAF page templates are rendered with `html/template`. Normal placeholder values are escaped. The captcha element placeholder is trusted server-generated HTML so the provider widget and form can render.
 
 Captcha and waiting-room passes only satisfy the matching WAF rule. The request still continues through rate limits, traffic shaping, route resolution, and backend forwarding.
 
@@ -105,5 +116,6 @@ Backend active requests: 100
 ## Related Tasks
 
 - [WAF](../concepts/waf)
+- [Response templates reference](./response-templates)
 - [Security hardening](../operations/security-hardening)
 - [Troubleshooting WAF behavior](../operations/troubleshooting#waf-blocks-challenges-or-queues-unexpectedly)

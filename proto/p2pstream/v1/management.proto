@@ -28,6 +28,19 @@ enum PublicBackendType {
   PUBLIC_BACKEND_TYPE_STATIC = 2;
 }
 
+enum PublicResponseBodyMode {
+  PUBLIC_RESPONSE_BODY_MODE_UNSPECIFIED = 0;
+  PUBLIC_RESPONSE_BODY_MODE_INLINE = 1;
+  PUBLIC_RESPONSE_BODY_MODE_TEMPLATE = 2;
+}
+
+enum PublicResponseTemplateKind {
+  PUBLIC_RESPONSE_TEMPLATE_KIND_UNSPECIFIED = 0;
+  PUBLIC_RESPONSE_TEMPLATE_KIND_GENERIC_BODY = 1;
+  PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_CAPTCHA_PAGE = 2;
+  PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_WAITING_ROOM_PAGE = 3;
+}
+
 enum PublicBackendForwardMode {
   PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED = 0;
   PUBLIC_BACKEND_FORWARD_MODE_DIRECT = 1;
@@ -297,6 +310,8 @@ message PublicBackend {
   PublicBackendBasicAuth upstream_basic_auth = 16;
   PublicBackendHealthCheck health_check = 17;
   int64 upstream_response_header_timeout_millis = 18;
+  PublicResponseBodyMode static_response_body_mode = 19;
+  int64 static_response_template_id = 20;
 }
 
 message PublicHeader {
@@ -522,6 +537,8 @@ message PublicRateLimitRule {
   repeated PublicRateLimitResponseHeader response_headers = 14;
   int64 created_at_unix_millis = 15;
   int64 updated_at_unix_millis = 16;
+  PublicResponseBodyMode response_body_mode = 17;
+  int64 response_body_template_id = 18;
 }
 
 message PublicTrafficShaperRule {
@@ -595,6 +612,21 @@ message PublicWafRule {
   repeated PublicRateLimitResponseHeader block_response_headers = 16;
   int64 created_at_unix_millis = 17;
   int64 updated_at_unix_millis = 18;
+  PublicResponseBodyMode block_response_body_mode = 19;
+  int64 block_response_template_id = 20;
+  int64 captcha_page_template_id = 21;
+  int64 waiting_room_page_template_id = 22;
+}
+
+message PublicResponseTemplate {
+  int64 id = 1;
+  string name = 2;
+  PublicResponseTemplateKind kind = 3;
+  string description = 4;
+  string content_type = 5;
+  string body = 6;
+  int64 created_at_unix_millis = 7;
+  int64 updated_at_unix_millis = 8;
 }
 
 message PublicCacheSettings {
@@ -660,6 +692,7 @@ message GetPublicProxyConfigResponse {
   repeated PublicWafRule waf_rules = 13;
   PublicCacheSettings cache_settings = 14;
   repeated PublicCacheRule cache_rules = 15;
+  repeated PublicResponseTemplate response_templates = 16;
 }
 
 message ListPublicBackendHealthTracesRequest {
@@ -691,6 +724,8 @@ message CreatePublicBackendRequest {
   PublicBackendBasicAuth upstream_basic_auth = 13;
   PublicBackendHealthCheck health_check = 14;
   int64 upstream_response_header_timeout_millis = 15;
+  PublicResponseBodyMode static_response_body_mode = 16;
+  int64 static_response_template_id = 17;
 }
 
 message CreatePublicBackendResponse {
@@ -714,6 +749,8 @@ message UpdatePublicBackendRequest {
   PublicBackendBasicAuth upstream_basic_auth = 14;
   PublicBackendHealthCheck health_check = 15;
   int64 upstream_response_header_timeout_millis = 16;
+  PublicResponseBodyMode static_response_body_mode = 17;
+  int64 static_response_template_id = 18;
 }
 
 message UpdatePublicBackendResponse {
@@ -725,6 +762,38 @@ message DeletePublicBackendRequest {
 }
 
 message DeletePublicBackendResponse {
+}
+
+message CreatePublicResponseTemplateRequest {
+  string name = 1;
+  PublicResponseTemplateKind kind = 2;
+  string description = 3;
+  string content_type = 4;
+  string body = 5;
+}
+
+message CreatePublicResponseTemplateResponse {
+  PublicResponseTemplate template = 1;
+}
+
+message UpdatePublicResponseTemplateRequest {
+  int64 id = 1;
+  string name = 2;
+  PublicResponseTemplateKind kind = 3;
+  string description = 4;
+  string content_type = 5;
+  string body = 6;
+}
+
+message UpdatePublicResponseTemplateResponse {
+  PublicResponseTemplate template = 1;
+}
+
+message DeletePublicResponseTemplateRequest {
+  int64 id = 1;
+}
+
+message DeletePublicResponseTemplateResponse {
 }
 
 message CreateAgentRequest {
@@ -998,6 +1067,8 @@ message CreatePublicRateLimitRuleRequest {
   string response_body = 11;
   string response_content_type = 12;
   repeated PublicRateLimitResponseHeader response_headers = 13;
+  PublicResponseBodyMode response_body_mode = 14;
+  int64 response_body_template_id = 15;
 }
 
 message CreatePublicRateLimitRuleResponse {
@@ -1019,6 +1090,8 @@ message UpdatePublicRateLimitRuleRequest {
   string response_body = 12;
   string response_content_type = 13;
   repeated PublicRateLimitResponseHeader response_headers = 14;
+  PublicResponseBodyMode response_body_mode = 15;
+  int64 response_body_template_id = 16;
 }
 
 message UpdatePublicRateLimitRuleResponse {
@@ -1125,6 +1198,10 @@ message CreatePublicWafRuleRequest {
   string block_response_body = 13;
   string block_response_content_type = 14;
   repeated PublicRateLimitResponseHeader block_response_headers = 15;
+  PublicResponseBodyMode block_response_body_mode = 16;
+  int64 block_response_template_id = 17;
+  int64 captcha_page_template_id = 18;
+  int64 waiting_room_page_template_id = 19;
 }
 
 message CreatePublicWafRuleResponse {
@@ -1148,6 +1225,10 @@ message UpdatePublicWafRuleRequest {
   string block_response_body = 14;
   string block_response_content_type = 15;
   repeated PublicRateLimitResponseHeader block_response_headers = 16;
+  PublicResponseBodyMode block_response_body_mode = 17;
+  int64 block_response_template_id = 18;
+  int64 captcha_page_template_id = 19;
+  int64 waiting_room_page_template_id = 20;
 }
 
 message UpdatePublicWafRuleResponse {
@@ -1511,6 +1592,9 @@ service AgentManagementService {
   rpc StartProxy(StartProxyRequest) returns (StartProxyResponse) {}
   rpc StopProxy(StopProxyRequest) returns (StopProxyResponse) {}
   rpc GetPublicProxyConfig(GetPublicProxyConfigRequest) returns (GetPublicProxyConfigResponse) {}
+  rpc CreatePublicResponseTemplate(CreatePublicResponseTemplateRequest) returns (CreatePublicResponseTemplateResponse) {}
+  rpc UpdatePublicResponseTemplate(UpdatePublicResponseTemplateRequest) returns (UpdatePublicResponseTemplateResponse) {}
+  rpc DeletePublicResponseTemplate(DeletePublicResponseTemplateRequest) returns (DeletePublicResponseTemplateResponse) {}
   rpc ListPublicBackendHealthTraces(ListPublicBackendHealthTracesRequest) returns (ListPublicBackendHealthTracesResponse) {}
   rpc CreatePublicBackend(CreatePublicBackendRequest) returns (CreatePublicBackendResponse) {}
   rpc UpdatePublicBackend(UpdatePublicBackendRequest) returns (UpdatePublicBackendResponse) {}

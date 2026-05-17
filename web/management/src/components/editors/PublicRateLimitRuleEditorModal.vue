@@ -16,6 +16,8 @@ import {
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
   PublicRateLimitMatchOperator,
+  PublicResponseBodyMode,
+  PublicResponseTemplateKind,
   type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -48,6 +50,7 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
 const rules = computed(() => props.config?.rateLimitRules ?? []);
+const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
 const activeMatcherGroup = ref<MatcherGroupKey>("headers");
 
 const form = reactive({
@@ -71,6 +74,8 @@ const form = reactive({
   responseStatusCode: 429,
   responseContentType: "text/plain; charset=utf-8",
   responseBody: "Rate limit exceeded\n",
+  responseBodyMode: PublicResponseBodyMode.INLINE,
+  responseBodyTemplateId: "",
   responseHeaders: [] as HeaderForm[],
 });
 
@@ -130,6 +135,7 @@ const rateLimitSubmitDisabledReason = computed(() => {
   if (form.limit < 1) return "Limit must be at least 1.";
   if (form.windowSeconds < 1) return "Window must be at least 1 second.";
   if (!form.keyParts.length) return "Add at least one key part.";
+  if (form.responseBodyMode === PublicResponseBodyMode.TEMPLATE && !form.responseBodyTemplateId) return "Select a response template.";
   return "";
 });
 const submitDisabled = computed(() => Boolean(rateLimitSubmitDisabledReason.value));
@@ -155,6 +161,8 @@ function resetForm() {
   form.responseStatusCode = 429;
   form.responseContentType = "text/plain; charset=utf-8";
   form.responseBody = "Rate limit exceeded\n";
+  form.responseBodyMode = PublicResponseBodyMode.INLINE;
+  form.responseBodyTemplateId = "";
   form.responseHeaders = [];
   activeMatcherGroup.value = "headers";
 }
@@ -198,6 +206,8 @@ function openEdit(ruleId: bigint | string) {
   form.responseStatusCode = Number(rule.responseStatusCode || 429n);
   form.responseContentType = rule.responseContentType || "text/plain; charset=utf-8";
   form.responseBody = rule.responseBody || "Rate limit exceeded\n";
+  form.responseBodyMode = rule.responseBodyMode || PublicResponseBodyMode.INLINE;
+  form.responseBodyTemplateId = rule.responseBodyTemplateId ? rule.responseBodyTemplateId.toString() : "";
   form.responseHeaders = rule.responseHeaders.map((header) => ({ name: header.name, value: header.value }));
   setInitialMatcherTab();
   isOpen.value = true;
@@ -360,6 +370,8 @@ async function submitRule() {
       })),
       responseStatusCode: BigInt(form.responseStatusCode || 429),
       responseBody: form.responseBody,
+      responseBodyMode: form.responseBodyMode,
+      responseBodyTemplateId: form.responseBodyMode === PublicResponseBodyMode.TEMPLATE ? BigInt(form.responseBodyTemplateId || "0") : 0n,
       responseContentType: form.responseContentType,
       responseHeaders: form.responseHeaders
         .map((header) => ({ name: header.name.trim(), value: header.value }))
@@ -625,10 +637,42 @@ defineExpose({ openCreate, openEdit, close });
             <input v-model="form.responseContentType" class="vercel-input text-sm normal-case tracking-normal" />
           </label>
         </div>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-          Body
-          <textarea v-model="form.responseBody" class="vercel-input min-h-24 text-sm normal-case tracking-normal font-mono" />
-        </label>
+        <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Body source
+            <div class="grid grid-cols-2 rounded-md border border-[#333] bg-[#0b0b0b] p-1">
+              <button
+                type="button"
+                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
+                :class="form.responseBodyMode === PublicResponseBodyMode.INLINE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+                @click="form.responseBodyMode = PublicResponseBodyMode.INLINE"
+              >
+                Inline
+              </button>
+              <button
+                type="button"
+                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
+                :class="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+                @click="form.responseBodyMode = PublicResponseBodyMode.TEMPLATE"
+              >
+                Template
+              </button>
+            </div>
+          </div>
+          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Template
+            <select v-model="form.responseBodyTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+              <option value="">{{ genericTemplates.length ? 'Select template' : 'No generic templates' }}</option>
+              <option v-for="template in genericTemplates" :key="template.id.toString()" :value="template.id.toString()">
+                {{ template.name }}
+              </option>
+            </select>
+          </label>
+          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Body
+            <textarea v-model="form.responseBody" class="vercel-input min-h-24 text-sm normal-case tracking-normal font-mono" />
+          </label>
+        </div>
         <div class="grid gap-2">
           <div class="flex items-center justify-between gap-3">
             <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Headers</span>

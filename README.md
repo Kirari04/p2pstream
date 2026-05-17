@@ -95,6 +95,7 @@ Full self-hosting and operations documentation is available at <https://kirari04
 - [Docker Compose quickstart](https://kirari04.github.io/p2pstream/getting-started/quickstart)
 - [First login](https://kirari04.github.io/p2pstream/getting-started/first-login)
 - [Publish a service](https://kirari04.github.io/p2pstream/guides/publish-a-service)
+- [Response templates reference](https://kirari04.github.io/p2pstream/reference/response-templates)
 - [Backup and restore](https://kirari04.github.io/p2pstream/operations/backup-restore)
 - [WAF reference](https://kirari04.github.io/p2pstream/reference/waf)
 - [Cache reference](https://kirari04.github.io/p2pstream/reference/cache)

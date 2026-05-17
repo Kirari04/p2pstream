@@ -37,6 +37,7 @@ const tabs = [
   { path: "/agent", label: "Agents" },
   { path: "/proxy", label: "Proxy" },
   { path: "/policies", label: "Traffic Policy" },
+  { path: "/templates", label: "Templates" },
   { path: "/tls", label: "TLS" },
 ];
 

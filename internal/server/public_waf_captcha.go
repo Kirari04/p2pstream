@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	htmltemplate "html/template"
 	"io"
 	"net/http"
 	"net/url"
@@ -161,7 +163,14 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 	}
 	cookie := a.PublicWAF.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, now, decision.Listener, r)
 	http.SetCookie(w, cookie)
-	http.Redirect(w, r, returnTo, http.StatusSeeOther)
+	redirectTo := sanitizeWAFReturnTo(returnTo)
+	redirectTo = strings.ReplaceAll(redirectTo, `\`, "/")
+	redirectURL, err := url.Parse(redirectTo)
+	if err == nil && redirectURL.Hostname() == "" {
+		http.Redirect(w, r, redirectURL.String(), http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
 	decision.StatusCode = http.StatusSeeOther
 	decision.ErrorKind = ""
 	return decision
@@ -276,7 +285,7 @@ func writePublicWafResponse(w http.ResponseWriter, r *http.Request, decision pub
 	case publicWafActionCaptcha:
 		writeCaptchaChallenge(w, r, decision)
 	case publicWafActionWaitingRoom:
-		writeWaitingRoomPage(w, decision)
+		writeWaitingRoomPage(w, r, decision)
 	default:
 		if decision.ContentType != "" {
 			w.Header().Set("Content-Type", decision.ContentType)
@@ -296,9 +305,6 @@ func writeCaptchaChallenge(w http.ResponseWriter, r *http.Request, decision publ
 	if status == 0 {
 		status = http.StatusForbidden
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
 	returnToValue := decision.CaptchaReturnTo
 	if returnToValue == "" {
 		returnToValue = sanitizeWAFReturnTo(r.URL.RequestURI())
@@ -325,12 +331,37 @@ func writeCaptchaChallenge(w http.ResponseWriter, r *http.Request, decision publ
 		html.EscapeString(responseName),
 	)
 	host := publicWafRequestHost(r)
+	title := "Just a moment..."
+	pageBody := "Complete the verification below to continue."
+	referenceID := publicWafReferenceID(decision.Rule.ID)
+	if decision.Rule.CaptchaPageTemplateBody != "" {
+		var rendered bytes.Buffer
+		err := renderPublicWafHTMLTemplate(&rendered, decision.Rule.CaptchaPageTemplateBody, map[string]any{
+			"captcha_element_html": htmltemplate.HTML(primaryHTML),
+			"host":                 host,
+			"rule_name":            decision.Rule.Name,
+			"reference_id":         referenceID,
+			"page_title":           title,
+			"page_body":            pageBody,
+			"status_url":           publicWafCaptchaVerifyPath,
+		})
+		if err == nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(status)
+			_, _ = w.Write(rendered.Bytes())
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
 	writePublicWafInterstitialPage(w, publicWafPageModel{
-		Title:       "Just a moment...",
+		Title:       title,
 		Heading:     host + " needs to review the security of your connection before proceeding.",
-		Lead:        "Complete the verification below to continue.",
+		Lead:        pageBody,
 		Host:        host,
-		ReferenceID: publicWafReferenceID(decision.Rule.ID),
+		ReferenceID: referenceID,
 		FooterLabel: "Security by p2pstream",
 		Diagnostics: []publicWafPageDiagnostic{
 			{Label: "Browser", Status: "Working", Tone: "ok"},
@@ -359,8 +390,17 @@ func sanitizeWAFReturnTo(value string) string {
 		return "/"
 	}
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/") {
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Opaque != "" {
 		return "/"
+	}
+	if !isSafeLocalRedirectTarget(parsed.Path) {
+		return "/"
+	}
+	if escapedPath := parsed.EscapedPath(); escapedPath != "" {
+		unescapedPath, err := url.PathUnescape(escapedPath)
+		if err != nil || !isSafeLocalRedirectTarget(unescapedPath) {
+			return "/"
+		}
 	}
 	if isPublicWAFReservedPath(parsed.Path) {
 		return "/"

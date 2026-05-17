@@ -1,10 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"html"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -163,7 +166,7 @@ func (rt *publicWaitingRoomRuntime) removeFromQueueLocked(sessionID string) {
 	}
 }
 
-func writeWaitingRoomPage(w http.ResponseWriter, decision publicWafDecision) {
+func writeWaitingRoomPage(w http.ResponseWriter, r *http.Request, decision publicWafDecision) {
 	status := decision.StatusCode
 	if status == 0 {
 		status = http.StatusServiceUnavailable
@@ -177,9 +180,6 @@ func writeWaitingRoomPage(w http.ResponseWriter, decision publicWafDecision) {
 		body = defaultWafWaitingRoomPageBody
 	}
 	pollSeconds := maxInt(1, int(decision.RetryAfter.Seconds()))
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
 	primaryHTML := fmt.Sprintf(`<div class="cf-queue-grid">
         <div class="cf-stat">
           <span>Queue position</span>
@@ -193,11 +193,44 @@ func writeWaitingRoomPage(w http.ResponseWriter, decision publicWafDecision) {
 		html.EscapeString(strconv.FormatInt(decision.QueuePosition, 10)),
 		html.EscapeString(strconv.Itoa(pollSeconds)),
 	)
+	referenceID := publicWafReferenceID(decision.Rule.ID)
+	statusURL := publicWafWaitingRoomStatusPath
+	if decision.Rule.ID > 0 {
+		values := url.Values{}
+		values.Set("rule_id", strconv.FormatInt(decision.Rule.ID, 10))
+		if r != nil && r.URL != nil {
+			values.Set("return_to", sanitizeWAFReturnTo(r.URL.RequestURI()))
+		}
+		statusURL += "?" + values.Encode()
+	}
+	if decision.Rule.WaitingRoomPageTemplateBody != "" {
+		var rendered bytes.Buffer
+		err := renderPublicWafHTMLTemplate(&rendered, decision.Rule.WaitingRoomPageTemplateBody, map[string]any{
+			"queue_position":      strconv.FormatInt(decision.QueuePosition, 10),
+			"retry_after_seconds": strconv.Itoa(pollSeconds),
+			"host":                publicWafRequestHost(r),
+			"rule_name":           decision.Rule.Name,
+			"reference_id":        referenceID,
+			"page_title":          title,
+			"page_body":           body,
+			"status_url":          statusURL,
+		})
+		if err == nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(status)
+			_, _ = w.Write(rendered.Bytes())
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
 	writePublicWafInterstitialPage(w, publicWafPageModel{
 		Title:          title,
 		Heading:        title,
 		Lead:           body,
-		ReferenceID:    publicWafReferenceID(decision.Rule.ID),
+		ReferenceID:    referenceID,
 		FooterLabel:    "Waiting room by p2pstream",
 		RefreshSeconds: pollSeconds,
 		Diagnostics: []publicWafPageDiagnostic{
@@ -238,7 +271,14 @@ func (a *App) servePublicWAFWaitingRoomStatus(w http.ResponseWriter, r *http.Req
 	a.PublicWAF.mu.Lock()
 	defer a.PublicWAF.mu.Unlock()
 	if a.PublicWAF.validRuleCookieLocked(r, rule.ID, publicWafAdmissionCookieKind, now) {
-		http.Redirect(w, r, sanitizeWAFReturnTo(r.URL.Query().Get("return_to")), http.StatusSeeOther)
+		redirectTo := sanitizeWAFReturnTo(r.URL.Query().Get("return_to"))
+		redirectTo = strings.ReplaceAll(redirectTo, `\`, "/")
+		redirectURL, err := url.Parse(redirectTo)
+		if err == nil && redirectURL.Hostname() == "" {
+			http.Redirect(w, r, redirectURL.String(), http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		}
 		return publicWafDecision{Rule: rule, Listener: listener, Action: publicWafActionWaitingRoom, StatusCode: http.StatusSeeOther, ChallengeKind: publicWafActionWaitingRoom}
 	}
 	runtime := a.PublicWAF.runtimeLocked(rule)
@@ -260,7 +300,7 @@ func (a *App) servePublicWAFWaitingRoomStatus(w http.ResponseWriter, r *http.Req
 		ChallengeKind: publicWafActionWaitingRoom,
 		QueuePosition: position,
 	}
-	writeWaitingRoomPage(w, decision)
+	writeWaitingRoomPage(w, r, decision)
 	return decision
 }
 
