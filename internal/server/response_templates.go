@@ -8,6 +8,7 @@ import (
 	"fmt"
 	htmltemplate "html/template"
 	"io"
+	"mime"
 	"strings"
 	"text/template/parse"
 	"unicode/utf8"
@@ -152,9 +153,16 @@ func (a *App) UpdatePublicResponseTemplate(ctx context.Context, req *connect.Req
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	current, err := a.DB.GetPublicResponseTemplate(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
 	input, err := validatePublicResponseTemplateInput(req.Msg.Name, req.Msg.Kind, req.Msg.Description, req.Msg.ContentType, req.Msg.Body)
 	if err != nil {
 		return nil, err
+	}
+	if current.Kind != input.Kind {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("response template kind cannot be changed"))
 	}
 	row, err := a.DB.UpdatePublicResponseTemplate(ctx, db.UpdatePublicResponseTemplateParams{
 		ID:          req.Msg.Id,
@@ -211,6 +219,13 @@ func validatePublicResponseTemplateInput(name string, kind p2pstreamv1.PublicRes
 		return publicResponseTemplateMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template body must be at most %d bytes", limit))
 	}
 	if kindString != publicResponseTemplateKindGenericBody {
+		mediaType, _, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			return publicResponseTemplateMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template content type is invalid: %w", err))
+		}
+		if !strings.EqualFold(mediaType, "text/html") && !strings.EqualFold(mediaType, "application/xhtml+xml") {
+			return publicResponseTemplateMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("WAF page templates must use an HTML content type"))
+		}
 		if err := validateWafPageTemplate(kindString, body); err != nil {
 			return publicResponseTemplateMutationInput{}, err
 		}

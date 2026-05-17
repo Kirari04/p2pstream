@@ -1533,7 +1533,10 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		return nil
 	}
 
-	defaultWelcomeTemplate := defaultTemplates["default-welcome"]
+	defaultWelcomeTemplate, ok := defaultTemplates["default-welcome"]
+	if !ok || defaultWelcomeTemplate.ID <= 0 {
+		return connect.NewError(connect.CodeInternal, errors.New("default welcome response template was not seeded"))
+	}
 	backend, err := a.DB.CreatePublicBackend(ctx, db.CreatePublicBackendParams{
 		Name:                                "default",
 		TargetOrigin:                        "",
@@ -1544,7 +1547,7 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		StaticStatusCode:                    defaultStaticStatusCode,
 		StaticResponseBody:                  defaultWelcomeBody,
 		StaticResponseBodyMode:              publicResponseBodyModeTemplate,
-		StaticResponseTemplateID:            sql.NullInt64{Int64: defaultWelcomeTemplate.ID, Valid: defaultWelcomeTemplate.ID > 0},
+		StaticResponseTemplateID:            sql.NullInt64{Int64: defaultWelcomeTemplate.ID, Valid: true},
 		UpstreamBasicAuthEnabled:            0,
 		UpstreamBasicAuthUsername:           "",
 		UpstreamBasicAuthPassword:           "",

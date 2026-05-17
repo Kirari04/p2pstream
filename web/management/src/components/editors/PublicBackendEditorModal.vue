@@ -76,6 +76,7 @@ const backendForm = reactive({
   staticResponseTemplateId: "",
   enabled: true,
 });
+const hasSelectedGenericTemplate = computed(() => genericTemplates.value.some((template) => template.id.toString() === backendForm.staticResponseTemplateId));
 
 const modalTitle = computed(() => (
   backendFormMode.value === "edit" ? "Edit Backend" :
@@ -89,12 +90,9 @@ const submitLabel = computed(() => (
 ));
 const backendSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
-  if (
-    backendForm.backendType === PublicBackendType.STATIC &&
-    backendForm.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE &&
-    !backendForm.staticResponseTemplateId
-  ) {
-    return "Select a response template.";
+  if (backendForm.backendType === PublicBackendType.STATIC && backendForm.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE) {
+    if (!backendForm.staticResponseTemplateId) return "Select a response template.";
+    if (!hasSelectedGenericTemplate.value) return "Select an existing generic response template.";
   }
   if (backendForm.backendType !== PublicBackendType.PROXY_FORWARD) return "";
   if (backendForm.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "";

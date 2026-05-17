@@ -650,6 +650,9 @@ func (db *DB) migrate() error {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_response_templates_kind ON public_response_templates (kind, name)`); err != nil {
 		return err
 	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backends_static_response_template_id ON public_backends (static_response_template_id)`); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_rate_limit_rules (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -685,6 +688,9 @@ func (db *DB) migrate() error {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
 		}
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_response_body_template_id ON public_rate_limit_rules (response_body_template_id)`); err != nil {
+		return err
 	}
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_traffic_shaper_rules (
@@ -858,6 +864,15 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_captcha_provider_id ON public_waf_rules (captcha_provider_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_block_response_template_id ON public_waf_rules (block_response_template_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_captcha_page_template_id ON public_waf_rules (captcha_page_template_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_waiting_room_page_template_id ON public_waf_rules (waiting_room_page_template_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id ON proxy_request_events (waf_rule_id)`); err != nil {

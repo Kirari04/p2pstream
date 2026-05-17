@@ -414,6 +414,9 @@ ON public_route_backends (route_id, position);
 CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id
 ON public_route_backends (backend_id);
 
+CREATE INDEX IF NOT EXISTS idx_public_backends_static_response_template_id
+ON public_backends (static_response_template_id);
+
 CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 ON public_tls_certificates (listener_id);
 
@@ -423,6 +426,9 @@ ON public_tls_certificates (dns_credential_id);
 CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_priority
 ON public_rate_limit_rules (priority, id);
 
+CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_response_body_template_id
+ON public_rate_limit_rules (response_body_template_id);
+
 CREATE INDEX IF NOT EXISTS idx_public_traffic_shaper_rules_priority
 ON public_traffic_shaper_rules (priority, id);
 
@@ -431,6 +437,15 @@ ON public_waf_rules (priority, id);
 
 CREATE INDEX IF NOT EXISTS idx_public_waf_rules_captcha_provider_id
 ON public_waf_rules (captcha_provider_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_waf_rules_block_response_template_id
+ON public_waf_rules (block_response_template_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_waf_rules_captcha_page_template_id
+ON public_waf_rules (captcha_page_template_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_waf_rules_waiting_room_page_template_id
+ON public_waf_rules (waiting_room_page_template_id);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id
 ON proxy_request_events (waf_rule_id);
