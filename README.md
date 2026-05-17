@@ -44,11 +44,11 @@ docker compose exec p2pstream p2pstream users reset-password admin
 
 ## What Compose Starts
 
-| Host port | Purpose |
-| --- | --- |
-| `80` | Public HTTP listener and ACME HTTP-01 |
-| `443` | Public HTTPS listener and ACME TLS-ALPN-01 |
-| `8081` | Management UI/API and agent connections |
+| Host port | Purpose                                    |
+| --------- | ------------------------------------------ |
+| `80`      | Public HTTP listener and ACME HTTP-01      |
+| `443`     | Public HTTPS listener and ACME TLS-ALPN-01 |
+| `8081`    | Management UI/API and agent connections    |
 
 Runtime state is stored in the named Docker volume `p2pstream-data`. It contains the SQLite database plus generated management, public TLS, and ACME material. Keep this volume during upgrades or server moves unless you intentionally want to reset the instance.
 
@@ -69,6 +69,8 @@ Published images are available from GitHub Container Registry:
 ```text
 ghcr.io/kirari04/p2pstream:latest
 ```
+
+Use `latest` or a pinned `vX.Y.Z` tag for stable deployments. The `nightly` tag is rebuilt from the `dev` branch for testing unreleased changes.
 
 ## Default Deployment Notes
 
@@ -115,8 +117,12 @@ make docker-build
 make docker-smoke
 ```
 
+Development happens on the `dev` branch. Open normal feature and dependency PRs against `dev`; merge `dev` into `main` only when you want to publish a stable release.
+
 ## Releases
 
-GitHub Actions verifies the project, publishes a multi-arch Linux container to GHCR, creates the next patch tag from `main`, and attaches Linux `amd64` and `arm64` binary release archives plus `checksums.txt`.
+GitHub Actions verifies the project, publishes a multi-arch Linux container to GHCR, creates the next patch tag from `main`, and attaches Linux `amd64` and `arm64` binary release archives plus `checksums.txt`. The `main` branch is release-only; merging `dev` into `main` publishes the next stable release.
+
+A scheduled nightly workflow builds the current `dev` branch and publishes the Docker-only `ghcr.io/kirari04/p2pstream:nightly` tag. Nightly images are for development validation and should not be used as repeatable production pins.
 
 No open-source license has been selected yet. Public visibility does not grant additional license rights.

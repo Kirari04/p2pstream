@@ -2,15 +2,18 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "gomod"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/web/management"
+    target-branch: "dev"
     schedule:
       interval: "weekly"

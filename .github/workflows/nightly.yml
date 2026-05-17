@@ -1,0 +1,149 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: nightly-dev
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  verify:
+    name: Verify dev
+    runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ steps.version.outputs.commit_sha }}
+      image: ${{ steps.image.outputs.image }}
+      short_sha: ${{ steps.version.outputs.short_sha }}
+    steps:
+      - name: Check out dev
+        uses: actions/checkout@v6
+        with:
+          ref: dev
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.18
+
+      - name: Generate code
+        run: make generate
+
+      - name: Verify generated files are committed
+        run: git diff --exit-code
+
+      - name: Check installer syntax
+        run: bash -n scripts/install-agent.sh
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run Go vet
+        run: go vet ./...
+
+      - name: Run frontend unit tests
+        run: cd web/management && bun test src/lib/*.test.ts
+
+      - name: Typecheck management UI
+        run: cd web/management && bun run typecheck
+
+      - name: Build management UI
+        run: cd web/management && bun run build
+
+      - name: Resolve nightly metadata
+        id: version
+        shell: bash
+        run: |
+          echo "commit_sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          echo "short_sha=$(git rev-parse --short=7 HEAD)" >>"$GITHUB_OUTPUT"
+
+      - name: Set image name
+        id: image
+        shell: bash
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >>"$GITHUB_OUTPUT"
+
+  image:
+    name: Build Linux ${{ matrix.arch }} nightly image
+    needs: verify
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Check out dev
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify.outputs.commit_sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push architecture image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: runtime
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          build-args: |
+            VITE_RELEASE_REPOSITORY=${{ github.repository }}
+          tags: |
+            ${{ needs.verify.outputs.image }}:nightly-linux-${{ matrix.arch }}
+            ${{ needs.verify.outputs.image }}:nightly-sha-${{ needs.verify.outputs.short_sha }}-linux-${{ matrix.arch }}
+
+  publish:
+    name: Publish nightly image
+    needs:
+      - verify
+      - image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publish multi-arch nightly tags
+        shell: bash
+        env:
+          IMAGE: ${{ needs.verify.outputs.image }}
+          SHORT_SHA: ${{ needs.verify.outputs.short_sha }}
+        run: |
+          set -Eeuo pipefail
+          docker buildx imagetools create \
+            -t "${IMAGE}:nightly" \
+            -t "${IMAGE}:nightly-sha-${SHORT_SHA}" \
+            "${IMAGE}:nightly-linux-amd64" \
+            "${IMAGE}:nightly-linux-arm64"

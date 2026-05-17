@@ -3,16 +3,21 @@ name: CI
 on:
   pull_request:
     branches:
+      - dev
       - main
   push:
     branches:
-      - main
+      - dev
 
 permissions:
   contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:

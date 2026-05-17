@@ -6,48 +6,48 @@ p2pstream loads `.env` when present, then environment variables, and derives def
 
 Public proxy listener ports are stored in SQLite and managed through the management UI/API. A new database seeds HTTP `80` and HTTPS `443`. Docker host port publishing is controlled by Compose variables such as `P2PSTREAM_HTTP_PORT`.
 
-| Server variable | Default | Description |
-| --- | --- | --- |
-| `MANAGEMENT_PORT` | `8081` | Management UI/API and agent HTTPS/WSS port. |
-| `CONFIG_DIR` | `p2pstream-data` | Directory for default SQLite database and certificates. Docker sets `/data`. |
-| `DATABASE_URL` | derived | SQLite DSN. When unset, uses `${CONFIG_DIR}/p2pstream.db` with WAL and foreign keys enabled. |
-| `ENV` | `development` | Use `production` for production logging/cookie behavior. |
-| `MANAGEMENT_UI_DISABLED` | `false` | Disable browser UI; ConnectRPC APIs and agent WebSocket remain available. |
-| `MANAGEMENT_UI_DIST_DIR` | `web/management/dist` | Built management UI files. Runtime image sets `/app/web/management/dist`. |
-| `MANAGEMENT_UI_DEV_PROXY` | empty | Development-only management UI proxy target. |
-| `MANAGEMENT_COOKIE_SECURE` | `false` | Force Secure cookies even when other secure-cookie conditions are absent. |
-| `MANAGEMENT_TLS_MODE` | `auto` | `auto`, `provided`, or `off`. |
-| `MANAGEMENT_TLS_CERT_FILE` | empty | Management server certificate for `provided` mode. |
-| `MANAGEMENT_TLS_KEY_FILE` | empty | Management server private key for `provided` mode. |
-| `MANAGEMENT_TLS_CLIENT_CA_FILE` | empty | Optional CA used to verify agent client certificates. |
-| `MANAGEMENT_ALLOW_INSECURE_HTTP` | `false` | Required when `MANAGEMENT_TLS_MODE=off`. |
-| `MANAGEMENT_PUBLIC_URL` | derived | Public management URL used in generated agent setup snippets. |
-| `MANAGEMENT_ADVERTISE_HOST` | detected | Hostname/IP used for auto-generated management certificates and default URL. |
-| `MANAGEMENT_TLS_EXTRA_HOSTS` | empty | Comma-separated extra DNS/IP names for auto management TLS. |
-| `PUBLIC_CACHE_DIR` | `${CONFIG_DIR}/cache/public` | Disk directory for public cache body files. |
-| `BOOTSTRAP_AGENT_ID` | empty | Bootstrap agent public ID. Must be set with name and token. |
-| `BOOTSTRAP_AGENT_NAME` | empty | Bootstrap agent display name. |
-| `BOOTSTRAP_AGENT_TOKEN` | empty | Bootstrap agent token. Stored as a hash. |
-| `OBSERVABILITY_RETENTION_DAYS` | `30` | Retention window for recorded observability data. |
+| Server variable                  | Default                      | Description                                                                                  |
+| -------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `MANAGEMENT_PORT`                | `8081`                       | Management UI/API and agent HTTPS/WSS port.                                                  |
+| `CONFIG_DIR`                     | `p2pstream-data`             | Directory for default SQLite database and certificates. Docker sets `/data`.                 |
+| `DATABASE_URL`                   | derived                      | SQLite DSN. When unset, uses `${CONFIG_DIR}/p2pstream.db` with WAL and foreign keys enabled. |
+| `ENV`                            | `development`                | Use `production` for production logging/cookie behavior.                                     |
+| `MANAGEMENT_UI_DISABLED`         | `false`                      | Disable browser UI; ConnectRPC APIs and agent WebSocket remain available.                    |
+| `MANAGEMENT_UI_DIST_DIR`         | `web/management/dist`        | Built management UI files. Runtime image sets `/app/web/management/dist`.                    |
+| `MANAGEMENT_UI_DEV_PROXY`        | empty                        | Development-only management UI proxy target.                                                 |
+| `MANAGEMENT_COOKIE_SECURE`       | `false`                      | Force Secure cookies even when other secure-cookie conditions are absent.                    |
+| `MANAGEMENT_TLS_MODE`            | `auto`                       | `auto`, `provided`, or `off`.                                                                |
+| `MANAGEMENT_TLS_CERT_FILE`       | empty                        | Management server certificate for `provided` mode.                                           |
+| `MANAGEMENT_TLS_KEY_FILE`        | empty                        | Management server private key for `provided` mode.                                           |
+| `MANAGEMENT_TLS_CLIENT_CA_FILE`  | empty                        | Optional CA used to verify agent client certificates.                                        |
+| `MANAGEMENT_ALLOW_INSECURE_HTTP` | `false`                      | Required when `MANAGEMENT_TLS_MODE=off`.                                                     |
+| `MANAGEMENT_PUBLIC_URL`          | derived                      | Public management URL used in generated agent setup snippets.                                |
+| `MANAGEMENT_ADVERTISE_HOST`      | detected                     | Hostname/IP used for auto-generated management certificates and default URL.                 |
+| `MANAGEMENT_TLS_EXTRA_HOSTS`     | empty                        | Comma-separated extra DNS/IP names for auto management TLS.                                  |
+| `PUBLIC_CACHE_DIR`               | `${CONFIG_DIR}/cache/public` | Disk directory for public cache body files.                                                  |
+| `BOOTSTRAP_AGENT_ID`             | empty                        | Bootstrap agent public ID. Must be set with name and token.                                  |
+| `BOOTSTRAP_AGENT_NAME`           | empty                        | Bootstrap agent display name.                                                                |
+| `BOOTSTRAP_AGENT_TOKEN`          | empty                        | Bootstrap agent token. Stored as a hash.                                                     |
+| `OBSERVABILITY_RETENTION_DAYS`   | `30`                         | Retention window for recorded observability data.                                            |
 
-| Agent variable | Description |
-| --- | --- |
-| `MANAGEMENT_URL` | Management server URL, for example `https://proxy.example.com:8081`. |
-| `AGENT_ID` | Generated agent public ID from management. |
-| `AGENT_TOKEN` | One-time generated or rotated token from management. |
-| `AGENT_NAME` | Optional local display name. |
-| `MANAGEMENT_CA_FILE` | PEM CA bundle used to verify management HTTPS. |
-| `MANAGEMENT_CA_PEM_BASE64` | Base64 PEM CA bundle used to verify management HTTPS. |
-| `AGENT_TLS_CERT_FILE` | Optional client certificate for management mTLS. |
-| `AGENT_TLS_KEY_FILE` | Optional client private key for management mTLS. |
-| `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy. |
+| Agent variable                    | Description                                                          |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `MANAGEMENT_URL`                  | Management server URL, for example `https://proxy.example.com:8081`. |
+| `AGENT_ID`                        | Generated agent public ID from management.                           |
+| `AGENT_TOKEN`                     | One-time generated or rotated token from management.                 |
+| `AGENT_NAME`                      | Optional local display name.                                         |
+| `MANAGEMENT_CA_FILE`              | PEM CA bundle used to verify management HTTPS.                       |
+| `MANAGEMENT_CA_PEM_BASE64`        | Base64 PEM CA bundle used to verify management HTTPS.                |
+| `AGENT_TLS_CERT_FILE`             | Optional client certificate for management mTLS.                     |
+| `AGENT_TLS_KEY_FILE`              | Optional client private key for management mTLS.                     |
+| `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy.                              |
 
-| Installer variable | Default | Description |
-| --- | --- | --- |
-| `P2PSTREAM_REPOSITORY` | `Kirari04/p2pstream` | GitHub owner/repo used by the installer. |
-| `P2PSTREAM_VERSION` | `latest` | Release tag such as `vX.Y.Z`, or `latest`. |
-| `P2PSTREAM_CONFIG_DIR` | `/etc/p2pstream` | Agent config directory created by installer. |
-| `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path. |
+| Installer variable       | Default                    | Description                                                                  |
+| ------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
+| `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo used by the installer.                                     |
+| `P2PSTREAM_VERSION`      | `latest`                   | Release tag such as `vX.Y.Z`, `latest`, or `nightly` for development builds. |
+| `P2PSTREAM_CONFIG_DIR`   | `/etc/p2pstream`           | Agent config directory created by installer.                                 |
+| `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path.                                                         |
 
 ## Validation Rules
 

@@ -15,21 +15,26 @@ Common tags:
 ```text
 latest
 vX.Y.Z
+sha-abcdef0
+nightly
+nightly-sha-abcdef0
 ```
+
+Stable releases publish `latest`, a version tag such as `vX.Y.Z`, and a commit tag such as `sha-abcdef0` from the `main` branch. The `nightly` tags are Docker-only development images built from the `dev` branch; use them for testing unreleased changes, not for repeatable production deployments.
 
 The runtime image:
 
-| Runtime detail | Value |
-| --- | --- |
-| Binary | `/app/p2pstream` |
-| Management UI dist | `/app/web/management/dist` |
-| `ENV` | `production` |
+| Runtime detail           | Value                      |
+| ------------------------ | -------------------------- |
+| Binary                   | `/app/p2pstream`           |
+| Management UI dist       | `/app/web/management/dist` |
+| `ENV`                    | `production`               |
 | `MANAGEMENT_UI_DIST_DIR` | `/app/web/management/dist` |
-| `MANAGEMENT_PORT` | `8081` |
-| `CONFIG_DIR` | `/data` |
-| Volume | `/data` |
-| Exposed ports | `80`, `443`, `8081` |
-| Command | `/app/p2pstream server` |
+| `MANAGEMENT_PORT`        | `8081`                     |
+| `CONFIG_DIR`             | `/data`                    |
+| Volume                   | `/data`                    |
+| Exposed ports            | `80`, `443`, `8081`        |
+| Command                  | `/app/p2pstream server`    |
 
 The root Compose file maps:
 
@@ -46,6 +51,7 @@ ports:
 - The application does not read a `PORT` environment variable for public listeners.
 - Public listener ports are stored in SQLite and managed through **Proxy**.
 - Use a pinned release tag instead of `latest` when repeatability matters.
+- Treat `nightly` as unstable. It follows the current `dev` branch and can change without a release note.
 
 ## Runtime Effects
 
