@@ -28,6 +28,7 @@ The runtime image:
 | ------------------------ | -------------------------- |
 | Binary                   | `/app/p2pstream`           |
 | Management UI dist       | `/app/web/management/dist` |
+| Legal files              | `/app/legal`               |
 | `ENV`                    | `production`               |
 | `MANAGEMENT_UI_DIST_DIR` | `/app/web/management/dist` |
 | `MANAGEMENT_PORT`        | `8081`                     |
@@ -58,6 +59,18 @@ ports:
 The runtime image creates a non-root `p2pstream` user and grants the binary `cap_net_bind_service` so it can bind low ports. State is stored in `/data`, including SQLite, generated certificates, ACME material, and default public cache storage.
 
 `MANAGEMENT_UI_DISABLED=true` stops serving the browser UI from the management listener. The ConnectRPC API and agent WebSocket remain available.
+
+## License and Source
+
+The runtime image is licensed as `AGPL-3.0-or-later` and includes license files under `/app/legal`. The image also carries OCI labels for the license, source repository, revision, and version.
+
+Every management listener exposes the corresponding source offer at:
+
+```text
+/.well-known/p2pstream/source
+```
+
+The endpoint remains available even when `MANAGEMENT_UI_DISABLED=true`. If you modify p2pstream and provide network access to that modified version, AGPL section 13 requires that users interacting with it remotely have an opportunity to receive the corresponding source for your modified version.
 
 ## Examples
 

@@ -113,7 +113,11 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           push: true
           build-args: |
+            VERSION=nightly
+            COMMIT=${{ needs.verify.outputs.commit_sha }}
+            SOURCE_REPOSITORY=${{ github.repository }}
             VITE_RELEASE_REPOSITORY=${{ github.repository }}
+            VITE_RELEASE_REF=${{ needs.verify.outputs.commit_sha }}
           tags: |
             ${{ needs.verify.outputs.image }}:nightly-linux-${{ matrix.arch }}
             ${{ needs.verify.outputs.image }}:nightly-sha-${{ needs.verify.outputs.short_sha }}-linux-${{ matrix.arch }}

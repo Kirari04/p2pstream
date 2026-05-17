@@ -1,0 +1,14 @@
+p2pstream
+
+Copyright (C) 2026 p2pstream contributors
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+p2pstream is free software licensed under the GNU Affero General Public
+License version 3 or later. See LICENSE for the complete license terms.
+
+p2pstream is distributed without warranty, including without the implied
+warranty of merchantability or fitness for a particular purpose.
+
+The corresponding source for official release binaries and container images is
+available from the matching GitHub release tag or source archive.

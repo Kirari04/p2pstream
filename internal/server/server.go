@@ -99,6 +99,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 
 // RegisterManagementRoutes attaches the WebSocket and ConnectRPC APIs (Port 8081).
 func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
+	mux.HandleFunc(sourceOfferPath, sourceOfferHandler)
 	mux.HandleFunc("/ws", a.wsHandler)
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a)
 	mux.Handle(path, handler)

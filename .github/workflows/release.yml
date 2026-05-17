@@ -147,17 +147,27 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.18
+
       - name: Build binary
         shell: bash
         env:
           TAG: ${{ needs.verify.outputs.tag }}
           ARCH: ${{ matrix.arch }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
         run: |
           set -Eeuo pipefail
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w" -o dist/p2pstream main.go
+          go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${TAG} -X p2pstream/internal/buildinfo.Commit=${GITHUB_SHA} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o dist/p2pstream main.go
           chmod +x dist/p2pstream
-          tar -C dist -czf "p2pstream_${TAG}_linux_${ARCH}.tar.gz" p2pstream
+          VERSION="${TAG}" COMMIT="${GITHUB_SHA}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
+          mkdir -p dist/package
+          cp dist/p2pstream dist/package/p2pstream
+          cp -R dist/legal/. dist/package/
+          tar -C dist/package -czf "p2pstream_${TAG}_linux_${ARCH}.tar.gz" .
 
       - name: Upload binary archive
         uses: actions/upload-artifact@v4
@@ -201,7 +211,11 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           push: true
           build-args: |
+            VERSION=${{ needs.verify.outputs.tag }}
+            COMMIT=${{ github.sha }}
+            SOURCE_REPOSITORY=${{ github.repository }}
             VITE_RELEASE_REPOSITORY=${{ github.repository }}
+            VITE_RELEASE_REF=${{ needs.verify.outputs.tag }}
           tags: |
             ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.tag }}-linux-${{ matrix.arch }}
             ${{ needs.verify.outputs.image }}:sha-${{ needs.verify.outputs.short_sha }}-linux-${{ matrix.arch }}
@@ -228,10 +242,13 @@ jobs:
 
       - name: Prepare release assets
         shell: bash
+        env:
+          TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -Eeuo pipefail
           mkdir -p dist/assets
           find dist/artifacts -type f -name '*.tar.gz' -exec cp {} dist/assets/ \;
+          git archive --format=tar.gz --prefix="p2pstream-${TAG}/" -o "dist/assets/p2pstream_${TAG}_source.tar.gz" HEAD
           (cd dist/assets && sha256sum *.tar.gz > checksums.txt)
 
       - name: Set up Docker Buildx
@@ -278,7 +295,9 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          notes="Automated p2pstream release ${TAG} for commit ${SHORT_SHA}."
+          notes="Automated p2pstream release ${TAG} for commit ${SHORT_SHA}.
+
+p2pstream is licensed under AGPL-3.0-or-later. Corresponding source is available in the p2pstream_${TAG}_source.tar.gz release asset and from the matching Git tag."
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "$TAG" --notes "$notes"
             gh release upload "$TAG" dist/assets/* --clobber

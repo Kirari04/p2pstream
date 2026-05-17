@@ -1,5 +1,6 @@
 tmp/
 bin/
+dist/
 p2pstream-data/
 .env
 *.db

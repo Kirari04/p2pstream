@@ -112,6 +112,7 @@ export default defineConfig({
           { text: "CLI", link: "/reference/cli" },
           { text: "Docker", link: "/reference/docker" },
           { text: "Ports", link: "/reference/ports" },
+          { text: "License", link: "/reference/license" },
           { text: "Database", link: "/reference/database" },
           { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "Management TLS", link: "/reference/management-tls" },
