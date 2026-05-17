@@ -143,6 +143,8 @@ INSERT INTO public_backends (
     tls_skip_verify,
     static_status_code,
     static_response_body,
+    static_response_body_mode,
+    static_response_template_id,
     upstream_basic_auth_enabled,
     upstream_basic_auth_username,
     upstream_basic_auth_password,
@@ -158,34 +160,36 @@ INSERT INTO public_backends (
     health_check_expected_status_max,
     enabled
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 `
 
 type CreatePublicBackendParams struct {
-	Name                                string `json:"name"`
-	TargetOrigin                        string `json:"target_origin"`
-	BackendType                         string `json:"backend_type"`
-	ForwardMode                         string `json:"forward_mode"`
-	LoadBalancing                       string `json:"load_balancing"`
-	TlsSkipVerify                       int64  `json:"tls_skip_verify"`
-	StaticStatusCode                    int64  `json:"static_status_code"`
-	StaticResponseBody                  string `json:"static_response_body"`
-	UpstreamBasicAuthEnabled            int64  `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername           string `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword           string `json:"upstream_basic_auth_password"`
-	UpstreamResponseHeaderTimeoutMillis int64  `json:"upstream_response_header_timeout_millis"`
-	HealthCheckEnabled                  int64  `json:"health_check_enabled"`
-	HealthCheckMethod                   string `json:"health_check_method"`
-	HealthCheckPath                     string `json:"health_check_path"`
-	HealthCheckIntervalMillis           int64  `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis            int64  `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold         int64  `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold       int64  `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin        int64  `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax        int64  `json:"health_check_expected_status_max"`
-	Enabled                             int64  `json:"enabled"`
+	Name                                string        `json:"name"`
+	TargetOrigin                        string        `json:"target_origin"`
+	BackendType                         string        `json:"backend_type"`
+	ForwardMode                         string        `json:"forward_mode"`
+	LoadBalancing                       string        `json:"load_balancing"`
+	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
+	StaticStatusCode                    int64         `json:"static_status_code"`
+	StaticResponseBody                  string        `json:"static_response_body"`
+	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
+	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
+	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
+	HealthCheckMethod                   string        `json:"health_check_method"`
+	HealthCheckPath                     string        `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
+	Enabled                             int64         `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error) {
@@ -198,6 +202,8 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		arg.TlsSkipVerify,
 		arg.StaticStatusCode,
 		arg.StaticResponseBody,
+		arg.StaticResponseBodyMode,
+		arg.StaticResponseTemplateID,
 		arg.UpstreamBasicAuthEnabled,
 		arg.UpstreamBasicAuthUsername,
 		arg.UpstreamBasicAuthPassword,
@@ -224,6 +230,8 @@ func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBacke
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
+		&i.StaticResponseBodyMode,
+		&i.StaticResponseTemplateID,
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
@@ -489,28 +497,32 @@ INSERT INTO public_rate_limit_rules (
     key_parts_json,
     response_status_code,
     response_body,
+    response_body_mode,
+    response_body_template_id,
     response_content_type,
     response_headers_json
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at
 `
 
 type CreatePublicRateLimitRuleParams struct {
-	Name                string `json:"name"`
-	Priority            int64  `json:"priority"`
-	Enabled             int64  `json:"enabled"`
-	Algorithm           string `json:"algorithm"`
-	LimitCount          int64  `json:"limit_count"`
-	WindowMillis        int64  `json:"window_millis"`
-	Burst               int64  `json:"burst"`
-	MatchJson           string `json:"match_json"`
-	KeyPartsJson        string `json:"key_parts_json"`
-	ResponseStatusCode  int64  `json:"response_status_code"`
-	ResponseBody        string `json:"response_body"`
-	ResponseContentType string `json:"response_content_type"`
-	ResponseHeadersJson string `json:"response_headers_json"`
+	Name                   string        `json:"name"`
+	Priority               int64         `json:"priority"`
+	Enabled                int64         `json:"enabled"`
+	Algorithm              string        `json:"algorithm"`
+	LimitCount             int64         `json:"limit_count"`
+	WindowMillis           int64         `json:"window_millis"`
+	Burst                  int64         `json:"burst"`
+	MatchJson              string        `json:"match_json"`
+	KeyPartsJson           string        `json:"key_parts_json"`
+	ResponseStatusCode     int64         `json:"response_status_code"`
+	ResponseBody           string        `json:"response_body"`
+	ResponseBodyMode       string        `json:"response_body_mode"`
+	ResponseBodyTemplateID sql.NullInt64 `json:"response_body_template_id"`
+	ResponseContentType    string        `json:"response_content_type"`
+	ResponseHeadersJson    string        `json:"response_headers_json"`
 }
 
 func (q *Queries) CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error) {
@@ -526,6 +538,8 @@ func (q *Queries) CreatePublicRateLimitRule(ctx context.Context, arg CreatePubli
 		arg.KeyPartsJson,
 		arg.ResponseStatusCode,
 		arg.ResponseBody,
+		arg.ResponseBodyMode,
+		arg.ResponseBodyTemplateID,
 		arg.ResponseContentType,
 		arg.ResponseHeadersJson,
 	)
@@ -543,8 +557,53 @@ func (q *Queries) CreatePublicRateLimitRule(ctx context.Context, arg CreatePubli
 		&i.KeyPartsJson,
 		&i.ResponseStatusCode,
 		&i.ResponseBody,
+		&i.ResponseBodyMode,
+		&i.ResponseBodyTemplateID,
 		&i.ResponseContentType,
 		&i.ResponseHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicResponseTemplate = `-- name: CreatePublicResponseTemplate :one
+INSERT INTO public_response_templates (
+    name,
+    kind,
+    description,
+    content_type,
+    body
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING id, name, kind, description, content_type, body, created_at, updated_at
+`
+
+type CreatePublicResponseTemplateParams struct {
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	Description string `json:"description"`
+	ContentType string `json:"content_type"`
+	Body        string `json:"body"`
+}
+
+func (q *Queries) CreatePublicResponseTemplate(ctx context.Context, arg CreatePublicResponseTemplateParams) (PublicResponseTemplate, error) {
+	row := q.db.QueryRowContext(ctx, createPublicResponseTemplate,
+		arg.Name,
+		arg.Kind,
+		arg.Description,
+		arg.ContentType,
+		arg.Body,
+	)
+	var i PublicResponseTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.Description,
+		&i.ContentType,
+		&i.Body,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -927,10 +986,14 @@ INSERT INTO public_waf_rules (
     trigger_quiet_period_millis,
     block_response_status_code,
     block_response_body,
+    block_response_body_mode,
+    block_response_template_id,
+    captcha_page_template_id,
+    waiting_room_page_template_id,
     block_response_content_type,
     block_response_headers_json
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
@@ -938,6 +1001,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
           trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at
 `
 
@@ -970,6 +1034,10 @@ type CreatePublicWafRuleParams struct {
 	TriggerQuietPeriodMillis             int64         `json:"trigger_quiet_period_millis"`
 	BlockResponseStatusCode              int64         `json:"block_response_status_code"`
 	BlockResponseBody                    string        `json:"block_response_body"`
+	BlockResponseBodyMode                string        `json:"block_response_body_mode"`
+	BlockResponseTemplateID              sql.NullInt64 `json:"block_response_template_id"`
+	CaptchaPageTemplateID                sql.NullInt64 `json:"captcha_page_template_id"`
+	WaitingRoomPageTemplateID            sql.NullInt64 `json:"waiting_room_page_template_id"`
 	BlockResponseContentType             string        `json:"block_response_content_type"`
 	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
 }
@@ -1004,6 +1072,10 @@ func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRu
 		arg.TriggerQuietPeriodMillis,
 		arg.BlockResponseStatusCode,
 		arg.BlockResponseBody,
+		arg.BlockResponseBodyMode,
+		arg.BlockResponseTemplateID,
+		arg.CaptchaPageTemplateID,
+		arg.WaitingRoomPageTemplateID,
 		arg.BlockResponseContentType,
 		arg.BlockResponseHeadersJson,
 	)
@@ -1038,6 +1110,10 @@ func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRu
 		&i.TriggerQuietPeriodMillis,
 		&i.BlockResponseStatusCode,
 		&i.BlockResponseBody,
+		&i.BlockResponseBodyMode,
+		&i.BlockResponseTemplateID,
+		&i.CaptchaPageTemplateID,
+		&i.WaitingRoomPageTemplateID,
 		&i.BlockResponseContentType,
 		&i.BlockResponseHeadersJson,
 		&i.CreatedAt,
@@ -1251,6 +1327,16 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicRateLimitRule(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicRateLimitRule, id)
+	return err
+}
+
+const deletePublicResponseTemplate = `-- name: DeletePublicResponseTemplate :exec
+DELETE FROM public_response_templates
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicResponseTemplate(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicResponseTemplate, id)
 	return err
 }
 
@@ -1643,7 +1729,7 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 }
 
 const getPublicBackend = `-- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 WHERE id = ?
 `
@@ -1661,6 +1747,8 @@ func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
+		&i.StaticResponseBodyMode,
+		&i.StaticResponseTemplateID,
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
@@ -1798,7 +1886,7 @@ func (q *Queries) GetPublicListener(ctx context.Context, id int64) (PublicListen
 }
 
 const getPublicRateLimitRule = `-- name: GetPublicRateLimitRule :one
-SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at
 FROM public_rate_limit_rules
 WHERE id = ?
 `
@@ -1819,8 +1907,54 @@ func (q *Queries) GetPublicRateLimitRule(ctx context.Context, id int64) (PublicR
 		&i.KeyPartsJson,
 		&i.ResponseStatusCode,
 		&i.ResponseBody,
+		&i.ResponseBodyMode,
+		&i.ResponseBodyTemplateID,
 		&i.ResponseContentType,
 		&i.ResponseHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicResponseTemplate = `-- name: GetPublicResponseTemplate :one
+SELECT id, name, kind, description, content_type, body, created_at, updated_at
+FROM public_response_templates
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicResponseTemplate(ctx context.Context, id int64) (PublicResponseTemplate, error) {
+	row := q.db.QueryRowContext(ctx, getPublicResponseTemplate, id)
+	var i PublicResponseTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.Description,
+		&i.ContentType,
+		&i.Body,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicResponseTemplateByName = `-- name: GetPublicResponseTemplateByName :one
+SELECT id, name, kind, description, content_type, body, created_at, updated_at
+FROM public_response_templates
+WHERE name = ?
+`
+
+func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name string) (PublicResponseTemplate, error) {
+	row := q.db.QueryRowContext(ctx, getPublicResponseTemplateByName, name)
+	var i PublicResponseTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.Description,
+		&i.ContentType,
+		&i.Body,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1970,6 +2104,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
        trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
 FROM public_waf_rules
 WHERE id = ?
@@ -2008,6 +2143,10 @@ func (q *Queries) GetPublicWafRule(ctx context.Context, id int64) (PublicWafRule
 		&i.TriggerQuietPeriodMillis,
 		&i.BlockResponseStatusCode,
 		&i.BlockResponseBody,
+		&i.BlockResponseBodyMode,
+		&i.BlockResponseTemplateID,
+		&i.CaptchaPageTemplateID,
+		&i.WaitingRoomPageTemplateID,
 		&i.BlockResponseContentType,
 		&i.BlockResponseHeadersJson,
 		&i.CreatedAt,
@@ -2572,7 +2711,7 @@ func (q *Queries) ListPublicBackendUpstreamHeadersByBackend(ctx context.Context,
 }
 
 const listPublicBackends = `-- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 FROM public_backends
 ORDER BY name ASC, id ASC
 `
@@ -2596,6 +2735,8 @@ func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, erro
 			&i.TlsSkipVerify,
 			&i.StaticStatusCode,
 			&i.StaticResponseBody,
+			&i.StaticResponseBodyMode,
+			&i.StaticResponseTemplateID,
 			&i.UpstreamBasicAuthEnabled,
 			&i.UpstreamBasicAuthUsername,
 			&i.UpstreamBasicAuthPassword,
@@ -2833,7 +2974,7 @@ func (q *Queries) ListPublicListeners(ctx context.Context) ([]PublicListener, er
 }
 
 const listPublicRateLimitRules = `-- name: ListPublicRateLimitRules :many
-SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+SELECT id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at
 FROM public_rate_limit_rules
 ORDER BY priority ASC, id ASC
 `
@@ -2860,8 +3001,48 @@ func (q *Queries) ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLim
 			&i.KeyPartsJson,
 			&i.ResponseStatusCode,
 			&i.ResponseBody,
+			&i.ResponseBodyMode,
+			&i.ResponseBodyTemplateID,
 			&i.ResponseContentType,
 			&i.ResponseHeadersJson,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicResponseTemplates = `-- name: ListPublicResponseTemplates :many
+SELECT id, name, kind, description, content_type, body, created_at, updated_at
+FROM public_response_templates
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListPublicResponseTemplates(ctx context.Context) ([]PublicResponseTemplate, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicResponseTemplates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicResponseTemplate
+	for rows.Next() {
+		var i PublicResponseTemplate
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Kind,
+			&i.Description,
+			&i.ContentType,
+			&i.Body,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -3176,6 +3357,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
        trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+       block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
 FROM public_waf_rules
 ORDER BY priority ASC, id ASC
@@ -3220,6 +3402,10 @@ func (q *Queries) ListPublicWafRules(ctx context.Context) ([]PublicWafRule, erro
 			&i.TriggerQuietPeriodMillis,
 			&i.BlockResponseStatusCode,
 			&i.BlockResponseBody,
+			&i.BlockResponseBodyMode,
+			&i.BlockResponseTemplateID,
+			&i.CaptchaPageTemplateID,
+			&i.WaitingRoomPageTemplateID,
 			&i.BlockResponseContentType,
 			&i.BlockResponseHeadersJson,
 			&i.CreatedAt,
@@ -3901,6 +4087,8 @@ SET name = ?,
     tls_skip_verify = ?,
     static_status_code = ?,
     static_response_body = ?,
+    static_response_body_mode = ?,
+    static_response_template_id = ?,
     upstream_basic_auth_enabled = ?,
     upstream_basic_auth_username = ?,
     upstream_basic_auth_password = ?,
@@ -3917,33 +4105,35 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
+RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
 `
 
 type UpdatePublicBackendParams struct {
-	Name                                string `json:"name"`
-	TargetOrigin                        string `json:"target_origin"`
-	BackendType                         string `json:"backend_type"`
-	ForwardMode                         string `json:"forward_mode"`
-	LoadBalancing                       string `json:"load_balancing"`
-	TlsSkipVerify                       int64  `json:"tls_skip_verify"`
-	StaticStatusCode                    int64  `json:"static_status_code"`
-	StaticResponseBody                  string `json:"static_response_body"`
-	UpstreamBasicAuthEnabled            int64  `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername           string `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword           string `json:"upstream_basic_auth_password"`
-	UpstreamResponseHeaderTimeoutMillis int64  `json:"upstream_response_header_timeout_millis"`
-	HealthCheckEnabled                  int64  `json:"health_check_enabled"`
-	HealthCheckMethod                   string `json:"health_check_method"`
-	HealthCheckPath                     string `json:"health_check_path"`
-	HealthCheckIntervalMillis           int64  `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis            int64  `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold         int64  `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold       int64  `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin        int64  `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax        int64  `json:"health_check_expected_status_max"`
-	Enabled                             int64  `json:"enabled"`
-	ID                                  int64  `json:"id"`
+	Name                                string        `json:"name"`
+	TargetOrigin                        string        `json:"target_origin"`
+	BackendType                         string        `json:"backend_type"`
+	ForwardMode                         string        `json:"forward_mode"`
+	LoadBalancing                       string        `json:"load_balancing"`
+	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
+	StaticStatusCode                    int64         `json:"static_status_code"`
+	StaticResponseBody                  string        `json:"static_response_body"`
+	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
+	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
+	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
+	HealthCheckMethod                   string        `json:"health_check_method"`
+	HealthCheckPath                     string        `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
+	Enabled                             int64         `json:"enabled"`
+	ID                                  int64         `json:"id"`
 }
 
 func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error) {
@@ -3956,6 +4146,8 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		arg.TlsSkipVerify,
 		arg.StaticStatusCode,
 		arg.StaticResponseBody,
+		arg.StaticResponseBodyMode,
+		arg.StaticResponseTemplateID,
 		arg.UpstreamBasicAuthEnabled,
 		arg.UpstreamBasicAuthUsername,
 		arg.UpstreamBasicAuthPassword,
@@ -3983,6 +4175,8 @@ func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBacke
 		&i.TlsSkipVerify,
 		&i.StaticStatusCode,
 		&i.StaticResponseBody,
+		&i.StaticResponseBodyMode,
+		&i.StaticResponseTemplateID,
 		&i.UpstreamBasicAuthEnabled,
 		&i.UpstreamBasicAuthUsername,
 		&i.UpstreamBasicAuthPassword,
@@ -4198,28 +4392,32 @@ SET name = ?,
     key_parts_json = ?,
     response_status_code = ?,
     response_body = ?,
+    response_body_mode = ?,
+    response_body_template_id = ?,
     response_content_type = ?,
     response_headers_json = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_content_type, response_headers_json, created_at, updated_at
+RETURNING id, name, priority, enabled, algorithm, limit_count, window_millis, burst, match_json, key_parts_json, response_status_code, response_body, response_body_mode, response_body_template_id, response_content_type, response_headers_json, created_at, updated_at
 `
 
 type UpdatePublicRateLimitRuleParams struct {
-	Name                string `json:"name"`
-	Priority            int64  `json:"priority"`
-	Enabled             int64  `json:"enabled"`
-	Algorithm           string `json:"algorithm"`
-	LimitCount          int64  `json:"limit_count"`
-	WindowMillis        int64  `json:"window_millis"`
-	Burst               int64  `json:"burst"`
-	MatchJson           string `json:"match_json"`
-	KeyPartsJson        string `json:"key_parts_json"`
-	ResponseStatusCode  int64  `json:"response_status_code"`
-	ResponseBody        string `json:"response_body"`
-	ResponseContentType string `json:"response_content_type"`
-	ResponseHeadersJson string `json:"response_headers_json"`
-	ID                  int64  `json:"id"`
+	Name                   string        `json:"name"`
+	Priority               int64         `json:"priority"`
+	Enabled                int64         `json:"enabled"`
+	Algorithm              string        `json:"algorithm"`
+	LimitCount             int64         `json:"limit_count"`
+	WindowMillis           int64         `json:"window_millis"`
+	Burst                  int64         `json:"burst"`
+	MatchJson              string        `json:"match_json"`
+	KeyPartsJson           string        `json:"key_parts_json"`
+	ResponseStatusCode     int64         `json:"response_status_code"`
+	ResponseBody           string        `json:"response_body"`
+	ResponseBodyMode       string        `json:"response_body_mode"`
+	ResponseBodyTemplateID sql.NullInt64 `json:"response_body_template_id"`
+	ResponseContentType    string        `json:"response_content_type"`
+	ResponseHeadersJson    string        `json:"response_headers_json"`
+	ID                     int64         `json:"id"`
 }
 
 func (q *Queries) UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error) {
@@ -4235,6 +4433,8 @@ func (q *Queries) UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePubli
 		arg.KeyPartsJson,
 		arg.ResponseStatusCode,
 		arg.ResponseBody,
+		arg.ResponseBodyMode,
+		arg.ResponseBodyTemplateID,
 		arg.ResponseContentType,
 		arg.ResponseHeadersJson,
 		arg.ID,
@@ -4253,8 +4453,54 @@ func (q *Queries) UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePubli
 		&i.KeyPartsJson,
 		&i.ResponseStatusCode,
 		&i.ResponseBody,
+		&i.ResponseBodyMode,
+		&i.ResponseBodyTemplateID,
 		&i.ResponseContentType,
 		&i.ResponseHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicResponseTemplate = `-- name: UpdatePublicResponseTemplate :one
+UPDATE public_response_templates
+SET name = ?,
+    kind = ?,
+    description = ?,
+    content_type = ?,
+    body = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, kind, description, content_type, body, created_at, updated_at
+`
+
+type UpdatePublicResponseTemplateParams struct {
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	Description string `json:"description"`
+	ContentType string `json:"content_type"`
+	Body        string `json:"body"`
+	ID          int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicResponseTemplate,
+		arg.Name,
+		arg.Kind,
+		arg.Description,
+		arg.ContentType,
+		arg.Body,
+		arg.ID,
+	)
+	var i PublicResponseTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.Description,
+		&i.ContentType,
+		&i.Body,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -4723,6 +4969,10 @@ SET name = ?,
     trigger_quiet_period_millis = ?,
     block_response_status_code = ?,
     block_response_body = ?,
+    block_response_body_mode = ?,
+    block_response_template_id = ?,
+    captcha_page_template_id = ?,
+    waiting_room_page_template_id = ?,
     block_response_content_type = ?,
     block_response_headers_json = ?,
     updated_at = CURRENT_TIMESTAMP
@@ -4733,6 +4983,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
           trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
+          block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at
 `
 
@@ -4765,6 +5016,10 @@ type UpdatePublicWafRuleParams struct {
 	TriggerQuietPeriodMillis             int64         `json:"trigger_quiet_period_millis"`
 	BlockResponseStatusCode              int64         `json:"block_response_status_code"`
 	BlockResponseBody                    string        `json:"block_response_body"`
+	BlockResponseBodyMode                string        `json:"block_response_body_mode"`
+	BlockResponseTemplateID              sql.NullInt64 `json:"block_response_template_id"`
+	CaptchaPageTemplateID                sql.NullInt64 `json:"captcha_page_template_id"`
+	WaitingRoomPageTemplateID            sql.NullInt64 `json:"waiting_room_page_template_id"`
 	BlockResponseContentType             string        `json:"block_response_content_type"`
 	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
 	ID                                   int64         `json:"id"`
@@ -4800,6 +5055,10 @@ func (q *Queries) UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRu
 		arg.TriggerQuietPeriodMillis,
 		arg.BlockResponseStatusCode,
 		arg.BlockResponseBody,
+		arg.BlockResponseBodyMode,
+		arg.BlockResponseTemplateID,
+		arg.CaptchaPageTemplateID,
+		arg.WaitingRoomPageTemplateID,
 		arg.BlockResponseContentType,
 		arg.BlockResponseHeadersJson,
 		arg.ID,
@@ -4835,6 +5094,10 @@ func (q *Queries) UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRu
 		&i.TriggerQuietPeriodMillis,
 		&i.BlockResponseStatusCode,
 		&i.BlockResponseBody,
+		&i.BlockResponseBodyMode,
+		&i.BlockResponseTemplateID,
+		&i.CaptchaPageTemplateID,
+		&i.WaitingRoomPageTemplateID,
 		&i.BlockResponseContentType,
 		&i.BlockResponseHeadersJson,
 		&i.CreatedAt,

@@ -182,6 +182,17 @@ func (db *DB) migrate() error {
 		cache_bytes INTEGER NOT NULL DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS public_response_templates (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		kind TEXT NOT NULL,
+		description TEXT NOT NULL DEFAULT '',
+		content_type TEXT NOT NULL DEFAULT 'text/html; charset=utf-8',
+		body TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS public_backends (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL UNIQUE,
@@ -192,6 +203,8 @@ func (db *DB) migrate() error {
 		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
 		static_status_code INTEGER NOT NULL DEFAULT 200,
 		static_response_body TEXT NOT NULL DEFAULT '',
+		static_response_body_mode TEXT NOT NULL DEFAULT 'inline',
+		static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
 			upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
 			upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
 			upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
@@ -331,6 +344,10 @@ func (db *DB) migrate() error {
 		trigger_quiet_period_millis INTEGER NOT NULL DEFAULT 60000,
 		block_response_status_code INTEGER NOT NULL DEFAULT 403,
 		block_response_body TEXT NOT NULL DEFAULT 'Request blocked',
+		block_response_body_mode TEXT NOT NULL DEFAULT 'inline',
+		block_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+		captcha_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+		waiting_room_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
 		block_response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
 		block_response_headers_json TEXT NOT NULL DEFAULT '[]',
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -465,6 +482,8 @@ func (db *DB) migrate() error {
 		`ALTER TABLE public_backends ADD COLUMN tls_skip_verify INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN static_status_code INTEGER NOT NULL DEFAULT 200`,
 		`ALTER TABLE public_backends ADD COLUMN static_response_body TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN static_response_body_mode TEXT NOT NULL DEFAULT 'inline'`,
+		`ALTER TABLE public_backends ADD COLUMN static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
@@ -615,6 +634,23 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_response_templates (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			kind TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			content_type TEXT NOT NULL DEFAULT 'text/html; charset=utf-8',
+			body TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_response_templates_kind ON public_response_templates (kind, name)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_rate_limit_rules (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
@@ -629,6 +665,8 @@ func (db *DB) migrate() error {
 			response_status_code INTEGER NOT NULL DEFAULT 429,
 			response_body TEXT NOT NULL DEFAULT 'Rate limit exceeded
 ',
+			response_body_mode TEXT NOT NULL DEFAULT 'inline',
+			response_body_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
 			response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
 			response_headers_json TEXT NOT NULL DEFAULT '[]',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -639,6 +677,14 @@ func (db *DB) migrate() error {
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_rate_limit_rules_priority ON public_rate_limit_rules (priority, id)`); err != nil {
 		return err
+	}
+	for _, stmt := range []string{
+		`ALTER TABLE public_rate_limit_rules ADD COLUMN response_body_mode TEXT NOT NULL DEFAULT 'inline'`,
+		`ALTER TABLE public_rate_limit_rules ADD COLUMN response_body_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
 	}
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_traffic_shaper_rules (
@@ -708,6 +754,10 @@ func (db *DB) migrate() error {
 			trigger_quiet_period_millis INTEGER NOT NULL DEFAULT 60000,
 			block_response_status_code INTEGER NOT NULL DEFAULT 403,
 			block_response_body TEXT NOT NULL DEFAULT 'Request blocked',
+			block_response_body_mode TEXT NOT NULL DEFAULT 'inline',
+			block_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+			captcha_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+			waiting_room_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
 			block_response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
 			block_response_headers_json TEXT NOT NULL DEFAULT '[]',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -768,6 +818,16 @@ func (db *DB) migrate() error {
 	}
 	if _, err := db.Exec(`ALTER TABLE public_cache_rules ADD COLUMN allow_cookie_requests INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return err
+	}
+	for _, stmt := range []string{
+		`ALTER TABLE public_waf_rules ADD COLUMN block_response_body_mode TEXT NOT NULL DEFAULT 'inline'`,
+		`ALTER TABLE public_waf_rules ADD COLUMN block_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
+		`ALTER TABLE public_waf_rules ADD COLUMN captcha_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
+		`ALTER TABLE public_waf_rules ADD COLUMN waiting_room_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
 	}
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_cache_entries (

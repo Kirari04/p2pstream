@@ -13,6 +13,8 @@ import SecondaryButton from "@/volt/SecondaryButton.vue";
 import {
   PublicBackendForwardMode,
   PublicBackendLoadBalancing,
+  PublicResponseBodyMode,
+  PublicResponseTemplateKind,
   PublicBackendType,
   type GetPublicProxyConfigResponse,
   type PublicBackend,
@@ -41,6 +43,7 @@ const cloneOmittedSecretSummary = ref("");
 const backends = computed(() => props.config?.backends ?? []);
 const agents = computed(() => props.config?.agents ?? []);
 const backendAgents = computed(() => props.config?.backendAgents ?? []);
+const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
 
 const backendForm = reactive({
   id: "",
@@ -69,6 +72,8 @@ const backendForm = reactive({
   staticStatusCode: 200,
   staticResponseHeaders: [] as StaticHeaderForm[],
   staticResponseBody: "",
+  staticResponseBodyMode: PublicResponseBodyMode.INLINE,
+  staticResponseTemplateId: "",
   enabled: true,
 });
 
@@ -84,6 +89,13 @@ const submitLabel = computed(() => (
 ));
 const backendSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
+  if (
+    backendForm.backendType === PublicBackendType.STATIC &&
+    backendForm.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE &&
+    !backendForm.staticResponseTemplateId
+  ) {
+    return "Select a response template.";
+  }
   if (backendForm.backendType !== PublicBackendType.PROXY_FORWARD) return "";
   if (backendForm.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "";
   return backendForm.agentAssignments.some((assignment) => assignment.enabled && assignment.agentId)
@@ -130,6 +142,8 @@ function resetForm() {
   backendForm.staticStatusCode = 200;
   backendForm.staticResponseHeaders = [];
   backendForm.staticResponseBody = "";
+  backendForm.staticResponseBodyMode = PublicResponseBodyMode.INLINE;
+  backendForm.staticResponseTemplateId = "";
   backendForm.enabled = true;
 }
 
@@ -193,6 +207,8 @@ function populateBackendForm(backend: PublicBackend, mode: "edit" | "clone") {
     value: header.value,
   }));
   backendForm.staticResponseBody = backend.staticResponseBody;
+  backendForm.staticResponseBodyMode = backend.staticResponseBodyMode || PublicResponseBodyMode.INLINE;
+  backendForm.staticResponseTemplateId = backend.staticResponseTemplateId ? backend.staticResponseTemplateId.toString() : "";
   backendForm.enabled = backend.enabled;
   isOpen.value = true;
 }
@@ -310,6 +326,10 @@ async function submitBackend() {
         ? backendForm.staticResponseHeaders.map((header) => ({ name: header.name, value: header.value }))
         : [],
       staticResponseBody: isStatic ? backendForm.staticResponseBody : "",
+      staticResponseBodyMode: isStatic ? backendForm.staticResponseBodyMode : PublicResponseBodyMode.INLINE,
+      staticResponseTemplateId: isStatic && backendForm.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE
+        ? BigInt(backendForm.staticResponseTemplateId || "0")
+        : 0n,
     };
     if (backendForm.id) {
       await managementClient.updatePublicBackend({
@@ -545,10 +565,42 @@ defineExpose({ openCreate, openEdit, openClone, close });
           Status
           <input v-model.number="backendForm.staticStatusCode" type="number" min="100" max="599" class="vercel-input text-sm normal-case tracking-normal" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-          Body
-          <textarea v-model="backendForm.staticResponseBody" class="vercel-input min-h-28 resize-y text-sm normal-case tracking-normal" />
-        </label>
+        <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Body source
+            <div class="grid grid-cols-2 rounded-md border border-[#333] bg-[#0b0b0b] p-1">
+              <button
+                type="button"
+                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
+                :class="backendForm.staticResponseBodyMode === PublicResponseBodyMode.INLINE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+                @click="backendForm.staticResponseBodyMode = PublicResponseBodyMode.INLINE"
+              >
+                Inline
+              </button>
+              <button
+                type="button"
+                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
+                :class="backendForm.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+                @click="backendForm.staticResponseBodyMode = PublicResponseBodyMode.TEMPLATE"
+              >
+                Template
+              </button>
+            </div>
+          </div>
+          <label v-if="backendForm.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Template
+            <select v-model="backendForm.staticResponseTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+              <option value="">{{ genericTemplates.length ? 'Select template' : 'No generic templates' }}</option>
+              <option v-for="template in genericTemplates" :key="template.id.toString()" :value="template.id.toString()">
+                {{ template.name }}
+              </option>
+            </select>
+          </label>
+          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Body
+            <textarea v-model="backendForm.staticResponseBody" class="vercel-input min-h-28 resize-y text-sm normal-case tracking-normal" />
+          </label>
+        </div>
         <div class="grid gap-2">
           <div class="flex items-center justify-between gap-3">
             <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Headers</p>

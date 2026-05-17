@@ -51,6 +51,17 @@ CREATE TABLE IF NOT EXISTS proxy_request_events (
     cache_bytes INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS public_response_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    content_type TEXT NOT NULL DEFAULT 'text/html; charset=utf-8',
+    body TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS public_backends (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -61,6 +72,8 @@ CREATE TABLE IF NOT EXISTS public_backends (
     tls_skip_verify INTEGER NOT NULL DEFAULT 0,
     static_status_code INTEGER NOT NULL DEFAULT 200,
     static_response_body TEXT NOT NULL DEFAULT '',
+    static_response_body_mode TEXT NOT NULL DEFAULT 'inline',
+    static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
     upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
     upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
     upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
@@ -206,6 +219,8 @@ CREATE TABLE IF NOT EXISTS public_rate_limit_rules (
     response_status_code INTEGER NOT NULL DEFAULT 429,
     response_body TEXT NOT NULL DEFAULT 'Rate limit exceeded
 ',
+    response_body_mode TEXT NOT NULL DEFAULT 'inline',
+    response_body_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
     response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
     response_headers_json TEXT NOT NULL DEFAULT '[]',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -270,6 +285,10 @@ CREATE TABLE IF NOT EXISTS public_waf_rules (
     trigger_quiet_period_millis INTEGER NOT NULL DEFAULT 60000,
     block_response_status_code INTEGER NOT NULL DEFAULT 403,
     block_response_body TEXT NOT NULL DEFAULT 'Request blocked',
+    block_response_body_mode TEXT NOT NULL DEFAULT 'inline',
+    block_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+    captcha_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+    waiting_room_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
     block_response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
     block_response_headers_json TEXT NOT NULL DEFAULT '[]',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

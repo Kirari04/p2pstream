@@ -171,6 +171,8 @@ func TestPublicRateLimitValidationRejectsUnsafeInput(t *testing.T) {
 		nil,
 		429,
 		"",
+		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+		0,
 		"",
 		nil,
 	); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -189,6 +191,8 @@ func TestPublicRateLimitValidationRejectsUnsafeInput(t *testing.T) {
 		nil,
 		429,
 		"",
+		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+		0,
 		"",
 		[]*p2pstreamv1.PublicRateLimitResponseHeader{{Name: "Content-Length", Value: "1"}},
 	); connect.CodeOf(err) != connect.CodeInvalidArgument {
