@@ -70,7 +70,46 @@ Captcha page templates can only be selected for captcha WAF rules. The selected 
 
 Waiting-room page templates can only be selected for waiting-room WAF rules. The selected template must have kind `waf_waiting_room_page` and include both <code v-pre>{{ .queue_position }}</code> and <code v-pre>{{ .retry_after_seconds }}</code>.
 
-WAF match fields reuse the rate-limit matcher model: methods, protocols, host patterns, path prefixes, headers, cookies, and query parameters.
+WAF rules use request-only CEL match rules. Empty match rules match every request.
+
+Available CEL variables:
+
+| Variable | Type | Notes |
+| --- | --- | --- |
+| `method` | string | Uppercase request method, such as `GET` or `POST`. |
+| `protocol` | string | Listener protocol: `http` or `https`. |
+| `host` | string | Normalized request host without port. |
+| `path` | string | URL path. |
+| `remote_ip` | string | Client remote IP. |
+| `headers` | map string to list string | Header names are lowercase. Repeated headers keep all values. |
+| `cookies` | map string to string | First cookie value by name. |
+| `query` | map string to list string | Query parameter values by name. |
+
+Helper functions:
+
+- `host_match(host, pattern)` for exact and wildcard host patterns such as `*.example.com`.
+- `path_prefix(path, prefix)` for path-prefix checks with segment boundaries.
+- `cidr(remote_ip, cidr)` for IP range checks such as `198.51.100.0/24`.
+
+CEL examples:
+
+```cel
+method == "POST" && host_match(host, "app.example.com") && path_prefix(path, "/login")
+```
+
+```cel
+headers["user-agent"].exists(v, v.matches("(?i)(bot|crawler)"))
+```
+
+```cel
+query["token"].exists(v, v == "") || !("session" in cookies)
+```
+
+```cel
+cidr(remote_ip, "203.0.113.0/24") && !(path_prefix(path, "/health"))
+```
+
+Route data, backend data, backend health, and load-balancer state are not available inside WAF match CEL. WAF rules still run before route resolution.
 
 WAF key parts reuse rate-limit key sources: remote IP, host, method, path, protocol, header, cookie, and query parameter.
 

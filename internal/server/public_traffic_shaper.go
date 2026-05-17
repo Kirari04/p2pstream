@@ -434,6 +434,7 @@ func validatePublicTrafficShaperRuleInput(
 	responseExemptBytes int64,
 	match *p2pstreamv1.PublicRateLimitMatch,
 	keyParts []*p2pstreamv1.PublicRateLimitKeyPart,
+	matchRules ...*p2pstreamv1.PublicPolicyMatchRule,
 ) (publicTrafficShaperRuleMutationInput, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -464,7 +465,7 @@ func validatePublicTrafficShaperRuleInput(
 	if responseExemptBytes < 0 || responseExemptBytes > maxTrafficShaperExemptBytes {
 		return publicTrafficShaperRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("traffic shaper response exemption must be between 0 and 1 GiB"))
 	}
-	matchConfig, err := validateRateLimitMatch(match)
+	matchConfig, err := validatePublicPolicyMatch(match, firstPublicPolicyMatchRule(matchRules))
 	if err != nil {
 		return publicTrafficShaperRuleMutationInput{}, trafficShaperValidationError(err)
 	}
@@ -527,9 +528,11 @@ func publicTrafficShaperRuleRowToConfig(row db.PublicTrafficShaperRule) (publicT
 		UpdatedAt:              row.UpdatedAt,
 	}
 	if row.MatchJson != "" {
-		if err := json.Unmarshal([]byte(row.MatchJson), &rule.Match); err != nil {
+		match, err := decodePublicPolicyMatchJSON(row.MatchJson)
+		if err != nil {
 			return publicTrafficShaperRuleConfig{}, fmt.Errorf("decode match: %w", err)
 		}
+		rule.Match = match
 	}
 	if row.KeyPartsJson != "" {
 		if err := json.Unmarshal([]byte(row.KeyPartsJson), &rule.KeyParts); err != nil {
@@ -626,6 +629,7 @@ func publicTrafficShaperConfigToProto(rule publicTrafficShaperRuleConfig) *p2pst
 		KeyParts:               rateLimitKeyPartsToProto(rule.KeyParts),
 		CreatedAtUnixMillis:    rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:    rule.UpdatedAt.UnixMilli(),
+		MatchRule:              publicPolicyMatchRuleToProto(rule.Match),
 	}
 }
 
@@ -648,6 +652,7 @@ func (a *App) CreatePublicTrafficShaperRule(
 		req.Msg.ResponseExemptBytes,
 		req.Msg.Match,
 		req.Msg.KeyParts,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err
@@ -697,6 +702,7 @@ func (a *App) UpdatePublicTrafficShaperRule(
 		req.Msg.ResponseExemptBytes,
 		req.Msg.Match,
 		req.Msg.KeyParts,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err

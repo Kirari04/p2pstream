@@ -36,15 +36,46 @@ Algorithms:
 - Header matcher names and response header names must be valid HTTP tokens.
 - Protected generated headers such as `RateLimit-*`, `X-RateLimit-*`, `Retry-After`, `Content-Length`, and `Connection` cannot be configured as custom response headers.
 
-Rules can match methods, protocols, host patterns, path prefixes, headers, cookies, and query parameters.
+Rules use request-only CEL match rules. Empty match rules match every request.
 
-Value matcher operators:
+Available CEL variables:
 
-- present,
-- equals,
-- prefix,
-- suffix,
-- contains.
+| Variable | Type | Notes |
+| --- | --- | --- |
+| `method` | string | Uppercase request method, such as `GET` or `POST`. |
+| `protocol` | string | Listener protocol: `http` or `https`. |
+| `host` | string | Normalized request host without port. |
+| `path` | string | URL path. |
+| `remote_ip` | string | Client remote IP. |
+| `headers` | map string to list string | Header names are lowercase. Repeated headers keep all values. |
+| `cookies` | map string to string | First cookie value by name. |
+| `query` | map string to list string | Query parameter values by name. |
+
+Helper functions:
+
+- `host_match(host, pattern)` for exact and wildcard host patterns such as `*.example.com`.
+- `path_prefix(path, prefix)` for path-prefix checks with segment boundaries.
+- `cidr(remote_ip, cidr)` for IP range checks such as `198.51.100.0/24`.
+
+CEL examples:
+
+```cel
+method == "POST" && host_match(host, "app.example.com") && path_prefix(path, "/login")
+```
+
+```cel
+headers["x-plan"].exists(v, v == "free") || query["preview"].exists(v, v == "1")
+```
+
+```cel
+!("session" in cookies) && path.matches("^/public/.+\\.(css|js)$")
+```
+
+```cel
+cidr(remote_ip, "198.51.100.0/24")
+```
+
+Route data, backend data, backend health, and load-balancer state are not available inside rate-limit match CEL. Rate limits still run before route resolution.
 
 Key sources:
 

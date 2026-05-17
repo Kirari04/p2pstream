@@ -1,0 +1,437 @@
+import {
+  PublicListenerProtocol,
+  PublicPolicyMatchBooleanOperator,
+  PublicPolicyMatchConditionOperator,
+  PublicPolicyMatchField,
+  PublicRateLimitMatchOperator,
+  type PublicPolicyMatchBuilder,
+  type PublicPolicyMatchCondition,
+  type PublicPolicyMatchGroup,
+  type PublicPolicyMatchRule,
+  type PublicRateLimitMatch,
+  type PublicRateLimitValueMatcher,
+} from "@/gen/proto/p2pstream/v1/management_pb";
+
+export type PolicyMatchMode = "builder" | "expression";
+
+export type PolicyMatchConditionForm = {
+  field: PublicPolicyMatchField;
+  name: string;
+  operator: PublicPolicyMatchConditionOperator;
+  valuesText: string;
+  negated: boolean;
+};
+
+export type PolicyMatchGroupForm = {
+  operator: PublicPolicyMatchBooleanOperator;
+  negated: boolean;
+  conditions: PolicyMatchConditionForm[];
+  groups: PolicyMatchGroupForm[];
+};
+
+export type PolicyMatchForm = {
+  mode: PolicyMatchMode;
+  expression: string;
+  root: PolicyMatchGroupForm;
+};
+
+export type PublicPolicyMatchRulePayload = {
+  celExpression: string;
+  builder?: {
+    root?: PublicPolicyMatchGroupPayload;
+  };
+};
+
+export type PublicPolicyMatchGroupPayload = {
+  operator: PublicPolicyMatchBooleanOperator;
+  conditions: PublicPolicyMatchConditionPayload[];
+  groups: PublicPolicyMatchGroupPayload[];
+  negated: boolean;
+};
+
+export type PublicPolicyMatchConditionPayload = {
+  field: PublicPolicyMatchField;
+  name: string;
+  operator: PublicPolicyMatchConditionOperator;
+  values: string[];
+  negated: boolean;
+};
+
+export function defaultPolicyMatchForm(): PolicyMatchForm {
+  return {
+    mode: "builder",
+    expression: "",
+    root: emptyGroup(),
+  };
+}
+
+export function emptyGroup(): PolicyMatchGroupForm {
+  return {
+    operator: PublicPolicyMatchBooleanOperator.ALL,
+    negated: false,
+    conditions: [],
+    groups: [],
+  };
+}
+
+export function emptyCondition(field = PublicPolicyMatchField.PATH): PolicyMatchConditionForm {
+  return {
+    field,
+    name: "",
+    operator: PublicPolicyMatchConditionOperator.PREFIX,
+    valuesText: "",
+    negated: false,
+  };
+}
+
+export function policyMatchFormFromProto(
+  rule?: PublicPolicyMatchRule,
+  legacy?: PublicRateLimitMatch,
+): PolicyMatchForm {
+  if (rule?.builder?.root) {
+    return {
+      mode: "builder",
+      expression: rule.celExpression || builderToCEL(builderFormFromProto(rule.builder)),
+      root: groupFormFromProto(rule.builder.root),
+    };
+  }
+  if (rule?.celExpression?.trim()) {
+    return {
+      mode: "expression",
+      expression: rule.celExpression,
+      root: legacyMatchToBuilder(legacy),
+    };
+  }
+  return {
+    mode: "builder",
+    expression: "",
+    root: legacyMatchToBuilder(legacy),
+  };
+}
+
+export function policyMatchRulePayload(form: PolicyMatchForm): PublicPolicyMatchRulePayload | undefined {
+  if (form.mode === "expression") {
+    const expression = form.expression.trim();
+    return expression ? { celExpression: expression } : undefined;
+  }
+  const root = groupPayloadFromForm(form.root);
+  if (!groupHasContent(root)) return undefined;
+  const builder = { root };
+  return {
+    celExpression: builderToCEL(builderFormFromPayload(builder)),
+    builder,
+  };
+}
+
+export function builderToCEL(builder: PolicyMatchGroupForm | { root?: PolicyMatchGroupForm }): string {
+  const root = "conditions" in builder ? builder : builder.root;
+  if (!root) return "";
+  return groupToCEL(root);
+}
+
+export function splitValues(text: string): string[] {
+  return text
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function celString(value: string): string {
+  return JSON.stringify(value);
+}
+
+export function conditionNeedsName(field: PublicPolicyMatchField): boolean {
+  return field === PublicPolicyMatchField.HEADER ||
+    field === PublicPolicyMatchField.COOKIE ||
+    field === PublicPolicyMatchField.QUERY_PARAM;
+}
+
+export function conditionUsesValues(operator: PublicPolicyMatchConditionOperator): boolean {
+  return operator !== PublicPolicyMatchConditionOperator.PRESENT;
+}
+
+export function normalizeConditionForField(condition: PolicyMatchConditionForm): void {
+  if (!conditionNeedsName(condition.field)) condition.name = "";
+  if (condition.operator === PublicPolicyMatchConditionOperator.PRESENT && !conditionNeedsName(condition.field)) {
+    if (condition.field === PublicPolicyMatchField.REMOTE_IP) {
+      condition.operator = PublicPolicyMatchConditionOperator.CIDR;
+    } else if (condition.field === PublicPolicyMatchField.HOST) {
+      condition.operator = PublicPolicyMatchConditionOperator.HOST_PATTERN;
+    } else if (condition.field === PublicPolicyMatchField.PATH) {
+      condition.operator = PublicPolicyMatchConditionOperator.PREFIX;
+    } else {
+      condition.operator = PublicPolicyMatchConditionOperator.EQUALS;
+    }
+  }
+  if (condition.field === PublicPolicyMatchField.REMOTE_IP && condition.operator !== PublicPolicyMatchConditionOperator.CIDR) {
+    condition.operator = PublicPolicyMatchConditionOperator.CIDR;
+  }
+  if (condition.field === PublicPolicyMatchField.HOST && condition.operator === PublicPolicyMatchConditionOperator.CIDR) {
+    condition.operator = PublicPolicyMatchConditionOperator.HOST_PATTERN;
+  }
+  if (condition.field === PublicPolicyMatchField.PATH && condition.operator === PublicPolicyMatchConditionOperator.HOST_PATTERN) {
+    condition.operator = PublicPolicyMatchConditionOperator.PREFIX;
+  }
+  if (condition.field !== PublicPolicyMatchField.HOST && condition.operator === PublicPolicyMatchConditionOperator.HOST_PATTERN) {
+    condition.operator = PublicPolicyMatchConditionOperator.EQUALS;
+  }
+  if (condition.field !== PublicPolicyMatchField.REMOTE_IP && condition.operator === PublicPolicyMatchConditionOperator.CIDR) {
+    condition.operator = PublicPolicyMatchConditionOperator.EQUALS;
+  }
+  if (!conditionUsesValues(condition.operator)) condition.valuesText = "";
+}
+
+export function policyMatchValidationReason(form: PolicyMatchForm): string {
+  if (form.mode === "expression") return "";
+  return groupValidationReason(form.root);
+}
+
+function groupValidationReason(group: PolicyMatchGroupForm): string {
+  for (const condition of group.conditions) {
+    const normalized = { ...condition };
+    normalizeConditionForField(normalized);
+    if (conditionNeedsName(normalized.field) && !normalized.name.trim()) return "Name is required for header, cookie, and query match conditions.";
+    if (conditionUsesValues(normalized.operator) && splitValues(normalized.valuesText).length === 0) return "Comparison conditions require at least one value.";
+  }
+  for (const child of group.groups) {
+    const reason = groupValidationReason(child);
+    if (reason) return reason;
+  }
+  return "";
+}
+
+function builderFormFromProto(builder: PublicPolicyMatchBuilder): PolicyMatchGroupForm {
+  return builder.root ? groupFormFromProto(builder.root) : emptyGroup();
+}
+
+function groupFormFromProto(group: PublicPolicyMatchGroup): PolicyMatchGroupForm {
+  return {
+    operator: group.operator || PublicPolicyMatchBooleanOperator.ALL,
+    negated: group.negated,
+    conditions: group.conditions.map(conditionFormFromProto),
+    groups: group.groups.map(groupFormFromProto),
+  };
+}
+
+function conditionFormFromProto(condition: PublicPolicyMatchCondition): PolicyMatchConditionForm {
+  return {
+    field: condition.field || PublicPolicyMatchField.PATH,
+    name: condition.name,
+    operator: condition.operator || PublicPolicyMatchConditionOperator.EQUALS,
+    valuesText: condition.values.join("\n"),
+    negated: condition.negated,
+  };
+}
+
+function legacyMatchToBuilder(match?: PublicRateLimitMatch): PolicyMatchGroupForm {
+  const root = emptyGroup();
+  if (!match) return root;
+  if (match.methods.length) {
+    root.conditions.push({ field: PublicPolicyMatchField.METHOD, name: "", operator: PublicPolicyMatchConditionOperator.IN, valuesText: match.methods.join("\n"), negated: false });
+  }
+  if (match.protocols.length) {
+    root.conditions.push({
+      field: PublicPolicyMatchField.PROTOCOL,
+      name: "",
+      operator: PublicPolicyMatchConditionOperator.IN,
+      valuesText: match.protocols.map(protocolValue).filter(Boolean).join("\n"),
+      negated: false,
+    });
+  }
+  if (match.hostPatterns.length) {
+    root.conditions.push({ field: PublicPolicyMatchField.HOST, name: "", operator: PublicPolicyMatchConditionOperator.HOST_PATTERN, valuesText: match.hostPatterns.join("\n"), negated: false });
+  }
+  if (match.pathPrefixes.length) {
+    root.conditions.push({ field: PublicPolicyMatchField.PATH, name: "", operator: PublicPolicyMatchConditionOperator.PREFIX, valuesText: match.pathPrefixes.join("\n"), negated: false });
+  }
+  if (match.pathSuffixes.length) {
+    root.conditions.push({ field: PublicPolicyMatchField.PATH, name: "", operator: PublicPolicyMatchConditionOperator.SUFFIX, valuesText: match.pathSuffixes.join("\n"), negated: false });
+  }
+  root.conditions.push(...legacyValueMatchers(PublicPolicyMatchField.HEADER, match.headers));
+  root.conditions.push(...legacyValueMatchers(PublicPolicyMatchField.COOKIE, match.cookies));
+  root.conditions.push(...legacyValueMatchers(PublicPolicyMatchField.QUERY_PARAM, match.queryParams));
+  return root;
+}
+
+function protocolValue(protocol: PublicListenerProtocol): string {
+  if (protocol === PublicListenerProtocol.HTTP) return "http";
+  if (protocol === PublicListenerProtocol.HTTPS) return "https";
+  return "";
+}
+
+function legacyValueMatchers(field: PublicPolicyMatchField, matchers: readonly PublicRateLimitValueMatcher[]): PolicyMatchConditionForm[] {
+  return matchers.map((matcher) => ({
+    field,
+    name: matcher.name,
+    operator: legacyOperator(matcher.operator),
+    valuesText: matcher.operator === PublicRateLimitMatchOperator.PRESENT ? "" : matcher.value,
+    negated: false,
+  }));
+}
+
+function legacyOperator(operator: PublicRateLimitMatchOperator): PublicPolicyMatchConditionOperator {
+  switch (operator) {
+    case PublicRateLimitMatchOperator.PRESENT:
+      return PublicPolicyMatchConditionOperator.PRESENT;
+    case PublicRateLimitMatchOperator.PREFIX:
+      return PublicPolicyMatchConditionOperator.PREFIX;
+    case PublicRateLimitMatchOperator.SUFFIX:
+      return PublicPolicyMatchConditionOperator.SUFFIX;
+    case PublicRateLimitMatchOperator.CONTAINS:
+      return PublicPolicyMatchConditionOperator.CONTAINS;
+    default:
+      return PublicPolicyMatchConditionOperator.EQUALS;
+  }
+}
+
+function groupPayloadFromForm(group: PolicyMatchGroupForm): PublicPolicyMatchGroupPayload {
+  return {
+    operator: group.operator || PublicPolicyMatchBooleanOperator.ALL,
+    negated: group.negated,
+    conditions: group.conditions
+      .map(conditionPayloadFromForm)
+      .filter((condition) => condition.operator === PublicPolicyMatchConditionOperator.PRESENT || condition.values.length > 0),
+    groups: group.groups.map(groupPayloadFromForm).filter(groupHasContent),
+  };
+}
+
+function conditionPayloadFromForm(condition: PolicyMatchConditionForm): PublicPolicyMatchConditionPayload {
+  const normalized = { ...condition };
+  normalizeConditionForField(normalized);
+  return {
+    field: normalized.field,
+    name: conditionNeedsName(normalized.field) ? normalized.name.trim() : "",
+    operator: normalized.operator,
+    values: conditionUsesValues(normalized.operator) ? splitValues(normalized.valuesText) : [],
+    negated: normalized.negated,
+  };
+}
+
+function builderFormFromPayload(builder: { root?: PublicPolicyMatchGroupPayload }): { root?: PolicyMatchGroupForm } {
+  return {
+    root: builder.root ? groupFormFromPayload(builder.root) : undefined,
+  };
+}
+
+function groupFormFromPayload(group: PublicPolicyMatchGroupPayload): PolicyMatchGroupForm {
+  return {
+    operator: group.operator,
+    negated: group.negated,
+    conditions: group.conditions.map((condition) => ({
+      field: condition.field,
+      name: condition.name,
+      operator: condition.operator,
+      valuesText: condition.values.join("\n"),
+      negated: condition.negated,
+    })),
+    groups: group.groups.map(groupFormFromPayload),
+  };
+}
+
+function groupHasContent(group: PublicPolicyMatchGroupPayload): boolean {
+  return group.conditions.length > 0 || group.groups.length > 0;
+}
+
+function groupToCEL(group: PolicyMatchGroupForm): string {
+  const parts = [
+    ...group.conditions.map(conditionToCEL),
+    ...group.groups.map(groupToCEL),
+  ].filter(Boolean);
+  const joiner = group.operator === PublicPolicyMatchBooleanOperator.ANY ? " || " : " && ";
+  let expression = parts.length ? `(${parts.join(joiner)})` : "true";
+  if (group.negated) expression = `!(${expression})`;
+  return expression;
+}
+
+function conditionToCEL(condition: PolicyMatchConditionForm): string {
+  normalizeConditionForField(condition);
+  const values = splitValues(condition.valuesText);
+  let expression = "";
+  switch (condition.field) {
+    case PublicPolicyMatchField.HEADER:
+      expression = repeatedMapCondition("headers", condition.name.trim().toLowerCase(), condition.operator, values);
+      break;
+    case PublicPolicyMatchField.QUERY_PARAM:
+      expression = repeatedMapCondition("query", condition.name.trim(), condition.operator, values);
+      break;
+    case PublicPolicyMatchField.COOKIE:
+      expression = stringMapCondition("cookies", condition.name.trim(), condition.operator, values);
+      break;
+    case PublicPolicyMatchField.HOST:
+      expression = condition.operator === PublicPolicyMatchConditionOperator.HOST_PATTERN
+        ? anyValue(values, (value) => `host_match(host, ${celString(value)})`)
+        : scalarCondition("host", condition.operator, values);
+      break;
+    case PublicPolicyMatchField.PATH:
+      expression = condition.operator === PublicPolicyMatchConditionOperator.PREFIX
+        ? anyValue(values, (value) => `path_prefix(path, ${celString(value)})`)
+        : scalarCondition("path", condition.operator, values);
+      break;
+    case PublicPolicyMatchField.REMOTE_IP:
+      expression = condition.operator === PublicPolicyMatchConditionOperator.CIDR
+        ? anyValue(values, (value) => `cidr(remote_ip, ${celString(value)})`)
+        : scalarCondition("remote_ip", condition.operator, values);
+      break;
+    case PublicPolicyMatchField.METHOD:
+      expression = scalarCondition("method", condition.operator, values);
+      break;
+    case PublicPolicyMatchField.PROTOCOL:
+      expression = scalarCondition("protocol", condition.operator, values);
+      break;
+    default:
+      expression = "false";
+  }
+  if (condition.negated) expression = `!(${expression})`;
+  return `(${expression})`;
+}
+
+function scalarCondition(source: string, operator: PublicPolicyMatchConditionOperator, values: string[]): string {
+  if (operator === PublicPolicyMatchConditionOperator.IN) return `${source} in ${stringList(values)}`;
+  return anyValue(values, (value) => stringCompare(source, operator, value));
+}
+
+function repeatedMapCondition(mapName: string, name: string, operator: PublicPolicyMatchConditionOperator, values: string[]): string {
+  const key = celString(name);
+  const present = `${key} in ${mapName}`;
+  if (operator === PublicPolicyMatchConditionOperator.PRESENT) return present;
+  const comparison = operator === PublicPolicyMatchConditionOperator.IN
+    ? `v in ${stringList(values)}`
+    : anyValue(values, (value) => stringCompare("v", operator, value));
+  return `(${present} && ${mapName}[${key}].exists(v, ${comparison}))`;
+}
+
+function stringMapCondition(mapName: string, name: string, operator: PublicPolicyMatchConditionOperator, values: string[]): string {
+  const key = celString(name);
+  const present = `${key} in ${mapName}`;
+  if (operator === PublicPolicyMatchConditionOperator.PRESENT) return present;
+  const source = `${mapName}[${key}]`;
+  const comparison = operator === PublicPolicyMatchConditionOperator.IN
+    ? `${source} in ${stringList(values)}`
+    : anyValue(values, (value) => stringCompare(source, operator, value));
+  return `(${present} && (${comparison}))`;
+}
+
+function stringCompare(source: string, operator: PublicPolicyMatchConditionOperator, value: string): string {
+  const quoted = celString(value);
+  switch (operator) {
+    case PublicPolicyMatchConditionOperator.PREFIX:
+      return `${source}.startsWith(${quoted})`;
+    case PublicPolicyMatchConditionOperator.SUFFIX:
+      return `${source}.endsWith(${quoted})`;
+    case PublicPolicyMatchConditionOperator.CONTAINS:
+      return `${source}.contains(${quoted})`;
+    case PublicPolicyMatchConditionOperator.MATCHES:
+      return `${source}.matches(${quoted})`;
+    default:
+      return `${source} == ${quoted}`;
+  }
+}
+
+function anyValue(values: string[], fn: (value: string) => string): string {
+  if (!values.length) return "false";
+  return `(${values.map(fn).join(" || ")})`;
+}
+
+function stringList(values: string[]): string {
+  return `[${values.map(celString).join(", ")}]`;
+}

@@ -79,14 +79,17 @@ type publicRateLimitRuleConfig struct {
 }
 
 type publicRateLimitMatchConfig struct {
-	Methods      []string                            `json:"methods,omitempty"`
-	Protocols    []string                            `json:"protocols,omitempty"`
-	HostPatterns []string                            `json:"host_patterns,omitempty"`
-	PathPrefixes []string                            `json:"path_prefixes,omitempty"`
-	PathSuffixes []string                            `json:"path_suffixes,omitempty"`
-	Headers      []publicRateLimitValueMatcherConfig `json:"headers,omitempty"`
-	Cookies      []publicRateLimitValueMatcherConfig `json:"cookies,omitempty"`
-	QueryParams  []publicRateLimitValueMatcherConfig `json:"query_params,omitempty"`
+	CELExpression string                              `json:"cel_expression,omitempty"`
+	Builder       *publicPolicyMatchBuilderConfig     `json:"builder,omitempty"`
+	Methods       []string                            `json:"methods,omitempty"`
+	Protocols     []string                            `json:"protocols,omitempty"`
+	HostPatterns  []string                            `json:"host_patterns,omitempty"`
+	PathPrefixes  []string                            `json:"path_prefixes,omitempty"`
+	PathSuffixes  []string                            `json:"path_suffixes,omitempty"`
+	Headers       []publicRateLimitValueMatcherConfig `json:"headers,omitempty"`
+	Cookies       []publicRateLimitValueMatcherConfig `json:"cookies,omitempty"`
+	QueryParams   []publicRateLimitValueMatcherConfig `json:"query_params,omitempty"`
+	program       any                                 `json:"-"`
 }
 
 type publicRateLimitValueMatcherConfig struct {
@@ -384,78 +387,7 @@ func (s *publicRateLimitKeyRuntime) allowLeakyBucket(rule publicRateLimitRuleCon
 }
 
 func (rule publicRateLimitRuleConfig) matches(listener publicListenerConfig, r *http.Request) bool {
-	if len(rule.Match.Methods) > 0 && !stringInSlice(strings.ToUpper(r.Method), rule.Match.Methods) {
-		return false
-	}
-	if len(rule.Match.Protocols) > 0 && !stringInSlice(listener.Protocol, rule.Match.Protocols) {
-		return false
-	}
-	host := normalizeRequestHost(r.Host)
-	if len(rule.Match.HostPatterns) > 0 {
-		matched := false
-		for _, pattern := range rule.Match.HostPatterns {
-			if hostMatchesPattern(host, pattern) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	if len(rule.Match.PathPrefixes) > 0 {
-		matched := false
-		for _, prefix := range rule.Match.PathPrefixes {
-			if pathPrefixMatches(r.URL.Path, prefix) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	if len(rule.Match.PathSuffixes) > 0 {
-		matched := false
-		for _, suffix := range rule.Match.PathSuffixes {
-			if strings.HasSuffix(r.URL.Path, suffix) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	for _, matcher := range rule.Match.Headers {
-		_, present := r.Header[textproto.CanonicalMIMEHeaderKey(matcher.Name)]
-		if !rateLimitValueMatches(r.Header.Get(matcher.Name), present, matcher) {
-			return false
-		}
-	}
-	for _, matcher := range rule.Match.Cookies {
-		cookie, err := r.Cookie(matcher.Name)
-		value := ""
-		present := err == nil
-		if err == nil {
-			value = cookie.Value
-		}
-		if !rateLimitValueMatches(value, present, matcher) {
-			return false
-		}
-	}
-	query := r.URL.Query()
-	for _, matcher := range rule.Match.QueryParams {
-		values, present := query[matcher.Name]
-		value := ""
-		if len(values) > 0 {
-			value = values[0]
-		}
-		if !rateLimitValueMatches(value, present, matcher) {
-			return false
-		}
-	}
-	return true
+	return rule.Match.matches(listener, r)
 }
 
 func rateLimitValueMatches(actual string, present bool, matcher publicRateLimitValueMatcherConfig) bool {
@@ -569,11 +501,9 @@ func writeRateLimitResponse(w http.ResponseWriter, decision publicRateLimitDecis
 }
 
 func publicRateLimitRuleRowToConfig(row db.PublicRateLimitRule) (publicRateLimitRuleConfig, error) {
-	var match publicRateLimitMatchConfig
-	if strings.TrimSpace(row.MatchJson) != "" {
-		if err := json.Unmarshal([]byte(row.MatchJson), &match); err != nil {
-			return publicRateLimitRuleConfig{}, err
-		}
+	match, err := decodePublicPolicyMatchJSON(row.MatchJson)
+	if err != nil {
+		return publicRateLimitRuleConfig{}, err
 	}
 	var keyParts []publicRateLimitKeyPartConfig
 	if strings.TrimSpace(row.KeyPartsJson) != "" {
@@ -677,6 +607,7 @@ func validatePublicRateLimitRuleInput(
 	responseBodyTemplateID int64,
 	responseContentType string,
 	responseHeaders []*p2pstreamv1.PublicRateLimitResponseHeader,
+	matchRules ...*p2pstreamv1.PublicPolicyMatchRule,
 ) (publicRateLimitRuleMutationInput, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -707,7 +638,7 @@ func validatePublicRateLimitRuleInput(
 	if burst > 0 && burst > 10*limit {
 		return publicRateLimitRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit burst must not exceed 10x limit"))
 	}
-	matchConfig, err := validateRateLimitMatch(match)
+	matchConfig, err := validatePublicPolicyMatch(match, firstPublicPolicyMatchRule(matchRules))
 	if err != nil {
 		return publicRateLimitRuleMutationInput{}, err
 	}
@@ -1114,6 +1045,7 @@ func publicRateLimitConfigToProto(rule publicRateLimitRuleConfig) *p2pstreamv1.P
 		ResponseHeaders:        rateLimitResponseHeadersToProto(rule.ResponseHeaders),
 		CreatedAtUnixMillis:    rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:    rule.UpdatedAt.UnixMilli(),
+		MatchRule:              publicPolicyMatchRuleToProto(rule.Match),
 	}
 }
 
@@ -1188,6 +1120,7 @@ func (a *App) CreatePublicRateLimitRule(
 		req.Msg.ResponseBodyTemplateId,
 		req.Msg.ResponseContentType,
 		req.Msg.ResponseHeaders,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err
@@ -1250,6 +1183,7 @@ func (a *App) UpdatePublicRateLimitRule(
 		req.Msg.ResponseBodyTemplateId,
 		req.Msg.ResponseContentType,
 		req.Msg.ResponseHeaders,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err

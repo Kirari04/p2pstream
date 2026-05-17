@@ -1,30 +1,29 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import PlusIcon from "@primevue/icons/plus";
 import TrashIcon from "@primevue/icons/trash";
 import { managementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
+import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import {
+  defaultPolicyMatchForm,
+  policyMatchFormFromProto,
+  policyMatchRulePayload,
+  policyMatchValidationReason,
+  type PolicyMatchForm,
+} from "@/lib/publicPolicyMatch";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import {
-  PublicListenerProtocol,
   PublicRateLimitKeySource,
-  PublicRateLimitMatchOperator,
   PublicTrafficShaperBudgetScope,
   type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
-type MatcherForm = {
-  name: string;
-  operator: PublicRateLimitMatchOperator;
-  value: string;
-};
-type MatcherGroupKey = "headers" | "cookies" | "queryParams";
 type KeyPartForm = {
   source: PublicRateLimitKeySource;
   name: string;
@@ -43,7 +42,7 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
 const rules = computed(() => props.config?.trafficShaperRules ?? []);
-const activeMatcherGroup = ref<MatcherGroupKey>("headers");
+const matchEditor = ref<InstanceType<typeof PublicPolicyMatchEditor> | null>(null);
 
 const form = reactive({
   id: "",
@@ -56,45 +55,10 @@ const form = reactive({
   burstKib: 0,
   requestFreeKib: 0,
   responseFreeKib: 64,
-  methods: [] as string[],
-  protocols: [] as PublicListenerProtocol[],
-  hostPatternsText: "",
-  pathPrefixesText: "",
-  pathSuffixesText: "",
-  headers: [] as MatcherForm[],
-  cookies: [] as MatcherForm[],
-  queryParams: [] as MatcherForm[],
+  match: defaultPolicyMatchForm() as PolicyMatchForm,
   keyParts: [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }] as KeyPartForm[],
 });
 
-const methodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-const matcherOperatorOptions = [
-  { label: "Present", value: PublicRateLimitMatchOperator.PRESENT },
-  { label: "Equals", value: PublicRateLimitMatchOperator.EQUALS },
-  { label: "Prefix", value: PublicRateLimitMatchOperator.PREFIX },
-  { label: "Suffix", value: PublicRateLimitMatchOperator.SUFFIX },
-  { label: "Contains", value: PublicRateLimitMatchOperator.CONTAINS },
-];
-const matcherGroups = [
-  {
-    key: "headers",
-    label: "Headers",
-    singular: "header",
-    namePlaceholder: "Header",
-  },
-  {
-    key: "cookies",
-    label: "Cookies",
-    singular: "cookie",
-    namePlaceholder: "Cookie",
-  },
-  {
-    key: "queryParams",
-    label: "Query params",
-    singular: "query param",
-    namePlaceholder: "Param",
-  },
-] as const;
 const keySourceOptions = [
   { label: "Remote IP", value: PublicRateLimitKeySource.REMOTE_IP },
   { label: "Host", value: PublicRateLimitKeySource.HOST },
@@ -118,6 +82,7 @@ const shaperSubmitDisabledReason = computed(() => {
   if (form.uploadKibPerSecond <= 0 && form.downloadKibPerSecond <= 0) return "Set upload or download bandwidth.";
   if (form.burstKib < 0) return "Burst cannot be negative.";
   if (form.requestFreeKib < 0 || form.responseFreeKib < 0) return "Free KiB values cannot be negative.";
+  if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
   if (form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY && !form.keyParts.length) return "Add at least one key part.";
   return "";
 });
@@ -134,16 +99,8 @@ function resetForm() {
   form.burstKib = 0;
   form.requestFreeKib = 0;
   form.responseFreeKib = 64;
-  form.methods = [];
-  form.protocols = [];
-  form.hostPatternsText = "";
-  form.pathPrefixesText = "";
-  form.pathSuffixesText = "";
-  form.headers = [];
-  form.cookies = [];
-  form.queryParams = [];
+  form.match = defaultPolicyMatchForm();
   form.keyParts = [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
-  activeMatcherGroup.value = "headers";
 }
 
 function nextRuleName(): string {
@@ -173,19 +130,12 @@ function openEdit(ruleId: bigint | string) {
   form.burstKib = bytesToKib(rule.burstBytes);
   form.requestFreeKib = bytesToKib(rule.requestExemptBytes);
   form.responseFreeKib = bytesToKib(rule.responseExemptBytes);
-  form.methods = [...(rule.match?.methods ?? [])];
-  form.protocols = [...(rule.match?.protocols ?? [])];
-  form.hostPatternsText = (rule.match?.hostPatterns ?? []).join("\n");
-  form.pathPrefixesText = (rule.match?.pathPrefixes ?? []).join("\n");
-  form.pathSuffixesText = (rule.match?.pathSuffixes ?? []).join("\n");
-  form.headers = cloneMatchers(rule.match?.headers ?? []);
-  form.cookies = cloneMatchers(rule.match?.cookies ?? []);
-  form.queryParams = cloneMatchers(rule.match?.queryParams ?? []);
+  form.match = policyMatchFormFromProto(rule.matchRule, rule.match);
   form.keyParts = rule.keyParts.length
     ? rule.keyParts.map((part) => ({ source: part.source, name: part.name }))
     : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
-  setInitialMatcherTab();
   isOpen.value = true;
+  requestAnimationFrame(() => matchEditor.value?.validationReason());
 }
 
 function close() {
@@ -198,77 +148,6 @@ function bytesToKib(value: bigint): number {
 
 function kibToBytes(value: number): bigint {
   return BigInt(Math.round((value || 0) * 1024));
-}
-
-function cloneMatchers(matchers: readonly MatcherForm[]): MatcherForm[] {
-  return matchers.map((matcher) => ({
-    name: matcher.name,
-    operator: matcher.operator || PublicRateLimitMatchOperator.EQUALS,
-    value: matcher.value,
-  }));
-}
-
-function toggleMethod(method: string) {
-  if (form.methods.includes(method)) {
-    form.methods = form.methods.filter((item) => item !== method);
-    return;
-  }
-  form.methods = [...form.methods, method];
-}
-
-function toggleProtocol(protocol: PublicListenerProtocol) {
-  if (form.protocols.includes(protocol)) {
-    form.protocols = form.protocols.filter((item) => item !== protocol);
-    return;
-  }
-  form.protocols = [...form.protocols, protocol];
-}
-
-function matchersForGroup(group: MatcherGroupKey): MatcherForm[] {
-  switch (group) {
-    case "cookies":
-      return form.cookies;
-    case "queryParams":
-      return form.queryParams;
-    default:
-      return form.headers;
-  }
-}
-
-function activeMatcherGroupConfig() {
-  return matcherGroups.find((group) => group.key === activeMatcherGroup.value) ?? matcherGroups[0];
-}
-
-function activeMatchers(): MatcherForm[] {
-  return matchersForGroup(activeMatcherGroup.value);
-}
-
-function matcherCount(group: MatcherGroupKey): number {
-  return matchersForGroup(group).length;
-}
-
-function addMatcher(target: MatcherForm[]) {
-  target.push({ name: "", operator: PublicRateLimitMatchOperator.PRESENT, value: "" });
-}
-
-function removeMatcher(target: MatcherForm[], index: number) {
-  target.splice(index, 1);
-}
-
-function addActiveMatcher() {
-  addMatcher(activeMatchers());
-}
-
-function removeActiveMatcher(index: number) {
-  removeMatcher(activeMatchers(), index);
-}
-
-function setInitialMatcherTab() {
-  activeMatcherGroup.value =
-    form.headers.length ? "headers" :
-      form.cookies.length ? "cookies" :
-        form.queryParams.length ? "queryParams" :
-          "headers";
 }
 
 function addKeyPart() {
@@ -286,12 +165,6 @@ function keyPartNeedsName(source: PublicRateLimitKeySource): boolean {
     source === PublicRateLimitKeySource.QUERY_PARAM;
 }
 
-function matcherValueDisabledReason(matcher: MatcherForm): string {
-  return matcher.operator === PublicRateLimitMatchOperator.PRESENT
-    ? "Present only checks that the value exists, so no comparison value is used."
-    : "";
-}
-
 function keyPartNameDisabledReason(source: PublicRateLimitKeySource): string {
   if (keyPartsDisabledReason.value) return keyPartsDisabledReason.value;
   return keyPartNeedsName(source) ? "" : "This key source does not need a name.";
@@ -300,20 +173,6 @@ function keyPartNameDisabledReason(source: PublicRateLimitKeySource): string {
 function removeKeyPartDisabledReason(): string {
   if (keyPartsDisabledReason.value) return keyPartsDisabledReason.value;
   return form.keyParts.length <= 1 ? "At least one key part is required." : "";
-}
-
-function lines(value: string): string[] {
-  return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-}
-
-function matcherPayload(matchers: MatcherForm[]) {
-  return matchers
-    .map((matcher) => ({
-      name: matcher.name.trim(),
-      operator: matcher.operator,
-      value: matcher.value,
-    }))
-    .filter((matcher) => matcher.name);
 }
 
 async function run(action: () => Promise<void>): Promise<boolean> {
@@ -333,16 +192,7 @@ async function submitRule() {
       burstBytes: kibToBytes(form.burstKib),
       requestExemptBytes: kibToBytes(form.requestFreeKib),
       responseExemptBytes: kibToBytes(form.responseFreeKib),
-      match: {
-        methods: [...form.methods],
-        protocols: [...form.protocols],
-        hostPatterns: lines(form.hostPatternsText),
-        pathPrefixes: lines(form.pathPrefixesText),
-        pathSuffixes: lines(form.pathSuffixesText),
-        headers: matcherPayload(form.headers),
-        cookies: matcherPayload(form.cookies),
-        queryParams: matcherPayload(form.queryParams),
-      },
+      matchRule: policyMatchRulePayload(form.match),
       keyParts: form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY
         ? form.keyParts.map((part) => ({
           source: part.source,
@@ -433,143 +283,7 @@ defineExpose({ openCreate, openEdit, close });
         </p>
       </section>
 
-      <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <div>
-          <h4 class="text-sm font-semibold text-white">Match</h4>
-        </div>
-        <div class="grid gap-4 lg:grid-cols-2">
-          <div class="grid gap-2">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Methods</span>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="method in methodOptions"
-                :key="method"
-                type="button"
-                class="rounded border px-2.5 py-1 text-xs font-medium transition"
-                :class="form.methods.includes(method) ? 'border-white bg-white text-black' : 'border-[#333] bg-black text-[#d4d4d8] hover:border-[#666]'"
-                @click="toggleMethod(method)"
-              >
-                {{ method }}
-              </button>
-            </div>
-          </div>
-          <div class="grid gap-2">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Protocols</span>
-            <div class="flex flex-wrap gap-2">
-              <button
-                type="button"
-                class="rounded border px-2.5 py-1 text-xs font-medium transition"
-                :class="form.protocols.includes(PublicListenerProtocol.HTTP) ? 'border-white bg-white text-black' : 'border-[#333] bg-black text-[#d4d4d8] hover:border-[#666]'"
-                @click="toggleProtocol(PublicListenerProtocol.HTTP)"
-              >
-                HTTP
-              </button>
-              <button
-                type="button"
-                class="rounded border px-2.5 py-1 text-xs font-medium transition"
-                :class="form.protocols.includes(PublicListenerProtocol.HTTPS) ? 'border-white bg-white text-black' : 'border-[#333] bg-black text-[#d4d4d8] hover:border-[#666]'"
-                @click="toggleProtocol(PublicListenerProtocol.HTTPS)"
-              >
-                HTTPS
-              </button>
-            </div>
-          </div>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Host patterns
-            <textarea v-model="form.hostPatternsText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder="api.example.com&#10;*.example.com" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Path prefixes
-            <textarea v-model="form.pathPrefixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder="/assets&#10;/downloads" />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Path suffixes
-            <textarea v-model="form.pathSuffixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder=".mp4&#10;.zip" />
-          </label>
-        </div>
-
-        <div class="matcher-editor">
-          <div class="matcher-editor-header">
-            <div>
-              <p class="matcher-eyebrow">Request attributes</p>
-              <h5 class="matcher-heading">{{ activeMatcherGroupConfig().label }}</h5>
-            </div>
-
-            <button type="button" class="matcher-add-button" @click="addActiveMatcher">
-              <PlusIcon class="h-3.5 w-3.5" />
-              <span>Add {{ activeMatcherGroupConfig().singular }}</span>
-            </button>
-          </div>
-
-          <div class="matcher-tabs" role="tablist" aria-label="Matcher type">
-            <button
-              v-for="group in matcherGroups"
-              :key="group.key"
-              type="button"
-              role="tab"
-              class="matcher-tab"
-              :class="{ 'matcher-tab-active': activeMatcherGroup === group.key }"
-              :aria-selected="activeMatcherGroup === group.key"
-              @click="activeMatcherGroup = group.key"
-            >
-              <span>{{ group.label }}</span>
-              <span class="matcher-tab-count">{{ matcherCount(group.key) }}</span>
-            </button>
-          </div>
-
-          <div class="matcher-list-shell">
-            <div v-if="!activeMatchers().length" class="matcher-empty">
-              <p>No {{ activeMatcherGroupConfig().singular }} matchers configured.</p>
-              <button type="button" @click="addActiveMatcher">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add {{ activeMatcherGroupConfig().singular }}</span>
-              </button>
-            </div>
-
-            <div v-else class="matcher-list">
-              <div class="matcher-row matcher-row-head" aria-hidden="true">
-                <span>Name</span>
-                <span>Operator</span>
-                <span>Value</span>
-                <span />
-              </div>
-
-              <div
-                v-for="(matcher, index) in activeMatchers()"
-                :key="`${activeMatcherGroup}-${index}`"
-                class="matcher-row"
-              >
-                <input
-                  v-model="matcher.name"
-                  class="vercel-input matcher-input"
-                  :placeholder="activeMatcherGroupConfig().namePlaceholder"
-                />
-                <select v-model="matcher.operator" class="vercel-input matcher-input">
-                  <option v-for="option in matcherOperatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-                </select>
-                <DisabledHint full-width :disabled="Boolean(matcherValueDisabledReason(matcher))" :reason="matcherValueDisabledReason(matcher)">
-                  <input
-                    v-model="matcher.value"
-                    class="vercel-input matcher-input"
-                    :placeholder="matcher.operator === PublicRateLimitMatchOperator.PRESENT ? 'Ignored for Present' : 'Value'"
-                    :disabled="Boolean(matcherValueDisabledReason(matcher))"
-                  />
-                </DisabledHint>
-                <DangerButton
-                  size="small"
-                  class="row-remove-button"
-                  type="button"
-                  :aria-label="`Remove ${activeMatcherGroupConfig().singular} matcher`"
-                  :title="`Remove ${activeMatcherGroupConfig().singular} matcher`"
-                  @click="removeActiveMatcher(index)"
-                >
-                  <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                </DangerButton>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
 
       <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
         <div class="flex items-center justify-between gap-3">

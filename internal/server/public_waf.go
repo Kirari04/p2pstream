@@ -577,11 +577,9 @@ func publicWafCaptchaProviderRowToConfig(row db.PublicWafCaptchaProvider, includ
 }
 
 func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error) {
-	var match publicRateLimitMatchConfig
-	if strings.TrimSpace(row.MatchJson) != "" {
-		if err := json.Unmarshal([]byte(row.MatchJson), &match); err != nil {
-			return publicWafRuleConfig{}, err
-		}
+	match, err := decodePublicPolicyMatchJSON(row.MatchJson)
+	if err != nil {
+		return publicWafRuleConfig{}, err
 	}
 	var keyParts []publicRateLimitKeyPartConfig
 	if strings.TrimSpace(row.KeyPartsJson) != "" {
@@ -808,6 +806,7 @@ func publicWafRuleConfigToProto(rule publicWafRuleConfig) *p2pstreamv1.PublicWaf
 		BlockResponseHeaders:      rateLimitResponseHeadersToProto(rule.BlockResponseHeaders),
 		CreatedAtUnixMillis:       rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:       rule.UpdatedAt.UnixMilli(),
+		MatchRule:                 publicPolicyMatchRuleToProto(rule.Match),
 	}
 }
 
@@ -890,6 +889,7 @@ func (a *App) validatePublicWafRuleInput(
 	waitingRoomPageTemplateID int64,
 	blockContentType string,
 	blockHeaders []*p2pstreamv1.PublicRateLimitResponseHeader,
+	matchRules ...*p2pstreamv1.PublicPolicyMatchRule,
 ) (publicWafRuleMutationInput, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -906,7 +906,7 @@ func (a *App) validatePublicWafRuleInput(
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
-	matchConfig, err := validateRateLimitMatch(match)
+	matchConfig, err := validatePublicPolicyMatch(match, firstPublicPolicyMatchRule(matchRules))
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
@@ -1327,6 +1327,7 @@ func (a *App) CreatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 		req.Msg.WaitingRoomPageTemplateId,
 		req.Msg.BlockResponseContentType,
 		req.Msg.BlockResponseHeaders,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err
@@ -1370,6 +1371,7 @@ func (a *App) UpdatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 		req.Msg.WaitingRoomPageTemplateId,
 		req.Msg.BlockResponseContentType,
 		req.Msg.BlockResponseHeaders,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err

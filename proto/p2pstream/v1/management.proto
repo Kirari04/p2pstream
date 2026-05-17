@@ -122,6 +122,37 @@ enum PublicRateLimitMatchOperator {
   PUBLIC_RATE_LIMIT_MATCH_OPERATOR_CONTAINS = 5;
 }
 
+enum PublicPolicyMatchBooleanOperator {
+  PUBLIC_POLICY_MATCH_BOOLEAN_OPERATOR_UNSPECIFIED = 0;
+  PUBLIC_POLICY_MATCH_BOOLEAN_OPERATOR_ALL = 1;
+  PUBLIC_POLICY_MATCH_BOOLEAN_OPERATOR_ANY = 2;
+}
+
+enum PublicPolicyMatchField {
+  PUBLIC_POLICY_MATCH_FIELD_UNSPECIFIED = 0;
+  PUBLIC_POLICY_MATCH_FIELD_METHOD = 1;
+  PUBLIC_POLICY_MATCH_FIELD_PROTOCOL = 2;
+  PUBLIC_POLICY_MATCH_FIELD_HOST = 3;
+  PUBLIC_POLICY_MATCH_FIELD_PATH = 4;
+  PUBLIC_POLICY_MATCH_FIELD_REMOTE_IP = 5;
+  PUBLIC_POLICY_MATCH_FIELD_HEADER = 6;
+  PUBLIC_POLICY_MATCH_FIELD_COOKIE = 7;
+  PUBLIC_POLICY_MATCH_FIELD_QUERY_PARAM = 8;
+}
+
+enum PublicPolicyMatchConditionOperator {
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_UNSPECIFIED = 0;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_PRESENT = 1;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_EQUALS = 2;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_PREFIX = 3;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_SUFFIX = 4;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_CONTAINS = 5;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_MATCHES = 6;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_IN = 7;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_CIDR = 8;
+  PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_HOST_PATTERN = 9;
+}
+
 enum PublicTrafficShaperBudgetScope {
   PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_UNSPECIFIED = 0;
   PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY = 1;
@@ -515,6 +546,30 @@ message PublicRateLimitMatch {
   repeated string path_suffixes = 8;
 }
 
+message PublicPolicyMatchRule {
+  string cel_expression = 1;
+  PublicPolicyMatchBuilder builder = 2;
+}
+
+message PublicPolicyMatchBuilder {
+  PublicPolicyMatchGroup root = 1;
+}
+
+message PublicPolicyMatchGroup {
+  PublicPolicyMatchBooleanOperator operator = 1;
+  repeated PublicPolicyMatchCondition conditions = 2;
+  repeated PublicPolicyMatchGroup groups = 3;
+  bool negated = 4;
+}
+
+message PublicPolicyMatchCondition {
+  PublicPolicyMatchField field = 1;
+  string name = 2;
+  PublicPolicyMatchConditionOperator operator = 3;
+  repeated string values = 4;
+  bool negated = 5;
+}
+
 message PublicRateLimitResponseHeader {
   string name = 1;
   string value = 2;
@@ -539,6 +594,7 @@ message PublicRateLimitRule {
   int64 updated_at_unix_millis = 16;
   PublicResponseBodyMode response_body_mode = 17;
   int64 response_body_template_id = 18;
+  PublicPolicyMatchRule match_rule = 19;
 }
 
 message PublicTrafficShaperRule {
@@ -556,6 +612,7 @@ message PublicTrafficShaperRule {
   repeated PublicRateLimitKeyPart key_parts = 12;
   int64 created_at_unix_millis = 13;
   int64 updated_at_unix_millis = 14;
+  PublicPolicyMatchRule match_rule = 15;
 }
 
 message PublicWafCaptchaProvider {
@@ -616,6 +673,7 @@ message PublicWafRule {
   int64 block_response_template_id = 20;
   int64 captcha_page_template_id = 21;
   int64 waiting_room_page_template_id = 22;
+  PublicPolicyMatchRule match_rule = 23;
 }
 
 message PublicResponseTemplate {
@@ -660,6 +718,7 @@ message PublicCacheRule {
   int64 created_at_unix_millis = 17;
   int64 updated_at_unix_millis = 18;
   bool allow_cookie_requests = 19;
+  PublicPolicyMatchRule match_rule = 20;
 }
 
 message PublicListenerStatus {
@@ -1069,6 +1128,7 @@ message CreatePublicRateLimitRuleRequest {
   repeated PublicRateLimitResponseHeader response_headers = 13;
   PublicResponseBodyMode response_body_mode = 14;
   int64 response_body_template_id = 15;
+  PublicPolicyMatchRule match_rule = 16;
 }
 
 message CreatePublicRateLimitRuleResponse {
@@ -1092,6 +1152,7 @@ message UpdatePublicRateLimitRuleRequest {
   repeated PublicRateLimitResponseHeader response_headers = 14;
   PublicResponseBodyMode response_body_mode = 15;
   int64 response_body_template_id = 16;
+  PublicPolicyMatchRule match_rule = 17;
 }
 
 message UpdatePublicRateLimitRuleResponse {
@@ -1117,6 +1178,7 @@ message CreatePublicTrafficShaperRuleRequest {
   int64 response_exempt_bytes = 9;
   PublicRateLimitMatch match = 10;
   repeated PublicRateLimitKeyPart key_parts = 11;
+  PublicPolicyMatchRule match_rule = 12;
 }
 
 message CreatePublicTrafficShaperRuleResponse {
@@ -1136,6 +1198,7 @@ message UpdatePublicTrafficShaperRuleRequest {
   int64 response_exempt_bytes = 10;
   PublicRateLimitMatch match = 11;
   repeated PublicRateLimitKeyPart key_parts = 12;
+  PublicPolicyMatchRule match_rule = 13;
 }
 
 message UpdatePublicTrafficShaperRuleResponse {
@@ -1202,6 +1265,7 @@ message CreatePublicWafRuleRequest {
   int64 block_response_template_id = 17;
   int64 captcha_page_template_id = 18;
   int64 waiting_room_page_template_id = 19;
+  PublicPolicyMatchRule match_rule = 20;
 }
 
 message CreatePublicWafRuleResponse {
@@ -1229,6 +1293,7 @@ message UpdatePublicWafRuleRequest {
   int64 block_response_template_id = 18;
   int64 captcha_page_template_id = 19;
   int64 waiting_room_page_template_id = 20;
+  PublicPolicyMatchRule match_rule = 21;
 }
 
 message UpdatePublicWafRuleResponse {
@@ -1259,6 +1324,7 @@ message CreatePublicCacheRuleRequest {
   int64 max_object_bytes = 14;
   bool add_cache_status_header = 15;
   bool allow_cookie_requests = 16;
+  PublicPolicyMatchRule match_rule = 17;
 }
 
 message CreatePublicCacheRuleResponse {
@@ -1283,6 +1349,7 @@ message UpdatePublicCacheRuleRequest {
   int64 max_object_bytes = 15;
   bool add_cache_status_header = 16;
   bool allow_cookie_requests = 17;
+  PublicPolicyMatchRule match_rule = 18;
 }
 
 message UpdatePublicCacheRuleResponse {

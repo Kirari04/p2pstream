@@ -1,416 +1,411 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import PlusIcon from "@primevue/icons/plus";
 import TrashIcon from "@primevue/icons/trash";
-import DisabledHint from "@/components/DisabledHint.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import { PublicListenerProtocol, PublicRateLimitMatchOperator } from "@/gen/proto/p2pstream/v1/management_pb";
-
-type MatcherForm = {
-  name: string;
-  operator: PublicRateLimitMatchOperator;
-  value: string;
-};
-type MatcherGroupKey = "headers" | "cookies" | "queryParams";
-type MatchForm = {
-  methods: string[];
-  protocols: PublicListenerProtocol[];
-  hostPatternsText: string;
-  pathPrefixesText: string;
-  pathSuffixesText: string;
-  headers: MatcherForm[];
-  cookies: MatcherForm[];
-  queryParams: MatcherForm[];
-};
+import {
+  PublicPolicyMatchBooleanOperator,
+  PublicPolicyMatchConditionOperator,
+  PublicPolicyMatchField,
+} from "@/gen/proto/p2pstream/v1/management_pb";
+import {
+  builderToCEL,
+  conditionNeedsName,
+  conditionUsesValues,
+  emptyCondition,
+  emptyGroup,
+  normalizeConditionForField,
+  policyMatchValidationReason,
+  type PolicyMatchConditionForm,
+  type PolicyMatchForm,
+  type PolicyMatchGroupForm,
+} from "@/lib/publicPolicyMatch";
 
 const props = defineProps<{
-  form: MatchForm;
+  form: PolicyMatchForm;
 }>();
 
-const activeMatcherGroup = ref<MatcherGroupKey>("headers");
-const methodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-const matcherOperatorOptions = [
-  { label: "Present", value: PublicRateLimitMatchOperator.PRESENT },
-  { label: "Equals", value: PublicRateLimitMatchOperator.EQUALS },
-  { label: "Prefix", value: PublicRateLimitMatchOperator.PREFIX },
-  { label: "Suffix", value: PublicRateLimitMatchOperator.SUFFIX },
-  { label: "Contains", value: PublicRateLimitMatchOperator.CONTAINS },
+const fieldOptions = [
+  { label: "Method", value: PublicPolicyMatchField.METHOD },
+  { label: "Protocol", value: PublicPolicyMatchField.PROTOCOL },
+  { label: "Host", value: PublicPolicyMatchField.HOST },
+  { label: "Path", value: PublicPolicyMatchField.PATH },
+  { label: "Remote IP", value: PublicPolicyMatchField.REMOTE_IP },
+  { label: "Header", value: PublicPolicyMatchField.HEADER },
+  { label: "Cookie", value: PublicPolicyMatchField.COOKIE },
+  { label: "Query", value: PublicPolicyMatchField.QUERY_PARAM },
 ];
-const matcherGroups = [
-  { key: "headers", label: "Headers", singular: "header", namePlaceholder: "Header" },
-  { key: "cookies", label: "Cookies", singular: "cookie", namePlaceholder: "Cookie" },
-  { key: "queryParams", label: "Query params", singular: "query param", namePlaceholder: "Param" },
-] as const;
 
-function toggleMethod(method: string) {
-  props.form.methods = props.form.methods.includes(method)
-    ? props.form.methods.filter((item) => item !== method)
-    : [...props.form.methods, method];
+const operatorOptions = [
+  { label: "Present", value: PublicPolicyMatchConditionOperator.PRESENT },
+  { label: "Equals", value: PublicPolicyMatchConditionOperator.EQUALS },
+  { label: "Prefix", value: PublicPolicyMatchConditionOperator.PREFIX },
+  { label: "Suffix", value: PublicPolicyMatchConditionOperator.SUFFIX },
+  { label: "Contains", value: PublicPolicyMatchConditionOperator.CONTAINS },
+  { label: "Regex", value: PublicPolicyMatchConditionOperator.MATCHES },
+  { label: "In", value: PublicPolicyMatchConditionOperator.IN },
+  { label: "CIDR", value: PublicPolicyMatchConditionOperator.CIDR },
+  { label: "Host pattern", value: PublicPolicyMatchConditionOperator.HOST_PATTERN },
+];
+
+function addCondition(group: PolicyMatchGroupForm) {
+  group.conditions.push(emptyCondition());
 }
 
-function toggleProtocol(protocol: PublicListenerProtocol) {
-  props.form.protocols = props.form.protocols.includes(protocol)
-    ? props.form.protocols.filter((item) => item !== protocol)
-    : [...props.form.protocols, protocol];
+function removeCondition(group: PolicyMatchGroupForm, index: number) {
+  group.conditions.splice(index, 1);
 }
 
-function matchersForGroup(group: MatcherGroupKey): MatcherForm[] {
-  if (group === "cookies") return props.form.cookies;
-  if (group === "queryParams") return props.form.queryParams;
-  return props.form.headers;
+function addGroup() {
+  const group = emptyGroup();
+  group.operator = PublicPolicyMatchBooleanOperator.ANY;
+  group.conditions.push(emptyCondition(PublicPolicyMatchField.HEADER));
+  props.form.root.groups.push(group);
 }
 
-function activeMatcherGroupConfig() {
-  return matcherGroups.find((group) => group.key === activeMatcherGroup.value) ?? matcherGroups[0];
+function removeGroup(index: number) {
+  props.form.root.groups.splice(index, 1);
 }
 
-function activeMatchers(): MatcherForm[] {
-  return matchersForGroup(activeMatcherGroup.value);
+function switchMode(mode: "builder" | "expression") {
+  if (mode === props.form.mode) return;
+  if (mode === "expression") {
+    props.form.expression = builderToCEL(props.form.root);
+  }
+  props.form.mode = mode;
 }
 
-function matcherCount(group: MatcherGroupKey): number {
-  return matchersForGroup(group).length;
+function onFieldChange(condition: PolicyMatchConditionForm) {
+  if (condition.field === PublicPolicyMatchField.REMOTE_IP) condition.operator = PublicPolicyMatchConditionOperator.CIDR;
+  if (condition.field === PublicPolicyMatchField.HOST) condition.operator = PublicPolicyMatchConditionOperator.HOST_PATTERN;
+  if (condition.field === PublicPolicyMatchField.PATH) condition.operator = PublicPolicyMatchConditionOperator.PREFIX;
+  normalizeConditionForField(condition);
 }
 
-function addActiveMatcher() {
-  activeMatchers().push({ name: "", operator: PublicRateLimitMatchOperator.PRESENT, value: "" });
+function onOperatorChange(condition: PolicyMatchConditionForm) {
+  normalizeConditionForField(condition);
 }
 
-function removeActiveMatcher(index: number) {
-  activeMatchers().splice(index, 1);
+function namePlaceholder(condition: PolicyMatchConditionForm): string {
+  switch (condition.field) {
+    case PublicPolicyMatchField.HEADER:
+      return "x-plan";
+    case PublicPolicyMatchField.COOKIE:
+      return "session";
+    case PublicPolicyMatchField.QUERY_PARAM:
+      return "version";
+    default:
+      return "";
+  }
 }
 
-function matcherValueDisabledReason(matcher: MatcherForm): string {
-  return matcher.operator === PublicRateLimitMatchOperator.PRESENT
-    ? "Present only checks that the value exists, so no comparison value is used."
-    : "";
+function valuePlaceholder(condition: PolicyMatchConditionForm): string {
+  switch (condition.operator) {
+    case PublicPolicyMatchConditionOperator.CIDR:
+      return "203.0.113.0/24";
+    case PublicPolicyMatchConditionOperator.HOST_PATTERN:
+      return "api.example.com";
+    case PublicPolicyMatchConditionOperator.MATCHES:
+      return "^/api/(v1|v2)";
+    case PublicPolicyMatchConditionOperator.IN:
+      return "GET, POST";
+    default:
+      return "value";
+  }
 }
 
-defineExpose({
-  setInitialTab() {
-    activeMatcherGroup.value =
-      props.form.headers.length ? "headers" :
-        props.form.cookies.length ? "cookies" :
-          props.form.queryParams.length ? "queryParams" :
-            "headers";
-  },
-});
+function validationReason(): string {
+  return policyMatchValidationReason(props.form);
+}
+
+defineExpose({ validationReason });
 </script>
 
 <template>
-  <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-    <h4 class="text-sm font-semibold text-white">Match</h4>
-    <div class="grid gap-4 lg:grid-cols-2">
-      <div class="grid gap-2">
-        <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Methods</span>
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="method in methodOptions"
-            :key="method"
-            type="button"
-            class="rounded border px-2.5 py-1 text-xs font-medium transition"
-            :class="form.methods.includes(method) ? 'border-white bg-white text-black' : 'border-[#333] bg-black text-[#d4d4d8] hover:border-[#666]'"
-            @click="toggleMethod(method)"
-          >
-            {{ method }}
-          </button>
-        </div>
+  <section class="policy-match">
+    <div class="match-head">
+      <h4>Match</h4>
+      <div class="mode-tabs" role="tablist" aria-label="Match editor mode">
+        <button type="button" :class="{ active: form.mode === 'builder' }" @click="switchMode('builder')">Builder</button>
+        <button type="button" :class="{ active: form.mode === 'expression' }" @click="switchMode('expression')">CEL</button>
       </div>
-      <div class="grid gap-2">
-        <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Protocols</span>
-        <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            class="rounded border px-2.5 py-1 text-xs font-medium transition"
-            :class="form.protocols.includes(PublicListenerProtocol.HTTP) ? 'border-white bg-white text-black' : 'border-[#333] bg-black text-[#d4d4d8] hover:border-[#666]'"
-            @click="toggleProtocol(PublicListenerProtocol.HTTP)"
-          >
-            HTTP
-          </button>
-          <button
-            type="button"
-            class="rounded border px-2.5 py-1 text-xs font-medium transition"
-            :class="form.protocols.includes(PublicListenerProtocol.HTTPS) ? 'border-white bg-white text-black' : 'border-[#333] bg-black text-[#d4d4d8] hover:border-[#666]'"
-            @click="toggleProtocol(PublicListenerProtocol.HTTPS)"
-          >
-            HTTPS
-          </button>
-        </div>
-      </div>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-        Host patterns
-        <textarea v-model="form.hostPatternsText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder="api.example.com&#10;*.example.com" />
-      </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-        Path prefixes
-        <textarea v-model="form.pathPrefixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder="/api&#10;/login" />
-      </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-        Path suffixes
-        <textarea v-model="form.pathSuffixesText" class="vercel-input min-h-20 text-sm normal-case tracking-normal" placeholder=".css&#10;.js&#10;.webp" />
-      </label>
     </div>
 
-    <div class="matcher-editor">
-      <div class="matcher-editor-header">
-        <div>
-          <p class="matcher-eyebrow">Request attributes</p>
-          <h5 class="matcher-heading">{{ activeMatcherGroupConfig().label }}</h5>
-        </div>
-        <button type="button" class="matcher-add-button" @click="addActiveMatcher">
+    <div v-if="form.mode === 'expression'" class="expression-panel">
+      <textarea v-model="form.expression" class="vercel-input expression-input" spellcheck="false" placeholder='method == "POST" && path_prefix(path, "/login")' />
+    </div>
+
+    <div v-else class="builder-panel">
+      <div class="builder-toolbar">
+        <select v-model="form.root.operator" class="vercel-input compact-select">
+          <option :value="PublicPolicyMatchBooleanOperator.ALL">All</option>
+          <option :value="PublicPolicyMatchBooleanOperator.ANY">Any</option>
+        </select>
+        <label class="negate-toggle">
+          <input v-model="form.root.negated" type="checkbox" />
+          Not
+        </label>
+        <button type="button" class="tool-button" @click="addCondition(form.root)">
           <PlusIcon class="h-3.5 w-3.5" />
-          <span>Add {{ activeMatcherGroupConfig().singular }}</span>
+          <span>Condition</span>
+        </button>
+        <button type="button" class="tool-button" @click="addGroup">
+          <PlusIcon class="h-3.5 w-3.5" />
+          <span>Group</span>
         </button>
       </div>
 
-      <div class="matcher-tabs" role="tablist" aria-label="Matcher type">
-        <button
-          v-for="group in matcherGroups"
-          :key="group.key"
-          type="button"
-          role="tab"
-          class="matcher-tab"
-          :class="{ 'matcher-tab-active': activeMatcherGroup === group.key }"
-          :aria-selected="activeMatcherGroup === group.key"
-          @click="activeMatcherGroup = group.key"
-        >
-          <span>{{ group.label }}</span>
-          <span class="matcher-tab-count">{{ matcherCount(group.key) }}</span>
-        </button>
-      </div>
-
-      <div class="matcher-list-shell">
-        <div v-if="!activeMatchers().length" class="matcher-empty">
-          <p>No {{ activeMatcherGroupConfig().singular }} matchers configured.</p>
-          <button type="button" @click="addActiveMatcher">
-            <PlusIcon class="h-3.5 w-3.5" />
-            <span>Add {{ activeMatcherGroupConfig().singular }}</span>
+      <div class="condition-list">
+        <p v-if="!form.root.conditions.length && !form.root.groups.length" class="empty-match">No request match conditions.</p>
+        <div v-for="(condition, index) in form.root.conditions" :key="`root-${index}`" class="condition-row">
+          <select v-model="condition.field" class="vercel-input" @change="onFieldChange(condition)">
+            <option v-for="option in fieldOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+          <input v-if="conditionNeedsName(condition.field)" v-model="condition.name" class="vercel-input" :placeholder="namePlaceholder(condition)" />
+          <select v-model="condition.operator" class="vercel-input" @change="onOperatorChange(condition)">
+            <option v-for="option in operatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+          <textarea
+            v-if="conditionUsesValues(condition.operator)"
+            v-model="condition.valuesText"
+            class="vercel-input value-input"
+            :placeholder="valuePlaceholder(condition)"
+          />
+          <label class="negate-toggle small">
+            <input v-model="condition.negated" type="checkbox" />
+            Not
+          </label>
+          <button type="button" class="icon-button" aria-label="Remove condition" title="Remove condition" @click="removeCondition(form.root, index)">
+            <TrashIcon class="h-3.5 w-3.5" />
           </button>
         </div>
-        <div v-else class="matcher-list">
-          <div class="matcher-row matcher-row-head" aria-hidden="true">
-            <span>Name</span>
-            <span>Operator</span>
-            <span>Value</span>
-            <span />
-          </div>
-          <div v-for="(matcher, index) in activeMatchers()" :key="`${activeMatcherGroup}-${index}`" class="matcher-row">
-            <input v-model="matcher.name" class="vercel-input matcher-input" :placeholder="activeMatcherGroupConfig().namePlaceholder" />
-            <select v-model="matcher.operator" class="vercel-input matcher-input">
-              <option v-for="option in matcherOperatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+      </div>
+
+      <div v-for="(group, groupIndex) in form.root.groups" :key="`group-${groupIndex}`" class="nested-group">
+        <div class="builder-toolbar">
+          <select v-model="group.operator" class="vercel-input compact-select">
+            <option :value="PublicPolicyMatchBooleanOperator.ALL">All</option>
+            <option :value="PublicPolicyMatchBooleanOperator.ANY">Any</option>
+          </select>
+          <label class="negate-toggle">
+            <input v-model="group.negated" type="checkbox" />
+            Not
+          </label>
+          <button type="button" class="tool-button" @click="addCondition(group)">
+            <PlusIcon class="h-3.5 w-3.5" />
+            <span>Condition</span>
+          </button>
+          <button type="button" class="icon-button" aria-label="Remove group" title="Remove group" @click="removeGroup(groupIndex)">
+            <TrashIcon class="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div class="condition-list">
+          <div v-for="(condition, index) in group.conditions" :key="`nested-${groupIndex}-${index}`" class="condition-row">
+            <select v-model="condition.field" class="vercel-input" @change="onFieldChange(condition)">
+              <option v-for="option in fieldOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
-            <DisabledHint full-width :disabled="Boolean(matcherValueDisabledReason(matcher))" :reason="matcherValueDisabledReason(matcher)">
-              <input
-                v-model="matcher.value"
-                class="vercel-input matcher-input"
-                :placeholder="matcher.operator === PublicRateLimitMatchOperator.PRESENT ? 'Ignored for Present' : 'Value'"
-                :disabled="Boolean(matcherValueDisabledReason(matcher))"
-              />
-            </DisabledHint>
-            <DangerButton
-              size="small"
-              class="row-remove-button"
-              type="button"
-              :aria-label="`Remove ${activeMatcherGroupConfig().singular} matcher`"
-              :title="`Remove ${activeMatcherGroupConfig().singular} matcher`"
-              @click="removeActiveMatcher(index)"
-            >
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+            <input v-if="conditionNeedsName(condition.field)" v-model="condition.name" class="vercel-input" :placeholder="namePlaceholder(condition)" />
+            <select v-model="condition.operator" class="vercel-input" @change="onOperatorChange(condition)">
+              <option v-for="option in operatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            </select>
+            <textarea
+              v-if="conditionUsesValues(condition.operator)"
+              v-model="condition.valuesText"
+              class="vercel-input value-input"
+              :placeholder="valuePlaceholder(condition)"
+            />
+            <label class="negate-toggle small">
+              <input v-model="condition.negated" type="checkbox" />
+              Not
+            </label>
+            <button type="button" class="icon-button" aria-label="Remove condition" title="Remove condition" @click="removeCondition(group, index)">
+              <TrashIcon class="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </div>
+
+      <p v-if="validationReason()" class="field-error">{{ validationReason() }}</p>
     </div>
   </section>
 </template>
 
 <style scoped>
-.matcher-editor {
+.policy-match {
   display: grid;
-  gap: 0.85rem;
-  min-width: 0;
+  gap: 1rem;
   border: 1px solid #222;
   border-radius: 6px;
-  background: #080808;
-  padding: 0.85rem;
+  background: #050505;
+  padding: 1rem;
 }
 
-.matcher-editor-header {
+.match-head,
+.builder-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.matcher-eyebrow {
-  color: #777;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.matcher-heading {
-  margin-top: 0.15rem;
+.match-head h4 {
   color: #fff;
   font-size: 0.92rem;
   font-weight: 650;
 }
 
-.matcher-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
+.mode-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(4.5rem, 1fr));
   border: 1px solid #333;
   border-radius: 6px;
-  background: #050505;
+  background: #080808;
   padding: 0.2rem;
 }
 
-.matcher-tab {
-  display: flex;
-  min-width: 0;
-  height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  border-radius: 4px;
-  color: #a1a1aa;
-  font-size: 0.78rem;
+.mode-tabs button,
+.tool-button,
+.icon-button {
+  border-radius: 5px;
+  color: #d4d4d8;
+  font-size: 0.75rem;
   font-weight: 650;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 
-.matcher-tab:hover {
-  background: #141414;
-  color: #fff;
+.mode-tabs button {
+  height: 2rem;
 }
 
-.matcher-tab-active {
+.mode-tabs button.active {
   background: #fff;
   color: #000;
 }
 
-.matcher-tab-count {
-  min-width: 1.25rem;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 10%);
-  padding: 0.1rem 0.35rem;
-  font-size: 0.68rem;
-  line-height: 1.1;
-  text-align: center;
-}
-
-.matcher-tab-active .matcher-tab-count {
-  background: rgb(0 0 0 / 12%);
-}
-
-.matcher-list-shell {
-  min-height: 13.5rem;
-  max-height: 18rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid #222;
-  border-radius: 6px;
-  background: #030303;
-}
-
-.matcher-list {
+.builder-panel,
+.expression-panel,
+.nested-group {
   display: grid;
-  gap: 0.45rem;
-  padding: 0.6rem;
+  gap: 0.75rem;
 }
 
-.matcher-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 9rem minmax(0, 1.15fr) 2.25rem;
-  gap: 0.5rem;
-  align-items: center;
-  min-height: 2.5rem;
-}
-
-.matcher-row-head {
-  min-height: 1.4rem;
-  color: #666;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.matcher-input {
-  min-width: 0;
-  height: 2.25rem;
-  font-size: 0.8rem;
-  text-transform: none;
+.expression-input {
+  min-height: 9rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
   letter-spacing: 0;
+  text-transform: none;
 }
 
-.matcher-add-button,
-.matcher-empty button {
+.compact-select {
+  width: 7.5rem;
+}
+
+.tool-button {
   display: inline-flex;
   height: 2rem;
   align-items: center;
   gap: 0.4rem;
   border: 1px solid #333;
-  border-radius: 5px;
-  background: #050505;
-  color: #d4d4d8;
+  background: #080808;
   padding: 0 0.65rem;
-  font-size: 0.72rem;
-  font-weight: 650;
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
 
-.matcher-add-button:hover,
-.matcher-empty button:hover {
+.tool-button:hover,
+.icon-button:hover {
   border-color: #666;
-  background: #0f0f0f;
+  background: #111;
   color: #fff;
 }
 
-.matcher-empty {
+.condition-list {
   display: grid;
-  min-height: 13.5rem;
-  place-items: center;
-  align-content: center;
-  gap: 0.75rem;
-  color: #777;
-  font-size: 0.82rem;
-  text-align: center;
+  gap: 0.5rem;
 }
 
-.row-remove-button {
+.condition-row {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 0.9fr) minmax(0, 1fr) minmax(7.5rem, 0.8fr) minmax(0, 1.35fr) auto 2.25rem;
+  gap: 0.5rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.condition-row > input:nth-child(2) + select {
+  grid-column: auto;
+}
+
+.condition-row > select:nth-child(1) + select {
+  grid-column: span 2;
+}
+
+.value-input {
+  min-height: 2.25rem;
+  max-height: 6rem;
+  resize: vertical;
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.negate-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #d4d4d8;
+  font-size: 0.78rem;
+  min-height: 2.25rem;
+}
+
+.negate-toggle.small {
+  justify-self: center;
+}
+
+.icon-button {
+  display: inline-grid;
   width: 2.25rem;
   height: 2.25rem;
-  padding: 0 !important;
+  place-items: center;
+  border: 1px solid #333;
+  background: #080808;
 }
 
-@media (max-width: 720px) {
-  .matcher-editor-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
+.nested-group {
+  border: 1px solid #222;
+  border-radius: 6px;
+  background: #030303;
+  padding: 0.75rem;
+}
 
-  .matcher-add-button {
-    justify-content: center;
-    width: 100%;
-  }
+.empty-match {
+  display: grid;
+  min-height: 4.5rem;
+  place-items: center;
+  border: 1px dashed #333;
+  border-radius: 6px;
+  color: #777;
+  font-size: 0.82rem;
+}
 
-  .matcher-tabs {
+.field-error {
+  color: #f87171;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 860px) {
+  .condition-row {
     grid-template-columns: 1fr;
   }
 
-  .matcher-row,
-  .matcher-row-head {
-    grid-template-columns: 1fr;
+  .condition-row > select:nth-child(1) + select {
+    grid-column: auto;
   }
 
-  .matcher-row-head {
-    display: none;
+  .negate-toggle.small,
+  .icon-button {
+    justify-self: stretch;
   }
 
-  .row-remove-button {
+  .icon-button {
     width: 100%;
   }
 }
