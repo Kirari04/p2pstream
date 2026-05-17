@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -270,7 +271,14 @@ func (a *App) servePublicWAFWaitingRoomStatus(w http.ResponseWriter, r *http.Req
 	a.PublicWAF.mu.Lock()
 	defer a.PublicWAF.mu.Unlock()
 	if a.PublicWAF.validRuleCookieLocked(r, rule.ID, publicWafAdmissionCookieKind, now) {
-		http.Redirect(w, r, sanitizeWAFReturnTo(r.URL.Query().Get("return_to")), http.StatusSeeOther)
+		redirectTo := sanitizeWAFReturnTo(r.URL.Query().Get("return_to"))
+		redirectTo = strings.ReplaceAll(redirectTo, `\`, "/")
+		redirectURL, err := url.Parse(redirectTo)
+		if err == nil && redirectURL.Hostname() == "" {
+			http.Redirect(w, r, redirectURL.String(), http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		}
 		return publicWafDecision{Rule: rule, Listener: listener, Action: publicWafActionWaitingRoom, StatusCode: http.StatusSeeOther, ChallengeKind: publicWafActionWaitingRoom}
 	}
 	runtime := a.PublicWAF.runtimeLocked(rule)
