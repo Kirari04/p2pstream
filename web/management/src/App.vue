@@ -41,6 +41,14 @@ const tabs = [
   { path: "/tls", label: "TLS" },
 ];
 
+const sourceOfferHref = "/.well-known/p2pstream/source";
+const sourceOfferTitle = computed(() => {
+  const repository = import.meta.env.VITE_RELEASE_REPOSITORY?.trim();
+  const ref = import.meta.env.VITE_RELEASE_REF?.trim();
+  if (repository && ref) return `View source for ${repository}@${ref}`;
+  return "View source and license";
+});
+
 const setupForm = ref({ username: "admin", password: "" });
 const loginForm = ref({ username: "admin", password: "" });
 const refreshDisabledReason = computed(() => {
@@ -263,6 +271,16 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="flex items-center gap-3">
+            <a
+              :href="sourceOfferHref"
+              :title="sourceOfferTitle"
+              :aria-label="sourceOfferTitle"
+              class="inline-flex text-sm font-medium text-[#888] transition-colors hover:text-[#ededed]"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Source
+            </a>
             <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
               <SecondaryButton
                 size="small"
