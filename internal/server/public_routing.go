@@ -1358,7 +1358,7 @@ func redirectPathSuffix(r *http.Request, pathPrefix string) string {
 	}
 	pathPrefix = strings.TrimSpace(pathPrefix)
 	if pathPrefix == "" || pathPrefix == "/" {
-		return requestPath
+		return normalizeLocalRedirectPath(requestPath)
 	}
 	if !pathPrefixMatches(requestPath, pathPrefix) {
 		return ""
@@ -1367,29 +1367,48 @@ func redirectPathSuffix(r *http.Request, pathPrefix string) string {
 	if suffix == "" {
 		return ""
 	}
-	if !strings.HasPrefix(suffix, "/") {
-		return "/" + suffix
-	}
-	return suffix
+	return normalizeLocalRedirectPath(suffix)
 }
 
 func joinRedirectPath(basePath string, suffix string) string {
+	basePath = normalizeLocalRedirectPath(basePath)
 	if suffix == "" {
-		if basePath == "" {
-			return "/"
-		}
 		return basePath
 	}
-	if basePath == "" {
-		basePath = "/"
-	}
-	if !strings.HasPrefix(suffix, "/") {
-		suffix = "/" + suffix
-	}
+	suffix = normalizeLocalRedirectPath(suffix)
 	if basePath == "/" {
 		return suffix
 	}
 	return strings.TrimRight(basePath, "/") + "/" + strings.TrimLeft(suffix, "/")
+}
+
+func isSafeLocalRedirectTarget(path string) bool {
+	if !strings.HasPrefix(path, "/") {
+		return false
+	}
+	if len(path) > 1 && (path[1] == '/' || path[1] == '\\') {
+		return false
+	}
+	return true
+}
+
+func normalizeLocalRedirectPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "/"
+	}
+	if isSafeLocalRedirectTarget(path) {
+		return path
+	}
+	path = strings.TrimLeft(path, `/\`)
+	if path == "" || path[0] == '/' || path[0] == '\\' {
+		return "/"
+	}
+	normalized := "/" + path
+	if !isSafeLocalRedirectTarget(normalized) {
+		return "/"
+	}
+	return normalized
 }
 
 func pathPrefixMatches(requestPath string, pathPrefix string) bool {
