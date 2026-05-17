@@ -21,15 +21,14 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.language }}
-  cancel-in-progress: true
-
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.language }}
+      cancel-in-progress: true
 
     strategy:
       fail-fast: false
