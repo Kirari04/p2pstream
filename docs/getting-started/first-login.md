@@ -37,7 +37,7 @@ docker compose restart p2pstream
 
 ## Verification
 
-After login, the navigation should show **Overview**, **Traffic**, **Agents**, **Proxy**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
+After login, the navigation should show **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
 
 <figure class="doc-screenshot">
   <img src="../assets/management_1.png" alt="p2pstream Proxy page showing public listeners and backend configuration">

@@ -40,12 +40,12 @@ const error = ref<string | null>(null);
 const tabs = [
   { path: "/overview", label: "Overview" },
   { path: "/traffic", label: "Traffic" },
-  { path: "/agent", label: "Agents" },
-  { path: "/settings", label: "Settings" },
   { path: "/proxy", label: "Proxy" },
+  { path: "/agent", label: "Agents" },
   { path: "/policies", label: "Traffic Policy" },
   { path: "/templates", label: "Templates" },
   { path: "/tls", label: "TLS" },
+  { path: "/settings", label: "Settings" },
 ];
 
 const sourceOfferHref = "/.well-known/p2pstream/source";
