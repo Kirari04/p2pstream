@@ -34,7 +34,7 @@ func TestPublicTrafficShaperSkipsNonMatchingRules(t *testing.T) {
 	shaper := newPublicTrafficShaper()
 	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
 	rule := testTrafficShaperRule(1, "post-only", 100, publicTrafficShaperBudgetScopePerKey, 0, 1024)
-	rule.Match.Methods = []string{"POST"}
+	rule.Match = mustPublicPolicyMatchCEL(t, `method == "POST"`)
 	rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
 
 	req := testRateLimitRequest("GET", "http://example.com/assets/app.js", "198.51.100.10:1234")
@@ -47,7 +47,7 @@ func TestPublicTrafficShaperPathPrefixUsesSegmentBoundaries(t *testing.T) {
 	shaper := newPublicTrafficShaper()
 	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
 	rule := testTrafficShaperRule(1, "api", 100, publicTrafficShaperBudgetScopePerKey, 0, 1024)
-	rule.Match.PathPrefixes = []string{"/api"}
+	rule.Match = mustPublicPolicyMatchCEL(t, `path_prefix(path, "/api")`)
 	rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
 
 	matching := testRateLimitRequest("GET", "http://example.com/api/data", "198.51.100.10:1234")
@@ -182,8 +182,8 @@ func TestPublicTrafficShaperValidationAndDBRoundTrip(t *testing.T) {
 		0,
 		128,
 		256,
-		nil,
 		[]*p2pstreamv1.PublicRateLimitKeyPart{{Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER, Name: "X-User"}},
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("validate per-request shaper: %v", err)

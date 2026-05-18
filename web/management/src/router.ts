@@ -4,6 +4,7 @@ import Traffic from './views/Traffic.vue';
 import AgentHealth from './views/AgentHealth.vue';
 import ProxyConfig from './views/ProxyConfig.vue';
 import TrafficPolicies from './views/TrafficPolicies.vue';
+import ResponseTemplates from './views/ResponseTemplates.vue';
 import TlsConfig from './views/TlsConfig.vue';
 
 const routes = [
@@ -13,6 +14,7 @@ const routes = [
   { path: '/agent', name: 'agent', component: AgentHealth },
   { path: '/proxy', name: 'proxy', component: ProxyConfig },
   { path: '/policies', name: 'policies', component: TrafficPolicies },
+  { path: '/templates', name: 'templates', component: ResponseTemplates },
   { path: '/tls', name: 'tls', component: TlsConfig },
   { path: '/management', redirect: '/proxy' },
 ];

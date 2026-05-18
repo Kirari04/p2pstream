@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicCacheRuleRequest, CreatePublicCacheRuleResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRateLimitRuleRequest, CreatePublicRateLimitRuleResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, CreatePublicTlsDnsCredentialRequest, CreatePublicTlsDnsCredentialResponse, CreatePublicTrafficShaperRuleRequest, CreatePublicTrafficShaperRuleResponse, CreatePublicWafCaptchaProviderRequest, CreatePublicWafCaptchaProviderResponse, CreatePublicWafRuleRequest, CreatePublicWafRuleResponse, DeleteAgentRequest, DeleteAgentResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicCacheRuleRequest, DeletePublicCacheRuleResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRateLimitRuleRequest, DeletePublicRateLimitRuleResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DeletePublicTlsDnsCredentialRequest, DeletePublicTlsDnsCredentialResponse, DeletePublicTrafficShaperRuleRequest, DeletePublicTrafficShaperRuleResponse, DeletePublicWafCaptchaProviderRequest, DeletePublicWafCaptchaProviderResponse, DeletePublicWafRuleRequest, DeletePublicWafRuleResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, ListPublicBackendHealthTracesRequest, ListPublicBackendHealthTracesResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, PurgePublicCacheRequest, PurgePublicCacheResponse, RenewPublicTlsCertificateRequest, RenewPublicTlsCertificateResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicCacheRuleRequest, UpdatePublicCacheRuleResponse, UpdatePublicCacheSettingsRequest, UpdatePublicCacheSettingsResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRateLimitRuleRequest, UpdatePublicRateLimitRuleResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse, UpdatePublicTlsDnsCredentialRequest, UpdatePublicTlsDnsCredentialResponse, UpdatePublicTrafficShaperRuleRequest, UpdatePublicTrafficShaperRuleResponse, UpdatePublicWafCaptchaProviderRequest, UpdatePublicWafCaptchaProviderResponse, UpdatePublicWafRuleRequest, UpdatePublicWafRuleResponse } from "./management_pb";
+import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreatePublicBackendRequest, CreatePublicBackendResponse, CreatePublicCacheRuleRequest, CreatePublicCacheRuleResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRateLimitRuleRequest, CreatePublicRateLimitRuleResponse, CreatePublicResponseTemplateRequest, CreatePublicResponseTemplateResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, CreatePublicTlsDnsCredentialRequest, CreatePublicTlsDnsCredentialResponse, CreatePublicTrafficShaperRuleRequest, CreatePublicTrafficShaperRuleResponse, CreatePublicWafCaptchaProviderRequest, CreatePublicWafCaptchaProviderResponse, CreatePublicWafRuleRequest, CreatePublicWafRuleResponse, DeleteAgentRequest, DeleteAgentResponse, DeletePublicBackendRequest, DeletePublicBackendResponse, DeletePublicCacheRuleRequest, DeletePublicCacheRuleResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRateLimitRuleRequest, DeletePublicRateLimitRuleResponse, DeletePublicResponseTemplateRequest, DeletePublicResponseTemplateResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DeletePublicTlsDnsCredentialRequest, DeletePublicTlsDnsCredentialResponse, DeletePublicTrafficShaperRuleRequest, DeletePublicTrafficShaperRuleResponse, DeletePublicWafCaptchaProviderRequest, DeletePublicWafCaptchaProviderResponse, DeletePublicWafRuleRequest, DeletePublicWafRuleResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, ListPublicBackendHealthTracesRequest, ListPublicBackendHealthTracesResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, PurgePublicCacheRequest, PurgePublicCacheResponse, RenewPublicTlsCertificateRequest, RenewPublicTlsCertificateResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdatePublicBackendRequest, UpdatePublicBackendResponse, UpdatePublicCacheRuleRequest, UpdatePublicCacheRuleResponse, UpdatePublicCacheSettingsRequest, UpdatePublicCacheSettingsResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRateLimitRuleRequest, UpdatePublicRateLimitRuleResponse, UpdatePublicResponseTemplateRequest, UpdatePublicResponseTemplateResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse, UpdatePublicTlsDnsCredentialRequest, UpdatePublicTlsDnsCredentialResponse, UpdatePublicTrafficShaperRuleRequest, UpdatePublicTrafficShaperRuleResponse, UpdatePublicWafCaptchaProviderRequest, UpdatePublicWafCaptchaProviderResponse, UpdatePublicWafRuleRequest, UpdatePublicWafRuleResponse } from "./management_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -136,6 +136,33 @@ export const AgentManagementService = {
       name: "GetPublicProxyConfig",
       I: GetPublicProxyConfigRequest,
       O: GetPublicProxyConfigResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicResponseTemplate
+     */
+    createPublicResponseTemplate: {
+      name: "CreatePublicResponseTemplate",
+      I: CreatePublicResponseTemplateRequest,
+      O: CreatePublicResponseTemplateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicResponseTemplate
+     */
+    updatePublicResponseTemplate: {
+      name: "UpdatePublicResponseTemplate",
+      I: UpdatePublicResponseTemplateRequest,
+      O: UpdatePublicResponseTemplateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicResponseTemplate
+     */
+    deletePublicResponseTemplate: {
+      name: "DeletePublicResponseTemplate",
+      I: DeletePublicResponseTemplateRequest,
+      O: DeletePublicResponseTemplateResponse,
       kind: MethodKind.Unary,
     },
     /**

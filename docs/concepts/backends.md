@@ -42,6 +42,8 @@ Direct backend health checks run from the p2pstream server. Agent-pool health ch
 
 Cache rules apply only to proxy-forward backends. Static backends and redirect routes are not cached.
 
+Static response bodies can be defined inline on the backend or selected from a central generic response template. The template supplies only the body; the static backend still controls the status code and response headers such as `Content-Type`, `Cache-Control`, and `Retry-After`.
+
 ## Common Mistakes
 
 - Setting an agent-pool target origin that only the server can resolve.
@@ -53,5 +55,6 @@ Cache rules apply only to proxy-forward backends. Static backends and redirect r
 
 - [Publish a service](../guides/publish-a-service)
 - [Build a multi-agent backend pool](../guides/agent-pool)
+- [Response templates reference](../reference/response-templates)
 - [Cache](./cache)
 - [Routing rules reference](../reference/routing-rules)

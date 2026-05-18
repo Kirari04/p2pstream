@@ -8,6 +8,13 @@ import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPart
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import {
+  defaultPolicyMatchForm,
+  policyMatchFormFromProto,
+  policyMatchRulePayload,
+  policyMatchValidationReason,
+  type PolicyMatchForm,
+} from "@/lib/publicPolicyMatch";
+import {
   defaultWafTriggerForm,
   setWafTriggerMetricEnabled,
   wafTriggerFormFromProto,
@@ -19,20 +26,15 @@ import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import {
-  PublicListenerProtocol,
   PublicRateLimitKeySource,
-  PublicRateLimitMatchOperator,
+  PublicResponseBodyMode,
+  PublicResponseTemplateKind,
   PublicWafActivationMode,
   PublicWafRuleAction,
   type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
-type MatcherForm = {
-  name: string;
-  operator: PublicRateLimitMatchOperator;
-  value: string;
-};
 type KeyPartForm = {
   source: PublicRateLimitKeySource;
   name: string;
@@ -70,7 +72,9 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 const isOpen = ref(false);
 const rules = computed(() => props.config?.wafRules ?? []);
 const providers = computed(() => props.config?.wafCaptchaProviders ?? []);
-const matchEditor = ref<InstanceType<typeof PublicPolicyMatchEditor> | null>(null);
+const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
+const captchaTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_CAPTCHA_PAGE));
+const waitingRoomTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE));
 
 const form = reactive({
   id: "",
@@ -79,19 +83,11 @@ const form = reactive({
   priority: 100,
   action: PublicWafRuleAction.BLOCK,
   activationMode: PublicWafActivationMode.ALWAYS,
-  match: {
-    methods: [] as string[],
-    protocols: [] as PublicListenerProtocol[],
-    hostPatternsText: "",
-    pathPrefixesText: "",
-    pathSuffixesText: "",
-    headers: [] as MatcherForm[],
-    cookies: [] as MatcherForm[],
-    queryParams: [] as MatcherForm[],
-  },
+  match: defaultPolicyMatchForm() as PolicyMatchForm,
   keyParts: [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }] as KeyPartForm[],
   captchaProviderId: "",
   captchaPassMinutes: 30,
+  captchaPageTemplateId: "",
   waitingRoomMaxAdmitted: 50,
   waitingRoomAdmissionRate: 10,
   waitingRoomAdmissionTtlMinutes: 10,
@@ -99,10 +95,13 @@ const form = reactive({
   waitingRoomTimeoutMinutes: 30,
   waitingRoomPageTitle: "Waiting room",
   waitingRoomPageBody: "Traffic is high. You will be admitted automatically.",
+  waitingRoomPageTemplateId: "",
   triggers: defaultWafTriggerForm(),
   blockResponseStatusCode: 403,
   blockResponseContentType: "text/plain; charset=utf-8",
   blockResponseBody: "Request blocked\n",
+  blockResponseBodyMode: PublicResponseBodyMode.INLINE,
+  blockResponseTemplateId: "",
   blockResponseHeaders: [] as HeaderForm[],
 });
 
@@ -254,7 +253,11 @@ const submitDisabledReason = computed(() => {
     if (!selectedCaptchaProvider.value.enabled) return "Selected captcha provider is disabled.";
   }
   if (form.action === PublicWafRuleAction.WAITING_ROOM && form.waitingRoomAdmissionRate < 1) return "Admission rate must be at least 1.";
+  if (form.action === PublicWafRuleAction.BLOCK && form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE && !form.blockResponseTemplateId) {
+    return "Select a block response template.";
+  }
   if (triggerValidationMessage.value) return triggerValidationMessage.value;
+  if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -287,17 +290,11 @@ function resetForm() {
   form.priority = 100;
   form.action = PublicWafRuleAction.BLOCK;
   form.activationMode = PublicWafActivationMode.ALWAYS;
-  form.match.methods = [];
-  form.match.protocols = [];
-  form.match.hostPatternsText = "";
-  form.match.pathPrefixesText = "";
-  form.match.pathSuffixesText = "";
-  form.match.headers = [];
-  form.match.cookies = [];
-  form.match.queryParams = [];
+  form.match = defaultPolicyMatchForm();
   form.keyParts = [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
   form.captchaProviderId = firstEnabledProviderId();
   form.captchaPassMinutes = 30;
+  form.captchaPageTemplateId = "";
   form.waitingRoomMaxAdmitted = 50;
   form.waitingRoomAdmissionRate = 10;
   form.waitingRoomAdmissionTtlMinutes = 10;
@@ -305,10 +302,13 @@ function resetForm() {
   form.waitingRoomTimeoutMinutes = 30;
   form.waitingRoomPageTitle = "Waiting room";
   form.waitingRoomPageBody = "Traffic is high. You will be admitted automatically.";
+  form.waitingRoomPageTemplateId = "";
   form.triggers = defaultWafTriggerForm();
   form.blockResponseStatusCode = 403;
   form.blockResponseContentType = "text/plain; charset=utf-8";
   form.blockResponseBody = "Request blocked\n";
+  form.blockResponseBodyMode = PublicResponseBodyMode.INLINE;
+  form.blockResponseTemplateId = "";
   form.blockResponseHeaders = [];
 }
 
@@ -327,19 +327,13 @@ function openEdit(ruleId: bigint | string) {
   form.priority = Number(rule.priority);
   form.action = rule.action || PublicWafRuleAction.BLOCK;
   form.activationMode = rule.activationMode || PublicWafActivationMode.ALWAYS;
-  form.match.methods = [...(rule.match?.methods ?? [])];
-  form.match.protocols = [...(rule.match?.protocols ?? [])];
-  form.match.hostPatternsText = (rule.match?.hostPatterns ?? []).join("\n");
-  form.match.pathPrefixesText = (rule.match?.pathPrefixes ?? []).join("\n");
-  form.match.pathSuffixesText = (rule.match?.pathSuffixes ?? []).join("\n");
-  form.match.headers = cloneMatchers(rule.match?.headers ?? []);
-  form.match.cookies = cloneMatchers(rule.match?.cookies ?? []);
-  form.match.queryParams = cloneMatchers(rule.match?.queryParams ?? []);
+  form.match = policyMatchFormFromProto(rule.matchRule);
   form.keyParts = rule.keyParts.length
     ? rule.keyParts.map((part) => ({ source: part.source, name: part.name }))
     : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
   form.captchaProviderId = rule.captchaProviderId ? rule.captchaProviderId.toString() : firstEnabledProviderId();
   form.captchaPassMinutes = millisToMinutes(rule.captchaPassTtlMillis || 1800000n);
+  form.captchaPageTemplateId = rule.captchaPageTemplateId ? rule.captchaPageTemplateId.toString() : "";
   form.waitingRoomMaxAdmitted = Number(rule.waitingRoom?.maxAdmittedSessions || 50n);
   form.waitingRoomAdmissionRate = Number(rule.waitingRoom?.admissionRatePerSecond || 10n);
   form.waitingRoomAdmissionTtlMinutes = millisToMinutes(rule.waitingRoom?.admissionSessionTtlMillis || 600000n);
@@ -347,25 +341,19 @@ function openEdit(ruleId: bigint | string) {
   form.waitingRoomTimeoutMinutes = millisToMinutes(rule.waitingRoom?.queueTimeoutMillis || 1800000n);
   form.waitingRoomPageTitle = rule.waitingRoom?.pageTitle || "Waiting room";
   form.waitingRoomPageBody = rule.waitingRoom?.pageBody || "Traffic is high. You will be admitted automatically.";
+  form.waitingRoomPageTemplateId = rule.waitingRoomPageTemplateId ? rule.waitingRoomPageTemplateId.toString() : "";
   form.triggers = wafTriggerFormFromProto(rule.triggers);
   form.blockResponseStatusCode = Number(rule.blockResponseStatusCode || 403n);
   form.blockResponseContentType = rule.blockResponseContentType || "text/plain; charset=utf-8";
   form.blockResponseBody = rule.blockResponseBody || "Request blocked\n";
+  form.blockResponseBodyMode = rule.blockResponseBodyMode || PublicResponseBodyMode.INLINE;
+  form.blockResponseTemplateId = rule.blockResponseTemplateId ? rule.blockResponseTemplateId.toString() : "";
   form.blockResponseHeaders = rule.blockResponseHeaders.map((header) => ({ name: header.name, value: header.value }));
   isOpen.value = true;
-  requestAnimationFrame(() => matchEditor.value?.setInitialTab());
 }
 
 function close() {
   isOpen.value = false;
-}
-
-function cloneMatchers(matchers: readonly MatcherForm[]): MatcherForm[] {
-  return matchers.map((matcher) => ({
-    name: matcher.name,
-    operator: matcher.operator || PublicRateLimitMatchOperator.EQUALS,
-    value: matcher.value,
-  }));
 }
 
 function millisToSeconds(value: bigint): number {
@@ -384,24 +372,10 @@ function secondsToMillis(value: number): bigint {
   return BigInt(Math.round((value || 0) * 1000));
 }
 
-function lines(value: string): string[] {
-  return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-}
-
 function keyPartNeedsName(source: PublicRateLimitKeySource): boolean {
   return source === PublicRateLimitKeySource.HEADER ||
     source === PublicRateLimitKeySource.COOKIE ||
     source === PublicRateLimitKeySource.QUERY_PARAM;
-}
-
-function matcherPayload(matchers: MatcherForm[]) {
-  return matchers
-    .map((matcher) => ({
-      name: matcher.name.trim(),
-      operator: matcher.operator,
-      value: matcher.value,
-    }))
-    .filter((matcher) => matcher.name);
 }
 
 function addBlockHeader() {
@@ -429,22 +403,14 @@ async function submitRule() {
       enabled: form.enabled,
       action: form.action,
       activationMode: form.activationMode,
-      match: {
-        methods: [...form.match.methods],
-        protocols: [...form.match.protocols],
-        hostPatterns: lines(form.match.hostPatternsText),
-        pathPrefixes: lines(form.match.pathPrefixesText),
-        pathSuffixes: lines(form.match.pathSuffixesText),
-        headers: matcherPayload(form.match.headers),
-        cookies: matcherPayload(form.match.cookies),
-        queryParams: matcherPayload(form.match.queryParams),
-      },
+      matchRule: policyMatchRulePayload(form.match),
       keyParts: form.keyParts.map((part) => ({
         source: part.source,
         name: keyPartNeedsName(part.source) ? part.name.trim() : "",
       })),
       captchaProviderId: form.captchaProviderId ? BigInt(form.captchaProviderId) : 0n,
       captchaPassTtlMillis: minutesToMillis(form.captchaPassMinutes),
+      captchaPageTemplateId: form.action === PublicWafRuleAction.CAPTCHA ? BigInt(form.captchaPageTemplateId || "0") : 0n,
       waitingRoom: {
         maxAdmittedSessions: BigInt(form.waitingRoomMaxAdmitted || 0),
         admissionRatePerSecond: BigInt(form.waitingRoomAdmissionRate || 0),
@@ -454,9 +420,14 @@ async function submitRule() {
         pageTitle: form.waitingRoomPageTitle,
         pageBody: form.waitingRoomPageBody,
       },
+      waitingRoomPageTemplateId: form.action === PublicWafRuleAction.WAITING_ROOM ? BigInt(form.waitingRoomPageTemplateId || "0") : 0n,
       triggers: wafTriggerPayloadFromForm(form.triggers),
       blockResponseStatusCode: BigInt(form.blockResponseStatusCode || 403),
       blockResponseBody: form.blockResponseBody,
+      blockResponseBodyMode: form.action === PublicWafRuleAction.BLOCK ? form.blockResponseBodyMode : PublicResponseBodyMode.INLINE,
+      blockResponseTemplateId: form.action === PublicWafRuleAction.BLOCK && form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE
+        ? BigInt(form.blockResponseTemplateId || "0")
+        : 0n,
       blockResponseContentType: form.blockResponseContentType,
       blockResponseHeaders: form.blockResponseHeaders
         .map((header) => ({ name: header.name.trim(), value: header.value }))
@@ -530,7 +501,7 @@ defineExpose({ openCreate, openEdit, close });
         </div>
       </section>
 
-      <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
+      <PublicPolicyMatchEditor :form="form.match" />
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
       <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
@@ -566,6 +537,15 @@ defineExpose({ openCreate, openEdit, close });
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Pass TTL minutes
             <input v-model.number="form.captchaPassMinutes" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+            Page template
+            <select v-model="form.captchaPageTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+              <option value="">Built-in captcha page</option>
+              <option v-for="template in captchaTemplates" :key="template.id.toString()" :value="template.id.toString()">
+                {{ template.name }}
+              </option>
+            </select>
           </label>
         </div>
       </section>
@@ -604,6 +584,15 @@ defineExpose({ openCreate, openEdit, close });
             <input v-model="form.waitingRoomPageBody" class="vercel-input text-sm normal-case tracking-normal" />
           </label>
         </div>
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          Page template
+          <select v-model="form.waitingRoomPageTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+            <option value="">Built-in waiting-room page</option>
+            <option v-for="template in waitingRoomTemplates" :key="template.id.toString()" :value="template.id.toString()">
+              {{ template.name }}
+            </option>
+          </select>
+        </label>
       </section>
 
       <section v-if="form.activationMode === PublicWafActivationMode.AUTOMATIC" class="grid gap-5 rounded-md border border-[#222] bg-[#050505] p-4">
@@ -705,10 +694,42 @@ defineExpose({ openCreate, openEdit, close });
             <input v-model="form.blockResponseContentType" class="vercel-input text-sm normal-case tracking-normal" />
           </label>
         </div>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-          Body
-          <textarea v-model="form.blockResponseBody" class="vercel-input min-h-24 text-sm normal-case tracking-normal font-mono" />
-        </label>
+        <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Body source
+            <div class="grid grid-cols-2 rounded-md border border-[#333] bg-[#0b0b0b] p-1">
+              <button
+                type="button"
+                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
+                :class="form.blockResponseBodyMode === PublicResponseBodyMode.INLINE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+                @click="form.blockResponseBodyMode = PublicResponseBodyMode.INLINE"
+              >
+                Inline
+              </button>
+              <button
+                type="button"
+                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
+                :class="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+                @click="form.blockResponseBodyMode = PublicResponseBodyMode.TEMPLATE"
+              >
+                Template
+              </button>
+            </div>
+          </div>
+          <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Template
+            <select v-model="form.blockResponseTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+              <option value="">{{ genericTemplates.length ? 'Select template' : 'No generic templates' }}</option>
+              <option v-for="template in genericTemplates" :key="template.id.toString()" :value="template.id.toString()">
+                {{ template.name }}
+              </option>
+            </select>
+          </label>
+          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Body
+            <textarea v-model="form.blockResponseBody" class="vercel-input min-h-24 text-sm normal-case tracking-normal font-mono" />
+          </label>
+        </div>
         <div class="grid gap-2">
           <div class="flex items-center justify-between gap-3">
             <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Headers</span>

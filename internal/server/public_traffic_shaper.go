@@ -44,7 +44,7 @@ type publicTrafficShaperRuleConfig struct {
 	BurstBytes             int64
 	RequestExemptBytes     int64
 	ResponseExemptBytes    int64
-	Match                  publicRateLimitMatchConfig
+	Match                  publicPolicyMatchConfig
 	KeyParts               []publicRateLimitKeyPartConfig
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
@@ -432,8 +432,8 @@ func validatePublicTrafficShaperRuleInput(
 	burstBytes int64,
 	requestExemptBytes int64,
 	responseExemptBytes int64,
-	match *p2pstreamv1.PublicRateLimitMatch,
 	keyParts []*p2pstreamv1.PublicRateLimitKeyPart,
+	matchRule *p2pstreamv1.PublicPolicyMatchRule,
 ) (publicTrafficShaperRuleMutationInput, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -464,7 +464,7 @@ func validatePublicTrafficShaperRuleInput(
 	if responseExemptBytes < 0 || responseExemptBytes > maxTrafficShaperExemptBytes {
 		return publicTrafficShaperRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("traffic shaper response exemption must be between 0 and 1 GiB"))
 	}
-	matchConfig, err := validateRateLimitMatch(match)
+	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicTrafficShaperRuleMutationInput{}, trafficShaperValidationError(err)
 	}
@@ -527,9 +527,11 @@ func publicTrafficShaperRuleRowToConfig(row db.PublicTrafficShaperRule) (publicT
 		UpdatedAt:              row.UpdatedAt,
 	}
 	if row.MatchJson != "" {
-		if err := json.Unmarshal([]byte(row.MatchJson), &rule.Match); err != nil {
+		match, err := decodePublicPolicyMatchJSON(row.MatchJson)
+		if err != nil {
 			return publicTrafficShaperRuleConfig{}, fmt.Errorf("decode match: %w", err)
 		}
+		rule.Match = match
 	}
 	if row.KeyPartsJson != "" {
 		if err := json.Unmarshal([]byte(row.KeyPartsJson), &rule.KeyParts); err != nil {
@@ -553,7 +555,7 @@ func publicTrafficShaperRuleFingerprint(rule publicTrafficShaperRuleConfig) stri
 		BurstBytes             int64
 		RequestExemptBytes     int64
 		ResponseExemptBytes    int64
-		Match                  publicRateLimitMatchConfig
+		Match                  publicPolicyMatchConfig
 		KeyParts               []publicRateLimitKeyPartConfig
 		UpdatedAt              int64
 	}
@@ -622,10 +624,10 @@ func publicTrafficShaperConfigToProto(rule publicTrafficShaperRuleConfig) *p2pst
 		BurstBytes:             rule.BurstBytes,
 		RequestExemptBytes:     rule.RequestExemptBytes,
 		ResponseExemptBytes:    rule.ResponseExemptBytes,
-		Match:                  rateLimitMatchToProto(rule.Match),
 		KeyParts:               rateLimitKeyPartsToProto(rule.KeyParts),
 		CreatedAtUnixMillis:    rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:    rule.UpdatedAt.UnixMilli(),
+		MatchRule:              publicPolicyMatchRuleToProto(rule.Match),
 	}
 }
 
@@ -634,6 +636,9 @@ func (a *App) CreatePublicTrafficShaperRule(
 	req *connect.Request[p2pstreamv1.CreatePublicTrafficShaperRuleRequest],
 ) (*connect.Response[p2pstreamv1.CreatePublicTrafficShaperRuleResponse], error) {
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	if err := rejectRemovedPolicyMatchField(req.Msg, 10); err != nil {
 		return nil, err
 	}
 	params, err := validatePublicTrafficShaperRuleInput(
@@ -646,8 +651,8 @@ func (a *App) CreatePublicTrafficShaperRule(
 		req.Msg.BurstBytes,
 		req.Msg.RequestExemptBytes,
 		req.Msg.ResponseExemptBytes,
-		req.Msg.Match,
 		req.Msg.KeyParts,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err
@@ -685,6 +690,9 @@ func (a *App) UpdatePublicTrafficShaperRule(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	if err := rejectRemovedPolicyMatchField(req.Msg, 11); err != nil {
+		return nil, err
+	}
 	params, err := validatePublicTrafficShaperRuleInput(
 		req.Msg.Name,
 		req.Msg.Priority,
@@ -695,8 +703,8 @@ func (a *App) UpdatePublicTrafficShaperRule(
 		req.Msg.BurstBytes,
 		req.Msg.RequestExemptBytes,
 		req.Msg.ResponseExemptBytes,
-		req.Msg.Match,
 		req.Msg.KeyParts,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/url"
 	"path/filepath"
 	"sort"
@@ -137,6 +138,127 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	if backend.UpstreamResponseHeaderTimeoutMillis != 60000 {
 		t.Fatalf("backend upstream response header timeout default = %d, want 60000", backend.UpstreamResponseHeaderTimeoutMillis)
+	}
+}
+
+func TestMigrationConvertsLegacyPolicyMatchJSON(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-policy-match.db")
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatalf("close db: %v", err)
+	}
+
+	raw, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open raw db: %v", err)
+	}
+	legacy := `{
+		"methods": [" get ", "POST"],
+		"protocols": [" HTTPS "],
+		"host_patterns": ["*.Example.COM."],
+		"path_prefixes": [" /api ", "admin"],
+		"path_suffixes": [".JSON"],
+		"headers": [
+			{"name": "X-Plan", "operator": "equals", "value": "free"},
+			{"name": "X-Trace", "operator": "present"}
+		],
+		"cookies": [{"name": " session ", "operator": "prefix", "value": "abc"}],
+		"query_params": [{"name": " page ", "operator": "contains", "value": "1"}]
+	}`
+	inserts := []string{
+		`INSERT INTO public_rate_limit_rules (name, algorithm, limit_count, window_millis, match_json) VALUES ('rate', 'fixed_window', 10, 1000, ?)`,
+		`INSERT INTO public_traffic_shaper_rules (name, upload_bytes_per_second, match_json) VALUES ('shaper', 1024, ?)`,
+		`INSERT INTO public_waf_rules (name, match_json) VALUES ('waf', ?)`,
+		`INSERT INTO public_cache_rules (name, match_json) VALUES ('cache', ?)`,
+	}
+	for _, stmt := range inserts {
+		if _, err := raw.ExecContext(context.Background(), stmt, legacy); err != nil {
+			t.Fatalf("insert legacy policy match row: %v", err)
+		}
+	}
+	if _, err := raw.ExecContext(context.Background(), `INSERT INTO public_cache_rules (name, match_json) VALUES ('cache-new', '{"cel_expression":"method == \"GET\""}')`); err != nil {
+		t.Fatalf("insert new policy match row: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close raw db: %v", err)
+	}
+
+	database, err = Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated db: %v", err)
+	}
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Fatalf("close migrated db: %v", err)
+		}
+	}()
+
+	for table, name := range map[string]string{
+		"public_rate_limit_rules":     "rate",
+		"public_traffic_shaper_rules": "shaper",
+		"public_waf_rules":            "waf",
+		"public_cache_rules":          "cache",
+	} {
+		var rawMatch string
+		if err := database.QueryRowContext(context.Background(), `SELECT match_json FROM `+table+` WHERE name = ?`, name).Scan(&rawMatch); err != nil {
+			t.Fatalf("read %s migrated match_json: %v", table, err)
+		}
+		assertMigratedLegacyPolicyMatchJSON(t, table, rawMatch)
+	}
+
+	var unchanged string
+	if err := database.QueryRowContext(context.Background(), `SELECT match_json FROM public_cache_rules WHERE name = 'cache-new'`).Scan(&unchanged); err != nil {
+		t.Fatalf("read unchanged policy match: %v", err)
+	}
+	if unchanged != `{"cel_expression":"method == \"GET\""}` {
+		t.Fatalf("new policy match JSON was changed: %s", unchanged)
+	}
+}
+
+func assertMigratedLegacyPolicyMatchJSON(t *testing.T, table string, raw string) {
+	t.Helper()
+	var migrated policyMatchJSON
+	if err := json.Unmarshal([]byte(raw), &migrated); err != nil {
+		t.Fatalf("%s match_json is not policy match JSON: %v", table, err)
+	}
+	if migrated.CELExpression == "" {
+		t.Fatalf("%s migrated CEL expression is empty: %s", table, raw)
+	}
+	for _, want := range []string{
+		`method in ["GET", "POST"]`,
+		`protocol in ["https"]`,
+		`host_match(host, "*.example.com")`,
+		`path_prefix(path, "/api")`,
+		`path_prefix(path, "/admin")`,
+		`path.endsWith(".JSON")`,
+		`"x-plan" in headers`,
+		`headers["x-plan"][0] == "free"`,
+		`"x-trace" in headers`,
+		`"session" in cookies`,
+		`"page" in query`,
+		`query["page"][0].contains("1")`,
+	} {
+		if !strings.Contains(migrated.CELExpression, want) {
+			t.Fatalf("%s CEL expression %q missing %q", table, migrated.CELExpression, want)
+		}
+	}
+	if migrated.Builder == nil || migrated.Builder.Root == nil {
+		t.Fatalf("%s migrated builder is missing: %#v", table, migrated.Builder)
+	}
+	if got := len(migrated.Builder.Root.Conditions); got != 9 {
+		t.Fatalf("%s builder condition count = %d, want 9", table, got)
+	}
+	if migrated.Builder.Root.Conditions[0].Field != "method" || migrated.Builder.Root.Conditions[0].Operator != "in" {
+		t.Fatalf("%s first builder condition = %+v", table, migrated.Builder.Root.Conditions[0])
+	}
+	if !migrated.Builder.Root.Conditions[5].LegacyFirstValue {
+		t.Fatalf("%s legacy header condition did not preserve first-value matching: %+v", table, migrated.Builder.Root.Conditions[5])
+	}
+	if !migrated.Builder.Root.Conditions[8].LegacyFirstValue {
+		t.Fatalf("%s legacy query condition did not preserve first-value matching: %+v", table, migrated.Builder.Root.Conditions[8])
 	}
 }
 

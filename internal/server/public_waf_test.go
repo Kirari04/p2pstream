@@ -118,6 +118,29 @@ func TestPublicWafCaptchaPageSupportsAllProviders(t *testing.T) {
 	}
 }
 
+func TestPublicWafCaptchaPageUsesConfiguredTemplate(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.test/private", nil)
+	decision := testWafCaptchaPageDecision(publicWafCaptchaProviderTurnstile)
+	decision.Rule.CaptchaPageTemplateBody = `<!doctype html><title>{{ .page_title }}</title><main data-rule="{{ .rule_name }}">{{ .host }} {{ .captcha_element_html }}</main>`
+	resp := httptest.NewRecorder()
+
+	writeCaptchaChallenge(resp, req, decision)
+
+	body := resp.Body.String()
+	for _, want := range []string{
+		`<main data-rule="waf">app.example.test`,
+		`class="cf-widget cf-turnstile"`,
+		`name="captcha_challenge"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("captcha template missing %q\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "Security by p2pstream") {
+		t.Fatalf("captcha template fell back to built-in page\n%s", body)
+	}
+}
+
 func TestPublicWafWaitingRoomPageUsesCloudflareInspiredLayout(t *testing.T) {
 	rule := testWafRule(9, publicWafActionWaitingRoom)
 	rule.WaitingRoom.PageTitle = "Queue for access"
@@ -164,8 +187,9 @@ func TestPublicWafWaitingRoomPageEscapesConfiguredCopy(t *testing.T) {
 	rule := testWafRule(10, publicWafActionWaitingRoom)
 	rule.WaitingRoom.PageTitle = `Wait"><script>alert(1)</script>`
 	rule.WaitingRoom.PageBody = `Body"><script>alert(2)</script>`
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.test/", nil)
 	resp := httptest.NewRecorder()
-	writeWaitingRoomPage(resp, publicWafDecision{
+	writeWaitingRoomPage(resp, req, publicWafDecision{
 		Rule:          rule,
 		Action:        publicWafActionWaitingRoom,
 		StatusCode:    http.StatusServiceUnavailable,
@@ -189,8 +213,9 @@ func TestPublicWafWaitingRoomPageEscapesConfiguredCopy(t *testing.T) {
 
 func TestPublicWafWaitingRoomPageKeepsRefreshInterval(t *testing.T) {
 	rule := testWafRule(11, publicWafActionWaitingRoom)
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.test/", nil)
 	resp := httptest.NewRecorder()
-	writeWaitingRoomPage(resp, publicWafDecision{
+	writeWaitingRoomPage(resp, req, publicWafDecision{
 		Rule:          rule,
 		Action:        publicWafActionWaitingRoom,
 		StatusCode:    http.StatusServiceUnavailable,
@@ -200,6 +225,35 @@ func TestPublicWafWaitingRoomPageKeepsRefreshInterval(t *testing.T) {
 
 	if body := resp.Body.String(); !strings.Contains(body, `<meta http-equiv="refresh" content="5">`) {
 		t.Fatalf("waiting-room page did not keep meta refresh interval\n%s", body)
+	}
+}
+
+func TestPublicWafWaitingRoomPageUsesConfiguredTemplate(t *testing.T) {
+	rule := testWafRule(12, publicWafActionWaitingRoom)
+	rule.WaitingRoomPageTemplateBody = `<!doctype html><main>{{ .host }} #{{ .queue_position }} retry={{ .retry_after_seconds }} status={{ .status_url }}</main>`
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.test/private", nil)
+	resp := httptest.NewRecorder()
+
+	writeWaitingRoomPage(resp, req, publicWafDecision{
+		Rule:          rule,
+		Action:        publicWafActionWaitingRoom,
+		StatusCode:    http.StatusServiceUnavailable,
+		RetryAfter:    5 * time.Second,
+		QueuePosition: 7,
+	})
+
+	body := resp.Body.String()
+	for _, want := range []string{
+		"app.example.test #7 retry=5",
+		"/.p2pstream/waf/waiting-room/status",
+		"rule_id=12",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("waiting-room template missing %q\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "Waiting room by p2pstream") {
+		t.Fatalf("waiting-room template fell back to built-in page\n%s", body)
 	}
 }
 
@@ -441,6 +495,31 @@ func TestPublicWafCaptchaVerifySuccessSetsCookieAndRedirects(t *testing.T) {
 	assertPublicWafCookieAttributes(t, passCookie, false)
 }
 
+func TestPublicWafCaptchaVerifySanitizesUnsafeReturnRedirect(t *testing.T) {
+	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parse form: %v", err)
+		}
+		if r.Form.Get("response") == "token" {
+			_, _ = w.Write([]byte(`{"success":true}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	unsafeReturnTo := "//evil.example/private"
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", unsafeReturnTo)
+	form := captchaVerifyForm(rule.ID, unsafeReturnTo, challenge, "token")
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+
+	if resp.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusSeeOther)
+	}
+	if location := resp.Header().Get("Location"); location != "/" {
+		t.Fatalf("Location = %q, want /", location)
+	}
+}
+
 func TestPublicWafCaptchaVerifySuccessSetsSecureCookieForHTTPSListener(t *testing.T) {
 	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -470,6 +549,54 @@ func TestPublicWafCaptchaVerifySuccessSetsSecureCookieForHTTPSListener(t *testin
 	}
 	passCookie := requirePublicWafCookie(t, resp.Result().Cookies(), wafCookieName(rule.ID, publicWafCaptchaCookieKind))
 	assertPublicWafCookieAttributes(t, passCookie, true)
+}
+
+func TestSanitizeWAFReturnTo(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "empty", value: "", want: "/"},
+		{name: "valid path and query", value: "/private?x=1", want: "/private?x=1"},
+		{name: "absolute URL", value: "https://evil.example/private", want: "/"},
+		{name: "scheme relative URL", value: "//evil.example/private", want: "/"},
+		{name: "backslash-prefixed path", value: `/\evil.example/private`, want: "/"},
+		{name: "encoded slash prefix", value: "/%2fevil.example/private", want: "/"},
+		{name: "encoded backslash prefix", value: "/%5cevil.example/private", want: "/"},
+		{name: "relative path", value: "private", want: "/"},
+		{name: "reserved captcha path", value: publicWafCaptchaVerifyPath, want: "/"},
+		{name: "reserved waiting room path with query", value: publicWafWaitingRoomStatusPath + "?rule_id=1", want: "/"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sanitizeWAFReturnTo(tc.value); got != tc.want {
+				t.Fatalf("sanitizeWAFReturnTo(%q) = %q, want %q", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPublicWafWaitingRoomStatusSanitizesUnsafeReturnRedirect(t *testing.T) {
+	app := NewApp(nil, nil)
+	rule := testWafRule(1, publicWafActionWaitingRoom)
+	snap := testWafSnapshot(rule, nil)
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com"+publicWafWaitingRoomStatusPath+"?rule_id=1&return_to=%2F%2Fevil.example%2Fprivate", nil)
+	req.AddCookie(app.PublicWAF.signedRuleCookie(rule.ID, publicWafAdmissionCookieKind, "session", time.Minute, time.Now(), snap.Listeners[1], req))
+	resp := httptest.NewRecorder()
+
+	decision := app.servePublicWAFWaitingRoomStatus(resp, req, 1)
+
+	if decision.StatusCode != http.StatusSeeOther {
+		t.Fatalf("decision status = %d, want %d", decision.StatusCode, http.StatusSeeOther)
+	}
+	if location := resp.Header().Get("Location"); location != "/" {
+		t.Fatalf("Location = %q, want /", location)
+	}
 }
 
 func TestPublicWafCaptchaPassCookieAllowsRequest(t *testing.T) {
@@ -837,14 +964,18 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 		p2pstreamv1.PublicWafRuleAction_PUBLIC_WAF_RULE_ACTION_CAPTCHA,
 		p2pstreamv1.PublicWafActivationMode_PUBLIC_WAF_ACTIVATION_MODE_ALWAYS,
 		nil,
-		nil,
 		disabled.ID,
 		0,
 		nil,
 		nil,
 		0,
 		"",
+		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+		0,
+		0,
+		0,
 		"",
+		nil,
 		nil,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {

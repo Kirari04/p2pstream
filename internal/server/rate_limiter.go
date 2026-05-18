@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -24,35 +25,29 @@ import (
 )
 
 const (
-	defaultRateLimitName                 = "rate-limit"
-	defaultRateLimitLimit                = int64(60)
-	defaultRateLimitWindowMillis         = int64(60_000)
-	defaultRateLimitStatusCode           = http.StatusTooManyRequests
-	defaultRateLimitBody                 = "Rate limit exceeded\n"
-	defaultRateLimitContentType          = "text/plain; charset=utf-8"
-	maxRateLimitWindowMillis             = int64(86_400_000)
-	maxRateLimitKeyParts                 = 8
-	maxRateLimitMatchers                 = 32
-	maxRateLimitKeyValueBytes            = 256
-	maxRateLimitResponseBodyBytes        = 64 * 1024
-	maxRateLimitResponseHeaders          = 32
-	maxRateLimitKeysPerRule              = 10000
-	rateLimitIdleStateTTL                = 15 * time.Minute
-	rateLimitPruneInterval               = time.Minute
-	rateLimitMissingValue                = "<missing>"
-	publicRateLimitKeySourceRemoteIP     = "remote_ip"
-	publicRateLimitKeySourceHost         = "host"
-	publicRateLimitKeySourceMethod       = "method"
-	publicRateLimitKeySourcePath         = "path"
-	publicRateLimitKeySourceProtocol     = "protocol"
-	publicRateLimitKeySourceHeader       = "header"
-	publicRateLimitKeySourceCookie       = "cookie"
-	publicRateLimitKeySourceQueryParam   = "query_param"
-	publicRateLimitMatchOperatorPresent  = "present"
-	publicRateLimitMatchOperatorEquals   = "equals"
-	publicRateLimitMatchOperatorPrefix   = "prefix"
-	publicRateLimitMatchOperatorSuffix   = "suffix"
-	publicRateLimitMatchOperatorContains = "contains"
+	defaultRateLimitName               = "rate-limit"
+	defaultRateLimitLimit              = int64(60)
+	defaultRateLimitWindowMillis       = int64(60_000)
+	defaultRateLimitStatusCode         = http.StatusTooManyRequests
+	defaultRateLimitBody               = "Rate limit exceeded\n"
+	defaultRateLimitContentType        = "text/plain; charset=utf-8"
+	maxRateLimitWindowMillis           = int64(86_400_000)
+	maxRateLimitKeyParts               = 8
+	maxRateLimitKeyValueBytes          = 256
+	maxRateLimitResponseBodyBytes      = 64 * 1024
+	maxRateLimitResponseHeaders        = 32
+	maxRateLimitKeysPerRule            = 10000
+	rateLimitIdleStateTTL              = 15 * time.Minute
+	rateLimitPruneInterval             = time.Minute
+	rateLimitMissingValue              = "<missing>"
+	publicRateLimitKeySourceRemoteIP   = "remote_ip"
+	publicRateLimitKeySourceHost       = "host"
+	publicRateLimitKeySourceMethod     = "method"
+	publicRateLimitKeySourcePath       = "path"
+	publicRateLimitKeySourceProtocol   = "protocol"
+	publicRateLimitKeySourceHeader     = "header"
+	publicRateLimitKeySourceCookie     = "cookie"
+	publicRateLimitKeySourceQueryParam = "query_param"
 )
 
 type publicRateLimitRuleConfig struct {
@@ -64,10 +59,12 @@ type publicRateLimitRuleConfig struct {
 	Limit               int64
 	WindowMillis        int64
 	Burst               int64
-	Match               publicRateLimitMatchConfig
+	Match               publicPolicyMatchConfig
 	KeyParts            []publicRateLimitKeyPartConfig
 	ResponseStatusCode  int
 	ResponseBody        string
+	ResponseBodyMode    string
+	ResponseTemplateID  int64
 	ResponseContentType string
 	ResponseHeaders     []publicRateLimitResponseHeaderConfig
 	CreatedAt           time.Time
@@ -75,21 +72,10 @@ type publicRateLimitRuleConfig struct {
 	Fingerprint         string
 }
 
-type publicRateLimitMatchConfig struct {
-	Methods      []string                            `json:"methods,omitempty"`
-	Protocols    []string                            `json:"protocols,omitempty"`
-	HostPatterns []string                            `json:"host_patterns,omitempty"`
-	PathPrefixes []string                            `json:"path_prefixes,omitempty"`
-	PathSuffixes []string                            `json:"path_suffixes,omitempty"`
-	Headers      []publicRateLimitValueMatcherConfig `json:"headers,omitempty"`
-	Cookies      []publicRateLimitValueMatcherConfig `json:"cookies,omitempty"`
-	QueryParams  []publicRateLimitValueMatcherConfig `json:"query_params,omitempty"`
-}
-
-type publicRateLimitValueMatcherConfig struct {
-	Name     string `json:"name"`
-	Operator string `json:"operator"`
-	Value    string `json:"value,omitempty"`
+type publicPolicyMatchConfig struct {
+	CELExpression string                          `json:"cel_expression,omitempty"`
+	Builder       *publicPolicyMatchBuilderConfig `json:"builder,omitempty"`
+	program       any                             `json:"-"`
 }
 
 type publicRateLimitKeyPartConfig struct {
@@ -114,6 +100,8 @@ type publicRateLimitRuleMutationInput struct {
 	KeyPartsJSON        string
 	ResponseStatusCode  int64
 	ResponseBody        string
+	ResponseBodyMode    string
+	ResponseTemplateID  sql.NullInt64
 	ResponseContentType string
 	ResponseHeadersJSON string
 }
@@ -140,6 +128,11 @@ type publicRateLimitKeyRuntime struct {
 	leakyLastDrain   int64
 	leakyInitialized bool
 	lastSeenAt       time.Time
+}
+
+type publicRateLimitEvaluationCandidate struct {
+	rule publicRateLimitRuleConfig
+	key  string
 }
 
 type publicRateLimitDecision struct {
@@ -214,26 +207,37 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 		return ordered[i].Priority < ordered[j].Priority
 	})
 
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.pruneLocked(now)
+	candidates := make([]publicRateLimitEvaluationCandidate, 0, len(ordered))
 	for _, rule := range ordered {
 		if !rule.Enabled || !rule.matches(listener, r) {
 			continue
 		}
+		candidates = append(candidates, publicRateLimitEvaluationCandidate{
+			rule: rule,
+			key:  rateLimitKeyHash(rule.keyValues(listener, r)),
+		})
+	}
+	if len(candidates) == 0 {
+		return publicRateLimitDecision{}, true
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.pruneLocked(now)
+	for _, candidate := range candidates {
+		rule := candidate.rule
 		runtime := l.rules[rule.ID]
 		if runtime == nil || runtime.fingerprint != rule.Fingerprint {
 			runtime = &publicRateLimitRuleRuntime{fingerprint: rule.Fingerprint, keys: make(map[string]*publicRateLimitKeyRuntime)}
 			l.rules[rule.ID] = runtime
 		}
-		key := rateLimitKeyHash(rule.keyValues(listener, r))
-		keyState := runtime.keys[key]
+		keyState := runtime.keys[candidate.key]
 		if keyState == nil {
 			if len(runtime.keys) >= maxRateLimitKeysPerRule {
 				evictOldestRateLimitKey(runtime.keys)
 			}
 			keyState = &publicRateLimitKeyRuntime{}
-			runtime.keys[key] = keyState
+			runtime.keys[candidate.key] = keyState
 		}
 		keyState.lastSeenAt = now
 		result := keyState.allow(rule, now)
@@ -379,95 +383,7 @@ func (s *publicRateLimitKeyRuntime) allowLeakyBucket(rule publicRateLimitRuleCon
 }
 
 func (rule publicRateLimitRuleConfig) matches(listener publicListenerConfig, r *http.Request) bool {
-	if len(rule.Match.Methods) > 0 && !stringInSlice(strings.ToUpper(r.Method), rule.Match.Methods) {
-		return false
-	}
-	if len(rule.Match.Protocols) > 0 && !stringInSlice(listener.Protocol, rule.Match.Protocols) {
-		return false
-	}
-	host := normalizeRequestHost(r.Host)
-	if len(rule.Match.HostPatterns) > 0 {
-		matched := false
-		for _, pattern := range rule.Match.HostPatterns {
-			if hostMatchesPattern(host, pattern) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	if len(rule.Match.PathPrefixes) > 0 {
-		matched := false
-		for _, prefix := range rule.Match.PathPrefixes {
-			if pathPrefixMatches(r.URL.Path, prefix) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	if len(rule.Match.PathSuffixes) > 0 {
-		matched := false
-		for _, suffix := range rule.Match.PathSuffixes {
-			if strings.HasSuffix(r.URL.Path, suffix) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	for _, matcher := range rule.Match.Headers {
-		_, present := r.Header[textproto.CanonicalMIMEHeaderKey(matcher.Name)]
-		if !rateLimitValueMatches(r.Header.Get(matcher.Name), present, matcher) {
-			return false
-		}
-	}
-	for _, matcher := range rule.Match.Cookies {
-		cookie, err := r.Cookie(matcher.Name)
-		value := ""
-		present := err == nil
-		if err == nil {
-			value = cookie.Value
-		}
-		if !rateLimitValueMatches(value, present, matcher) {
-			return false
-		}
-	}
-	query := r.URL.Query()
-	for _, matcher := range rule.Match.QueryParams {
-		values, present := query[matcher.Name]
-		value := ""
-		if len(values) > 0 {
-			value = values[0]
-		}
-		if !rateLimitValueMatches(value, present, matcher) {
-			return false
-		}
-	}
-	return true
-}
-
-func rateLimitValueMatches(actual string, present bool, matcher publicRateLimitValueMatcherConfig) bool {
-	switch matcher.Operator {
-	case publicRateLimitMatchOperatorPresent:
-		return present
-	case publicRateLimitMatchOperatorEquals:
-		return actual == matcher.Value
-	case publicRateLimitMatchOperatorPrefix:
-		return strings.HasPrefix(actual, matcher.Value)
-	case publicRateLimitMatchOperatorSuffix:
-		return strings.HasSuffix(actual, matcher.Value)
-	case publicRateLimitMatchOperatorContains:
-		return strings.Contains(actual, matcher.Value)
-	default:
-		return false
-	}
+	return rule.Match.matches(listener, r)
 }
 
 func (rule publicRateLimitRuleConfig) keyValues(listener publicListenerConfig, r *http.Request) []string {
@@ -564,11 +480,9 @@ func writeRateLimitResponse(w http.ResponseWriter, decision publicRateLimitDecis
 }
 
 func publicRateLimitRuleRowToConfig(row db.PublicRateLimitRule) (publicRateLimitRuleConfig, error) {
-	var match publicRateLimitMatchConfig
-	if strings.TrimSpace(row.MatchJson) != "" {
-		if err := json.Unmarshal([]byte(row.MatchJson), &match); err != nil {
-			return publicRateLimitRuleConfig{}, err
-		}
+	match, err := decodePublicPolicyMatchJSON(row.MatchJson)
+	if err != nil {
+		return publicRateLimitRuleConfig{}, err
 	}
 	var keyParts []publicRateLimitKeyPartConfig
 	if strings.TrimSpace(row.KeyPartsJson) != "" {
@@ -595,6 +509,8 @@ func publicRateLimitRuleRowToConfig(row db.PublicRateLimitRule) (publicRateLimit
 		KeyParts:            keyParts,
 		ResponseStatusCode:  int(row.ResponseStatusCode),
 		ResponseBody:        row.ResponseBody,
+		ResponseBodyMode:    normalizePublicResponseBodyMode(row.ResponseBodyMode),
+		ResponseTemplateID:  nullInt64Value(row.ResponseBodyTemplateID),
 		ResponseContentType: row.ResponseContentType,
 		ResponseHeaders:     responseHeaders,
 		CreatedAt:           row.CreatedAt,
@@ -625,10 +541,12 @@ func publicRateLimitRuleFingerprint(rule publicRateLimitRuleConfig) string {
 		Limit               int64
 		WindowMillis        int64
 		Burst               int64
-		Match               publicRateLimitMatchConfig
+		Match               publicPolicyMatchConfig
 		KeyParts            []publicRateLimitKeyPartConfig
 		ResponseStatusCode  int
 		ResponseBody        string
+		ResponseBodyMode    string
+		ResponseTemplateID  int64
 		ResponseContentType string
 		ResponseHeaders     []publicRateLimitResponseHeaderConfig
 		UpdatedAt           int64
@@ -642,6 +560,8 @@ func publicRateLimitRuleFingerprint(rule publicRateLimitRuleConfig) string {
 		KeyParts:            rule.KeyParts,
 		ResponseStatusCode:  rule.ResponseStatusCode,
 		ResponseBody:        rule.ResponseBody,
+		ResponseBodyMode:    rule.ResponseBodyMode,
+		ResponseTemplateID:  rule.ResponseTemplateID,
 		ResponseContentType: rule.ResponseContentType,
 		ResponseHeaders:     rule.ResponseHeaders,
 		UpdatedAt:           rule.UpdatedAt.UnixNano(),
@@ -658,12 +578,14 @@ func validatePublicRateLimitRuleInput(
 	limit int64,
 	windowMillis int64,
 	burst int64,
-	match *p2pstreamv1.PublicRateLimitMatch,
 	keyParts []*p2pstreamv1.PublicRateLimitKeyPart,
 	responseStatusCode int64,
 	responseBody string,
+	responseBodyMode p2pstreamv1.PublicResponseBodyMode,
+	responseBodyTemplateID int64,
 	responseContentType string,
 	responseHeaders []*p2pstreamv1.PublicRateLimitResponseHeader,
+	matchRule *p2pstreamv1.PublicPolicyMatchRule,
 ) (publicRateLimitRuleMutationInput, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -694,7 +616,7 @@ func validatePublicRateLimitRuleInput(
 	if burst > 0 && burst > 10*limit {
 		return publicRateLimitRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit burst must not exceed 10x limit"))
 	}
-	matchConfig, err := validateRateLimitMatch(match)
+	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicRateLimitRuleMutationInput{}, err
 	}
@@ -713,6 +635,17 @@ func validatePublicRateLimitRuleInput(
 	}
 	if len(responseBody) > maxRateLimitResponseBodyBytes {
 		return publicRateLimitRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit response body is too large"))
+	}
+	bodyMode, err := publicResponseBodyModeStringFromProto(responseBodyMode)
+	if err != nil {
+		return publicRateLimitRuleMutationInput{}, err
+	}
+	templateRef := sql.NullInt64{}
+	if bodyMode == publicResponseBodyModeTemplate {
+		if responseBodyTemplateID <= 0 {
+			return publicRateLimitRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit response template id is required"))
+		}
+		templateRef = sql.NullInt64{Int64: responseBodyTemplateID, Valid: true}
 	}
 	if responseContentType == "" {
 		responseContentType = defaultRateLimitContentType
@@ -745,98 +678,11 @@ func validatePublicRateLimitRuleInput(
 		KeyPartsJSON:        string(keyPartsJSON),
 		ResponseStatusCode:  responseStatusCode,
 		ResponseBody:        responseBody,
+		ResponseBodyMode:    bodyMode,
+		ResponseTemplateID:  templateRef,
 		ResponseContentType: responseContentType,
 		ResponseHeadersJSON: string(responseHeadersJSON),
 	}, nil
-}
-
-func validateRateLimitMatch(match *p2pstreamv1.PublicRateLimitMatch) (publicRateLimitMatchConfig, error) {
-	if match == nil {
-		return publicRateLimitMatchConfig{}, nil
-	}
-	if len(match.Headers)+len(match.Cookies)+len(match.QueryParams) > maxRateLimitMatchers {
-		return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit rule has too many matchers"))
-	}
-	resp := publicRateLimitMatchConfig{}
-	for _, method := range match.Methods {
-		method = strings.ToUpper(strings.TrimSpace(method))
-		if method == "" {
-			continue
-		}
-		if !validHTTPToken(method) {
-			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit method matcher is invalid"))
-		}
-		resp.Methods = append(resp.Methods, method)
-	}
-	for _, protocol := range match.Protocols {
-		value, err := protocolStringFromProto(protocol)
-		if err != nil {
-			return publicRateLimitMatchConfig{}, err
-		}
-		resp.Protocols = append(resp.Protocols, value)
-	}
-	for _, pattern := range match.HostPatterns {
-		pattern = normalizeHostPattern(pattern)
-		if pattern != "" {
-			resp.HostPatterns = append(resp.HostPatterns, pattern)
-		}
-	}
-	for _, prefix := range match.PathPrefixes {
-		prefix = strings.TrimSpace(prefix)
-		if prefix == "" {
-			continue
-		}
-		if !strings.HasPrefix(prefix, "/") {
-			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit path prefix must start with /"))
-		}
-		resp.PathPrefixes = append(resp.PathPrefixes, prefix)
-	}
-	for _, suffix := range match.PathSuffixes {
-		suffix = strings.TrimSpace(suffix)
-		if suffix == "" {
-			continue
-		}
-		if strings.ContainsAny(suffix, "/\\") {
-			return publicRateLimitMatchConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit path suffix must not contain a slash"))
-		}
-		resp.PathSuffixes = append(resp.PathSuffixes, suffix)
-	}
-	var err error
-	if resp.Headers, err = validateRateLimitValueMatchers(match.Headers, true); err != nil {
-		return publicRateLimitMatchConfig{}, err
-	}
-	if resp.Cookies, err = validateRateLimitValueMatchers(match.Cookies, false); err != nil {
-		return publicRateLimitMatchConfig{}, err
-	}
-	if resp.QueryParams, err = validateRateLimitValueMatchers(match.QueryParams, false); err != nil {
-		return publicRateLimitMatchConfig{}, err
-	}
-	return resp, nil
-}
-
-func validateRateLimitValueMatchers(matchers []*p2pstreamv1.PublicRateLimitValueMatcher, header bool) ([]publicRateLimitValueMatcherConfig, error) {
-	resp := make([]publicRateLimitValueMatcherConfig, 0, len(matchers))
-	for _, matcher := range matchers {
-		if matcher == nil {
-			continue
-		}
-		name := strings.TrimSpace(matcher.Name)
-		if name == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit matcher name is required"))
-		}
-		if header {
-			name = textproto.CanonicalMIMEHeaderKey(name)
-			if !validHTTPToken(name) {
-				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit header matcher name is invalid"))
-			}
-		}
-		operator, err := rateLimitMatchOperatorStringFromProto(matcher.Operator)
-		if err != nil {
-			return nil, err
-		}
-		resp = append(resp, publicRateLimitValueMatcherConfig{Name: name, Operator: operator, Value: matcher.Value})
-	}
-	return resp, nil
 }
 
 func validateRateLimitKeyParts(parts []*p2pstreamv1.PublicRateLimitKeyPart) ([]publicRateLimitKeyPartConfig, error) {
@@ -1016,38 +862,6 @@ func protoRateLimitKeySourceFromString(source string) p2pstreamv1.PublicRateLimi
 	}
 }
 
-func rateLimitMatchOperatorStringFromProto(operator p2pstreamv1.PublicRateLimitMatchOperator) (string, error) {
-	switch operator {
-	case p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_PRESENT:
-		return publicRateLimitMatchOperatorPresent, nil
-	case p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_EQUALS:
-		return publicRateLimitMatchOperatorEquals, nil
-	case p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_PREFIX:
-		return publicRateLimitMatchOperatorPrefix, nil
-	case p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_SUFFIX:
-		return publicRateLimitMatchOperatorSuffix, nil
-	case p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_CONTAINS:
-		return publicRateLimitMatchOperatorContains, nil
-	default:
-		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit match operator is invalid"))
-	}
-}
-
-func protoRateLimitMatchOperatorFromString(operator string) p2pstreamv1.PublicRateLimitMatchOperator {
-	switch operator {
-	case publicRateLimitMatchOperatorPresent:
-		return p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_PRESENT
-	case publicRateLimitMatchOperatorPrefix:
-		return p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_PREFIX
-	case publicRateLimitMatchOperatorSuffix:
-		return p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_SUFFIX
-	case publicRateLimitMatchOperatorContains:
-		return p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_CONTAINS
-	default:
-		return p2pstreamv1.PublicRateLimitMatchOperator_PUBLIC_RATE_LIMIT_MATCH_OPERATOR_EQUALS
-	}
-}
-
 func publicRateLimitConfigsToProto(rules []publicRateLimitRuleConfig) []*p2pstreamv1.PublicRateLimitRule {
 	resp := make([]*p2pstreamv1.PublicRateLimitRule, 0, len(rules))
 	for _, rule := range rules {
@@ -1070,52 +884,25 @@ func publicRateLimitRulesToProto(rows []db.PublicRateLimitRule) []*p2pstreamv1.P
 
 func publicRateLimitConfigToProto(rule publicRateLimitRuleConfig) *p2pstreamv1.PublicRateLimitRule {
 	return &p2pstreamv1.PublicRateLimitRule{
-		Id:                  rule.ID,
-		Name:                rule.Name,
-		Priority:            rule.Priority,
-		Enabled:             rule.Enabled,
-		Algorithm:           protoRateLimitAlgorithmFromString(rule.Algorithm),
-		Limit:               rule.Limit,
-		WindowMillis:        rule.WindowMillis,
-		Burst:               rule.Burst,
-		Match:               rateLimitMatchToProto(rule.Match),
-		KeyParts:            rateLimitKeyPartsToProto(rule.KeyParts),
-		ResponseStatusCode:  int64(rule.ResponseStatusCode),
-		ResponseBody:        rule.ResponseBody,
-		ResponseContentType: rule.ResponseContentType,
-		ResponseHeaders:     rateLimitResponseHeadersToProto(rule.ResponseHeaders),
-		CreatedAtUnixMillis: rule.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis: rule.UpdatedAt.UnixMilli(),
+		Id:                     rule.ID,
+		Name:                   rule.Name,
+		Priority:               rule.Priority,
+		Enabled:                rule.Enabled,
+		Algorithm:              protoRateLimitAlgorithmFromString(rule.Algorithm),
+		Limit:                  rule.Limit,
+		WindowMillis:           rule.WindowMillis,
+		Burst:                  rule.Burst,
+		KeyParts:               rateLimitKeyPartsToProto(rule.KeyParts),
+		ResponseStatusCode:     int64(rule.ResponseStatusCode),
+		ResponseBody:           rule.ResponseBody,
+		ResponseBodyMode:       protoPublicResponseBodyMode(rule.ResponseBodyMode),
+		ResponseBodyTemplateId: rule.ResponseTemplateID,
+		ResponseContentType:    rule.ResponseContentType,
+		ResponseHeaders:        rateLimitResponseHeadersToProto(rule.ResponseHeaders),
+		CreatedAtUnixMillis:    rule.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:    rule.UpdatedAt.UnixMilli(),
+		MatchRule:              publicPolicyMatchRuleToProto(rule.Match),
 	}
-}
-
-func rateLimitMatchToProto(match publicRateLimitMatchConfig) *p2pstreamv1.PublicRateLimitMatch {
-	protocols := make([]p2pstreamv1.PublicListenerProtocol, 0, len(match.Protocols))
-	for _, protocol := range match.Protocols {
-		protocols = append(protocols, protoProtocolFromString(protocol))
-	}
-	return &p2pstreamv1.PublicRateLimitMatch{
-		Methods:      append([]string(nil), match.Methods...),
-		Protocols:    protocols,
-		HostPatterns: append([]string(nil), match.HostPatterns...),
-		PathPrefixes: append([]string(nil), match.PathPrefixes...),
-		PathSuffixes: append([]string(nil), match.PathSuffixes...),
-		Headers:      rateLimitValueMatchersToProto(match.Headers),
-		Cookies:      rateLimitValueMatchersToProto(match.Cookies),
-		QueryParams:  rateLimitValueMatchersToProto(match.QueryParams),
-	}
-}
-
-func rateLimitValueMatchersToProto(matchers []publicRateLimitValueMatcherConfig) []*p2pstreamv1.PublicRateLimitValueMatcher {
-	resp := make([]*p2pstreamv1.PublicRateLimitValueMatcher, 0, len(matchers))
-	for _, matcher := range matchers {
-		resp = append(resp, &p2pstreamv1.PublicRateLimitValueMatcher{
-			Name:     matcher.Name,
-			Operator: protoRateLimitMatchOperatorFromString(matcher.Operator),
-			Value:    matcher.Value,
-		})
-	}
-	return resp
 }
 
 func rateLimitKeyPartsToProto(parts []publicRateLimitKeyPartConfig) []*p2pstreamv1.PublicRateLimitKeyPart {
@@ -1144,6 +931,9 @@ func (a *App) CreatePublicRateLimitRule(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	if err := rejectRemovedPolicyMatchField(req.Msg, 8); err != nil {
+		return nil, err
+	}
 	params, err := validatePublicRateLimitRuleInput(
 		req.Msg.Name,
 		req.Msg.Priority,
@@ -1152,30 +942,39 @@ func (a *App) CreatePublicRateLimitRule(
 		req.Msg.Limit,
 		req.Msg.WindowMillis,
 		req.Msg.Burst,
-		req.Msg.Match,
 		req.Msg.KeyParts,
 		req.Msg.ResponseStatusCode,
 		req.Msg.ResponseBody,
+		req.Msg.ResponseBodyMode,
+		req.Msg.ResponseBodyTemplateId,
 		req.Msg.ResponseContentType,
 		req.Msg.ResponseHeaders,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err
 	}
+	if params.ResponseBodyMode == publicResponseBodyModeTemplate {
+		if _, err := a.validatePublicResponseTemplateReference(ctx, params.ResponseTemplateID.Int64, publicResponseTemplateKindGenericBody); err != nil {
+			return nil, err
+		}
+	}
 	row, err := a.DB.CreatePublicRateLimitRule(ctx, db.CreatePublicRateLimitRuleParams{
-		Name:                params.Name,
-		Priority:            params.Priority,
-		Enabled:             params.Enabled,
-		Algorithm:           params.Algorithm,
-		LimitCount:          params.LimitCount,
-		WindowMillis:        params.WindowMillis,
-		Burst:               params.Burst,
-		MatchJson:           params.MatchJSON,
-		KeyPartsJson:        params.KeyPartsJSON,
-		ResponseStatusCode:  params.ResponseStatusCode,
-		ResponseBody:        params.ResponseBody,
-		ResponseContentType: params.ResponseContentType,
-		ResponseHeadersJson: params.ResponseHeadersJSON,
+		Name:                   params.Name,
+		Priority:               params.Priority,
+		Enabled:                params.Enabled,
+		Algorithm:              params.Algorithm,
+		LimitCount:             params.LimitCount,
+		WindowMillis:           params.WindowMillis,
+		Burst:                  params.Burst,
+		MatchJson:              params.MatchJSON,
+		KeyPartsJson:           params.KeyPartsJSON,
+		ResponseStatusCode:     params.ResponseStatusCode,
+		ResponseBody:           params.ResponseBody,
+		ResponseBodyMode:       params.ResponseBodyMode,
+		ResponseBodyTemplateID: params.ResponseTemplateID,
+		ResponseContentType:    params.ResponseContentType,
+		ResponseHeadersJson:    params.ResponseHeadersJSON,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -1197,6 +996,9 @@ func (a *App) UpdatePublicRateLimitRule(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	if err := rejectRemovedPolicyMatchField(req.Msg, 9); err != nil {
+		return nil, err
+	}
 	params, err := validatePublicRateLimitRuleInput(
 		req.Msg.Name,
 		req.Msg.Priority,
@@ -1205,31 +1007,40 @@ func (a *App) UpdatePublicRateLimitRule(
 		req.Msg.Limit,
 		req.Msg.WindowMillis,
 		req.Msg.Burst,
-		req.Msg.Match,
 		req.Msg.KeyParts,
 		req.Msg.ResponseStatusCode,
 		req.Msg.ResponseBody,
+		req.Msg.ResponseBodyMode,
+		req.Msg.ResponseBodyTemplateId,
 		req.Msg.ResponseContentType,
 		req.Msg.ResponseHeaders,
+		req.Msg.MatchRule,
 	)
 	if err != nil {
 		return nil, err
 	}
+	if params.ResponseBodyMode == publicResponseBodyModeTemplate {
+		if _, err := a.validatePublicResponseTemplateReference(ctx, params.ResponseTemplateID.Int64, publicResponseTemplateKindGenericBody); err != nil {
+			return nil, err
+		}
+	}
 	row, err := a.DB.UpdatePublicRateLimitRule(ctx, db.UpdatePublicRateLimitRuleParams{
-		ID:                  req.Msg.Id,
-		Name:                params.Name,
-		Priority:            params.Priority,
-		Enabled:             params.Enabled,
-		Algorithm:           params.Algorithm,
-		LimitCount:          params.LimitCount,
-		WindowMillis:        params.WindowMillis,
-		Burst:               params.Burst,
-		MatchJson:           params.MatchJSON,
-		KeyPartsJson:        params.KeyPartsJSON,
-		ResponseStatusCode:  params.ResponseStatusCode,
-		ResponseBody:        params.ResponseBody,
-		ResponseContentType: params.ResponseContentType,
-		ResponseHeadersJson: params.ResponseHeadersJSON,
+		ID:                     req.Msg.Id,
+		Name:                   params.Name,
+		Priority:               params.Priority,
+		Enabled:                params.Enabled,
+		Algorithm:              params.Algorithm,
+		LimitCount:             params.LimitCount,
+		WindowMillis:           params.WindowMillis,
+		Burst:                  params.Burst,
+		MatchJson:              params.MatchJSON,
+		KeyPartsJson:           params.KeyPartsJSON,
+		ResponseStatusCode:     params.ResponseStatusCode,
+		ResponseBody:           params.ResponseBody,
+		ResponseBodyMode:       params.ResponseBodyMode,
+		ResponseBodyTemplateID: params.ResponseTemplateID,
+		ResponseContentType:    params.ResponseContentType,
+		ResponseHeadersJson:    params.ResponseHeadersJSON,
 	})
 	if err != nil {
 		return nil, publicDBError(err)

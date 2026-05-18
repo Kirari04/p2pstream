@@ -105,25 +105,31 @@ type publicWafWaitingRoomConfig struct {
 }
 
 type publicWafRuleConfig struct {
-	ID                       int64
-	Name                     string
-	Priority                 int64
-	Enabled                  bool
-	Action                   string
-	ActivationMode           string
-	Match                    publicRateLimitMatchConfig
-	KeyParts                 []publicRateLimitKeyPartConfig
-	CaptchaProviderID        int64
-	CaptchaPassTTL           time.Duration
-	WaitingRoom              publicWafWaitingRoomConfig
-	Triggers                 publicWafTriggerConfig
-	BlockResponseStatusCode  int
-	BlockResponseBody        string
-	BlockResponseContentType string
-	BlockResponseHeaders     []publicRateLimitResponseHeaderConfig
-	CreatedAt                time.Time
-	UpdatedAt                time.Time
-	Fingerprint              string
+	ID                          int64
+	Name                        string
+	Priority                    int64
+	Enabled                     bool
+	Action                      string
+	ActivationMode              string
+	Match                       publicPolicyMatchConfig
+	KeyParts                    []publicRateLimitKeyPartConfig
+	CaptchaProviderID           int64
+	CaptchaPassTTL              time.Duration
+	WaitingRoom                 publicWafWaitingRoomConfig
+	Triggers                    publicWafTriggerConfig
+	BlockResponseStatusCode     int
+	BlockResponseBody           string
+	BlockResponseBodyMode       string
+	BlockResponseTemplateID     int64
+	CaptchaPageTemplateID       int64
+	CaptchaPageTemplateBody     string
+	WaitingRoomPageTemplateID   int64
+	WaitingRoomPageTemplateBody string
+	BlockResponseContentType    string
+	BlockResponseHeaders        []publicRateLimitResponseHeaderConfig
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
+	Fingerprint                 string
 }
 
 type publicWafRuleMutationInput struct {
@@ -155,6 +161,10 @@ type publicWafRuleMutationInput struct {
 	TriggerQuietPeriodMillis             int64
 	BlockResponseStatusCode              int64
 	BlockResponseBody                    string
+	BlockResponseBodyMode                string
+	BlockResponseTemplateID              sql.NullInt64
+	CaptchaPageTemplateID                sql.NullInt64
+	WaitingRoomPageTemplateID            sql.NullInt64
 	BlockResponseContentType             string
 	BlockResponseHeadersJSON             string
 }
@@ -567,11 +577,9 @@ func publicWafCaptchaProviderRowToConfig(row db.PublicWafCaptchaProvider, includ
 }
 
 func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error) {
-	var match publicRateLimitMatchConfig
-	if strings.TrimSpace(row.MatchJson) != "" {
-		if err := json.Unmarshal([]byte(row.MatchJson), &match); err != nil {
-			return publicWafRuleConfig{}, err
-		}
+	match, err := decodePublicPolicyMatchJSON(row.MatchJson)
+	if err != nil {
+		return publicWafRuleConfig{}, err
 	}
 	var keyParts []publicRateLimitKeyPartConfig
 	if strings.TrimSpace(row.KeyPartsJson) != "" {
@@ -617,12 +625,16 @@ func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error)
 			MinimumActiveMillis:    row.TriggerMinimumActiveMillis,
 			QuietPeriodMillis:      row.TriggerQuietPeriodMillis,
 		},
-		BlockResponseStatusCode:  int(row.BlockResponseStatusCode),
-		BlockResponseBody:        row.BlockResponseBody,
-		BlockResponseContentType: row.BlockResponseContentType,
-		BlockResponseHeaders:     blockHeaders,
-		CreatedAt:                row.CreatedAt,
-		UpdatedAt:                row.UpdatedAt,
+		BlockResponseStatusCode:   int(row.BlockResponseStatusCode),
+		BlockResponseBody:         row.BlockResponseBody,
+		BlockResponseBodyMode:     normalizePublicResponseBodyMode(row.BlockResponseBodyMode),
+		BlockResponseTemplateID:   nullInt64Value(row.BlockResponseTemplateID),
+		CaptchaPageTemplateID:     nullInt64Value(row.CaptchaPageTemplateID),
+		WaitingRoomPageTemplateID: nullInt64Value(row.WaitingRoomPageTemplateID),
+		BlockResponseContentType:  row.BlockResponseContentType,
+		BlockResponseHeaders:      blockHeaders,
+		CreatedAt:                 row.CreatedAt,
+		UpdatedAt:                 row.UpdatedAt,
 	}
 	applyWafRuleDefaults(&rule)
 	rule.Fingerprint = publicWafRuleFingerprint(rule)
@@ -691,34 +703,46 @@ func applyWafRuleDefaults(rule *publicWafRuleConfig) {
 
 func publicWafRuleFingerprint(rule publicWafRuleConfig) string {
 	type fingerprint struct {
-		Action                   string
-		ActivationMode           string
-		Match                    publicRateLimitMatchConfig
-		KeyParts                 []publicRateLimitKeyPartConfig
-		CaptchaProviderID        int64
-		CaptchaPassTTL           time.Duration
-		WaitingRoom              publicWafWaitingRoomConfig
-		Triggers                 publicWafTriggerConfig
-		BlockResponseStatusCode  int
-		BlockResponseBody        string
-		BlockResponseContentType string
-		BlockResponseHeaders     []publicRateLimitResponseHeaderConfig
-		UpdatedAt                int64
+		Action                      string
+		ActivationMode              string
+		Match                       publicPolicyMatchConfig
+		KeyParts                    []publicRateLimitKeyPartConfig
+		CaptchaProviderID           int64
+		CaptchaPassTTL              time.Duration
+		WaitingRoom                 publicWafWaitingRoomConfig
+		Triggers                    publicWafTriggerConfig
+		BlockResponseStatusCode     int
+		BlockResponseBody           string
+		BlockResponseBodyMode       string
+		BlockResponseTemplateID     int64
+		CaptchaPageTemplateID       int64
+		CaptchaPageTemplateBody     string
+		WaitingRoomPageTemplateID   int64
+		WaitingRoomPageTemplateBody string
+		BlockResponseContentType    string
+		BlockResponseHeaders        []publicRateLimitResponseHeaderConfig
+		UpdatedAt                   int64
 	}
 	payload, _ := json.Marshal(fingerprint{
-		Action:                   rule.Action,
-		ActivationMode:           rule.ActivationMode,
-		Match:                    rule.Match,
-		KeyParts:                 rule.KeyParts,
-		CaptchaProviderID:        rule.CaptchaProviderID,
-		CaptchaPassTTL:           rule.CaptchaPassTTL,
-		WaitingRoom:              rule.WaitingRoom,
-		Triggers:                 rule.Triggers,
-		BlockResponseStatusCode:  rule.BlockResponseStatusCode,
-		BlockResponseBody:        rule.BlockResponseBody,
-		BlockResponseContentType: rule.BlockResponseContentType,
-		BlockResponseHeaders:     rule.BlockResponseHeaders,
-		UpdatedAt:                rule.UpdatedAt.UnixNano(),
+		Action:                      rule.Action,
+		ActivationMode:              rule.ActivationMode,
+		Match:                       rule.Match,
+		KeyParts:                    rule.KeyParts,
+		CaptchaProviderID:           rule.CaptchaProviderID,
+		CaptchaPassTTL:              rule.CaptchaPassTTL,
+		WaitingRoom:                 rule.WaitingRoom,
+		Triggers:                    rule.Triggers,
+		BlockResponseStatusCode:     rule.BlockResponseStatusCode,
+		BlockResponseBody:           rule.BlockResponseBody,
+		BlockResponseBodyMode:       rule.BlockResponseBodyMode,
+		BlockResponseTemplateID:     rule.BlockResponseTemplateID,
+		CaptchaPageTemplateID:       rule.CaptchaPageTemplateID,
+		CaptchaPageTemplateBody:     rule.CaptchaPageTemplateBody,
+		WaitingRoomPageTemplateID:   rule.WaitingRoomPageTemplateID,
+		WaitingRoomPageTemplateBody: rule.WaitingRoomPageTemplateBody,
+		BlockResponseContentType:    rule.BlockResponseContentType,
+		BlockResponseHeaders:        rule.BlockResponseHeaders,
+		UpdatedAt:                   rule.UpdatedAt.UnixNano(),
 	})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
@@ -760,24 +784,28 @@ func publicWafRulesToProto(rows []db.PublicWafRule) []*p2pstreamv1.PublicWafRule
 
 func publicWafRuleConfigToProto(rule publicWafRuleConfig) *p2pstreamv1.PublicWafRule {
 	return &p2pstreamv1.PublicWafRule{
-		Id:                       rule.ID,
-		Name:                     rule.Name,
-		Priority:                 rule.Priority,
-		Enabled:                  rule.Enabled,
-		Action:                   protoWafRuleActionFromString(rule.Action),
-		ActivationMode:           protoWafActivationModeFromString(rule.ActivationMode),
-		Match:                    rateLimitMatchToProto(rule.Match),
-		KeyParts:                 rateLimitKeyPartsToProto(rule.KeyParts),
-		CaptchaProviderId:        rule.CaptchaProviderID,
-		CaptchaPassTtlMillis:     int64(rule.CaptchaPassTTL / time.Millisecond),
-		WaitingRoom:              publicWafWaitingRoomToProto(rule.WaitingRoom),
-		Triggers:                 publicWafTriggersToProto(rule.Triggers),
-		BlockResponseStatusCode:  int64(rule.BlockResponseStatusCode),
-		BlockResponseBody:        rule.BlockResponseBody,
-		BlockResponseContentType: rule.BlockResponseContentType,
-		BlockResponseHeaders:     rateLimitResponseHeadersToProto(rule.BlockResponseHeaders),
-		CreatedAtUnixMillis:      rule.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis:      rule.UpdatedAt.UnixMilli(),
+		Id:                        rule.ID,
+		Name:                      rule.Name,
+		Priority:                  rule.Priority,
+		Enabled:                   rule.Enabled,
+		Action:                    protoWafRuleActionFromString(rule.Action),
+		ActivationMode:            protoWafActivationModeFromString(rule.ActivationMode),
+		KeyParts:                  rateLimitKeyPartsToProto(rule.KeyParts),
+		CaptchaProviderId:         rule.CaptchaProviderID,
+		CaptchaPassTtlMillis:      int64(rule.CaptchaPassTTL / time.Millisecond),
+		WaitingRoom:               publicWafWaitingRoomToProto(rule.WaitingRoom),
+		Triggers:                  publicWafTriggersToProto(rule.Triggers),
+		BlockResponseStatusCode:   int64(rule.BlockResponseStatusCode),
+		BlockResponseBody:         rule.BlockResponseBody,
+		BlockResponseBodyMode:     protoPublicResponseBodyMode(rule.BlockResponseBodyMode),
+		BlockResponseTemplateId:   rule.BlockResponseTemplateID,
+		CaptchaPageTemplateId:     rule.CaptchaPageTemplateID,
+		WaitingRoomPageTemplateId: rule.WaitingRoomPageTemplateID,
+		BlockResponseContentType:  rule.BlockResponseContentType,
+		BlockResponseHeaders:      rateLimitResponseHeadersToProto(rule.BlockResponseHeaders),
+		CreatedAtUnixMillis:       rule.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:       rule.UpdatedAt.UnixMilli(),
+		MatchRule:                 publicPolicyMatchRuleToProto(rule.Match),
 	}
 }
 
@@ -839,7 +867,28 @@ func validatePublicWafCaptchaProviderInput(name string, providerType p2pstreamv1
 	}, secretKey, nil
 }
 
-func (a *App) validatePublicWafRuleInput(ctx context.Context, name string, priority int64, enabled bool, action p2pstreamv1.PublicWafRuleAction, activationMode p2pstreamv1.PublicWafActivationMode, match *p2pstreamv1.PublicRateLimitMatch, keyParts []*p2pstreamv1.PublicRateLimitKeyPart, captchaProviderID int64, captchaPassTTLMillis int64, waitingRoom *p2pstreamv1.PublicWafWaitingRoomConfig, triggers *p2pstreamv1.PublicWafTriggerConfig, blockStatusCode int64, blockBody string, blockContentType string, blockHeaders []*p2pstreamv1.PublicRateLimitResponseHeader) (publicWafRuleMutationInput, error) {
+func (a *App) validatePublicWafRuleInput(
+	ctx context.Context,
+	name string,
+	priority int64,
+	enabled bool,
+	action p2pstreamv1.PublicWafRuleAction,
+	activationMode p2pstreamv1.PublicWafActivationMode,
+	keyParts []*p2pstreamv1.PublicRateLimitKeyPart,
+	captchaProviderID int64,
+	captchaPassTTLMillis int64,
+	waitingRoom *p2pstreamv1.PublicWafWaitingRoomConfig,
+	triggers *p2pstreamv1.PublicWafTriggerConfig,
+	blockStatusCode int64,
+	blockBody string,
+	blockResponseBodyMode p2pstreamv1.PublicResponseBodyMode,
+	blockResponseTemplateID int64,
+	captchaPageTemplateID int64,
+	waitingRoomPageTemplateID int64,
+	blockContentType string,
+	blockHeaders []*p2pstreamv1.PublicRateLimitResponseHeader,
+	matchRule *p2pstreamv1.PublicPolicyMatchRule,
+) (publicWafRuleMutationInput, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		name = defaultWafRuleName
@@ -855,7 +904,7 @@ func (a *App) validatePublicWafRuleInput(ctx context.Context, name string, prior
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
-	matchConfig, err := validateRateLimitMatch(match)
+	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
@@ -903,6 +952,40 @@ func (a *App) validatePublicWafRuleInput(ctx context.Context, name string, prior
 	if len(blockBody) > maxWafResponseBodyBytes {
 		return publicWafRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("WAF block response body is too large"))
 	}
+	bodyMode, err := publicResponseBodyModeStringFromProto(blockResponseBodyMode)
+	if err != nil {
+		return publicWafRuleMutationInput{}, err
+	}
+	blockTemplateRef := sql.NullInt64{}
+	if bodyMode == publicResponseBodyModeTemplate {
+		if blockResponseTemplateID <= 0 {
+			return publicWafRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("WAF block response template id is required"))
+		}
+		blockTemplateRef, err = a.validatePublicResponseTemplateReference(ctx, blockResponseTemplateID, publicResponseTemplateKindGenericBody)
+		if err != nil {
+			return publicWafRuleMutationInput{}, err
+		}
+	}
+	captchaTemplateRef := sql.NullInt64{}
+	if captchaPageTemplateID > 0 {
+		if actionString != publicWafActionCaptcha {
+			return publicWafRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("captcha page templates can only be selected for captcha WAF rules"))
+		}
+		captchaTemplateRef, err = a.validatePublicResponseTemplateReference(ctx, captchaPageTemplateID, publicResponseTemplateKindWafCaptchaPage)
+		if err != nil {
+			return publicWafRuleMutationInput{}, err
+		}
+	}
+	waitingRoomTemplateRef := sql.NullInt64{}
+	if waitingRoomPageTemplateID > 0 {
+		if actionString != publicWafActionWaitingRoom {
+			return publicWafRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("waiting-room page templates can only be selected for waiting-room WAF rules"))
+		}
+		waitingRoomTemplateRef, err = a.validatePublicResponseTemplateReference(ctx, waitingRoomPageTemplateID, publicResponseTemplateKindWafWaitingRoomPage)
+		if err != nil {
+			return publicWafRuleMutationInput{}, err
+		}
+	}
 	if blockContentType == "" {
 		blockContentType = defaultWafBlockContentType
 	}
@@ -942,6 +1025,10 @@ func (a *App) validatePublicWafRuleInput(ctx context.Context, name string, prior
 		TriggerQuietPeriodMillis:             triggerConfig.QuietPeriodMillis,
 		BlockResponseStatusCode:              blockStatusCode,
 		BlockResponseBody:                    blockBody,
+		BlockResponseBodyMode:                bodyMode,
+		BlockResponseTemplateID:              blockTemplateRef,
+		CaptchaPageTemplateID:                captchaTemplateRef,
+		WaitingRoomPageTemplateID:            waitingRoomTemplateRef,
 		BlockResponseContentType:             blockContentType,
 		BlockResponseHeadersJSON:             string(headersJSON),
 	}, nil
@@ -1217,7 +1304,31 @@ func (a *App) CreatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicWafRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Action, req.Msg.ActivationMode, req.Msg.Match, req.Msg.KeyParts, req.Msg.CaptchaProviderId, req.Msg.CaptchaPassTtlMillis, req.Msg.WaitingRoom, req.Msg.Triggers, req.Msg.BlockResponseStatusCode, req.Msg.BlockResponseBody, req.Msg.BlockResponseContentType, req.Msg.BlockResponseHeaders)
+	if err := rejectRemovedPolicyMatchField(req.Msg, 6); err != nil {
+		return nil, err
+	}
+	params, err := a.validatePublicWafRuleInput(
+		ctx,
+		req.Msg.Name,
+		req.Msg.Priority,
+		req.Msg.Enabled,
+		req.Msg.Action,
+		req.Msg.ActivationMode,
+		req.Msg.KeyParts,
+		req.Msg.CaptchaProviderId,
+		req.Msg.CaptchaPassTtlMillis,
+		req.Msg.WaitingRoom,
+		req.Msg.Triggers,
+		req.Msg.BlockResponseStatusCode,
+		req.Msg.BlockResponseBody,
+		req.Msg.BlockResponseBodyMode,
+		req.Msg.BlockResponseTemplateId,
+		req.Msg.CaptchaPageTemplateId,
+		req.Msg.WaitingRoomPageTemplateId,
+		req.Msg.BlockResponseContentType,
+		req.Msg.BlockResponseHeaders,
+		req.Msg.MatchRule,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1239,7 +1350,31 @@ func (a *App) UpdatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicWafRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Action, req.Msg.ActivationMode, req.Msg.Match, req.Msg.KeyParts, req.Msg.CaptchaProviderId, req.Msg.CaptchaPassTtlMillis, req.Msg.WaitingRoom, req.Msg.Triggers, req.Msg.BlockResponseStatusCode, req.Msg.BlockResponseBody, req.Msg.BlockResponseContentType, req.Msg.BlockResponseHeaders)
+	if err := rejectRemovedPolicyMatchField(req.Msg, 7); err != nil {
+		return nil, err
+	}
+	params, err := a.validatePublicWafRuleInput(
+		ctx,
+		req.Msg.Name,
+		req.Msg.Priority,
+		req.Msg.Enabled,
+		req.Msg.Action,
+		req.Msg.ActivationMode,
+		req.Msg.KeyParts,
+		req.Msg.CaptchaProviderId,
+		req.Msg.CaptchaPassTtlMillis,
+		req.Msg.WaitingRoom,
+		req.Msg.Triggers,
+		req.Msg.BlockResponseStatusCode,
+		req.Msg.BlockResponseBody,
+		req.Msg.BlockResponseBodyMode,
+		req.Msg.BlockResponseTemplateId,
+		req.Msg.CaptchaPageTemplateId,
+		req.Msg.WaitingRoomPageTemplateId,
+		req.Msg.BlockResponseContentType,
+		req.Msg.BlockResponseHeaders,
+		req.Msg.MatchRule,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1300,6 +1435,10 @@ func wafCreateParams(input publicWafRuleMutationInput) db.CreatePublicWafRulePar
 		TriggerQuietPeriodMillis:             input.TriggerQuietPeriodMillis,
 		BlockResponseStatusCode:              input.BlockResponseStatusCode,
 		BlockResponseBody:                    input.BlockResponseBody,
+		BlockResponseBodyMode:                input.BlockResponseBodyMode,
+		BlockResponseTemplateID:              input.BlockResponseTemplateID,
+		CaptchaPageTemplateID:                input.CaptchaPageTemplateID,
+		WaitingRoomPageTemplateID:            input.WaitingRoomPageTemplateID,
 		BlockResponseContentType:             input.BlockResponseContentType,
 		BlockResponseHeadersJson:             input.BlockResponseHeadersJSON,
 	}
@@ -1336,6 +1475,10 @@ func wafUpdateParams(id int64, input publicWafRuleMutationInput) db.UpdatePublic
 		TriggerQuietPeriodMillis:             input.TriggerQuietPeriodMillis,
 		BlockResponseStatusCode:              input.BlockResponseStatusCode,
 		BlockResponseBody:                    input.BlockResponseBody,
+		BlockResponseBodyMode:                input.BlockResponseBodyMode,
+		BlockResponseTemplateID:              input.BlockResponseTemplateID,
+		CaptchaPageTemplateID:                input.CaptchaPageTemplateID,
+		WaitingRoomPageTemplateID:            input.WaitingRoomPageTemplateID,
 		BlockResponseContentType:             input.BlockResponseContentType,
 		BlockResponseHeadersJson:             input.BlockResponseHeadersJSON,
 	}

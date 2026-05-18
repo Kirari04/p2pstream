@@ -125,6 +125,12 @@ const (
 `
 	publicBackendTypeProxyForward                         = "proxy_forward"
 	publicBackendTypeStatic                               = "static"
+	publicResponseBodyModeInline                          = "inline"
+	publicResponseBodyModeTemplate                        = "template"
+	publicResponseTemplateKindGenericBody                 = "generic_body"
+	publicResponseTemplateKindWafCaptchaPage              = "waf_captcha_page"
+	publicResponseTemplateKindWafWaitingRoomPage          = "waf_waiting_room_page"
+	defaultResponseTemplateContentType                    = "text/html; charset=utf-8"
 	publicBackendForwardModeDirect                        = "direct"
 	publicBackendForwardModeAgentPool                     = "agent_pool"
 	publicBackendLoadBalancingRoundRobin                  = "round_robin"
@@ -190,6 +196,7 @@ type publicConfigRows struct {
 	WafSettings            db.PublicWafSetting
 	CacheSettings          db.PublicCacheSetting
 	CacheRules             []db.PublicCacheRule
+	ResponseTemplates      []db.PublicResponseTemplate
 }
 
 type publicBackendHeaderInput struct {
@@ -213,6 +220,8 @@ type publicBackendMutationInput struct {
 	TLSSkipVerify                 int64
 	StaticStatusCode              int64
 	StaticResponseBody            string
+	StaticResponseBodyMode        string
+	StaticResponseTemplateID      sql.NullInt64
 	UpstreamBasicAuthEnabled      int64
 	UpstreamBasicAuthUsername     string
 	UpstreamBasicAuthPassword     string
@@ -332,6 +341,8 @@ func (a *App) CreatePublicBackend(
 		req.Msg.StaticStatusCode,
 		req.Msg.StaticResponseHeaders,
 		req.Msg.StaticResponseBody,
+		req.Msg.StaticResponseBodyMode,
+		req.Msg.StaticResponseTemplateId,
 		req.Msg.UpstreamRequestHeaders,
 		req.Msg.UpstreamBasicAuth,
 		req.Msg.HealthCheck,
@@ -371,6 +382,8 @@ func (a *App) UpdatePublicBackend(
 		req.Msg.StaticStatusCode,
 		req.Msg.StaticResponseHeaders,
 		req.Msg.StaticResponseBody,
+		req.Msg.StaticResponseBodyMode,
+		req.Msg.StaticResponseTemplateId,
 		req.Msg.UpstreamRequestHeaders,
 		req.Msg.UpstreamBasicAuth,
 		req.Msg.HealthCheck,
@@ -444,6 +457,8 @@ func (a *App) createPublicBackendWithDetails(
 		TlsSkipVerify:                       params.TLSSkipVerify,
 		StaticStatusCode:                    params.StaticStatusCode,
 		StaticResponseBody:                  params.StaticResponseBody,
+		StaticResponseBodyMode:              params.StaticResponseBodyMode,
+		StaticResponseTemplateID:            params.StaticResponseTemplateID,
 		UpstreamBasicAuthEnabled:            params.UpstreamBasicAuthEnabled,
 		UpstreamBasicAuthUsername:           params.UpstreamBasicAuthUsername,
 		UpstreamBasicAuthPassword:           params.UpstreamBasicAuthPassword,
@@ -505,6 +520,8 @@ func (a *App) updatePublicBackendWithDetails(
 		TlsSkipVerify:                       params.TLSSkipVerify,
 		StaticStatusCode:                    params.StaticStatusCode,
 		StaticResponseBody:                  params.StaticResponseBody,
+		StaticResponseBodyMode:              params.StaticResponseBodyMode,
+		StaticResponseTemplateID:            params.StaticResponseTemplateID,
 		UpstreamBasicAuthEnabled:            params.UpstreamBasicAuthEnabled,
 		UpstreamBasicAuthUsername:           params.UpstreamBasicAuthUsername,
 		UpstreamBasicAuthPassword:           params.UpstreamBasicAuthPassword,
@@ -1356,6 +1373,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		CacheSettings:       publicCacheSettingsConfigToProto(snap.CacheSettings),
 		CacheRules:          publicCacheRulesToProto(rows.CacheRules),
 		TlsDnsCredentials:   publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
+		ResponseTemplates:   publicResponseTemplatesToProto(rows.ResponseTemplates),
 	}, nil
 }
 
@@ -1403,6 +1421,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	}
 	if err := a.ensurePublicProxySeeded(ctx); err != nil {
 		return publicConfigRows{}, err
+	}
+	responseTemplates, err := a.DB.ListPublicResponseTemplates(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
 	backends, err := a.DB.ListPublicBackends(ctx)
 	if err != nil {
@@ -1490,10 +1512,15 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		WafSettings:            wafSettings,
 		CacheSettings:          cacheSettings,
 		CacheRules:             cacheRules,
+		ResponseTemplates:      responseTemplates,
 	}, nil
 }
 
 func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
+	defaultTemplates, err := a.ensureDefaultPublicResponseTemplates(ctx)
+	if err != nil {
+		return err
+	}
 	backends, err := a.DB.CountPublicBackends(ctx)
 	if err != nil {
 		return connect.NewError(connect.CodeInternal, err)
@@ -1506,6 +1533,10 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		return nil
 	}
 
+	defaultWelcomeTemplate, ok := defaultTemplates["default-welcome"]
+	if !ok || defaultWelcomeTemplate.ID <= 0 {
+		return connect.NewError(connect.CodeInternal, errors.New("default welcome response template was not seeded"))
+	}
 	backend, err := a.DB.CreatePublicBackend(ctx, db.CreatePublicBackendParams{
 		Name:                                "default",
 		TargetOrigin:                        "",
@@ -1515,6 +1546,8 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		TlsSkipVerify:                       0,
 		StaticStatusCode:                    defaultStaticStatusCode,
 		StaticResponseBody:                  defaultWelcomeBody,
+		StaticResponseBodyMode:              publicResponseBodyModeTemplate,
+		StaticResponseTemplateID:            sql.NullInt64{Int64: defaultWelcomeTemplate.ID, Valid: true},
 		UpstreamBasicAuthEnabled:            0,
 		UpstreamBasicAuthUsername:           "",
 		UpstreamBasicAuthPassword:           "",
@@ -1630,6 +1663,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		WafCaptchaProviders: make(map[int64]publicWafCaptchaProviderConfig),
 		WafCookieSecret:     []byte(rows.WafSettings.CookieSigningSecret),
 		CacheSettings:       publicCacheSettingsRowToConfig(rows.CacheSettings),
+		ResponseTemplates:   publicResponseTemplatesToConfig(rows.ResponseTemplates),
 	}
 
 	headersByBackend := publicBackendHeadersByBackend(rows.BackendHeaders)
@@ -1648,18 +1682,24 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("backend %q has invalid target origin: %w", backend.Name, err))
 			}
 		}
+		staticResponseBody, err := effectiveGenericResponseBody(backend.StaticResponseBodyMode, backend.StaticResponseTemplateID, backend.StaticResponseBody, snap.ResponseTemplates)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("backend %q has invalid static response template: %w", backend.Name, err))
+		}
 		snap.Backends[backend.ID] = publicBackendConfig{
-			ID:                     backend.ID,
-			Name:                   backend.Name,
-			TargetOrigin:           backend.TargetOrigin,
-			BackendType:            backendType,
-			ForwardMode:            forwardMode,
-			LoadBalancing:          loadBalancing,
-			TLSSkipVerify:          backend.TlsSkipVerify != 0,
-			StaticStatusCode:       int(backend.StaticStatusCode),
-			StaticResponseHeaders:  publicBackendHeaderRowsToConfig(headersByBackend[backend.ID]),
-			StaticResponseBody:     backend.StaticResponseBody,
-			UpstreamRequestHeaders: publicBackendUpstreamHeaderRowsToConfig(upstreamHeadersByBackend[backend.ID]),
+			ID:                       backend.ID,
+			Name:                     backend.Name,
+			TargetOrigin:             backend.TargetOrigin,
+			BackendType:              backendType,
+			ForwardMode:              forwardMode,
+			LoadBalancing:            loadBalancing,
+			TLSSkipVerify:            backend.TlsSkipVerify != 0,
+			StaticStatusCode:         int(backend.StaticStatusCode),
+			StaticResponseHeaders:    publicBackendHeaderRowsToConfig(headersByBackend[backend.ID]),
+			StaticResponseBody:       staticResponseBody,
+			StaticResponseBodyMode:   normalizePublicResponseBodyMode(backend.StaticResponseBodyMode),
+			StaticResponseTemplateID: nullInt64Value(backend.StaticResponseTemplateID),
+			UpstreamRequestHeaders:   publicBackendUpstreamHeaderRowsToConfig(upstreamHeadersByBackend[backend.ID]),
 			UpstreamBasicAuth: publicBackendBasicAuthConfig{
 				Enabled:  backend.UpstreamBasicAuthEnabled != 0,
 				Username: backend.UpstreamBasicAuthUsername,
@@ -1741,6 +1781,12 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("rate limit rule %q is invalid: %w", row.Name, err))
 		}
+		responseBody, err := effectiveGenericResponseBody(row.ResponseBodyMode, row.ResponseBodyTemplateID, rule.ResponseBody, snap.ResponseTemplates)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("rate limit rule %q has invalid response template: %w", row.Name, err))
+		}
+		rule.ResponseBody = responseBody
+		rule.Fingerprint = publicRateLimitRuleFingerprint(rule)
 		snap.RateLimitRules = append(snap.RateLimitRules, rule)
 	}
 	for _, row := range rows.TrafficShaperRules {
@@ -1759,6 +1805,22 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("WAF rule %q is invalid: %w", row.Name, err))
 		}
+		blockBody, err := effectiveGenericResponseBody(row.BlockResponseBodyMode, row.BlockResponseTemplateID, rule.BlockResponseBody, snap.ResponseTemplates)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("WAF rule %q has invalid block response template: %w", row.Name, err))
+		}
+		captchaTemplate, err := optionalWafPageTemplate(row.CaptchaPageTemplateID, publicResponseTemplateKindWafCaptchaPage, snap.ResponseTemplates)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("WAF rule %q has invalid captcha page template: %w", row.Name, err))
+		}
+		waitingRoomTemplate, err := optionalWafPageTemplate(row.WaitingRoomPageTemplateID, publicResponseTemplateKindWafWaitingRoomPage, snap.ResponseTemplates)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("WAF rule %q has invalid waiting-room page template: %w", row.Name, err))
+		}
+		rule.BlockResponseBody = blockBody
+		rule.CaptchaPageTemplateBody = captchaTemplate
+		rule.WaitingRoomPageTemplateBody = waitingRoomTemplate
+		rule.Fingerprint = publicWafRuleFingerprint(rule)
 		snap.WafRules = append(snap.WafRules, rule)
 	}
 	for _, row := range rows.CacheRules {
@@ -1819,6 +1881,8 @@ func (a *App) validatePublicBackendInput(
 	staticStatusCode int64,
 	staticResponseHeaders []*p2pstreamv1.PublicHeader,
 	staticResponseBody string,
+	staticResponseBodyMode p2pstreamv1.PublicResponseBodyMode,
+	staticResponseTemplateID int64,
 	upstreamRequestHeaders []*p2pstreamv1.PublicBackendUpstreamHeader,
 	upstreamBasicAuth *p2pstreamv1.PublicBackendBasicAuth,
 	healthCheck *p2pstreamv1.PublicBackendHealthCheck,
@@ -1841,6 +1905,7 @@ func (a *App) validatePublicBackendInput(
 		LoadBalancing:                 publicBackendLoadBalancingRoundRobin,
 		StaticStatusCode:              defaultStaticStatusCode,
 		StaticResponseBody:            "",
+		StaticResponseBodyMode:        publicResponseBodyModeInline,
 		HealthCheckMethod:             defaultBackendHealthCheckMethod,
 		HealthCheckPath:               defaultBackendHealthCheckPath,
 		HealthCheckIntervalMillis:     defaultBackendHealthCheckIntervalMillis,
@@ -1910,6 +1975,10 @@ func (a *App) validatePublicBackendInput(
 	if !utf8.ValidString(staticResponseBody) {
 		return publicBackendMutationInput{}, nil, nil, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("static response body must be valid UTF-8"))
 	}
+	bodyMode, templateRef, err := a.validateGenericResponseTemplateReference(ctx, staticResponseBodyMode, staticResponseTemplateID)
+	if err != nil {
+		return publicBackendMutationInput{}, nil, nil, nil, err
+	}
 	headers, err := validatePublicStaticHeaders(staticResponseHeaders)
 	if err != nil {
 		return publicBackendMutationInput{}, nil, nil, nil, err
@@ -1921,6 +1990,8 @@ func (a *App) validatePublicBackendInput(
 	params.LoadBalancing = publicBackendLoadBalancingRoundRobin
 	params.StaticStatusCode = staticStatusCode
 	params.StaticResponseBody = staticResponseBody
+	params.StaticResponseBodyMode = bodyMode
+	params.StaticResponseTemplateID = templateRef
 	params.UpstreamBasicAuthEnabled = 0
 	params.UpstreamBasicAuthUsername = ""
 	params.UpstreamBasicAuthPassword = ""
@@ -3370,6 +3441,8 @@ func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHe
 		StaticStatusCode:                    backend.StaticStatusCode,
 		StaticResponseHeaders:               publicBackendHeaderRowsToProto(headers),
 		StaticResponseBody:                  backend.StaticResponseBody,
+		StaticResponseBodyMode:              protoPublicResponseBodyMode(backend.StaticResponseBodyMode),
+		StaticResponseTemplateId:            nullInt64Value(backend.StaticResponseTemplateID),
 		AgentAssignments:                    publicBackendAgentsToProto(agents, agentEnabled, monitor),
 		UpstreamRequestHeaders:              publicBackendUpstreamHeaderRowsToProto(upstreamHeaders),
 		UpstreamBasicAuth:                   publicBackendBasicAuthToProto(backend),

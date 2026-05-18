@@ -95,6 +95,7 @@ Full self-hosting and operations documentation is available at <https://kirari04
 - [Docker Compose quickstart](https://kirari04.github.io/p2pstream/getting-started/quickstart)
 - [First login](https://kirari04.github.io/p2pstream/getting-started/first-login)
 - [Publish a service](https://kirari04.github.io/p2pstream/guides/publish-a-service)
+- [Response templates reference](https://kirari04.github.io/p2pstream/reference/response-templates)
 - [Backup and restore](https://kirari04.github.io/p2pstream/operations/backup-restore)
 - [WAF reference](https://kirari04.github.io/p2pstream/reference/waf)
 - [Cache reference](https://kirari04.github.io/p2pstream/reference/cache)
@@ -125,4 +126,12 @@ GitHub Actions verifies the project, publishes a multi-arch Linux container to G
 
 A scheduled nightly workflow builds the current `dev` branch and publishes the Docker-only `ghcr.io/kirari04/p2pstream:nightly` tag. Nightly images are for development validation and should not be used as repeatable production pins.
 
-No open-source license has been selected yet. Public visibility does not grant additional license rights.
+## License
+
+p2pstream is licensed under the GNU Affero General Public License version 3 or later (`AGPL-3.0-or-later`). See [LICENSE](LICENSE) for the complete license text and [NOTICE](NOTICE) for the project notice.
+
+Official binaries, Docker images, and release assets provide corresponding source through the matching tagged GitHub source archive. Running management instances also expose a source offer at:
+
+```text
+/.well-known/p2pstream/source
+```

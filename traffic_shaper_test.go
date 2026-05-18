@@ -35,8 +35,8 @@ func TestPublicTrafficShaperCRUDAndConfig(t *testing.T) {
 		BudgetScope:            p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
 		DownloadBytesPerSecond: 128 * 1024,
 		ResponseExemptBytes:    64 * 1024,
-		Match: &p2pstreamv1.PublicRateLimitMatch{
-			PathPrefixes: []string{"/downloads"},
+		MatchRule: &p2pstreamv1.PublicPolicyMatchRule{
+			CelExpression: `path_prefix(path, "/downloads")`,
 		},
 		KeyParts: []*p2pstreamv1.PublicRateLimitKeyPart{{
 			Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_REMOTE_IP,
@@ -112,8 +112,8 @@ func TestTrafficShaperDirectProxyTrace(t *testing.T) {
 		Enabled:                true,
 		BudgetScope:            p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
 		DownloadBytesPerSecond: 10 * 1024 * 1024,
-		Match: &p2pstreamv1.PublicRateLimitMatch{
-			PathPrefixes: []string{"/trace"},
+		MatchRule: &p2pstreamv1.PublicPolicyMatchRule{
+			CelExpression: `path_prefix(path, "/trace")`,
 		},
 	})
 	createReq.Header().Set("Cookie", cookie)

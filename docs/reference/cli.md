@@ -2,6 +2,8 @@
 
 The runtime image and release archive contain one binary: `p2pstream`.
 
+Release archives also include `LICENSE`, `NOTICE`, `SOURCE.txt`, and third-party legal notices. p2pstream is licensed under `AGPL-3.0-or-later`; see [License](./license).
+
 ## Exact Commands And Flags
 
 Start the server:

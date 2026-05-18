@@ -1,7 +1,15 @@
+ARG VERSION=dev
+ARG COMMIT=""
+ARG SOURCE_REPOSITORY=Kirari04/p2pstream
+ARG VITE_RELEASE_REPOSITORY=""
+ARG VITE_RELEASE_REF=""
+
 FROM oven/bun:1.2.18 AS frontend
 WORKDIR /app/web/management
+ARG VITE_RELEASE_REF
 ARG VITE_RELEASE_REPOSITORY=""
 ENV VITE_RELEASE_REPOSITORY=$VITE_RELEASE_REPOSITORY
+ENV VITE_RELEASE_REF=$VITE_RELEASE_REF
 COPY web/management/package.json web/management/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web/management/ ./
@@ -9,10 +17,13 @@ RUN bun run build
 
 FROM golang:1.25.10-bookworm AS backend
 WORKDIR /src
+ARG VERSION
+ARG COMMIT
+ARG SOURCE_REPOSITORY
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o /out/p2pstream main.go
+RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${VERSION} -X p2pstream/internal/buildinfo.Commit=${COMMIT} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o /out/p2pstream main.go
 
 FROM scratch AS binary
 COPY --from=backend /out/p2pstream /p2pstream
@@ -50,13 +61,27 @@ RUN go test -race ./...
 
 FROM test-base AS smoke
 
+FROM test-base AS legal
+ARG VERSION
+ARG COMMIT
+ARG SOURCE_REPOSITORY
+RUN VERSION="${VERSION}" COMMIT="${COMMIT}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
+
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
+ARG VERSION
+ARG COMMIT
+ARG SOURCE_REPOSITORY
+LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.source="https://github.com/${SOURCE_REPOSITORY}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.version="${VERSION}"
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libcap2-bin \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=backend /out/p2pstream /app/p2pstream
 COPY --from=frontend /app/web/management/dist /app/web/management/dist
+COPY --from=legal /src/dist/legal /app/legal
 
 RUN groupadd --system p2pstream \
     && useradd --system --gid p2pstream --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin p2pstream \

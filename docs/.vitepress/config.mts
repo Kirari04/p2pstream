@@ -90,6 +90,7 @@ export default defineConfig({
           { text: "Rate Limits Reference", link: "/reference/rate-limits" },
           { text: "Traffic Shaping Reference", link: "/reference/traffic-shaping" },
           { text: "WAF Reference", link: "/reference/waf" },
+          { text: "Response Templates", link: "/reference/response-templates" },
           { text: "Cache Reference", link: "/reference/cache" }
         ]
       },
@@ -112,10 +113,12 @@ export default defineConfig({
           { text: "CLI", link: "/reference/cli" },
           { text: "Docker", link: "/reference/docker" },
           { text: "Ports", link: "/reference/ports" },
+          { text: "License", link: "/reference/license" },
           { text: "Database", link: "/reference/database" },
           { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "Management TLS", link: "/reference/management-tls" },
           { text: "Public TLS and ACME", link: "/reference/public-tls-acme" },
+          { text: "Response Templates", link: "/reference/response-templates" },
           { text: "Rate Limits", link: "/reference/rate-limits" },
           { text: "Traffic Shaping", link: "/reference/traffic-shaping" },
           { text: "WAF", link: "/reference/waf" },

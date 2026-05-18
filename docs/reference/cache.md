@@ -11,7 +11,7 @@ Cache rules run after route/backend selection and before forwarding a cache miss
 | `name` | operator value | Rule label. |
 | `priority` | `100` in database defaults | Lower numbers evaluate first. |
 | `enabled` | `true` | Disabled rules are ignored. |
-| `match` | empty | Method, protocol, host, path prefix, path suffix, header, cookie, and query matches. |
+| `match_rule` | empty | Request-only CEL match rule. Empty matches every request. |
 | `route_ids` | empty | Optional route filter. |
 | `backend_ids` | empty | Optional backend filter. |
 | `scope` | selected backend | Isolate by selected backend or route. |
@@ -45,6 +45,49 @@ Requests with `Cookie` bypass by default unless the matching rule enables `allow
 p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
 
 Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
+
+`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
+
+Cache rule matches inspect only request data through CEL.
+
+Available CEL variables:
+
+| Variable | Type | Notes |
+| --- | --- | --- |
+| `method` | string | Uppercase request method, such as `GET` or `POST`. |
+| `protocol` | string | Listener protocol: `http` or `https`. |
+| `host` | string | Normalized request host without port. |
+| `path` | string | URL path. |
+| `remote_ip` | string | Client remote IP. |
+| `headers` | map string to list string | Header names are lowercase. Repeated headers keep all values. |
+| `cookies` | map string to string | First cookie value by name. |
+| `query` | map string to list string | Query parameter values by name. |
+
+Helper functions:
+
+- `host_match(host, pattern)` for exact and wildcard host patterns such as `*.example.com`.
+- `path_prefix(path, prefix)` for path-prefix checks with segment boundaries.
+- `cidr(remote_ip, cidr)` for IP range checks such as `198.51.100.0/24`.
+
+CEL examples:
+
+```cel
+method in ["GET", "HEAD"] && host_match(host, "app.example.com") && path_prefix(path, "/_nuxt/")
+```
+
+```cel
+path.matches("^/assets/.+\\.(css|js|png|webp|svg|woff2)$")
+```
+
+```cel
+headers["accept"].exists(v, v.contains("text/css")) || query["asset"].exists(v, v == "1")
+```
+
+```cel
+!("session" in cookies) && cidr(remote_ip, "198.51.100.0/24")
+```
+
+Route data, backend data, backend health, and load-balancer state are not available inside cache match CEL. Cache-specific `route_ids` and `backend_ids` remain separate filters evaluated after route/backend selection.
 
 ## Runtime Effects
 

@@ -6,6 +6,13 @@ import TrashIcon from "@primevue/icons/trash";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { managementClient } from "@/api/managementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import {
+  defaultPolicyMatchForm,
+  policyMatchFormFromProto,
+  policyMatchRulePayload,
+  policyMatchValidationReason,
+  type PolicyMatchForm,
+} from "@/lib/publicPolicyMatch";
 import { backendSummary, cacheScopeLabel, routeDestinationLabel } from "@/lib/publicProxyLabels";
 import Button from "@/volt/Button.vue";
 import Modal from "@/volt/Modal.vue";
@@ -14,19 +21,12 @@ import {
   PublicCacheQueryMode,
   PublicCacheScope,
   PublicCacheTtlMode,
-  PublicListenerProtocol,
-  PublicRateLimitMatchOperator,
   type GetPublicProxyConfigResponse,
   type PublicBackend,
   type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
-type MatcherForm = {
-  name: string;
-  operator: PublicRateLimitMatchOperator;
-  value: string;
-};
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -40,7 +40,6 @@ const runManagementAction = inject<Runner>("runManagementAction");
 const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
-const matchEditor = ref<InstanceType<typeof PublicPolicyMatchEditor> | null>(null);
 const rules = computed(() => props.config?.cacheRules ?? []);
 const routes = computed(() => props.config?.routes ?? []);
 const backends = computed(() => props.config?.backends ?? []);
@@ -58,16 +57,7 @@ const form = reactive({
   name: "",
   enabled: true,
   priority: 100,
-  match: {
-    methods: ["GET", "HEAD"] as string[],
-    protocols: [] as PublicListenerProtocol[],
-    hostPatternsText: "",
-    pathPrefixesText: "",
-    pathSuffixesText: ".css\n.js\n.png\n.jpg\n.jpeg\n.webp\n.svg\n.woff2",
-    headers: [] as MatcherForm[],
-    cookies: [] as MatcherForm[],
-    queryParams: [] as MatcherForm[],
-  },
+  match: defaultPolicyMatchForm() as PolicyMatchForm,
   routeIds: [] as string[],
   backendIds: [] as string[],
   scope: PublicCacheScope.SELECTED_BACKEND,
@@ -159,6 +149,7 @@ const submitDisabledReason = computed(() => {
   if (queryParamsValidationReason.value) return queryParamsValidationReason.value;
   if (varyHeadersValidationReason.value) return varyHeadersValidationReason.value;
   if (cacheStatusCodesValidationReason.value) return cacheStatusCodesValidationReason.value;
+  if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -168,14 +159,7 @@ function resetForm() {
   form.name = nextRuleName();
   form.enabled = true;
   form.priority = 100;
-  form.match.methods = ["GET", "HEAD"];
-  form.match.protocols = [];
-  form.match.hostPatternsText = "";
-  form.match.pathPrefixesText = "";
-  form.match.pathSuffixesText = ".css\n.js\n.png\n.jpg\n.jpeg\n.webp\n.svg\n.woff2";
-  form.match.headers = [];
-  form.match.cookies = [];
-  form.match.queryParams = [];
+  form.match = defaultPolicyMatchForm();
   form.routeIds = [];
   form.backendIds = [];
   form.scope = PublicCacheScope.SELECTED_BACKEND;
@@ -205,14 +189,7 @@ function openEdit(ruleId: bigint | string) {
   form.name = rule.name;
   form.enabled = rule.enabled;
   form.priority = Number(rule.priority);
-  form.match.methods = [...(rule.match?.methods ?? [])];
-  form.match.protocols = [...(rule.match?.protocols ?? [])];
-  form.match.hostPatternsText = (rule.match?.hostPatterns ?? []).join("\n");
-  form.match.pathPrefixesText = (rule.match?.pathPrefixes ?? []).join("\n");
-  form.match.pathSuffixesText = (rule.match?.pathSuffixes ?? []).join("\n");
-  form.match.headers = cloneMatchers(rule.match?.headers ?? []);
-  form.match.cookies = cloneMatchers(rule.match?.cookies ?? []);
-  form.match.queryParams = cloneMatchers(rule.match?.queryParams ?? []);
+  form.match = policyMatchFormFromProto(rule.matchRule);
   form.routeIds = rule.routeIds.map((value) => value.toString());
   form.backendIds = rule.backendIds.map((value) => value.toString());
   form.scope = rule.scope || PublicCacheScope.SELECTED_BACKEND;
@@ -228,7 +205,6 @@ function openEdit(ruleId: bigint | string) {
   routeFilterText.value = "";
   backendFilterText.value = "";
   isOpen.value = true;
-  requestAnimationFrame(() => matchEditor.value?.setInitialTab());
 }
 
 function close() {
@@ -240,24 +216,6 @@ function nextRuleName(): string {
   const used = new Set(rules.value.map((rule) => rule.name));
   while (used.has(`cache-${index.toString()}`)) index += 1;
   return `cache-${index.toString()}`;
-}
-
-function lines(value: string): string[] {
-  return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-}
-
-function cloneMatchers(matchers: readonly MatcherForm[]): MatcherForm[] {
-  return matchers.map((matcher) => ({ name: matcher.name, operator: matcher.operator, value: matcher.value }));
-}
-
-function matcherPayload(matchers: MatcherForm[]) {
-  return matchers
-    .map((matcher) => ({
-      name: matcher.name.trim(),
-      operator: matcher.operator,
-      value: matcher.value,
-    }))
-    .filter((matcher) => matcher.name);
 }
 
 function queryModeUsesParams(mode: PublicCacheQueryMode): boolean {
@@ -482,16 +440,7 @@ async function submitRule() {
       name: form.name.trim(),
       priority: BigInt(form.priority || 0),
       enabled: form.enabled,
-      match: {
-        methods: [...form.match.methods],
-        protocols: [...form.match.protocols],
-        hostPatterns: lines(form.match.hostPatternsText),
-        pathPrefixes: lines(form.match.pathPrefixesText),
-        pathSuffixes: lines(form.match.pathSuffixesText),
-        headers: matcherPayload(form.match.headers),
-        cookies: matcherPayload(form.match.cookies),
-        queryParams: matcherPayload(form.match.queryParams),
-      },
+      matchRule: policyMatchRulePayload(form.match),
       routeIds: normalizeIdStrings(form.routeIds).map((id) => BigInt(id)),
       backendIds: normalizeIdStrings(form.backendIds).map((id) => BigInt(id)),
       scope: form.scope,
@@ -538,7 +487,7 @@ defineExpose({ openCreate, openEdit, close });
         </label>
       </section>
 
-      <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
+      <PublicPolicyMatchEditor :form="form.match" />
 
       <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
         <h4 class="text-sm font-semibold text-white">Cache behavior</h4>

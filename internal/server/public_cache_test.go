@@ -162,12 +162,10 @@ func TestPublicCacheRulePathSuffixMatching(t *testing.T) {
 	rule := publicCacheRuleConfig{
 		ID:      1,
 		Enabled: true,
-		Match: publicRateLimitMatchConfig{
-			Methods:      []string{http.MethodGet},
-			HostPatterns: []string{"assets.example.test"},
-			PathPrefixes: []string{"/assets"},
-			PathSuffixes: []string{".css", ".woff2"},
-		},
+		Match: mustPublicPolicyMatchCEL(t, `method == "GET" &&
+			host_match(host, "assets.example.test") &&
+			path_prefix(path, "/assets") &&
+			(path.endsWith(".css") || path.endsWith(".woff2"))`),
 	}
 	listener := publicListenerConfig{Protocol: publicListenerProtocolHTTPS}
 	resolution := publicRouteResolution{Route: publicRouteConfig{ID: 10}, Backend: publicBackendConfig{ID: 20}}
@@ -293,7 +291,7 @@ func TestPublicCacheRejectsSensitiveConfiguredVaryHeaders(t *testing.T) {
 	defer closeDB()
 
 	for _, header := range []string{"Cookie", "Authorization", "Set-Cookie"} {
-		if _, err := app.validatePublicCacheRuleInput(context.Background(), "bad-vary", 10, true, &p2pstreamv1.PublicRateLimitMatch{Methods: []string{http.MethodGet}}, nil, nil, p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND, p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED, defaultPublicCacheTTLMillis, p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL, nil, []string{header}, []int64{http.StatusOK}, defaultPublicCacheMaxObjectBytes, true, false); err == nil {
+		if _, err := app.validatePublicCacheRuleInput(context.Background(), "bad-vary", 10, true, nil, nil, p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND, p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED, defaultPublicCacheTTLMillis, p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL, nil, []string{header}, []int64{http.StatusOK}, defaultPublicCacheMaxObjectBytes, true, false, nil); err == nil {
 			t.Fatalf("expected validation error for configured vary header %q", header)
 		}
 	}
@@ -308,7 +306,7 @@ func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
 		Name:                 "cookie-assets",
 		Priority:             20,
 		Enabled:              true,
-		Match:                &p2pstreamv1.PublicRateLimitMatch{Methods: []string{http.MethodGet}, PathSuffixes: []string{".js"}},
+		MatchRule:            &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET" && path.endsWith(".js")`},
 		Scope:                p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
 		TtlMode:              p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
 		TtlMillis:            defaultPublicCacheTTLMillis,
@@ -333,7 +331,7 @@ func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
 		Name:                 "cookie-assets",
 		Priority:             20,
 		Enabled:              true,
-		Match:                &p2pstreamv1.PublicRateLimitMatch{Methods: []string{http.MethodGet}, PathSuffixes: []string{".js"}},
+		MatchRule:            &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET" && path.endsWith(".js")`},
 		Scope:                p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
 		TtlMode:              p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
 		TtlMillis:            defaultPublicCacheTTLMillis,
@@ -552,12 +550,10 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 	cacheDir := filepath.Join(t.TempDir(), "cache")
 	app := NewApp(&config.Config{PublicCacheDir: cacheDir}, database)
 
-	matchJSON, err := json.Marshal(publicRateLimitMatchConfig{
-		Methods:      []string{http.MethodGet, http.MethodHead},
-		HostPatterns: []string{"assets.example.test"},
-		PathPrefixes: []string{"/assets"},
-		PathSuffixes: []string{".txt"},
-	})
+	matchJSON, err := json.Marshal(mustPublicPolicyMatchCEL(t, `method in ["GET", "HEAD"] &&
+		host_match(host, "assets.example.test") &&
+		path_prefix(path, "/assets") &&
+		path.endsWith(".txt")`))
 	if err != nil {
 		t.Fatalf("marshal match: %v", err)
 	}
