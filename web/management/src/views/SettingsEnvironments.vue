@@ -7,7 +7,9 @@ import TrashIcon from "@primevue/icons/trash";
 import { computed, inject, onMounted, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { localManagementClient } from "@/api/managementClient";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
+import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
@@ -26,6 +28,7 @@ import {
 const environments = inject<ComputedRef<Environment[]>>("environments", computed(() => []));
 const reloadEnvironments = inject<(() => Promise<void>) | undefined>("reloadEnvironments", undefined);
 const isBusy = inject<ComputedRef<boolean>>("isBusy", computed(() => false));
+const confirmDialog = useConfirmDialog();
 
 const localAgents = ref<Agent[]>([]);
 const isLoading = ref(false);
@@ -115,7 +118,12 @@ async function submitEnvironment() {
 }
 
 async function deleteEnvironment(environment: Environment) {
-  if (!window.confirm(`Delete environment "${environment.name}"?`)) return;
+  const confirmed = await confirmDialog.confirm(
+    "Delete Environment",
+    `Delete "${environment.name}"?`,
+    "Delete",
+  );
+  if (!confirmed) return;
   await runLocalAction(async () => {
     await localManagementClient.deleteEnvironment({ id: environment.id });
     await reloadEnvironments?.();
@@ -132,7 +140,12 @@ async function discoverCertificate(environment: Environment) {
 async function trustCertificate(environment: Environment) {
   const fingerprint = environment.observedCertificate?.sha256Fingerprint ?? "";
   if (!fingerprint) return;
-  if (!window.confirm(`Trust certificate ${fingerprint} for "${environment.name}"?`)) return;
+  const confirmed = await confirmDialog.confirm(
+    "Trust Certificate",
+    `Trust ${fingerprint} for "${environment.name}"?`,
+    "Trust Certificate",
+  );
+  if (!confirmed) return;
   await runLocalAction(async () => {
     await localManagementClient.trustEnvironmentCertificate({ id: environment.id, sha256Fingerprint: fingerprint });
     await reloadEnvironments?.();
@@ -349,5 +362,10 @@ function messageFromError(err: unknown): string {
         </div>
       </form>
     </Modal>
+    <ConfirmDialog
+      :state="confirmDialog.state"
+      @confirm="confirmDialog.handleConfirm"
+      @cancel="confirmDialog.handleCancel"
+    />
   </div>
 </template>
