@@ -11,6 +11,7 @@ import {
   PublicCacheScope,
   PublicCacheTtlMode,
   PublicListenerProtocol,
+  PublicPolicyMatchBooleanOperator,
   PublicPolicyMatchConditionOperator,
   PublicPolicyMatchField,
   PublicRateLimitAlgorithm,
@@ -324,11 +325,18 @@ function policyMatchRuleSummary(rule?: PublicPolicyMatchRule): string {
 }
 
 function policyMatchBuilderSummary(root: PublicPolicyMatchGroup): string {
+  if (policyMatchGroupIsComplex(root)) return "Complex builder rule";
   const conditions = collectPolicyMatchConditions(root);
   if (!conditions.length) return "";
   const visible = conditions.slice(0, 3).map(policyMatchConditionSummary);
   const extra = conditions.length - visible.length;
   return extra > 0 ? `${visible.join(" / ")} / +${extra.toString()}` : visible.join(" / ");
+}
+
+function policyMatchGroupIsComplex(group: PublicPolicyMatchGroup): boolean {
+  return group.negated ||
+    Boolean(group.operator && group.operator !== PublicPolicyMatchBooleanOperator.ALL) ||
+    group.groups.length > 0;
 }
 
 function collectPolicyMatchConditions(group: PublicPolicyMatchGroup): PublicPolicyMatchCondition[] {

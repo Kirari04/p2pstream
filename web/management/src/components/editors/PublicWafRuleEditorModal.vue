@@ -75,7 +75,6 @@ const providers = computed(() => props.config?.wafCaptchaProviders ?? []);
 const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
 const captchaTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_CAPTCHA_PAGE));
 const waitingRoomTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE));
-const matchEditor = ref<InstanceType<typeof PublicPolicyMatchEditor> | null>(null);
 
 const form = reactive({
   id: "",
@@ -351,7 +350,6 @@ function openEdit(ruleId: bigint | string) {
   form.blockResponseTemplateId = rule.blockResponseTemplateId ? rule.blockResponseTemplateId.toString() : "";
   form.blockResponseHeaders = rule.blockResponseHeaders.map((header) => ({ name: header.name, value: header.value }));
   isOpen.value = true;
-  requestAnimationFrame(() => matchEditor.value?.validationReason());
 }
 
 function close() {
@@ -503,7 +501,7 @@ defineExpose({ openCreate, openEdit, close });
         </div>
       </section>
 
-      <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
+      <PublicPolicyMatchEditor :form="form.match" />
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
       <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">

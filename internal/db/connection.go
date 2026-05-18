@@ -1058,7 +1058,7 @@ func legacyPolicyMatchBuilder(legacy legacyPolicyMatchJSON) *policyMatchBuilder 
 	if values := normalizeLegacyPolicyValues(legacy.HostPatterns, normalizeLegacyPolicyHost); len(values) > 0 {
 		root.Conditions = append(root.Conditions, policyMatchCondition{Field: "host", Operator: "host_pattern", Values: values})
 	}
-	if values := normalizeLegacyPolicyValues(legacy.PathPrefixes, strings.TrimSpace); len(values) > 0 {
+	if values := normalizeLegacyPolicyValues(legacy.PathPrefixes, normalizeLegacyPolicyPathPrefix); len(values) > 0 {
 		root.Conditions = append(root.Conditions, policyMatchCondition{Field: "path", Operator: "prefix", Values: values})
 	}
 	if values := normalizeLegacyPolicyValues(legacy.PathSuffixes, strings.TrimSpace); len(values) > 0 {
@@ -1086,6 +1086,14 @@ func normalizeLegacyPolicyValues(values []string, normalize func(string) string)
 
 func normalizeLegacyPolicyHost(value string) string {
 	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(value)), ".")
+}
+
+func normalizeLegacyPolicyPathPrefix(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.HasPrefix(value, "/") {
+		return value
+	}
+	return "/" + value
 }
 
 func legacyPolicyMatcherConditions(field string, matchers []legacyPolicyValueMatcher, normalizeName func(string) string) []policyMatchCondition {

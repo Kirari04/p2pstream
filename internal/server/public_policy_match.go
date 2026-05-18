@@ -183,25 +183,24 @@ func compilePublicPolicyMatch(match *publicPolicyMatchConfig) error {
 	if match == nil {
 		return nil
 	}
-	if strings.TrimSpace(match.CELExpression) == "" && match.Builder != nil {
+	match.CELExpression = strings.TrimSpace(match.CELExpression)
+	if match.Builder != nil {
 		expr, err := publicPolicyMatchBuilderExpression(match.Builder)
 		if err != nil {
 			return err
 		}
-		match.CELExpression = expr
+		if match.CELExpression == "" {
+			match.CELExpression = expr
+		} else if match.CELExpression != strings.TrimSpace(expr) {
+			return fmt.Errorf("policy match cel_expression does not match builder")
+		}
 	}
-	match.CELExpression = strings.TrimSpace(match.CELExpression)
 	if match.CELExpression == "" {
 		match.program = nil
 		return nil
 	}
 	if len(match.CELExpression) > maxPublicPolicyMatchExpressionBytes {
 		return fmt.Errorf("policy match expression is too large")
-	}
-	if match.Builder != nil {
-		if _, err := publicPolicyMatchBuilderExpression(match.Builder); err != nil {
-			return err
-		}
 	}
 	env, err := publicPolicyMatchCELEnv()
 	if err != nil {

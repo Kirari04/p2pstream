@@ -145,6 +145,22 @@ func TestPublicPolicyMatchValidationRejectsInvalidStoredBuilderOperator(t *testi
 	}
 }
 
+func TestPublicPolicyMatchValidationRejectsMismatchedStoredBuilderAndCEL(t *testing.T) {
+	_, err := decodePublicPolicyMatchJSON(`{
+		"cel_expression": "method == \"POST\"",
+		"builder": {
+			"root": {
+				"conditions": [
+					{"field": "method", "operator": "equals", "values": ["GET"]}
+				]
+			}
+		}
+	}`)
+	if err == nil {
+		t.Fatal("expected mismatched stored builder and CEL to be rejected")
+	}
+}
+
 func TestPublicPolicyMatchValidationAcceptsEquivalentBuilderAndCEL(t *testing.T) {
 	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
 		CelExpression: `(((method == "GET")))`,

@@ -281,10 +281,27 @@ describe("publicPolicyMatch", () => {
         celExpression: 'method == "GET" && path_prefix(path, "/assets")',
       }),
     });
+    const complexBuilderRule = create(PublicRateLimitRuleSchema, {
+      matchRule: create(PublicPolicyMatchRuleSchema, {
+        builder: create(PublicPolicyMatchBuilderSchema, {
+          root: create(PublicPolicyMatchGroupSchema, {
+            operator: PublicPolicyMatchBooleanOperator.ANY,
+            conditions: [
+              create(PublicPolicyMatchConditionSchema, {
+                field: PublicPolicyMatchField.METHOD,
+                operator: PublicPolicyMatchConditionOperator.EQUALS,
+                values: ["GET"],
+              }),
+            ],
+          }),
+        }),
+      }),
+    });
 
     expect(publicPolicyMatchSummary(create(PublicRateLimitRuleSchema))).toBe("Any request");
     expect(publicPolicyMatchSummary(builderRule)).toBe("method in GET,POST / header:X-Plan = free / query:debug present / +1");
     expect(publicPolicyMatchSummary(expertRule)).toBe('CEL: method == "GET" && path_prefix(path, "/assets")');
+    expect(publicPolicyMatchSummary(complexBuilderRule)).toBe("Complex builder rule");
   });
 
   test("summarizes cache matchRule with route and backend filters", () => {

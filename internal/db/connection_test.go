@@ -159,7 +159,7 @@ func TestMigrationConvertsLegacyPolicyMatchJSON(t *testing.T) {
 		"methods": [" get ", "POST"],
 		"protocols": [" HTTPS "],
 		"host_patterns": ["*.Example.COM."],
-		"path_prefixes": [" /api "],
+		"path_prefixes": [" /api ", "admin"],
 		"path_suffixes": [".JSON"],
 		"headers": [
 			{"name": "X-Plan", "operator": "equals", "value": "free"},
@@ -190,7 +190,11 @@ func TestMigrationConvertsLegacyPolicyMatchJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open migrated db: %v", err)
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Fatalf("close migrated db: %v", err)
+		}
+	}()
 
 	for table, name := range map[string]string{
 		"public_rate_limit_rules":     "rate",
@@ -228,6 +232,7 @@ func assertMigratedLegacyPolicyMatchJSON(t *testing.T, table string, raw string)
 		`protocol in ["https"]`,
 		`host_match(host, "*.example.com")`,
 		`path_prefix(path, "/api")`,
+		`path_prefix(path, "/admin")`,
 		`path.endsWith(".JSON")`,
 		`"x-plan" in headers`,
 		`"x-trace" in headers`,

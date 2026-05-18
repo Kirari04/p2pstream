@@ -50,7 +50,6 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 const isOpen = ref(false);
 const rules = computed(() => props.config?.rateLimitRules ?? []);
 const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
-const matchEditor = ref<InstanceType<typeof PublicPolicyMatchEditor> | null>(null);
 
 const form = reactive({
   id: "",
@@ -160,7 +159,6 @@ function openEdit(ruleId: bigint | string) {
   form.responseBodyTemplateId = rule.responseBodyTemplateId ? rule.responseBodyTemplateId.toString() : "";
   form.responseHeaders = rule.responseHeaders.map((header) => ({ name: header.name, value: header.value }));
   isOpen.value = true;
-  requestAnimationFrame(() => matchEditor.value?.validationReason());
 }
 
 function close() {
@@ -307,7 +305,7 @@ defineExpose({ openCreate, openEdit, close });
         :enabled="form.enabled"
       />
 
-      <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
+      <PublicPolicyMatchEditor :form="form.match" />
 
       <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
         <div class="flex items-center justify-between gap-3">
@@ -420,195 +418,13 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
-.matcher-editor {
-  display: grid;
-  gap: 0.85rem;
-  min-width: 0;
-  border: 1px solid #222;
-  border-radius: 6px;
-  background: #080808;
-  padding: 0.85rem;
-}
-
-.matcher-editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.matcher-eyebrow {
-  color: #777;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.matcher-heading {
-  margin-top: 0.15rem;
-  color: #fff;
-  font-size: 0.92rem;
-  font-weight: 650;
-}
-
-.matcher-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid #333;
-  border-radius: 6px;
-  background: #050505;
-  padding: 0.2rem;
-}
-
-.matcher-tab {
-  display: flex;
-  min-width: 0;
-  height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  border-radius: 4px;
-  color: #a1a1aa;
-  font-size: 0.78rem;
-  font-weight: 650;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.matcher-tab:hover {
-  background: #141414;
-  color: #fff;
-}
-
-.matcher-tab-active {
-  background: #fff;
-  color: #000;
-}
-
-.matcher-tab-count {
-  min-width: 1.25rem;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 10%);
-  padding: 0.1rem 0.35rem;
-  font-size: 0.68rem;
-  line-height: 1.1;
-  text-align: center;
-}
-
-.matcher-tab-active .matcher-tab-count {
-  background: rgb(0 0 0 / 12%);
-}
-
-.matcher-list-shell {
-  min-height: 13.5rem;
-  max-height: 18rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid #222;
-  border-radius: 6px;
-  background: #030303;
-}
-
-.matcher-list {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.6rem;
-}
-
-.matcher-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 9rem minmax(0, 1.15fr) 2.25rem;
-  gap: 0.5rem;
-  align-items: center;
-  min-height: 2.5rem;
-}
-
-.matcher-row-head {
-  min-height: 1.4rem;
-  color: #666;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.matcher-input {
-  min-width: 0;
-  height: 2.25rem;
-  font-size: 0.8rem;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.matcher-add-button,
-.matcher-empty button {
-  border: 1px solid #333;
-  border-radius: 5px;
-  background: #050505;
-  color: #d4d4d8;
-  font-size: 0.72rem;
-  font-weight: 650;
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
-}
-
-.matcher-add-button,
-.matcher-empty button {
-  display: inline-flex;
-  height: 2rem;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0 0.65rem;
-}
-
 .row-remove-button {
   width: 2.25rem;
   height: 2.25rem;
   padding: 0 !important;
 }
 
-.matcher-add-button:hover,
-.matcher-empty button:hover {
-  border-color: #666;
-  background: #0f0f0f;
-  color: #fff;
-}
-
-.matcher-empty {
-  display: grid;
-  min-height: 13.5rem;
-  place-items: center;
-  align-content: center;
-  gap: 0.75rem;
-  color: #777;
-  font-size: 0.82rem;
-  text-align: center;
-}
-
 @media (max-width: 720px) {
-  .matcher-editor-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .matcher-add-button {
-    justify-content: center;
-    width: 100%;
-  }
-
-  .matcher-tabs {
-    grid-template-columns: 1fr;
-  }
-
-  .matcher-row,
-  .matcher-row-head {
-    grid-template-columns: 1fr;
-  }
-
-  .matcher-row-head {
-    display: none;
-  }
-
   .row-remove-button {
     width: 100%;
   }

@@ -40,7 +40,6 @@ const runManagementAction = inject<Runner>("runManagementAction");
 const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
-const matchEditor = ref<InstanceType<typeof PublicPolicyMatchEditor> | null>(null);
 const rules = computed(() => props.config?.cacheRules ?? []);
 const routes = computed(() => props.config?.routes ?? []);
 const backends = computed(() => props.config?.backends ?? []);
@@ -206,7 +205,6 @@ function openEdit(ruleId: bigint | string) {
   routeFilterText.value = "";
   backendFilterText.value = "";
   isOpen.value = true;
-  requestAnimationFrame(() => matchEditor.value?.validationReason());
 }
 
 function close() {
@@ -489,7 +487,7 @@ defineExpose({ openCreate, openEdit, close });
         </label>
       </section>
 
-      <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
+      <PublicPolicyMatchEditor :form="form.match" />
 
       <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
         <h4 class="text-sm font-semibold text-white">Cache behavior</h4>
