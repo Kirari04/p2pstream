@@ -4,6 +4,7 @@ import PencilIcon from "@primevue/icons/pencil";
 import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
 import TrashIcon from "@primevue/icons/trash";
+import { useToast } from "primevue/usetoast";
 import { computed, inject, onMounted, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { localManagementClient } from "@/api/managementClient";
@@ -20,6 +21,7 @@ import type {
   Agent,
   Environment,
   EnvironmentCertificate,
+  TestEnvironmentResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   EnvironmentTransport,
@@ -30,12 +32,23 @@ const environments = inject<ComputedRef<Environment[]>>("environments", computed
 const reloadEnvironments = inject<(() => Promise<void>) | undefined>("reloadEnvironments", undefined);
 const isBusy = inject<ComputedRef<boolean>>("isBusy", computed(() => false));
 const confirmDialog = useConfirmDialog();
+const toast = useToast();
+
+type EnvironmentTestState = "testing" | "success" | "error";
+
+interface EnvironmentTestResult {
+  state: EnvironmentTestState;
+  checkedAtUnixMillis: bigint;
+  message: string;
+}
 
 const localAgents = ref<Agent[]>([]);
 const isLoading = ref(false);
+const testingEnvironmentId = ref("");
 const isEnvironmentModalOpen = ref(false);
 const certificateTrustEnvironment = ref<Environment | null>(null);
 const operationError = ref("");
+const environmentTestResults = reactive<Record<string, EnvironmentTestResult>>({});
 
 const environmentForm = reactive({
   id: "",
@@ -48,7 +61,7 @@ const environmentForm = reactive({
   enabled: true,
 });
 
-const busyDisabledReason = computed(() => isBusy.value || isLoading.value ? BUSY_REASON : "");
+const busyDisabledReason = computed(() => isBusy.value || isLoading.value || testingEnvironmentId.value ? BUSY_REASON : "");
 const enabledLocalAgents = computed(() => localAgents.value.filter((agent) => agent.enabled));
 const certificateTrustCertificate = computed(() => certificateTrustEnvironment.value?.observedCertificate);
 const certificateTrustFingerprint = computed(() => certificateTrustCertificate.value?.sha256Fingerprint ?? "");
@@ -163,10 +176,52 @@ async function confirmTrustCertificate() {
 }
 
 async function testEnvironment(environment: Environment) {
-  await runLocalAction(async () => {
-    await localManagementClient.testEnvironment({ id: environment.id });
-    await reloadEnvironments?.();
-  });
+  const key = environmentKey(environment);
+  if (testingEnvironmentId.value || testEnvironmentDisabledReason(environment)) return;
+
+  testingEnvironmentId.value = key;
+  operationError.value = "";
+  environmentTestResults[key] = {
+    state: "testing",
+    checkedAtUnixMillis: BigInt(Date.now()),
+    message: "Testing connection...",
+  };
+
+  try {
+    const resp = await localManagementClient.testEnvironment({ id: environment.id });
+    const checkedAt = resp.environment?.lastCheckedAtUnixMillis || BigInt(Date.now());
+    environmentTestResults[key] = {
+      state: "success",
+      checkedAtUnixMillis: checkedAt,
+      message: environmentStatusMessage(resp.status),
+    };
+    toast.add({
+      severity: "success",
+      summary: "Environment reachable",
+      detail: `${environment.name} responded successfully.`,
+      life: 3000,
+    });
+  } catch (err) {
+    const message = messageFromError(err);
+    environmentTestResults[key] = {
+      state: "error",
+      checkedAtUnixMillis: BigInt(Date.now()),
+      message,
+    };
+    toast.add({
+      severity: "error",
+      summary: "Environment test failed",
+      detail: message,
+      life: 5000,
+    });
+  } finally {
+    testingEnvironmentId.value = "";
+    try {
+      await reloadEnvironments?.();
+    } catch (err) {
+      operationError.value = messageFromError(err);
+    }
+  }
 }
 
 async function runLocalAction(action: () => Promise<void>) {
@@ -203,6 +258,76 @@ function trustSeverity(state: EnvironmentTrustState): "success" | "warn" | "dang
 
 function transportLabel(transport: EnvironmentTransport): string {
   return transport === EnvironmentTransport.AGENT ? "Agent" : "Direct";
+}
+
+function environmentKey(environment: Environment): string {
+  return environment.id.toString();
+}
+
+function isEnvironmentTesting(environment: Environment): boolean {
+  return testingEnvironmentId.value === environmentKey(environment);
+}
+
+function testEnvironmentDisabledReason(environment: Environment): string {
+  if (isBusy.value || isLoading.value) return BUSY_REASON;
+  if (testingEnvironmentId.value && !isEnvironmentTesting(environment)) return BUSY_REASON;
+  if (environment.trustState !== EnvironmentTrustState.TRUSTED) return "Trust this environment before testing.";
+  return "";
+}
+
+function testResultState(environment: Environment): "idle" | "testing" | "success" | "error" {
+  const result = environmentTestResults[environmentKey(environment)];
+  if (result?.state === "testing") return "testing";
+  if (result?.state === "success") return "success";
+  if (result?.state === "error") return "error";
+  if (!environment.lastCheckedAtUnixMillis || environment.lastCheckedAtUnixMillis === 0n) return "idle";
+  return environment.lastError ? "error" : "success";
+}
+
+function testResultLabel(environment: Environment): string {
+  switch (testResultState(environment)) {
+    case "testing":
+      return "Testing";
+    case "success":
+      return "Reachable";
+    case "error":
+      return "Failed";
+    default:
+      return "Not tested";
+  }
+}
+
+function testResultSeverity(environment: Environment): "success" | "warn" | "danger" | "secondary" {
+  switch (testResultState(environment)) {
+    case "testing":
+      return "warn";
+    case "success":
+      return "success";
+    case "error":
+      return "danger";
+    default:
+      return "secondary";
+  }
+}
+
+function testResultCheckedAt(environment: Environment): bigint {
+  return environmentTestResults[environmentKey(environment)]?.checkedAtUnixMillis
+    ?? environment.lastCheckedAtUnixMillis;
+}
+
+function testResultMessage(environment: Environment): string {
+  const result = environmentTestResults[environmentKey(environment)];
+  if (result?.message) return result.message;
+  if (environment.lastError) return environment.lastError;
+  if (environment.lastCheckedAtUnixMillis && environment.lastCheckedAtUnixMillis !== 0n) return "Remote responded.";
+  return "";
+}
+
+function environmentStatusMessage(status: TestEnvironmentResponse["status"]): string {
+  if (!status) return "Remote responded.";
+  if (status.proxyLastError) return `Remote responded. Proxy error: ${status.proxyLastError}`;
+  if (status.proxy?.lastError) return `Remote responded. Proxy error: ${status.proxy.lastError}`;
+  return status.proxyRunning ? "Remote responded. Proxy running." : "Remote responded. Proxy stopped.";
 }
 
 function certificateForEnvironment(environment: Environment): EnvironmentCertificate | undefined {
@@ -273,7 +398,7 @@ function messageFromError(err: unknown): string {
               <th class="px-5 py-3">Transport</th>
               <th class="px-5 py-3">Trust</th>
               <th class="px-5 py-3">Certificate</th>
-              <th class="px-5 py-3">Last Check</th>
+              <th class="px-5 py-3">Test Result</th>
               <th class="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -316,8 +441,20 @@ function messageFromError(err: unknown): string {
                 </div>
               </td>
               <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">{{ formatDate(environment.lastCheckedAtUnixMillis) }}</p>
-                <p v-if="environment.lastError" class="mt-1 max-w-xs truncate text-xs text-red-400">{{ environment.lastError }}</p>
+                <div class="grid max-w-xs gap-1.5" aria-live="polite">
+                  <Tag :value="testResultLabel(environment)" :severity="testResultSeverity(environment)" />
+                  <p class="font-mono text-xs text-[#d4d4d8]">
+                    {{ formatDate(testResultCheckedAt(environment)) }}
+                  </p>
+                  <p
+                    v-if="testResultMessage(environment)"
+                    class="truncate text-xs"
+                    :class="testResultState(environment) === 'error' ? 'text-red-400' : 'text-[#888]'"
+                    :title="testResultMessage(environment)"
+                  >
+                    {{ testResultMessage(environment) }}
+                  </p>
+                </div>
               </td>
               <td class="px-5 py-4">
                 <div class="flex justify-end gap-2">
@@ -327,7 +464,18 @@ function messageFromError(err: unknown): string {
                   <SecondaryButton size="small" aria-label="Trust certificate" title="Trust certificate" :disabled="Boolean(busyDisabledReason) || !environment.observedCertificate?.sha256Fingerprint" @click="trustCertificate(environment)">
                     <template #icon><CheckIcon class="h-3.5 w-3.5" /></template>
                   </SecondaryButton>
-                  <SecondaryButton size="small" label="Test" :disabled="Boolean(busyDisabledReason) || environment.trustState !== EnvironmentTrustState.TRUSTED" @click="testEnvironment(environment)" />
+                  <DisabledHint
+                    :disabled="Boolean(testEnvironmentDisabledReason(environment))"
+                    :reason="testEnvironmentDisabledReason(environment)"
+                  >
+                    <SecondaryButton
+                      size="small"
+                      :label="isEnvironmentTesting(environment) ? 'Testing' : 'Test'"
+                      :loading="isEnvironmentTesting(environment)"
+                      :disabled="Boolean(testEnvironmentDisabledReason(environment))"
+                      @click="testEnvironment(environment)"
+                    />
+                  </DisabledHint>
                   <SecondaryButton size="small" aria-label="Edit environment" title="Edit environment" :disabled="Boolean(busyDisabledReason)" @click="openEditEnvironment(environment)">
                     <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
                   </SecondaryButton>
