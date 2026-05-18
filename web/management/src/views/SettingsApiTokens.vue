@@ -28,6 +28,8 @@ const isIssuedTokenModalOpen = ref(false);
 const isIssuedTokenVisible = ref(false);
 const tokenCopyLabel = ref("Copy Token");
 const operationError = ref("");
+const issuedTokenVisiblePrefix = computed(() => issuedToken.value.slice(0, Math.min(10, issuedToken.value.length)));
+const issuedTokenBlurredRemainder = computed(() => issuedToken.value.slice(issuedTokenVisiblePrefix.value.length));
 
 const tokenForm = reactive({
   name: "",
@@ -249,10 +251,14 @@ function messageFromError(err: unknown): string {
             <p class="text-xs font-medium uppercase tracking-wider text-[#888]">One-Time Token</p>
           </div>
           <code
-            class="block min-h-12 break-all rounded-md border border-[#1f1f1f] bg-black p-3 font-mono text-xs leading-6"
-            :class="isIssuedTokenVisible ? 'text-white' : 'select-none text-[#666]'"
+            class="block min-h-12 break-all rounded-md border border-[#1f1f1f] bg-black p-3 font-mono text-xs leading-6 text-white"
           >
-            {{ isIssuedTokenVisible ? issuedToken : 'Hidden' }}
+            <template v-if="isIssuedTokenVisible">
+              {{ issuedToken }}
+            </template>
+            <template v-else>
+              <span>{{ issuedTokenVisiblePrefix }}</span><span class="inline-block select-none text-[#777] blur-[4px]" aria-hidden="true">{{ issuedTokenBlurredRemainder }}</span>
+            </template>
           </code>
         </div>
 
