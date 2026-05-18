@@ -174,6 +174,16 @@ describe("publicPolicyMatch", () => {
     expect(policyMatchRulePayload(form)).toBeUndefined();
   });
 
+  test("builder mode preserves CEL-only rules when the builder is empty", () => {
+    const form = policyMatchFormFromProto(create(PublicPolicyMatchRuleSchema, {
+      celExpression: 'method == "POST"',
+    }));
+
+    form.mode = "builder";
+
+    expect(policyMatchRulePayload(form)).toEqual({ celExpression: 'method == "POST"' });
+  });
+
   test("builder proto forms use generated builder CEL as sync baseline", () => {
     const form = policyMatchFormFromProto(create(PublicPolicyMatchRuleSchema, {
       celExpression: 'method == "POST"',

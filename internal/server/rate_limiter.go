@@ -130,6 +130,11 @@ type publicRateLimitKeyRuntime struct {
 	lastSeenAt       time.Time
 }
 
+type publicRateLimitEvaluationCandidate struct {
+	rule publicRateLimitRuleConfig
+	key  string
+}
+
 type publicRateLimitDecision struct {
 	Rule       publicRateLimitRuleConfig
 	Listener   publicListenerConfig
@@ -202,26 +207,37 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 		return ordered[i].Priority < ordered[j].Priority
 	})
 
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.pruneLocked(now)
+	candidates := make([]publicRateLimitEvaluationCandidate, 0, len(ordered))
 	for _, rule := range ordered {
 		if !rule.Enabled || !rule.matches(listener, r) {
 			continue
 		}
+		candidates = append(candidates, publicRateLimitEvaluationCandidate{
+			rule: rule,
+			key:  rateLimitKeyHash(rule.keyValues(listener, r)),
+		})
+	}
+	if len(candidates) == 0 {
+		return publicRateLimitDecision{}, true
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.pruneLocked(now)
+	for _, candidate := range candidates {
+		rule := candidate.rule
 		runtime := l.rules[rule.ID]
 		if runtime == nil || runtime.fingerprint != rule.Fingerprint {
 			runtime = &publicRateLimitRuleRuntime{fingerprint: rule.Fingerprint, keys: make(map[string]*publicRateLimitKeyRuntime)}
 			l.rules[rule.ID] = runtime
 		}
-		key := rateLimitKeyHash(rule.keyValues(listener, r))
-		keyState := runtime.keys[key]
+		keyState := runtime.keys[candidate.key]
 		if keyState == nil {
 			if len(runtime.keys) >= maxRateLimitKeysPerRule {
 				evictOldestRateLimitKey(runtime.keys)
 			}
 			keyState = &publicRateLimitKeyRuntime{}
-			runtime.keys[key] = keyState
+			runtime.keys[candidate.key] = keyState
 		}
 		keyState.lastSeenAt = now
 		result := keyState.allow(rule, now)

@@ -235,9 +235,11 @@ func assertMigratedLegacyPolicyMatchJSON(t *testing.T, table string, raw string)
 		`path_prefix(path, "/admin")`,
 		`path.endsWith(".JSON")`,
 		`"x-plan" in headers`,
+		`headers["x-plan"][0] == "free"`,
 		`"x-trace" in headers`,
 		`"session" in cookies`,
 		`"page" in query`,
+		`query["page"][0].contains("1")`,
 	} {
 		if !strings.Contains(migrated.CELExpression, want) {
 			t.Fatalf("%s CEL expression %q missing %q", table, migrated.CELExpression, want)
@@ -251,6 +253,12 @@ func assertMigratedLegacyPolicyMatchJSON(t *testing.T, table string, raw string)
 	}
 	if migrated.Builder.Root.Conditions[0].Field != "method" || migrated.Builder.Root.Conditions[0].Operator != "in" {
 		t.Fatalf("%s first builder condition = %+v", table, migrated.Builder.Root.Conditions[0])
+	}
+	if !migrated.Builder.Root.Conditions[5].LegacyFirstValue {
+		t.Fatalf("%s legacy header condition did not preserve first-value matching: %+v", table, migrated.Builder.Root.Conditions[5])
+	}
+	if !migrated.Builder.Root.Conditions[8].LegacyFirstValue {
+		t.Fatalf("%s legacy query condition did not preserve first-value matching: %+v", table, migrated.Builder.Root.Conditions[8])
 	}
 }
 

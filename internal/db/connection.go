@@ -935,11 +935,12 @@ type policyMatchGroup struct {
 }
 
 type policyMatchCondition struct {
-	Field    string   `json:"field"`
-	Name     string   `json:"name,omitempty"`
-	Operator string   `json:"operator"`
-	Values   []string `json:"values,omitempty"`
-	Negated  bool     `json:"negated,omitempty"`
+	Field            string   `json:"field"`
+	Name             string   `json:"name,omitempty"`
+	Operator         string   `json:"operator"`
+	Values           []string `json:"values,omitempty"`
+	Negated          bool     `json:"negated,omitempty"`
+	LegacyFirstValue bool     `json:"legacy_first_value,omitempty"`
 }
 
 func (db *DB) migrateLegacyPolicyMatchJSON() error {
@@ -1108,6 +1109,9 @@ func legacyPolicyMatcherConditions(field string, matchers []legacyPolicyValueMat
 		if operator != "present" {
 			condition.Values = []string{matcher.Value}
 		}
+		if operator != "present" && (field == "header" || field == "query_param") {
+			condition.LegacyFirstValue = true
+		}
 		resp = append(resp, condition)
 	}
 	return resp
@@ -1231,6 +1235,19 @@ func repeatedPolicyMatchCondition(mapName string, condition policyMatchCondition
 	present := name + " in " + mapName
 	if condition.Operator == "present" {
 		return present
+	}
+	if condition.LegacyFirstValue {
+		values := mapName + "[" + name + "]"
+		source := values + "[0]"
+		var comparison string
+		if condition.Operator == "in" {
+			comparison = source + " in " + policyMatchStringList(condition.Values)
+		} else {
+			comparison = anyPolicyMatchValue(condition.Values, func(value string) string {
+				return policyMatchStringComparison(source, condition.Operator, value)
+			})
+		}
+		return "(" + present + " && " + values + ".size() > 0 && (" + comparison + "))"
 	}
 	comparison := anyPolicyMatchValue(condition.Values, func(value string) string {
 		return policyMatchStringComparison("v", condition.Operator, value)

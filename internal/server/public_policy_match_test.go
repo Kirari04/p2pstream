@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
+	"p2pstream/internal/config"
 )
 
 func TestPublicPolicyMatchCELRequestFields(t *testing.T) {
@@ -224,6 +226,69 @@ func TestRemovedLegacyMatchUnknownFieldsRejected(t *testing.T) {
 				t.Fatal("expected removed match field to be rejected")
 			}
 		})
+	}
+}
+
+func TestManagementJSONRejectsRemovedLegacyMatchField(t *testing.T) {
+	app := &App{Config: &config.Config{ManagementUIDisabled: true}}
+	mux := http.NewServeMux()
+	app.RegisterManagementRoutes(mux)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		p2pstreamv1connect.AgentManagementServiceCreatePublicRateLimitRuleProcedure,
+		strings.NewReader(`{"name":"legacy","limit":1,"windowMillis":"1000","match":{"methods":["GET"]}}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Connect-Protocol-Version", "1")
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	body := strings.ToLower(rec.Body.String())
+	if rec.Code < http.StatusBadRequest || !strings.Contains(body, "unknown field") || !strings.Contains(body, "match") {
+		t.Fatalf("legacy JSON match field response = status %d body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPublicPolicyMatchLegacyFirstValueStoredBuilder(t *testing.T) {
+	match, err := decodePublicPolicyMatchJSON(`{
+		"builder": {
+			"root": {
+				"conditions": [
+					{"field": "header", "name": "x-plan", "operator": "equals", "values": ["free"], "legacy_first_value": true},
+					{"field": "query_param", "name": "plan", "operator": "equals", "values": ["free"], "legacy_first_value": true}
+				]
+			}
+		}
+	}`)
+	if err != nil {
+		t.Fatalf("decode legacy first-value builder: %v", err)
+	}
+	for _, want := range []string{`headers["x-plan"][0] == "free"`, `query["plan"][0] == "free"`} {
+		if !strings.Contains(match.CELExpression, want) {
+			t.Fatalf("legacy first-value expression %q missing %q", match.CELExpression, want)
+		}
+	}
+
+	listener := publicListenerConfig{Protocol: publicListenerProtocolHTTP}
+	previouslySkipped := httptest.NewRequest(http.MethodGet, "http://example.test/?plan=paid&plan=free", nil)
+	previouslySkipped.Header.Add("X-Plan", "paid")
+	previouslySkipped.Header.Add("X-Plan", "free")
+	if match.matches(listener, previouslySkipped) {
+		t.Fatal("legacy first-value match used a later duplicate value")
+	}
+
+	previouslyMatched := httptest.NewRequest(http.MethodGet, "http://example.test/?plan=free&plan=paid", nil)
+	previouslyMatched.Header.Add("X-Plan", "free")
+	previouslyMatched.Header.Add("X-Plan", "paid")
+	if !match.matches(listener, previouslyMatched) {
+		t.Fatal("legacy first-value match did not use the first duplicate value")
+	}
+
+	protoRule := publicPolicyMatchRuleToProto(match)
+	if protoRule == nil || protoRule.Builder != nil {
+		t.Fatalf("legacy first-value builder should be returned as CEL-only, got %#v", protoRule)
 	}
 }
 

@@ -101,7 +101,10 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(sourceOfferPath, sourceOfferHandler)
 	mux.HandleFunc("/ws", a.wsHandler)
-	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a)
+	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a,
+		connect.WithCodec(strictProtoJSONCodec{name: "json"}),
+		connect.WithCodec(strictProtoJSONCodec{name: "json; charset=utf-8"}),
+	)
 	mux.Handle(path, handler)
 	if !a.Config.ManagementUIDisabled {
 		mux.Handle("/", managementui.NewHandler(a.Config.ManagementUIDevProxy, a.Config.ManagementUIDistDir))

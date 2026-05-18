@@ -114,7 +114,7 @@ export function policyMatchRulePayload(form: PolicyMatchForm): PublicPolicyMatch
     return expression ? { celExpression: expression } : undefined;
   }
   const root = groupPayloadFromForm(form.root);
-  if (!groupHasContent(root)) return undefined;
+  if (!groupHasContent(root)) return manualExpressionPayload(form);
   const builder = { root };
   return {
     celExpression: builderToCEL(builderFormFromPayload(builder)),
@@ -198,6 +198,12 @@ export function normalizeConditionForField(condition: PolicyMatchConditionForm):
 export function policyMatchValidationReason(form: PolicyMatchForm): string {
   if (form.mode === "expression") return "";
   return groupValidationReason(form.root);
+}
+
+function manualExpressionPayload(form: PolicyMatchForm): PublicPolicyMatchRulePayload | undefined {
+  const expression = form.expression.trim();
+  const lastGeneratedExpression = (form.lastGeneratedExpression ?? "").trim();
+  return expression && expression !== lastGeneratedExpression ? { celExpression: expression } : undefined;
 }
 
 function groupValidationReason(group: PolicyMatchGroupForm): string {
