@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import EyeIcon from "@primevue/icons/eye";
+import EyeSlashIcon from "@primevue/icons/eyeslash";
 import RefreshIcon from "@primevue/icons/refresh";
 import TrashIcon from "@primevue/icons/trash";
 import { computed, inject, onMounted, reactive, ref, watch } from "vue";
@@ -8,6 +10,7 @@ import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
+import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import Tag from "@/volt/Tag.vue";
 import type { ManagementAccessToken } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -21,6 +24,9 @@ const selectedEnvironmentBlocked = inject<ComputedRef<string>>("selectedEnvironm
 const tokens = ref<ManagementAccessToken[]>([]);
 const isLoading = ref(false);
 const issuedToken = ref("");
+const isIssuedTokenModalOpen = ref(false);
+const isIssuedTokenVisible = ref(false);
+const tokenCopyLabel = ref("Copy Token");
 const operationError = ref("");
 
 const tokenForm = reactive({
@@ -40,7 +46,7 @@ onMounted(() => {
 });
 
 watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
-  issuedToken.value = "";
+  clearIssuedToken();
   operationError.value = "";
   tokens.value = [];
   void refreshTokens();
@@ -76,11 +82,32 @@ async function createToken() {
       expiresAtUnixMillis: tokenExpiryMillis(),
     });
     issuedToken.value = resp.token;
+    isIssuedTokenVisible.value = false;
+    tokenCopyLabel.value = "Copy Token";
+    isIssuedTokenModalOpen.value = true;
     tokenForm.name = "";
     tokenForm.expiresAt = "";
     tokenForm.enabled = true;
     await loadTokens();
   });
+}
+
+async function copyIssuedToken() {
+  if (!issuedToken.value) return;
+  try {
+    await navigator.clipboard.writeText(issuedToken.value);
+    tokenCopyLabel.value = "Copied";
+  } catch (err) {
+    operationError.value = messageFromError(err);
+    tokenCopyLabel.value = "Copy Failed";
+  }
+}
+
+function clearIssuedToken() {
+  issuedToken.value = "";
+  isIssuedTokenModalOpen.value = false;
+  isIssuedTokenVisible.value = false;
+  tokenCopyLabel.value = "Copy Token";
 }
 
 async function deleteToken(token: ManagementAccessToken) {
@@ -171,10 +198,6 @@ function messageFromError(err: unknown): string {
             <Button label="Create Token" type="submit" :disabled="Boolean(actionDisabledReason)" />
           </DisabledHint>
         </form>
-        <div v-if="issuedToken" class="mt-5 rounded-md border border-[#333] bg-[#050505] p-3">
-          <p class="mb-2 text-xs uppercase tracking-wider text-[#888]">Issued Token</p>
-          <code class="block break-all font-mono text-xs text-white">{{ issuedToken }}</code>
-        </div>
       </div>
 
       <div class="vercel-card overflow-hidden">
@@ -218,5 +241,40 @@ function messageFromError(err: unknown): string {
         </div>
       </div>
     </section>
+
+    <Modal :model-value="isIssuedTokenModalOpen" title="API Token Created" max-width="38rem" @update:model-value="clearIssuedToken">
+      <div class="space-y-5">
+        <div class="rounded-md border border-amber-900/60 bg-black p-4 text-sm leading-6 text-amber-200">
+          This token is shown once for {{ selectedEnvironmentLabel }}. It is hidden by default to avoid leaking during screen sharing. Copy it now before closing this dialog.
+        </div>
+
+        <div class="rounded-md border border-[#333] bg-[#050505] p-4">
+          <div class="mb-2 flex items-center justify-between gap-3">
+            <p class="text-xs font-medium uppercase tracking-wider text-[#888]">One-Time Token</p>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-md border border-[#333] px-2 py-1 text-xs text-[#d4d4d8] transition-colors hover:border-[#555] hover:text-white"
+              :aria-label="isIssuedTokenVisible ? 'Hide API token' : 'Reveal API token'"
+              @click="isIssuedTokenVisible = !isIssuedTokenVisible"
+            >
+              <EyeSlashIcon v-if="isIssuedTokenVisible" class="h-3.5 w-3.5" />
+              <EyeIcon v-else class="h-3.5 w-3.5" />
+              {{ isIssuedTokenVisible ? 'Hide' : 'Reveal' }}
+            </button>
+          </div>
+          <code
+            class="block min-h-12 break-all rounded-md border border-[#1f1f1f] bg-black p-3 font-mono text-xs leading-6"
+            :class="isIssuedTokenVisible ? 'text-white' : 'select-none text-[#666]'"
+          >
+            {{ isIssuedTokenVisible ? issuedToken : 'Hidden until revealed. Use Copy Token to store it without showing it on screen.' }}
+          </code>
+        </div>
+
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <SecondaryButton type="button" label="Done" @click="clearIssuedToken" />
+          <Button type="button" :label="tokenCopyLabel" @click="copyIssuedToken" />
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
