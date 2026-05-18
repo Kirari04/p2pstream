@@ -19,6 +19,7 @@ import Tag from "@/volt/Tag.vue";
 import type {
   Agent,
   Environment,
+  EnvironmentCertificate,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   EnvironmentTransport,
@@ -33,6 +34,7 @@ const confirmDialog = useConfirmDialog();
 const localAgents = ref<Agent[]>([]);
 const isLoading = ref(false);
 const isEnvironmentModalOpen = ref(false);
+const certificateTrustEnvironment = ref<Environment | null>(null);
 const operationError = ref("");
 
 const environmentForm = reactive({
@@ -48,6 +50,8 @@ const environmentForm = reactive({
 
 const busyDisabledReason = computed(() => isBusy.value || isLoading.value ? BUSY_REASON : "");
 const enabledLocalAgents = computed(() => localAgents.value.filter((agent) => agent.enabled));
+const certificateTrustCertificate = computed(() => certificateTrustEnvironment.value?.observedCertificate);
+const certificateTrustFingerprint = computed(() => certificateTrustCertificate.value?.sha256Fingerprint ?? "");
 
 onMounted(() => {
   void refreshLocalData();
@@ -140,14 +144,20 @@ async function discoverCertificate(environment: Environment) {
 async function trustCertificate(environment: Environment) {
   const fingerprint = environment.observedCertificate?.sha256Fingerprint ?? "";
   if (!fingerprint) return;
-  const confirmed = await confirmDialog.confirm(
-    "Trust Certificate",
-    `Trust ${fingerprint} for "${environment.name}"?`,
-    "Trust Certificate",
-  );
-  if (!confirmed) return;
+  certificateTrustEnvironment.value = environment;
+}
+
+function closeTrustCertificateModal() {
+  certificateTrustEnvironment.value = null;
+}
+
+async function confirmTrustCertificate() {
+  const environment = certificateTrustEnvironment.value;
+  const fingerprint = certificateTrustFingerprint.value;
+  if (!environment || !fingerprint) return;
   await runLocalAction(async () => {
     await localManagementClient.trustEnvironmentCertificate({ id: environment.id, sha256Fingerprint: fingerprint });
+    closeTrustCertificateModal();
     await reloadEnvironments?.();
   });
 }
@@ -193,6 +203,34 @@ function trustSeverity(state: EnvironmentTrustState): "success" | "warn" | "dang
 
 function transportLabel(transport: EnvironmentTransport): string {
   return transport === EnvironmentTransport.AGENT ? "Agent" : "Direct";
+}
+
+function certificateForEnvironment(environment: Environment): EnvironmentCertificate | undefined {
+  return environment.observedCertificate ?? environment.trustedCertificate;
+}
+
+function certificateFingerprintForEnvironment(environment: Environment): string {
+  return certificateForEnvironment(environment)?.sha256Fingerprint ?? "";
+}
+
+function certificateSubject(cert: EnvironmentCertificate | undefined): string {
+  if (!cert) return "No certificate discovered";
+  return cert.subject || cert.dnsNames[0] || cert.ipAddresses[0] || "Unknown subject";
+}
+
+function certificateSanSummary(cert: EnvironmentCertificate | undefined): string {
+  if (!cert) return "";
+  const names = [...cert.dnsNames, ...cert.ipAddresses];
+  if (!names.length) return "";
+  if (names.length <= 2) return names.join(", ");
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+}
+
+function formatFingerprint(value: string): string {
+  const normalized = value.replaceAll(":", "").trim().toUpperCase();
+  if (!normalized) return "-";
+  if (normalized.length <= 28) return normalized;
+  return `${normalized.slice(0, 12)}...${normalized.slice(-12)}`;
 }
 
 function formatDate(value: bigint | undefined): string {
@@ -262,12 +300,20 @@ function messageFromError(err: unknown): string {
                 <Tag :value="trustLabel(environment.trustState)" :severity="trustSeverity(environment.trustState)" />
               </td>
               <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">
-                  {{ environment.observedCertificate?.sha256Fingerprint || environment.trustedCertificate?.sha256Fingerprint || '-' }}
-                </p>
-                <p class="mt-1 text-xs text-[#888]">
-                  Expires {{ formatDate(environment.trustedCertificate?.notAfterUnixMillis || environment.observedCertificate?.notAfterUnixMillis) }}
-                </p>
+                <div class="grid max-w-[18rem] gap-1.5">
+                  <p class="truncate text-xs text-[#d4d4d8]" :title="certificateSubject(certificateForEnvironment(environment))">
+                    {{ certificateSubject(certificateForEnvironment(environment)) }}
+                  </p>
+                  <code
+                    class="inline-flex max-w-full rounded border border-[#333] bg-[#050505] px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-[#d4d4d8]"
+                    :title="certificateFingerprintForEnvironment(environment) || 'No certificate discovered'"
+                  >
+                    <span class="truncate">{{ formatFingerprint(certificateFingerprintForEnvironment(environment)) }}</span>
+                  </code>
+                  <p class="text-xs text-[#888]">
+                    Expires {{ formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis) }}
+                  </p>
+                </div>
               </td>
               <td class="px-5 py-4">
                 <p class="font-mono text-xs text-[#d4d4d8]">{{ formatDate(environment.lastCheckedAtUnixMillis) }}</p>
@@ -361,6 +407,62 @@ function messageFromError(err: unknown): string {
           <Button :label="environmentForm.id ? 'Save Changes' : 'Create Environment'" type="submit" :disabled="Boolean(busyDisabledReason)" />
         </div>
       </form>
+    </Modal>
+    <Modal :model-value="Boolean(certificateTrustEnvironment)" title="Trust Certificate" max-width="34rem" @update:model-value="closeTrustCertificateModal">
+      <div class="grid gap-5">
+        <div class="rounded-md border border-[#333] bg-[#050505] p-4">
+          <div class="grid gap-4">
+            <div class="grid gap-1">
+              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Environment</p>
+              <p class="truncate text-sm text-white" :title="certificateTrustEnvironment?.name">
+                {{ certificateTrustEnvironment?.name }}
+              </p>
+            </div>
+            <div class="grid gap-1">
+              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">SHA-256 Fingerprint</p>
+              <code
+                class="block max-w-full truncate rounded-md border border-[#333] bg-black px-3 py-2 font-mono text-xs uppercase tracking-wider text-white"
+                :title="certificateTrustFingerprint"
+              >
+                {{ formatFingerprint(certificateTrustFingerprint) }}
+              </code>
+            </div>
+            <div class="grid gap-1">
+              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Subject</p>
+              <p class="truncate text-sm text-[#d4d4d8]" :title="certificateSubject(certificateTrustCertificate)">
+                {{ certificateSubject(certificateTrustCertificate) }}
+              </p>
+            </div>
+            <div v-if="certificateTrustCertificate?.issuer" class="grid gap-1">
+              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Issuer</p>
+              <p class="truncate text-sm text-[#d4d4d8]" :title="certificateTrustCertificate.issuer">
+                {{ certificateTrustCertificate.issuer }}
+              </p>
+            </div>
+            <div v-if="certificateSanSummary(certificateTrustCertificate)" class="grid gap-1">
+              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Names</p>
+              <p class="truncate text-sm text-[#d4d4d8]" :title="certificateSanSummary(certificateTrustCertificate)">
+                {{ certificateSanSummary(certificateTrustCertificate) }}
+              </p>
+            </div>
+            <div class="grid gap-1">
+              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Valid Until</p>
+              <p class="font-mono text-xs text-[#d4d4d8]">
+                {{ formatDate(certificateTrustCertificate?.notAfterUnixMillis) }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3">
+          <SecondaryButton type="button" label="Cancel" @click="closeTrustCertificateModal" />
+          <Button
+            type="button"
+            label="Trust Certificate"
+            :disabled="Boolean(busyDisabledReason) || !certificateTrustFingerprint"
+            @click="confirmTrustCertificate"
+          />
+        </div>
+      </div>
     </Modal>
     <ConfirmDialog
       :state="confirmDialog.state"
