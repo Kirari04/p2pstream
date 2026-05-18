@@ -3,10 +3,12 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
@@ -893,7 +895,401 @@ func (db *DB) migrate() error {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_last_accessed_at ON public_cache_entries (last_accessed_at)`); err != nil {
 		return err
 	}
+	if err := db.migrateLegacyPolicyMatchJSON(); err != nil {
+		return err
+	}
 	return nil
+}
+
+type legacyPolicyMatchJSON struct {
+	Methods      []string                   `json:"methods,omitempty"`
+	Protocols    []string                   `json:"protocols,omitempty"`
+	HostPatterns []string                   `json:"host_patterns,omitempty"`
+	PathPrefixes []string                   `json:"path_prefixes,omitempty"`
+	PathSuffixes []string                   `json:"path_suffixes,omitempty"`
+	Headers      []legacyPolicyValueMatcher `json:"headers,omitempty"`
+	Cookies      []legacyPolicyValueMatcher `json:"cookies,omitempty"`
+	QueryParams  []legacyPolicyValueMatcher `json:"query_params,omitempty"`
+}
+
+type legacyPolicyValueMatcher struct {
+	Name     string `json:"name"`
+	Operator string `json:"operator"`
+	Value    string `json:"value,omitempty"`
+}
+
+type policyMatchJSON struct {
+	CELExpression string              `json:"cel_expression,omitempty"`
+	Builder       *policyMatchBuilder `json:"builder,omitempty"`
+}
+
+type policyMatchBuilder struct {
+	Root *policyMatchGroup `json:"root,omitempty"`
+}
+
+type policyMatchGroup struct {
+	Operator   string                 `json:"operator,omitempty"`
+	Conditions []policyMatchCondition `json:"conditions,omitempty"`
+	Groups     []policyMatchGroup     `json:"groups,omitempty"`
+	Negated    bool                   `json:"negated,omitempty"`
+}
+
+type policyMatchCondition struct {
+	Field            string   `json:"field"`
+	Name             string   `json:"name,omitempty"`
+	Operator         string   `json:"operator"`
+	Values           []string `json:"values,omitempty"`
+	Negated          bool     `json:"negated,omitempty"`
+	LegacyFirstValue bool     `json:"legacy_first_value,omitempty"`
+}
+
+func (db *DB) migrateLegacyPolicyMatchJSON() error {
+	for _, table := range []string{
+		"public_rate_limit_rules",
+		"public_traffic_shaper_rules",
+		"public_waf_rules",
+		"public_cache_rules",
+	} {
+		if err := db.migrateLegacyPolicyMatchJSONTable(table); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *DB) migrateLegacyPolicyMatchJSONTable(table string) error {
+	rows, err := db.Query(fmt.Sprintf(`SELECT id, match_json FROM %s`, table))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	type update struct {
+		id  int64
+		raw string
+	}
+	var updates []update
+	for rows.Next() {
+		var id int64
+		var raw string
+		if err := rows.Scan(&id, &raw); err != nil {
+			return err
+		}
+		converted, changed, err := migrateLegacyPolicyMatchJSONValue(raw)
+		if err != nil {
+			return fmt.Errorf("%s id %d match_json migration failed: %w", table, id, err)
+		}
+		if changed {
+			updates = append(updates, update{id: id, raw: converted})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, item := range updates {
+		if _, err := db.Exec(fmt.Sprintf(`UPDATE %s SET match_json = ? WHERE id = ?`, table), item.raw, item.id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrateLegacyPolicyMatchJSONValue(raw string) (string, bool, error) {
+	if strings.TrimSpace(raw) == "" {
+		return raw, false, nil
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
+		return "", false, err
+	}
+	if len(fields) == 0 {
+		return raw, false, nil
+	}
+	if _, ok := fields["cel_expression"]; ok {
+		return raw, false, nil
+	}
+	if _, ok := fields["builder"]; ok {
+		return raw, false, nil
+	}
+	if !legacyPolicyMatchJSONHasFields(fields) {
+		return "", false, fmt.Errorf("unsupported policy match JSON shape")
+	}
+	var legacy legacyPolicyMatchJSON
+	if err := json.Unmarshal([]byte(raw), &legacy); err != nil {
+		return "", false, err
+	}
+	builder := legacyPolicyMatchBuilder(legacy)
+	if builder == nil {
+		return "{}", true, nil
+	}
+	expression, err := policyMatchBuilderExpression(builder)
+	if err != nil {
+		return "", false, err
+	}
+	converted, err := json.Marshal(policyMatchJSON{
+		CELExpression: expression,
+		Builder:       builder,
+	})
+	if err != nil {
+		return "", false, err
+	}
+	return string(converted), true, nil
+}
+
+func legacyPolicyMatchJSONHasFields(fields map[string]json.RawMessage) bool {
+	for _, key := range []string{"methods", "protocols", "host_patterns", "path_prefixes", "path_suffixes", "headers", "cookies", "query_params"} {
+		if _, ok := fields[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func legacyPolicyMatchBuilder(legacy legacyPolicyMatchJSON) *policyMatchBuilder {
+	root := policyMatchGroup{Operator: "all"}
+	if values := normalizeLegacyPolicyValues(legacy.Methods, func(value string) string {
+		return strings.ToUpper(strings.TrimSpace(value))
+	}); len(values) > 0 {
+		root.Conditions = append(root.Conditions, policyMatchCondition{Field: "method", Operator: "in", Values: values})
+	}
+	if values := normalizeLegacyPolicyValues(legacy.Protocols, func(value string) string {
+		return strings.ToLower(strings.TrimSpace(value))
+	}); len(values) > 0 {
+		root.Conditions = append(root.Conditions, policyMatchCondition{Field: "protocol", Operator: "in", Values: values})
+	}
+	if values := normalizeLegacyPolicyValues(legacy.HostPatterns, normalizeLegacyPolicyHost); len(values) > 0 {
+		root.Conditions = append(root.Conditions, policyMatchCondition{Field: "host", Operator: "host_pattern", Values: values})
+	}
+	if values := normalizeLegacyPolicyValues(legacy.PathPrefixes, normalizeLegacyPolicyPathPrefix); len(values) > 0 {
+		root.Conditions = append(root.Conditions, policyMatchCondition{Field: "path", Operator: "prefix", Values: values})
+	}
+	if values := normalizeLegacyPolicyValues(legacy.PathSuffixes, strings.TrimSpace); len(values) > 0 {
+		root.Conditions = append(root.Conditions, policyMatchCondition{Field: "path", Operator: "suffix", Values: values})
+	}
+	root.Conditions = append(root.Conditions, legacyPolicyMatcherConditions("header", legacy.Headers, strings.ToLower)...)
+	root.Conditions = append(root.Conditions, legacyPolicyMatcherConditions("cookie", legacy.Cookies, strings.TrimSpace)...)
+	root.Conditions = append(root.Conditions, legacyPolicyMatcherConditions("query_param", legacy.QueryParams, strings.TrimSpace)...)
+	if len(root.Conditions) == 0 {
+		return nil
+	}
+	return &policyMatchBuilder{Root: &root}
+}
+
+func normalizeLegacyPolicyValues(values []string, normalize func(string) string) []string {
+	resp := make([]string, 0, len(values))
+	for _, value := range values {
+		value = normalize(value)
+		if value != "" {
+			resp = append(resp, value)
+		}
+	}
+	return resp
+}
+
+func normalizeLegacyPolicyHost(value string) string {
+	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(value)), ".")
+}
+
+func normalizeLegacyPolicyPathPrefix(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.HasPrefix(value, "/") {
+		return value
+	}
+	return "/" + value
+}
+
+func legacyPolicyMatcherConditions(field string, matchers []legacyPolicyValueMatcher, normalizeName func(string) string) []policyMatchCondition {
+	resp := make([]policyMatchCondition, 0, len(matchers))
+	for _, matcher := range matchers {
+		name := normalizeName(strings.TrimSpace(matcher.Name))
+		if name == "" {
+			continue
+		}
+		operator := legacyPolicyMatchOperator(matcher.Operator)
+		condition := policyMatchCondition{Field: field, Name: name, Operator: operator}
+		if operator != "present" {
+			condition.Values = []string{matcher.Value}
+		}
+		if operator != "present" && (field == "header" || field == "query_param") {
+			condition.LegacyFirstValue = true
+		}
+		resp = append(resp, condition)
+	}
+	return resp
+}
+
+func legacyPolicyMatchOperator(operator string) string {
+	switch strings.ToLower(strings.TrimSpace(operator)) {
+	case "present", "prefix", "suffix", "contains":
+		return strings.ToLower(strings.TrimSpace(operator))
+	default:
+		return "equals"
+	}
+}
+
+func policyMatchBuilderExpression(builder *policyMatchBuilder) (string, error) {
+	if builder == nil || builder.Root == nil {
+		return "", nil
+	}
+	return policyMatchGroupExpression(*builder.Root)
+}
+
+func policyMatchGroupExpression(group policyMatchGroup) (string, error) {
+	operator := strings.TrimSpace(group.Operator)
+	if operator == "" {
+		operator = "all"
+	}
+	if operator != "all" && operator != "any" {
+		return "", fmt.Errorf("policy match boolean operator is invalid")
+	}
+	parts := make([]string, 0, len(group.Conditions)+len(group.Groups))
+	for _, condition := range group.Conditions {
+		expression, err := policyMatchConditionExpression(condition)
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, expression)
+	}
+	for _, child := range group.Groups {
+		expression, err := policyMatchGroupExpression(child)
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, expression)
+	}
+	expression := "true"
+	if len(parts) > 0 {
+		joiner := " && "
+		if operator == "any" {
+			joiner = " || "
+		}
+		expression = "(" + strings.Join(parts, joiner) + ")"
+	}
+	if group.Negated {
+		expression = "!(" + expression + ")"
+	}
+	return expression, nil
+}
+
+func policyMatchConditionExpression(condition policyMatchCondition) (string, error) {
+	var expression string
+	switch condition.Field {
+	case "header":
+		expression = repeatedPolicyMatchCondition("headers", condition)
+	case "query_param":
+		expression = repeatedPolicyMatchCondition("query", condition)
+	case "cookie":
+		expression = stringMapPolicyMatchCondition("cookies", condition)
+	case "host":
+		if condition.Operator == "host_pattern" {
+			expression = anyPolicyMatchValue(condition.Values, func(value string) string {
+				return "host_match(host, " + quotePolicyMatchCEL(value) + ")"
+			})
+		} else {
+			expression = scalarPolicyMatchCondition("host", condition)
+		}
+	case "path":
+		if condition.Operator == "prefix" {
+			expression = anyPolicyMatchValue(condition.Values, func(value string) string {
+				return "path_prefix(path, " + quotePolicyMatchCEL(value) + ")"
+			})
+		} else {
+			expression = scalarPolicyMatchCondition("path", condition)
+		}
+	case "method":
+		expression = scalarPolicyMatchCondition("method", condition)
+	case "protocol":
+		expression = scalarPolicyMatchCondition("protocol", condition)
+	default:
+		return "", fmt.Errorf("policy match field is invalid")
+	}
+	if condition.Negated {
+		expression = "!(" + expression + ")"
+	}
+	return "(" + expression + ")", nil
+}
+
+func scalarPolicyMatchCondition(source string, condition policyMatchCondition) string {
+	if condition.Operator == "in" {
+		return source + " in " + policyMatchStringList(condition.Values)
+	}
+	return anyPolicyMatchValue(condition.Values, func(value string) string {
+		return policyMatchStringComparison(source, condition.Operator, value)
+	})
+}
+
+func stringMapPolicyMatchCondition(mapName string, condition policyMatchCondition) string {
+	name := quotePolicyMatchCEL(condition.Name)
+	present := name + " in " + mapName
+	if condition.Operator == "present" {
+		return present
+	}
+	source := mapName + "[" + name + "]"
+	comparison := anyPolicyMatchValue(condition.Values, func(value string) string {
+		return policyMatchStringComparison(source, condition.Operator, value)
+	})
+	return "(" + present + " && (" + comparison + "))"
+}
+
+func repeatedPolicyMatchCondition(mapName string, condition policyMatchCondition) string {
+	name := quotePolicyMatchCEL(condition.Name)
+	present := name + " in " + mapName
+	if condition.Operator == "present" {
+		return present
+	}
+	if condition.LegacyFirstValue {
+		values := mapName + "[" + name + "]"
+		source := values + "[0]"
+		var comparison string
+		if condition.Operator == "in" {
+			comparison = source + " in " + policyMatchStringList(condition.Values)
+		} else {
+			comparison = anyPolicyMatchValue(condition.Values, func(value string) string {
+				return policyMatchStringComparison(source, condition.Operator, value)
+			})
+		}
+		return "(" + present + " && " + values + ".size() > 0 && (" + comparison + "))"
+	}
+	comparison := anyPolicyMatchValue(condition.Values, func(value string) string {
+		return policyMatchStringComparison("v", condition.Operator, value)
+	})
+	return "(" + present + " && " + mapName + "[" + name + "].exists(v, " + comparison + "))"
+}
+
+func policyMatchStringComparison(source string, operator string, value string) string {
+	quoted := quotePolicyMatchCEL(value)
+	switch operator {
+	case "prefix":
+		return source + ".startsWith(" + quoted + ")"
+	case "suffix":
+		return source + ".endsWith(" + quoted + ")"
+	case "contains":
+		return source + ".contains(" + quoted + ")"
+	default:
+		return source + " == " + quoted
+	}
+}
+
+func anyPolicyMatchValue(values []string, expression func(string) string) string {
+	if len(values) == 0 {
+		return "false"
+	}
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, expression(value))
+	}
+	return "(" + strings.Join(parts, " || ") + ")"
+}
+
+func quotePolicyMatchCEL(value string) string {
+	return strconv.Quote(value)
+}
+
+func policyMatchStringList(values []string) string {
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		parts = append(parts, quotePolicyMatchCEL(value))
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 type sqliteTableColumn struct {

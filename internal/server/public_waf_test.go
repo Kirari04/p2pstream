@@ -964,7 +964,6 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 		p2pstreamv1.PublicWafRuleAction_PUBLIC_WAF_RULE_ACTION_CAPTCHA,
 		p2pstreamv1.PublicWafActivationMode_PUBLIC_WAF_ACTIVATION_MODE_ALWAYS,
 		nil,
-		nil,
 		disabled.ID,
 		0,
 		nil,
@@ -976,6 +975,7 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 		0,
 		0,
 		"",
+		nil,
 		nil,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {

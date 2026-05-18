@@ -83,17 +83,11 @@ func TestPublicRateLimiterAlgorithms(t *testing.T) {
 
 func TestPublicRateLimiterMatchingAndCompositeKeys(t *testing.T) {
 	rule := testRateLimitRule(publicRateLimitAlgorithmFixedWindow, 1, 1000, 0)
-	rule.Match = publicRateLimitMatchConfig{
-		Methods:      []string{"GET"},
-		Protocols:    []string{publicListenerProtocolHTTP},
-		HostPatterns: []string{"api.example.com"},
-		PathPrefixes: []string{"/api"},
-		Headers: []publicRateLimitValueMatcherConfig{{
-			Name:     "X-Plan",
-			Operator: publicRateLimitMatchOperatorEquals,
-			Value:    "free",
-		}},
-	}
+	rule.Match = mustPublicPolicyMatchCEL(t, `method == "GET" &&
+		protocol == "http" &&
+		host_match(host, "api.example.com") &&
+		path_prefix(path, "/api") &&
+		headers["x-plan"].exists(v, v == "free")`)
 	rule.KeyParts = []publicRateLimitKeyPartConfig{
 		{Source: publicRateLimitKeySourceRemoteIP},
 		{Source: publicRateLimitKeySourceHeader, Name: "X-User"},
@@ -168,12 +162,12 @@ func TestPublicRateLimitValidationRejectsUnsafeInput(t *testing.T) {
 		1000,
 		101,
 		nil,
-		nil,
 		429,
 		"",
 		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
 		0,
 		"",
+		nil,
 		nil,
 	); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected invalid burst error, got %v", err)
@@ -188,13 +182,13 @@ func TestPublicRateLimitValidationRejectsUnsafeInput(t *testing.T) {
 		1000,
 		0,
 		nil,
-		nil,
 		429,
 		"",
 		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
 		0,
 		"",
 		[]*p2pstreamv1.PublicRateLimitResponseHeader{{Name: "Content-Length", Value: "1"}},
+		nil,
 	); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected protected header error, got %v", err)
 	}
@@ -208,12 +202,12 @@ func TestPublicRateLimitValidationRejectsUnsafeInput(t *testing.T) {
 		1000,
 		0,
 		nil,
-		nil,
 		429,
 		"",
 		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_TEMPLATE,
 		0,
 		"",
+		nil,
 		nil,
 	); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected missing template id error, got %v", err)

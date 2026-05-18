@@ -8,6 +8,13 @@ import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPart
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import {
+  defaultPolicyMatchForm,
+  policyMatchFormFromProto,
+  policyMatchRulePayload,
+  policyMatchValidationReason,
+  type PolicyMatchForm,
+} from "@/lib/publicPolicyMatch";
+import {
   defaultWafTriggerForm,
   setWafTriggerMetricEnabled,
   wafTriggerFormFromProto,
@@ -19,9 +26,7 @@ import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import {
-  PublicListenerProtocol,
   PublicRateLimitKeySource,
-  PublicRateLimitMatchOperator,
   PublicResponseBodyMode,
   PublicResponseTemplateKind,
   PublicWafActivationMode,
@@ -30,11 +35,6 @@ import {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
-type MatcherForm = {
-  name: string;
-  operator: PublicRateLimitMatchOperator;
-  value: string;
-};
 type KeyPartForm = {
   source: PublicRateLimitKeySource;
   name: string;
@@ -75,7 +75,6 @@ const providers = computed(() => props.config?.wafCaptchaProviders ?? []);
 const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
 const captchaTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_CAPTCHA_PAGE));
 const waitingRoomTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE));
-const matchEditor = ref<InstanceType<typeof PublicPolicyMatchEditor> | null>(null);
 
 const form = reactive({
   id: "",
@@ -84,16 +83,7 @@ const form = reactive({
   priority: 100,
   action: PublicWafRuleAction.BLOCK,
   activationMode: PublicWafActivationMode.ALWAYS,
-  match: {
-    methods: [] as string[],
-    protocols: [] as PublicListenerProtocol[],
-    hostPatternsText: "",
-    pathPrefixesText: "",
-    pathSuffixesText: "",
-    headers: [] as MatcherForm[],
-    cookies: [] as MatcherForm[],
-    queryParams: [] as MatcherForm[],
-  },
+  match: defaultPolicyMatchForm() as PolicyMatchForm,
   keyParts: [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }] as KeyPartForm[],
   captchaProviderId: "",
   captchaPassMinutes: 30,
@@ -267,6 +257,7 @@ const submitDisabledReason = computed(() => {
     return "Select a block response template.";
   }
   if (triggerValidationMessage.value) return triggerValidationMessage.value;
+  if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -299,14 +290,7 @@ function resetForm() {
   form.priority = 100;
   form.action = PublicWafRuleAction.BLOCK;
   form.activationMode = PublicWafActivationMode.ALWAYS;
-  form.match.methods = [];
-  form.match.protocols = [];
-  form.match.hostPatternsText = "";
-  form.match.pathPrefixesText = "";
-  form.match.pathSuffixesText = "";
-  form.match.headers = [];
-  form.match.cookies = [];
-  form.match.queryParams = [];
+  form.match = defaultPolicyMatchForm();
   form.keyParts = [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
   form.captchaProviderId = firstEnabledProviderId();
   form.captchaPassMinutes = 30;
@@ -343,14 +327,7 @@ function openEdit(ruleId: bigint | string) {
   form.priority = Number(rule.priority);
   form.action = rule.action || PublicWafRuleAction.BLOCK;
   form.activationMode = rule.activationMode || PublicWafActivationMode.ALWAYS;
-  form.match.methods = [...(rule.match?.methods ?? [])];
-  form.match.protocols = [...(rule.match?.protocols ?? [])];
-  form.match.hostPatternsText = (rule.match?.hostPatterns ?? []).join("\n");
-  form.match.pathPrefixesText = (rule.match?.pathPrefixes ?? []).join("\n");
-  form.match.pathSuffixesText = (rule.match?.pathSuffixes ?? []).join("\n");
-  form.match.headers = cloneMatchers(rule.match?.headers ?? []);
-  form.match.cookies = cloneMatchers(rule.match?.cookies ?? []);
-  form.match.queryParams = cloneMatchers(rule.match?.queryParams ?? []);
+  form.match = policyMatchFormFromProto(rule.matchRule);
   form.keyParts = rule.keyParts.length
     ? rule.keyParts.map((part) => ({ source: part.source, name: part.name }))
     : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
@@ -373,19 +350,10 @@ function openEdit(ruleId: bigint | string) {
   form.blockResponseTemplateId = rule.blockResponseTemplateId ? rule.blockResponseTemplateId.toString() : "";
   form.blockResponseHeaders = rule.blockResponseHeaders.map((header) => ({ name: header.name, value: header.value }));
   isOpen.value = true;
-  requestAnimationFrame(() => matchEditor.value?.setInitialTab());
 }
 
 function close() {
   isOpen.value = false;
-}
-
-function cloneMatchers(matchers: readonly MatcherForm[]): MatcherForm[] {
-  return matchers.map((matcher) => ({
-    name: matcher.name,
-    operator: matcher.operator || PublicRateLimitMatchOperator.EQUALS,
-    value: matcher.value,
-  }));
 }
 
 function millisToSeconds(value: bigint): number {
@@ -404,24 +372,10 @@ function secondsToMillis(value: number): bigint {
   return BigInt(Math.round((value || 0) * 1000));
 }
 
-function lines(value: string): string[] {
-  return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-}
-
 function keyPartNeedsName(source: PublicRateLimitKeySource): boolean {
   return source === PublicRateLimitKeySource.HEADER ||
     source === PublicRateLimitKeySource.COOKIE ||
     source === PublicRateLimitKeySource.QUERY_PARAM;
-}
-
-function matcherPayload(matchers: MatcherForm[]) {
-  return matchers
-    .map((matcher) => ({
-      name: matcher.name.trim(),
-      operator: matcher.operator,
-      value: matcher.value,
-    }))
-    .filter((matcher) => matcher.name);
 }
 
 function addBlockHeader() {
@@ -449,16 +403,7 @@ async function submitRule() {
       enabled: form.enabled,
       action: form.action,
       activationMode: form.activationMode,
-      match: {
-        methods: [...form.match.methods],
-        protocols: [...form.match.protocols],
-        hostPatterns: lines(form.match.hostPatternsText),
-        pathPrefixes: lines(form.match.pathPrefixesText),
-        pathSuffixes: lines(form.match.pathSuffixesText),
-        headers: matcherPayload(form.match.headers),
-        cookies: matcherPayload(form.match.cookies),
-        queryParams: matcherPayload(form.match.queryParams),
-      },
+      matchRule: policyMatchRulePayload(form.match),
       keyParts: form.keyParts.map((part) => ({
         source: part.source,
         name: keyPartNeedsName(part.source) ? part.name.trim() : "",
@@ -556,7 +501,7 @@ defineExpose({ openCreate, openEdit, close });
         </div>
       </section>
 
-      <PublicPolicyMatchEditor ref="matchEditor" :form="form.match" />
+      <PublicPolicyMatchEditor :form="form.match" />
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
       <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">

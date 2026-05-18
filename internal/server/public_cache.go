@@ -81,7 +81,7 @@ type publicCacheRuleConfig struct {
 	Name                 string
 	Priority             int64
 	Enabled              bool
-	Match                publicRateLimitMatchConfig
+	Match                publicPolicyMatchConfig
 	RouteIDs             []int64
 	BackendIDs           []int64
 	Scope                string
@@ -1170,11 +1170,9 @@ func publicCacheSettingsConfigToProto(settings publicCacheSettingsConfig) *p2pst
 }
 
 func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, error) {
-	var match publicRateLimitMatchConfig
-	if strings.TrimSpace(row.MatchJson) != "" {
-		if err := json.Unmarshal([]byte(row.MatchJson), &match); err != nil {
-			return publicCacheRuleConfig{}, err
-		}
+	match, err := decodePublicPolicyMatchJSON(row.MatchJson)
+	if err != nil {
+		return publicCacheRuleConfig{}, err
 	}
 	routeIDs, err := publicCacheInt64ListFromJSON(row.RouteIdsJson)
 	if err != nil {
@@ -1236,7 +1234,6 @@ func publicCacheRuleConfigToProto(rule publicCacheRuleConfig) *p2pstreamv1.Publi
 		Name:                 rule.Name,
 		Priority:             rule.Priority,
 		Enabled:              rule.Enabled,
-		Match:                rateLimitMatchToProto(rule.Match),
 		RouteIds:             append([]int64(nil), rule.RouteIDs...),
 		BackendIds:           append([]int64(nil), rule.BackendIDs...),
 		Scope:                protoPublicCacheScope(rule.Scope),
@@ -1251,6 +1248,7 @@ func publicCacheRuleConfigToProto(rule publicCacheRuleConfig) *p2pstreamv1.Publi
 		AllowCookieRequests:  rule.AllowCookieRequests,
 		CreatedAtUnixMillis:  rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:  rule.UpdatedAt.UnixMilli(),
+		MatchRule:            publicPolicyMatchRuleToProto(rule.Match),
 	}
 }
 
@@ -1269,12 +1267,12 @@ func (a *App) ensurePublicCacheSettings(ctx context.Context) (db.PublicCacheSett
 	return row, nil
 }
 
-func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, priority int64, enabled bool, match *p2pstreamv1.PublicRateLimitMatch, routeIDs []int64, backendIDs []int64, scope p2pstreamv1.PublicCacheScope, ttlMode p2pstreamv1.PublicCacheTtlMode, ttlMillis int64, queryMode p2pstreamv1.PublicCacheQueryMode, queryParams []string, varyHeaders []string, statusCodes []int64, maxObjectBytes int64, addCacheStatusHeader bool, allowCookieRequests bool) (publicCacheRuleMutationInput, error) {
+func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, priority int64, enabled bool, routeIDs []int64, backendIDs []int64, scope p2pstreamv1.PublicCacheScope, ttlMode p2pstreamv1.PublicCacheTtlMode, ttlMillis int64, queryMode p2pstreamv1.PublicCacheQueryMode, queryParams []string, varyHeaders []string, statusCodes []int64, maxObjectBytes int64, addCacheStatusHeader bool, allowCookieRequests bool, matchRule *p2pstreamv1.PublicPolicyMatchRule) (publicCacheRuleMutationInput, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule name must be 1-64 alphanumeric, dot, dash, or underscore characters"))
 	}
-	matchConfig, err := validateRateLimitMatch(match)
+	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicCacheRuleMutationInput{}, err
 	}
@@ -1385,7 +1383,10 @@ func (a *App) CreatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Match, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests)
+	if err := rejectRemovedPolicyMatchField(req.Msg, 4); err != nil {
+		return nil, err
+	}
+	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests, req.Msg.MatchRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1407,7 +1408,10 @@ func (a *App) UpdatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Match, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests)
+	if err := rejectRemovedPolicyMatchField(req.Msg, 5); err != nil {
+		return nil, err
+	}
+	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.RouteIds, req.Msg.BackendIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests, req.Msg.MatchRule)
 	if err != nil {
 		return nil, err
 	}
