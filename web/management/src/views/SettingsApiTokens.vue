@@ -243,35 +243,32 @@ function messageFromError(err: unknown): string {
     </section>
 
     <Modal :model-value="isIssuedTokenModalOpen" title="API Token Created" max-width="38rem" @update:model-value="clearIssuedToken">
-      <div class="space-y-5">
-        <div class="rounded-md border border-amber-900/60 bg-black p-4 text-sm leading-6 text-amber-200">
-          This token is shown once for {{ selectedEnvironmentLabel }}. It is hidden by default to avoid leaking during screen sharing. Copy it now before closing this dialog.
-        </div>
-
+      <div class="space-y-4">
         <div class="rounded-md border border-[#333] bg-[#050505] p-4">
-          <div class="mb-2 flex items-center justify-between gap-3">
+          <div class="mb-2">
             <p class="text-xs font-medium uppercase tracking-wider text-[#888]">One-Time Token</p>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-md border border-[#333] px-2 py-1 text-xs text-[#d4d4d8] transition-colors hover:border-[#555] hover:text-white"
-              :aria-label="isIssuedTokenVisible ? 'Hide API token' : 'Reveal API token'"
-              @click="isIssuedTokenVisible = !isIssuedTokenVisible"
-            >
-              <EyeSlashIcon v-if="isIssuedTokenVisible" class="h-3.5 w-3.5" />
-              <EyeIcon v-else class="h-3.5 w-3.5" />
-              {{ isIssuedTokenVisible ? 'Hide' : 'Reveal' }}
-            </button>
           </div>
           <code
             class="block min-h-12 break-all rounded-md border border-[#1f1f1f] bg-black p-3 font-mono text-xs leading-6"
             :class="isIssuedTokenVisible ? 'text-white' : 'select-none text-[#666]'"
           >
-            {{ isIssuedTokenVisible ? issuedToken : 'Hidden until revealed. Use Copy Token to store it without showing it on screen.' }}
+            {{ isIssuedTokenVisible ? issuedToken : 'Hidden' }}
           </code>
         </div>
 
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <SecondaryButton type="button" label="Done" @click="clearIssuedToken" />
+          <SecondaryButton
+            type="button"
+            :label="isIssuedTokenVisible ? 'Hide' : 'Reveal'"
+            :aria-label="isIssuedTokenVisible ? 'Hide API token' : 'Reveal API token'"
+            @click="isIssuedTokenVisible = !isIssuedTokenVisible"
+          >
+            <template #icon>
+              <EyeSlashIcon v-if="isIssuedTokenVisible" class="h-3.5 w-3.5" />
+              <EyeIcon v-else class="h-3.5 w-3.5" />
+            </template>
+          </SecondaryButton>
           <Button type="button" :label="tokenCopyLabel" @click="copyIssuedToken" />
         </div>
       </div>
