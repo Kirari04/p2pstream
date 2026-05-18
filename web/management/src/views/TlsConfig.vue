@@ -4,7 +4,7 @@ import PencilIcon from "@primevue/icons/pencil";
 import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
 import TrashIcon from "@primevue/icons/trash";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -40,6 +40,8 @@ import {
   PublicTlsCertificateStatus,
   type PublicTlsDnsCredential,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 type TlsFileField = "cert" | "key";
 type ManualTlsMaterialMode = "generate" | "upload";

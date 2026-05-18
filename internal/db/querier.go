@@ -11,12 +11,15 @@ import (
 )
 
 type Querier interface {
+	ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error)
 	CountEnabledAgentPoolBackendsWhereAgentIsLast(ctx context.Context, agentID int64) (int64, error)
 	CountPublicBackendEnabledReferences(ctx context.Context, backendID int64) (int64, error)
 	CountPublicBackends(ctx context.Context) (int64, error)
 	CountPublicListeners(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error)
+	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
+	CreateManagementAccessToken(ctx context.Context, arg CreateManagementAccessTokenParams) (ManagementAccessToken, error)
 	CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error)
 	CreatePublicBackendAgent(ctx context.Context, arg CreatePublicBackendAgentParams) (PublicBackendAgent, error)
 	CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error)
@@ -37,7 +40,9 @@ type Querier interface {
 	DeleteAgent(ctx context.Context, id int64) error
 	DeleteAgentStatsBefore(ctx context.Context, reportedAt time.Time) error
 	DeleteDisconnectedConnectionsBefore(ctx context.Context, disconnectedAt sql.NullTime) error
+	DeleteEnvironment(ctx context.Context, id int64) error
 	DeleteExpiredPublicCacheEntries(ctx context.Context, expiresAt time.Time) ([]DeleteExpiredPublicCacheEntriesRow, error)
+	DeleteManagementAccessToken(ctx context.Context, id int64) error
 	DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error
 	DeletePublicBackend(ctx context.Context, id int64) error
 	DeletePublicBackendAgents(ctx context.Context, backendID int64) error
@@ -56,11 +61,13 @@ type Querier interface {
 	DeletePublicWafCaptchaProvider(ctx context.Context, id int64) error
 	DeletePublicWafRule(ctx context.Context, id int64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
+	GetActiveManagementAccessTokenByHash(ctx context.Context, tokenHash string) (ManagementAccessToken, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
 	GetAgent(ctx context.Context, id int64) (Agent, error)
 	GetAgentByPublicID(ctx context.Context, publicID string) (Agent, error)
 	GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error)
 	GetConnectionSummarySince(ctx context.Context, connectedAt time.Time) (GetConnectionSummarySinceRow, error)
+	GetEnvironment(ctx context.Context, id int64) (Environment, error)
 	GetLatestAgentStat(ctx context.Context) (AgentStat, error)
 	GetLatestAgentStatByAgent(ctx context.Context, agentID sql.NullInt64) (AgentStat, error)
 	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
@@ -85,6 +92,8 @@ type Querier interface {
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
 	ListAgents(ctx context.Context) ([]Agent, error)
+	ListEnvironments(ctx context.Context) ([]Environment, error)
+	ListManagementAccessTokens(ctx context.Context) ([]ManagementAccessToken, error)
 	ListProxyStatusClassesSince(ctx context.Context, occurredAt time.Time) ([]ListProxyStatusClassesSinceRow, error)
 	ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error)
 	ListPublicBackendAgents(ctx context.Context) ([]PublicBackendAgent, error)
@@ -122,11 +131,16 @@ type Querier interface {
 	RevokeUserSessions(ctx context.Context, userID int64) (int64, error)
 	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
 	SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesRow, error)
+	TouchManagementAccessToken(ctx context.Context, id int64) error
 	TouchPublicCacheEntry(ctx context.Context, keyDigest string) error
 	TouchSession(ctx context.Context, id int64) error
+	TrustEnvironmentCertificate(ctx context.Context, arg TrustEnvironmentCertificateParams) (Environment, error)
 	UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error)
 	UpdateAgentToken(ctx context.Context, arg UpdateAgentTokenParams) (Agent, error)
 	UpdateConnectionDisconnected(ctx context.Context, id int64) error
+	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
+	UpdateEnvironmentCheckResult(ctx context.Context, arg UpdateEnvironmentCheckResultParams) (Environment, error)
+	UpdateEnvironmentObservedCertificate(ctx context.Context, arg UpdateEnvironmentObservedCertificateParams) (Environment, error)
 	UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error)
 	UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCacheRuleParams) (PublicCacheRule, error)
 	UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error)

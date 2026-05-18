@@ -254,6 +254,20 @@ enum TrafficTraceStage {
   TRAFFIC_TRACE_STAGE_CACHE_STORED = 20;
 }
 
+enum EnvironmentTransport {
+  ENVIRONMENT_TRANSPORT_UNSPECIFIED = 0;
+  ENVIRONMENT_TRANSPORT_DIRECT = 1;
+  ENVIRONMENT_TRANSPORT_AGENT = 2;
+}
+
+enum EnvironmentTrustState {
+  ENVIRONMENT_TRUST_STATE_UNSPECIFIED = 0;
+  ENVIRONMENT_TRUST_STATE_UNTRUSTED = 1;
+  ENVIRONMENT_TRUST_STATE_TRUSTED = 2;
+  ENVIRONMENT_TRUST_STATE_CHANGED = 3;
+  ENVIRONMENT_TRUST_STATE_EXPIRED = 4;
+}
+
 message AgentStatsRequest {
   int64 memory_sys_mb = 1;
   int64 num_goroutine = 2;
@@ -873,6 +887,142 @@ message RotateAgentTokenRequest {
 message RotateAgentTokenResponse {
   Agent agent = 1;
   string token = 2;
+}
+
+message ManagementAccessToken {
+  int64 id = 1;
+  string name = 2;
+  bool enabled = 3;
+  int64 expires_at_unix_millis = 4;
+  int64 last_used_at_unix_millis = 5;
+  int64 created_at_unix_millis = 6;
+  int64 updated_at_unix_millis = 7;
+}
+
+message CreateManagementAccessTokenRequest {
+  string name = 1;
+  bool enabled = 2;
+  int64 expires_at_unix_millis = 3;
+}
+
+message CreateManagementAccessTokenResponse {
+  ManagementAccessToken access_token = 1;
+  string token = 2;
+}
+
+message ListManagementAccessTokensRequest {
+}
+
+message ListManagementAccessTokensResponse {
+  repeated ManagementAccessToken access_tokens = 1;
+}
+
+message DeleteManagementAccessTokenRequest {
+  int64 id = 1;
+}
+
+message DeleteManagementAccessTokenResponse {
+}
+
+message EnvironmentCertificate {
+  string pem = 1;
+  string sha256_fingerprint = 2;
+  string subject = 3;
+  string issuer = 4;
+  repeated string dns_names = 5;
+  repeated string ip_addresses = 6;
+  int64 not_before_unix_millis = 7;
+  int64 not_after_unix_millis = 8;
+}
+
+message Environment {
+  int64 id = 1;
+  string name = 2;
+  string management_url = 3;
+  EnvironmentTransport transport = 4;
+  int64 agent_id = 5;
+  string agent_name = 6;
+  bool agent_connected = 7;
+  bool enabled = 8;
+  bool access_token_configured = 9;
+  EnvironmentTrustState trust_state = 10;
+  EnvironmentCertificate trusted_certificate = 11;
+  EnvironmentCertificate observed_certificate = 12;
+  string last_error = 13;
+  int64 last_checked_at_unix_millis = 14;
+  int64 created_at_unix_millis = 15;
+  int64 updated_at_unix_millis = 16;
+  int64 response_header_timeout_millis = 17;
+}
+
+message ListEnvironmentsRequest {
+}
+
+message ListEnvironmentsResponse {
+  repeated Environment environments = 1;
+}
+
+message CreateEnvironmentRequest {
+  string name = 1;
+  string management_url = 2;
+  EnvironmentTransport transport = 3;
+  int64 agent_id = 4;
+  string access_token = 5;
+  int64 response_header_timeout_millis = 6;
+  bool enabled = 7;
+}
+
+message CreateEnvironmentResponse {
+  Environment environment = 1;
+}
+
+message UpdateEnvironmentRequest {
+  int64 id = 1;
+  string name = 2;
+  string management_url = 3;
+  EnvironmentTransport transport = 4;
+  int64 agent_id = 5;
+  string access_token = 6;
+  int64 response_header_timeout_millis = 7;
+  bool enabled = 8;
+}
+
+message UpdateEnvironmentResponse {
+  Environment environment = 1;
+}
+
+message DeleteEnvironmentRequest {
+  int64 id = 1;
+}
+
+message DeleteEnvironmentResponse {
+}
+
+message DiscoverEnvironmentCertificateRequest {
+  int64 id = 1;
+}
+
+message DiscoverEnvironmentCertificateResponse {
+  Environment environment = 1;
+  EnvironmentCertificate certificate = 2;
+}
+
+message TrustEnvironmentCertificateRequest {
+  int64 id = 1;
+  string sha256_fingerprint = 2;
+}
+
+message TrustEnvironmentCertificateResponse {
+  Environment environment = 1;
+}
+
+message TestEnvironmentRequest {
+  int64 id = 1;
+}
+
+message TestEnvironmentResponse {
+  Environment environment = 1;
+  GetStatusResponse status = 2;
 }
 
 message CreatePublicListenerRequest {
@@ -1668,6 +1818,16 @@ service AgentManagementService {
   rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse) {}
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse) {}
   rpc RotateAgentToken(RotateAgentTokenRequest) returns (RotateAgentTokenResponse) {}
+  rpc CreateManagementAccessToken(CreateManagementAccessTokenRequest) returns (CreateManagementAccessTokenResponse) {}
+  rpc ListManagementAccessTokens(ListManagementAccessTokensRequest) returns (ListManagementAccessTokensResponse) {}
+  rpc DeleteManagementAccessToken(DeleteManagementAccessTokenRequest) returns (DeleteManagementAccessTokenResponse) {}
+  rpc ListEnvironments(ListEnvironmentsRequest) returns (ListEnvironmentsResponse) {}
+  rpc CreateEnvironment(CreateEnvironmentRequest) returns (CreateEnvironmentResponse) {}
+  rpc UpdateEnvironment(UpdateEnvironmentRequest) returns (UpdateEnvironmentResponse) {}
+  rpc DeleteEnvironment(DeleteEnvironmentRequest) returns (DeleteEnvironmentResponse) {}
+  rpc DiscoverEnvironmentCertificate(DiscoverEnvironmentCertificateRequest) returns (DiscoverEnvironmentCertificateResponse) {}
+  rpc TrustEnvironmentCertificate(TrustEnvironmentCertificateRequest) returns (TrustEnvironmentCertificateResponse) {}
+  rpc TestEnvironment(TestEnvironmentRequest) returns (TestEnvironmentResponse) {}
   rpc CreatePublicListener(CreatePublicListenerRequest) returns (CreatePublicListenerResponse) {}
   rpc UpdatePublicListener(UpdatePublicListenerRequest) returns (UpdatePublicListenerResponse) {}
   rpc DeletePublicListener(DeletePublicListenerRequest) returns (DeletePublicListenerResponse) {}

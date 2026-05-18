@@ -32,6 +32,7 @@ features:
 
 <nav class="home-reference-strip" aria-label="Fast reference">
   <a href="./concepts/tls">TLS</a>
+  <a href="./reference/environments">Environments</a>
   <a href="./concepts/limits-and-shaping">Traffic controls</a>
   <a href="./operations/troubleshooting">Troubleshooting</a>
   <a href="./reference/configuration">Configuration</a>

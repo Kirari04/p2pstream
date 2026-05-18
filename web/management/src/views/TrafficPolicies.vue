@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from "vue";
 import PencilIcon from "@primevue/icons/pencil";
 import PlusIcon from "@primevue/icons/plus";
 import TrashIcon from "@primevue/icons/trash";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
@@ -38,6 +38,8 @@ import DangerButton from "@/volt/DangerButton.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import Tag from "@/volt/Tag.vue";
 import type { PublicWafCaptchaProvider } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 const {
   dashboard,

@@ -8,7 +8,7 @@ import RefreshIcon from "@primevue/icons/refresh";
 import TimesIcon from "@primevue/icons/times";
 import TrashIcon from "@primevue/icons/trash";
 import WindowMaximizeIcon from "@primevue/icons/windowmaximize";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -51,6 +51,8 @@ import {
   type PublicBackend,
   type PublicListener,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 const {
   dashboard,

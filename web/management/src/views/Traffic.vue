@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import type { ComputedRef } from "vue";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
 import TrafficFlowEditTargetChooser from "@/components/editors/TrafficFlowEditTargetChooser.vue";
@@ -22,8 +22,11 @@ import type {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceLevel } from "@/gen/proto/p2pstream/v1/management_pb";
 
+const managementClient = useManagementClient();
+
 const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
 const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
+const selectedEnvironmentId = inject<ComputedRef<string>>("selectedEnvironmentId", computed(() => "0"));
 
 const trafficWindows = computed(() => dashboard?.value?.windows ?? []);
 const config = computed(() => publicProxyConfig?.value ?? null);
@@ -274,6 +277,14 @@ function messageFromError(err: unknown): string {
 
 onMounted(() => {
   window.addEventListener("pagehide", handlePageHide);
+  void loadTraceSettings();
+});
+
+watch(selectedEnvironmentId, () => {
+  stopTraceStream("idle");
+  traceStore.clear();
+  selectedRequestId.value = null;
+  traceSettings.value = null;
   void loadTraceSettings();
 });
 

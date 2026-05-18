@@ -2,7 +2,7 @@
 import { computed, inject, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import TrashIcon from "@primevue/icons/trash";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
@@ -33,6 +33,8 @@ import {
   PublicWafRuleAction,
   type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type KeyPartForm = {

@@ -287,6 +287,29 @@ func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticat
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authentication is unavailable"))
 	}
 
+	if accessToken := managementAccessTokenFromHeader(header); accessToken != "" {
+		tokenHash := hashManagementAccessToken(accessToken)
+		row, err := a.DB.GetActiveManagementAccessTokenByHash(ctx, tokenHash)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
+			}
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if row.ExpiresAt.Valid && !row.ExpiresAt.Time.After(time.Now()) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
+		}
+		if err := a.DB.TouchManagementAccessToken(ctx, row.ID); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		return &authenticatedUser{
+			ID:        row.ID,
+			Username:  row.Name,
+			Role:      protoRole(row.Role),
+			TokenHash: tokenHash,
+		}, nil
+	}
+
 	token := sessionTokenFromHeader(header)
 	if token == "" {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))

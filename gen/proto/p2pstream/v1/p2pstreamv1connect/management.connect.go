@@ -108,6 +108,36 @@ const (
 	// AgentManagementServiceRotateAgentTokenProcedure is the fully-qualified name of the
 	// AgentManagementService's RotateAgentToken RPC.
 	AgentManagementServiceRotateAgentTokenProcedure = "/p2pstream.v1.AgentManagementService/RotateAgentToken"
+	// AgentManagementServiceCreateManagementAccessTokenProcedure is the fully-qualified name of the
+	// AgentManagementService's CreateManagementAccessToken RPC.
+	AgentManagementServiceCreateManagementAccessTokenProcedure = "/p2pstream.v1.AgentManagementService/CreateManagementAccessToken"
+	// AgentManagementServiceListManagementAccessTokensProcedure is the fully-qualified name of the
+	// AgentManagementService's ListManagementAccessTokens RPC.
+	AgentManagementServiceListManagementAccessTokensProcedure = "/p2pstream.v1.AgentManagementService/ListManagementAccessTokens"
+	// AgentManagementServiceDeleteManagementAccessTokenProcedure is the fully-qualified name of the
+	// AgentManagementService's DeleteManagementAccessToken RPC.
+	AgentManagementServiceDeleteManagementAccessTokenProcedure = "/p2pstream.v1.AgentManagementService/DeleteManagementAccessToken"
+	// AgentManagementServiceListEnvironmentsProcedure is the fully-qualified name of the
+	// AgentManagementService's ListEnvironments RPC.
+	AgentManagementServiceListEnvironmentsProcedure = "/p2pstream.v1.AgentManagementService/ListEnvironments"
+	// AgentManagementServiceCreateEnvironmentProcedure is the fully-qualified name of the
+	// AgentManagementService's CreateEnvironment RPC.
+	AgentManagementServiceCreateEnvironmentProcedure = "/p2pstream.v1.AgentManagementService/CreateEnvironment"
+	// AgentManagementServiceUpdateEnvironmentProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdateEnvironment RPC.
+	AgentManagementServiceUpdateEnvironmentProcedure = "/p2pstream.v1.AgentManagementService/UpdateEnvironment"
+	// AgentManagementServiceDeleteEnvironmentProcedure is the fully-qualified name of the
+	// AgentManagementService's DeleteEnvironment RPC.
+	AgentManagementServiceDeleteEnvironmentProcedure = "/p2pstream.v1.AgentManagementService/DeleteEnvironment"
+	// AgentManagementServiceDiscoverEnvironmentCertificateProcedure is the fully-qualified name of the
+	// AgentManagementService's DiscoverEnvironmentCertificate RPC.
+	AgentManagementServiceDiscoverEnvironmentCertificateProcedure = "/p2pstream.v1.AgentManagementService/DiscoverEnvironmentCertificate"
+	// AgentManagementServiceTrustEnvironmentCertificateProcedure is the fully-qualified name of the
+	// AgentManagementService's TrustEnvironmentCertificate RPC.
+	AgentManagementServiceTrustEnvironmentCertificateProcedure = "/p2pstream.v1.AgentManagementService/TrustEnvironmentCertificate"
+	// AgentManagementServiceTestEnvironmentProcedure is the fully-qualified name of the
+	// AgentManagementService's TestEnvironment RPC.
+	AgentManagementServiceTestEnvironmentProcedure = "/p2pstream.v1.AgentManagementService/TestEnvironment"
 	// AgentManagementServiceCreatePublicListenerProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicListener RPC.
 	AgentManagementServiceCreatePublicListenerProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicListener"
@@ -239,6 +269,16 @@ type AgentManagementServiceClient interface {
 	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
 	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
 	RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error)
+	CreateManagementAccessToken(context.Context, *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error)
+	ListManagementAccessTokens(context.Context, *connect.Request[v1.ListManagementAccessTokensRequest]) (*connect.Response[v1.ListManagementAccessTokensResponse], error)
+	DeleteManagementAccessToken(context.Context, *connect.Request[v1.DeleteManagementAccessTokenRequest]) (*connect.Response[v1.DeleteManagementAccessTokenResponse], error)
+	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
+	UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error)
+	DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error)
+	DiscoverEnvironmentCertificate(context.Context, *connect.Request[v1.DiscoverEnvironmentCertificateRequest]) (*connect.Response[v1.DiscoverEnvironmentCertificateResponse], error)
+	TrustEnvironmentCertificate(context.Context, *connect.Request[v1.TrustEnvironmentCertificateRequest]) (*connect.Response[v1.TrustEnvironmentCertificateResponse], error)
+	TestEnvironment(context.Context, *connect.Request[v1.TestEnvironmentRequest]) (*connect.Response[v1.TestEnvironmentResponse], error)
 	CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error)
 	UpdatePublicListener(context.Context, *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error)
 	DeletePublicListener(context.Context, *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error)
@@ -434,6 +474,66 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceRotateAgentTokenProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("RotateAgentToken")),
+			connect.WithClientOptions(opts...),
+		),
+		createManagementAccessToken: connect.NewClient[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreateManagementAccessTokenProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreateManagementAccessToken")),
+			connect.WithClientOptions(opts...),
+		),
+		listManagementAccessTokens: connect.NewClient[v1.ListManagementAccessTokensRequest, v1.ListManagementAccessTokensResponse](
+			httpClient,
+			baseURL+AgentManagementServiceListManagementAccessTokensProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ListManagementAccessTokens")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteManagementAccessToken: connect.NewClient[v1.DeleteManagementAccessTokenRequest, v1.DeleteManagementAccessTokenResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeleteManagementAccessTokenProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeleteManagementAccessToken")),
+			connect.WithClientOptions(opts...),
+		),
+		listEnvironments: connect.NewClient[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceListEnvironmentsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ListEnvironments")),
+			connect.WithClientOptions(opts...),
+		),
+		createEnvironment: connect.NewClient[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreateEnvironmentProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreateEnvironment")),
+			connect.WithClientOptions(opts...),
+		),
+		updateEnvironment: connect.NewClient[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdateEnvironmentProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdateEnvironment")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteEnvironment: connect.NewClient[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeleteEnvironmentProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeleteEnvironment")),
+			connect.WithClientOptions(opts...),
+		),
+		discoverEnvironmentCertificate: connect.NewClient[v1.DiscoverEnvironmentCertificateRequest, v1.DiscoverEnvironmentCertificateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDiscoverEnvironmentCertificateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DiscoverEnvironmentCertificate")),
+			connect.WithClientOptions(opts...),
+		),
+		trustEnvironmentCertificate: connect.NewClient[v1.TrustEnvironmentCertificateRequest, v1.TrustEnvironmentCertificateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceTrustEnvironmentCertificateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("TrustEnvironmentCertificate")),
+			connect.WithClientOptions(opts...),
+		),
+		testEnvironment: connect.NewClient[v1.TestEnvironmentRequest, v1.TestEnvironmentResponse](
+			httpClient,
+			baseURL+AgentManagementServiceTestEnvironmentProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("TestEnvironment")),
 			connect.WithClientOptions(opts...),
 		),
 		createPublicListener: connect.NewClient[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse](
@@ -670,6 +770,16 @@ type agentManagementServiceClient struct {
 	updateAgent                    *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
 	deleteAgent                    *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
 	rotateAgentToken               *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
+	createManagementAccessToken    *connect.Client[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse]
+	listManagementAccessTokens     *connect.Client[v1.ListManagementAccessTokensRequest, v1.ListManagementAccessTokensResponse]
+	deleteManagementAccessToken    *connect.Client[v1.DeleteManagementAccessTokenRequest, v1.DeleteManagementAccessTokenResponse]
+	listEnvironments               *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
+	createEnvironment              *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
+	updateEnvironment              *connect.Client[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse]
+	deleteEnvironment              *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
+	discoverEnvironmentCertificate *connect.Client[v1.DiscoverEnvironmentCertificateRequest, v1.DiscoverEnvironmentCertificateResponse]
+	trustEnvironmentCertificate    *connect.Client[v1.TrustEnvironmentCertificateRequest, v1.TrustEnvironmentCertificateResponse]
+	testEnvironment                *connect.Client[v1.TestEnvironmentRequest, v1.TestEnvironmentResponse]
 	createPublicListener           *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
 	updatePublicListener           *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
 	deletePublicListener           *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
@@ -833,6 +943,60 @@ func (c *agentManagementServiceClient) DeleteAgent(ctx context.Context, req *con
 // RotateAgentToken calls p2pstream.v1.AgentManagementService.RotateAgentToken.
 func (c *agentManagementServiceClient) RotateAgentToken(ctx context.Context, req *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error) {
 	return c.rotateAgentToken.CallUnary(ctx, req)
+}
+
+// CreateManagementAccessToken calls
+// p2pstream.v1.AgentManagementService.CreateManagementAccessToken.
+func (c *agentManagementServiceClient) CreateManagementAccessToken(ctx context.Context, req *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error) {
+	return c.createManagementAccessToken.CallUnary(ctx, req)
+}
+
+// ListManagementAccessTokens calls p2pstream.v1.AgentManagementService.ListManagementAccessTokens.
+func (c *agentManagementServiceClient) ListManagementAccessTokens(ctx context.Context, req *connect.Request[v1.ListManagementAccessTokensRequest]) (*connect.Response[v1.ListManagementAccessTokensResponse], error) {
+	return c.listManagementAccessTokens.CallUnary(ctx, req)
+}
+
+// DeleteManagementAccessToken calls
+// p2pstream.v1.AgentManagementService.DeleteManagementAccessToken.
+func (c *agentManagementServiceClient) DeleteManagementAccessToken(ctx context.Context, req *connect.Request[v1.DeleteManagementAccessTokenRequest]) (*connect.Response[v1.DeleteManagementAccessTokenResponse], error) {
+	return c.deleteManagementAccessToken.CallUnary(ctx, req)
+}
+
+// ListEnvironments calls p2pstream.v1.AgentManagementService.ListEnvironments.
+func (c *agentManagementServiceClient) ListEnvironments(ctx context.Context, req *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
+	return c.listEnvironments.CallUnary(ctx, req)
+}
+
+// CreateEnvironment calls p2pstream.v1.AgentManagementService.CreateEnvironment.
+func (c *agentManagementServiceClient) CreateEnvironment(ctx context.Context, req *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error) {
+	return c.createEnvironment.CallUnary(ctx, req)
+}
+
+// UpdateEnvironment calls p2pstream.v1.AgentManagementService.UpdateEnvironment.
+func (c *agentManagementServiceClient) UpdateEnvironment(ctx context.Context, req *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error) {
+	return c.updateEnvironment.CallUnary(ctx, req)
+}
+
+// DeleteEnvironment calls p2pstream.v1.AgentManagementService.DeleteEnvironment.
+func (c *agentManagementServiceClient) DeleteEnvironment(ctx context.Context, req *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error) {
+	return c.deleteEnvironment.CallUnary(ctx, req)
+}
+
+// DiscoverEnvironmentCertificate calls
+// p2pstream.v1.AgentManagementService.DiscoverEnvironmentCertificate.
+func (c *agentManagementServiceClient) DiscoverEnvironmentCertificate(ctx context.Context, req *connect.Request[v1.DiscoverEnvironmentCertificateRequest]) (*connect.Response[v1.DiscoverEnvironmentCertificateResponse], error) {
+	return c.discoverEnvironmentCertificate.CallUnary(ctx, req)
+}
+
+// TrustEnvironmentCertificate calls
+// p2pstream.v1.AgentManagementService.TrustEnvironmentCertificate.
+func (c *agentManagementServiceClient) TrustEnvironmentCertificate(ctx context.Context, req *connect.Request[v1.TrustEnvironmentCertificateRequest]) (*connect.Response[v1.TrustEnvironmentCertificateResponse], error) {
+	return c.trustEnvironmentCertificate.CallUnary(ctx, req)
+}
+
+// TestEnvironment calls p2pstream.v1.AgentManagementService.TestEnvironment.
+func (c *agentManagementServiceClient) TestEnvironment(ctx context.Context, req *connect.Request[v1.TestEnvironmentRequest]) (*connect.Response[v1.TestEnvironmentResponse], error) {
+	return c.testEnvironment.CallUnary(ctx, req)
 }
 
 // CreatePublicListener calls p2pstream.v1.AgentManagementService.CreatePublicListener.
@@ -1042,6 +1206,16 @@ type AgentManagementServiceHandler interface {
 	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
 	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
 	RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error)
+	CreateManagementAccessToken(context.Context, *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error)
+	ListManagementAccessTokens(context.Context, *connect.Request[v1.ListManagementAccessTokensRequest]) (*connect.Response[v1.ListManagementAccessTokensResponse], error)
+	DeleteManagementAccessToken(context.Context, *connect.Request[v1.DeleteManagementAccessTokenRequest]) (*connect.Response[v1.DeleteManagementAccessTokenResponse], error)
+	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
+	UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error)
+	DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error)
+	DiscoverEnvironmentCertificate(context.Context, *connect.Request[v1.DiscoverEnvironmentCertificateRequest]) (*connect.Response[v1.DiscoverEnvironmentCertificateResponse], error)
+	TrustEnvironmentCertificate(context.Context, *connect.Request[v1.TrustEnvironmentCertificateRequest]) (*connect.Response[v1.TrustEnvironmentCertificateResponse], error)
+	TestEnvironment(context.Context, *connect.Request[v1.TestEnvironmentRequest]) (*connect.Response[v1.TestEnvironmentResponse], error)
 	CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error)
 	UpdatePublicListener(context.Context, *connect.Request[v1.UpdatePublicListenerRequest]) (*connect.Response[v1.UpdatePublicListenerResponse], error)
 	DeletePublicListener(context.Context, *connect.Request[v1.DeletePublicListenerRequest]) (*connect.Response[v1.DeletePublicListenerResponse], error)
@@ -1233,6 +1407,66 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceRotateAgentTokenProcedure,
 		svc.RotateAgentToken,
 		connect.WithSchema(agentManagementServiceMethods.ByName("RotateAgentToken")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreateManagementAccessTokenHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreateManagementAccessTokenProcedure,
+		svc.CreateManagementAccessToken,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreateManagementAccessToken")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceListManagementAccessTokensHandler := connect.NewUnaryHandler(
+		AgentManagementServiceListManagementAccessTokensProcedure,
+		svc.ListManagementAccessTokens,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ListManagementAccessTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeleteManagementAccessTokenHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeleteManagementAccessTokenProcedure,
+		svc.DeleteManagementAccessToken,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeleteManagementAccessToken")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceListEnvironmentsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceListEnvironmentsProcedure,
+		svc.ListEnvironments,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ListEnvironments")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreateEnvironmentHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreateEnvironmentProcedure,
+		svc.CreateEnvironment,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreateEnvironment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdateEnvironmentHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdateEnvironmentProcedure,
+		svc.UpdateEnvironment,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdateEnvironment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeleteEnvironmentHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeleteEnvironmentProcedure,
+		svc.DeleteEnvironment,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeleteEnvironment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDiscoverEnvironmentCertificateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDiscoverEnvironmentCertificateProcedure,
+		svc.DiscoverEnvironmentCertificate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DiscoverEnvironmentCertificate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceTrustEnvironmentCertificateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceTrustEnvironmentCertificateProcedure,
+		svc.TrustEnvironmentCertificate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("TrustEnvironmentCertificate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceTestEnvironmentHandler := connect.NewUnaryHandler(
+		AgentManagementServiceTestEnvironmentProcedure,
+		svc.TestEnvironment,
+		connect.WithSchema(agentManagementServiceMethods.ByName("TestEnvironment")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceCreatePublicListenerHandler := connect.NewUnaryHandler(
@@ -1491,6 +1725,26 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceDeleteAgentHandler.ServeHTTP(w, r)
 		case AgentManagementServiceRotateAgentTokenProcedure:
 			agentManagementServiceRotateAgentTokenHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreateManagementAccessTokenProcedure:
+			agentManagementServiceCreateManagementAccessTokenHandler.ServeHTTP(w, r)
+		case AgentManagementServiceListManagementAccessTokensProcedure:
+			agentManagementServiceListManagementAccessTokensHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeleteManagementAccessTokenProcedure:
+			agentManagementServiceDeleteManagementAccessTokenHandler.ServeHTTP(w, r)
+		case AgentManagementServiceListEnvironmentsProcedure:
+			agentManagementServiceListEnvironmentsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreateEnvironmentProcedure:
+			agentManagementServiceCreateEnvironmentHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdateEnvironmentProcedure:
+			agentManagementServiceUpdateEnvironmentHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeleteEnvironmentProcedure:
+			agentManagementServiceDeleteEnvironmentHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDiscoverEnvironmentCertificateProcedure:
+			agentManagementServiceDiscoverEnvironmentCertificateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceTrustEnvironmentCertificateProcedure:
+			agentManagementServiceTrustEnvironmentCertificateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceTestEnvironmentProcedure:
+			agentManagementServiceTestEnvironmentHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicListenerProcedure:
 			agentManagementServiceCreatePublicListenerHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicListenerProcedure:
@@ -1666,6 +1920,46 @@ func (UnimplementedAgentManagementServiceHandler) DeleteAgent(context.Context, *
 
 func (UnimplementedAgentManagementServiceHandler) RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RotateAgentToken is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreateManagementAccessToken(context.Context, *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreateManagementAccessToken is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ListManagementAccessTokens(context.Context, *connect.Request[v1.ListManagementAccessTokensRequest]) (*connect.Response[v1.ListManagementAccessTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ListManagementAccessTokens is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeleteManagementAccessToken(context.Context, *connect.Request[v1.DeleteManagementAccessTokenRequest]) (*connect.Response[v1.DeleteManagementAccessTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeleteManagementAccessToken is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ListEnvironments is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreateEnvironment is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdateEnvironment is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeleteEnvironment is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DiscoverEnvironmentCertificate(context.Context, *connect.Request[v1.DiscoverEnvironmentCertificateRequest]) (*connect.Response[v1.DiscoverEnvironmentCertificateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DiscoverEnvironmentCertificate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) TrustEnvironmentCertificate(context.Context, *connect.Request[v1.TrustEnvironmentCertificateRequest]) (*connect.Response[v1.TrustEnvironmentCertificateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.TrustEnvironmentCertificate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) TestEnvironment(context.Context, *connect.Request[v1.TestEnvironmentRequest]) (*connect.Response[v1.TestEnvironmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.TestEnvironment is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicListener(context.Context, *connect.Request[v1.CreatePublicListenerRequest]) (*connect.Response[v1.CreatePublicListenerResponse], error) {

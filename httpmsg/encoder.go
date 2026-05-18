@@ -15,6 +15,9 @@ const (
 	MaxBodyChunkSize                    = msg.MaxBodyChunkSize
 	MetadataTLSSkipVerify               = ":p2pstream-tls-skip-verify"
 	MetadataHealthCheck                 = ":p2pstream-health-check"
+	MetadataDiscoverCertificate         = ":p2pstream-discover-certificate"
+	MetadataTrustedCertificatePEM       = ":p2pstream-trusted-cert-pem"
+	MetadataTrustedCertificateSHA256    = ":p2pstream-trusted-cert-sha256"
 	MetadataResponseHeaderTimeoutMillis = ":p2pstream-response-header-timeout-ms"
 )
 

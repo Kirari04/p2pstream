@@ -101,6 +101,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(sourceOfferPath, sourceOfferHandler)
 	mux.HandleFunc("/ws", a.wsHandler)
+	mux.Handle(environmentProxyPrefix, a.environmentProxyHandler())
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a,
 		connect.WithCodec(strictProtoJSONCodec{name: "json"}),
 		connect.WithCodec(strictProtoJSONCodec{name: "json; charset=utf-8"}),
