@@ -215,28 +215,36 @@ function messageFromError(err: unknown): string {
         <div class="border-b border-[#333] px-5 py-4">
           <h5 class="text-sm font-semibold uppercase tracking-widest text-[#888]">API Tokens</h5>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[760px] text-sm">
+        <div>
+          <table class="w-full table-fixed text-sm">
             <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
               <tr>
-                <th class="px-5 py-3">Name</th>
-                <th class="px-5 py-3">Expires</th>
-                <th class="px-5 py-3">Last Used</th>
-                <th class="px-5 py-3">Status</th>
-                <th class="px-5 py-3 text-right">Actions</th>
+                <th class="px-4 py-3">Name</th>
+                <th class="w-[11rem] px-4 py-3">Expires</th>
+                <th class="hidden w-[11rem] px-4 py-3 xl:table-cell">Last Used</th>
+                <th class="w-[6.25rem] px-3 py-3">Status</th>
+                <th class="w-16 px-3 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="token in tokens" :key="token.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
-                <td class="px-5 py-4">
-                  <p class="font-medium text-white">{{ token.name }}</p>
+                <td class="px-4 py-4">
+                  <p class="truncate font-medium text-white" :title="token.name">{{ token.name }}</p>
                 </td>
-                <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(token.expiresAtUnixMillis) }}</td>
-                <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(token.lastUsedAtUnixMillis) }}</td>
-                <td class="px-5 py-4">
+                <td class="px-4 py-4">
+                  <p class="truncate font-mono text-xs text-[#d4d4d8]" :title="formatDate(token.expiresAtUnixMillis)">
+                    {{ formatDate(token.expiresAtUnixMillis) }}
+                  </p>
+                </td>
+                <td class="hidden px-4 py-4 xl:table-cell">
+                  <p class="truncate font-mono text-xs text-[#d4d4d8]" :title="formatDate(token.lastUsedAtUnixMillis)">
+                    {{ formatDate(token.lastUsedAtUnixMillis) }}
+                  </p>
+                </td>
+                <td class="px-3 py-4">
                   <Tag :value="token.enabled ? 'Enabled' : 'Disabled'" :severity="token.enabled ? 'success' : 'warn'" />
                 </td>
-                <td class="px-5 py-4 text-right">
+                <td class="px-3 py-4 text-right">
                   <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
                     <DangerButton size="small" aria-label="Revoke token" title="Revoke token" :disabled="Boolean(actionDisabledReason)" @click="deleteToken(token)">
                       <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
