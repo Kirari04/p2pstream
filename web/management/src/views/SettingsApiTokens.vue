@@ -7,6 +7,8 @@ import { computed, inject, onMounted, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
+import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
@@ -20,6 +22,7 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy", computed(() => false));
 const selectedEnvironmentId = inject<ComputedRef<string>>("selectedEnvironmentId", computed(() => "0"));
 const selectedEnvironmentLabel = inject<ComputedRef<string>>("selectedEnvironmentLabel", computed(() => "Local"));
 const selectedEnvironmentBlocked = inject<ComputedRef<string>>("selectedEnvironmentBlocked", computed(() => ""));
+const revokeTokenDialog = useConfirmDialog();
 
 const tokens = ref<ManagementAccessToken[]>([]);
 const isLoading = ref(false);
@@ -48,6 +51,7 @@ onMounted(() => {
 });
 
 watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
+  revokeTokenDialog.handleCancel();
   clearIssuedToken();
   operationError.value = "";
   tokens.value = [];
@@ -113,7 +117,12 @@ function clearIssuedToken() {
 }
 
 async function deleteToken(token: ManagementAccessToken) {
-  if (!window.confirm(`Revoke API token "${token.name}"?`)) return;
+  const confirmed = await revokeTokenDialog.confirm(
+    "Revoke API Token",
+    `Revoke "${token.name}"?`,
+    "Revoke",
+  );
+  if (!confirmed) return;
   await runTokenAction(async () => {
     await managementClient.deleteManagementAccessToken({ id: token.id });
     await loadTokens();
@@ -279,5 +288,10 @@ function messageFromError(err: unknown): string {
         </div>
       </div>
     </Modal>
+    <ConfirmDialog
+      :state="revokeTokenDialog.state"
+      @confirm="revokeTokenDialog.handleConfirm"
+      @cancel="revokeTokenDialog.handleCancel"
+    />
   </div>
 </template>
