@@ -4,7 +4,7 @@ Environments let one p2pstream management console operate other p2pstream instan
 
 The local instance is always available as the virtual **Local** environment. Remote environments are stored only on the control-plane instance where they are created and are managed from **Settings -> Environments**.
 
-## Management Access Tokens
+## API Tokens
 
 Create API tokens from **Settings -> API Tokens** on the selected p2pstream instance. Tokens are shown once when created, start with `p2pat_`, and grant admin management API access.
 
