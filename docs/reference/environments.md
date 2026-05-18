@@ -2,11 +2,13 @@
 
 Environments let one p2pstream management console operate other p2pstream instances. Each remote environment is an HTTPS management URL plus an admin access token and a pinned certificate trust decision.
 
-The local instance is always available as the virtual **Local** environment. Remote environments are stored only on the control-plane instance where they are created.
+The local instance is always available as the virtual **Local** environment. Remote environments are stored only on the control-plane instance where they are created and are managed from **Settings -> Environments**.
 
 ## Management Access Tokens
 
-Create management access tokens from **Environments -> Access Tokens** on the target instance. Tokens are shown once when created, start with `p2pat_`, and grant admin management API access.
+Create API tokens from **Settings -> API Tokens** on the selected p2pstream instance. Tokens are shown once when created, start with `p2pat_`, and grant admin management API access.
+
+API tokens are general admin API credentials for the selected instance. They can be used by remote environments, scripts, or other API clients that need management API access.
 
 | Field | Behavior |
 | --- | --- |
@@ -22,7 +24,7 @@ Expired, disabled, deleted, and malformed tokens are rejected. Deleting a token 
 Use direct transport when the control-plane server can reach the target management URL itself.
 
 1. On the target p2pstream instance, create an admin access token.
-2. On the control-plane instance, open **Environments** and add an environment.
+2. On the control-plane instance, open **Settings -> Environments** and add an environment.
 3. Enter a unique name and an absolute `https://` management URL with no fragment.
 4. Select **Direct** transport.
 5. Paste the target access token.
@@ -38,7 +40,7 @@ Use agent transport when the control-plane server cannot reach the target direct
 
 1. Create or connect an agent on the control-plane instance.
 2. On the target instance, create an admin access token.
-3. Add an environment and select **Agent** transport.
+3. Open **Settings -> Environments**, add an environment, and select **Agent** transport.
 4. Pick the connected local agent that can reach the target management URL.
 5. Paste the target access token.
 6. Save, discover the certificate through the agent, review it, and trust it.

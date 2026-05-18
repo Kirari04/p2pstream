@@ -41,7 +41,7 @@ const tabs = [
   { path: "/overview", label: "Overview" },
   { path: "/traffic", label: "Traffic" },
   { path: "/agent", label: "Agents" },
-  { path: "/environments", label: "Environments" },
+  { path: "/settings", label: "Settings" },
   { path: "/proxy", label: "Proxy" },
   { path: "/policies", label: "Traffic Policy" },
   { path: "/templates", label: "Templates" },
@@ -85,7 +85,7 @@ const selectedEnvironmentBlocked = computed(() => {
   if (environment.trustState !== EnvironmentTrustState.TRUSTED) return "Environment certificate must be trusted before management requests can run.";
   return "";
 });
-const canShowRouteContent = computed(() => Boolean(dashboard.value) || route.path === "/environments");
+const canShowRouteContent = computed(() => Boolean(dashboard.value) || route.path.startsWith("/settings"));
 
 function loadSelectedEnvironmentId(): string {
   try {
@@ -141,6 +141,8 @@ provide('isBusy', computed(() => isBusy.value));
 provide('managementClient', managementClient);
 provide('environments', computed(() => environments.value));
 provide('selectedEnvironmentId', computed(() => selectedEnvironmentId.value));
+provide('selectedEnvironmentLabel', selectedEnvironmentLabel);
+provide('selectedEnvironmentBlocked', selectedEnvironmentBlocked);
 provide('reloadEnvironments', loadEnvironments);
 
 async function bootstrap() {

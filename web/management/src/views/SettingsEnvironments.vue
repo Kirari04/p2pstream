@@ -17,7 +17,6 @@ import Tag from "@/volt/Tag.vue";
 import type {
   Agent,
   Environment,
-  ManagementAccessToken,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   EnvironmentTransport,
@@ -29,10 +28,8 @@ const reloadEnvironments = inject<(() => Promise<void>) | undefined>("reloadEnvi
 const isBusy = inject<ComputedRef<boolean>>("isBusy", computed(() => false));
 
 const localAgents = ref<Agent[]>([]);
-const tokens = ref<ManagementAccessToken[]>([]);
 const isLoading = ref(false);
 const isEnvironmentModalOpen = ref(false);
-const issuedToken = ref("");
 const operationError = ref("");
 
 const environmentForm = reactive({
@@ -46,14 +43,8 @@ const environmentForm = reactive({
   enabled: true,
 });
 
-const tokenForm = reactive({
-  name: "",
-  expiresAt: "",
-  enabled: true,
-});
-
 const busyDisabledReason = computed(() => isBusy.value || isLoading.value ? BUSY_REASON : "");
-const connectedLocalAgents = computed(() => localAgents.value.filter((agent) => agent.enabled));
+const enabledLocalAgents = computed(() => localAgents.value.filter((agent) => agent.enabled));
 
 onMounted(() => {
   void refreshLocalData();
@@ -63,17 +54,12 @@ async function refreshLocalData() {
   isLoading.value = true;
   operationError.value = "";
   try {
-    await Promise.all([reloadEnvironments?.(), loadTokens(), loadLocalAgents()]);
+    await Promise.all([reloadEnvironments?.(), loadLocalAgents()]);
   } catch (err) {
     operationError.value = messageFromError(err);
   } finally {
     isLoading.value = false;
   }
-}
-
-async function loadTokens() {
-  const resp = await localManagementClient.listManagementAccessTokens({});
-  tokens.value = resp.accessTokens;
 }
 
 async function loadLocalAgents() {
@@ -160,30 +146,6 @@ async function testEnvironment(environment: Environment) {
   });
 }
 
-async function createToken() {
-  await runLocalAction(async () => {
-    const expiresAtUnixMillis = tokenForm.expiresAt ? BigInt(new Date(tokenForm.expiresAt).getTime()) : 0n;
-    const resp = await localManagementClient.createManagementAccessToken({
-      name: tokenForm.name,
-      enabled: tokenForm.enabled,
-      expiresAtUnixMillis,
-    });
-    issuedToken.value = resp.token;
-    tokenForm.name = "";
-    tokenForm.expiresAt = "";
-    tokenForm.enabled = true;
-    await loadTokens();
-  });
-}
-
-async function deleteToken(token: ManagementAccessToken) {
-  if (!window.confirm(`Revoke access token "${token.name}"?`)) return;
-  await runLocalAction(async () => {
-    await localManagementClient.deleteManagementAccessToken({ id: token.id });
-    await loadTokens();
-  });
-}
-
 async function runLocalAction(action: () => Promise<void>) {
   if (isLoading.value) return;
   isLoading.value = true;
@@ -234,8 +196,8 @@ function messageFromError(err: unknown): string {
   <div class="space-y-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <h3 class="text-xl font-bold mb-2">Environments</h3>
-        <p class="text-[#888] text-sm">Remote management endpoints, certificate trust, and admin access tokens.</p>
+        <h4 class="mb-2 text-lg font-semibold text-white">Environments</h4>
+        <p class="text-sm text-[#888]">Remote management endpoints, routing, and certificate trust.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
         <SecondaryButton size="small" label="Add Environment" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
@@ -250,7 +212,7 @@ function messageFromError(err: unknown): string {
 
     <section class="vercel-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Registered Environments</h4>
+        <h5 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Registered Environments</h5>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[1120px] text-sm">
@@ -324,67 +286,6 @@ function messageFromError(err: unknown): string {
       </div>
     </section>
 
-    <section class="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
-      <div class="vercel-card p-5">
-        <h4 class="mb-4 text-sm font-semibold uppercase tracking-widest text-[#888]">Create Access Token</h4>
-        <form class="grid gap-4" @submit.prevent="createToken">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Name
-            <input v-model="tokenForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
-          </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
-            Expires
-            <input v-model="tokenForm.expiresAt" type="datetime-local" class="vercel-input text-sm normal-case tracking-normal" />
-          </label>
-          <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-            <input v-model="tokenForm.enabled" type="checkbox" />
-            Enabled
-          </label>
-          <Button label="Create Token" type="submit" :disabled="Boolean(busyDisabledReason)" />
-        </form>
-        <div v-if="issuedToken" class="mt-5 rounded-md border border-[#333] bg-[#050505] p-3">
-          <p class="mb-2 text-xs uppercase tracking-wider text-[#888]">Issued Token</p>
-          <code class="block break-all font-mono text-xs text-white">{{ issuedToken }}</code>
-        </div>
-      </div>
-
-      <div class="vercel-card overflow-hidden">
-        <div class="border-b border-[#333] px-5 py-4">
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Access Tokens</h4>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[680px] text-sm">
-            <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
-              <tr>
-                <th class="px-5 py-3">Name</th>
-                <th class="px-5 py-3">Expires</th>
-                <th class="px-5 py-3">Last Used</th>
-                <th class="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="token in tokens" :key="token.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
-                <td class="px-5 py-4">
-                  <p class="font-medium text-white">{{ token.name }}</p>
-                  <Tag v-if="!token.enabled" value="Disabled" severity="warn" class="mt-2" />
-                </td>
-                <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(token.expiresAtUnixMillis) }}</td>
-                <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(token.lastUsedAtUnixMillis) }}</td>
-                <td class="px-5 py-4 text-right">
-                  <DangerButton size="small" aria-label="Revoke token" title="Revoke token" :disabled="Boolean(busyDisabledReason)" @click="deleteToken(token)">
-                    <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                  </DangerButton>
-                </td>
-              </tr>
-              <tr v-if="!tokens.length">
-                <td colspan="4" class="px-5 py-10 text-center text-sm text-[#888]">No access tokens issued.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
     <Modal v-model="isEnvironmentModalOpen" :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'" max-width="42rem">
       <form class="grid gap-4" @submit.prevent="submitEnvironment">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
@@ -420,7 +321,7 @@ function messageFromError(err: unknown): string {
           Local Agent
           <select v-model="environmentForm.agentId" class="vercel-input text-sm normal-case tracking-normal" required>
             <option value="0" disabled>Select agent</option>
-            <option v-for="agent in connectedLocalAgents" :key="agent.id.toString()" :value="agent.id.toString()">
+            <option v-for="agent in enabledLocalAgents" :key="agent.id.toString()" :value="agent.id.toString()">
               {{ agent.name }}{{ agent.connected ? '' : ' (offline)' }}
             </option>
           </select>
