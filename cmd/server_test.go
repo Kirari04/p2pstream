@@ -19,3 +19,10 @@ func TestManagementListenAddressAllowsAllInterfaces(t *testing.T) {
 		t.Fatalf("managementListenAddress = %q, want 0.0.0.0:9443", got)
 	}
 }
+
+func TestManagementDisplayAddressUsesEffectivePort(t *testing.T) {
+	got := managementDisplayAddress(managementListenAddress(&config.Config{}))
+	if got != "localhost:8081" {
+		t.Fatalf("managementDisplayAddress = %q, want localhost:8081", got)
+	}
+}

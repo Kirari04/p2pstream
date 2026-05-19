@@ -131,6 +131,42 @@ func TestLoadRespectsExplicitManagementBindAddress(t *testing.T) {
 	}
 }
 
+func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
+	t.Run("observability max rows may be disabled explicitly", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("OBSERVABILITY_MAX_ROWS", "0")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.ObservabilityMaxRows != 0 {
+			t.Fatalf("ObservabilityMaxRows = %d, want 0", cfg.ObservabilityMaxRows)
+		}
+	})
+
+	t.Run("negative observability max rows rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("OBSERVABILITY_MAX_ROWS", "-1")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected negative OBSERVABILITY_MAX_ROWS to fail")
+		}
+	})
+
+	t.Run("non-positive login throttle max keys rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("LOGIN_THROTTLE_MAX_KEYS", "0")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected zero LOGIN_THROTTLE_MAX_KEYS to fail")
+		}
+	})
+}
+
 func TestLoadMigratesLegacyDefaultDatabase(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")

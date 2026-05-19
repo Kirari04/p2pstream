@@ -844,7 +844,7 @@ func TestPublicWafWaitingRoomCapsQueuedSessions(t *testing.T) {
 	rule.WaitingRoom.MaxAdmittedSessions = 1
 	rule.WaitingRoom.AdmissionRatePerSecond = 1
 	rule.WaitingRoom.AdmissionSessionTTLMillis = int64(time.Hour / time.Millisecond)
-	rule.WaitingRoom.QueuePollIntervalMillis = 1000
+	rule.WaitingRoom.QueuePollIntervalMillis = 2500
 	rule.WaitingRoom.QueueTimeoutMillis = 60000
 	rule.Fingerprint = publicWafRuleFingerprint(rule)
 	snap := testWafSnapshot(rule, nil)
@@ -863,6 +863,9 @@ func TestPublicWafWaitingRoomCapsQueuedSessions(t *testing.T) {
 	fullDecision, fullAllowed := waf.evaluate(snap, snap.Listeners[1], httptest.NewRequest(http.MethodGet, "http://example.com/", nil), now.Add(3*time.Second), nil)
 	if fullAllowed || fullDecision.ErrorKind != "waf_waiting_room_queue_full" || len(fullDecision.Cookies) != 0 {
 		t.Fatalf("full decision = %#v allowed=%v, want queue_full without cookie", fullDecision, fullAllowed)
+	}
+	if fullDecision.RetryAfter != 2500*time.Millisecond {
+		t.Fatalf("full retry after = %v, want 2.5s", fullDecision.RetryAfter)
 	}
 }
 

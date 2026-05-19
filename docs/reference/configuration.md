@@ -88,11 +88,14 @@ Compose `.env`:
 
 ```dotenv
 MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
+MANAGEMENT_BIND_ADDRESS=0.0.0.0
 MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
 P2PSTREAM_HTTP_PORT=80
 P2PSTREAM_HTTPS_PORT=443
 P2PSTREAM_MANAGEMENT_PORT=8081
 ```
+
+Compose defaults `MANAGEMENT_BIND_ADDRESS` to `0.0.0.0` inside the container; set it in `.env` to a narrower address when the management service should not listen on every container interface.
 
 Binary/systemd server environment:
 

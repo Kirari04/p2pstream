@@ -102,6 +102,12 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.ManagementBindAddress == "" {
 		cfg.ManagementBindAddress = "127.0.0.1"
 	}
+	if cfg.ObservabilityMaxRows < 0 {
+		return errors.New("OBSERVABILITY_MAX_ROWS must be greater than or equal to 0")
+	}
+	if cfg.LoginThrottleMaxKeys <= 0 {
+		return errors.New("LOGIN_THROTTLE_MAX_KEYS must be greater than 0")
+	}
 	cfg.ManagementTLSCertFile = strings.TrimSpace(cfg.ManagementTLSCertFile)
 	cfg.ManagementTLSKeyFile = strings.TrimSpace(cfg.ManagementTLSKeyFile)
 	cfg.ManagementTLSClientCAFile = strings.TrimSpace(cfg.ManagementTLSClientCAFile)

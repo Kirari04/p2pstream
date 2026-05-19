@@ -86,7 +86,7 @@ var serverCmd = &cobra.Command{
 				scheme = "https"
 				wsScheme = "wss"
 			}
-			displayAddr := net.JoinHostPort("localhost", cfg.ManagementPort)
+			displayAddr := managementDisplayAddress(mgmtAddr)
 			managementURL := scheme + "://" + displayAddr
 			app.LogGeneratedSetupToken(managementURL)
 			log.Info().
@@ -141,6 +141,14 @@ func managementListenAddress(cfg *config.Config) string {
 		port = "8081"
 	}
 	return net.JoinHostPort(bind, port)
+}
+
+func managementDisplayAddress(listenAddr string) string {
+	_, port, err := net.SplitHostPort(listenAddr)
+	if err != nil || port == "" {
+		port = "8081"
+	}
+	return net.JoinHostPort("localhost", port)
 }
 
 func init() {

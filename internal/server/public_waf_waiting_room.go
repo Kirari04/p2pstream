@@ -47,13 +47,17 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 	rt.pruneLocked(now, queueTimeout)
 	if _, ok := rt.queued[sessionID]; !ok {
 		if len(rt.queued) >= maxWafWaitingRoomQueuedSessions {
+			retryAfter := time.Duration(rule.WaitingRoom.QueuePollIntervalMillis) * time.Millisecond
+			if retryAfter <= 0 {
+				retryAfter = defaultWafWaitingRoomPollInterval
+			}
 			return publicWafDecision{
 				Rule:            rule,
 				Listener:        listener,
 				Action:          publicWafActionWaitingRoom,
 				StatusCode:      http.StatusServiceUnavailable,
 				ErrorKind:       "waf_waiting_room_queue_full",
-				RetryAfter:      defaultWafWaitingRoomPollInterval,
+				RetryAfter:      retryAfter,
 				AutomaticActive: automaticActive,
 				ChallengeKind:   publicWafActionWaitingRoom,
 				QueuePosition:   int64(len(rt.queue) + 1),

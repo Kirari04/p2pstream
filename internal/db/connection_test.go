@@ -47,7 +47,7 @@ func TestOpenSecuresSQLiteDirectoryAndFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	assertDBMode(t, dir, 0700)
 	assertDBMode(t, dbPath, 0600)
@@ -71,7 +71,7 @@ func TestOpenChmodsExistingSQLiteDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	assertDBMode(t, dir, 0700)
 }
@@ -81,7 +81,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries"} {
 		var name string
@@ -350,7 +350,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open migrated legacy db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
@@ -431,7 +431,7 @@ func TestMigrationUpgradesLegacyTLSCertificateSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open migrated legacy db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	tlsColumns := tableColumns(t, database, "public_tls_certificates")
 	for _, column := range []string{"source", "acme_challenge_type", "acme_ca", "acme_email", "dns_credential_id", "status", "last_error", "issued_at", "expires_at", "next_renewal_at", "last_renewal_attempt_at"} {
@@ -506,7 +506,7 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open migrated legacy db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	routes, err := database.ListPublicRoutes(context.Background())
 	if err != nil {
@@ -565,7 +565,7 @@ func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	backend, err := database.CreatePublicBackend(context.Background(), CreatePublicBackendParams{
 		Name:         "upstream-headers",
@@ -713,7 +713,7 @@ func TestOpenConfiguresWALJournalMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	var journalMode string
 	if err := database.QueryRowContext(context.Background(), `PRAGMA journal_mode`).Scan(&journalMode); err != nil {
