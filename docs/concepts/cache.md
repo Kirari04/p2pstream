@@ -14,6 +14,10 @@ Use cache rules when public frontend assets are repeatedly fetched through p2pst
 
 ## Runtime Behavior
 
+:::warning `Authorization` requests are never cached
+Any request that includes an `Authorization` header always bypasses the cache, regardless of cache rule configuration. If you are caching API responses, ensure they do not require this header.
+:::
+
 Requests are never cached when they include:
 
 - `Authorization`,
@@ -29,6 +33,11 @@ Responses are never cached when they include `Set-Cookie`, `Cache-Control: no-st
 The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule TTL, default `3600000` ms. Origin TTL respects `s-maxage`, `max-age`, and `Expires`, falling back to the rule TTL when the origin has no usable TTL.
 
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and backend filters, TTL, query handling, vary headers, status codes, and object limits">
+  <figcaption>The cache editor exposes both request matching and cache-safety controls, including route/backend filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
+</figure>
 
 ## Common Mistakes
 

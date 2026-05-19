@@ -49,6 +49,6 @@ AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 - [Systemd uninstall](../operations/systemd#uninstall-agent)
 
 <figure class="doc-screenshot">
-  <img src="../assets/agent.png" alt="p2pstream Agents page showing runtime metrics, registered agents, and connection history">
+  <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connection state, active requests, runtime metrics, token actions, and connection history">
   <figcaption>The Agents page shows connection state, active requests, runtime metrics, token rotation, enable/disable actions, and connection history.</figcaption>
 </figure>

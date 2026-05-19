@@ -14,17 +14,19 @@ Use this on a new installation, after restoring an empty database, or when you n
 
 ## Steps
 
+:::warning 5-minute setup window
+The **Setup Admin** form is only available for 5 minutes after server start when no users exist. If you miss the window, restart the server to reopen it:
+
+```bash
+docker compose restart p2pstream
+```
+:::
+
 1. Open the management URL in a browser.
 2. On **Setup Admin**, create the primary administrator account.
 3. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
 4. Use a password with at least 12 characters.
 5. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, backends, and routes.
-
-The setup window is available for 5 minutes after server start when the user table is empty. If the window expires before any user exists, restart the server:
-
-```bash
-docker compose restart p2pstream
-```
 
 ## Runtime Rules
 
@@ -37,11 +39,11 @@ docker compose restart p2pstream
 
 ## Verification
 
-After login, the navigation should show **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
+After login, the **Overview** dashboard should load with live proxy status, request totals, traffic trends, and the main navigation for **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_1.png" alt="p2pstream Proxy page showing public listeners and backend configuration">
-  <figcaption>The Proxy page is where listeners, backends, and routes are created and edited. Traffic Policy contains WAF, rate limits, cache, and shapers; Templates contains reusable response bodies and WAF pages; TLS contains certificate mappings and DNS credentials.</figcaption>
+  <img src="../assets/new/dashboard_overview.png" alt="p2pstream Overview dashboard showing proxy status, request totals, traffic trend, hotspots, and configuration summary">
+  <figcaption>The Overview page is the first post-login health check. It confirms the selected environment, public proxy state, recent traffic, problem signals, and quick access to the configuration areas.</figcaption>
 </figure>
 
 ## Troubleshooting

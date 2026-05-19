@@ -19,6 +19,8 @@ Use these controls when protecting login endpoints, controlling API budgets, slo
 
 ## Runtime Behavior
 
+Every public request passes through these layers in order. A request stopped at an earlier layer never reaches later ones.
+
 Evaluation order:
 
 1. ACME HTTP challenge bypass
@@ -28,15 +30,25 @@ Evaluation order:
 5. Traffic shapers
 6. Route and backend selection
 7. Cache rule evaluation and lookup
-8. Upstream forwarding or cached response
+8. Origin forwarding or cached response
 
-Policy matching uses request-only CEL `match_rule` expressions for method, protocol, host, path, remote IP/CIDR, headers, cookies, and query parameters. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically. If no key parts are configured, remote IP is used.
+Policy matching uses request-only CEL `match_rule` expressions for method, protocol, host, path, remote IP/CIDR, headers, cookies, and query parameters. See [CEL Policy Matching](../reference/cel) for the shared matcher syntax, validation rules, and examples. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically. If no key parts are configured, remote IP is used.
 
 Cache `route_ids` and `backend_ids` remain separate filters evaluated after route/backend selection.
 
 Traffic shaping uses byte-per-second token buckets. `per_key` shares a bucket for requests with the same key; `per_request` gives each request its own bucket.
 
 Cache rules store eligible public `GET`/`HEAD` responses for proxy-forward backends after route/backend selection. Cache hits still pass through WAF, rate limits, and traffic shaping first.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy page showing WAF rules and rate limits with priorities, matches, actions, and enabled state">
+  <figcaption>The WAF and Rate Limits sections show the early policy layers that can block, challenge, queue, or reject traffic before routing.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shapers with priorities, match summaries, rates, and cache controls">
+  <figcaption>The Cache and Traffic Shapers sections show the later controls that shape matched streams or serve eligible proxy-forward assets after backend selection.</figcaption>
+</figure>
 
 ## Common Mistakes
 

@@ -22,16 +22,16 @@ Proxy request events include status code, duration, error kind, listener ID, bac
 
 Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 
-Traffic tracing levels:
+Traffic tracing levels (all levels record every matching request — no sampling occurs):
 
 | Level | Includes |
 | --- | --- |
 | Basic | High-level request stages. |
-| Detailed | Host, query, WAF decision, target origin, backend type, and error kind. |
+| Detailed | Host, query, WAF decision, origin, backend type, and error kind. |
 | Headers | Request and response headers, redacted where known. |
 | Debug | More detailed event attributes. |
 
-Use Headers and Debug temporarily because they can expose operational details and request metadata.
+Use Headers and Debug temporarily because they can expose operational details and request metadata, including `Authorization` tokens and session cookies.
 
 ## Common Mistakes
 
@@ -46,11 +46,13 @@ Use Headers and Debug temporarily because they can expose operational details an
 - [Configuration reference](../reference/configuration)
 
 <figure class="doc-screenshot">
-  <img src="../assets/overview.png" alt="p2pstream overview dashboard with request counts, success rate, throughput, traffic trend, and hotspots">
+  <img src="../assets/new/dashboard_overview.png" alt="p2pstream overview dashboard with request counts, success rate, throughput, traffic trend, hotspots, and problem signals">
   <figcaption>Overview combines retained request events with current proxy and agent state.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, backend, cache, agent, upstream, and response">
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, backend, cache, agent, upstream, and response">
   <figcaption>Traffic Flow renders sampled request paths across listeners, policy checks, route and backend selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
+
+The request details modal complements the flow diagram when one stage needs deeper inspection. Use it to check timing, selected rule and backend IDs, cache status, response metadata, and the trace attributes available at the selected tracing level.

@@ -42,6 +42,11 @@ ACME challenges:
 
 If no configured certificate matches a public hostname, the HTTPS listener can serve a fallback self-signed certificate. Treat that as a public deployment failure.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing public certificate mappings, ACME status, DNS credentials, and certificate details">
+  <figcaption>The TLS page shows certificate mappings per HTTPS listener, their issuance status, renewal metadata, and DNS credentials used for DNS-01 validation.</figcaption>
+</figure>
+
 ## Common Mistakes
 
 - Setting `MANAGEMENT_PUBLIC_URL` to a URL agents cannot reach.

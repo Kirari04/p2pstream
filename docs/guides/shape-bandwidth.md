@@ -47,6 +47,15 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
 
    `0` means unlimited for upload or download rates.
 
+   :::info Burst bytes
+   Burst allows a connection to temporarily exceed the configured byte-per-second rate by up to this many bytes before the token bucket enforces the limit. Use it to absorb the initial burst of a download without throttling the entire transfer from byte one. Set to `0` to disable burst.
+   :::
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper editor showing request match, budget scope, key parts, upload and download byte rates, burst, and exempt bytes">
+  <figcaption>The traffic shaper editor defines which requests are slowed, whether budgets are shared per key or per request, and how much upload or download throughput is available.</figcaption>
+</figure>
+
 ## Verification
 
 Download a large matching file and watch transfer speed. Use **Traffic** tracing to confirm the shaper rule is selected.
