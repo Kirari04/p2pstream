@@ -56,6 +56,7 @@ const traceStore = new TrafficTraceStore(applyTraceStoreSnapshot);
 let streamController: AbortController | null = null;
 let retryTimer: number | null = null;
 let retryDelayMs = 1000;
+let traceSettingsLoadVersion = 0;
 
 const traceLevelOptions = [
   { label: "Basic", value: TrafficTraceLevel.BASIC },
@@ -75,14 +76,16 @@ const traceTableSummary = computed(() => {
   return `Latest ${numberLabel(stats.renderedTableRows)} rendered from ${numberLabel(stats.retainedRequests)} retained requests.`;
 });
 
-async function loadTraceSettings() {
+async function loadTraceSettings(loadVersion: number) {
   try {
     const resp = await managementClient.getTrafficTraceSettings({});
+    if (loadVersion !== traceSettingsLoadVersion) return;
     applyTraceSettings(resp.settings ?? null);
     if (resp.settings?.enabled) {
       startTraceStream();
     }
   } catch (err) {
+    if (loadVersion !== traceSettingsLoadVersion) return;
     streamError.value = messageFromError(err);
     streamState.value = "error";
   }
@@ -277,15 +280,18 @@ function messageFromError(err: unknown): string {
 
 onMounted(() => {
   window.addEventListener("pagehide", handlePageHide);
-  void loadTraceSettings();
+  traceSettingsLoadVersion += 1;
+  void loadTraceSettings(traceSettingsLoadVersion);
 });
 
 watch(selectedEnvironmentId, () => {
+  traceSettingsLoadVersion += 1;
   stopTraceStream("idle");
   traceStore.clear();
   selectedRequestId.value = null;
   traceSettings.value = null;
-  void loadTraceSettings();
+  streamError.value = "";
+  void loadTraceSettings(traceSettingsLoadVersion);
 });
 
 onBeforeUnmount(() => {
@@ -411,7 +417,7 @@ onBeforeUnmount(() => {
             <SecondaryButton
               label="Clear"
               size="small"
-              class="!border-[#333] !bg-transparent !text-[#888] hover:!border-[#666]"
+              class="border-[#333]! bg-transparent! text-[#888]! hover:border-[#666]!"
               :disabled="Boolean(clearTracesDisabledReason)"
               @click="clearTraceRequests"
             />

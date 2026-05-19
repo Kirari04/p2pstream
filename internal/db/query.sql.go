@@ -4288,6 +4288,7 @@ const touchManagementAccessToken = `-- name: TouchManagementAccessToken :exec
 UPDATE management_access_tokens
 SET last_used_at = CURRENT_TIMESTAMP
 WHERE id = ?
+  AND (last_used_at IS NULL OR last_used_at < datetime('now', '-30 seconds'))
 `
 
 func (q *Queries) TouchManagementAccessToken(ctx context.Context, id int64) error {

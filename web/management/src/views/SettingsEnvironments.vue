@@ -55,7 +55,7 @@ const environmentForm = reactive({
   name: "",
   managementUrl: "",
   transport: EnvironmentTransport.DIRECT,
-  agentId: "0",
+  agentId: "",
   accessToken: "",
   responseHeaderTimeoutMillis: 10000,
   enabled: true,
@@ -92,7 +92,7 @@ function openCreateEnvironment() {
   environmentForm.name = "";
   environmentForm.managementUrl = "";
   environmentForm.transport = EnvironmentTransport.DIRECT;
-  environmentForm.agentId = "0";
+  environmentForm.agentId = "";
   environmentForm.accessToken = "";
   environmentForm.responseHeaderTimeoutMillis = 10000;
   environmentForm.enabled = true;
@@ -105,7 +105,7 @@ function openEditEnvironment(environment: Environment) {
   environmentForm.name = environment.name;
   environmentForm.managementUrl = environment.managementUrl;
   environmentForm.transport = environment.transport || EnvironmentTransport.DIRECT;
-  environmentForm.agentId = environment.agentId.toString();
+  environmentForm.agentId = environment.agentId ? environment.agentId.toString() : "";
   environmentForm.accessToken = "";
   environmentForm.responseHeaderTimeoutMillis = Number(environment.responseHeaderTimeoutMillis || 10000n);
   environmentForm.enabled = environment.enabled;
@@ -115,11 +115,14 @@ function openEditEnvironment(environment: Environment) {
 
 async function submitEnvironment() {
   await runLocalAction(async () => {
+    if (environmentForm.transport === EnvironmentTransport.AGENT && !environmentForm.agentId) {
+      throw new Error("Select a local agent.");
+    }
     const payload = {
       name: environmentForm.name,
       managementUrl: environmentForm.managementUrl,
       transport: environmentForm.transport,
-      agentId: BigInt(environmentForm.transport === EnvironmentTransport.AGENT ? environmentForm.agentId || "0" : "0"),
+      agentId: BigInt(environmentForm.transport === EnvironmentTransport.AGENT ? environmentForm.agentId : "0"),
       accessToken: environmentForm.accessToken,
       responseHeaderTimeoutMillis: BigInt(environmentForm.responseHeaderTimeoutMillis),
       enabled: environmentForm.enabled,
@@ -148,10 +151,23 @@ async function deleteEnvironment(environment: Environment) {
 }
 
 async function discoverCertificate(environment: Environment) {
-  await runLocalAction(async () => {
+  if (isLoading.value) return;
+  isLoading.value = true;
+  operationError.value = "";
+  try {
     await localManagementClient.discoverEnvironmentCertificate({ id: environment.id });
-    await reloadEnvironments?.();
-  });
+  } catch (err) {
+    operationError.value = messageFromError(err);
+  } finally {
+    try {
+      await reloadEnvironments?.();
+    } catch (err) {
+      if (!operationError.value) {
+        operationError.value = messageFromError(err);
+      }
+    }
+    isLoading.value = false;
+  }
 }
 
 async function trustCertificate(environment: Environment) {
@@ -527,7 +543,7 @@ function messageFromError(err: unknown): string {
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Local Agent
           <select v-model="environmentForm.agentId" class="vercel-input text-sm normal-case tracking-normal" required>
-            <option value="0" disabled>Select agent</option>
+            <option value="" disabled>Select agent</option>
             <option v-for="agent in enabledLocalAgents" :key="agent.id.toString()" :value="agent.id.toString()">
               {{ agent.name }}{{ agent.connected ? '' : ' (offline)' }}
             </option>

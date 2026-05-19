@@ -26,6 +26,7 @@ const revokeTokenDialog = useConfirmDialog();
 
 const tokens = ref<ManagementAccessToken[]>([]);
 const isLoading = ref(false);
+const refreshQueued = ref(false);
 const issuedToken = ref("");
 const isIssuedTokenModalOpen = ref(false);
 const isIssuedTokenVisible = ref(false);
@@ -39,6 +40,11 @@ const tokenForm = reactive({
   expiresAt: "",
   enabled: true,
 });
+
+interface TokenRefreshSnapshot {
+  environmentId: string;
+  blockedReason: string;
+}
 
 const actionDisabledReason = computed(() => {
   if (selectedEnvironmentBlocked.value) return selectedEnvironmentBlocked.value;
@@ -59,25 +65,54 @@ watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
 });
 
 async function refreshTokens() {
-  if (isLoading.value) return;
-  isLoading.value = true;
-  operationError.value = "";
-  try {
-    await loadTokens();
-  } catch (err) {
-    operationError.value = messageFromError(err);
-  } finally {
-    isLoading.value = false;
+  if (isLoading.value) {
+    refreshQueued.value = true;
+    return;
   }
+  do {
+    refreshQueued.value = false;
+    const snapshot = currentTokenRefreshSnapshot();
+    isLoading.value = true;
+    operationError.value = "";
+    try {
+      await loadTokens(snapshot);
+    } catch (err) {
+      if (isTokenRefreshSnapshotCurrent(snapshot)) {
+        operationError.value = messageFromError(err);
+      } else {
+        refreshQueued.value = true;
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  } while (refreshQueued.value);
 }
 
-async function loadTokens() {
-  if (selectedEnvironmentBlocked.value) {
-    tokens.value = [];
+async function loadTokens(snapshot = currentTokenRefreshSnapshot()) {
+  if (snapshot.blockedReason) {
+    if (isTokenRefreshSnapshotCurrent(snapshot)) {
+      tokens.value = [];
+    }
     return;
   }
   const resp = await managementClient.listManagementAccessTokens({});
+  if (!isTokenRefreshSnapshotCurrent(snapshot)) {
+    refreshQueued.value = true;
+    return;
+  }
   tokens.value = resp.accessTokens;
+}
+
+function currentTokenRefreshSnapshot(): TokenRefreshSnapshot {
+  return {
+    environmentId: selectedEnvironmentId.value,
+    blockedReason: selectedEnvironmentBlocked.value,
+  };
+}
+
+function isTokenRefreshSnapshotCurrent(snapshot: TokenRefreshSnapshot): boolean {
+  return snapshot.environmentId === selectedEnvironmentId.value
+    && snapshot.blockedReason === selectedEnvironmentBlocked.value;
 }
 
 async function createToken() {
@@ -139,6 +174,9 @@ async function runTokenAction(action: () => Promise<void>) {
     operationError.value = messageFromError(err);
   } finally {
     isLoading.value = false;
+    if (refreshQueued.value) {
+      void refreshTokens();
+    }
   }
 }
 

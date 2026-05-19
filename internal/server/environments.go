@@ -152,7 +152,7 @@ func (a *App) DiscoverEnvironmentCertificate(
 		if updateErr == nil {
 			row = updated
 		}
-		return connect.NewResponse(&p2pstreamv1.DiscoverEnvironmentCertificateResponse{Environment: a.environmentToProto(ctx, row)}), connect.NewError(connect.CodeUnavailable, err)
+		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
 	updated, err := a.DB.UpdateEnvironmentObservedCertificate(ctx, db.UpdateEnvironmentObservedCertificateParams{
 		LastObservedCertificatePem:    environmentCertificatePEM(cert),
@@ -320,9 +320,6 @@ func validateEnvironmentManagementURL(rawURL string) (string, error) {
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("environment management URL must not include a query string"))
 	}
 	parsed.Path = strings.TrimRight(parsed.Path, "/")
-	if parsed.Path == "" {
-		parsed.Path = ""
-	}
 	parsed.RawPath = ""
 	return parsed.String(), nil
 }

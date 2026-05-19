@@ -538,7 +538,9 @@ func trustedCertificateHTTPClient(trustedCertificatePEM string, trustedCertifica
 	transport := base.Clone()
 	transport.ResponseHeaderTimeout = normalizeResponseHeaderTimeout(responseHeaderTimeout)
 	transport.TLSClientConfig = &tls.Config{
-		MinVersion:         tls.VersionTLS12,
+		MinVersion: tls.VersionTLS12,
+		// Environment forwarding verifies the pinned leaf fingerprint below
+		// while preserving hostname and validity checks in VerifyConnection.
 		InsecureSkipVerify: true,
 		VerifyConnection: func(state tls.ConnectionState) error {
 			return verifyPinnedCertificateConnection(state, wantFingerprint)
@@ -583,6 +585,9 @@ func discoverRemoteCertificate(ctx context.Context, host string, responseHeaderT
 	if err != nil {
 		return nil, "", err
 	}
+	// Discovery intentionally skips verification only to collect the unknown
+	// certificate for explicit TOFU review; no authorization token or
+	// management RPC is sent on this connection.
 	dialer := tls.Dialer{Config: &tls.Config{
 		MinVersion:         tls.VersionTLS12,
 		ServerName:         hostName,

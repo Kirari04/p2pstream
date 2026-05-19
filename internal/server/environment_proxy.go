@@ -167,7 +167,6 @@ func (a *App) environmentHTTPClient(row db.Environment) (*http.Client, error) {
 
 func (rt environmentAuthRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	clone := req.Clone(req.Context())
-	clone.Header = req.Header.Clone()
 	clone.Header.Del("Cookie")
 	clone.Header.Set("Authorization", "Bearer "+rt.token)
 	return rt.next.RoundTrip(clone)

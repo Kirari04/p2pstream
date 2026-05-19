@@ -29,11 +29,12 @@ const (
 )
 
 type authenticatedUser struct {
-	ID        int64
-	Username  string
-	Role      p2pstreamv1.UserRole
-	SessionID int64
-	TokenHash string
+	ID            int64
+	Username      string
+	Role          p2pstreamv1.UserRole
+	SessionID     int64
+	TokenHash     string
+	IsAccessToken bool
 }
 
 type managementClientCertificateContextKey struct{}
@@ -303,10 +304,10 @@ func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticat
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		return &authenticatedUser{
-			ID:        row.ID,
-			Username:  row.Name,
-			Role:      protoRole(row.Role),
-			TokenHash: tokenHash,
+			Username:      row.Name,
+			Role:          protoRole(row.Role),
+			TokenHash:     tokenHash,
+			IsAccessToken: true,
 		}, nil
 	}
 

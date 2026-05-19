@@ -37,6 +37,9 @@ func discoverCertificateDirect(ctx context.Context, rawURL string, timeout time.
 	}
 	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	// Discovery intentionally skips verification only to collect the unknown
+	// certificate for explicit TOFU review. No authorization token or
+	// management RPC is sent on this connection.
 	dialer := tls.Dialer{Config: &tls.Config{
 		MinVersion:         tls.VersionTLS12,
 		ServerName:         host,
@@ -161,8 +164,10 @@ func trustedEnvironmentTLSConfig(envURL string, certPEM string, fingerprint stri
 		return nil, err
 	}
 	return &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		ServerName:         parsed.Hostname(),
+		MinVersion: tls.VersionTLS12,
+		ServerName: parsed.Hostname(),
+		// Verification is handled below so we can pin the trusted leaf
+		// fingerprint while still enforcing hostname and validity checks.
 		InsecureSkipVerify: true,
 		VerifyConnection: func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 {

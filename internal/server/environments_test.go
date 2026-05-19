@@ -33,8 +33,45 @@ func TestManagementAccessTokenAuthSupportsExpiry(t *testing.T) {
 	}
 	tokenHeader := http.Header{}
 	tokenHeader.Set("Authorization", "Bearer "+createResp.Msg.Token)
-	if _, err := app.requireAdmin(ctx, tokenHeader); err != nil {
+	tokenUser, err := app.requireAdmin(ctx, tokenHeader)
+	if err != nil {
 		t.Fatalf("access token did not authenticate admin: %v", err)
+	}
+	if tokenUser.ID != 0 {
+		t.Fatalf("access token user id = %d, want 0", tokenUser.ID)
+	}
+	if !tokenUser.IsAccessToken {
+		t.Fatal("expected token-authenticated user to be marked as access token")
+	}
+	if tokenUser.Username != "remote-admin" {
+		t.Fatalf("token username = %q, want remote-admin", tokenUser.Username)
+	}
+	currentTokenReq := connect.NewRequest(&p2pstreamv1.GetCurrentUserRequest{})
+	currentTokenReq.Header().Set("Authorization", "Bearer "+createResp.Msg.Token)
+	currentTokenResp, err := app.GetCurrentUser(ctx, currentTokenReq)
+	if err != nil {
+		t.Fatalf("get current user with access token: %v", err)
+	}
+	if currentTokenResp.Msg.User.Id != 0 {
+		t.Fatalf("token current user id = %d, want 0", currentTokenResp.Msg.User.Id)
+	}
+	if currentTokenResp.Msg.User.Username != "remote-admin" {
+		t.Fatalf("token current username = %q, want remote-admin", currentTokenResp.Msg.User.Username)
+	}
+	if currentTokenResp.Msg.User.Role != p2pstreamv1.UserRole_USER_ROLE_ADMIN {
+		t.Fatalf("token current role = %s, want admin", currentTokenResp.Msg.User.Role)
+	}
+	currentSessionReq := connect.NewRequest(&p2pstreamv1.GetCurrentUserRequest{})
+	currentSessionReq.Header().Set("Cookie", adminHeader.Get("Cookie"))
+	currentSessionResp, err := app.GetCurrentUser(ctx, currentSessionReq)
+	if err != nil {
+		t.Fatalf("get current user with session: %v", err)
+	}
+	if currentSessionResp.Msg.User.Id == 0 {
+		t.Fatal("session current user id = 0, want real user id")
+	}
+	if currentSessionResp.Msg.User.Username != "admin" {
+		t.Fatalf("session current username = %q, want admin", currentSessionResp.Msg.User.Username)
 	}
 	row, err := app.DB.GetActiveManagementAccessTokenByHash(ctx, hashManagementAccessToken(createResp.Msg.Token))
 	if err != nil {
@@ -42,6 +79,23 @@ func TestManagementAccessTokenAuthSupportsExpiry(t *testing.T) {
 	}
 	if !row.LastUsedAt.Valid {
 		t.Fatal("expected last_used_at to be updated")
+	}
+	if _, err := app.DB.ExecContext(ctx, "UPDATE management_access_tokens SET last_used_at = datetime('now', '-10 seconds') WHERE id = ?", row.ID); err != nil {
+		t.Fatalf("seed recent last_used_at: %v", err)
+	}
+	recentRow, err := app.DB.GetActiveManagementAccessTokenByHash(ctx, hashManagementAccessToken(createResp.Msg.Token))
+	if err != nil {
+		t.Fatalf("reload recent access token: %v", err)
+	}
+	if _, err := app.requireAdmin(ctx, tokenHeader); err != nil {
+		t.Fatalf("recent access token did not authenticate admin: %v", err)
+	}
+	untouchedRow, err := app.DB.GetActiveManagementAccessTokenByHash(ctx, hashManagementAccessToken(createResp.Msg.Token))
+	if err != nil {
+		t.Fatalf("reload untouched access token: %v", err)
+	}
+	if !untouchedRow.LastUsedAt.Time.Equal(recentRow.LastUsedAt.Time) {
+		t.Fatalf("recent last_used_at changed from %s to %s", recentRow.LastUsedAt.Time, untouchedRow.LastUsedAt.Time)
 	}
 
 	deleteReq := connect.NewRequest(&p2pstreamv1.DeleteManagementAccessTokenRequest{Id: createResp.Msg.AccessToken.Id})
@@ -171,6 +225,48 @@ func TestEnvironmentCRUDValidation(t *testing.T) {
 	agentEnv.AgentId = agent.ID
 	if err := create(agentEnv); err != nil {
 		t.Fatalf("agent environment failed: %v", err)
+	}
+}
+
+func TestDiscoverEnvironmentCertificateFailurePersistsLastError(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{}, newServerTestDB(t))
+	adminHeader := createTestAdminSession(t, app)
+	plainServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer plainServer.Close()
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreateEnvironmentRequest{
+		Name:                        "plain-http-on-https-port",
+		ManagementUrl:               "https://" + plainServer.Listener.Addr().String(),
+		Transport:                   p2pstreamv1.EnvironmentTransport_ENVIRONMENT_TRANSPORT_DIRECT,
+		AccessToken:                 "p2pat_test-token-material",
+		ResponseHeaderTimeoutMillis: 10000,
+		Enabled:                     true,
+	})
+	createReq.Header().Set("Cookie", adminHeader.Get("Cookie"))
+	createResp, err := app.CreateEnvironment(ctx, createReq)
+	if err != nil {
+		t.Fatalf("create environment: %v", err)
+	}
+
+	discoverReq := connect.NewRequest(&p2pstreamv1.DiscoverEnvironmentCertificateRequest{Id: createResp.Msg.Environment.Id})
+	discoverReq.Header().Set("Cookie", adminHeader.Get("Cookie"))
+	if resp, err := app.DiscoverEnvironmentCertificate(ctx, discoverReq); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("discover response/error = %v/%v, want unavailable error", resp, err)
+	} else if resp != nil {
+		t.Fatalf("discover response = %+v, want nil response with error", resp.Msg)
+	}
+	row, err := app.DB.GetEnvironment(ctx, createResp.Msg.Environment.Id)
+	if err != nil {
+		t.Fatalf("reload environment: %v", err)
+	}
+	if row.LastError == "" {
+		t.Fatal("expected failed discovery to persist last_error")
+	}
+	if !row.LastCheckedAt.Valid {
+		t.Fatal("expected failed discovery to update last_checked_at")
 	}
 }
 

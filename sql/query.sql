@@ -404,7 +404,8 @@ WHERE token_hash = ?
 -- name: TouchManagementAccessToken :exec
 UPDATE management_access_tokens
 SET last_used_at = CURRENT_TIMESTAMP
-WHERE id = ?;
+WHERE id = ?
+  AND (last_used_at IS NULL OR last_used_at < datetime('now', '-30 seconds'));
 
 -- name: DeleteManagementAccessToken :exec
 DELETE FROM management_access_tokens

@@ -33,6 +33,7 @@ const selectedEnvironmentId = ref(loadSelectedEnvironmentId());
 const isLoading = ref(true);
 const isBusy = ref(false);
 const isRefreshing = ref(false);
+const pendingDashboardReload = ref(false);
 const isLogoutConfirmOpen = ref(false);
 const refreshTimer = ref<number | null>(null);
 const error = ref<string | null>(null);
@@ -128,9 +129,13 @@ function syncSelectedEnvironmentClient() {
 
 watch(selectedEnvironmentId, () => {
   syncSelectedEnvironmentClient();
-  if (!currentUser.value || isLoading.value) return;
+  if (!currentUser.value) return;
   dashboard.value = null;
   publicProxyConfig.value = null;
+  if (isLoading.value) {
+    pendingDashboardReload.value = true;
+    return;
+  }
   void loadDashboard();
 });
 
@@ -181,21 +186,37 @@ async function bootstrap() {
 }
 
 async function loadDashboard() {
-  if (isRefreshing.value) return;
+  if (isRefreshing.value) {
+    pendingDashboardReload.value = true;
+    return;
+  }
   isRefreshing.value = true;
   error.value = null;
+  const loadEnvironmentId = selectedEnvironmentId.value;
   try {
     syncSelectedEnvironmentClient();
     const [dashboardResp, publicProxyResp] = await Promise.all([
       managementClient.getDashboard({}),
       managementClient.getPublicProxyConfig({}),
     ]);
+    if (loadEnvironmentId !== selectedEnvironmentId.value) {
+      pendingDashboardReload.value = true;
+      return;
+    }
     dashboard.value = dashboardResp;
     publicProxyConfig.value = publicProxyResp;
   } catch (err) {
-    error.value = messageFromError(err);
+    if (loadEnvironmentId === selectedEnvironmentId.value) {
+      error.value = messageFromError(err);
+    } else {
+      pendingDashboardReload.value = true;
+    }
   } finally {
     isRefreshing.value = false;
+    if (pendingDashboardReload.value && currentUser.value) {
+      pendingDashboardReload.value = false;
+      void loadDashboard();
+    }
   }
 }
 
@@ -429,10 +450,10 @@ onBeforeUnmount(() => {
     </header>
 
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <Message v-if="error" severity="error" class="mb-6 border-[#333] !bg-black !text-red-500">
+      <Message v-if="error" severity="error" class="mb-6 border-[#333] bg-black! text-red-500!">
         {{ error }}
       </Message>
-      <Message v-if="selectedEnvironmentBlocked" severity="warn" class="mb-6 border-[#333] !bg-black !text-[#c79866]">
+      <Message v-if="selectedEnvironmentBlocked" severity="warn" class="mb-6 border-[#333] bg-black! text-[#c79866]!">
         {{ selectedEnvironmentBlocked }}
       </Message>
 
