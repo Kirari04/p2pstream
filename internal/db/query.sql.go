@@ -11,6 +11,49 @@ import (
 	"time"
 )
 
+const clearEnvironmentTrust = `-- name: ClearEnvironmentTrust :one
+UPDATE environments
+SET trusted_certificate_pem = '',
+    trusted_certificate_sha256 = '',
+    trusted_certificate_subject = '',
+    trusted_certificate_not_after = NULL,
+    last_observed_certificate_pem = '',
+    last_observed_certificate_sha256 = '',
+    last_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+`
+
+func (q *Queries) ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error) {
+	row := q.db.QueryRowContext(ctx, clearEnvironmentTrust, id)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ManagementUrl,
+		&i.Transport,
+		&i.AgentID,
+		&i.AccessToken,
+		&i.TrustedCertificatePem,
+		&i.TrustedCertificateSha256,
+		&i.TrustedCertificateSubject,
+		&i.TrustedCertificateNotAfter,
+		&i.LastObservedCertificatePem,
+		&i.LastObservedCertificateSha256,
+		&i.ResponseHeaderTimeoutMillis,
+		&i.Enabled,
+		&i.LastCheckedAt,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const countEnabledAgentPoolBackendsWhereAgentIsLast = `-- name: CountEnabledAgentPoolBackendsWhereAgentIsLast :one
 SELECT COUNT(*)
 FROM public_backend_agents pba
@@ -127,6 +170,97 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		&i.Enabled,
 		&i.LastConnectedAt,
 		&i.LastDisconnectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createEnvironment = `-- name: CreateEnvironment :one
+INSERT INTO environments (
+    name, management_url, transport, agent_id, access_token, response_header_timeout_millis, enabled
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+`
+
+type CreateEnvironmentParams struct {
+	Name                        string        `json:"name"`
+	ManagementUrl               string        `json:"management_url"`
+	Transport                   string        `json:"transport"`
+	AgentID                     sql.NullInt64 `json:"agent_id"`
+	AccessToken                 string        `json:"access_token"`
+	ResponseHeaderTimeoutMillis int64         `json:"response_header_timeout_millis"`
+	Enabled                     int64         `json:"enabled"`
+}
+
+func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error) {
+	row := q.db.QueryRowContext(ctx, createEnvironment,
+		arg.Name,
+		arg.ManagementUrl,
+		arg.Transport,
+		arg.AgentID,
+		arg.AccessToken,
+		arg.ResponseHeaderTimeoutMillis,
+		arg.Enabled,
+	)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ManagementUrl,
+		&i.Transport,
+		&i.AgentID,
+		&i.AccessToken,
+		&i.TrustedCertificatePem,
+		&i.TrustedCertificateSha256,
+		&i.TrustedCertificateSubject,
+		&i.TrustedCertificateNotAfter,
+		&i.LastObservedCertificatePem,
+		&i.LastObservedCertificateSha256,
+		&i.ResponseHeaderTimeoutMillis,
+		&i.Enabled,
+		&i.LastCheckedAt,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createManagementAccessToken = `-- name: CreateManagementAccessToken :one
+INSERT INTO management_access_tokens (name, token_hash, role, enabled, expires_at)
+VALUES (?, ?, 'admin', ?, ?)
+RETURNING id, name, token_hash, role, enabled, expires_at, last_used_at, created_at, updated_at
+`
+
+type CreateManagementAccessTokenParams struct {
+	Name      string       `json:"name"`
+	TokenHash string       `json:"token_hash"`
+	Enabled   int64        `json:"enabled"`
+	ExpiresAt sql.NullTime `json:"expires_at"`
+}
+
+func (q *Queries) CreateManagementAccessToken(ctx context.Context, arg CreateManagementAccessTokenParams) (ManagementAccessToken, error) {
+	row := q.db.QueryRowContext(ctx, createManagementAccessToken,
+		arg.Name,
+		arg.TokenHash,
+		arg.Enabled,
+		arg.ExpiresAt,
+	)
+	var i ManagementAccessToken
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Role,
+		&i.Enabled,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1205,6 +1339,16 @@ func (q *Queries) DeleteDisconnectedConnectionsBefore(ctx context.Context, disco
 	return err
 }
 
+const deleteEnvironment = `-- name: DeleteEnvironment :exec
+DELETE FROM environments
+WHERE id = ?
+`
+
+func (q *Queries) DeleteEnvironment(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteEnvironment, id)
+	return err
+}
+
 const deleteExpiredPublicCacheEntries = `-- name: DeleteExpiredPublicCacheEntries :many
 DELETE FROM public_cache_entries
 WHERE expires_at <= ?
@@ -1238,6 +1382,16 @@ func (q *Queries) DeleteExpiredPublicCacheEntries(ctx context.Context, expiresAt
 		return nil, err
 	}
 	return items, nil
+}
+
+const deleteManagementAccessToken = `-- name: DeleteManagementAccessToken :exec
+DELETE FROM management_access_tokens
+WHERE id = ?
+`
+
+func (q *Queries) DeleteManagementAccessToken(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteManagementAccessToken, id)
+	return err
 }
 
 const deleteProxyRequestEventsBefore = `-- name: DeleteProxyRequestEventsBefore :exec
@@ -1431,6 +1585,31 @@ func (q *Queries) GetActiveConnection(ctx context.Context) (GetActiveConnectionR
 	return i, err
 }
 
+const getActiveManagementAccessTokenByHash = `-- name: GetActiveManagementAccessTokenByHash :one
+SELECT id, name, token_hash, role, enabled, expires_at, last_used_at, created_at, updated_at
+FROM management_access_tokens
+WHERE token_hash = ?
+  AND enabled = 1
+  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+`
+
+func (q *Queries) GetActiveManagementAccessTokenByHash(ctx context.Context, tokenHash string) (ManagementAccessToken, error) {
+	row := q.db.QueryRowContext(ctx, getActiveManagementAccessTokenByHash, tokenHash)
+	var i ManagementAccessToken
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.TokenHash,
+		&i.Role,
+		&i.Enabled,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getActiveSessionByTokenHash = `-- name: GetActiveSessionByTokenHash :one
 SELECT
     s.id AS session_id,
@@ -1594,6 +1773,41 @@ func (q *Queries) GetConnectionSummarySince(ctx context.Context, connectedAt tim
 	row := q.db.QueryRowContext(ctx, getConnectionSummarySince, connectedAt)
 	var i GetConnectionSummarySinceRow
 	err := row.Scan(&i.TotalConnections, &i.LastConnectedAt, &i.LastDisconnectedAt)
+	return i, err
+}
+
+const getEnvironment = `-- name: GetEnvironment :one
+SELECT id, name, management_url, transport, agent_id, access_token,
+       trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+       last_observed_certificate_pem, last_observed_certificate_sha256,
+       response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+FROM environments
+WHERE id = ?
+`
+
+func (q *Queries) GetEnvironment(ctx context.Context, id int64) (Environment, error) {
+	row := q.db.QueryRowContext(ctx, getEnvironment, id)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ManagementUrl,
+		&i.Transport,
+		&i.AgentID,
+		&i.AccessToken,
+		&i.TrustedCertificatePem,
+		&i.TrustedCertificateSha256,
+		&i.TrustedCertificateSubject,
+		&i.TrustedCertificateNotAfter,
+		&i.LastObservedCertificatePem,
+		&i.LastObservedCertificateSha256,
+		&i.ResponseHeaderTimeoutMillis,
+		&i.Enabled,
+		&i.LastCheckedAt,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -2333,6 +2547,96 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.Enabled,
 			&i.LastConnectedAt,
 			&i.LastDisconnectedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEnvironments = `-- name: ListEnvironments :many
+SELECT id, name, management_url, transport, agent_id, access_token,
+       trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+       last_observed_certificate_pem, last_observed_certificate_sha256,
+       response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+FROM environments
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListEnvironments(ctx context.Context) ([]Environment, error) {
+	rows, err := q.db.QueryContext(ctx, listEnvironments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Environment
+	for rows.Next() {
+		var i Environment
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.ManagementUrl,
+			&i.Transport,
+			&i.AgentID,
+			&i.AccessToken,
+			&i.TrustedCertificatePem,
+			&i.TrustedCertificateSha256,
+			&i.TrustedCertificateSubject,
+			&i.TrustedCertificateNotAfter,
+			&i.LastObservedCertificatePem,
+			&i.LastObservedCertificateSha256,
+			&i.ResponseHeaderTimeoutMillis,
+			&i.Enabled,
+			&i.LastCheckedAt,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listManagementAccessTokens = `-- name: ListManagementAccessTokens :many
+SELECT id, name, token_hash, role, enabled, expires_at, last_used_at, created_at, updated_at
+FROM management_access_tokens
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListManagementAccessTokens(ctx context.Context) ([]ManagementAccessToken, error) {
+	rows, err := q.db.QueryContext(ctx, listManagementAccessTokens)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ManagementAccessToken
+	for rows.Next() {
+		var i ManagementAccessToken
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.TokenHash,
+			&i.Role,
+			&i.Enabled,
+			&i.ExpiresAt,
+			&i.LastUsedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -3980,6 +4284,18 @@ func (q *Queries) SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesR
 	return i, err
 }
 
+const touchManagementAccessToken = `-- name: TouchManagementAccessToken :exec
+UPDATE management_access_tokens
+SET last_used_at = CURRENT_TIMESTAMP
+WHERE id = ?
+  AND (last_used_at IS NULL OR last_used_at < datetime('now', '-30 seconds'))
+`
+
+func (q *Queries) TouchManagementAccessToken(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, touchManagementAccessToken, id)
+	return err
+}
+
 const touchPublicCacheEntry = `-- name: TouchPublicCacheEntry :exec
 UPDATE public_cache_entries
 SET last_accessed_at = CURRENT_TIMESTAMP,
@@ -4002,6 +4318,53 @@ WHERE id = ?
 func (q *Queries) TouchSession(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, touchSession, id)
 	return err
+}
+
+const trustEnvironmentCertificate = `-- name: TrustEnvironmentCertificate :one
+UPDATE environments
+SET trusted_certificate_pem = last_observed_certificate_pem,
+    trusted_certificate_sha256 = last_observed_certificate_sha256,
+    trusted_certificate_subject = ?,
+    trusted_certificate_not_after = ?,
+    last_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+`
+
+type TrustEnvironmentCertificateParams struct {
+	TrustedCertificateSubject  string       `json:"trusted_certificate_subject"`
+	TrustedCertificateNotAfter sql.NullTime `json:"trusted_certificate_not_after"`
+	ID                         int64        `json:"id"`
+}
+
+func (q *Queries) TrustEnvironmentCertificate(ctx context.Context, arg TrustEnvironmentCertificateParams) (Environment, error) {
+	row := q.db.QueryRowContext(ctx, trustEnvironmentCertificate, arg.TrustedCertificateSubject, arg.TrustedCertificateNotAfter, arg.ID)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ManagementUrl,
+		&i.Transport,
+		&i.AgentID,
+		&i.AccessToken,
+		&i.TrustedCertificatePem,
+		&i.TrustedCertificateSha256,
+		&i.TrustedCertificateSubject,
+		&i.TrustedCertificateNotAfter,
+		&i.LastObservedCertificatePem,
+		&i.LastObservedCertificateSha256,
+		&i.ResponseHeaderTimeoutMillis,
+		&i.Enabled,
+		&i.LastCheckedAt,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateAgent = `-- name: UpdateAgent :one
@@ -4075,6 +4438,164 @@ WHERE id = ?
 func (q *Queries) UpdateConnectionDisconnected(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, updateConnectionDisconnected, id)
 	return err
+}
+
+const updateEnvironment = `-- name: UpdateEnvironment :one
+UPDATE environments
+SET name = ?,
+    management_url = ?,
+    transport = ?,
+    agent_id = ?,
+    access_token = ?,
+    response_header_timeout_millis = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+`
+
+type UpdateEnvironmentParams struct {
+	Name                        string        `json:"name"`
+	ManagementUrl               string        `json:"management_url"`
+	Transport                   string        `json:"transport"`
+	AgentID                     sql.NullInt64 `json:"agent_id"`
+	AccessToken                 string        `json:"access_token"`
+	ResponseHeaderTimeoutMillis int64         `json:"response_header_timeout_millis"`
+	Enabled                     int64         `json:"enabled"`
+	ID                          int64         `json:"id"`
+}
+
+func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error) {
+	row := q.db.QueryRowContext(ctx, updateEnvironment,
+		arg.Name,
+		arg.ManagementUrl,
+		arg.Transport,
+		arg.AgentID,
+		arg.AccessToken,
+		arg.ResponseHeaderTimeoutMillis,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ManagementUrl,
+		&i.Transport,
+		&i.AgentID,
+		&i.AccessToken,
+		&i.TrustedCertificatePem,
+		&i.TrustedCertificateSha256,
+		&i.TrustedCertificateSubject,
+		&i.TrustedCertificateNotAfter,
+		&i.LastObservedCertificatePem,
+		&i.LastObservedCertificateSha256,
+		&i.ResponseHeaderTimeoutMillis,
+		&i.Enabled,
+		&i.LastCheckedAt,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateEnvironmentCheckResult = `-- name: UpdateEnvironmentCheckResult :one
+UPDATE environments
+SET last_checked_at = CURRENT_TIMESTAMP,
+    last_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+`
+
+type UpdateEnvironmentCheckResultParams struct {
+	LastError string `json:"last_error"`
+	ID        int64  `json:"id"`
+}
+
+func (q *Queries) UpdateEnvironmentCheckResult(ctx context.Context, arg UpdateEnvironmentCheckResultParams) (Environment, error) {
+	row := q.db.QueryRowContext(ctx, updateEnvironmentCheckResult, arg.LastError, arg.ID)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ManagementUrl,
+		&i.Transport,
+		&i.AgentID,
+		&i.AccessToken,
+		&i.TrustedCertificatePem,
+		&i.TrustedCertificateSha256,
+		&i.TrustedCertificateSubject,
+		&i.TrustedCertificateNotAfter,
+		&i.LastObservedCertificatePem,
+		&i.LastObservedCertificateSha256,
+		&i.ResponseHeaderTimeoutMillis,
+		&i.Enabled,
+		&i.LastCheckedAt,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateEnvironmentObservedCertificate = `-- name: UpdateEnvironmentObservedCertificate :one
+UPDATE environments
+SET last_observed_certificate_pem = ?,
+    last_observed_certificate_sha256 = ?,
+    last_checked_at = CURRENT_TIMESTAMP,
+    last_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+`
+
+type UpdateEnvironmentObservedCertificateParams struct {
+	LastObservedCertificatePem    string `json:"last_observed_certificate_pem"`
+	LastObservedCertificateSha256 string `json:"last_observed_certificate_sha256"`
+	LastError                     string `json:"last_error"`
+	ID                            int64  `json:"id"`
+}
+
+func (q *Queries) UpdateEnvironmentObservedCertificate(ctx context.Context, arg UpdateEnvironmentObservedCertificateParams) (Environment, error) {
+	row := q.db.QueryRowContext(ctx, updateEnvironmentObservedCertificate,
+		arg.LastObservedCertificatePem,
+		arg.LastObservedCertificateSha256,
+		arg.LastError,
+		arg.ID,
+	)
+	var i Environment
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ManagementUrl,
+		&i.Transport,
+		&i.AgentID,
+		&i.AccessToken,
+		&i.TrustedCertificatePem,
+		&i.TrustedCertificateSha256,
+		&i.TrustedCertificateSubject,
+		&i.TrustedCertificateNotAfter,
+		&i.LastObservedCertificatePem,
+		&i.LastObservedCertificateSha256,
+		&i.ResponseHeaderTimeoutMillis,
+		&i.Enabled,
+		&i.LastCheckedAt,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updatePublicBackend = `-- name: UpdatePublicBackend :one

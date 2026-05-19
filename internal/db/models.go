@@ -43,6 +43,39 @@ type Connection struct {
 	DisconnectedAt sql.NullTime  `json:"disconnected_at"`
 }
 
+type Environment struct {
+	ID                            int64         `json:"id"`
+	Name                          string        `json:"name"`
+	ManagementUrl                 string        `json:"management_url"`
+	Transport                     string        `json:"transport"`
+	AgentID                       sql.NullInt64 `json:"agent_id"`
+	AccessToken                   string        `json:"access_token"`
+	TrustedCertificatePem         string        `json:"trusted_certificate_pem"`
+	TrustedCertificateSha256      string        `json:"trusted_certificate_sha256"`
+	TrustedCertificateSubject     string        `json:"trusted_certificate_subject"`
+	TrustedCertificateNotAfter    sql.NullTime  `json:"trusted_certificate_not_after"`
+	LastObservedCertificatePem    string        `json:"last_observed_certificate_pem"`
+	LastObservedCertificateSha256 string        `json:"last_observed_certificate_sha256"`
+	ResponseHeaderTimeoutMillis   int64         `json:"response_header_timeout_millis"`
+	Enabled                       int64         `json:"enabled"`
+	LastCheckedAt                 sql.NullTime  `json:"last_checked_at"`
+	LastError                     string        `json:"last_error"`
+	CreatedAt                     time.Time     `json:"created_at"`
+	UpdatedAt                     time.Time     `json:"updated_at"`
+}
+
+type ManagementAccessToken struct {
+	ID         int64        `json:"id"`
+	Name       string       `json:"name"`
+	TokenHash  string       `json:"token_hash"`
+	Role       string       `json:"role"`
+	Enabled    int64        `json:"enabled"`
+	ExpiresAt  sql.NullTime `json:"expires_at"`
+	LastUsedAt sql.NullTime `json:"last_used_at"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
+}
+
 type ProxyRequestEvent struct {
 	ID            int64         `json:"id"`
 	OccurredAt    time.Time     `json:"occurred_at"`

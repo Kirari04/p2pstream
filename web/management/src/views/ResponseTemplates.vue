@@ -3,7 +3,7 @@ import PencilIcon from "@primevue/icons/pencil";
 import PlusIcon from "@primevue/icons/plus";
 import TrashIcon from "@primevue/icons/trash";
 import { computed, ref } from "vue";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -19,6 +19,8 @@ import {
   PublicResponseTemplateKind,
   type PublicResponseTemplate,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 const { publicProxyConfig, isBusy, runManagementAction } = useManagementContext();
 const editor = ref<InstanceType<typeof PublicResponseTemplateEditorModal> | null>(null);

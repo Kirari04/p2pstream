@@ -37,7 +37,7 @@ docker compose restart p2pstream
 
 ## Verification
 
-After login, the navigation should show **Overview**, **Traffic**, **Agents**, **Proxy**, **Traffic Policy**, **Templates**, and **TLS**.
+After login, the navigation should show **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
 
 <figure class="doc-screenshot">
   <img src="../assets/management_1.png" alt="p2pstream Proxy page showing public listeners and backend configuration">
@@ -70,4 +70,5 @@ The reset command updates the user password and revokes active sessions for that
 
 - [Publish a service](../guides/publish-a-service)
 - [Security hardening](../operations/security-hardening)
+- [Environments reference](../reference/environments)
 - [CLI reference](../reference/cli)

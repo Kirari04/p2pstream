@@ -2,7 +2,7 @@
 import { computed, inject, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import TrashIcon from "@primevue/icons/trash";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
@@ -16,6 +16,8 @@ import {
   type GetPublicProxyConfigResponse,
   type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type RouteBackendAssignmentForm = { backendId: string; weight: number; enabled: boolean };

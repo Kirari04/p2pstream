@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import RefreshIcon from "@primevue/icons/refresh";
 import { useToast } from "primevue/usetoast";
-import { computed, onBeforeUnmount, onMounted, ref, provide } from "vue";
-import { managementClient } from "@/api/managementClient";
+import { computed, onBeforeUnmount, onMounted, ref, provide, watch } from "vue";
+import { useRoute } from "vue-router";
+import { localManagementClient, managementClient, setActiveManagementClientBase } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
@@ -12,6 +13,8 @@ import SecondaryButton from "@/volt/SecondaryButton.vue";
 import Skeleton from "@/volt/Skeleton.vue";
 import Toast from "@/volt/Toast.vue";
 import {
+  EnvironmentTrustState,
+  type Environment,
   type GetDashboardResponse,
   type GetPublicProxyConfigResponse,
   type GetSetupStateResponse,
@@ -19,14 +22,18 @@ import {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const toast = useToast();
+const route = useRoute();
 
 const setupState = ref<GetSetupStateResponse | null>(null);
 const currentUser = ref<User | null>(null);
 const dashboard = ref<GetDashboardResponse | null>(null);
 const publicProxyConfig = ref<GetPublicProxyConfigResponse | null>(null);
+const environments = ref<Environment[]>([]);
+const selectedEnvironmentId = ref(loadSelectedEnvironmentId());
 const isLoading = ref(true);
 const isBusy = ref(false);
 const isRefreshing = ref(false);
+const pendingDashboardReload = ref(false);
 const isLogoutConfirmOpen = ref(false);
 const refreshTimer = ref<number | null>(null);
 const error = ref<string | null>(null);
@@ -34,11 +41,12 @@ const error = ref<string | null>(null);
 const tabs = [
   { path: "/overview", label: "Overview" },
   { path: "/traffic", label: "Traffic" },
-  { path: "/agent", label: "Agents" },
   { path: "/proxy", label: "Proxy" },
+  { path: "/agent", label: "Agents" },
   { path: "/policies", label: "Traffic Policy" },
   { path: "/templates", label: "Templates" },
   { path: "/tls", label: "TLS" },
+  { path: "/settings", label: "Settings" },
 ];
 
 const sourceOfferHref = "/.well-known/p2pstream/source";
@@ -57,11 +65,90 @@ const refreshDisabledReason = computed(() => {
   return "";
 });
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
+const environmentOptions = computed(() => [
+  { id: "0", name: "Local", enabled: true, trustState: EnvironmentTrustState.TRUSTED },
+  ...environments.value.map((environment) => ({
+    id: environment.id.toString(),
+    name: environment.name,
+    enabled: environment.enabled,
+    trustState: environment.trustState,
+  })),
+]);
+const selectedRemoteEnvironment = computed(() => {
+  if (selectedEnvironmentId.value === "0") return null;
+  return environments.value.find((environment) => environment.id.toString() === selectedEnvironmentId.value) ?? null;
+});
+const selectedEnvironmentLabel = computed(() => selectedRemoteEnvironment.value?.name ?? "Local");
+const selectedEnvironmentBlocked = computed(() => {
+  const environment = selectedRemoteEnvironment.value;
+  if (!environment) return "";
+  if (!environment.enabled) return "Environment is disabled.";
+  if (environment.trustState !== EnvironmentTrustState.TRUSTED) return "Environment certificate must be trusted before management requests can run.";
+  return "";
+});
+const canShowRouteContent = computed(() => Boolean(dashboard.value) || route.path.startsWith("/settings"));
+
+function loadSelectedEnvironmentId(): string {
+  try {
+    return window.localStorage.getItem("p2pstream:selected-environment") || "0";
+  } catch {
+    return "0";
+  }
+}
+
+function persistSelectedEnvironmentId() {
+  try {
+    window.localStorage.setItem("p2pstream:selected-environment", selectedEnvironmentId.value);
+  } catch {
+    // Ignore private browsing/storage failures.
+  }
+}
+
+async function loadEnvironments() {
+  if (!currentUser.value) {
+    environments.value = [];
+    selectedEnvironmentId.value = "0";
+    return;
+  }
+  const resp = await localManagementClient.listEnvironments({});
+  environments.value = resp.environments;
+  if (selectedEnvironmentId.value !== "0" && !environments.value.some((environment) => environment.id.toString() === selectedEnvironmentId.value && environment.enabled)) {
+    selectedEnvironmentId.value = "0";
+  }
+}
+
+function syncSelectedEnvironmentClient() {
+  const environment = selectedRemoteEnvironment.value;
+  if (!environment) {
+    setActiveManagementClientBase(window.location.origin);
+  } else {
+    setActiveManagementClientBase(`${window.location.origin}/environments/${environment.id.toString()}`);
+  }
+  persistSelectedEnvironmentId();
+}
+
+watch(selectedEnvironmentId, () => {
+  syncSelectedEnvironmentClient();
+  if (!currentUser.value) return;
+  dashboard.value = null;
+  publicProxyConfig.value = null;
+  if (isLoading.value) {
+    pendingDashboardReload.value = true;
+    return;
+  }
+  void loadDashboard();
+});
 
 // Provide state to views
 provide('dashboard', computed(() => dashboard.value));
 provide('publicProxyConfig', computed(() => publicProxyConfig.value));
 provide('isBusy', computed(() => isBusy.value));
+provide('managementClient', managementClient);
+provide('environments', computed(() => environments.value));
+provide('selectedEnvironmentId', computed(() => selectedEnvironmentId.value));
+provide('selectedEnvironmentLabel', selectedEnvironmentLabel);
+provide('selectedEnvironmentBlocked', selectedEnvironmentBlocked);
+provide('reloadEnvironments', loadEnvironments);
 
 async function bootstrap() {
   isLoading.value = true;
@@ -69,7 +156,7 @@ async function bootstrap() {
   stopAutoRefresh();
 
   try {
-    setupState.value = await managementClient.getSetupState({});
+    setupState.value = await localManagementClient.getSetupState({});
     if (setupState.value.setupRequired) {
       currentUser.value = null;
       dashboard.value = null;
@@ -78,7 +165,7 @@ async function bootstrap() {
     }
 
     try {
-      const userResp = await managementClient.getCurrentUser({});
+      const userResp = await localManagementClient.getCurrentUser({});
       currentUser.value = userResp.user ?? null;
     } catch {
       currentUser.value = null;
@@ -87,6 +174,8 @@ async function bootstrap() {
       return;
     }
 
+    await loadEnvironments();
+    syncSelectedEnvironmentClient();
     await loadDashboard();
     startAutoRefresh();
   } catch (err) {
@@ -97,20 +186,37 @@ async function bootstrap() {
 }
 
 async function loadDashboard() {
-  if (isRefreshing.value) return;
+  if (isRefreshing.value) {
+    pendingDashboardReload.value = true;
+    return;
+  }
   isRefreshing.value = true;
   error.value = null;
+  const loadEnvironmentId = selectedEnvironmentId.value;
   try {
+    syncSelectedEnvironmentClient();
     const [dashboardResp, publicProxyResp] = await Promise.all([
       managementClient.getDashboard({}),
       managementClient.getPublicProxyConfig({}),
     ]);
+    if (loadEnvironmentId !== selectedEnvironmentId.value) {
+      pendingDashboardReload.value = true;
+      return;
+    }
     dashboard.value = dashboardResp;
     publicProxyConfig.value = publicProxyResp;
   } catch (err) {
-    error.value = messageFromError(err);
+    if (loadEnvironmentId === selectedEnvironmentId.value) {
+      error.value = messageFromError(err);
+    } else {
+      pendingDashboardReload.value = true;
+    }
   } finally {
     isRefreshing.value = false;
+    if (pendingDashboardReload.value && currentUser.value) {
+      pendingDashboardReload.value = false;
+      void loadDashboard();
+    }
   }
 }
 
@@ -134,12 +240,12 @@ async function submitSetup() {
   isBusy.value = true;
   error.value = null;
   try {
-    await managementClient.setupAdmin({
+    await localManagementClient.setupAdmin({
       username: setupForm.value.username,
       password: setupForm.value.password,
     });
     await login(setupForm.value.username, setupForm.value.password);
-    setupState.value = await managementClient.getSetupState({});
+    setupState.value = await localManagementClient.getSetupState({});
     await loadDashboard();
     startAutoRefresh();
   } catch (err) {
@@ -164,8 +270,10 @@ async function submitLogin() {
 }
 
 async function login(username: string, password: string) {
-  const loginResp = await managementClient.login({ username, password });
+  const loginResp = await localManagementClient.login({ username, password });
   currentUser.value = loginResp.user ?? null;
+  await loadEnvironments();
+  syncSelectedEnvironmentClient();
 }
 
 function requestLogout() {
@@ -189,11 +297,14 @@ async function logout(): Promise<boolean> {
   isBusy.value = true;
   error.value = null;
   try {
-    await managementClient.logout({});
+    await localManagementClient.logout({});
     stopAutoRefresh();
     currentUser.value = null;
     dashboard.value = null;
     publicProxyConfig.value = null;
+    environments.value = [];
+    selectedEnvironmentId.value = "0";
+    syncSelectedEnvironmentClient();
     loginForm.value.password = "";
     return true;
   } catch (err) {
@@ -271,6 +382,18 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="flex items-center gap-3">
+            <label v-if="currentUser" class="hidden items-center gap-2 text-xs font-medium uppercase tracking-wider text-[#888] md:flex">
+              Environment
+              <select
+                v-model="selectedEnvironmentId"
+                class="h-8 rounded-md border border-[#333] bg-black px-2 text-sm normal-case tracking-normal text-[#ededed] outline-none transition-colors hover:border-[#555]"
+                :title="`Selected environment: ${selectedEnvironmentLabel}`"
+              >
+                <option v-for="environment in environmentOptions" :key="environment.id" :value="environment.id">
+                  {{ environment.name }}{{ environment.enabled ? '' : ' (disabled)' }}
+                </option>
+              </select>
+            </label>
             <a
               :href="sourceOfferHref"
               :title="sourceOfferTitle"
@@ -327,8 +450,11 @@ onBeforeUnmount(() => {
     </header>
 
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <Message v-if="error" severity="error" class="mb-6 border-[#333] !bg-black !text-red-500">
+      <Message v-if="error" severity="error" class="mb-6 border-[#333] bg-black! text-red-500!">
         {{ error }}
+      </Message>
+      <Message v-if="selectedEnvironmentBlocked" severity="warn" class="mb-6 border-[#333] bg-black! text-[#c79866]!">
+        {{ selectedEnvironmentBlocked }}
       </Message>
 
       <!-- Loading State -->
@@ -404,7 +530,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Real Route Content -->
-      <router-view v-else-if="dashboard"></router-view>
+      <router-view v-else-if="canShowRouteContent"></router-view>
     </main>
 
     <div

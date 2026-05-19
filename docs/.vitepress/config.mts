@@ -76,6 +76,7 @@ export default defineConfig({
           { text: "ACME Cloudflare DNS", link: "/guides/acme-cloudflare-dns" },
           { text: "Security Hardening", link: "/operations/security-hardening" },
           { text: "Management TLS Reference", link: "/reference/management-tls" },
+          { text: "Environments", link: "/reference/environments" },
           { text: "Public TLS and ACME", link: "/reference/public-tls-acme" }
         ]
       },
@@ -117,6 +118,7 @@ export default defineConfig({
           { text: "Database", link: "/reference/database" },
           { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "Management TLS", link: "/reference/management-tls" },
+          { text: "Environments", link: "/reference/environments" },
           { text: "Public TLS and ACME", link: "/reference/public-tls-acme" },
           { text: "Response Templates", link: "/reference/response-templates" },
           { text: "Rate Limits", link: "/reference/rate-limits" },

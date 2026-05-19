@@ -36,8 +36,9 @@ Conceptual table groups:
 
 | Area | Tables |
 | --- | --- |
-| Auth | `users`, `sessions` |
+| Auth | `users`, `sessions`, `management_access_tokens` |
 | Agents | `agents`, `connections`, `agent_stats` |
+| Environments | `environments` |
 | Public proxy | `public_backends`, `public_listeners`, `public_routes`, `public_route_backends`, `public_backend_agents`, `public_response_templates` |
 | Headers | `public_backend_headers`, `public_backend_upstream_headers` |
 | TLS | `public_tls_certificates`, `public_tls_dns_credentials` |
