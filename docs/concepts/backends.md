@@ -56,6 +56,10 @@ Static response bodies can be defined inline on the backend or selected from a c
 
 ## Common Mistakes
 
+:::warning Do not use `tls_skip_verify` on public origins
+`tls_skip_verify` disables TLS certificate validation for the connection between p2pstream and the origin. It is only appropriate for internal services with self-signed certificates that you control. On public internet origins it removes MITM protection entirely.
+:::
+
 - Setting an agent-pool target origin that only the server can resolve.
 - Using `tls_skip_verify` for public internet upstreams instead of fixing certificates.
 - Expecting p2pstream to replay the same failed request to another backend.

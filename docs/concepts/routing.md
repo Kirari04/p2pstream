@@ -4,7 +4,7 @@ Routes decide what a public listener does with a matching host and path after ea
 
 ## What It Is
 
-A route belongs to one listener and performs either a forward action or a redirect action. Forward routes select one or more backends; redirect routes return a redirect response without contacting an upstream.
+A route belongs to one listener and performs either a forward action or a redirect action. Forward routes select one or more backends; redirect routes return a redirect response without contacting an origin.
 
 ## When It Matters
 
@@ -12,7 +12,7 @@ Routing matters when publishing multiple hostnames on one listener, adding path-
 
 ## Runtime Behavior
 
-Routes are evaluated after WAF, rate limits, and traffic shapers. Cache rules run after route/backend selection and can serve eligible proxy-forward assets without contacting the upstream.
+Routes are evaluated after WAF, rate limits, and traffic shapers. Cache rules run after route/backend selection and can serve eligible proxy-forward assets without contacting the origin.
 
 A route must include at least one of:
 

@@ -22,16 +22,16 @@ Proxy request events include status code, duration, error kind, listener ID, bac
 
 Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 
-Traffic tracing levels:
+Traffic tracing levels (all levels record every matching request — no sampling occurs):
 
 | Level | Includes |
 | --- | --- |
 | Basic | High-level request stages. |
-| Detailed | Host, query, WAF decision, target origin, backend type, and error kind. |
+| Detailed | Host, query, WAF decision, origin, backend type, and error kind. |
 | Headers | Request and response headers, redacted where known. |
 | Debug | More detailed event attributes. |
 
-Use Headers and Debug temporarily because they can expose operational details and request metadata.
+Use Headers and Debug temporarily because they can expose operational details and request metadata, including `Authorization` tokens and session cookies.
 
 ## Common Mistakes
 

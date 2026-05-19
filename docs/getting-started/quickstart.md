@@ -29,9 +29,17 @@ Use this path for the normal self-hosted server deployment on a VPS, home lab ho
 
 3. Edit `.env` so generated browser links and agent snippets use the real management URL:
 
+   :::warning Set the public URL before starting
+   The default `MANAGEMENT_PUBLIC_URL=https://localhost:8081` only works when the browser and all agents run on the same host. Change it to the externally reachable address before first start:
+
    ```dotenv
+   # Before (default — only works on localhost)
+   MANAGEMENT_PUBLIC_URL=https://localhost:8081
+
+   # After — use your server's real hostname or IP
    MANAGEMENT_PUBLIC_URL=https://your-server:8081
    ```
+   :::
 
 4. Start the server:
 

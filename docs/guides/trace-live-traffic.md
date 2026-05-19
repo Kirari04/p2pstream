@@ -1,6 +1,6 @@
 # Trace Live Traffic
 
-Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, backends, cache, agents, upstreams, and responses.
+Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, backends, cache, agents, origin connections, and responses.
 
 ## Use This When
 
@@ -25,7 +25,9 @@ Use tracing while diagnosing why a request did not match a route, hit a backend,
    | Headers | Inspect selected request/response headers. |
    | Debug | Temporary deep troubleshooting. |
 
-   Use Headers and Debug only while diagnosing. They can expose request metadata.
+   :::warning Headers and Debug log sensitive data
+   **Headers** and **Debug** levels capture request and response headers, which can include `Authorization` tokens, session cookies, and API keys. Use them only while actively diagnosing an issue and reset to **Basic** or **Detailed** when done.
+   :::
 
 4. From another shell, reproduce the request:
 

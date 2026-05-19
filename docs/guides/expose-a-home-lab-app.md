@@ -60,6 +60,10 @@ Example:
 
 4. Open **Proxy** and create an agent-pool backend:
 
+   :::warning Origin resolution
+   The origin URL is resolved from the **agent host**, not from the p2pstream server. Set it to whatever the agent host can reach — `localhost`, a LAN hostname, or an internal IP are all valid here.
+   :::
+
    | Field | Value |
    | --- | --- |
    | Name | `homeassistant` |
@@ -69,8 +73,6 @@ Example:
    | Load balancing | Round-robin |
    | Agent assignment | `home-lab`, weight `100`, enabled |
    | Enabled | On |
-
-   The target origin is resolved from the agent host, not from the VPS.
 
 5. In **Proxy**, route public traffic to the backend:
 
