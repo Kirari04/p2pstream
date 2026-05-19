@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -36,6 +37,43 @@ func TestNormalizeSQLiteDSNForcesWALAndPrivateCache(t *testing.T) {
 	if values.Get("cache") != "private" {
 		t.Fatalf("expected private cache, got %q", values.Get("cache"))
 	}
+}
+
+func TestOpenSecuresSQLiteDirectoryAndFiles(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "nested")
+	dbPath := filepath.Join(dir, "p2pstream.db")
+
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	assertDBMode(t, dir, 0700)
+	assertDBMode(t, dbPath, 0600)
+	for _, suffix := range []string{"-wal", "-shm"} {
+		path := dbPath + suffix
+		if _, err := os.Stat(path); err == nil {
+			assertDBMode(t, path, 0600)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+	}
+}
+
+func TestOpenChmodsExistingSQLiteDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "loose")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	database, err := Open(filepath.Join(dir, "p2pstream.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	assertDBMode(t, dir, 0700)
 }
 
 func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
@@ -657,6 +695,17 @@ func indexExists(t *testing.T, database *DB, name string) bool {
 		t.Fatalf("query index %s: %v", name, err)
 	}
 	return got == name
+}
+
+func assertDBMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Fatalf("%s mode = %o, want %o", path, got, want)
+	}
 }
 
 func TestOpenConfiguresWALJournalMode(t *testing.T) {

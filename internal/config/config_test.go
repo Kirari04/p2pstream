@@ -98,6 +98,39 @@ func TestLoadSupportsDisablingManagementUI(t *testing.T) {
 	}
 }
 
+func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.ManagementBindAddress != "127.0.0.1" {
+		t.Fatalf("ManagementBindAddress = %q, want loopback default", cfg.ManagementBindAddress)
+	}
+	if cfg.ObservabilityMaxRows != 1_000_000 {
+		t.Fatalf("ObservabilityMaxRows = %d, want 1000000", cfg.ObservabilityMaxRows)
+	}
+	if cfg.LoginThrottleMaxKeys != 50_000 {
+		t.Fatalf("LoginThrottleMaxKeys = %d, want 50000", cfg.LoginThrottleMaxKeys)
+	}
+}
+
+func TestLoadRespectsExplicitManagementBindAddress(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+	t.Setenv("MANAGEMENT_BIND_ADDRESS", "0.0.0.0")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.ManagementBindAddress != "0.0.0.0" {
+		t.Fatalf("ManagementBindAddress = %q, want 0.0.0.0", cfg.ManagementBindAddress)
+	}
+}
+
 func TestLoadMigratesLegacyDefaultDatabase(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")
@@ -261,6 +294,7 @@ func isolatedConfigTestDir(t *testing.T) string {
 	t.Chdir(workDir)
 	unsetEnv(t, "DATABASE_URL")
 	unsetEnv(t, "CONFIG_DIR")
+	unsetEnv(t, "MANAGEMENT_BIND_ADDRESS")
 	unsetEnv(t, "MANAGEMENT_TLS_CERT_FILE")
 	unsetEnv(t, "MANAGEMENT_TLS_KEY_FILE")
 	unsetEnv(t, "MANAGEMENT_TLS_CLIENT_CA_FILE")
@@ -269,6 +303,9 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "MANAGEMENT_PUBLIC_URL")
 	unsetEnv(t, "MANAGEMENT_ADVERTISE_HOST")
 	unsetEnv(t, "MANAGEMENT_TLS_EXTRA_HOSTS")
+	unsetEnv(t, "MANAGEMENT_SETUP_TOKEN")
+	unsetEnv(t, "OBSERVABILITY_MAX_ROWS")
+	unsetEnv(t, "LOGIN_THROTTLE_MAX_KEYS")
 	return workDir
 }
 

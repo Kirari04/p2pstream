@@ -1471,6 +1471,7 @@ message CreatePublicCacheRuleRequest {
   bool add_cache_status_header = 15;
   bool allow_cookie_requests = 16;
   PublicPolicyMatchRule match_rule = 17;
+  bool allow_cookie_requests_acknowledged = 18;
 }
 
 message CreatePublicCacheRuleResponse {
@@ -1498,6 +1499,7 @@ message UpdatePublicCacheRuleRequest {
   bool add_cache_status_header = 16;
   bool allow_cookie_requests = 17;
   PublicPolicyMatchRule match_rule = 18;
+  bool allow_cookie_requests_acknowledged = 19;
 }
 
 message UpdatePublicCacheRuleResponse {
@@ -1750,6 +1752,7 @@ message GetSetupStateResponse {
 message SetupAdminRequest {
   string username = 1;
   string password = 2;
+  string setup_token = 3;
 }
 
 message SetupAdminResponse {

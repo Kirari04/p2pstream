@@ -26,9 +26,10 @@ import (
 func TestE2E_ReportStats(t *testing.T) {
 	// Setup Management Server
 	app := server.NewApp(&config.Config{
-		BootstrapAgentID:    "test-agent",
-		BootstrapAgentName:  "Test Agent",
-		BootstrapAgentToken: "test-token",
+		BootstrapAgentID:     "test-agent",
+		BootstrapAgentName:   "Test Agent",
+		BootstrapAgentToken:  "test-token",
+		ManagementSetupToken: testSetupToken,
 	}, newTestDB(t))
 	mgmtMux := http.NewServeMux()
 	app.RegisterManagementRoutes(mgmtMux)
@@ -85,7 +86,7 @@ func TestE2E_GetStatus(t *testing.T) {
 	targetOrigin := "https://example.com"
 	database := newTestDB(t)
 	seedTestHTTPPublicListener(t, database, targetOrigin)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	if _, err := app.StartProxyListener(context.Background()); err != nil {
 		t.Fatalf("start proxy listener: %v", err)
 	}
@@ -273,9 +274,10 @@ func TestE2E_RoundTrip(t *testing.T) {
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
 	app := server.NewApp(&config.Config{
-		BootstrapAgentID:    "roundtrip-agent",
-		BootstrapAgentName:  "Roundtrip Agent",
-		BootstrapAgentToken: "roundtrip-token",
+		BootstrapAgentID:     "roundtrip-agent",
+		BootstrapAgentName:   "Roundtrip Agent",
+		BootstrapAgentToken:  "roundtrip-token",
+		ManagementSetupToken: testSetupToken,
 	}, database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {

@@ -243,6 +243,7 @@ async function submitSetup() {
     await localManagementClient.setupAdmin({
       username: setupForm.value.username,
       password: setupForm.value.password,
+      setupToken: setupTokenFromURL(),
     });
     await login(setupForm.value.username, setupForm.value.password);
     setupState.value = await localManagementClient.getSetupState({});
@@ -350,6 +351,21 @@ provide('logout', requestLogout);
 
 function messageFromError(err: unknown): string {
   return err instanceof Error ? err.message : "Request failed";
+}
+
+function setupTokenFromURL(): string {
+  const routeToken = stringQueryValue(route.query.setup_token);
+  if (routeToken) return routeToken;
+  try {
+    return new URLSearchParams(window.location.search).get("setup_token")?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function stringQueryValue(value: unknown): string {
+  if (Array.isArray(value)) return stringQueryValue(value[0]);
+  return typeof value === "string" ? value.trim() : "";
 }
 
 onMounted(() => {

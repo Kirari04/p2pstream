@@ -14,7 +14,7 @@ import (
 )
 
 func TestCreateAgentGeneratesOpaquePublicID(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -86,7 +86,7 @@ func TestCreateAgentGeneratesOpaquePublicID(t *testing.T) {
 }
 
 func TestCreateAgentRejectsClientPublicID(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -102,7 +102,7 @@ func TestCreateAgentRejectsClientPublicID(t *testing.T) {
 }
 
 func TestAgentPoolBackendAPIValidationAndReadback(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	agent, token := createRegisteredAgent(t, client, cookie, "api-agent", "API Agent")

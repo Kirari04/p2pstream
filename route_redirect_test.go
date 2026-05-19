@@ -19,7 +19,7 @@ import (
 func TestPublicRouteRedirectValidationAndConfig(t *testing.T) {
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, "https://example.com")
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -135,7 +135,7 @@ func TestPublicRouteRedirectResponses(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			database := newTestDB(t)
 			listener := seedTestHTTPPublicListener(t, database, "https://example.com")
-			app := server.NewApp(&config.Config{}, database)
+			app := server.NewApp(testManagementConfig(config.Config{}), database)
 			_, client := newTestManagementClient(t, app)
 			cookie := createAdminSession(t, client)
 			route := createRedirectRoute(t, client, cookie, listener.ID, tt.request)
@@ -192,7 +192,7 @@ func TestPublicRouteRedirectResponses(t *testing.T) {
 func TestPublicRouteRedirectTraceStages(t *testing.T) {
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, "https://example.com")
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	createRedirectRoute(t, client, cookie, listener.ID, &p2pstreamv1.CreatePublicRouteRequest{

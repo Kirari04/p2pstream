@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -56,7 +57,7 @@ var serverCmd = &cobra.Command{
 			p.SetUnencryptedHTTP2(true)
 		}
 
-		mgmtAddr := ":" + cfg.ManagementPort
+		mgmtAddr := managementListenAddress(cfg)
 		mgmtSrv := &http.Server{
 			Addr:      mgmtAddr,
 			Handler:   mgmtHandler,
@@ -67,6 +68,7 @@ var serverCmd = &cobra.Command{
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		app.StartObservabilityCleanup(ctx)
 
 		if app.PublicACME != nil {
 			app.PublicACME.Start(ctx)
@@ -84,9 +86,13 @@ var serverCmd = &cobra.Command{
 				scheme = "https"
 				wsScheme = "wss"
 			}
+			displayAddr := net.JoinHostPort("localhost", cfg.ManagementPort)
+			managementURL := scheme + "://" + displayAddr
+			app.LogGeneratedSetupToken(managementURL)
 			log.Info().
-				Str("url", scheme+"://localhost"+mgmtAddr).
-				Str("ws", wsScheme+"://localhost"+mgmtAddr+"/ws").
+				Str("url", managementURL).
+				Str("bind", mgmtAddr).
+				Str("ws", wsScheme+"://"+displayAddr+"/ws").
 				Msg("Management server listening")
 			var err error
 			if managementTLS {
@@ -120,6 +126,21 @@ var serverCmd = &cobra.Command{
 
 		log.Info().Msg("Servers stopped cleanly")
 	},
+}
+
+func managementListenAddress(cfg *config.Config) string {
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
+	bind := cfg.ManagementBindAddress
+	if bind == "" {
+		bind = "127.0.0.1"
+	}
+	port := cfg.ManagementPort
+	if port == "" {
+		port = "8081"
+	}
+	return net.JoinHostPort(bind, port)
 }
 
 func init() {

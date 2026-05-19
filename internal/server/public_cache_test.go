@@ -158,6 +158,25 @@ func TestPublicCacheAuthorizationStillBypasses(t *testing.T) {
 	}
 }
 
+func TestPublicCacheKeyCanonicalizesDottedHostWithPort(t *testing.T) {
+	resolution := publicRouteResolution{
+		Listener: publicListenerConfig{Protocol: publicListenerProtocolHTTPS},
+		Route:    publicRouteConfig{ID: 10},
+		Backend:  publicBackendConfig{ID: 20},
+	}
+	rule := publicCacheRuleConfig{Scope: publicCacheScopeSelectedBackend}
+	plain := httptest.NewRequest(http.MethodGet, "https://example.com/assets/app.js?v=1", nil)
+	plain.Host = "example.com:443"
+	dotted := httptest.NewRequest(http.MethodGet, "https://example.com/assets/app.js?v=1", nil)
+	dotted.Host = "example.com.:443"
+
+	plainKey := publicCacheKeyDigest(plain, resolution, rule, plain.URL.RawQuery, nil)
+	dottedKey := publicCacheKeyDigest(dotted, resolution, rule, dotted.URL.RawQuery, nil)
+	if dottedKey != plainKey {
+		t.Fatalf("dotted host cache key = %s, want %s", dottedKey, plainKey)
+	}
+}
+
 func TestPublicCacheRulePathSuffixMatching(t *testing.T) {
 	rule := publicCacheRuleConfig{
 		ID:      1,
@@ -199,6 +218,36 @@ func TestPublicCacheResponseEligibilityTTLAndDenials(t *testing.T) {
 	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Cache-Control": []string{"private, max-age=60"}}}
 	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
 		t.Fatal("private response should not be cacheable")
+	}
+
+	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Cache-Control": []string{`private="Set-Cookie", max-age=60`}}}
+	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+		t.Fatal("parameterized private response should not be cacheable")
+	}
+
+	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Cache-Control": []string{`no-cache="Set-Cookie"`}}}
+	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+		t.Fatal("parameterized no-cache response should not be cacheable")
+	}
+
+	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Cache-Control": []string{"max-age=60", "private"}}}
+	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+		t.Fatal("private duplicate Cache-Control response should not be cacheable")
+	}
+
+	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Cache-Control": []string{"max-age=300", "s-maxage=60"}}}
+	if ttl, _, ok := publicCacheResponseEligibility(rule, resp); !ok || ttl != time.Minute {
+		t.Fatalf("duplicate Cache-Control ttl = %v ok=%v, want 1m true", ttl, ok)
+	}
+
+	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Cache-Control": []string{"max-age=0"}}}
+	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+		t.Fatal("max-age=0 response should not be cacheable")
+	}
+
+	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Cache-Control": []string{"max-age=300, s-maxage=0"}}}
+	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+		t.Fatal("s-maxage=0 response should not be cacheable")
 	}
 
 	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Set-Cookie": []string{"sid=1"}}}
@@ -291,7 +340,7 @@ func TestPublicCacheRejectsSensitiveConfiguredVaryHeaders(t *testing.T) {
 	defer closeDB()
 
 	for _, header := range []string{"Cookie", "Authorization", "Set-Cookie"} {
-		if _, err := app.validatePublicCacheRuleInput(context.Background(), "bad-vary", 10, true, nil, nil, p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND, p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED, defaultPublicCacheTTLMillis, p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL, nil, []string{header}, []int64{http.StatusOK}, defaultPublicCacheMaxObjectBytes, true, false, nil); err == nil {
+		if _, err := app.validatePublicCacheRuleInput(context.Background(), "bad-vary", 10, true, nil, nil, p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND, p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED, defaultPublicCacheTTLMillis, p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL, nil, []string{header}, []int64{http.StatusOK}, defaultPublicCacheMaxObjectBytes, true, false, false, nil); err == nil {
 			t.Fatalf("expected validation error for configured vary header %q", header)
 		}
 	}
@@ -303,19 +352,20 @@ func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
 
 	header := createTestAdminSession(t, app)
 	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicCacheRuleRequest{
-		Name:                 "cookie-assets",
-		Priority:             20,
-		Enabled:              true,
-		MatchRule:            &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET" && path.endsWith(".js")`},
-		Scope:                p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
-		TtlMode:              p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
-		TtlMillis:            defaultPublicCacheTTLMillis,
-		QueryMode:            p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL,
-		VaryHeaders:          []string{"Accept-Encoding"},
-		CacheStatusCodes:     []int64{http.StatusOK},
-		MaxObjectBytes:       defaultPublicCacheMaxObjectBytes,
-		AddCacheStatusHeader: true,
-		AllowCookieRequests:  true,
+		Name:                            "cookie-assets",
+		Priority:                        20,
+		Enabled:                         true,
+		MatchRule:                       &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET" && path.endsWith(".js")`},
+		Scope:                           p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
+		TtlMode:                         p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
+		TtlMillis:                       defaultPublicCacheTTLMillis,
+		QueryMode:                       p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL,
+		VaryHeaders:                     []string{"Accept-Encoding"},
+		CacheStatusCodes:                []int64{http.StatusOK},
+		MaxObjectBytes:                  defaultPublicCacheMaxObjectBytes,
+		AddCacheStatusHeader:            true,
+		AllowCookieRequests:             true,
+		AllowCookieRequestsAcknowledged: true,
 	})
 	createReq.Header().Set("Cookie", header.Get("Cookie"))
 	createResp, err := app.CreatePublicCacheRule(context.Background(), createReq)
@@ -349,6 +399,32 @@ func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
 	}
 	if updateResp.Msg.Rule.AllowCookieRequests {
 		t.Fatal("update readback allowCookieRequests = true, want false")
+	}
+}
+
+func TestPublicCacheManagementAPIRequiresCookieRequestAcknowledgement(t *testing.T) {
+	app, _, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	header := createTestAdminSession(t, app)
+	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicCacheRuleRequest{
+		Name:                 "cookie-assets",
+		Priority:             20,
+		Enabled:              true,
+		MatchRule:            &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET"`},
+		Scope:                p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
+		TtlMode:              p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
+		TtlMillis:            defaultPublicCacheTTLMillis,
+		QueryMode:            p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL,
+		VaryHeaders:          []string{"Accept-Encoding"},
+		CacheStatusCodes:     []int64{http.StatusOK},
+		MaxObjectBytes:       defaultPublicCacheMaxObjectBytes,
+		AddCacheStatusHeader: true,
+		AllowCookieRequests:  true,
+	})
+	createReq.Header().Set("Cookie", header.Get("Cookie"))
+	if _, err := app.CreatePublicCacheRule(context.Background(), createReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected acknowledgement validation error, got %v", err)
 	}
 }
 

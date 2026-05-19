@@ -22,6 +22,7 @@ const (
 
 type Config struct {
 	ManagementPort              string `env:"MANAGEMENT_PORT" envDefault:"8081"`
+	ManagementBindAddress       string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"127.0.0.1"`
 	ConfigDir                   string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
 	DatabaseURL                 string `env:"DATABASE_URL"`
 	Env                         string `env:"ENV" envDefault:"development"` // development or production
@@ -35,6 +36,7 @@ type Config struct {
 	ManagementTLSMode           string `env:"MANAGEMENT_TLS_MODE" envDefault:"auto"`
 	ManagementAllowInsecureHTTP bool   `env:"MANAGEMENT_ALLOW_INSECURE_HTTP" envDefault:"false"`
 	ManagementPublicURL         string `env:"MANAGEMENT_PUBLIC_URL"`
+	ManagementSetupToken        string `env:"MANAGEMENT_SETUP_TOKEN"`
 	ManagementAdvertiseHost     string `env:"MANAGEMENT_ADVERTISE_HOST"`
 	ManagementTLSExtraHosts     string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
 	PublicCacheDir              string `env:"PUBLIC_CACHE_DIR"`
@@ -42,6 +44,8 @@ type Config struct {
 	BootstrapAgentName          string `env:"BOOTSTRAP_AGENT_NAME"`
 	BootstrapAgentToken         string `env:"BOOTSTRAP_AGENT_TOKEN"`
 	ObservabilityRetentionDays  int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
+	ObservabilityMaxRows        int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
+	LoginThrottleMaxKeys        int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
 
 	CertsDir                        string `env:"-"`
 	ManagementTLSEnabled            bool   `env:"-"`
@@ -94,11 +98,16 @@ func Load() (*Config, error) {
 }
 
 func validateManagementTLSConfig(cfg *Config) error {
+	cfg.ManagementBindAddress = strings.TrimSpace(cfg.ManagementBindAddress)
+	if cfg.ManagementBindAddress == "" {
+		cfg.ManagementBindAddress = "127.0.0.1"
+	}
 	cfg.ManagementTLSCertFile = strings.TrimSpace(cfg.ManagementTLSCertFile)
 	cfg.ManagementTLSKeyFile = strings.TrimSpace(cfg.ManagementTLSKeyFile)
 	cfg.ManagementTLSClientCAFile = strings.TrimSpace(cfg.ManagementTLSClientCAFile)
 	cfg.ManagementTLSMode = strings.ToLower(strings.TrimSpace(cfg.ManagementTLSMode))
 	cfg.ManagementPublicURL = strings.TrimSpace(cfg.ManagementPublicURL)
+	cfg.ManagementSetupToken = strings.TrimSpace(cfg.ManagementSetupToken)
 	cfg.ManagementAdvertiseHost = strings.TrimSpace(cfg.ManagementAdvertiseHost)
 	cfg.ManagementTLSExtraHosts = strings.TrimSpace(cfg.ManagementTLSExtraHosts)
 	if cfg.ManagementTLSMode == "" {

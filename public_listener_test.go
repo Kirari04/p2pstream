@@ -31,8 +31,9 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	configDir := t.TempDir()
 	database := newTestDB(t)
 	app := server.NewApp(&config.Config{
-		ConfigDir: configDir,
-		CertsDir:  filepath.Join(configDir, "certs"),
+		ConfigDir:            configDir,
+		CertsDir:             filepath.Join(configDir, "certs"),
+		ManagementSetupToken: testSetupToken,
 	}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
@@ -187,7 +188,7 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 		t.Fatalf("seed static listener: %v", err)
 	}
 
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -234,7 +235,7 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 }
 
 func TestPublicBackendStaticConfigValidationAndReadback(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -299,7 +300,7 @@ func TestPublicBackendStaticConfigValidationAndReadback(t *testing.T) {
 func TestPublicListenerDisablePersistsAndReenableRestarts(t *testing.T) {
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, "https://example.com")
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -337,7 +338,7 @@ func TestPublicListenerDisablePersistsAndReenableRestarts(t *testing.T) {
 		t.Fatal("expected disabled listener to remain visible in config")
 	}
 
-	restartedApp := server.NewApp(&config.Config{}, database)
+	restartedApp := server.NewApp(testManagementConfig(config.Config{}), database)
 	if status, err := restartedApp.StartProxyListener(context.Background()); err != nil {
 		t.Fatalf("restart app proxy: %v", err)
 	} else if status.GetState() != p2pstreamv1.ProxyState_PROXY_STATE_STOPPED {
@@ -379,7 +380,7 @@ func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 		t.Fatalf("seed https listener: %v", err)
 	}
 
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -446,8 +447,9 @@ func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
 
 	configDir := t.TempDir()
 	app := server.NewApp(&config.Config{
-		ConfigDir: configDir,
-		CertsDir:  filepath.Join(configDir, "certs"),
+		ConfigDir:            configDir,
+		CertsDir:             filepath.Join(configDir, "certs"),
+		ManagementSetupToken: testSetupToken,
 	}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
@@ -530,8 +532,9 @@ func TestPublicTLSCertificateGeneratedSelfSignedMaterial(t *testing.T) {
 
 	configDir := t.TempDir()
 	app := server.NewApp(&config.Config{
-		ConfigDir: configDir,
-		CertsDir:  filepath.Join(configDir, "certs"),
+		ConfigDir:            configDir,
+		CertsDir:             filepath.Join(configDir, "certs"),
+		ManagementSetupToken: testSetupToken,
 	}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
@@ -587,7 +590,7 @@ func TestPublicTLSCertificateGeneratedSelfSignedMaterial(t *testing.T) {
 }
 
 func TestPublicTLSDNSCredentialHidesAndPreservesToken(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 

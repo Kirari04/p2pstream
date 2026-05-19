@@ -30,7 +30,7 @@ func TestRouteBackendPoolRoundRobinRouting(t *testing.T) {
 	backendB := createDirectBackendRow(t, database, "pool-b", targetB.URL, true)
 	route := createRouteBackendPoolRow(t, database, listener.ID, "/pool", 0, backendA.ID, backendB.ID)
 
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -69,7 +69,7 @@ func TestRouteBackendPoolFallbackAndNoFallback(t *testing.T) {
 	createRouteBackendPoolRow(t, database, listener.ID, "/fallback", fallbackBackend.ID, disabledBackend.ID)
 	createRouteBackendPoolRow(t, database, listener.ID, "/unavailable", 0, disabledBackend.ID)
 
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -103,7 +103,7 @@ func TestRouteBackendPassiveFailureSkipsLaterRequests(t *testing.T) {
 	goodBackend := createDirectBackendRow(t, database, "good-passive", targetSrv.URL, true)
 	createRouteBackendPoolRow(t, database, listener.ID, "/passive", 0, badBackend.ID, goodBackend.ID)
 
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)

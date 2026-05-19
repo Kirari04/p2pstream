@@ -15,7 +15,7 @@ import (
 )
 
 func TestPublicTrafficShaperCRUDAndConfig(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -102,7 +102,7 @@ func TestTrafficShaperDirectProxyTrace(t *testing.T) {
 
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 

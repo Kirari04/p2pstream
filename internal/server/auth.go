@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/authutil"
@@ -23,6 +25,7 @@ import (
 const (
 	sessionCookieName       = "p2pstream_session"
 	setupWindow             = 5 * time.Minute
+	setupTokenBytes         = 32
 	sessionDuration         = 7 * 24 * time.Hour
 	sessionTouchInterval    = 30 * time.Second
 	setupWindowExpiredError = "setup window expired; restart the server to retry setup"
@@ -117,14 +120,6 @@ func (a *App) SetupAdmin(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for setup"))
 	}
 
-	username := authutil.NormalizeUsername(req.Msg.Username)
-	if err := authutil.ValidateUsername(username); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if err := authutil.ValidatePassword(req.Msg.Password); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-
 	a.setupMu.Lock()
 	defer a.setupMu.Unlock()
 
@@ -144,6 +139,17 @@ func (a *App) SetupAdmin(
 	}
 	if !a.setupAvailable(time.Now()) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(setupWindowExpiredError))
+	}
+	if !a.validSetupToken(req.Msg.SetupToken) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("valid setup token required"))
+	}
+
+	username := authutil.NormalizeUsername(req.Msg.Username)
+	if err := authutil.ValidateUsername(username); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := authutil.ValidatePassword(req.Msg.Password); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	passwordHash, err := authutil.HashPassword(req.Msg.Password)
@@ -170,6 +176,74 @@ func (a *App) SetupAdmin(
 			Role:     protoRole(user.Role),
 		},
 	}), nil
+}
+
+func (a *App) initializeSetupToken(ctx context.Context) {
+	if a == nil || a.DB == nil {
+		return
+	}
+	if token := strings.TrimSpace(a.Config.ManagementSetupToken); token != "" {
+		a.setupTokenHash = hashSetupToken(token)
+		return
+	}
+	count, err := a.DB.CountUsers(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to inspect setup state for setup token initialization")
+		return
+	}
+	if count > 0 {
+		return
+	}
+	token, tokenHash, err := newSetupToken()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to generate setup token")
+		return
+	}
+	a.generatedSetupToken = token
+	a.setupTokenHash = tokenHash
+}
+
+func (a *App) LogGeneratedSetupToken(baseURL string) {
+	if a == nil || a.generatedSetupToken == "" {
+		return
+	}
+	a.setupTokenLogOnce.Do(func() {
+		log.Warn().
+			Str("setup_token", a.generatedSetupToken).
+			Str("url", setupURLWithToken(baseURL, a.generatedSetupToken)).
+			Msg("Initial setup requires this one-time setup token")
+	})
+}
+
+func setupURLWithToken(baseURL string, token string) string {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		return ""
+	}
+	return baseURL + "/?setup_token=" + token
+}
+
+func (a *App) validSetupToken(token string) bool {
+	token = strings.TrimSpace(token)
+	if a == nil || a.setupTokenHash == "" || token == "" {
+		return false
+	}
+	got := hashSetupToken(token)
+	return subtle.ConstantTimeCompare([]byte(got), []byte(a.setupTokenHash)) == 1
+}
+
+func newSetupToken() (token string, tokenHash string, err error) {
+	buf := make([]byte, setupTokenBytes)
+	if _, err := rand.Read(buf); err != nil {
+		return "", "", err
+	}
+	token = base64.RawURLEncoding.EncodeToString(buf)
+	return token, hashSetupToken(token), nil
+}
+
+func hashSetupToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func (a *App) Login(

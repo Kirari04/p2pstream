@@ -4,10 +4,12 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 )
 
@@ -67,6 +69,30 @@ func TestGetDashboardIncludesCacheSummary(t *testing.T) {
 	}
 	if window.ProxyCacheStoredBytes != 300 {
 		t.Fatalf("proxy cache stored bytes = %d, want 300", window.ProxyCacheStoredBytes)
+	}
+}
+
+func TestCleanupObservabilityEnforcesProxyRequestRowCap(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30, ObservabilityMaxRows: 3}, newServerTestDB(t))
+
+	for i := 0; i < 5; i++ {
+		if err := app.DB.InsertProxyRequestEvent(ctx, db.InsertProxyRequestEventParams{
+			StatusCode: http.StatusOK,
+			DurationMs: int64(i),
+		}); err != nil {
+			t.Fatalf("insert proxy request event %d: %v", i, err)
+		}
+	}
+
+	app.cleanupObservability(ctx, time.Now().UTC())
+
+	var count int
+	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&count); err != nil {
+		t.Fatalf("count proxy request events: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("proxy request event count = %d, want 3", count)
 	}
 }
 

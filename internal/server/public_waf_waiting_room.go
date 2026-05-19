@@ -46,6 +46,19 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 	}
 	rt.pruneLocked(now, queueTimeout)
 	if _, ok := rt.queued[sessionID]; !ok {
+		if len(rt.queued) >= maxWafWaitingRoomQueuedSessions {
+			return publicWafDecision{
+				Rule:            rule,
+				Listener:        listener,
+				Action:          publicWafActionWaitingRoom,
+				StatusCode:      http.StatusServiceUnavailable,
+				ErrorKind:       "waf_waiting_room_queue_full",
+				RetryAfter:      defaultWafWaitingRoomPollInterval,
+				AutomaticActive: automaticActive,
+				ChallengeKind:   publicWafActionWaitingRoom,
+				QueuePosition:   int64(len(rt.queue) + 1),
+			}, false
+		}
 		rt.queued[sessionID] = now
 		rt.queue = append(rt.queue, sessionID)
 	}

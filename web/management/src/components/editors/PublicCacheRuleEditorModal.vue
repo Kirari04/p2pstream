@@ -72,6 +72,7 @@ const form = reactive({
   maxObjectMiB: 100,
   addCacheStatusHeader: true,
   allowCookieRequests: false,
+  allowCookieRequestsAcknowledged: false,
 });
 
 const ttlModeOptions = [
@@ -152,6 +153,7 @@ const submitDisabledReason = computed(() => {
   if (varyHeadersValidationReason.value) return varyHeadersValidationReason.value;
   if (cacheStatusCodesValidationReason.value) return cacheStatusCodesValidationReason.value;
   if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
+  if (form.allowCookieRequests && !form.allowCookieRequestsAcknowledged) return "Acknowledge the Cookie cache key behavior.";
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -174,6 +176,7 @@ function resetForm() {
   form.maxObjectMiB = 100;
   form.addCacheStatusHeader = true;
   form.allowCookieRequests = false;
+  form.allowCookieRequestsAcknowledged = false;
   routeFilterText.value = "";
   backendFilterText.value = "";
 }
@@ -204,6 +207,7 @@ function openEdit(ruleId: bigint | string) {
   form.maxObjectMiB = Math.max(1, Math.round(Number(rule.maxObjectBytes || 104857600n) / 1024 / 1024));
   form.addCacheStatusHeader = rule.addCacheStatusHeader;
   form.allowCookieRequests = rule.allowCookieRequests;
+  form.allowCookieRequestsAcknowledged = rule.allowCookieRequests;
   routeFilterText.value = "";
   backendFilterText.value = "";
   isOpen.value = true;
@@ -455,6 +459,7 @@ async function submitRule() {
       maxObjectBytes: BigInt(Math.max(1, form.maxObjectMiB) * 1024 * 1024),
       addCacheStatusHeader: form.addCacheStatusHeader,
       allowCookieRequests: form.allowCookieRequests,
+      allowCookieRequestsAcknowledged: form.allowCookieRequests && form.allowCookieRequestsAcknowledged,
     };
     if (form.id) {
       await managementClient.updatePublicCacheRule({ id: BigInt(form.id), ...payload });
@@ -502,6 +507,15 @@ defineExpose({ openCreate, openEdit, close });
             <span class="font-medium text-white">Cache requests with Cookie headers</span>
             <span class="text-xs leading-5 text-[#777]">
               Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
+            </span>
+          </span>
+        </label>
+        <label v-if="form.allowCookieRequests" class="flex items-start gap-3 rounded-md border border-[#333] bg-black p-3 text-sm text-[#d4d4d8]">
+          <input v-model="form.allowCookieRequestsAcknowledged" type="checkbox" class="mt-0.5" />
+          <span class="grid gap-1">
+            <span class="font-medium text-white">I understand Cookie is ignored in this cache key</span>
+            <span class="text-xs leading-5 text-[#777]">
+              Only use this for responses that are identical for every visitor, even when the request includes cookies.
             </span>
           </span>
         </label>

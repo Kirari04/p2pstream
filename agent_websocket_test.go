@@ -14,7 +14,7 @@ import (
 )
 
 func TestRegisteredAgentWebSocketAuthAndDuplicates(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	mgmtSrv, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	wsURL := "ws" + mgmtSrv.URL[4:] + "/ws"

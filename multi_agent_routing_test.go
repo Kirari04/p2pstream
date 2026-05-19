@@ -34,7 +34,7 @@ func TestDirectPublicBackendProxiesWithoutAgent(t *testing.T) {
 
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -93,7 +93,7 @@ func TestDirectPublicBackendHonorsTLSSkipVerify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
 	}
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -118,9 +118,10 @@ func TestDirectPublicBackendHonorsTLSSkipVerify(t *testing.T) {
 func TestAgentPoolBackendReturns503WhenAssignedAgentOffline(t *testing.T) {
 	database := newTestDB(t)
 	app := server.NewApp(&config.Config{
-		BootstrapAgentID:    "offline-agent",
-		BootstrapAgentName:  "Offline Agent",
-		BootstrapAgentToken: "offline-token",
+		BootstrapAgentID:     "offline-agent",
+		BootstrapAgentName:   "Offline Agent",
+		BootstrapAgentToken:  "offline-token",
+		ManagementSetupToken: testSetupToken,
 	}, database)
 	agent, err := database.GetAgentByPublicID(context.Background(), "offline-agent")
 	if err != nil {
@@ -168,7 +169,7 @@ func TestAgentPoolBackendsRouteOnlyToAssignedAgents(t *testing.T) {
 	defer targetSrv.Close()
 
 	database := newTestDB(t)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	mgmtSrv, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 

@@ -20,7 +20,7 @@ import (
 
 func TestPublicBackendUpstreamConfigAPIValidationAndSecretSemantics(t *testing.T) {
 	database := newTestDB(t)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -130,7 +130,7 @@ func TestPublicBackendUpstreamConfigAPIValidationAndSecretSemantics(t *testing.T
 }
 
 func TestPublicBackendUpstreamResponseHeaderTimeoutAPI(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -185,7 +185,7 @@ func TestPublicBackendUpstreamResponseHeaderTimeoutAPI(t *testing.T) {
 }
 
 func TestPublicBackendUpstreamConfigValidationRejectsInvalidInputs(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -240,7 +240,7 @@ func TestPublicBackendUpstreamConfigValidationRejectsInvalidInputs(t *testing.T)
 }
 
 func TestStaticPublicBackendClearsUpstreamConfig(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -302,7 +302,7 @@ func TestDirectPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
 	}
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -370,7 +370,7 @@ func TestPublicRoutePathPrefixUsesSegmentBoundaries(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create api route: %v", err)
 	}
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
 		t.Fatalf("start proxy: %v", err)
@@ -420,7 +420,7 @@ func TestAgentPoolPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 	defer targetSrv.Close()
 
 	database := newTestDB(t)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	mgmtSrv, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	agent, token := createRegisteredAgent(t, client, cookie, "upstream-agent", "Upstream Agent")

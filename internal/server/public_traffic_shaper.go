@@ -28,6 +28,7 @@ const (
 	maxTrafficShaperBytesPerSecond           = int64(1 << 40)
 	maxTrafficShaperBurstBytes               = int64(1 << 30)
 	maxTrafficShaperExemptBytes              = int64(1 << 30)
+	maxTrafficShaperBucketsPerRule           = 10000
 	maxShapingReadChunkBytes                 = 32 * 1024
 	trafficShaperIdleStateTTL                = 15 * time.Minute
 	trafficShaperPruneInterval               = time.Minute
@@ -198,6 +199,9 @@ func (s *publicTrafficShaper) decisionForRule(rule publicTrafficShaperRuleConfig
 	if rule.UploadBytesPerSecond > 0 {
 		decision.UploadBucket = runtime.uploadBuckets[key]
 		if decision.UploadBucket == nil {
+			if len(runtime.uploadBuckets) >= maxTrafficShaperBucketsPerRule {
+				evictOldestTrafficShaperBucket(runtime.uploadBuckets)
+			}
 			decision.UploadBucket = newByteTokenBucket(rule.UploadBytesPerSecond, rule.effectiveBurstBytes(rule.UploadBytesPerSecond), now)
 			runtime.uploadBuckets[key] = decision.UploadBucket
 		}
@@ -205,6 +209,9 @@ func (s *publicTrafficShaper) decisionForRule(rule publicTrafficShaperRuleConfig
 	if rule.DownloadBytesPerSecond > 0 {
 		decision.DownloadBucket = runtime.downloadBuckets[key]
 		if decision.DownloadBucket == nil {
+			if len(runtime.downloadBuckets) >= maxTrafficShaperBucketsPerRule {
+				evictOldestTrafficShaperBucket(runtime.downloadBuckets)
+			}
 			decision.DownloadBucket = newByteTokenBucket(rule.DownloadBytesPerSecond, rule.effectiveBurstBytes(rule.DownloadBytesPerSecond), now)
 			runtime.downloadBuckets[key] = decision.DownloadBucket
 		}
@@ -228,6 +235,25 @@ func pruneTrafficShaperBuckets(buckets map[string]*byteTokenBucket, now time.Tim
 		if now.Sub(bucket.lastUsedAt()) > trafficShaperIdleStateTTL {
 			delete(buckets, key)
 		}
+	}
+}
+
+func evictOldestTrafficShaperBucket(buckets map[string]*byteTokenBucket) {
+	var oldestKey string
+	var oldestTime time.Time
+	for key, bucket := range buckets {
+		if bucket == nil {
+			delete(buckets, key)
+			return
+		}
+		lastUsed := bucket.lastUsedAt()
+		if oldestKey == "" || lastUsed.Before(oldestTime) {
+			oldestKey = key
+			oldestTime = lastUsed
+		}
+	}
+	if oldestKey != "" {
+		delete(buckets, oldestKey)
 	}
 }
 

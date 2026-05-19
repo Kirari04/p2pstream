@@ -23,7 +23,15 @@ import (
 const (
 	testAdminUsername = "admin"
 	testAdminPassword = "correct horse battery staple"
+	testSetupToken    = "test-setup-token"
 )
+
+func testManagementConfig(cfg config.Config) *config.Config {
+	if cfg.ManagementSetupToken == "" {
+		cfg.ManagementSetupToken = testSetupToken
+	}
+	return &cfg
+}
 
 func newTestDB(t *testing.T) *db.DB {
 	t.Helper()
@@ -96,8 +104,9 @@ func createAdminSession(t *testing.T, client p2pstreamv1connect.AgentManagementS
 
 	ctx := context.Background()
 	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-		Username: testAdminUsername,
-		Password: testAdminPassword,
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
 	}))
 	if err != nil {
 		t.Fatalf("setup admin: %v", err)
@@ -136,7 +145,7 @@ func requireConnectCode(t *testing.T, err error, code connect.Code) {
 }
 
 func TestSetupStateWithinWindow(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	resp, err := client.GetSetupState(context.Background(), connect.NewRequest(&p2pstreamv1.GetSetupStateRequest{}))
@@ -159,7 +168,7 @@ func TestSetupStateWithinWindow(t *testing.T) {
 }
 
 func TestSetupStateExpiredWindow(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	app.StartedAt = time.Now().Add(-6 * time.Minute)
 	_, client := newTestManagementClient(t, app)
 
@@ -180,21 +189,49 @@ func TestSetupStateExpiredWindow(t *testing.T) {
 }
 
 func TestSetupAdminRejectsExpiredWindow(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	app.StartedAt = time.Now().Add(-6 * time.Minute)
 	_, client := newTestManagementClient(t, app)
 
 	_, err := client.SetupAdmin(context.Background(), connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
+	}))
+	requireConnectCode(t, err, connect.CodeFailedPrecondition)
+}
+
+func TestSetupAdminRequiresSetupToken(t *testing.T) {
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+
+	ctx := context.Background()
+	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
 		Username: testAdminUsername,
 		Password: testAdminPassword,
 	}))
-	requireConnectCode(t, err, connect.CodeFailedPrecondition)
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+
+	_, err = client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: "wrong-token",
+	}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+
+	if _, err = client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
+	})); err != nil {
+		t.Fatalf("setup admin with token: %v", err)
+	}
 }
 
 func TestRestartReopensSetupWindowWhenNoUsersExist(t *testing.T) {
 	database := newTestDB(t)
 
-	expiredApp := server.NewApp(&config.Config{}, database)
+	expiredApp := server.NewApp(testManagementConfig(config.Config{}), database)
 	expiredApp.StartedAt = time.Now().Add(-6 * time.Minute)
 	_, expiredClient := newTestManagementClient(t, expiredApp)
 
@@ -206,7 +243,7 @@ func TestRestartReopensSetupWindowWhenNoUsersExist(t *testing.T) {
 		t.Fatal("expected first app setup to be expired")
 	}
 
-	restartedApp := server.NewApp(&config.Config{}, database)
+	restartedApp := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, restartedClient := newTestManagementClient(t, restartedApp)
 
 	restartedResp, err := restartedClient.GetSetupState(context.Background(), connect.NewRequest(&p2pstreamv1.GetSetupStateRequest{}))
@@ -219,7 +256,7 @@ func TestRestartReopensSetupWindowWhenNoUsersExist(t *testing.T) {
 }
 
 func TestExistingUserDisablesSetupWithinWindow(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	createAdminSession(t, client)
 
@@ -236,19 +273,20 @@ func TestExistingUserDisablesSetupWithinWindow(t *testing.T) {
 }
 
 func TestSecondSetupAttemptRejected(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	createAdminSession(t, client)
 
 	_, err := client.SetupAdmin(context.Background(), connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-		Username: "second_admin",
-		Password: testAdminPassword,
+		Username:   "second_admin",
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
 	}))
 	requireConnectCode(t, err, connect.CodeFailedPrecondition)
 }
 
 func TestLoginLogoutSessionCookie(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	_, err := client.GetCurrentUser(context.Background(), connect.NewRequest(&p2pstreamv1.GetCurrentUserRequest{}))
@@ -283,13 +321,14 @@ func TestLoginLogoutSessionCookie(t *testing.T) {
 }
 
 func TestSessionCookieSecureFollowsManagementTLS(t *testing.T) {
-	app := server.NewApp(&config.Config{ManagementTLSEnabled: true}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{ManagementTLSEnabled: true}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	ctx := context.Background()
 	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-		Username: testAdminUsername,
-		Password: testAdminPassword,
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
 	}))
 	if err != nil {
 		t.Fatalf("setup admin: %v", err)
@@ -307,13 +346,14 @@ func TestSessionCookieSecureFollowsManagementTLS(t *testing.T) {
 }
 
 func TestSessionCookieCanBeInsecureForExplicitHTTPDevelopment(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	ctx := context.Background()
 	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-		Username: testAdminUsername,
-		Password: testAdminPassword,
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
 	}))
 	if err != nil {
 		t.Fatalf("setup admin: %v", err)
@@ -331,13 +371,14 @@ func TestSessionCookieCanBeInsecureForExplicitHTTPDevelopment(t *testing.T) {
 }
 
 func TestSessionCookieSecureFollowsProductionEnv(t *testing.T) {
-	app := server.NewApp(&config.Config{Env: "production"}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{Env: "production"}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	ctx := context.Background()
 	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-		Username: testAdminUsername,
-		Password: testAdminPassword,
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
 	}))
 	if err != nil {
 		t.Fatalf("setup admin: %v", err)
@@ -355,13 +396,14 @@ func TestSessionCookieSecureFollowsProductionEnv(t *testing.T) {
 }
 
 func TestLoginThrottleBlocksRepeatedFailures(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	ctx := context.Background()
 	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-		Username: testAdminUsername,
-		Password: testAdminPassword,
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
 	}))
 	if err != nil {
 		t.Fatalf("setup admin: %v", err)
@@ -387,13 +429,14 @@ func TestLoginThrottleBlocksRepeatedFailures(t *testing.T) {
 }
 
 func TestLoginThrottleResetsAfterSuccessfulLogin(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	ctx := context.Background()
 	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-		Username: testAdminUsername,
-		Password: testAdminPassword,
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
 	}))
 	if err != nil {
 		t.Fatalf("setup admin: %v", err)
@@ -421,7 +464,7 @@ func TestLoginThrottleResetsAfterSuccessfulLogin(t *testing.T) {
 }
 
 func TestProtectedRPCRejectsWithoutSession(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	createAdminSession(t, client)
 
@@ -438,7 +481,7 @@ func TestProtectedRPCRejectsWithoutSession(t *testing.T) {
 func TestProxyStartStopLifecycle(t *testing.T) {
 	database := newTestDB(t)
 	seedTestHTTPPublicListener(t, database, "https://example.com")
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -484,11 +527,11 @@ func TestProxyStartStopLifecycle(t *testing.T) {
 }
 
 func TestAgentTokenProtectsStatsAndWebSocket(t *testing.T) {
-	app := server.NewApp(&config.Config{
+	app := server.NewApp(testManagementConfig(config.Config{
 		BootstrapAgentID:    "auth-agent",
 		BootstrapAgentName:  "Auth Agent",
 		BootstrapAgentToken: "agent-secret",
-	}, newTestDB(t))
+	}), newTestDB(t))
 
 	_, err := app.ReportStats(context.Background(), connect.NewRequest(&p2pstreamv1.AgentStatsRequest{}))
 	requireConnectCode(t, err, connect.CodeUnauthenticated)

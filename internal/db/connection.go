@@ -73,6 +73,10 @@ func Open(databaseURL string) (*DB, error) {
 	`); err != nil {
 		log.Warn().Err(err).Msg("Failed to enforce some SQLite pragmas")
 	}
+	if err := hardenSQLiteFiles(dsn); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
 	log.Info().Msg("Database connected and configured successfully")
 	return instance, nil
@@ -112,20 +116,56 @@ func applySQLitePragmas(values url.Values) {
 }
 
 func ensureSQLiteDir(dsn string) error {
-	if !strings.HasPrefix(dsn, "file:") {
+	path, ok := sqliteFilePathFromDSN(dsn)
+	if !ok {
 		return nil
 	}
-	prefix, _, _ := strings.Cut(dsn, "?")
-	path := strings.TrimPrefix(prefix, "file:")
-	if path == "" || path == ":memory:" || strings.HasPrefix(path, ":memory:") {
-		return nil
-	}
-	path = filepath.Clean(path)
 	dir := filepath.Dir(path)
 	if dir == "." || dir == "" {
 		return nil
 	}
-	return os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	return os.Chmod(dir, 0700)
+}
+
+func hardenSQLiteFiles(dsn string) error {
+	path, ok := sqliteFilePathFromDSN(dsn)
+	if !ok {
+		return nil
+	}
+	for _, candidate := range []string{path, path + "-wal", path + "-shm"} {
+		if _, err := os.Stat(candidate); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("failed to stat sqlite file %q: %w", candidate, err)
+		}
+		if err := os.Chmod(candidate, 0600); err != nil {
+			return fmt.Errorf("failed to secure sqlite file %q: %w", candidate, err)
+		}
+	}
+	return nil
+}
+
+func sqliteFilePathFromDSN(dsn string) (string, bool) {
+	if !strings.HasPrefix(dsn, "file:") {
+		return "", false
+	}
+	prefix, rawQuery, _ := strings.Cut(dsn, "?")
+	values, err := url.ParseQuery(rawQuery)
+	if err == nil && strings.EqualFold(values.Get("mode"), "memory") {
+		return "", false
+	}
+	path := strings.TrimPrefix(prefix, "file:")
+	if path == "" || path == ":memory:" || strings.HasPrefix(path, ":memory:") {
+		return "", false
+	}
+	if unescaped, err := url.PathUnescape(path); err == nil {
+		path = unescaped
+	}
+	return filepath.Clean(path), true
 }
 
 // migrate runs the initial schema setup.

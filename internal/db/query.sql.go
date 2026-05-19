@@ -1394,6 +1394,36 @@ func (q *Queries) DeleteManagementAccessToken(ctx context.Context, id int64) err
 	return err
 }
 
+const deleteOldestAgentStatsOverLimit = `-- name: DeleteOldestAgentStatsOverLimit :exec
+DELETE FROM agent_stats
+WHERE id IN (
+    SELECT id
+    FROM agent_stats
+    ORDER BY reported_at DESC, id DESC
+    LIMIT -1 OFFSET ?
+)
+`
+
+func (q *Queries) DeleteOldestAgentStatsOverLimit(ctx context.Context, offset int64) error {
+	_, err := q.db.ExecContext(ctx, deleteOldestAgentStatsOverLimit, offset)
+	return err
+}
+
+const deleteOldestProxyRequestEventsOverLimit = `-- name: DeleteOldestProxyRequestEventsOverLimit :exec
+DELETE FROM proxy_request_events
+WHERE id IN (
+    SELECT id
+    FROM proxy_request_events
+    ORDER BY occurred_at DESC, id DESC
+    LIMIT -1 OFFSET ?
+)
+`
+
+func (q *Queries) DeleteOldestProxyRequestEventsOverLimit(ctx context.Context, offset int64) error {
+	_, err := q.db.ExecContext(ctx, deleteOldestProxyRequestEventsOverLimit, offset)
+	return err
+}
+
 const deleteProxyRequestEventsBefore = `-- name: DeleteProxyRequestEventsBefore :exec
 DELETE FROM proxy_request_events
 WHERE occurred_at < ?

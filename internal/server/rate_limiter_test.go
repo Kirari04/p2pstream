@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -261,6 +262,21 @@ func TestPublicRateLimiterPrunesIdleKeys(t *testing.T) {
 	runtime := limiter.rules[rule.ID]
 	if got := len(runtime.keys); got != 1 {
 		t.Fatalf("runtime keys = %d, want 1 after pruning idle key", got)
+	}
+}
+
+func TestPublicRateLimitHostKeyCanonicalizesDottedHostWithPort(t *testing.T) {
+	rule := testRateLimitRule(publicRateLimitAlgorithmFixedWindow, 10, 1000, 0)
+	rule.KeyParts = []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceHost}}
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+
+	plain := testRateLimitRequest("GET", "http://example.com/api", "198.51.100.9:1234")
+	plain.Host = "example.com:443"
+	dotted := testRateLimitRequest("GET", "http://example.com/api", "198.51.100.9:1234")
+	dotted.Host = "example.com.:443"
+
+	if got, want := rule.keyValues(listener, dotted), rule.keyValues(listener, plain); !reflect.DeepEqual(got, want) {
+		t.Fatalf("dotted host key values = %#v, want %#v", got, want)
 	}
 }
 

@@ -314,9 +314,27 @@ LIMIT 1;
 DELETE FROM proxy_request_events
 WHERE occurred_at < ?;
 
+-- name: DeleteOldestProxyRequestEventsOverLimit :exec
+DELETE FROM proxy_request_events
+WHERE id IN (
+    SELECT id
+    FROM proxy_request_events
+    ORDER BY occurred_at DESC, id DESC
+    LIMIT -1 OFFSET ?
+);
+
 -- name: DeleteAgentStatsBefore :exec
 DELETE FROM agent_stats
 WHERE reported_at < ?;
+
+-- name: DeleteOldestAgentStatsOverLimit :exec
+DELETE FROM agent_stats
+WHERE id IN (
+    SELECT id
+    FROM agent_stats
+    ORDER BY reported_at DESC, id DESC
+    LIMIT -1 OFFSET ?
+);
 
 -- name: DeleteDisconnectedConnectionsBefore :exec
 DELETE FROM connections

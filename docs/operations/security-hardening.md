@@ -17,8 +17,10 @@ Use this before exposing management beyond a private network, after adding agent
 1. Harden management access:
 
    - Keep management HTTPS enabled.
+   - Keep `MANAGEMENT_BIND_ADDRESS=127.0.0.1` unless management must be reachable from another host.
    - Prefer firewall allowlists, VPN, or a private admin network for `8081`.
    - Set `MANAGEMENT_PUBLIC_URL` to the real management URL used by browsers and agents.
+   - Set a deployment secret as `MANAGEMENT_SETUP_TOKEN` before first setup, or capture the generated startup token from trusted logs.
    - Use `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true` when management is accessed over HTTPS.
    - For API-only management, set `MANAGEMENT_UI_DISABLED=true`; the ConnectRPC API and agent WebSocket stay available.
 
@@ -27,6 +29,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Back up the full `CONFIG_DIR`.
    - Restrict host, volume, and backup access to trusted administrators.
    - Treat database write access as administrative access, because the local CLI can reset management credentials.
+   - Protect database backups as secrets; the SQLite database includes operational tokens and upstream credentials.
 
 3. Harden agents:
 
@@ -52,6 +55,7 @@ Review:
 - `/data` is persistent and backed up.
 - Management is HTTPS.
 - Management exposure is intentional and firewall/VPN rules match that decision.
+- First-admin setup token handling is documented for operators.
 - `MANAGEMENT_PUBLIC_URL` is correct.
 - Unused listeners and agents are disabled or deleted.
 - Tracing is disabled after troubleshooting.
