@@ -38,5 +38,6 @@ features:
   <a href="./concepts/limits-and-shaping">Traffic controls</a>
   <a href="./operations/troubleshooting">Troubleshooting</a>
   <a href="./reference/configuration">Configuration</a>
+  <a href="./reference/llms">LLM docs</a>
   <a href="./reference/screenshots">Screenshots</a>
 </nav>
