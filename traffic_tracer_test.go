@@ -16,7 +16,7 @@ import (
 )
 
 func TestTrafficTraceSettingsAuthAndRuntimeDefault(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	_, err := client.GetTrafficTraceSettings(context.Background(), connect.NewRequest(&p2pstreamv1.GetTrafficTraceSettingsRequest{}))
@@ -36,7 +36,7 @@ func TestTrafficTraceSettingsAuthAndRuntimeDefault(t *testing.T) {
 		t.Fatalf("unexpected enabled settings: %+v", settings)
 	}
 
-	restarted := server.NewApp(&config.Config{}, newTestDB(t))
+	restarted := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, restartedClient := newTestManagementClient(t, restarted)
 	restartedCookie := createAdminSession(t, restartedClient)
 	restartedSettings := getTrafficTraceSettings(t, restartedClient, restartedCookie)
@@ -49,7 +49,7 @@ func TestTrafficTraceSettingsAuthAndRuntimeDefault(t *testing.T) {
 }
 
 func TestTrafficTraceStreamRequiresAdminAndSendsInitialSettings(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -81,7 +81,7 @@ func TestTrafficTraceStreamRequiresAdminAndSendsInitialSettings(t *testing.T) {
 }
 
 func TestTrafficTraceSubscriberCountBroadcastsOnSubscribe(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
@@ -107,7 +107,7 @@ func TestTrafficTraceSubscriberCountBroadcastsOnSubscribe(t *testing.T) {
 }
 
 func TestTrafficTraceSubscriberCountBroadcastsOnUnsubscribe(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
@@ -131,7 +131,7 @@ func TestTrafficTraceSubscriberCountBroadcastsOnUnsubscribe(t *testing.T) {
 }
 
 func TestTrafficTraceHeartbeatPublishesSettingsWithoutEvents(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
@@ -164,7 +164,7 @@ func TestTrafficTraceDirectRequestStagesAndLevels(t *testing.T) {
 
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_DETAILED)
@@ -230,7 +230,7 @@ func TestTrafficTraceHeartbeatDoesNotBreakReplay(t *testing.T) {
 
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)
@@ -271,7 +271,7 @@ func TestTrafficTraceHeadersRedactSensitiveValues(t *testing.T) {
 
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	setTrafficTraceSettings(t, client, cookie, true, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_HEADERS)
@@ -330,7 +330,7 @@ func TestTrafficTraceDisabledDoesNotEmitEvents(t *testing.T) {
 
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	setTrafficTraceSettings(t, client, cookie, false, p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_BASIC)

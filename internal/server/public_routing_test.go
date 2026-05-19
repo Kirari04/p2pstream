@@ -1,10 +1,66 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 )
+
+func TestNormalizeRequestHostCanonicalizesPortsAndTrailingDots(t *testing.T) {
+	tests := []struct {
+		name string
+		host string
+		want string
+	}{
+		{name: "dns", host: "example.com", want: "example.com"},
+		{name: "dns trailing dot", host: "example.com.", want: "example.com"},
+		{name: "dns with port", host: "example.com:443", want: "example.com"},
+		{name: "dns trailing dot with port", host: "example.com.:443", want: "example.com"},
+		{name: "ipv6 with port", host: "[2001:db8::1]:443", want: "2001:db8::1"},
+		{name: "bracketed ipv6 without port", host: "[2001:db8::1]", want: "2001:db8::1"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := normalizeRequestHost(tc.host); got != tc.want {
+				t.Fatalf("normalizeRequestHost(%q) = %q, want %q", tc.host, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.:443/assets/app.js", nil)
+	req.Host = "app.example.:443"
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	route := publicRouteConfig{ID: 10, Enabled: true, HostPattern: "app.example", BackendID: 20}
+	app := NewApp(nil, nil)
+	app.publicSnapshot = &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, DefaultBackendID: 20}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {route},
+		},
+		Backends: map[int64]publicBackendConfig{20: {ID: 20, Enabled: true, BackendType: publicBackendTypeStatic}},
+	}
+
+	resolution, err := app.resolvePublicRoute(1, req)
+	if err != nil {
+		t.Fatalf("resolve route: %v", err)
+	}
+	if resolution.RouteID != (sql.NullInt64{Int64: 10, Valid: true}) {
+		t.Fatalf("route id = %+v, want 10", resolution.RouteID)
+	}
+
+	match, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{CelExpression: `host == "app.example"`})
+	if err != nil {
+		t.Fatalf("compile match: %v", err)
+	}
+	if !match.matches(listener, req) {
+		t.Fatal("policy host did not match canonical dotted host")
+	}
+}
 
 func TestRedirectPathSuffixNormalizesLocalTargets(t *testing.T) {
 	for _, tc := range []struct {

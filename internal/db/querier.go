@@ -43,6 +43,8 @@ type Querier interface {
 	DeleteEnvironment(ctx context.Context, id int64) error
 	DeleteExpiredPublicCacheEntries(ctx context.Context, expiresAt time.Time) ([]DeleteExpiredPublicCacheEntriesRow, error)
 	DeleteManagementAccessToken(ctx context.Context, id int64) error
+	DeleteOldestAgentStatsOverLimit(ctx context.Context, offset int64) error
+	DeleteOldestProxyRequestEventsOverLimit(ctx context.Context, offset int64) error
 	DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error
 	DeletePublicBackend(ctx context.Context, id int64) error
 	DeletePublicBackendAgents(ctx context.Context, backendID int64) error

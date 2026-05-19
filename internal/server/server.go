@@ -56,7 +56,10 @@ type App struct {
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
 
-	setupMu sync.Mutex
+	setupMu             sync.Mutex
+	setupTokenHash      string
+	generatedSetupToken string
+	setupTokenLogOnce   sync.Once
 
 	proxyMu             sync.Mutex
 	proxyServiceActive  bool
@@ -86,12 +89,13 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		TrafficShaper:       newPublicTrafficShaper(),
 		PublicWAF:           newPublicWAF(),
 		PublicCache:         newPublicProxyCache(cfg.PublicCacheDir),
-		LoginThrottle:       newLoginThrottle(),
+		LoginThrottle:       newLoginThrottle(cfg.LoginThrottleMaxKeys),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
 	app.PublicACME = newPublicACMEManager(app)
 	if database != nil {
+		app.initializeSetupToken(context.Background())
 		app.ensureBootstrapAgent(context.Background())
 	}
 	return app

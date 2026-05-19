@@ -167,6 +167,7 @@ func newManagementMTLSTestFixture(t *testing.T) managementMTLSTestFixture {
 		BootstrapAgentID:          mtlsAgentID,
 		BootstrapAgentName:        "mTLS Agent",
 		BootstrapAgentToken:       mtlsAgentToken,
+		ManagementSetupToken:      testSetupToken,
 	}, newTestDB(t))
 	mux := http.NewServeMux()
 	app.RegisterManagementRoutes(mux)

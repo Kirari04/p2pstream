@@ -20,7 +20,7 @@ import (
 )
 
 func TestE2E_GetDashboardRequiresSession(t *testing.T) {
-	app := server.NewApp(&config.Config{}, newTestDB(t))
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	createAdminSession(t, client)
 
@@ -32,6 +32,7 @@ func TestE2E_GetDashboardSummaries(t *testing.T) {
 	database := newTestDB(t)
 	app := server.NewApp(&config.Config{
 		ObservabilityRetentionDays: 30,
+		ManagementSetupToken:       testSetupToken,
 	}, database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
@@ -154,9 +155,10 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 	database := newTestDB(t)
 	listener := seedTestHTTPPublicListener(t, database, targetSrv.URL)
 	app := server.NewApp(&config.Config{
-		BootstrapAgentID:    "observability-agent",
-		BootstrapAgentName:  "Observability Agent",
-		BootstrapAgentToken: "observability-token",
+		BootstrapAgentID:     "observability-agent",
+		BootstrapAgentName:   "Observability Agent",
+		BootstrapAgentToken:  "observability-token",
+		ManagementSetupToken: testSetupToken,
 	}, database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
@@ -227,7 +229,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 
 func TestObservabilityRetentionCleanup(t *testing.T) {
 	database := newTestDB(t)
-	app := server.NewApp(&config.Config{ObservabilityRetentionDays: 30}, database)
+	app := server.NewApp(testManagementConfig(config.Config{ObservabilityRetentionDays: 30}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 

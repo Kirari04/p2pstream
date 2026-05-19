@@ -14,6 +14,8 @@ services:
     command: ["/app/p2pstream", "server"]
     environment:
       MANAGEMENT_PORT: "8081"
+      MANAGEMENT_BIND_ADDRESS: "0.0.0.0"
+      MANAGEMENT_SETUP_TOKEN: "docker-smoke-setup-token"
       PORT: "8080"
       CONFIG_DIR: "/data"
       BOOTSTRAP_AGENT_ID: "docker-agent"
@@ -55,6 +57,7 @@ services:
     environment:
       MANAGEMENT_URL: "https://server:8081"
       MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
+      MANAGEMENT_SETUP_TOKEN: "docker-smoke-setup-token"
       PUBLIC_DEFAULT_URL: "http://server:8080"
       PUBLIC_AGENT_URL: "http://server:8089"
       PUBLIC_STATIC_URL: "http://server:8088"

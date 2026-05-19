@@ -16,7 +16,7 @@ import (
 
 func TestPublicRouteBackendPoolAPIRoundTrip(t *testing.T) {
 	database := newTestDB(t)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
@@ -72,7 +72,7 @@ func TestPublicRouteBackendPoolAPIRoundTrip(t *testing.T) {
 
 func TestPublicRouteBackendPoolValidation(t *testing.T) {
 	database := newTestDB(t)
-	app := server.NewApp(&config.Config{}, database)
+	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 

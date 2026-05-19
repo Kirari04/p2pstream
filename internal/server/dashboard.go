@@ -30,6 +30,7 @@ const (
 	dashboardTopWindow            = time.Hour
 	dashboardTrafficBucketWindow  = time.Hour
 	dashboardTrafficBucketSeconds = int64(5 * 60)
+	observabilityCleanupInterval  = time.Hour
 )
 
 func (a *App) GetDashboard(
@@ -472,6 +473,14 @@ func (a *App) cleanupObservability(ctx context.Context, now time.Time) {
 	if err := a.DB.DeleteDisconnectedConnectionsBefore(ctx, sql.NullTime{Time: cutoff, Valid: true}); err != nil {
 		log.Warn().Err(err).Msg("Failed to clean up old disconnected agent connections")
 	}
+	if maxRows := a.observabilityMaxRows(); maxRows > 0 {
+		if err := a.DB.DeleteOldestProxyRequestEventsOverLimit(ctx, maxRows); err != nil {
+			log.Warn().Err(err).Msg("Failed to enforce proxy request event row cap")
+		}
+		if err := a.DB.DeleteOldestAgentStatsOverLimit(ctx, maxRows); err != nil {
+			log.Warn().Err(err).Msg("Failed to enforce agent stat row cap")
+		}
+	}
 }
 
 func (a *App) observabilityRetentionDays() int {
@@ -479,6 +488,32 @@ func (a *App) observabilityRetentionDays() int {
 		return 30
 	}
 	return a.Config.ObservabilityRetentionDays
+}
+
+func (a *App) observabilityMaxRows() int64 {
+	if a.Config == nil {
+		return 0
+	}
+	return a.Config.ObservabilityMaxRows
+}
+
+func (a *App) StartObservabilityCleanup(ctx context.Context) {
+	if a == nil || a.DB == nil {
+		return
+	}
+	go func() {
+		a.cleanupObservability(ctx, time.Now().UTC())
+		ticker := time.NewTicker(observabilityCleanupInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case now := <-ticker.C:
+				a.cleanupObservability(ctx, now.UTC())
+			}
+		}
+	}()
 }
 
 func (a *App) agentConnectionSummary(ctx context.Context, now time.Time) (*p2pstreamv1.AgentConnectionSummary, error) {

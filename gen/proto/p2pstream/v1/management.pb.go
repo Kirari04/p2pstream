@@ -12843,25 +12843,26 @@ func (*DeletePublicWafRuleResponse) Descriptor() ([]byte, []int) {
 }
 
 type CreatePublicCacheRuleRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Name                 string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Priority             int64                  `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
-	Enabled              bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	RouteIds             []int64                `protobuf:"varint,5,rep,packed,name=route_ids,json=routeIds,proto3" json:"route_ids,omitempty"`
-	BackendIds           []int64                `protobuf:"varint,6,rep,packed,name=backend_ids,json=backendIds,proto3" json:"backend_ids,omitempty"`
-	Scope                PublicCacheScope       `protobuf:"varint,7,opt,name=scope,proto3,enum=p2pstream.v1.PublicCacheScope" json:"scope,omitempty"`
-	TtlMode              PublicCacheTtlMode     `protobuf:"varint,8,opt,name=ttl_mode,json=ttlMode,proto3,enum=p2pstream.v1.PublicCacheTtlMode" json:"ttl_mode,omitempty"`
-	TtlMillis            int64                  `protobuf:"varint,9,opt,name=ttl_millis,json=ttlMillis,proto3" json:"ttl_millis,omitempty"`
-	QueryMode            PublicCacheQueryMode   `protobuf:"varint,10,opt,name=query_mode,json=queryMode,proto3,enum=p2pstream.v1.PublicCacheQueryMode" json:"query_mode,omitempty"`
-	QueryParams          []string               `protobuf:"bytes,11,rep,name=query_params,json=queryParams,proto3" json:"query_params,omitempty"`
-	VaryHeaders          []string               `protobuf:"bytes,12,rep,name=vary_headers,json=varyHeaders,proto3" json:"vary_headers,omitempty"`
-	CacheStatusCodes     []int64                `protobuf:"varint,13,rep,packed,name=cache_status_codes,json=cacheStatusCodes,proto3" json:"cache_status_codes,omitempty"`
-	MaxObjectBytes       int64                  `protobuf:"varint,14,opt,name=max_object_bytes,json=maxObjectBytes,proto3" json:"max_object_bytes,omitempty"`
-	AddCacheStatusHeader bool                   `protobuf:"varint,15,opt,name=add_cache_status_header,json=addCacheStatusHeader,proto3" json:"add_cache_status_header,omitempty"`
-	AllowCookieRequests  bool                   `protobuf:"varint,16,opt,name=allow_cookie_requests,json=allowCookieRequests,proto3" json:"allow_cookie_requests,omitempty"`
-	MatchRule            *PublicPolicyMatchRule `protobuf:"bytes,17,opt,name=match_rule,json=matchRule,proto3" json:"match_rule,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                           protoimpl.MessageState `protogen:"open.v1"`
+	Name                            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Priority                        int64                  `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
+	Enabled                         bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	RouteIds                        []int64                `protobuf:"varint,5,rep,packed,name=route_ids,json=routeIds,proto3" json:"route_ids,omitempty"`
+	BackendIds                      []int64                `protobuf:"varint,6,rep,packed,name=backend_ids,json=backendIds,proto3" json:"backend_ids,omitempty"`
+	Scope                           PublicCacheScope       `protobuf:"varint,7,opt,name=scope,proto3,enum=p2pstream.v1.PublicCacheScope" json:"scope,omitempty"`
+	TtlMode                         PublicCacheTtlMode     `protobuf:"varint,8,opt,name=ttl_mode,json=ttlMode,proto3,enum=p2pstream.v1.PublicCacheTtlMode" json:"ttl_mode,omitempty"`
+	TtlMillis                       int64                  `protobuf:"varint,9,opt,name=ttl_millis,json=ttlMillis,proto3" json:"ttl_millis,omitempty"`
+	QueryMode                       PublicCacheQueryMode   `protobuf:"varint,10,opt,name=query_mode,json=queryMode,proto3,enum=p2pstream.v1.PublicCacheQueryMode" json:"query_mode,omitempty"`
+	QueryParams                     []string               `protobuf:"bytes,11,rep,name=query_params,json=queryParams,proto3" json:"query_params,omitempty"`
+	VaryHeaders                     []string               `protobuf:"bytes,12,rep,name=vary_headers,json=varyHeaders,proto3" json:"vary_headers,omitempty"`
+	CacheStatusCodes                []int64                `protobuf:"varint,13,rep,packed,name=cache_status_codes,json=cacheStatusCodes,proto3" json:"cache_status_codes,omitempty"`
+	MaxObjectBytes                  int64                  `protobuf:"varint,14,opt,name=max_object_bytes,json=maxObjectBytes,proto3" json:"max_object_bytes,omitempty"`
+	AddCacheStatusHeader            bool                   `protobuf:"varint,15,opt,name=add_cache_status_header,json=addCacheStatusHeader,proto3" json:"add_cache_status_header,omitempty"`
+	AllowCookieRequests             bool                   `protobuf:"varint,16,opt,name=allow_cookie_requests,json=allowCookieRequests,proto3" json:"allow_cookie_requests,omitempty"`
+	MatchRule                       *PublicPolicyMatchRule `protobuf:"bytes,17,opt,name=match_rule,json=matchRule,proto3" json:"match_rule,omitempty"`
+	AllowCookieRequestsAcknowledged bool                   `protobuf:"varint,18,opt,name=allow_cookie_requests_acknowledged,json=allowCookieRequestsAcknowledged,proto3" json:"allow_cookie_requests_acknowledged,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *CreatePublicCacheRuleRequest) Reset() {
@@ -13006,6 +13007,13 @@ func (x *CreatePublicCacheRuleRequest) GetMatchRule() *PublicPolicyMatchRule {
 	return nil
 }
 
+func (x *CreatePublicCacheRuleRequest) GetAllowCookieRequestsAcknowledged() bool {
+	if x != nil {
+		return x.AllowCookieRequestsAcknowledged
+	}
+	return false
+}
+
 type CreatePublicCacheRuleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rule          *PublicCacheRule       `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
@@ -13051,26 +13059,27 @@ func (x *CreatePublicCacheRuleResponse) GetRule() *PublicCacheRule {
 }
 
 type UpdatePublicCacheRuleRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Id                   int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Priority             int64                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
-	Enabled              bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	RouteIds             []int64                `protobuf:"varint,6,rep,packed,name=route_ids,json=routeIds,proto3" json:"route_ids,omitempty"`
-	BackendIds           []int64                `protobuf:"varint,7,rep,packed,name=backend_ids,json=backendIds,proto3" json:"backend_ids,omitempty"`
-	Scope                PublicCacheScope       `protobuf:"varint,8,opt,name=scope,proto3,enum=p2pstream.v1.PublicCacheScope" json:"scope,omitempty"`
-	TtlMode              PublicCacheTtlMode     `protobuf:"varint,9,opt,name=ttl_mode,json=ttlMode,proto3,enum=p2pstream.v1.PublicCacheTtlMode" json:"ttl_mode,omitempty"`
-	TtlMillis            int64                  `protobuf:"varint,10,opt,name=ttl_millis,json=ttlMillis,proto3" json:"ttl_millis,omitempty"`
-	QueryMode            PublicCacheQueryMode   `protobuf:"varint,11,opt,name=query_mode,json=queryMode,proto3,enum=p2pstream.v1.PublicCacheQueryMode" json:"query_mode,omitempty"`
-	QueryParams          []string               `protobuf:"bytes,12,rep,name=query_params,json=queryParams,proto3" json:"query_params,omitempty"`
-	VaryHeaders          []string               `protobuf:"bytes,13,rep,name=vary_headers,json=varyHeaders,proto3" json:"vary_headers,omitempty"`
-	CacheStatusCodes     []int64                `protobuf:"varint,14,rep,packed,name=cache_status_codes,json=cacheStatusCodes,proto3" json:"cache_status_codes,omitempty"`
-	MaxObjectBytes       int64                  `protobuf:"varint,15,opt,name=max_object_bytes,json=maxObjectBytes,proto3" json:"max_object_bytes,omitempty"`
-	AddCacheStatusHeader bool                   `protobuf:"varint,16,opt,name=add_cache_status_header,json=addCacheStatusHeader,proto3" json:"add_cache_status_header,omitempty"`
-	AllowCookieRequests  bool                   `protobuf:"varint,17,opt,name=allow_cookie_requests,json=allowCookieRequests,proto3" json:"allow_cookie_requests,omitempty"`
-	MatchRule            *PublicPolicyMatchRule `protobuf:"bytes,18,opt,name=match_rule,json=matchRule,proto3" json:"match_rule,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                           protoimpl.MessageState `protogen:"open.v1"`
+	Id                              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Priority                        int64                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	Enabled                         bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	RouteIds                        []int64                `protobuf:"varint,6,rep,packed,name=route_ids,json=routeIds,proto3" json:"route_ids,omitempty"`
+	BackendIds                      []int64                `protobuf:"varint,7,rep,packed,name=backend_ids,json=backendIds,proto3" json:"backend_ids,omitempty"`
+	Scope                           PublicCacheScope       `protobuf:"varint,8,opt,name=scope,proto3,enum=p2pstream.v1.PublicCacheScope" json:"scope,omitempty"`
+	TtlMode                         PublicCacheTtlMode     `protobuf:"varint,9,opt,name=ttl_mode,json=ttlMode,proto3,enum=p2pstream.v1.PublicCacheTtlMode" json:"ttl_mode,omitempty"`
+	TtlMillis                       int64                  `protobuf:"varint,10,opt,name=ttl_millis,json=ttlMillis,proto3" json:"ttl_millis,omitempty"`
+	QueryMode                       PublicCacheQueryMode   `protobuf:"varint,11,opt,name=query_mode,json=queryMode,proto3,enum=p2pstream.v1.PublicCacheQueryMode" json:"query_mode,omitempty"`
+	QueryParams                     []string               `protobuf:"bytes,12,rep,name=query_params,json=queryParams,proto3" json:"query_params,omitempty"`
+	VaryHeaders                     []string               `protobuf:"bytes,13,rep,name=vary_headers,json=varyHeaders,proto3" json:"vary_headers,omitempty"`
+	CacheStatusCodes                []int64                `protobuf:"varint,14,rep,packed,name=cache_status_codes,json=cacheStatusCodes,proto3" json:"cache_status_codes,omitempty"`
+	MaxObjectBytes                  int64                  `protobuf:"varint,15,opt,name=max_object_bytes,json=maxObjectBytes,proto3" json:"max_object_bytes,omitempty"`
+	AddCacheStatusHeader            bool                   `protobuf:"varint,16,opt,name=add_cache_status_header,json=addCacheStatusHeader,proto3" json:"add_cache_status_header,omitempty"`
+	AllowCookieRequests             bool                   `protobuf:"varint,17,opt,name=allow_cookie_requests,json=allowCookieRequests,proto3" json:"allow_cookie_requests,omitempty"`
+	MatchRule                       *PublicPolicyMatchRule `protobuf:"bytes,18,opt,name=match_rule,json=matchRule,proto3" json:"match_rule,omitempty"`
+	AllowCookieRequestsAcknowledged bool                   `protobuf:"varint,19,opt,name=allow_cookie_requests_acknowledged,json=allowCookieRequestsAcknowledged,proto3" json:"allow_cookie_requests_acknowledged,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *UpdatePublicCacheRuleRequest) Reset() {
@@ -13220,6 +13229,13 @@ func (x *UpdatePublicCacheRuleRequest) GetMatchRule() *PublicPolicyMatchRule {
 		return x.MatchRule
 	}
 	return nil
+}
+
+func (x *UpdatePublicCacheRuleRequest) GetAllowCookieRequestsAcknowledged() bool {
+	if x != nil {
+		return x.AllowCookieRequestsAcknowledged
+	}
+	return false
 }
 
 type UpdatePublicCacheRuleResponse struct {
@@ -15410,6 +15426,7 @@ type SetupAdminRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	SetupToken    string                 `protobuf:"bytes,3,opt,name=setup_token,json=setupToken,proto3" json:"setup_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -15454,6 +15471,13 @@ func (x *SetupAdminRequest) GetUsername() string {
 func (x *SetupAdminRequest) GetPassword() string {
 	if x != nil {
 		return x.Password
+	}
+	return ""
+}
+
+func (x *SetupAdminRequest) GetSetupToken() string {
+	if x != nil {
+		return x.SetupToken
 	}
 	return ""
 }
@@ -16879,7 +16903,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x04rule\x18\x01 \x01(\v2\x1b.p2pstream.v1.PublicWafRuleR\x04rule\",\n" +
 	"\x1aDeletePublicWafRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1d\n" +
-	"\x1bDeletePublicWafRuleResponse\"\xd5\x05\n" +
+	"\x1bDeletePublicWafRuleResponse\"\xa2\x06\n" +
 	"\x1cCreatePublicCacheRuleRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bpriority\x18\x02 \x01(\x03R\bpriority\x12\x18\n" +
@@ -16901,9 +16925,10 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x17add_cache_status_header\x18\x0f \x01(\bR\x14addCacheStatusHeader\x122\n" +
 	"\x15allow_cookie_requests\x18\x10 \x01(\bR\x13allowCookieRequests\x12B\n" +
 	"\n" +
-	"match_rule\x18\x11 \x01(\v2#.p2pstream.v1.PublicPolicyMatchRuleR\tmatchRuleJ\x04\b\x04\x10\x05R\x05match\"R\n" +
+	"match_rule\x18\x11 \x01(\v2#.p2pstream.v1.PublicPolicyMatchRuleR\tmatchRule\x12K\n" +
+	"\"allow_cookie_requests_acknowledged\x18\x12 \x01(\bR\x1fallowCookieRequestsAcknowledgedJ\x04\b\x04\x10\x05R\x05match\"R\n" +
 	"\x1dCreatePublicCacheRuleResponse\x121\n" +
-	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicCacheRuleR\x04rule\"\xe5\x05\n" +
+	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicCacheRuleR\x04rule\"\xb2\x06\n" +
 	"\x1cUpdatePublicCacheRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -16926,7 +16951,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x17add_cache_status_header\x18\x10 \x01(\bR\x14addCacheStatusHeader\x122\n" +
 	"\x15allow_cookie_requests\x18\x11 \x01(\bR\x13allowCookieRequests\x12B\n" +
 	"\n" +
-	"match_rule\x18\x12 \x01(\v2#.p2pstream.v1.PublicPolicyMatchRuleR\tmatchRuleJ\x04\b\x05\x10\x06R\x05match\"R\n" +
+	"match_rule\x18\x12 \x01(\v2#.p2pstream.v1.PublicPolicyMatchRuleR\tmatchRule\x12K\n" +
+	"\"allow_cookie_requests_acknowledged\x18\x13 \x01(\bR\x1fallowCookieRequestsAcknowledgedJ\x04\b\x05\x10\x06R\x05match\"R\n" +
 	"\x1dUpdatePublicCacheRuleResponse\x121\n" +
 	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicCacheRuleR\x04rule\".\n" +
 	"\x1cDeletePublicCacheRuleRequest\x12\x0e\n" +
@@ -17142,10 +17168,12 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x0esetup_required\x18\x01 \x01(\bR\rsetupRequired\x12'\n" +
 	"\x0fsetup_available\x18\x02 \x01(\bR\x0esetupAvailable\x12>\n" +
 	"\x1csetup_expires_at_unix_millis\x18\x03 \x01(\x03R\x18setupExpiresAtUnixMillis\x128\n" +
-	"\x18setup_unavailable_reason\x18\x04 \x01(\tR\x16setupUnavailableReason\"K\n" +
+	"\x18setup_unavailable_reason\x18\x04 \x01(\tR\x16setupUnavailableReason\"l\n" +
 	"\x11SetupAdminRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"<\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1f\n" +
+	"\vsetup_token\x18\x03 \x01(\tR\n" +
+	"setupToken\"<\n" +
 	"\x12SetupAdminResponse\x12&\n" +
 	"\x04user\x18\x01 \x01(\v2\x12.p2pstream.v1.UserR\x04user\"F\n" +
 	"\fLoginRequest\x12\x1a\n" +
