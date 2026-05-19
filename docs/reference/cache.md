@@ -46,48 +46,14 @@ p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store
 
 Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
 
-`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
-
-Cache rule matches inspect only request data through CEL.
-
-Available CEL variables:
-
-| Variable | Type | Notes |
-| --- | --- | --- |
-| `method` | string | Uppercase request method, such as `GET` or `POST`. |
-| `protocol` | string | Listener protocol: `http` or `https`. |
-| `host` | string | Normalized request host without port. |
-| `path` | string | URL path. |
-| `remote_ip` | string | Client remote IP. |
-| `headers` | map string to list string | Header names are lowercase. Repeated headers keep all values. |
-| `cookies` | map string to string | First cookie value by name. |
-| `query` | map string to list string | Query parameter values by name. |
-
-Helper functions:
-
-- `host_match(host, pattern)` for exact and wildcard host patterns such as `*.example.com`.
-- `path_prefix(path, prefix)` for path-prefix checks with segment boundaries.
-- `cidr(remote_ip, cidr)` for IP range checks such as `198.51.100.0/24`.
-
-CEL examples:
-
-```cel
-method in ["GET", "HEAD"] && host_match(host, "app.example.com") && path_prefix(path, "/_nuxt/")
-```
-
-```cel
-path.matches("^/assets/.+\\.(css|js|png|webp|svg|woff2)$")
-```
-
-```cel
-headers["accept"].exists(v, v.contains("text/css")) || query["asset"].exists(v, v == "1")
-```
-
-```cel
-!("session" in cookies) && cidr(remote_ip, "198.51.100.0/24")
-```
+Cache rule matches inspect only request data through CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
 Route data, backend data, backend health, and load-balancer state are not available inside cache match CEL. Cache-specific `route_ids` and `backend_ids` remain separate filters evaluated after route/backend selection.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing CEL match builder, route filters, backend filters, TTL mode, query mode, vary headers, cache status codes, and max object bytes">
+  <figcaption>The cache rule editor keeps match criteria separate from post-routing filters and storage controls, which helps avoid accidentally caching dynamic or user-specific responses.</figcaption>
+</figure>
 
 ## Runtime Effects
 
@@ -144,5 +110,6 @@ Cache requests with Cookie headers: On only if those assets are public
 ## Related Tasks
 
 - [Public asset cache](../concepts/cache)
+- [CEL Policy Matching](./cel)
 - [Trace live traffic](../guides/trace-live-traffic)
 - [Troubleshooting cache misses](../operations/troubleshooting#static-asset-is-not-cached)

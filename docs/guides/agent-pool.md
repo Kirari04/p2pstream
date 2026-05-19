@@ -64,6 +64,11 @@ If health checks are enabled, checks run through each enabled assigned connected
 
 Agent-pool backends enforce the backend response-header timeout on the selected agent. The default is `60000` ms. Older agents that do not understand the timeout metadata keep their built-in `30000` ms timeout until upgraded.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/backend_agent_healthcheck_logs.png" alt="p2pstream agent-pool backend health panel showing assigned agents, health state, active requests, and health-check log entries">
+  <figcaption>The backend health panel is the fastest place to confirm whether each assigned agent is connected, enabled, healthy, and able to reach the target origin.</figcaption>
+</figure>
+
 ## Verification
 
 Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Traffic** tracing to confirm traffic moves across the expected agents.

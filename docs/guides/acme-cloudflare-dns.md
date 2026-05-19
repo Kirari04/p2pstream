@@ -11,6 +11,11 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
 - The domain is hosted in Cloudflare DNS.
 - A Cloudflare API token that can edit DNS records for the target zone.
 - The Cloudflare zone ID.
+
+  :::tip Finding your Zone ID
+  In the Cloudflare dashboard, select your domain. The Zone ID appears in the right-hand sidebar under **API**.
+  :::
+
 - An HTTPS listener such as `public-https`.
 
 ## Steps

@@ -56,6 +56,11 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
 
    For reusable HTML maintenance pages, first open **Templates**, create a **Generic body** template, then set the static backend body source to **Template** and select it. Keep response headers, especially `Content-Type`, on the static backend.
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/edit_template_modal.png" alt="p2pstream generic response template editor showing template name, kind, content type, body, and preview">
+     <figcaption>Generic response templates centralize reusable bodies for static backends, rate-limit responses, and WAF block responses while each caller keeps control of status and headers.</figcaption>
+   </figure>
+
 4. Add a route to that static backend with a lower priority number than the normal app route:
 
    | Field | Value |

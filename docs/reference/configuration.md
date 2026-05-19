@@ -6,7 +6,11 @@ p2pstream loads `.env` when present, then environment variables, and derives def
 
 Public proxy listener ports are stored in SQLite and managed through the management UI/API. A new database seeds HTTP `80` and HTTPS `443`. Docker host port publishing is controlled by Compose variables such as `P2PSTREAM_HTTP_PORT`.
 
-| Server variable                  | Default                      | Description                                                                                  |
+### Server Variables
+
+Set these on the server process via `.env` or environment. They control management, storage, TLS, caching, and observability.
+
+| Variable                         | Default                      | Description                                                                                  |
 | -------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | `MANAGEMENT_PORT`                | `8081`                       | Management UI/API and agent HTTPS/WSS port.                                                  |
 | `CONFIG_DIR`                     | `p2pstream-data`             | Directory for default SQLite database and certificates. Docker sets `/data`.                 |
@@ -21,7 +25,7 @@ Public proxy listener ports are stored in SQLite and managed through the managem
 | `MANAGEMENT_TLS_KEY_FILE`        | empty                        | Management server private key for `provided` mode.                                           |
 | `MANAGEMENT_TLS_CLIENT_CA_FILE`  | empty                        | Optional CA used to verify agent client certificates.                                        |
 | `MANAGEMENT_ALLOW_INSECURE_HTTP` | `false`                      | Required when `MANAGEMENT_TLS_MODE=off`.                                                     |
-| `MANAGEMENT_PUBLIC_URL`          | derived                      | Public management URL used in generated agent setup snippets.                                |
+| `MANAGEMENT_PUBLIC_URL`          | derived                      | Must be an absolute `https://` URL. Used in generated agent setup snippets and browser links. |
 | `MANAGEMENT_ADVERTISE_HOST`      | detected                     | Hostname/IP used for auto-generated management certificates and default URL.                 |
 | `MANAGEMENT_TLS_EXTRA_HOSTS`     | empty                        | Comma-separated extra DNS/IP names for auto management TLS.                                  |
 | `PUBLIC_CACHE_DIR`               | `${CONFIG_DIR}/cache/public` | Disk directory for public cache body files.                                                  |
@@ -30,7 +34,11 @@ Public proxy listener ports are stored in SQLite and managed through the managem
 | `BOOTSTRAP_AGENT_TOKEN`          | empty                        | Bootstrap agent token. Stored as a hash.                                                     |
 | `OBSERVABILITY_RETENTION_DAYS`   | `30`                         | Retention window for recorded observability data.                                            |
 
-| Agent variable                    | Description                                                          |
+### Agent Variables
+
+Set these on each agent host via `/etc/p2pstream/agent.env` or the generated installer environment. The agent installer writes these automatically from the setup dialog.
+
+| Variable                          | Description                                                          |
 | --------------------------------- | -------------------------------------------------------------------- |
 | `MANAGEMENT_URL`                  | Management server URL, for example `https://proxy.example.com:8081`. |
 | `AGENT_ID`                        | Generated agent public ID from management.                           |
@@ -42,7 +50,11 @@ Public proxy listener ports are stored in SQLite and managed through the managem
 | `AGENT_TLS_KEY_FILE`              | Optional client private key for management mTLS.                     |
 | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy.                              |
 
-| Installer variable       | Default                    | Description                                                                  |
+### Installer Variables
+
+Set these as environment variables before running the Linux agent installer script. They control where the binary is placed and which release is downloaded.
+
+| Variable                 | Default                    | Description                                                                  |
 | ------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
 | `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo used by the installer.                                     |
 | `P2PSTREAM_VERSION`      | `latest`                   | Release tag such as `vX.Y.Z`, `latest`, or `nightly` for development builds. |

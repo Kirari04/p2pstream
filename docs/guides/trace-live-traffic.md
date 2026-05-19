@@ -1,6 +1,6 @@
 # Trace Live Traffic
 
-Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, backends, cache, agents, upstreams, and responses.
+Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, backends, cache, agents, origin connections, and responses.
 
 ## Use This When
 
@@ -25,7 +25,9 @@ Use tracing while diagnosing why a request did not match a route, hit a backend,
    | Headers | Inspect selected request/response headers. |
    | Debug | Temporary deep troubleshooting. |
 
-   Use Headers and Debug only while diagnosing. They can expose request metadata.
+   :::warning Headers and Debug log sensitive data
+   **Headers** and **Debug** levels capture request and response headers, which can include `Authorization` tokens, session cookies, and API keys. Use them only while actively diagnosing an issue and reset to **Basic** or **Detailed** when done.
+   :::
 
 4. From another shell, reproduce the request:
 
@@ -36,8 +38,13 @@ Use tracing while diagnosing why a request did not match a route, hit a backend,
 5. Select the request in **Traffic Flow** and inspect stages and details.
 
 <figure class="doc-screenshot">
-  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path through policy, routing, cache, agents, and upstreams">
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path through policy, routing, cache, agents, and upstreams">
   <figcaption>With tracing enabled, the Traffic view shows how sampled requests move through policy, routing, backend selection, cache decisions, agents, upstreams, and responses.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, selected backend, cache status, headers, and response metadata">
+  <figcaption>Select a traced request to inspect the exact stages, timings, policy outcomes, route and backend choices, cache decision, and response details behind the rendered path.</figcaption>
 </figure>
 
 ## Runtime Effects

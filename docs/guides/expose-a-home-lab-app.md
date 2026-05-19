@@ -32,6 +32,11 @@ Example:
 
    After saving, the setup dialog shows the generated `AGENT_ID` and one-time `AGENT_TOKEN`.
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/new_agent_modal_setup.png" alt="p2pstream new agent setup modal showing generated agent identity, one-time token, and install command options">
+     <figcaption>The setup dialog shows the one-time token and generated installer snippets. Copy the command before closing the dialog because the token is not shown again.</figcaption>
+   </figure>
+
 2. On the home lab host, run the generated Linux installer from the Agent Setup dialog. It has this shape:
 
    ```bash
@@ -55,6 +60,10 @@ Example:
 
 4. Open **Proxy** and create an agent-pool backend:
 
+   :::warning Origin resolution
+   The origin URL is resolved from the **agent host**, not from the p2pstream server. Set it to whatever the agent host can reach — `localhost`, a LAN hostname, or an internal IP are all valid here.
+   :::
+
    | Field | Value |
    | --- | --- |
    | Name | `homeassistant` |
@@ -64,8 +73,6 @@ Example:
    | Load balancing | Round-robin |
    | Agent assignment | `home-lab`, weight `100`, enabled |
    | Enabled | On |
-
-   The target origin is resolved from the agent host, not from the VPS.
 
 5. In **Proxy**, route public traffic to the backend:
 
