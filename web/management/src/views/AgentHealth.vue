@@ -8,7 +8,7 @@ import PlusIcon from "@primevue/icons/plus";
 import RefreshIcon from "@primevue/icons/refresh";
 import TimesCircleIcon from "@primevue/icons/timescircle";
 import TrashIcon from "@primevue/icons/trash";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -34,6 +34,8 @@ import type {
   GetDashboardResponse,
   GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 

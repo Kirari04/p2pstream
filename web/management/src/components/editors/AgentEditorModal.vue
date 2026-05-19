@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 

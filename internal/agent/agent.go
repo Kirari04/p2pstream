@@ -3,9 +3,12 @@ package agent
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -320,10 +323,18 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 	}
 	tlsSkipVerify := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTLSSkipVerify), "true")
 	isHealthCheck := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataHealthCheck), "true")
+	isCertificateDiscovery := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataDiscoverCertificate), "true")
+	trustedCertificatePEM := httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTrustedCertificatePEM)
+	trustedCertificateSHA256 := httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTrustedCertificateSHA256)
 	responseHeaderTimeout := parseResponseHeaderTimeout(firstMsg)
-	if !isHealthCheck {
+	if !isHealthCheck && !isCertificateDiscovery {
 		activeRequests.Add(1)
 		defer activeRequests.Add(-1)
+	}
+
+	if isCertificateDiscovery {
+		conn.handleCertificateDiscovery(id, firstMsg, responseHeaderTimeout)
+		return
 	}
 
 	req, err := httpmsg.DecodeRequest(firstMsg, stream)
@@ -340,7 +351,36 @@ func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request
 
 	log.Info().Str("req_id", id.String()).Str("method", req.Method).Str("url", req.URL.String()).Msg("Forwarding request")
 
-	client := forwardHTTPClient(tlsSkipVerify, responseHeaderTimeout)
+	client, err := forwardHTTPClient(tlsSkipVerify, trustedCertificatePEM, trustedCertificateSHA256, responseHeaderTimeout)
+	if err != nil {
+		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to configure forward client")
+		if !isHealthCheck {
+			reqInternalError.Add(1)
+		}
+		resp := &http.Response{
+			StatusCode:    http.StatusBadGateway,
+			Status:        fmt.Sprintf("%d %s", http.StatusBadGateway, http.StatusText(http.StatusBadGateway)),
+			Header:        make(http.Header),
+			Body:          io.NopCloser(bytes.NewReader([]byte("Bad Gateway\n"))),
+			ContentLength: int64(len("Bad Gateway\n")),
+		}
+		enc := httpmsg.NewResponseEncoder(id, resp)
+		for {
+			m, err := enc.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return
+			}
+			select {
+			case conn.writeCh <- m:
+			case <-conn.ctx.Done():
+				return
+			}
+		}
+		return
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to execute request")
@@ -407,24 +447,106 @@ func parseResponseHeaderTimeout(firstMsg *msg.Request) time.Duration {
 	return time.Duration(timeoutMillis) * time.Millisecond
 }
 
-func forwardHTTPClient(tlsSkipVerify bool, responseHeaderTimeout time.Duration) *http.Client {
+func (conn *agentConnection) handleCertificateDiscovery(id uuid.UUID, firstMsg *msg.Request, responseHeaderTimeout time.Duration) {
+	scheme := httpmsg.FirstHeaderValue(firstMsg.Headers, ":scheme")
+	host := httpmsg.FirstHeaderValue(firstMsg.Headers, ":host")
+	statusCode := http.StatusOK
+	body := []byte(nil)
+	headers := make(http.Header)
+	if scheme != "https" {
+		statusCode = http.StatusBadGateway
+		body = []byte("certificate discovery requires https\n")
+	} else if host == "" {
+		statusCode = http.StatusBadGateway
+		body = []byte("certificate discovery requires host\n")
+	} else {
+		certPEM, fingerprint, err := discoverRemoteCertificate(conn.ctx, host, responseHeaderTimeout)
+		if err != nil {
+			statusCode = http.StatusBadGateway
+			body = []byte(err.Error() + "\n")
+		} else {
+			body = certPEM
+			headers.Set("X-P2PStream-Certificate-SHA256", fingerprint)
+			headers.Set("Content-Type", "application/x-pem-file")
+		}
+	}
+	resp := &http.Response{
+		StatusCode:    statusCode,
+		Status:        fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
+		Header:        headers,
+		Body:          io.NopCloser(bytes.NewReader(body)),
+		ContentLength: int64(len(body)),
+	}
+	enc := httpmsg.NewResponseEncoder(id, resp)
+	for {
+		m, err := enc.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode certificate discovery response")
+			return
+		}
+		select {
+		case conn.writeCh <- m:
+		case <-conn.ctx.Done():
+			return
+		}
+	}
+}
+
+func forwardHTTPClient(tlsSkipVerify bool, trustedCertificatePEM string, trustedCertificateSHA256 string, responseHeaderTimeout time.Duration) (*http.Client, error) {
 	timeout := normalizeResponseHeaderTimeout(responseHeaderTimeout)
+	if strings.TrimSpace(trustedCertificatePEM) != "" || strings.TrimSpace(trustedCertificateSHA256) != "" {
+		client, err := trustedCertificateHTTPClient(trustedCertificatePEM, trustedCertificateSHA256, timeout)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	}
 	if timeout == upstreamResponseHeaderTimeout {
 		if tlsSkipVerify {
-			return tlsSkipVerifyForwardClient
+			return tlsSkipVerifyForwardClient, nil
 		}
-		return defaultForwardClient
+		return defaultForwardClient, nil
 	}
 	key := forwardClientKey{
 		tlsSkipVerify: tlsSkipVerify,
 		timeoutMillis: int64(timeout / time.Millisecond),
 	}
 	if cached, ok := forwardClientCache.Load(key); ok {
-		return cached.(*http.Client)
+		return cached.(*http.Client), nil
 	}
 	client := &http.Client{Transport: forwardTransport(tlsSkipVerify, timeout)}
 	actual, _ := forwardClientCache.LoadOrStore(key, client)
-	return actual.(*http.Client)
+	return actual.(*http.Client), nil
+}
+
+func trustedCertificateHTTPClient(trustedCertificatePEM string, trustedCertificateSHA256 string, responseHeaderTimeout time.Duration) (*http.Client, error) {
+	cert, err := parseTrustedCertificate(trustedCertificatePEM)
+	if err != nil {
+		return nil, err
+	}
+	wantFingerprint := normalizeCertificateFingerprint(trustedCertificateSHA256)
+	if wantFingerprint == "" {
+		wantFingerprint = normalizeCertificateFingerprint(certificateFingerprint(cert))
+	}
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("default transport is %T, want *http.Transport", http.DefaultTransport)
+	}
+	transport := base.Clone()
+	transport.ResponseHeaderTimeout = normalizeResponseHeaderTimeout(responseHeaderTimeout)
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		// Environment forwarding verifies the pinned leaf fingerprint below
+		// while preserving hostname and validity checks in VerifyConnection.
+		InsecureSkipVerify: true,
+		VerifyConnection: func(state tls.ConnectionState) error {
+			return verifyPinnedCertificateConnection(state, wantFingerprint)
+		},
+	}
+	return &http.Client{Transport: transport}, nil
 }
 
 func normalizeResponseHeaderTimeout(responseHeaderTimeout time.Duration) time.Duration {
@@ -451,6 +573,91 @@ func forwardTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duration) h
 	}
 	transport.TLSClientConfig.InsecureSkipVerify = true
 	return transport
+}
+
+func discoverRemoteCertificate(ctx context.Context, host string, responseHeaderTimeout time.Duration) ([]byte, string, error) {
+	if _, _, err := net.SplitHostPort(host); err != nil {
+		host = net.JoinHostPort(host, "443")
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, normalizeResponseHeaderTimeout(responseHeaderTimeout))
+	defer cancel()
+	hostName, _, err := net.SplitHostPort(host)
+	if err != nil {
+		return nil, "", err
+	}
+	// Discovery intentionally skips verification only to collect the unknown
+	// certificate for explicit TOFU review; no authorization token or
+	// management RPC is sent on this connection.
+	dialer := tls.Dialer{Config: &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		ServerName:         hostName,
+		InsecureSkipVerify: true,
+	}}
+	conn, err := dialer.DialContext(dialCtx, "tcp", host)
+	if err != nil {
+		return nil, "", err
+	}
+	defer conn.Close()
+	tlsConn, ok := conn.(*tls.Conn)
+	if !ok {
+		return nil, "", fmt.Errorf("connection did not use TLS")
+	}
+	state := tlsConn.ConnectionState()
+	if len(state.PeerCertificates) == 0 {
+		return nil, "", fmt.Errorf("remote endpoint did not present a certificate")
+	}
+	cert := state.PeerCertificates[0]
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}), certificateFingerprint(cert), nil
+}
+
+func parseTrustedCertificate(certPEM string) (*x509.Certificate, error) {
+	block, _ := pem.Decode([]byte(strings.TrimSpace(certPEM)))
+	if block == nil {
+		return nil, fmt.Errorf("trusted certificate is not PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return cert, nil
+}
+
+func verifyPinnedCertificateConnection(state tls.ConnectionState, wantFingerprint string) error {
+	if len(state.PeerCertificates) == 0 {
+		return fmt.Errorf("remote endpoint did not present a certificate")
+	}
+	leaf := state.PeerCertificates[0]
+	if normalizeCertificateFingerprint(certificateFingerprint(leaf)) != wantFingerprint {
+		return fmt.Errorf("remote certificate fingerprint changed")
+	}
+	now := time.Now()
+	if now.Before(leaf.NotBefore) || now.After(leaf.NotAfter) {
+		return fmt.Errorf("remote certificate is not currently valid")
+	}
+	if err := leaf.VerifyHostname(state.ServerName); err != nil {
+		return err
+	}
+	return nil
+}
+
+func certificateFingerprint(cert *x509.Certificate) string {
+	sum := sha256.Sum256(cert.Raw)
+	encoded := strings.ToUpper(hex.EncodeToString(sum[:]))
+	var b strings.Builder
+	for i := 0; i < len(encoded); i += 2 {
+		if i > 0 {
+			b.WriteByte(':')
+		}
+		b.WriteString(encoded[i : i+2])
+	}
+	return b.String()
+}
+
+func normalizeCertificateFingerprint(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, ":", "")
+	value = strings.ReplaceAll(value, " ", "")
+	return value
 }
 
 func isTimeoutError(err error) bool {

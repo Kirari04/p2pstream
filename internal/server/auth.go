@@ -29,11 +29,12 @@ const (
 )
 
 type authenticatedUser struct {
-	ID        int64
-	Username  string
-	Role      p2pstreamv1.UserRole
-	SessionID int64
-	TokenHash string
+	ID            int64
+	Username      string
+	Role          p2pstreamv1.UserRole
+	SessionID     int64
+	TokenHash     string
+	IsAccessToken bool
 }
 
 type managementClientCertificateContextKey struct{}
@@ -285,6 +286,29 @@ func (a *App) setupAvailable(now time.Time) bool {
 func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticatedUser, error) {
 	if a.DB == nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authentication is unavailable"))
+	}
+
+	if accessToken := managementAccessTokenFromHeader(header); accessToken != "" {
+		tokenHash := hashManagementAccessToken(accessToken)
+		row, err := a.DB.GetActiveManagementAccessTokenByHash(ctx, tokenHash)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
+			}
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if row.ExpiresAt.Valid && !row.ExpiresAt.Time.After(time.Now()) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
+		}
+		if err := a.DB.TouchManagementAccessToken(ctx, row.ID); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		return &authenticatedUser{
+			Username:      row.Name,
+			Role:          protoRole(row.Role),
+			TokenHash:     tokenHash,
+			IsAccessToken: true,
+		}, nil
 	}
 
 	token := sessionTokenFromHeader(header)

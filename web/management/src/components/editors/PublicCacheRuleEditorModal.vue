@@ -4,7 +4,7 @@ import type { ComputedRef } from "vue";
 import PlusIcon from "@primevue/icons/plus";
 import TrashIcon from "@primevue/icons/trash";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import {
   defaultPolicyMatchForm,
@@ -25,6 +25,8 @@ import {
   type PublicBackend,
   type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
 

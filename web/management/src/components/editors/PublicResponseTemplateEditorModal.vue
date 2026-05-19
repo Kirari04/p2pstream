@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import HtmlTemplateEditor from "@/components/editors/HtmlTemplateEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -12,6 +12,8 @@ import {
   PublicResponseTemplateKind,
   type PublicResponseTemplate,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 type Runner = (action: () => Promise<void>, successMessage?: string) => Promise<boolean>;
 

@@ -384,6 +384,134 @@ UPDATE sessions
 SET revoked_at = CURRENT_TIMESTAMP
 WHERE user_id = ? AND revoked_at IS NULL;
 
+-- name: CreateManagementAccessToken :one
+INSERT INTO management_access_tokens (name, token_hash, role, enabled, expires_at)
+VALUES (?, ?, 'admin', ?, ?)
+RETURNING id, name, token_hash, role, enabled, expires_at, last_used_at, created_at, updated_at;
+
+-- name: ListManagementAccessTokens :many
+SELECT id, name, token_hash, role, enabled, expires_at, last_used_at, created_at, updated_at
+FROM management_access_tokens
+ORDER BY name ASC, id ASC;
+
+-- name: GetActiveManagementAccessTokenByHash :one
+SELECT id, name, token_hash, role, enabled, expires_at, last_used_at, created_at, updated_at
+FROM management_access_tokens
+WHERE token_hash = ?
+  AND enabled = 1
+  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP);
+
+-- name: TouchManagementAccessToken :exec
+UPDATE management_access_tokens
+SET last_used_at = CURRENT_TIMESTAMP
+WHERE id = ?
+  AND (last_used_at IS NULL OR last_used_at < datetime('now', '-30 seconds'));
+
+-- name: DeleteManagementAccessToken :exec
+DELETE FROM management_access_tokens
+WHERE id = ?;
+
+-- name: ListEnvironments :many
+SELECT id, name, management_url, transport, agent_id, access_token,
+       trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+       last_observed_certificate_pem, last_observed_certificate_sha256,
+       response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+FROM environments
+ORDER BY name ASC, id ASC;
+
+-- name: GetEnvironment :one
+SELECT id, name, management_url, transport, agent_id, access_token,
+       trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+       last_observed_certificate_pem, last_observed_certificate_sha256,
+       response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at
+FROM environments
+WHERE id = ?;
+
+-- name: CreateEnvironment :one
+INSERT INTO environments (
+    name, management_url, transport, agent_id, access_token, response_header_timeout_millis, enabled
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at;
+
+-- name: UpdateEnvironment :one
+UPDATE environments
+SET name = ?,
+    management_url = ?,
+    transport = ?,
+    agent_id = ?,
+    access_token = ?,
+    response_header_timeout_millis = ?,
+    enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at;
+
+-- name: ClearEnvironmentTrust :one
+UPDATE environments
+SET trusted_certificate_pem = '',
+    trusted_certificate_sha256 = '',
+    trusted_certificate_subject = '',
+    trusted_certificate_not_after = NULL,
+    last_observed_certificate_pem = '',
+    last_observed_certificate_sha256 = '',
+    last_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at;
+
+-- name: DeleteEnvironment :exec
+DELETE FROM environments
+WHERE id = ?;
+
+-- name: UpdateEnvironmentObservedCertificate :one
+UPDATE environments
+SET last_observed_certificate_pem = ?,
+    last_observed_certificate_sha256 = ?,
+    last_checked_at = CURRENT_TIMESTAMP,
+    last_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at;
+
+-- name: TrustEnvironmentCertificate :one
+UPDATE environments
+SET trusted_certificate_pem = last_observed_certificate_pem,
+    trusted_certificate_sha256 = last_observed_certificate_sha256,
+    trusted_certificate_subject = ?,
+    trusted_certificate_not_after = ?,
+    last_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at;
+
+-- name: UpdateEnvironmentCheckResult :one
+UPDATE environments
+SET last_checked_at = CURRENT_TIMESTAMP,
+    last_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, management_url, transport, agent_id, access_token,
+          trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
+          last_observed_certificate_pem, last_observed_certificate_sha256,
+          response_header_timeout_millis, enabled, last_checked_at, last_error, created_at, updated_at;
+
 -- name: CountPublicBackends :one
 SELECT COUNT(*) FROM public_backends;
 

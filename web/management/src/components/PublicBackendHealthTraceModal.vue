@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import RefreshIcon from "@primevue/icons/refresh";
 import TimesIcon from "@primevue/icons/times";
-import { managementClient } from "@/api/managementClient";
+import { useManagementClient } from "@/composables/useManagementClient";
 import {
   assignmentsForBackend,
   backendAgentAvailabilitySummary,
@@ -27,6 +27,8 @@ import {
   type PublicBackendAgent,
   type PublicBackendHealthTrace,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+
+const managementClient = useManagementClient();
 
 const props = defineProps<{
   modelValue: boolean;

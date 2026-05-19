@@ -378,6 +378,42 @@ CREATE TABLE IF NOT EXISTS sessions (
     revoked_at DATETIME
 );
 
+CREATE TABLE IF NOT EXISTS management_access_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    token_hash TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL DEFAULT 'admin',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    expires_at DATETIME,
+    last_used_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS environments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    management_url TEXT NOT NULL,
+    transport TEXT NOT NULL DEFAULT 'direct',
+    agent_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
+    access_token TEXT NOT NULL,
+    trusted_certificate_pem TEXT NOT NULL DEFAULT '',
+    trusted_certificate_sha256 TEXT NOT NULL DEFAULT '',
+    trusted_certificate_subject TEXT NOT NULL DEFAULT '',
+    trusted_certificate_not_after DATETIME,
+    last_observed_certificate_pem TEXT NOT NULL DEFAULT '',
+    last_observed_certificate_sha256 TEXT NOT NULL DEFAULT '',
+    response_header_timeout_millis INTEGER NOT NULL DEFAULT 10000,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_checked_at DATETIME,
+    last_error TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_environments_agent_id
+ON environments (agent_id);
+
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_occurred_at
 ON proxy_request_events (occurred_at);
 
