@@ -47,6 +47,11 @@ Uploaded and generated public certificate material is written under `${CONFIG_DI
 
 The management UI shows certificate validity when metadata is stored or the certificate file can be parsed.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing certificate mappings, ACME challenge type, status, renewal time, and DNS credentials">
+  <figcaption>The TLS page is the operational view for ACME status, manual certificate mappings, DNS credentials, and renewal details.</figcaption>
+</figure>
+
 ## Examples
 
 HTTP-01 mapping:

@@ -77,8 +77,23 @@ curl -I https://app.example.com
 Then check **Overview** for request counts and status classes. If you need request-stage details, open **Traffic**, enable tracing, repeat the request, and inspect the flow.
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_1.png" alt="p2pstream Proxy page showing listener and backend entries">
-  <figcaption>Listeners accept public traffic; backends define where matching requests are sent.</figcaption>
+  <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream backend editor showing a direct proxy-forward backend target origin and health check settings">
+  <figcaption>The backend editor defines the upstream target, forward mode, timeout, health-check behavior, and whether the backend can receive routed traffic.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream listener editor showing an HTTPS listener with bind address, port, default backend, and enabled state">
+  <figcaption>The listener editor controls where public traffic enters p2pstream. The listener port must also be reachable through Docker, firewall, and host networking.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing listener, host pattern, path prefix, action, backend pool, fallback backend, and priority">
+  <figcaption>The route editor connects a listener match to one or more backends. Specific host and path rules should use lower priority numbers than broad fallbacks.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing backend cards and route cards with status, health, priority, and backend assignments">
+  <figcaption>After saving, the Proxy page shows the resulting backends and routes together so you can confirm enabled state, health, priority, and backend assignments.</figcaption>
 </figure>
 
 ## Troubleshooting

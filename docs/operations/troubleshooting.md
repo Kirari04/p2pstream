@@ -8,6 +8,10 @@ Use this when a request fails, management does not load, an agent will not conne
 
 ## Prerequisites
 
+:::tip Start with logs
+Logs show startup errors, TLS failures, agent connection problems, and backend errors faster than any other check.
+:::
+
 Start with logs:
 
 ```bash
@@ -82,8 +86,8 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 
 | Check | Fix |
 | --- | --- |
-| Public DNS | Hostname must resolve to the p2pstream public address. |
-| HTTP-01 | Port `80` must reach the HTTP listener. |
+| Public DNS | Run `dig +short <hostname>` — it must return the p2pstream server's public IP. |
+| HTTP-01 | Port `80` must reach the HTTP listener. Verify with `curl -I http://<hostname>/.well-known/acme-challenge/test` from an external host. |
 | TLS-ALPN-01 | Port `443` must reach the HTTPS listener. |
 | DNS-01 | Cloudflare zone ID and API token must be valid and enabled. |
 | Wildcard | Use DNS-01; HTTP-01 and TLS-ALPN-01 do not support wildcard issuance. |
@@ -103,10 +107,10 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 
 | Cause | Fix |
 | --- | --- |
-| Direct upstream unreachable | Test connectivity from the p2pstream server/container. |
-| Agent upstream unreachable | Test connectivity from the agent host. |
+| Direct backend origin unreachable | Run `curl -I http://<origin-host>:<port>` from inside the p2pstream container: `docker compose exec p2pstream curl -I http://app:8080`. |
+| Backend origin unreachable via agent | SSH to the agent host and run `curl -I http://<origin-host>:<port>` to confirm the agent can reach the service from its network. |
 | Agent offline | Reconnect or enable an assigned agent. |
-| Upstream TLS error | Fix the upstream certificate; use skip verify only as a temporary internal workaround. |
+| Origin TLS error | Fix the origin certificate; use `tls_skip_verify` only as a temporary workaround for internal self-signed certs. |
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
 | Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. |
 
@@ -116,9 +120,9 @@ When health checks are disabled, transient upstream failures fail only the curre
 
 | Cause | Fix |
 | --- | --- |
-| Upstream is slow to send response headers | Increase the backend response-header timeout. The default is `60000` ms. |
-| Agent-pool backend waits on a private app | Test the target origin from the selected agent host and raise the backend timeout if valid. |
-| Health check timeout confusion | Health-check timeout is separate. |
+| Origin is slow to send response headers | Increase the backend response-header timeout. The default is `60000` ms. |
+| Agent-pool backend waits on a private app | SSH to the agent host and test `curl -I http://<origin>` with a long timeout (`--max-time 65`) to confirm the service responds. Raise the backend timeout if it does. |
+| Health check timeout confusion | Health-check timeout is separate from the response-header timeout and does not affect request serving. |
 | Old agent binary | Upgrade agents so they honor per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
 
 The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.

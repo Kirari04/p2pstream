@@ -45,7 +45,7 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
    | Window | `60000` ms |
    | Burst | `240` |
 
-4. Configure key parts. Default key is remote IP. Add key parts when you need a more specific budget:
+4. Configure key parts. Key parts are concatenated with `|` and hashed — each unique combination gets its own counter. Default key is remote IP. Add key parts when you need a more specific budget:
 
    - remote IP + host,
    - remote IP + path,
@@ -62,6 +62,11 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
    | Body | `Rate limit exceeded` |
 
    To reuse the same denial body across rules, open **Templates**, create a **Generic body** template, then set the rate-limit response body source to **Template** and select it. The rate-limit rule still controls the response status, content type, generated rate-limit headers, and custom response headers.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_ratelimit_modal.png" alt="p2pstream rate-limit editor showing a route-specific match, sliding window algorithm, key parts, and custom response settings">
+  <figcaption>The rate-limit editor is where the route match, client key, algorithm, budget, and denial response are reviewed before the rule starts rejecting matching requests.</figcaption>
+</figure>
 
 ## Verification
 

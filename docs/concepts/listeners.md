@@ -36,6 +36,16 @@ On an empty database, p2pstream creates:
 
 Both use catch-all routes to the seeded `default` static welcome backend until you replace the backend or add more specific routes.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy listeners section showing HTTP and HTTPS listeners with protocol, bind, port, runtime state, and default backend">
+  <figcaption>The listener list separates desired configuration from runtime state, making it clear whether a public HTTP or HTTPS socket is enabled and currently running.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream listener editor showing protocol, bind address, port, default backend, and enabled state">
+  <figcaption>The listener editor controls the public bind and default backend. Container port publishing and host firewall rules still need to expose the same port outside p2pstream.</figcaption>
+</figure>
+
 ## Common Mistakes
 
 - Creating a listener in the UI but not publishing the container port in Compose.

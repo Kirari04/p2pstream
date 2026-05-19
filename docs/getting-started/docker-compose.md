@@ -73,12 +73,13 @@ Use this page after the quickstart when you need to change ports, understand wha
 | Setting | Effect |
 | --- | --- |
 | `CONFIG_DIR=/data` | Stores SQLite, certificates, ACME state, and cache defaults in the named volume. |
-| `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent WSS listener bind inside the container. |
+| `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent WebSocket (WSS) listener bind inside the container. Agents connect to this port for request forwarding. |
 | `MANAGEMENT_PUBLIC_URL` | Controls generated links, agent snippets, and management certificate naming. |
 | `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and agent WebSocket remain available. |
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 
-Docker only exposes ports listed under `ports`. If you create an additional listener on container port `8088`, publish it explicitly:
+:::warning New listeners must be published explicitly
+Docker only exposes ports listed under `ports`. If you create an additional listener on container port `8088` in the p2pstream UI, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
 
 ```yaml
 ports:
@@ -87,6 +88,7 @@ ports:
   - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
   - "8088:8088"
 ```
+:::
 
 ## Verification
 

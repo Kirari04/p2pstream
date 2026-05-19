@@ -32,6 +32,16 @@ Custom waiting-room pages must include <code v-pre>{{ .queue_position }}</code> 
 
 Automatic waiting-room activation can use request rate, traffic spike, proxy active requests, backend active requests, agent active requests, server CPU, and agent CPU pressure signals.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_waf_modal.png" alt="p2pstream WAF rule editor showing request match, block, captcha, waiting-room, activation, and template controls">
+  <figcaption>The WAF editor shows how a single rule combines request matching, action selection, visitor keying, response templates, captcha providers, and automatic waiting-room triggers.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_template_modal_with_dynamic_values_waf.png" alt="p2pstream WAF page template editor showing dynamic placeholder values and preview for captcha or waiting-room pages">
+  <figcaption>WAF page templates use validated dynamic placeholders so captcha and waiting-room pages can show server-generated challenge or queue state without inline rule bodies.</figcaption>
+</figure>
+
 ## Common Mistakes
 
 - Treating WAF as volumetric DDoS protection; saturated links and L3/L4 attacks require upstream protection.

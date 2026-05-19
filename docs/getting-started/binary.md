@@ -45,6 +45,10 @@ Use this advanced path for a systemd-managed host install, custom networking, or
 
 4. For production, create a systemd unit instead of running the foreground command.
 
+   :::tip Production setup
+   The `.env` file is optional for the binary install — environment variables can be passed directly or via a systemd `EnvironmentFile`. For a long-running server, use the [Systemd guide](../operations/systemd) to create a proper service unit with automatic restart and hardened permissions.
+   :::
+
 ## Runtime Effects
 
 `p2pstream server` reads `.env` and environment variables, starts management on `MANAGEMENT_PORT` default `8081`, loads public listeners from SQLite, and stores generated files under `CONFIG_DIR` when `DATABASE_URL` is unset.
