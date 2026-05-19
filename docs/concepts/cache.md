@@ -14,6 +14,10 @@ Use cache rules when public frontend assets are repeatedly fetched through p2pst
 
 ## Runtime Behavior
 
+:::warning `Authorization` requests are never cached
+Any request that includes an `Authorization` header always bypasses the cache, regardless of cache rule configuration. If you are caching API responses, ensure they do not require this header.
+:::
+
 Requests are never cached when they include:
 
 - `Authorization`,

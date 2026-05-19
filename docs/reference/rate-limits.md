@@ -26,6 +26,18 @@ Algorithms:
 | Token bucket | Allows bursts up to burst capacity. |
 | Leaky bucket | Smooths bursty traffic. |
 
+:::tip Which algorithm to choose
+
+| Scenario | Recommended algorithm |
+| --- | --- |
+| Login or form endpoint — strict, no burst | Sliding window |
+| API endpoint — allow short bursts, then throttle | Token bucket |
+| Simple per-IP cap with minimal overhead | Fixed window |
+| Smooth, metered API throughput — eliminate all bursts | Leaky bucket |
+
+Token bucket is the default and works well for most API use cases. Use sliding window for sensitive endpoints like login where any burst tolerance is undesirable.
+:::
+
 ## Validation Rules
 
 - Limit must be at least `1`.

@@ -13,7 +13,9 @@ Use HTTP-01 or TLS-ALPN-01 when public DNS points directly to p2pstream and inbo
 | HTTP-01 | `http://hostname/.well-known/acme-challenge/...` reaches a p2pstream HTTP listener. |
 | TLS-ALPN-01 | `https://hostname:443` reaches a p2pstream HTTPS listener. |
 
-The hostname must be a public fully-qualified DNS name, not `localhost`, an IP address, or an internal-only name. Wildcards require DNS-01.
+:::danger Public DNS required
+The hostname must be a publicly resolvable fully-qualified domain name. `localhost`, bare IP addresses, and internal-only names will cause the ACME challenge to fail — the Let's Encrypt servers cannot reach them to validate ownership. Wildcards (`*.example.com`) also cannot use these methods; use [DNS-01](./acme-cloudflare-dns) instead.
+:::
 
 ## Steps
 

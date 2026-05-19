@@ -30,6 +30,8 @@ features:
     linkText: Expose a home lab app
 ---
 
+<p class="home-description">p2pstream is a self-hosted reverse proxy that routes public HTTPS traffic to direct backends or to services on private networks through outbound agent connections. A single binary handles public TLS, ACME certificate automation, WAF rules, rate limiting, traffic shaping, and live request tracing — all configured through a browser management UI.</p>
+
 <nav class="home-reference-strip" aria-label="Fast reference">
   <a href="./concepts/tls">TLS</a>
   <a href="./reference/environments">Settings</a>

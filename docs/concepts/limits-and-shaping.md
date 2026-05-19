@@ -19,6 +19,8 @@ Use these controls when protecting login endpoints, controlling API budgets, slo
 
 ## Runtime Behavior
 
+Every public request passes through these layers in order. A request stopped at an earlier layer never reaches later ones.
+
 Evaluation order:
 
 1. ACME HTTP challenge bypass
@@ -28,7 +30,7 @@ Evaluation order:
 5. Traffic shapers
 6. Route and backend selection
 7. Cache rule evaluation and lookup
-8. Upstream forwarding or cached response
+8. Origin forwarding or cached response
 
 Policy matching uses request-only CEL `match_rule` expressions for method, protocol, host, path, remote IP/CIDR, headers, cookies, and query parameters. See [CEL Policy Matching](../reference/cel) for the shared matcher syntax, validation rules, and examples. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically. If no key parts are configured, remote IP is used.
 

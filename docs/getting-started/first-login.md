@@ -14,17 +14,19 @@ Use this on a new installation, after restoring an empty database, or when you n
 
 ## Steps
 
+:::warning 5-minute setup window
+The **Setup Admin** form is only available for 5 minutes after server start when no users exist. If you miss the window, restart the server to reopen it:
+
+```bash
+docker compose restart p2pstream
+```
+:::
+
 1. Open the management URL in a browser.
 2. On **Setup Admin**, create the primary administrator account.
 3. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
 4. Use a password with at least 12 characters.
 5. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, backends, and routes.
-
-The setup window is available for 5 minutes after server start when the user table is empty. If the window expires before any user exists, restart the server:
-
-```bash
-docker compose restart p2pstream
-```
 
 ## Runtime Rules
 

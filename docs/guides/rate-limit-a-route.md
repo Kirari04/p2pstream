@@ -45,7 +45,7 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
    | Window | `60000` ms |
    | Burst | `240` |
 
-4. Configure key parts. Default key is remote IP. Add key parts when you need a more specific budget:
+4. Configure key parts. Key parts are concatenated with `|` and hashed — each unique combination gets its own counter. Default key is remote IP. Add key parts when you need a more specific budget:
 
    - remote IP + host,
    - remote IP + path,
