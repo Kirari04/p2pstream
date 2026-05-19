@@ -36,8 +36,13 @@ Use tracing while diagnosing why a request did not match a route, hit a backend,
 5. Select the request in **Traffic Flow** and inspect stages and details.
 
 <figure class="doc-screenshot">
-  <img src="../assets/traffic_flow_diagram.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path through policy, routing, cache, agents, and upstreams">
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path through policy, routing, cache, agents, and upstreams">
   <figcaption>With tracing enabled, the Traffic view shows how sampled requests move through policy, routing, backend selection, cache decisions, agents, upstreams, and responses.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, selected backend, cache status, headers, and response metadata">
+  <figcaption>Select a traced request to inspect the exact stages, timings, policy outcomes, route and backend choices, cache decision, and response details behind the rendered path.</figcaption>
 </figure>
 
 ## Runtime Effects

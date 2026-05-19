@@ -39,6 +39,16 @@ Redirect status codes must be `301`, `302`, `307`, or `308`.
 | External origin keep path | `https://new.example.com` | Keeps the incoming path and query on another origin. |
 | Absolute URL | `https://new.example.com/docs` | Redirects to the exact URL, with optional path/query preservation. |
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing host and path match fields, route action, backend assignments, fallback backend, and priority">
+  <figcaption>The route editor shows the match, action, backend pool, fallback backend, and priority in one place. Use it to verify that specific rules run before broad fallback routes.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing route cards with listener, host pattern, path prefix, priority, and backend assignments">
+  <figcaption>The route list shows how saved routes are ordered and which backends they can select for matching requests.</figcaption>
+</figure>
+
 ## Common Mistakes
 
 - Putting broad catch-all routes at lower priority numbers than specific routes.

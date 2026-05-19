@@ -63,6 +63,11 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
 
    To reuse the same denial body across rules, open **Templates**, create a **Generic body** template, then set the rate-limit response body source to **Template** and select it. The rate-limit rule still controls the response status, content type, generated rate-limit headers, and custom response headers.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_ratelimit_modal.png" alt="p2pstream rate-limit editor showing a route-specific match, sliding window algorithm, key parts, and custom response settings">
+  <figcaption>The rate-limit editor is where the route match, client key, algorithm, budget, and denial response are reviewed before the rule starts rejecting matching requests.</figcaption>
+</figure>
+
 ## Verification
 
 Send repeated matching requests and watch **Overview -> Problem Signals** or **Traffic** tracing. A limited request should return `429` and should not reach route/backend selection.

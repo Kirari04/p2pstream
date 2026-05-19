@@ -47,6 +47,11 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
 
    `0` means unlimited for upload or download rates.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper editor showing request match, budget scope, key parts, upload and download byte rates, burst, and exempt bytes">
+  <figcaption>The traffic shaper editor defines which requests are slowed, whether budgets are shared per key or per request, and how much upload or download throughput is available.</figcaption>
+</figure>
+
 ## Verification
 
 Download a large matching file and watch transfer speed. Use **Traffic** tracing to confirm the shaper rule is selected.

@@ -17,52 +17,18 @@ Traffic shaper rules limit upload and/or download throughput for matching reques
 
 ## Validation Rules
 
-Traffic shapers use the same request-only CEL `match_rule` rules as rate limits. Empty match rules match every request.
-
-`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
-
-Available CEL variables:
-
-| Variable | Type | Notes |
-| --- | --- | --- |
-| `method` | string | Uppercase request method, such as `GET` or `POST`. |
-| `protocol` | string | Listener protocol: `http` or `https`. |
-| `host` | string | Normalized request host without port. |
-| `path` | string | URL path. |
-| `remote_ip` | string | Client remote IP. |
-| `headers` | map string to list string | Header names are lowercase. Repeated headers keep all values. |
-| `cookies` | map string to string | First cookie value by name. |
-| `query` | map string to list string | Query parameter values by name. |
-
-Helper functions:
-
-- `host_match(host, pattern)` for exact and wildcard host patterns such as `*.example.com`.
-- `path_prefix(path, prefix)` for path-prefix checks with segment boundaries.
-- `cidr(remote_ip, cidr)` for IP range checks such as `203.0.113.0/24`.
-
-CEL examples:
-
-```cel
-method == "GET" && host_match(host, "files.example.com") && path_prefix(path, "/download")
-```
-
-```cel
-headers["x-client-tier"].exists(v, v in ["free", "trial"])
-```
-
-```cel
-query["quality"].exists(v, v.matches("^(720p|1080p)$")) && !("bypass" in cookies)
-```
-
-```cel
-cidr(remote_ip, "2001:db8::/32")
-```
+Traffic shapers use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
 Route data, backend data, backend health, and load-balancer state are not available inside shaper match CEL. Traffic shapers still run before route resolution.
 
 Key parts still identify the per-key budget. They can use remote IP, host, method, path, protocol, header, cookie, and query parameter values.
 
 Byte rates and exempt bytes must be non-negative. Use realistic rates so operational debugging remains clear.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper rule editor showing match builder, budget scope, key parts, byte-per-second limits, burst bytes, and exempt byte settings">
+  <figcaption>The shaper editor configures the selected stream limits and the key used to share or isolate those limits across matching requests.</figcaption>
+</figure>
 
 ## Runtime Effects
 
@@ -86,5 +52,6 @@ Response exempt bytes: 65536
 ## Related Tasks
 
 - [Shape bandwidth](../guides/shape-bandwidth)
+- [CEL Policy Matching](./cel)
 - [Limits and shaping](../concepts/limits-and-shaping)
 - [Trace live traffic](../guides/trace-live-traffic)

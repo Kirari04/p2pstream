@@ -44,6 +44,16 @@ Cache rules apply only to proxy-forward backends. Static backends and redirect r
 
 Static response bodies can be defined inline on the backend or selected from a central generic response template. The template supplies only the body; the static backend still controls the status code and response headers such as `Content-Type`, `Cache-Control`, and `Retry-After`.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream backend editor showing proxy-forward mode, target origin, load balancing, health checks, and timeout settings">
+  <figcaption>The backend editor groups the forwarding mode, target origin, load-balancing policy, response-header timeout, and health-check controls that determine backend eligibility at request time.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/backend_agent_healthcheck_logs.png" alt="p2pstream backend detail view showing agent-pool assignments, health-check status, and recent health-check logs">
+  <figcaption>Agent-pool backends expose per-agent assignment health and recent health-check logs so you can distinguish a down upstream from an offline or unhealthy agent path.</figcaption>
+</figure>
+
 ## Common Mistakes
 
 - Setting an agent-pool target origin that only the server can resolve.

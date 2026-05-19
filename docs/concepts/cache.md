@@ -30,6 +30,11 @@ The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule
 
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and backend filters, TTL, query handling, vary headers, status codes, and object limits">
+  <figcaption>The cache editor exposes both request matching and cache-safety controls, including route/backend filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
+</figure>
+
 ## Common Mistakes
 
 - Enabling cookie-tolerant caching on dynamic pages instead of precise asset paths like `/_nuxt/`.

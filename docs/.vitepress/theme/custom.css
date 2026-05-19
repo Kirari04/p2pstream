@@ -435,6 +435,16 @@
   object-position: top center;
 }
 
+.screenshot-gallery-full {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.screenshot-gallery-full .screenshot-tile img {
+  aspect-ratio: auto;
+  object-fit: contain;
+  background: var(--ops-panel-muted);
+}
+
 .screenshot-tile figcaption {
   color: var(--vp-c-text-1);
   font-weight: 720;

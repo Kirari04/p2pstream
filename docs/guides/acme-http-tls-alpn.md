@@ -31,6 +31,11 @@ The hostname must be a public fully-qualified DNS name, not `localhost`, an IP a
    | Email | your ACME account email |
    | Enabled | On |
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream TLS certificate mapping modal showing HTTP challenge, Let's Encrypt CA, hostname pattern, and listener selection">
+     <figcaption>The ACME mapping dialog ties the hostname pattern to an HTTPS listener and selects the HTTP-01 or TLS-ALPN-01 validation method and Let's Encrypt CA.</figcaption>
+   </figure>
+
 ## Verification
 
 The certificate status should move from pending or renewing to ready.

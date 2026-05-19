@@ -36,46 +36,7 @@ Algorithms:
 - Header matcher names and response header names must be valid HTTP tokens.
 - Protected generated headers such as `RateLimit-*`, `X-RateLimit-*`, `Retry-After`, `Content-Length`, and `Connection` cannot be configured as custom response headers.
 
-Rules use request-only CEL `match_rule` rules. Empty match rules match every request.
-
-`match_rule` is the only supported policy match shape. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically to CEL/builder JSON.
-
-Available CEL variables:
-
-| Variable | Type | Notes |
-| --- | --- | --- |
-| `method` | string | Uppercase request method, such as `GET` or `POST`. |
-| `protocol` | string | Listener protocol: `http` or `https`. |
-| `host` | string | Normalized request host without port. |
-| `path` | string | URL path. |
-| `remote_ip` | string | Client remote IP. |
-| `headers` | map string to list string | Header names are lowercase. Repeated headers keep all values. |
-| `cookies` | map string to string | First cookie value by name. |
-| `query` | map string to list string | Query parameter values by name. |
-
-Helper functions:
-
-- `host_match(host, pattern)` for exact and wildcard host patterns such as `*.example.com`.
-- `path_prefix(path, prefix)` for path-prefix checks with segment boundaries.
-- `cidr(remote_ip, cidr)` for IP range checks such as `198.51.100.0/24`.
-
-CEL examples:
-
-```cel
-method == "POST" && host_match(host, "app.example.com") && path_prefix(path, "/login")
-```
-
-```cel
-headers["x-plan"].exists(v, v == "free") || query["preview"].exists(v, v == "1")
-```
-
-```cel
-!("session" in cookies) && path.matches("^/public/.+\\.(css|js)$")
-```
-
-```cel
-cidr(remote_ip, "198.51.100.0/24")
-```
+Rules use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
 Route data, backend data, backend health, and load-balancer state are not available inside rate-limit match CEL. Rate limits still run before route resolution.
 
@@ -89,6 +50,16 @@ Key sources:
 - header,
 - cookie,
 - query parameter.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy rate limits section showing rule priority, match summaries, algorithms, budgets, and enabled state">
+  <figcaption>The Rate Limits section shows the active budgets beside nearby WAF controls, making priority and match breadth easier to audit.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_ratelimit_modal.png" alt="p2pstream rate-limit rule editor showing match builder, algorithm, limit, window, burst, key parts, and response settings">
+  <figcaption>The rate-limit editor configures the request match, key parts, algorithm, budget, and denial response served when the selected bucket is exhausted.</figcaption>
+</figure>
 
 ## Runtime Effects
 
@@ -115,6 +86,7 @@ Key: remote IP
 ## Related Tasks
 
 - [Rate limit a route](../guides/rate-limit-a-route)
+- [CEL Policy Matching](./cel)
 - [Response templates reference](./response-templates)
 - [Limits and shaping](../concepts/limits-and-shaping)
 - [Troubleshooting rate limits](../operations/troubleshooting#rate-limits-affect-every-user)

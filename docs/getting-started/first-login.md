@@ -37,11 +37,11 @@ docker compose restart p2pstream
 
 ## Verification
 
-After login, the navigation should show **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
+After login, the **Overview** dashboard should load with live proxy status, request totals, traffic trends, and the main navigation for **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
 
 <figure class="doc-screenshot">
-  <img src="../assets/management_1.png" alt="p2pstream Proxy page showing public listeners and backend configuration">
-  <figcaption>The Proxy page is where listeners, backends, and routes are created and edited. Traffic Policy contains WAF, rate limits, cache, and shapers; Templates contains reusable response bodies and WAF pages; TLS contains certificate mappings and DNS credentials.</figcaption>
+  <img src="../assets/new/dashboard_overview.png" alt="p2pstream Overview dashboard showing proxy status, request totals, traffic trend, hotspots, and configuration summary">
+  <figcaption>The Overview page is the first post-login health check. It confirms the selected environment, public proxy state, recent traffic, problem signals, and quick access to the configuration areas.</figcaption>
 </figure>
 
 ## Troubleshooting

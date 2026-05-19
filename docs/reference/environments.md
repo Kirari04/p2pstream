@@ -19,6 +19,11 @@ API tokens are general admin API credentials for the selected instance. They can
 
 Expired, disabled, deleted, and malformed tokens are rejected. Deleting a token revokes it immediately.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/settings_api_tokens.png" alt="p2pstream Settings API Tokens page showing token names, enabled state, expiry, last used time, and create or revoke actions">
+  <figcaption>API tokens are created on the target instance and then pasted into remote environment configuration or external API clients that need admin management access.</figcaption>
+</figure>
+
 ## Register A Direct Environment
 
 Use direct transport when the control-plane server can reach the target management URL itself.
@@ -33,6 +38,11 @@ Use direct transport when the control-plane server can reach the target manageme
 8. Test the environment, then select it from the header switcher.
 
 The URL is normalized without a trailing slash. HTTP URLs are not accepted for environments.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/environment_settings_page.png" alt="p2pstream Settings Environments page showing local and remote environments, transport type, status, certificate trust state, and actions">
+  <figcaption>The Environments page shows the local instance and registered remotes, including transport type, connectivity, certificate trust state, and the actions needed before a remote can be selected.</figcaption>
+</figure>
 
 ## Register An Agent-Routed Environment
 
@@ -67,6 +77,11 @@ Trust states:
 | `EXPIRED` | The saved or observed certificate is past `NotAfter`. Remote management is blocked. |
 
 For certificate rotation, rediscover the certificate, confirm the new fingerprint and identity details, then trust the replacement certificate. Normal remote operations remain blocked while the environment is changed or expired.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/environment_trust_certificate.png" alt="p2pstream environment certificate trust dialog showing fingerprint, subject, issuer, SANs, validity dates, and trust action">
+  <figcaption>The certificate trust dialog is the explicit approval step after discovery. Review the identity details and fingerprint before trusting or replacing a remote environment certificate.</figcaption>
+</figure>
 
 ## Operational Behavior
 
