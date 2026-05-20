@@ -170,7 +170,7 @@ jobs:
           tar -C dist/package -czf "p2pstream_${TAG}_linux_${ARCH}.tar.gz" .
 
       - name: Upload binary archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-linux-${{ matrix.arch }}
           path: p2pstream_${{ needs.verify.outputs.tag }}_linux_${{ matrix.arch }}.tar.gz
