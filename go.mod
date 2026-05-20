@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/coder/websocket v1.8.14
-	github.com/google/cel-go v0.27.0
+	github.com/google/cel-go v0.28.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.44
