@@ -44,7 +44,7 @@ jobs:
           bun-version: 1.2.18
 
       - name: Set up Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Install docs dependencies
         run: cd docs && bun install --frozen-lockfile
