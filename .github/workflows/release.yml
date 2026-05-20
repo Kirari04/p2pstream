@@ -235,7 +235,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download binary archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: binary-linux-*
           path: dist/artifacts
