@@ -13,7 +13,7 @@ Set these on the server process via `.env` or environment. They control manageme
 | Variable                         | Default                      | Description                                                                                  |
 | -------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | `MANAGEMENT_PORT`                | `8081`                       | Management UI/API and agent HTTPS/WSS port.                                                  |
-| `MANAGEMENT_BIND_ADDRESS`        | `127.0.0.1`                  | Management bind address. Set `0.0.0.0` only when remote management exposure is intentional.   |
+| `MANAGEMENT_BIND_ADDRESS`        | `0.0.0.0`                    | Management bind address. Set `127.0.0.1` only when local-only management is intentional.      |
 | `CONFIG_DIR`                     | `p2pstream-data`             | Directory for default SQLite database and certificates. Docker sets `/data`.                 |
 | `DATABASE_URL`                   | derived                      | SQLite DSN. When unset, uses `${CONFIG_DIR}/p2pstream.db` with WAL and foreign keys enabled. |
 | `ENV`                            | `development`                | Use `production` for production logging/cookie behavior.                                     |
@@ -72,7 +72,7 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_TLS_MODE=provided` requires both cert and key files.
 - `MANAGEMENT_TLS_MODE=off` requires `MANAGEMENT_ALLOW_INSECURE_HTTP=true`.
 - `MANAGEMENT_PUBLIC_URL` must be absolute and must use `https`, unless management TLS is off and insecure HTTP is explicitly allowed.
-- `MANAGEMENT_BIND_ADDRESS` defaults to loopback for binary/systemd installs. Compose sets `0.0.0.0` explicitly inside the container.
+- `MANAGEMENT_BIND_ADDRESS` defaults to all interfaces so agents and remote clients can connect. Set it to `127.0.0.1` only for local-only management or when a local reverse proxy fronts management.
 - Bootstrap agent ID, name, and token must all be set together.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 
@@ -95,13 +95,13 @@ P2PSTREAM_HTTPS_PORT=443
 P2PSTREAM_MANAGEMENT_PORT=8081
 ```
 
-Compose defaults `MANAGEMENT_BIND_ADDRESS` to `0.0.0.0` inside the container; set it in `.env` to a narrower address when the management service should not listen on every container interface.
+Compose defaults `MANAGEMENT_BIND_ADDRESS` to `0.0.0.0` inside the container; set it in `.env` to a narrower address only when the management service should not listen on every container interface.
 
 Binary/systemd server environment:
 
 ```ini
 CONFIG_DIR=/var/lib/p2pstream
-MANAGEMENT_BIND_ADDRESS=127.0.0.1
+MANAGEMENT_BIND_ADDRESS=0.0.0.0
 MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
 ENV=production
 ```

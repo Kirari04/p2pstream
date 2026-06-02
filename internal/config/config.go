@@ -22,7 +22,7 @@ const (
 
 type Config struct {
 	ManagementPort              string `env:"MANAGEMENT_PORT" envDefault:"8081"`
-	ManagementBindAddress       string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"127.0.0.1"`
+	ManagementBindAddress       string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
 	ConfigDir                   string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
 	DatabaseURL                 string `env:"DATABASE_URL"`
 	Env                         string `env:"ENV" envDefault:"development"` // development or production
@@ -100,7 +100,7 @@ func Load() (*Config, error) {
 func validateManagementTLSConfig(cfg *Config) error {
 	cfg.ManagementBindAddress = strings.TrimSpace(cfg.ManagementBindAddress)
 	if cfg.ManagementBindAddress == "" {
-		cfg.ManagementBindAddress = "127.0.0.1"
+		cfg.ManagementBindAddress = "0.0.0.0"
 	}
 	if cfg.ObservabilityMaxRows < 0 {
 		return errors.New("OBSERVABILITY_MAX_ROWS must be greater than or equal to 0")

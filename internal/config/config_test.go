@@ -106,8 +106,8 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.ManagementBindAddress != "127.0.0.1" {
-		t.Fatalf("ManagementBindAddress = %q, want loopback default", cfg.ManagementBindAddress)
+	if cfg.ManagementBindAddress != "0.0.0.0" {
+		t.Fatalf("ManagementBindAddress = %q, want all-interface default", cfg.ManagementBindAddress)
 	}
 	if cfg.ObservabilityMaxRows != 1_000_000 {
 		t.Fatalf("ObservabilityMaxRows = %d, want 1000000", cfg.ObservabilityMaxRows)
@@ -120,14 +120,14 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 func TestLoadRespectsExplicitManagementBindAddress(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
-	t.Setenv("MANAGEMENT_BIND_ADDRESS", "0.0.0.0")
+	t.Setenv("MANAGEMENT_BIND_ADDRESS", "127.0.0.1")
 
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.ManagementBindAddress != "0.0.0.0" {
-		t.Fatalf("ManagementBindAddress = %q, want 0.0.0.0", cfg.ManagementBindAddress)
+	if cfg.ManagementBindAddress != "127.0.0.1" {
+		t.Fatalf("ManagementBindAddress = %q, want 127.0.0.1", cfg.ManagementBindAddress)
 	}
 }
 
