@@ -205,10 +205,10 @@ func (db *DB) migrate() error {
 		cpu_percent REAL NOT NULL DEFAULT 0
 	);
 
-	CREATE TABLE IF NOT EXISTS proxy_request_events (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		status_code INTEGER NOT NULL,
+		CREATE TABLE IF NOT EXISTS proxy_request_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			status_code INTEGER NOT NULL,
 		duration_ms INTEGER NOT NULL,
 		error_kind TEXT NOT NULL DEFAULT '',
 		listener_id INTEGER,
@@ -220,11 +220,74 @@ func (db *DB) migrate() error {
 		request_bytes INTEGER NOT NULL DEFAULT 0,
 		response_bytes INTEGER NOT NULL DEFAULT 0,
 		cache_rule_id INTEGER,
-		cache_status TEXT NOT NULL DEFAULT '',
-		cache_bytes INTEGER NOT NULL DEFAULT 0
-	);
+			cache_status TEXT NOT NULL DEFAULT '',
+			cache_bytes INTEGER NOT NULL DEFAULT 0
+		);
 
-	CREATE TABLE IF NOT EXISTS public_response_templates (
+		CREATE TABLE IF NOT EXISTS proxy_request_rollup_minutes (
+			bucket_unix_millis INTEGER PRIMARY KEY,
+			requests INTEGER NOT NULL DEFAULT 0,
+			success INTEGER NOT NULL DEFAULT 0,
+			client_error INTEGER NOT NULL DEFAULT 0,
+			server_error INTEGER NOT NULL DEFAULT 0,
+			internal_error INTEGER NOT NULL DEFAULT 0,
+			duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+			max_duration_ms INTEGER NOT NULL DEFAULT 0,
+			slow_requests INTEGER NOT NULL DEFAULT 0,
+			request_bytes INTEGER NOT NULL DEFAULT 0,
+			response_bytes INTEGER NOT NULL DEFAULT 0,
+			cache_hits INTEGER NOT NULL DEFAULT 0,
+			cache_misses INTEGER NOT NULL DEFAULT 0,
+			cache_bypasses INTEGER NOT NULL DEFAULT 0,
+			cache_stored INTEGER NOT NULL DEFAULT 0,
+			cache_store_failed INTEGER NOT NULL DEFAULT 0,
+			cache_hit_bytes INTEGER NOT NULL DEFAULT 0,
+			cache_stored_bytes INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
+			bucket_unix_millis INTEGER NOT NULL,
+			listener_id INTEGER NOT NULL DEFAULT 0,
+			backend_id INTEGER NOT NULL DEFAULT 0,
+			route_id INTEGER NOT NULL DEFAULT 0,
+			agent_id INTEGER NOT NULL DEFAULT 0,
+			error_kind TEXT NOT NULL DEFAULT '',
+			status_class INTEGER NOT NULL DEFAULT 0,
+			requests INTEGER NOT NULL DEFAULT 0,
+			success INTEGER NOT NULL DEFAULT 0,
+			client_error INTEGER NOT NULL DEFAULT 0,
+			server_error INTEGER NOT NULL DEFAULT 0,
+			internal_error INTEGER NOT NULL DEFAULT 0,
+			duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+			request_bytes INTEGER NOT NULL DEFAULT 0,
+			response_bytes INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class)
+		);
+
+		CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
+			bucket_unix_millis INTEGER PRIMARY KEY,
+			samples INTEGER NOT NULL DEFAULT 0,
+			req_success INTEGER NOT NULL DEFAULT 0,
+			req_client_error INTEGER NOT NULL DEFAULT 0,
+			req_server_error INTEGER NOT NULL DEFAULT 0,
+			req_internal_error INTEGER NOT NULL DEFAULT 0,
+			bytes_rx INTEGER NOT NULL DEFAULT 0,
+			bytes_tx INTEGER NOT NULL DEFAULT 0,
+			memory_mb_sum INTEGER NOT NULL DEFAULT 0,
+			max_memory_mb INTEGER NOT NULL DEFAULT 0,
+			goroutines_sum INTEGER NOT NULL DEFAULT 0,
+			max_goroutines INTEGER NOT NULL DEFAULT 0,
+			cpu_percent_sum REAL NOT NULL DEFAULT 0,
+			max_cpu_percent REAL NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS public_response_templates (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL UNIQUE,
 		kind TEXT NOT NULL,

@@ -45,6 +45,18 @@ func (a *App) GetDashboard(
 	}
 
 	now := time.Now().UTC()
+	if a.dashboardCacheActive() {
+		return connect.NewResponse(a.dashboardResponseFromCache(now)), nil
+	}
+
+	resp, err := a.buildDashboardDirect(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstreamv1.GetDashboardResponse, error) {
 	useRollups, err := a.observabilityRollupsReady(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -201,7 +213,7 @@ func (a *App) GetDashboard(
 		TrafficBuckets:        trafficBuckets,
 		ManagementSecurity:    a.managementSecurity(),
 	}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 func (a *App) managementSecurity() *p2pstreamv1.ManagementSecurity {

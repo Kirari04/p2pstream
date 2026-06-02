@@ -199,6 +199,12 @@ type publicConfigRows struct {
 	ResponseTemplates      []db.PublicResponseTemplate
 }
 
+type cachedPublicConfig struct {
+	Rows     publicConfigRows
+	Snapshot *publicProxySnapshot
+	Valid    bool
+}
+
 type publicBackendHeaderInput struct {
 	Name  string
 	Value string
@@ -1326,35 +1332,9 @@ func (a *App) writePublicTLSCertificateFiles(listenerID, mappingID int64, certPE
 }
 
 func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPublicProxyConfigResponse, error) {
-	rows, err := a.loadPublicConfigRows(ctx)
+	rows, snap, err := a.cachedOrLoadPublicConfig(ctx)
 	if err != nil {
 		return nil, err
-	}
-	snap, err := snapshotFromPublicRows(rows)
-	if err != nil {
-		return nil, err
-	}
-	a.proxyMu.Lock()
-	a.publicSnapshot = snap
-	a.ensureListenerStatesLocked(snap)
-	proxy := a.proxyStatusLocked()
-	active := a.proxyServiceActive
-	a.proxyMu.Unlock()
-	a.LoadBalancers.reconcile(snap)
-	if a.BackendHealth != nil {
-		a.BackendHealth.reconcile(a, snap, active)
-	}
-	if a.RateLimiter != nil {
-		a.RateLimiter.reconcile(snap)
-	}
-	if a.TrafficShaper != nil {
-		a.TrafficShaper.reconcile(snap)
-	}
-	if a.PublicWAF != nil {
-		a.PublicWAF.reconcile(snap)
-	}
-	if a.PublicCache != nil {
-		a.PublicCache.reconcile(snap.CacheSettings)
 	}
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
@@ -1363,8 +1343,8 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		Routes:              publicRoutesToProto(rows.Routes, rows.RouteBackends),
 		RouteBackends:       publicRouteBackendsToProto(rows.RouteBackends),
 		TlsCertificates:     publicTLSCertificatesToProto(rows.TLSCertificates),
-		Proxy:               proxy,
-		Agents:              a.publicAgentsToProto(ctx, rows.Agents),
+		Proxy:               a.proxyStatus(),
+		Agents:              a.publicAgentsToProto(ctx, rows.Agents, false),
 		BackendAgents:       publicBackendAgentsToProto(rows.BackendAgents, publicAgentEnabledByID(rows.Agents), a.BackendHealth),
 		RateLimitRules:      publicRateLimitRulesToProto(rows.RateLimitRules),
 		TrafficShaperRules:  publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
@@ -1382,6 +1362,11 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	a.applyPublicProxySnapshot(snap)
+	return nil
+}
+
+func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyMu.Lock()
 	a.publicSnapshot = snap
 	a.ensureListenerStatesLocked(snap)
@@ -1404,7 +1389,6 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	if a.PublicCache != nil {
 		a.PublicCache.reconcile(snap.CacheSettings)
 	}
-	return nil
 }
 
 func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot, error) {
@@ -1412,7 +1396,44 @@ func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot
 	if err != nil {
 		return nil, err
 	}
-	return snapshotFromPublicRows(rows)
+	snap, err := snapshotFromPublicRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	a.storePublicConfigCache(rows, snap)
+	return snap, nil
+}
+
+func (a *App) cachedOrLoadPublicConfig(ctx context.Context) (publicConfigRows, *publicProxySnapshot, error) {
+	if rows, snap, ok := a.cachedPublicConfig(); ok {
+		return rows, snap, nil
+	}
+	snap, err := a.loadPublicProxySnapshot(ctx)
+	if err != nil {
+		return publicConfigRows{}, nil, err
+	}
+	rows, snap, ok := a.cachedPublicConfig()
+	if !ok {
+		return publicConfigRows{}, nil, connect.NewError(connect.CodeInternal, errors.New("public proxy config cache was not populated"))
+	}
+	return rows, snap, nil
+}
+
+func (a *App) cachedPublicConfig() (publicConfigRows, *publicProxySnapshot, bool) {
+	a.publicConfigCacheMu.RLock()
+	cached := a.publicConfigCache
+	a.publicConfigCacheMu.RUnlock()
+	return cached.Rows, cached.Snapshot, cached.Valid && cached.Snapshot != nil
+}
+
+func (a *App) storePublicConfigCache(rows publicConfigRows, snap *publicProxySnapshot) {
+	a.publicConfigCacheMu.Lock()
+	a.publicConfigCache = cachedPublicConfig{
+		Rows:     rows,
+		Snapshot: snap,
+		Valid:    snap != nil,
+	}
+	a.publicConfigCacheMu.Unlock()
 }
 
 func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error) {
@@ -3688,10 +3709,10 @@ func publicBackendAgentRowsToConfig(agents []db.PublicBackendAgent) []publicBack
 	return resp
 }
 
-func (a *App) publicAgentsToProto(ctx context.Context, agents []db.Agent) []*p2pstreamv1.Agent {
+func (a *App) publicAgentsToProto(ctx context.Context, agents []db.Agent, useDBFallback bool) []*p2pstreamv1.Agent {
 	resp := make([]*p2pstreamv1.Agent, 0, len(agents))
 	for _, agent := range agents {
-		resp = append(resp, a.agentToProto(ctx, agent))
+		resp = append(resp, a.agentToProtoWithLatestStats(ctx, agent, useDBFallback))
 	}
 	return resp
 }

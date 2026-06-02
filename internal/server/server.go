@@ -42,6 +42,8 @@ type App struct {
 	PendingRequests    sync.Map // map[uuid.UUID]*pendingAgentRequest
 	LateAgentResponses *lateAgentResponseTracker
 	LatestAgentStats   atomic.Pointer[stats.AgentStats]
+	latestAgentStatsMu sync.RWMutex
+	latestAgentStats   map[int64]stats.AgentStats
 	AgentHub           *agentHub
 	LoadBalancers      *loadBalancerRegistry
 	BackendHealth      *publicBackendHealthMonitor
@@ -51,6 +53,7 @@ type App struct {
 	PublicWAF          *publicWAF
 	PublicCache        *publicProxyCache
 	PublicACME         *publicACMEManager
+	DashboardCache     *dashboardResponseCache
 	LoginThrottle      *loginThrottle
 
 	ProxyIsRunning atomic.Bool
@@ -67,6 +70,9 @@ type App struct {
 	proxyLastError      string
 	publicSnapshot      *publicProxySnapshot
 	publicListenerState map[int64]*publicListenerRuntime
+
+	publicConfigCacheMu sync.RWMutex
+	publicConfigCache   cachedPublicConfig
 
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
@@ -89,7 +95,9 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		TrafficShaper:       newPublicTrafficShaper(),
 		PublicWAF:           newPublicWAF(),
 		PublicCache:         newPublicProxyCache(cfg.PublicCacheDir),
+		DashboardCache:      newDashboardResponseCache(),
 		LoginThrottle:       newLoginThrottle(cfg.LoginThrottleMaxKeys),
+		latestAgentStats:    make(map[int64]stats.AgentStats),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
@@ -143,6 +151,7 @@ func (a *App) ReportStats(
 	}
 
 	a.LatestAgentStats.Store(&s)
+	a.storeLatestAgentStats(agentRow.ID, s)
 
 	log.Debug().
 		Str("agent", agentRow.PublicID).
@@ -175,6 +184,41 @@ func (a *App) ReportStats(
 	return connect.NewResponse(&p2pstreamv1.AgentStatsResponse{}), nil
 }
 
+func (a *App) storeLatestAgentStats(agentID int64, stat stats.AgentStats) {
+	a.latestAgentStatsMu.Lock()
+	if a.latestAgentStats == nil {
+		a.latestAgentStats = make(map[int64]stats.AgentStats)
+	}
+	a.latestAgentStats[agentID] = stat
+	a.latestAgentStatsMu.Unlock()
+}
+
+func (a *App) latestAgentStatsSnapshot(agentID int64) (*p2pstreamv1.AgentStatsSnapshot, bool) {
+	a.latestAgentStatsMu.RLock()
+	stat, ok := a.latestAgentStats[agentID]
+	a.latestAgentStatsMu.RUnlock()
+	if !ok {
+		return nil, false
+	}
+	return agentStatsSnapshotFromRuntime(stat), true
+}
+
+func agentStatsSnapshotFromRuntime(stat stats.AgentStats) *p2pstreamv1.AgentStatsSnapshot {
+	return &p2pstreamv1.AgentStatsSnapshot{
+		MemorySysMb:          int64(stat.AllocAllocated),
+		NumGoroutine:         int64(stat.NumGoroutine),
+		ReqSuccess:           int64(stat.ReqSuccess),
+		ReqClientError:       int64(stat.ReqClientError),
+		ReqServerError:       int64(stat.ReqServerError),
+		ReqInternalError:     int64(stat.ReqInternalError),
+		BytesReceived:        stat.BytesReceived,
+		BytesSent:            stat.BytesSent,
+		ActiveRequests:       stat.ActiveRequests,
+		CpuPercent:           stat.CPUPercent,
+		ReportedAtUnixMillis: stat.Timestamp.UnixMilli(),
+	}
+}
+
 // GetStatus implements the ConnectRPC AgentManagementService status endpoint.
 func (a *App) GetStatus(
 	ctx context.Context,
@@ -201,19 +245,7 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 	}
 
 	if latest := a.LatestAgentStats.Load(); latest != nil {
-		resp.LatestAgentStats = &p2pstreamv1.AgentStatsSnapshot{
-			MemorySysMb:          int64(latest.AllocAllocated),
-			NumGoroutine:         int64(latest.NumGoroutine),
-			ReqSuccess:           int64(latest.ReqSuccess),
-			ReqClientError:       int64(latest.ReqClientError),
-			ReqServerError:       int64(latest.ReqServerError),
-			ReqInternalError:     int64(latest.ReqInternalError),
-			BytesReceived:        latest.BytesReceived,
-			BytesSent:            latest.BytesSent,
-			ActiveRequests:       latest.ActiveRequests,
-			CpuPercent:           latest.CPUPercent,
-			ReportedAtUnixMillis: latest.Timestamp.UnixMilli(),
-		}
+		resp.LatestAgentStats = agentStatsSnapshotFromRuntime(*latest)
 	}
 
 	return resp

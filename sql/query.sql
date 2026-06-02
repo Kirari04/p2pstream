@@ -477,6 +477,71 @@ WHERE bucket_unix_millis >= sqlc.arg(since_unix_millis)
 GROUP BY 1
 ORDER BY bucket_unix_millis ASC;
 
+-- name: ListProxyRequestRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    requests,
+    success,
+    client_error,
+    server_error,
+    internal_error,
+    duration_ms_sum,
+    max_duration_ms,
+    slow_requests,
+    request_bytes,
+    response_bytes,
+    cache_hits,
+    cache_misses,
+    cache_bypasses,
+    cache_stored,
+    cache_store_failed,
+    cache_hit_bytes,
+    cache_stored_bytes
+FROM proxy_request_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC;
+
+-- name: ListProxyRequestTupleRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    listener_id,
+    backend_id,
+    route_id,
+    agent_id,
+    error_kind,
+    status_class,
+    requests,
+    success,
+    client_error,
+    server_error,
+    internal_error,
+    duration_ms_sum,
+    request_bytes,
+    response_bytes
+FROM proxy_request_tuple_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC;
+
+-- name: ListAgentStatRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    samples,
+    req_success,
+    req_client_error,
+    req_server_error,
+    req_internal_error,
+    bytes_rx,
+    bytes_tx,
+    memory_mb_sum,
+    max_memory_mb,
+    goroutines_sum,
+    max_goroutines,
+    cpu_percent_sum,
+    max_cpu_percent
+FROM agent_stat_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC;
+
 -- name: GetConnectionSummarySince :one
 SELECT
     COUNT(*) AS total_connections,
