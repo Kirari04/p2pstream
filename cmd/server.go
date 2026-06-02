@@ -134,7 +134,7 @@ func managementListenAddress(cfg *config.Config) string {
 	}
 	bind := cfg.ManagementBindAddress
 	if bind == "" {
-		bind = "127.0.0.1"
+		bind = "0.0.0.0"
 	}
 	port := cfg.ManagementPort
 	if port == "" {
