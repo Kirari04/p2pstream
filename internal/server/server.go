@@ -153,7 +153,9 @@ func (a *App) ReportStats(
 		Msg("Agent Health")
 
 	if a.DB != nil {
-		err := a.DB.InsertAgentStat(ctx, db.InsertAgentStatParams{
+		reportedAt := time.Now().UTC()
+		err := a.insertAgentStatWithRollup(ctx, db.InsertAgentStatAtParams{
+			ReportedAt:       reportedAt,
 			AgentID:          sql.NullInt64{Int64: agentRow.ID, Valid: true},
 			MemoryMb:         payload.MemorySysMb,
 			Goroutines:       payload.NumGoroutine,

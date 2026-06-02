@@ -36,6 +36,25 @@ type AgentStat struct {
 	CpuPercent       float64       `json:"cpu_percent"`
 }
 
+type AgentStatRollupMinute struct {
+	BucketUnixMillis int64     `json:"bucket_unix_millis"`
+	Samples          int64     `json:"samples"`
+	ReqSuccess       int64     `json:"req_success"`
+	ReqClientError   int64     `json:"req_client_error"`
+	ReqServerError   int64     `json:"req_server_error"`
+	ReqInternalError int64     `json:"req_internal_error"`
+	BytesRx          int64     `json:"bytes_rx"`
+	BytesTx          int64     `json:"bytes_tx"`
+	MemoryMbSum      int64     `json:"memory_mb_sum"`
+	MaxMemoryMb      int64     `json:"max_memory_mb"`
+	GoroutinesSum    int64     `json:"goroutines_sum"`
+	MaxGoroutines    int64     `json:"max_goroutines"`
+	CpuPercentSum    float64   `json:"cpu_percent_sum"`
+	MaxCpuPercent    float64   `json:"max_cpu_percent"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
 type Connection struct {
 	ID             int64         `json:"id"`
 	AgentID        sql.NullInt64 `json:"agent_id"`
@@ -76,6 +95,16 @@ type ManagementAccessToken struct {
 	UpdatedAt  time.Time    `json:"updated_at"`
 }
 
+type ObservabilityRollupState struct {
+	ID                       int64     `json:"id"`
+	ProxyBackfillUpperID     int64     `json:"proxy_backfill_upper_id"`
+	ProxyBackfilledThroughID int64     `json:"proxy_backfilled_through_id"`
+	AgentBackfillUpperID     int64     `json:"agent_backfill_upper_id"`
+	AgentBackfilledThroughID int64     `json:"agent_backfilled_through_id"`
+	CreatedAt                time.Time `json:"created_at"`
+	UpdatedAt                time.Time `json:"updated_at"`
+}
+
 type ProxyRequestEvent struct {
 	ID            int64         `json:"id"`
 	OccurredAt    time.Time     `json:"occurred_at"`
@@ -93,6 +122,49 @@ type ProxyRequestEvent struct {
 	CacheRuleID   sql.NullInt64 `json:"cache_rule_id"`
 	CacheStatus   string        `json:"cache_status"`
 	CacheBytes    int64         `json:"cache_bytes"`
+}
+
+type ProxyRequestRollupMinute struct {
+	BucketUnixMillis int64     `json:"bucket_unix_millis"`
+	Requests         int64     `json:"requests"`
+	Success          int64     `json:"success"`
+	ClientError      int64     `json:"client_error"`
+	ServerError      int64     `json:"server_error"`
+	InternalError    int64     `json:"internal_error"`
+	DurationMsSum    int64     `json:"duration_ms_sum"`
+	MaxDurationMs    int64     `json:"max_duration_ms"`
+	SlowRequests     int64     `json:"slow_requests"`
+	RequestBytes     int64     `json:"request_bytes"`
+	ResponseBytes    int64     `json:"response_bytes"`
+	CacheHits        int64     `json:"cache_hits"`
+	CacheMisses      int64     `json:"cache_misses"`
+	CacheBypasses    int64     `json:"cache_bypasses"`
+	CacheStored      int64     `json:"cache_stored"`
+	CacheStoreFailed int64     `json:"cache_store_failed"`
+	CacheHitBytes    int64     `json:"cache_hit_bytes"`
+	CacheStoredBytes int64     `json:"cache_stored_bytes"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type ProxyRequestTupleRollupMinute struct {
+	BucketUnixMillis int64     `json:"bucket_unix_millis"`
+	ListenerID       int64     `json:"listener_id"`
+	BackendID        int64     `json:"backend_id"`
+	RouteID          int64     `json:"route_id"`
+	AgentID          int64     `json:"agent_id"`
+	ErrorKind        string    `json:"error_kind"`
+	StatusClass      int64     `json:"status_class"`
+	Requests         int64     `json:"requests"`
+	Success          int64     `json:"success"`
+	ClientError      int64     `json:"client_error"`
+	ServerError      int64     `json:"server_error"`
+	InternalError    int64     `json:"internal_error"`
+	DurationMsSum    int64     `json:"duration_ms_sum"`
+	RequestBytes     int64     `json:"request_bytes"`
+	ResponseBytes    int64     `json:"response_bytes"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type PublicBackend struct {

@@ -68,7 +68,7 @@ var serverCmd = &cobra.Command{
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		app.StartObservabilityCleanup(ctx)
+		app.StartObservabilityMaintenance(ctx)
 
 		if app.PublicACME != nil {
 			app.PublicACME.Start(ctx)

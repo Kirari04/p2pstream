@@ -83,7 +83,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 
-	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries"} {
+	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -112,6 +112,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		"idx_public_cache_entries_rule_id",
 		"idx_public_cache_entries_expires_at",
 		"idx_public_cache_entries_last_accessed_at",
+		"idx_connections_disconnected_at",
 	} {
 		if !indexExists(t, database, index) {
 			t.Fatalf("expected %s on fresh schema", index)
@@ -372,6 +373,9 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	if !indexExists(t, database, "idx_connections_agent_id") {
 		t.Fatal("expected idx_connections_agent_id after migration")
 	}
+	if !indexExists(t, database, "idx_connections_disconnected_at") {
+		t.Fatal("expected idx_connections_disconnected_at after migration")
+	}
 	if !indexExists(t, database, "idx_public_backend_upstream_headers_backend_position") {
 		t.Fatal("expected idx_public_backend_upstream_headers_backend_position after migration")
 	}
@@ -392,7 +396,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 			t.Fatalf("expected %s after migration", index)
 		}
 	}
-	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries"} {
+	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected migrated table %s: %v", table, err)

@@ -11,6 +11,167 @@ import (
 	"time"
 )
 
+const backfillAgentStatRollupMinutesRange = `-- name: BackfillAgentStatRollupMinutesRange :exec
+INSERT INTO agent_stat_rollup_minutes (
+    bucket_unix_millis, samples, req_success, req_client_error, req_server_error, req_internal_error,
+    bytes_rx, bytes_tx, memory_mb_sum, max_memory_mb, goroutines_sum, max_goroutines,
+    cpu_percent_sum, max_cpu_percent
+)
+SELECT
+    CAST((unixepoch(reported_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
+    COUNT(*) AS samples,
+    CAST(COALESCE(SUM(req_success), 0) AS INTEGER) AS req_success,
+    CAST(COALESCE(SUM(req_client_error), 0) AS INTEGER) AS req_client_error,
+    CAST(COALESCE(SUM(req_server_error), 0) AS INTEGER) AS req_server_error,
+    CAST(COALESCE(SUM(req_internal_error), 0) AS INTEGER) AS req_internal_error,
+    CAST(COALESCE(SUM(bytes_rx), 0) AS INTEGER) AS bytes_rx,
+    CAST(COALESCE(SUM(bytes_tx), 0) AS INTEGER) AS bytes_tx,
+    CAST(COALESCE(SUM(memory_mb), 0) AS INTEGER) AS memory_mb_sum,
+    CAST(COALESCE(MAX(memory_mb), 0) AS INTEGER) AS max_memory_mb,
+    CAST(COALESCE(SUM(goroutines), 0) AS INTEGER) AS goroutines_sum,
+    CAST(COALESCE(MAX(goroutines), 0) AS INTEGER) AS max_goroutines,
+    CAST(COALESCE(SUM(cpu_percent), 0) AS REAL) AS cpu_percent_sum,
+    CAST(COALESCE(MAX(cpu_percent), 0) AS REAL) AS max_cpu_percent
+FROM agent_stats
+WHERE id > ?1
+  AND id <= ?2
+GROUP BY bucket_unix_millis
+ON CONFLICT(bucket_unix_millis) DO UPDATE SET
+    samples = agent_stat_rollup_minutes.samples + excluded.samples,
+    req_success = agent_stat_rollup_minutes.req_success + excluded.req_success,
+    req_client_error = agent_stat_rollup_minutes.req_client_error + excluded.req_client_error,
+    req_server_error = agent_stat_rollup_minutes.req_server_error + excluded.req_server_error,
+    req_internal_error = agent_stat_rollup_minutes.req_internal_error + excluded.req_internal_error,
+    bytes_rx = agent_stat_rollup_minutes.bytes_rx + excluded.bytes_rx,
+    bytes_tx = agent_stat_rollup_minutes.bytes_tx + excluded.bytes_tx,
+    memory_mb_sum = agent_stat_rollup_minutes.memory_mb_sum + excluded.memory_mb_sum,
+    max_memory_mb = MAX(agent_stat_rollup_minutes.max_memory_mb, excluded.max_memory_mb),
+    goroutines_sum = agent_stat_rollup_minutes.goroutines_sum + excluded.goroutines_sum,
+    max_goroutines = MAX(agent_stat_rollup_minutes.max_goroutines, excluded.max_goroutines),
+    cpu_percent_sum = agent_stat_rollup_minutes.cpu_percent_sum + excluded.cpu_percent_sum,
+    max_cpu_percent = MAX(agent_stat_rollup_minutes.max_cpu_percent, excluded.max_cpu_percent),
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type BackfillAgentStatRollupMinutesRangeParams struct {
+	FromID    int64 `json:"from_id"`
+	ThroughID int64 `json:"through_id"`
+}
+
+func (q *Queries) BackfillAgentStatRollupMinutesRange(ctx context.Context, arg BackfillAgentStatRollupMinutesRangeParams) error {
+	_, err := q.db.ExecContext(ctx, backfillAgentStatRollupMinutesRange, arg.FromID, arg.ThroughID)
+	return err
+}
+
+const backfillProxyRequestRollupMinutesRange = `-- name: BackfillProxyRequestRollupMinutesRange :exec
+INSERT INTO proxy_request_rollup_minutes (
+    bucket_unix_millis, requests, success, client_error, server_error, internal_error,
+    duration_ms_sum, max_duration_ms, slow_requests, request_bytes, response_bytes,
+    cache_hits, cache_misses, cache_bypasses, cache_stored, cache_store_failed,
+    cache_hit_bytes, cache_stored_bytes
+)
+SELECT
+    CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(SUM(duration_ms), 0) AS INTEGER) AS duration_ms_sum,
+    CAST(COALESCE(MAX(duration_ms), 0) AS INTEGER) AS max_duration_ms,
+    CAST(COALESCE(SUM(CASE WHEN duration_ms >= 1000 THEN 1 ELSE 0 END), 0) AS INTEGER) AS slow_requests,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_hits,
+    CAST(COALESCE(SUM(CASE WHEN cache_status IN ('miss', 'stored', 'store_failed') THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_misses,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'bypass' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_bypasses,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'stored' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_stored,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'store_failed' THEN 1 ELSE 0 END), 0) AS INTEGER) AS cache_store_failed,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'hit' THEN cache_bytes ELSE 0 END), 0) AS INTEGER) AS cache_hit_bytes,
+    CAST(COALESCE(SUM(CASE WHEN cache_status = 'stored' THEN cache_bytes ELSE 0 END), 0) AS INTEGER) AS cache_stored_bytes
+FROM proxy_request_events
+WHERE id > ?1
+  AND id <= ?2
+GROUP BY bucket_unix_millis
+ON CONFLICT(bucket_unix_millis) DO UPDATE SET
+    requests = proxy_request_rollup_minutes.requests + excluded.requests,
+    success = proxy_request_rollup_minutes.success + excluded.success,
+    client_error = proxy_request_rollup_minutes.client_error + excluded.client_error,
+    server_error = proxy_request_rollup_minutes.server_error + excluded.server_error,
+    internal_error = proxy_request_rollup_minutes.internal_error + excluded.internal_error,
+    duration_ms_sum = proxy_request_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    max_duration_ms = MAX(proxy_request_rollup_minutes.max_duration_ms, excluded.max_duration_ms),
+    slow_requests = proxy_request_rollup_minutes.slow_requests + excluded.slow_requests,
+    request_bytes = proxy_request_rollup_minutes.request_bytes + excluded.request_bytes,
+    response_bytes = proxy_request_rollup_minutes.response_bytes + excluded.response_bytes,
+    cache_hits = proxy_request_rollup_minutes.cache_hits + excluded.cache_hits,
+    cache_misses = proxy_request_rollup_minutes.cache_misses + excluded.cache_misses,
+    cache_bypasses = proxy_request_rollup_minutes.cache_bypasses + excluded.cache_bypasses,
+    cache_stored = proxy_request_rollup_minutes.cache_stored + excluded.cache_stored,
+    cache_store_failed = proxy_request_rollup_minutes.cache_store_failed + excluded.cache_store_failed,
+    cache_hit_bytes = proxy_request_rollup_minutes.cache_hit_bytes + excluded.cache_hit_bytes,
+    cache_stored_bytes = proxy_request_rollup_minutes.cache_stored_bytes + excluded.cache_stored_bytes,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type BackfillProxyRequestRollupMinutesRangeParams struct {
+	FromID    int64 `json:"from_id"`
+	ThroughID int64 `json:"through_id"`
+}
+
+func (q *Queries) BackfillProxyRequestRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestRollupMinutesRangeParams) error {
+	_, err := q.db.ExecContext(ctx, backfillProxyRequestRollupMinutesRange, arg.FromID, arg.ThroughID)
+	return err
+}
+
+const backfillProxyRequestTupleRollupMinutesRange = `-- name: BackfillProxyRequestTupleRollupMinutesRange :exec
+INSERT INTO proxy_request_tuple_rollup_minutes (
+    bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class,
+    requests, success, client_error, server_error, internal_error, duration_ms_sum,
+    request_bytes, response_bytes
+)
+SELECT
+    CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
+    CAST(COALESCE(listener_id, 0) AS INTEGER) AS listener_id,
+    CAST(COALESCE(backend_id, 0) AS INTEGER) AS backend_id,
+    CAST(COALESCE(route_id, 0) AS INTEGER) AS route_id,
+    CAST(COALESCE(agent_id, 0) AS INTEGER) AS agent_id,
+    error_kind,
+    CAST(CASE WHEN status_code >= 200 AND status_code < 600 THEN status_code / 100 ELSE 0 END AS INTEGER) AS status_class,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(SUM(duration_ms), 0) AS INTEGER) AS duration_ms_sum,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events
+WHERE id > ?1
+  AND id <= ?2
+GROUP BY bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class
+ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+    requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
+    success = proxy_request_tuple_rollup_minutes.success + excluded.success,
+    client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
+    server_error = proxy_request_tuple_rollup_minutes.server_error + excluded.server_error,
+    internal_error = proxy_request_tuple_rollup_minutes.internal_error + excluded.internal_error,
+    duration_ms_sum = proxy_request_tuple_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    request_bytes = proxy_request_tuple_rollup_minutes.request_bytes + excluded.request_bytes,
+    response_bytes = proxy_request_tuple_rollup_minutes.response_bytes + excluded.response_bytes,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type BackfillProxyRequestTupleRollupMinutesRangeParams struct {
+	FromID    int64 `json:"from_id"`
+	ThroughID int64 `json:"through_id"`
+}
+
+func (q *Queries) BackfillProxyRequestTupleRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestTupleRollupMinutesRangeParams) error {
+	_, err := q.db.ExecContext(ctx, backfillProxyRequestTupleRollupMinutesRange, arg.FromID, arg.ThroughID)
+	return err
+}
+
 const clearEnvironmentTrust = `-- name: ClearEnvironmentTrust :one
 UPDATE environments
 SET trusted_certificate_pem = '',
@@ -1318,6 +1479,16 @@ func (q *Queries) DeleteAgent(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteAgentStatRollupsBefore = `-- name: DeleteAgentStatRollupsBefore :exec
+DELETE FROM agent_stat_rollup_minutes
+WHERE bucket_unix_millis < ?
+`
+
+func (q *Queries) DeleteAgentStatRollupsBefore(ctx context.Context, bucketUnixMillis int64) error {
+	_, err := q.db.ExecContext(ctx, deleteAgentStatRollupsBefore, bucketUnixMillis)
+	return err
+}
+
 const deleteAgentStatsBefore = `-- name: DeleteAgentStatsBefore :exec
 DELETE FROM agent_stats
 WHERE reported_at < ?
@@ -1394,34 +1565,60 @@ func (q *Queries) DeleteManagementAccessToken(ctx context.Context, id int64) err
 	return err
 }
 
-const deleteOldestAgentStatsOverLimit = `-- name: DeleteOldestAgentStatsOverLimit :exec
+const deleteOldestAgentStatsOverLimit = `-- name: DeleteOldestAgentStatsOverLimit :execrows
 DELETE FROM agent_stats
 WHERE id IN (
     SELECT id
-    FROM agent_stats
-    ORDER BY reported_at DESC, id DESC
-    LIMIT -1 OFFSET ?
+    FROM (
+        SELECT id
+        FROM agent_stats
+        ORDER BY reported_at DESC, id DESC
+        LIMIT -1 OFFSET ?1
+    )
+    ORDER BY id ASC
+    LIMIT ?2
 )
 `
 
-func (q *Queries) DeleteOldestAgentStatsOverLimit(ctx context.Context, offset int64) error {
-	_, err := q.db.ExecContext(ctx, deleteOldestAgentStatsOverLimit, offset)
-	return err
+type DeleteOldestAgentStatsOverLimitParams struct {
+	Offset      int64 `json:"offset"`
+	DeleteLimit int64 `json:"delete_limit"`
 }
 
-const deleteOldestProxyRequestEventsOverLimit = `-- name: DeleteOldestProxyRequestEventsOverLimit :exec
+func (q *Queries) DeleteOldestAgentStatsOverLimit(ctx context.Context, arg DeleteOldestAgentStatsOverLimitParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldestAgentStatsOverLimit, arg.Offset, arg.DeleteLimit)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteOldestProxyRequestEventsOverLimit = `-- name: DeleteOldestProxyRequestEventsOverLimit :execrows
 DELETE FROM proxy_request_events
 WHERE id IN (
     SELECT id
-    FROM proxy_request_events
-    ORDER BY occurred_at DESC, id DESC
-    LIMIT -1 OFFSET ?
+    FROM (
+        SELECT id
+        FROM proxy_request_events
+        ORDER BY occurred_at DESC, id DESC
+        LIMIT -1 OFFSET ?1
+    )
+    ORDER BY id ASC
+    LIMIT ?2
 )
 `
 
-func (q *Queries) DeleteOldestProxyRequestEventsOverLimit(ctx context.Context, offset int64) error {
-	_, err := q.db.ExecContext(ctx, deleteOldestProxyRequestEventsOverLimit, offset)
-	return err
+type DeleteOldestProxyRequestEventsOverLimitParams struct {
+	Offset      int64 `json:"offset"`
+	DeleteLimit int64 `json:"delete_limit"`
+}
+
+func (q *Queries) DeleteOldestProxyRequestEventsOverLimit(ctx context.Context, arg DeleteOldestProxyRequestEventsOverLimitParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldestProxyRequestEventsOverLimit, arg.Offset, arg.DeleteLimit)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteProxyRequestEventsBefore = `-- name: DeleteProxyRequestEventsBefore :exec
@@ -1431,6 +1628,26 @@ WHERE occurred_at < ?
 
 func (q *Queries) DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error {
 	_, err := q.db.ExecContext(ctx, deleteProxyRequestEventsBefore, occurredAt)
+	return err
+}
+
+const deleteProxyRequestRollupsBefore = `-- name: DeleteProxyRequestRollupsBefore :exec
+DELETE FROM proxy_request_rollup_minutes
+WHERE bucket_unix_millis < ?
+`
+
+func (q *Queries) DeleteProxyRequestRollupsBefore(ctx context.Context, bucketUnixMillis int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProxyRequestRollupsBefore, bucketUnixMillis)
+	return err
+}
+
+const deleteProxyRequestTupleRollupsBefore = `-- name: DeleteProxyRequestTupleRollupsBefore :exec
+DELETE FROM proxy_request_tuple_rollup_minutes
+WHERE bucket_unix_millis < ?
+`
+
+func (q *Queries) DeleteProxyRequestTupleRollupsBefore(ctx context.Context, bucketUnixMillis int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProxyRequestTupleRollupsBefore, bucketUnixMillis)
 	return err
 }
 
@@ -1728,6 +1945,62 @@ func (q *Queries) GetAgentByPublicID(ctx context.Context, publicID string) (Agen
 	return i, err
 }
 
+const getAgentStatsRollupSummarySince = `-- name: GetAgentStatsRollupSummarySince :one
+SELECT
+    CAST(COALESCE(SUM(samples), 0) AS INTEGER) AS samples,
+    CAST(COALESCE(SUM(req_success), 0) AS INTEGER) AS req_success,
+    CAST(COALESCE(SUM(req_client_error), 0) AS INTEGER) AS req_client_error,
+    CAST(COALESCE(SUM(req_server_error), 0) AS INTEGER) AS req_server_error,
+    CAST(COALESCE(SUM(req_internal_error), 0) AS INTEGER) AS req_internal_error,
+    CAST(COALESCE(SUM(bytes_rx), 0) AS INTEGER) AS bytes_rx,
+    CAST(COALESCE(SUM(bytes_tx), 0) AS INTEGER) AS bytes_tx,
+    CAST(CASE WHEN COALESCE(SUM(samples), 0) > 0 THEN COALESCE(SUM(memory_mb_sum), 0) / SUM(samples) ELSE 0 END AS INTEGER) AS avg_memory_mb,
+    CAST(COALESCE(MAX(max_memory_mb), 0) AS INTEGER) AS max_memory_mb,
+    CAST(CASE WHEN COALESCE(SUM(samples), 0) > 0 THEN COALESCE(SUM(goroutines_sum), 0) / SUM(samples) ELSE 0 END AS INTEGER) AS avg_goroutines,
+    CAST(COALESCE(MAX(max_goroutines), 0) AS INTEGER) AS max_goroutines,
+    CAST(CASE WHEN COALESCE(SUM(samples), 0) > 0 THEN COALESCE(SUM(cpu_percent_sum), 0) / SUM(samples) ELSE 0 END AS REAL) AS avg_cpu_percent,
+    CAST(COALESCE(MAX(max_cpu_percent), 0) AS REAL) AS max_cpu_percent
+FROM agent_stat_rollup_minutes
+WHERE bucket_unix_millis >= ?
+`
+
+type GetAgentStatsRollupSummarySinceRow struct {
+	Samples          int64   `json:"samples"`
+	ReqSuccess       int64   `json:"req_success"`
+	ReqClientError   int64   `json:"req_client_error"`
+	ReqServerError   int64   `json:"req_server_error"`
+	ReqInternalError int64   `json:"req_internal_error"`
+	BytesRx          int64   `json:"bytes_rx"`
+	BytesTx          int64   `json:"bytes_tx"`
+	AvgMemoryMb      int64   `json:"avg_memory_mb"`
+	MaxMemoryMb      int64   `json:"max_memory_mb"`
+	AvgGoroutines    int64   `json:"avg_goroutines"`
+	MaxGoroutines    int64   `json:"max_goroutines"`
+	AvgCpuPercent    float64 `json:"avg_cpu_percent"`
+	MaxCpuPercent    float64 `json:"max_cpu_percent"`
+}
+
+func (q *Queries) GetAgentStatsRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetAgentStatsRollupSummarySinceRow, error) {
+	row := q.db.QueryRowContext(ctx, getAgentStatsRollupSummarySince, bucketUnixMillis)
+	var i GetAgentStatsRollupSummarySinceRow
+	err := row.Scan(
+		&i.Samples,
+		&i.ReqSuccess,
+		&i.ReqClientError,
+		&i.ReqServerError,
+		&i.ReqInternalError,
+		&i.BytesRx,
+		&i.BytesTx,
+		&i.AvgMemoryMb,
+		&i.MaxMemoryMb,
+		&i.AvgGoroutines,
+		&i.MaxGoroutines,
+		&i.AvgCpuPercent,
+		&i.MaxCpuPercent,
+	)
+	return i, err
+}
+
 const getAgentStatsSummarySince = `-- name: GetAgentStatsSummarySince :one
 SELECT
     COUNT(*) AS samples,
@@ -1891,6 +2164,154 @@ func (q *Queries) GetLatestAgentStatByAgent(ctx context.Context, agentID sql.Nul
 		&i.BytesRx,
 		&i.BytesTx,
 		&i.CpuPercent,
+	)
+	return i, err
+}
+
+const getNextAgentRollupBackfillThroughID = `-- name: GetNextAgentRollupBackfillThroughID :one
+SELECT CAST(COALESCE(MAX(id), ?1) AS INTEGER) AS through_id
+FROM (
+    SELECT id
+    FROM agent_stats
+    WHERE id > ?1
+      AND id <= ?2
+    ORDER BY id ASC
+    LIMIT ?3
+)
+`
+
+type GetNextAgentRollupBackfillThroughIDParams struct {
+	CurrentID int64 `json:"current_id"`
+	UpperID   int64 `json:"upper_id"`
+	BatchSize int64 `json:"batch_size"`
+}
+
+func (q *Queries) GetNextAgentRollupBackfillThroughID(ctx context.Context, arg GetNextAgentRollupBackfillThroughIDParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getNextAgentRollupBackfillThroughID, arg.CurrentID, arg.UpperID, arg.BatchSize)
+	var through_id int64
+	err := row.Scan(&through_id)
+	return through_id, err
+}
+
+const getNextProxyRollupBackfillThroughID = `-- name: GetNextProxyRollupBackfillThroughID :one
+SELECT CAST(COALESCE(MAX(id), ?1) AS INTEGER) AS through_id
+FROM (
+    SELECT id
+    FROM proxy_request_events
+    WHERE id > ?1
+      AND id <= ?2
+    ORDER BY id ASC
+    LIMIT ?3
+)
+`
+
+type GetNextProxyRollupBackfillThroughIDParams struct {
+	CurrentID int64 `json:"current_id"`
+	UpperID   int64 `json:"upper_id"`
+	BatchSize int64 `json:"batch_size"`
+}
+
+func (q *Queries) GetNextProxyRollupBackfillThroughID(ctx context.Context, arg GetNextProxyRollupBackfillThroughIDParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getNextProxyRollupBackfillThroughID, arg.CurrentID, arg.UpperID, arg.BatchSize)
+	var through_id int64
+	err := row.Scan(&through_id)
+	return through_id, err
+}
+
+const getObservabilityRollupState = `-- name: GetObservabilityRollupState :one
+SELECT id, proxy_backfill_upper_id, proxy_backfilled_through_id, agent_backfill_upper_id, agent_backfilled_through_id, created_at, updated_at
+FROM observability_rollup_state
+WHERE id = 1
+`
+
+func (q *Queries) GetObservabilityRollupState(ctx context.Context) (ObservabilityRollupState, error) {
+	row := q.db.QueryRowContext(ctx, getObservabilityRollupState)
+	var i ObservabilityRollupState
+	err := row.Scan(
+		&i.ID,
+		&i.ProxyBackfillUpperID,
+		&i.ProxyBackfilledThroughID,
+		&i.AgentBackfillUpperID,
+		&i.AgentBackfilledThroughID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getProxyRequestRollupSummarySince = `-- name: GetProxyRequestRollupSummarySince :one
+SELECT
+    CAST(COALESCE(SUM(requests), 0) AS INTEGER) AS total_requests,
+    CAST(COALESCE(SUM(success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(requests), 0) > 0 THEN COALESCE(SUM(duration_ms_sum), 0) / SUM(requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
+    CAST(COALESCE(SUM(request_bytes + response_bytes), 0) AS INTEGER) AS total_bytes,
+    CAST(CASE WHEN COALESCE(SUM(requests), 0) > 0 THEN COALESCE(SUM(request_bytes), 0) / SUM(requests) ELSE 0 END AS INTEGER) AS avg_request_bytes,
+    CAST(CASE WHEN COALESCE(SUM(requests), 0) > 0 THEN COALESCE(SUM(response_bytes), 0) / SUM(requests) ELSE 0 END AS INTEGER) AS avg_response_bytes,
+    CAST(COALESCE(MAX(max_duration_ms), 0) AS INTEGER) AS max_duration_ms,
+    CAST(COALESCE(SUM(slow_requests), 0) AS INTEGER) AS slow_requests,
+    CAST(COALESCE(SUM(cache_hits), 0) AS INTEGER) AS cache_hits,
+    CAST(COALESCE(SUM(cache_misses), 0) AS INTEGER) AS cache_misses,
+    CAST(COALESCE(SUM(cache_bypasses), 0) AS INTEGER) AS cache_bypasses,
+    CAST(COALESCE(SUM(cache_stored), 0) AS INTEGER) AS cache_stored,
+    CAST(COALESCE(SUM(cache_store_failed), 0) AS INTEGER) AS cache_store_failed,
+    CAST(COALESCE(SUM(cache_hit_bytes), 0) AS INTEGER) AS cache_hit_bytes,
+    CAST(COALESCE(SUM(cache_stored_bytes), 0) AS INTEGER) AS cache_stored_bytes
+FROM proxy_request_rollup_minutes
+WHERE bucket_unix_millis >= ?
+`
+
+type GetProxyRequestRollupSummarySinceRow struct {
+	TotalRequests    int64 `json:"total_requests"`
+	Success          int64 `json:"success"`
+	ClientError      int64 `json:"client_error"`
+	ServerError      int64 `json:"server_error"`
+	InternalError    int64 `json:"internal_error"`
+	AvgDurationMs    int64 `json:"avg_duration_ms"`
+	RequestBytes     int64 `json:"request_bytes"`
+	ResponseBytes    int64 `json:"response_bytes"`
+	TotalBytes       int64 `json:"total_bytes"`
+	AvgRequestBytes  int64 `json:"avg_request_bytes"`
+	AvgResponseBytes int64 `json:"avg_response_bytes"`
+	MaxDurationMs    int64 `json:"max_duration_ms"`
+	SlowRequests     int64 `json:"slow_requests"`
+	CacheHits        int64 `json:"cache_hits"`
+	CacheMisses      int64 `json:"cache_misses"`
+	CacheBypasses    int64 `json:"cache_bypasses"`
+	CacheStored      int64 `json:"cache_stored"`
+	CacheStoreFailed int64 `json:"cache_store_failed"`
+	CacheHitBytes    int64 `json:"cache_hit_bytes"`
+	CacheStoredBytes int64 `json:"cache_stored_bytes"`
+}
+
+func (q *Queries) GetProxyRequestRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRequestRollupSummarySinceRow, error) {
+	row := q.db.QueryRowContext(ctx, getProxyRequestRollupSummarySince, bucketUnixMillis)
+	var i GetProxyRequestRollupSummarySinceRow
+	err := row.Scan(
+		&i.TotalRequests,
+		&i.Success,
+		&i.ClientError,
+		&i.ServerError,
+		&i.InternalError,
+		&i.AvgDurationMs,
+		&i.RequestBytes,
+		&i.ResponseBytes,
+		&i.TotalBytes,
+		&i.AvgRequestBytes,
+		&i.AvgResponseBytes,
+		&i.MaxDurationMs,
+		&i.SlowRequests,
+		&i.CacheHits,
+		&i.CacheMisses,
+		&i.CacheBypasses,
+		&i.CacheStored,
+		&i.CacheStoreFailed,
+		&i.CacheHitBytes,
+		&i.CacheStoredBytes,
 	)
 	return i, err
 }
@@ -2496,6 +2917,48 @@ func (q *Queries) InsertAgentStat(ctx context.Context, arg InsertAgentStatParams
 	return err
 }
 
+const insertAgentStatAt = `-- name: InsertAgentStatAt :one
+INSERT INTO agent_stats (
+    reported_at, agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id
+`
+
+type InsertAgentStatAtParams struct {
+	ReportedAt       time.Time     `json:"reported_at"`
+	AgentID          sql.NullInt64 `json:"agent_id"`
+	MemoryMb         int64         `json:"memory_mb"`
+	Goroutines       int64         `json:"goroutines"`
+	ReqSuccess       int64         `json:"req_success"`
+	ReqClientError   int64         `json:"req_client_error"`
+	ReqServerError   int64         `json:"req_server_error"`
+	ReqInternalError int64         `json:"req_internal_error"`
+	BytesRx          int64         `json:"bytes_rx"`
+	BytesTx          int64         `json:"bytes_tx"`
+	CpuPercent       float64       `json:"cpu_percent"`
+}
+
+func (q *Queries) InsertAgentStatAt(ctx context.Context, arg InsertAgentStatAtParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertAgentStatAt,
+		arg.ReportedAt,
+		arg.AgentID,
+		arg.MemoryMb,
+		arg.Goroutines,
+		arg.ReqSuccess,
+		arg.ReqClientError,
+		arg.ReqServerError,
+		arg.ReqInternalError,
+		arg.BytesRx,
+		arg.BytesTx,
+		arg.CpuPercent,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertConnection = `-- name: InsertConnection :one
 INSERT INTO connections (agent_id, connected_at)
 VALUES (?, CURRENT_TIMESTAMP)
@@ -2552,6 +3015,56 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.CacheBytes,
 	)
 	return err
+}
+
+const insertProxyRequestEventAt = `-- name: InsertProxyRequestEventAt :one
+INSERT INTO proxy_request_events (
+    occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id
+`
+
+type InsertProxyRequestEventAtParams struct {
+	OccurredAt    time.Time     `json:"occurred_at"`
+	StatusCode    int64         `json:"status_code"`
+	DurationMs    int64         `json:"duration_ms"`
+	ErrorKind     string        `json:"error_kind"`
+	ListenerID    sql.NullInt64 `json:"listener_id"`
+	BackendID     sql.NullInt64 `json:"backend_id"`
+	RouteID       sql.NullInt64 `json:"route_id"`
+	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
+	WafAction     string        `json:"waf_action"`
+	AgentID       sql.NullInt64 `json:"agent_id"`
+	RequestBytes  int64         `json:"request_bytes"`
+	ResponseBytes int64         `json:"response_bytes"`
+	CacheRuleID   sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus   string        `json:"cache_status"`
+	CacheBytes    int64         `json:"cache_bytes"`
+}
+
+func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertProxyRequestEventAt,
+		arg.OccurredAt,
+		arg.StatusCode,
+		arg.DurationMs,
+		arg.ErrorKind,
+		arg.ListenerID,
+		arg.BackendID,
+		arg.RouteID,
+		arg.WafRuleID,
+		arg.WafAction,
+		arg.AgentID,
+		arg.RequestBytes,
+		arg.ResponseBytes,
+		arg.CacheRuleID,
+		arg.CacheStatus,
+		arg.CacheBytes,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const listAgents = `-- name: ListAgents :many
@@ -2683,6 +3196,73 @@ func (q *Queries) ListManagementAccessTokens(ctx context.Context) ([]ManagementA
 	return items, nil
 }
 
+const listProxyStatusClassesRollupsSince = `-- name: ListProxyStatusClassesRollupsSince :many
+SELECT
+    r.status_class AS id,
+    CAST(r.status_class AS TEXT) || 'xx' AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+WHERE r.bucket_unix_millis >= ?
+  AND r.status_class >= 2
+  AND r.status_class < 6
+GROUP BY r.status_class
+ORDER BY id ASC
+`
+
+type ListProxyStatusClassesRollupsSinceRow struct {
+	ID            int64       `json:"id"`
+	Label         interface{} `json:"label"`
+	Requests      int64       `json:"requests"`
+	Success       int64       `json:"success"`
+	ClientError   int64       `json:"client_error"`
+	ServerError   int64       `json:"server_error"`
+	InternalError int64       `json:"internal_error"`
+	AvgDurationMs int64       `json:"avg_duration_ms"`
+	RequestBytes  int64       `json:"request_bytes"`
+	ResponseBytes int64       `json:"response_bytes"`
+}
+
+func (q *Queries) ListProxyStatusClassesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusClassesRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyStatusClassesRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyStatusClassesRollupsSinceRow
+	for rows.Next() {
+		var i ListProxyStatusClassesRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProxyStatusClassesSince = `-- name: ListProxyStatusClassesSince :many
 SELECT
     CAST(status_code / 100 AS INTEGER) AS id,
@@ -2695,7 +3275,7 @@ SELECT
     CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
     CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
     CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_events
+FROM proxy_request_events INDEXED BY idx_proxy_request_events_occurred_at
 WHERE occurred_at >= ?
   AND status_code >= 200
   AND status_code < 600
@@ -2750,6 +3330,73 @@ func (q *Queries) ListProxyStatusClassesSince(ctx context.Context, occurredAt ti
 	return items, nil
 }
 
+const listProxyTrafficBucketRollupsSince = `-- name: ListProxyTrafficBucketRollupsSince :many
+SELECT
+    CAST((bucket_unix_millis / (CAST(?1 AS INTEGER) * 1000)) * (CAST(?1 AS INTEGER) * 1000) AS INTEGER) AS bucket_unix_millis,
+    CAST(COALESCE(SUM(requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
+    CAST(CASE WHEN COALESCE(SUM(requests), 0) > 0 THEN COALESCE(SUM(duration_ms_sum), 0) / SUM(requests) ELSE 0 END AS INTEGER) AS avg_duration_ms
+FROM proxy_request_rollup_minutes
+WHERE bucket_unix_millis >= ?2
+GROUP BY 1
+ORDER BY bucket_unix_millis ASC
+`
+
+type ListProxyTrafficBucketRollupsSinceParams struct {
+	BucketSeconds   int64 `json:"bucket_seconds"`
+	SinceUnixMillis int64 `json:"since_unix_millis"`
+}
+
+type ListProxyTrafficBucketRollupsSinceRow struct {
+	BucketUnixMillis int64 `json:"bucket_unix_millis"`
+	Requests         int64 `json:"requests"`
+	Success          int64 `json:"success"`
+	ClientError      int64 `json:"client_error"`
+	ServerError      int64 `json:"server_error"`
+	InternalError    int64 `json:"internal_error"`
+	RequestBytes     int64 `json:"request_bytes"`
+	ResponseBytes    int64 `json:"response_bytes"`
+	AvgDurationMs    int64 `json:"avg_duration_ms"`
+}
+
+func (q *Queries) ListProxyTrafficBucketRollupsSince(ctx context.Context, arg ListProxyTrafficBucketRollupsSinceParams) ([]ListProxyTrafficBucketRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyTrafficBucketRollupsSince, arg.BucketSeconds, arg.SinceUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyTrafficBucketRollupsSinceRow
+	for rows.Next() {
+		var i ListProxyTrafficBucketRollupsSinceRow
+		if err := rows.Scan(
+			&i.BucketUnixMillis,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+			&i.AvgDurationMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProxyTrafficBucketsSince = `-- name: ListProxyTrafficBucketsSince :many
 SELECT
     CAST((unixepoch(occurred_at) / CAST(?1 AS INTEGER)) * CAST(?1 AS INTEGER) * 1000 AS INTEGER) AS bucket_unix_millis,
@@ -2761,7 +3408,7 @@ SELECT
     CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
     CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes,
     CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms
-FROM proxy_request_events
+FROM proxy_request_events INDEXED BY idx_proxy_request_events_occurred_at
 WHERE occurred_at >= ?2
 GROUP BY bucket_unix_millis
 ORDER BY bucket_unix_millis ASC
@@ -3758,6 +4405,74 @@ func (q *Queries) ListPublicWafRules(ctx context.Context) ([]PublicWafRule, erro
 	return items, nil
 }
 
+const listTopProxyAgentsRollupsSince = `-- name: ListTopProxyAgentsRollupsSince :many
+SELECT
+    r.agent_id AS id,
+    COALESCE(a.name, 'agent #' || r.agent_id) AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN agents a ON a.id = r.agent_id
+WHERE r.bucket_unix_millis >= ?
+  AND r.agent_id != 0
+GROUP BY r.agent_id, a.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyAgentsRollupsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyAgentsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyAgentsRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyAgentsRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyAgentsRollupsSinceRow
+	for rows.Next() {
+		var i ListTopProxyAgentsRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopProxyAgentsSince = `-- name: ListTopProxyAgentsSince :many
 SELECT
     CAST(pre.agent_id AS INTEGER) AS id,
@@ -3770,7 +4485,7 @@ SELECT
     CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
     CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
     CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_events pre
+FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN agents a ON a.id = pre.agent_id
 WHERE pre.occurred_at >= ?
   AND pre.agent_id IS NOT NULL
@@ -3826,6 +4541,73 @@ func (q *Queries) ListTopProxyAgentsSince(ctx context.Context, occurredAt time.T
 	return items, nil
 }
 
+const listTopProxyBackendsRollupsSince = `-- name: ListTopProxyBackendsRollupsSince :many
+SELECT
+    r.backend_id AS id,
+    COALESCE(pb.name, CASE WHEN r.backend_id = 0 THEN 'unknown backend' ELSE 'backend #' || r.backend_id END) AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN public_backends pb ON pb.id = r.backend_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.backend_id, pb.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyBackendsRollupsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyBackendsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyBackendsRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyBackendsRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyBackendsRollupsSinceRow
+	for rows.Next() {
+		var i ListTopProxyBackendsRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopProxyBackendsSince = `-- name: ListTopProxyBackendsSince :many
 SELECT
     CAST(COALESCE(pre.backend_id, 0) AS INTEGER) AS id,
@@ -3838,7 +4620,7 @@ SELECT
     CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
     CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
     CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_events pre
+FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_backends pb ON pb.id = pre.backend_id
 WHERE pre.occurred_at >= ?
 GROUP BY pre.backend_id, pb.name
@@ -3893,6 +4675,73 @@ func (q *Queries) ListTopProxyBackendsSince(ctx context.Context, occurredAt time
 	return items, nil
 }
 
+const listTopProxyErrorKindsRollupsSince = `-- name: ListTopProxyErrorKindsRollupsSince :many
+SELECT
+    CAST(0 AS INTEGER) AS id,
+    r.error_kind AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+WHERE r.bucket_unix_millis >= ?
+  AND r.error_kind != ''
+GROUP BY r.error_kind
+ORDER BY requests DESC, label ASC
+LIMIT 5
+`
+
+type ListTopProxyErrorKindsRollupsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyErrorKindsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyErrorKindsRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyErrorKindsRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyErrorKindsRollupsSinceRow
+	for rows.Next() {
+		var i ListTopProxyErrorKindsRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopProxyErrorKindsSince = `-- name: ListTopProxyErrorKindsSince :many
 SELECT
     CAST(0 AS INTEGER) AS id,
@@ -3905,7 +4754,7 @@ SELECT
     CAST(COALESCE(AVG(duration_ms), 0) AS INTEGER) AS avg_duration_ms,
     CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
     CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_events
+FROM proxy_request_events INDEXED BY idx_proxy_request_events_occurred_at
 WHERE occurred_at >= ?
   AND error_kind != ''
 GROUP BY error_kind
@@ -3960,6 +4809,73 @@ func (q *Queries) ListTopProxyErrorKindsSince(ctx context.Context, occurredAt ti
 	return items, nil
 }
 
+const listTopProxyListenersRollupsSince = `-- name: ListTopProxyListenersRollupsSince :many
+SELECT
+    r.listener_id AS id,
+    COALESCE(pl.name, CASE WHEN r.listener_id = 0 THEN 'unknown listener' ELSE 'listener #' || r.listener_id END) AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN public_listeners pl ON pl.id = r.listener_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.listener_id, pl.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyListenersRollupsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyListenersRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyListenersRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyListenersRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyListenersRollupsSinceRow
+	for rows.Next() {
+		var i ListTopProxyListenersRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopProxyListenersSince = `-- name: ListTopProxyListenersSince :many
 SELECT
     CAST(COALESCE(pre.listener_id, 0) AS INTEGER) AS id,
@@ -3972,7 +4888,7 @@ SELECT
     CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
     CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
     CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_events pre
+FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
 WHERE pre.occurred_at >= ?
 GROUP BY pre.listener_id, pl.name
@@ -4027,6 +4943,80 @@ func (q *Queries) ListTopProxyListenersSince(ctx context.Context, occurredAt tim
 	return items, nil
 }
 
+const listTopProxyRoutesRollupsSince = `-- name: ListTopProxyRoutesRollupsSince :many
+SELECT
+    r.route_id AS id,
+    CASE
+        WHEN r.route_id = 0 THEN 'Default route'
+        WHEN pr.id IS NULL THEN 'route #' || r.route_id
+        WHEN pr.host_pattern != '' AND pr.path_prefix != '' THEN pr.host_pattern || ' ' || pr.path_prefix
+        WHEN pr.host_pattern != '' THEN pr.host_pattern
+        WHEN pr.path_prefix != '' THEN pr.path_prefix
+        ELSE 'route #' || pr.id
+    END AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN public_routes pr ON pr.id = r.route_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.route_id, pr.id, pr.host_pattern, pr.path_prefix
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyRoutesRollupsSinceRow struct {
+	ID            int64       `json:"id"`
+	Label         interface{} `json:"label"`
+	Requests      int64       `json:"requests"`
+	Success       int64       `json:"success"`
+	ClientError   int64       `json:"client_error"`
+	ServerError   int64       `json:"server_error"`
+	InternalError int64       `json:"internal_error"`
+	AvgDurationMs int64       `json:"avg_duration_ms"`
+	RequestBytes  int64       `json:"request_bytes"`
+	ResponseBytes int64       `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyRoutesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRoutesRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyRoutesRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyRoutesRollupsSinceRow
+	for rows.Next() {
+		var i ListTopProxyRoutesRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopProxyRoutesSince = `-- name: ListTopProxyRoutesSince :many
 SELECT
     CAST(COALESCE(pre.route_id, 0) AS INTEGER) AS id,
@@ -4046,7 +5036,7 @@ SELECT
     CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
     CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
     CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_events pre
+FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_routes pr ON pr.id = pre.route_id
 WHERE pre.occurred_at >= ?
 GROUP BY pre.route_id, pr.id, pr.host_pattern, pr.path_prefix
@@ -4122,6 +5112,30 @@ WHERE id = ?
 
 func (q *Queries) MarkAgentDisconnected(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, markAgentDisconnected, id)
+	return err
+}
+
+const markAgentRollupBackfilledThrough = `-- name: MarkAgentRollupBackfilledThrough :exec
+UPDATE observability_rollup_state
+SET agent_backfilled_through_id = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+`
+
+func (q *Queries) MarkAgentRollupBackfilledThrough(ctx context.Context, agentBackfilledThroughID int64) error {
+	_, err := q.db.ExecContext(ctx, markAgentRollupBackfilledThrough, agentBackfilledThroughID)
+	return err
+}
+
+const markProxyRollupBackfilledThrough = `-- name: MarkProxyRollupBackfilledThrough :exec
+UPDATE observability_rollup_state
+SET proxy_backfilled_through_id = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+`
+
+func (q *Queries) MarkProxyRollupBackfilledThrough(ctx context.Context, proxyBackfilledThroughID int64) error {
+	_, err := q.db.ExecContext(ctx, markProxyRollupBackfilledThrough, proxyBackfilledThroughID)
 	return err
 }
 
@@ -5684,6 +6698,68 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 	return i, err
 }
 
+const upsertAgentStatRollupMinute = `-- name: UpsertAgentStatRollupMinute :exec
+INSERT INTO agent_stat_rollup_minutes (
+    bucket_unix_millis, samples, req_success, req_client_error, req_server_error, req_internal_error,
+    bytes_rx, bytes_tx, memory_mb_sum, max_memory_mb, goroutines_sum, max_goroutines,
+    cpu_percent_sum, max_cpu_percent
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(bucket_unix_millis) DO UPDATE SET
+    samples = agent_stat_rollup_minutes.samples + excluded.samples,
+    req_success = agent_stat_rollup_minutes.req_success + excluded.req_success,
+    req_client_error = agent_stat_rollup_minutes.req_client_error + excluded.req_client_error,
+    req_server_error = agent_stat_rollup_minutes.req_server_error + excluded.req_server_error,
+    req_internal_error = agent_stat_rollup_minutes.req_internal_error + excluded.req_internal_error,
+    bytes_rx = agent_stat_rollup_minutes.bytes_rx + excluded.bytes_rx,
+    bytes_tx = agent_stat_rollup_minutes.bytes_tx + excluded.bytes_tx,
+    memory_mb_sum = agent_stat_rollup_minutes.memory_mb_sum + excluded.memory_mb_sum,
+    max_memory_mb = MAX(agent_stat_rollup_minutes.max_memory_mb, excluded.max_memory_mb),
+    goroutines_sum = agent_stat_rollup_minutes.goroutines_sum + excluded.goroutines_sum,
+    max_goroutines = MAX(agent_stat_rollup_minutes.max_goroutines, excluded.max_goroutines),
+    cpu_percent_sum = agent_stat_rollup_minutes.cpu_percent_sum + excluded.cpu_percent_sum,
+    max_cpu_percent = MAX(agent_stat_rollup_minutes.max_cpu_percent, excluded.max_cpu_percent),
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertAgentStatRollupMinuteParams struct {
+	BucketUnixMillis int64   `json:"bucket_unix_millis"`
+	Samples          int64   `json:"samples"`
+	ReqSuccess       int64   `json:"req_success"`
+	ReqClientError   int64   `json:"req_client_error"`
+	ReqServerError   int64   `json:"req_server_error"`
+	ReqInternalError int64   `json:"req_internal_error"`
+	BytesRx          int64   `json:"bytes_rx"`
+	BytesTx          int64   `json:"bytes_tx"`
+	MemoryMbSum      int64   `json:"memory_mb_sum"`
+	MaxMemoryMb      int64   `json:"max_memory_mb"`
+	GoroutinesSum    int64   `json:"goroutines_sum"`
+	MaxGoroutines    int64   `json:"max_goroutines"`
+	CpuPercentSum    float64 `json:"cpu_percent_sum"`
+	MaxCpuPercent    float64 `json:"max_cpu_percent"`
+}
+
+func (q *Queries) UpsertAgentStatRollupMinute(ctx context.Context, arg UpsertAgentStatRollupMinuteParams) error {
+	_, err := q.db.ExecContext(ctx, upsertAgentStatRollupMinute,
+		arg.BucketUnixMillis,
+		arg.Samples,
+		arg.ReqSuccess,
+		arg.ReqClientError,
+		arg.ReqServerError,
+		arg.ReqInternalError,
+		arg.BytesRx,
+		arg.BytesTx,
+		arg.MemoryMbSum,
+		arg.MaxMemoryMb,
+		arg.GoroutinesSum,
+		arg.MaxGoroutines,
+		arg.CpuPercentSum,
+		arg.MaxCpuPercent,
+	)
+	return err
+}
+
 const upsertBootstrapAgent = `-- name: UpsertBootstrapAgent :one
 INSERT INTO agents (public_id, name, token_hash, enabled)
 VALUES (?, ?, ?, 1)
@@ -5716,6 +6792,140 @@ func (q *Queries) UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapA
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const upsertProxyRequestRollupMinute = `-- name: UpsertProxyRequestRollupMinute :exec
+INSERT INTO proxy_request_rollup_minutes (
+    bucket_unix_millis, requests, success, client_error, server_error, internal_error,
+    duration_ms_sum, max_duration_ms, slow_requests, request_bytes, response_bytes,
+    cache_hits, cache_misses, cache_bypasses, cache_stored, cache_store_failed,
+    cache_hit_bytes, cache_stored_bytes
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(bucket_unix_millis) DO UPDATE SET
+    requests = proxy_request_rollup_minutes.requests + excluded.requests,
+    success = proxy_request_rollup_minutes.success + excluded.success,
+    client_error = proxy_request_rollup_minutes.client_error + excluded.client_error,
+    server_error = proxy_request_rollup_minutes.server_error + excluded.server_error,
+    internal_error = proxy_request_rollup_minutes.internal_error + excluded.internal_error,
+    duration_ms_sum = proxy_request_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    max_duration_ms = MAX(proxy_request_rollup_minutes.max_duration_ms, excluded.max_duration_ms),
+    slow_requests = proxy_request_rollup_minutes.slow_requests + excluded.slow_requests,
+    request_bytes = proxy_request_rollup_minutes.request_bytes + excluded.request_bytes,
+    response_bytes = proxy_request_rollup_minutes.response_bytes + excluded.response_bytes,
+    cache_hits = proxy_request_rollup_minutes.cache_hits + excluded.cache_hits,
+    cache_misses = proxy_request_rollup_minutes.cache_misses + excluded.cache_misses,
+    cache_bypasses = proxy_request_rollup_minutes.cache_bypasses + excluded.cache_bypasses,
+    cache_stored = proxy_request_rollup_minutes.cache_stored + excluded.cache_stored,
+    cache_store_failed = proxy_request_rollup_minutes.cache_store_failed + excluded.cache_store_failed,
+    cache_hit_bytes = proxy_request_rollup_minutes.cache_hit_bytes + excluded.cache_hit_bytes,
+    cache_stored_bytes = proxy_request_rollup_minutes.cache_stored_bytes + excluded.cache_stored_bytes,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertProxyRequestRollupMinuteParams struct {
+	BucketUnixMillis int64 `json:"bucket_unix_millis"`
+	Requests         int64 `json:"requests"`
+	Success          int64 `json:"success"`
+	ClientError      int64 `json:"client_error"`
+	ServerError      int64 `json:"server_error"`
+	InternalError    int64 `json:"internal_error"`
+	DurationMsSum    int64 `json:"duration_ms_sum"`
+	MaxDurationMs    int64 `json:"max_duration_ms"`
+	SlowRequests     int64 `json:"slow_requests"`
+	RequestBytes     int64 `json:"request_bytes"`
+	ResponseBytes    int64 `json:"response_bytes"`
+	CacheHits        int64 `json:"cache_hits"`
+	CacheMisses      int64 `json:"cache_misses"`
+	CacheBypasses    int64 `json:"cache_bypasses"`
+	CacheStored      int64 `json:"cache_stored"`
+	CacheStoreFailed int64 `json:"cache_store_failed"`
+	CacheHitBytes    int64 `json:"cache_hit_bytes"`
+	CacheStoredBytes int64 `json:"cache_stored_bytes"`
+}
+
+func (q *Queries) UpsertProxyRequestRollupMinute(ctx context.Context, arg UpsertProxyRequestRollupMinuteParams) error {
+	_, err := q.db.ExecContext(ctx, upsertProxyRequestRollupMinute,
+		arg.BucketUnixMillis,
+		arg.Requests,
+		arg.Success,
+		arg.ClientError,
+		arg.ServerError,
+		arg.InternalError,
+		arg.DurationMsSum,
+		arg.MaxDurationMs,
+		arg.SlowRequests,
+		arg.RequestBytes,
+		arg.ResponseBytes,
+		arg.CacheHits,
+		arg.CacheMisses,
+		arg.CacheBypasses,
+		arg.CacheStored,
+		arg.CacheStoreFailed,
+		arg.CacheHitBytes,
+		arg.CacheStoredBytes,
+	)
+	return err
+}
+
+const upsertProxyRequestTupleRollupMinute = `-- name: UpsertProxyRequestTupleRollupMinute :exec
+INSERT INTO proxy_request_tuple_rollup_minutes (
+    bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class,
+    requests, success, client_error, server_error, internal_error, duration_ms_sum,
+    request_bytes, response_bytes
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+    requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
+    success = proxy_request_tuple_rollup_minutes.success + excluded.success,
+    client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
+    server_error = proxy_request_tuple_rollup_minutes.server_error + excluded.server_error,
+    internal_error = proxy_request_tuple_rollup_minutes.internal_error + excluded.internal_error,
+    duration_ms_sum = proxy_request_tuple_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    request_bytes = proxy_request_tuple_rollup_minutes.request_bytes + excluded.request_bytes,
+    response_bytes = proxy_request_tuple_rollup_minutes.response_bytes + excluded.response_bytes,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertProxyRequestTupleRollupMinuteParams struct {
+	BucketUnixMillis int64  `json:"bucket_unix_millis"`
+	ListenerID       int64  `json:"listener_id"`
+	BackendID        int64  `json:"backend_id"`
+	RouteID          int64  `json:"route_id"`
+	AgentID          int64  `json:"agent_id"`
+	ErrorKind        string `json:"error_kind"`
+	StatusClass      int64  `json:"status_class"`
+	Requests         int64  `json:"requests"`
+	Success          int64  `json:"success"`
+	ClientError      int64  `json:"client_error"`
+	ServerError      int64  `json:"server_error"`
+	InternalError    int64  `json:"internal_error"`
+	DurationMsSum    int64  `json:"duration_ms_sum"`
+	RequestBytes     int64  `json:"request_bytes"`
+	ResponseBytes    int64  `json:"response_bytes"`
+}
+
+func (q *Queries) UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg UpsertProxyRequestTupleRollupMinuteParams) error {
+	_, err := q.db.ExecContext(ctx, upsertProxyRequestTupleRollupMinute,
+		arg.BucketUnixMillis,
+		arg.ListenerID,
+		arg.BackendID,
+		arg.RouteID,
+		arg.AgentID,
+		arg.ErrorKind,
+		arg.StatusClass,
+		arg.Requests,
+		arg.Success,
+		arg.ClientError,
+		arg.ServerError,
+		arg.InternalError,
+		arg.DurationMsSum,
+		arg.RequestBytes,
+		arg.ResponseBytes,
+	)
+	return err
 }
 
 const upsertPublicCacheEntry = `-- name: UpsertPublicCacheEntry :one
