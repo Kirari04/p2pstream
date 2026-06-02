@@ -47,6 +47,7 @@ func TestE2E_GetDashboardSummaries(t *testing.T) {
 	insertProxyEventWithIDsAt(t, database, now.Add(-30*time.Minute), http.StatusNotFound, 200, "", validInt64(1), validInt64(1), sql.NullInt64{}, sql.NullInt64{}, 20, 200)
 	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Hour), http.StatusBadGateway, 1300, "", validInt64(2), validInt64(2), sql.NullInt64{}, sql.NullInt64{}, 30, 300)
 	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusGatewayTimeout, 1400, "agent_timeout", validInt64(2), validInt64(2), sql.NullInt64{}, sql.NullInt64{}, 40, 400)
+	forceDashboardRawFallback(t, database)
 
 	req := connect.NewRequest(&p2pstreamv1.GetDashboardRequest{})
 	req.Header().Set("Cookie", cookie)
@@ -230,8 +231,6 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 func TestObservabilityRetentionCleanup(t *testing.T) {
 	database := newTestDB(t)
 	app := server.NewApp(testManagementConfig(config.Config{ObservabilityRetentionDays: 30}), database)
-	_, client := newTestManagementClient(t, app)
-	cookie := createAdminSession(t, client)
 
 	now := time.Now().UTC()
 	insertProxyEventAt(t, database, now.AddDate(0, 0, -31), http.StatusOK, 100, "")
@@ -256,13 +255,15 @@ func TestObservabilityRetentionCleanup(t *testing.T) {
 		t.Fatalf("insert active old connection: %v", err)
 	}
 
-	req := connect.NewRequest(&p2pstreamv1.GetDashboardRequest{})
-	req.Header().Set("Cookie", cookie)
-	if _, err := client.GetDashboard(context.Background(), req); err != nil {
-		t.Fatalf("get dashboard: %v", err)
-	}
+	maintCtx, cancelMaintenance := context.WithCancel(context.Background())
+	defer cancelMaintenance()
+	app.StartObservabilityMaintenance(maintCtx)
 
 	cutoff := time.Now().UTC().AddDate(0, 0, -30)
+	waitForCount(t, database, `SELECT COUNT(*) FROM proxy_request_events WHERE occurred_at < ?`, 0, cutoff)
+	waitForCount(t, database, `SELECT COUNT(*) FROM agent_stats WHERE reported_at < ?`, 0, cutoff)
+	waitForCount(t, database, `SELECT COUNT(*) FROM connections WHERE disconnected_at IS NOT NULL AND disconnected_at < ?`, 0, cutoff)
+
 	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_events WHERE occurred_at < ?`, cutoff) != 0 {
 		t.Fatal("expected old proxy events to be cleaned up")
 	}
@@ -467,6 +468,36 @@ func countRows(t *testing.T, database *db.DB, query string, args ...any) int64 {
 		t.Fatalf("count rows: %v", err)
 	}
 	return count
+}
+
+func forceDashboardRawFallback(t *testing.T, database *db.DB) {
+	t.Helper()
+	if _, err := database.ExecContext(context.Background(), `
+		UPDATE observability_rollup_state
+		SET proxy_backfill_upper_id = CAST(COALESCE((SELECT MAX(id) FROM proxy_request_events), 0) AS INTEGER),
+		    proxy_backfilled_through_id = 0,
+		    agent_backfill_upper_id = CAST(COALESCE((SELECT MAX(id) FROM agent_stats), 0) AS INTEGER),
+		    agent_backfilled_through_id = 0,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = 1
+	`); err != nil {
+		t.Fatalf("force dashboard raw fallback: %v", err)
+	}
+}
+
+func waitForCount(t *testing.T, database *db.DB, query string, want int64, args ...any) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		got := countRows(t, database, query, args...)
+		if got == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("count for %q = %d, want %d", query, got, want)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 func equalStringSlices(a []string, b []string) bool {
