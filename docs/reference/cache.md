@@ -24,6 +24,7 @@ Cache rules run after route/backend selection and before forwarding a cache miss
 | `max_object_bytes` | `104857600` | Maximum stored response size. |
 | `add_cache_status_header` | false unless enabled | Adds `X-p2pstream-Cache`. |
 | `allow_cookie_requests` | `false` | Allows matching requests with `Cookie` headers to use cache; cookie values are ignored and never stored. |
+| `allow_cookie_requests_acknowledged` | `false` | Required when creating or updating a rule that enables `allow_cookie_requests`. |
 
 Storage defaults:
 
@@ -40,9 +41,9 @@ Storage defaults:
 
 p2pstream always bypasses cache for requests with `Authorization`, non-GET/HEAD methods, request bodies, `Range`, and upgrades.
 
-Requests with `Cookie` bypass by default unless the matching rule enables `allow_cookie_requests`. Use that only for precise public static asset rules.
+Requests with `Cookie` bypass by default unless the matching rule enables `allow_cookie_requests`. New or updated rules must also acknowledge that Cookie is not part of the cache key. Use that only for precise public static asset rules.
 
-p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
+p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, including parameterized directives such as `private="Set-Cookie"`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
 
 Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
 

@@ -1303,15 +1303,23 @@ func normalizeRequestHost(host string) string {
 	host = strings.TrimSpace(strings.ToLower(host))
 	if strings.HasPrefix(host, "[") {
 		if h, _, err := net.SplitHostPort(host); err == nil {
-			return strings.Trim(h, "[]")
+			return normalizeBareRequestHost(h)
 		}
-		return strings.Trim(host, "[]")
+		return normalizeBareRequestHost(strings.Trim(host, "[]"))
 	}
 	if h, _, err := net.SplitHostPort(host); err == nil {
-		return h
+		return normalizeBareRequestHost(h)
 	}
 	if idx := strings.LastIndex(host, ":"); idx > -1 && strings.Count(host, ":") == 1 {
-		return host[:idx]
+		return normalizeBareRequestHost(host[:idx])
+	}
+	return normalizeBareRequestHost(host)
+}
+
+func normalizeBareRequestHost(host string) string {
+	host = strings.TrimSpace(strings.ToLower(strings.Trim(host, "[]")))
+	if strings.Contains(host, ":") {
+		return host
 	}
 	return strings.TrimSuffix(host, ".")
 }

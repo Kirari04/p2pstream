@@ -8,14 +8,16 @@ import (
 )
 
 const (
-	loginThrottleMaxFailures = 5
-	loginThrottleWindow      = 15 * time.Minute
-	loginThrottleBlock       = 5 * time.Minute
+	loginThrottleMaxFailures    = 5
+	loginThrottleWindow         = 15 * time.Minute
+	loginThrottleBlock          = 5 * time.Minute
+	defaultLoginThrottleMaxKeys = 50000
 )
 
 type loginThrottle struct {
-	mu      sync.Mutex
-	entries map[string]*loginThrottleEntry
+	mu         sync.Mutex
+	entries    map[string]*loginThrottleEntry
+	maxEntries int
 }
 
 type loginThrottleEntry struct {
@@ -24,8 +26,11 @@ type loginThrottleEntry struct {
 	blockedUntil time.Time
 }
 
-func newLoginThrottle() *loginThrottle {
-	return &loginThrottle{entries: make(map[string]*loginThrottleEntry)}
+func newLoginThrottle(maxEntries int) *loginThrottle {
+	if maxEntries <= 0 {
+		maxEntries = defaultLoginThrottleMaxKeys
+	}
+	return &loginThrottle{entries: make(map[string]*loginThrottleEntry), maxEntries: maxEntries}
 }
 
 func (t *loginThrottle) retryAfter(key string, now time.Time) time.Duration {
@@ -55,12 +60,42 @@ func (t *loginThrottle) recordFailure(key string, now time.Time) {
 	defer t.mu.Unlock()
 	entry := t.entries[key]
 	if entry == nil || now.Sub(entry.windowStart) > loginThrottleWindow {
+		t.pruneLocked(now)
+		if len(t.entries) >= t.maxEntries {
+			t.evictOldestLocked()
+		}
 		entry = &loginThrottleEntry{windowStart: now}
 		t.entries[key] = entry
 	}
 	entry.failures++
 	if entry.failures >= loginThrottleMaxFailures {
 		entry.blockedUntil = now.Add(loginThrottleBlock)
+	}
+}
+
+func (t *loginThrottle) pruneLocked(now time.Time) {
+	for key, entry := range t.entries {
+		if entry == nil || now.Sub(entry.windowStart) > loginThrottleWindow {
+			delete(t.entries, key)
+		}
+	}
+}
+
+func (t *loginThrottle) evictOldestLocked() {
+	var oldestKey string
+	var oldestStart time.Time
+	for key, entry := range t.entries {
+		if entry == nil {
+			delete(t.entries, key)
+			return
+		}
+		if oldestKey == "" || entry.windowStart.Before(oldestStart) {
+			oldestKey = key
+			oldestStart = entry.windowStart
+		}
+	}
+	if oldestKey != "" {
+		delete(t.entries, oldestKey)
 	}
 }
 

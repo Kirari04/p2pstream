@@ -157,8 +157,9 @@ func setupAndLogin(ctx context.Context, t *testing.T, client p2pstreamv1connect.
 			t.Fatalf("setup is unavailable: %s", setupResp.Msg.GetSetupUnavailableReason())
 		}
 		if _, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-			Username: smokeAdminUsername,
-			Password: smokeAdminPassword,
+			Username:   smokeAdminUsername,
+			Password:   smokeAdminPassword,
+			SetupToken: envOrDefault("MANAGEMENT_SETUP_TOKEN", ""),
 		})); err != nil && connect.CodeOf(err) != connect.CodeFailedPrecondition {
 			t.Fatalf("setup admin: %v", err)
 		}

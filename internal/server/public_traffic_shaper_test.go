@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -268,6 +269,30 @@ func TestPublicTrafficShaperPrunesIdlePerKeyBuckets(t *testing.T) {
 	runtime = shaper.rules[rule.ID]
 	if runtime == nil || len(runtime.downloadBuckets) != 1 {
 		t.Fatalf("expected old bucket pruned and new bucket created, got %+v", runtime)
+	}
+}
+
+func TestPublicTrafficShaperCapsPerKeyBuckets(t *testing.T) {
+	shaper := newPublicTrafficShaper()
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	rule := testTrafficShaperRule(1, "per-key", 100, publicTrafficShaperBudgetScopePerKey, 0, 1024)
+	rule.KeyParts = []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceHeader, Name: "X-User"}}
+	rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
+	now := time.Unix(1, 0)
+
+	for i := 0; i < maxTrafficShaperBucketsPerRule+1; i++ {
+		req := testRateLimitRequest("GET", "http://example.com/download", "198.51.100.10:1234")
+		req.Header.Set("X-User", strconv.Itoa(i))
+		if _, ok := shaper.evaluate([]publicTrafficShaperRuleConfig{rule}, listener, req, now.Add(time.Duration(i)*time.Millisecond)); !ok {
+			t.Fatalf("request %d did not select shaper", i)
+		}
+	}
+
+	shaper.mu.Lock()
+	defer shaper.mu.Unlock()
+	runtime := shaper.rules[rule.ID]
+	if got := len(runtime.downloadBuckets); got != maxTrafficShaperBucketsPerRule {
+		t.Fatalf("download buckets = %d, want capped at %d", got, maxTrafficShaperBucketsPerRule)
 	}
 }
 

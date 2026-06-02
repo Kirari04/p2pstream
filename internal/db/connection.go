@@ -73,6 +73,10 @@ func Open(databaseURL string) (*DB, error) {
 	`); err != nil {
 		log.Warn().Err(err).Msg("Failed to enforce some SQLite pragmas")
 	}
+	if err := hardenSQLiteFiles(dsn); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
 	log.Info().Msg("Database connected and configured successfully")
 	return instance, nil
@@ -112,20 +116,56 @@ func applySQLitePragmas(values url.Values) {
 }
 
 func ensureSQLiteDir(dsn string) error {
-	if !strings.HasPrefix(dsn, "file:") {
+	path, ok := sqliteFilePathFromDSN(dsn)
+	if !ok {
 		return nil
 	}
-	prefix, _, _ := strings.Cut(dsn, "?")
-	path := strings.TrimPrefix(prefix, "file:")
-	if path == "" || path == ":memory:" || strings.HasPrefix(path, ":memory:") {
-		return nil
-	}
-	path = filepath.Clean(path)
 	dir := filepath.Dir(path)
 	if dir == "." || dir == "" {
 		return nil
 	}
-	return os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	return os.Chmod(dir, 0700)
+}
+
+func hardenSQLiteFiles(dsn string) error {
+	path, ok := sqliteFilePathFromDSN(dsn)
+	if !ok {
+		return nil
+	}
+	for _, candidate := range []string{path, path + "-wal", path + "-shm"} {
+		if _, err := os.Stat(candidate); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("failed to stat sqlite file %q: %w", candidate, err)
+		}
+		if err := os.Chmod(candidate, 0600); err != nil {
+			return fmt.Errorf("failed to secure sqlite file %q: %w", candidate, err)
+		}
+	}
+	return nil
+}
+
+func sqliteFilePathFromDSN(dsn string) (string, bool) {
+	if !strings.HasPrefix(dsn, "file:") {
+		return "", false
+	}
+	prefix, rawQuery, _ := strings.Cut(dsn, "?")
+	values, err := url.ParseQuery(rawQuery)
+	if err == nil && strings.EqualFold(values.Get("mode"), "memory") {
+		return "", false
+	}
+	path := strings.TrimPrefix(prefix, "file:")
+	if path == "" || path == ":memory:" || strings.HasPrefix(path, ":memory:") {
+		return "", false
+	}
+	if unescaped, err := url.PathUnescape(path); err == nil {
+		path = unescaped
+	}
+	return filepath.Clean(path), true
 }
 
 // migrate runs the initial schema setup.
@@ -553,6 +593,9 @@ func (db *DB) migrate() error {
 			return err
 		}
 	}
+	if err := db.migrateObservabilityRollups(); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_tls_dns_credentials (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -586,6 +629,9 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_connections_agent_id ON connections (agent_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_connections_disconnected_at ON connections (disconnected_at)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_dns_credential_id ON public_tls_certificates (dns_credential_id)`); err != nil {
@@ -935,6 +981,95 @@ func (db *DB) migrate() error {
 		return err
 	}
 	return nil
+}
+
+func (db *DB) migrateObservabilityRollups() error {
+	_, err := db.Exec(`
+	CREATE TABLE IF NOT EXISTS proxy_request_rollup_minutes (
+		bucket_unix_millis INTEGER PRIMARY KEY,
+		requests INTEGER NOT NULL DEFAULT 0,
+		success INTEGER NOT NULL DEFAULT 0,
+		client_error INTEGER NOT NULL DEFAULT 0,
+		server_error INTEGER NOT NULL DEFAULT 0,
+		internal_error INTEGER NOT NULL DEFAULT 0,
+		duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+		max_duration_ms INTEGER NOT NULL DEFAULT 0,
+		slow_requests INTEGER NOT NULL DEFAULT 0,
+		request_bytes INTEGER NOT NULL DEFAULT 0,
+		response_bytes INTEGER NOT NULL DEFAULT 0,
+		cache_hits INTEGER NOT NULL DEFAULT 0,
+		cache_misses INTEGER NOT NULL DEFAULT 0,
+		cache_bypasses INTEGER NOT NULL DEFAULT 0,
+		cache_stored INTEGER NOT NULL DEFAULT 0,
+		cache_store_failed INTEGER NOT NULL DEFAULT 0,
+		cache_hit_bytes INTEGER NOT NULL DEFAULT 0,
+		cache_stored_bytes INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
+		bucket_unix_millis INTEGER NOT NULL,
+		listener_id INTEGER NOT NULL DEFAULT 0,
+		backend_id INTEGER NOT NULL DEFAULT 0,
+		route_id INTEGER NOT NULL DEFAULT 0,
+		agent_id INTEGER NOT NULL DEFAULT 0,
+		error_kind TEXT NOT NULL DEFAULT '',
+		status_class INTEGER NOT NULL DEFAULT 0,
+		requests INTEGER NOT NULL DEFAULT 0,
+		success INTEGER NOT NULL DEFAULT 0,
+		client_error INTEGER NOT NULL DEFAULT 0,
+		server_error INTEGER NOT NULL DEFAULT 0,
+		internal_error INTEGER NOT NULL DEFAULT 0,
+		duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+		request_bytes INTEGER NOT NULL DEFAULT 0,
+		response_bytes INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class)
+	);
+
+	CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
+		bucket_unix_millis INTEGER PRIMARY KEY,
+		samples INTEGER NOT NULL DEFAULT 0,
+		req_success INTEGER NOT NULL DEFAULT 0,
+		req_client_error INTEGER NOT NULL DEFAULT 0,
+		req_server_error INTEGER NOT NULL DEFAULT 0,
+		req_internal_error INTEGER NOT NULL DEFAULT 0,
+		bytes_rx INTEGER NOT NULL DEFAULT 0,
+		bytes_tx INTEGER NOT NULL DEFAULT 0,
+		memory_mb_sum INTEGER NOT NULL DEFAULT 0,
+		max_memory_mb INTEGER NOT NULL DEFAULT 0,
+		goroutines_sum INTEGER NOT NULL DEFAULT 0,
+		max_goroutines INTEGER NOT NULL DEFAULT 0,
+		cpu_percent_sum REAL NOT NULL DEFAULT 0,
+		max_cpu_percent REAL NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS observability_rollup_state (
+		id INTEGER PRIMARY KEY CHECK (id = 1),
+		proxy_backfill_upper_id INTEGER NOT NULL DEFAULT 0,
+		proxy_backfilled_through_id INTEGER NOT NULL DEFAULT 0,
+		agent_backfill_upper_id INTEGER NOT NULL DEFAULT 0,
+		agent_backfilled_through_id INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	INSERT INTO observability_rollup_state (
+		id, proxy_backfill_upper_id, proxy_backfilled_through_id, agent_backfill_upper_id, agent_backfilled_through_id
+	)
+	SELECT
+		1,
+		CAST(COALESCE((SELECT MAX(id) FROM proxy_request_events), 0) AS INTEGER),
+		0,
+		CAST(COALESCE((SELECT MAX(id) FROM agent_stats), 0) AS INTEGER),
+		0
+	WHERE NOT EXISTS (SELECT 1 FROM observability_rollup_state WHERE id = 1);
+	`)
+	return err
 }
 
 type legacyPolicyMatchJSON struct {

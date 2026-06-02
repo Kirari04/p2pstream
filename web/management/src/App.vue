@@ -58,6 +58,7 @@ const sourceOfferTitle = computed(() => {
 });
 
 const setupForm = ref({ username: "admin", password: "" });
+const setupToken = ref("");
 const loginForm = ref({ username: "admin", password: "" });
 const refreshDisabledReason = computed(() => {
   if (isRefreshing.value) return "Dashboard refresh is already running.";
@@ -243,6 +244,7 @@ async function submitSetup() {
     await localManagementClient.setupAdmin({
       username: setupForm.value.username,
       password: setupForm.value.password,
+      setupToken: setupToken.value,
     });
     await login(setupForm.value.username, setupForm.value.password);
     setupState.value = await localManagementClient.getSetupState({});
@@ -352,7 +354,39 @@ function messageFromError(err: unknown): string {
   return err instanceof Error ? err.message : "Request failed";
 }
 
+function setupTokenFromURL(): string {
+  const routeToken = stringQueryValue(route.query.setup_token);
+  if (routeToken) {
+    scrubSetupTokenFromURL();
+    return routeToken;
+  }
+  try {
+    const token = new URLSearchParams(window.location.search).get("setup_token")?.trim() ?? "";
+    if (token) scrubSetupTokenFromURL();
+    return token;
+  } catch {
+    return "";
+  }
+}
+
+function scrubSetupTokenFromURL() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("setup_token")) return;
+    url.searchParams.delete("setup_token");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    // Ignore browsers or test environments without full history support.
+  }
+}
+
+function stringQueryValue(value: unknown): string {
+  if (Array.isArray(value)) return stringQueryValue(value[0]);
+  return typeof value === "string" ? value.trim() : "";
+}
+
 onMounted(() => {
+  setupToken.value = setupTokenFromURL();
   void bootstrap();
 });
 

@@ -834,6 +834,41 @@ func TestPublicWafWaitingRoomFIFOAdmission(t *testing.T) {
 	}
 }
 
+func TestPublicWafWaitingRoomCapsQueuedSessions(t *testing.T) {
+	previousCap := maxWafWaitingRoomQueuedSessions
+	maxWafWaitingRoomQueuedSessions = 2
+	t.Cleanup(func() { maxWafWaitingRoomQueuedSessions = previousCap })
+
+	waf := newPublicWAF()
+	rule := testWafRule(1, publicWafActionWaitingRoom)
+	rule.WaitingRoom.MaxAdmittedSessions = 1
+	rule.WaitingRoom.AdmissionRatePerSecond = 1
+	rule.WaitingRoom.AdmissionSessionTTLMillis = int64(time.Hour / time.Millisecond)
+	rule.WaitingRoom.QueuePollIntervalMillis = 2500
+	rule.WaitingRoom.QueueTimeoutMillis = 60000
+	rule.Fingerprint = publicWafRuleFingerprint(rule)
+	snap := testWafSnapshot(rule, nil)
+	waf.reconcile(snap)
+	now := time.Unix(100, 0)
+
+	if decision, allowed := waf.evaluate(snap, snap.Listeners[1], httptest.NewRequest(http.MethodGet, "http://example.com/", nil), now, nil); allowed || decision.StatusCode != http.StatusSeeOther {
+		t.Fatalf("first decision = %#v allowed=%v, want admission", decision, allowed)
+	}
+	for i := 0; i < 2; i++ {
+		decision, allowed := waf.evaluate(snap, snap.Listeners[1], httptest.NewRequest(http.MethodGet, "http://example.com/", nil), now.Add(time.Duration(i+1)*time.Second), nil)
+		if allowed || decision.StatusCode != http.StatusServiceUnavailable || len(decision.Cookies) == 0 {
+			t.Fatalf("queued decision %d = %#v allowed=%v, want queued cookie", i, decision, allowed)
+		}
+	}
+	fullDecision, fullAllowed := waf.evaluate(snap, snap.Listeners[1], httptest.NewRequest(http.MethodGet, "http://example.com/", nil), now.Add(3*time.Second), nil)
+	if fullAllowed || fullDecision.ErrorKind != "waf_waiting_room_queue_full" || len(fullDecision.Cookies) != 0 {
+		t.Fatalf("full decision = %#v allowed=%v, want queue_full without cookie", fullDecision, fullAllowed)
+	}
+	if fullDecision.RetryAfter != 2500*time.Millisecond {
+		t.Fatalf("full retry after = %v, want 2.5s", fullDecision.RetryAfter)
+	}
+}
+
 func TestPublicWafWaitingRoomCookiesFollowListenerProtocol(t *testing.T) {
 	tests := []struct {
 		name       string

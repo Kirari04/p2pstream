@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -38,14 +39,51 @@ func TestNormalizeSQLiteDSNForcesWALAndPrivateCache(t *testing.T) {
 	}
 }
 
+func TestOpenSecuresSQLiteDirectoryAndFiles(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "nested")
+	dbPath := filepath.Join(dir, "p2pstream.db")
+
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	assertDBMode(t, dir, 0700)
+	assertDBMode(t, dbPath, 0600)
+	for _, suffix := range []string{"-wal", "-shm"} {
+		path := dbPath + suffix
+		if _, err := os.Stat(path); err == nil {
+			assertDBMode(t, path, 0600)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+	}
+}
+
+func TestOpenChmodsExistingSQLiteDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "loose")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	database, err := Open(filepath.Join(dir, "p2pstream.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	assertDBMode(t, dir, 0700)
+}
+
 func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-test.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
-	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries"} {
+	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -74,6 +112,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		"idx_public_cache_entries_rule_id",
 		"idx_public_cache_entries_expires_at",
 		"idx_public_cache_entries_last_accessed_at",
+		"idx_connections_disconnected_at",
 	} {
 		if !indexExists(t, database, index) {
 			t.Fatalf("expected %s on fresh schema", index)
@@ -312,7 +351,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open migrated legacy db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
@@ -334,6 +373,9 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	if !indexExists(t, database, "idx_connections_agent_id") {
 		t.Fatal("expected idx_connections_agent_id after migration")
 	}
+	if !indexExists(t, database, "idx_connections_disconnected_at") {
+		t.Fatal("expected idx_connections_disconnected_at after migration")
+	}
 	if !indexExists(t, database, "idx_public_backend_upstream_headers_backend_position") {
 		t.Fatal("expected idx_public_backend_upstream_headers_backend_position after migration")
 	}
@@ -354,7 +396,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 			t.Fatalf("expected %s after migration", index)
 		}
 	}
-	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries"} {
+	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected migrated table %s: %v", table, err)
@@ -393,7 +435,7 @@ func TestMigrationUpgradesLegacyTLSCertificateSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open migrated legacy db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	tlsColumns := tableColumns(t, database, "public_tls_certificates")
 	for _, column := range []string{"source", "acme_challenge_type", "acme_ca", "acme_email", "dns_credential_id", "status", "last_error", "issued_at", "expires_at", "next_renewal_at", "last_renewal_attempt_at"} {
@@ -468,7 +510,7 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open migrated legacy db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	routes, err := database.ListPublicRoutes(context.Background())
 	if err != nil {
@@ -527,7 +569,7 @@ func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	backend, err := database.CreatePublicBackend(context.Background(), CreatePublicBackendParams{
 		Name:         "upstream-headers",
@@ -659,12 +701,23 @@ func indexExists(t *testing.T, database *DB, name string) bool {
 	return got == name
 }
 
+func assertDBMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Fatalf("%s mode = %o, want %o", path, got, want)
+	}
+}
+
 func TestOpenConfiguresWALJournalMode(t *testing.T) {
 	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-test.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	var journalMode string
 	if err := database.QueryRowContext(context.Background(), `PRAGMA journal_mode`).Scan(&journalMode); err != nil {

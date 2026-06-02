@@ -11,6 +11,7 @@ Use this on a new installation, after restoring an empty database, or when you n
 - The server is running.
 - No management users exist yet for first setup.
 - You can reach the management URL, usually `https://your-server:8081`.
+- You have the setup token from `MANAGEMENT_SETUP_TOKEN` or from the server startup log.
 
 ## Steps
 
@@ -23,10 +24,11 @@ docker compose restart p2pstream
 :::
 
 1. Open the management URL in a browser.
-2. On **Setup Admin**, create the primary administrator account.
-3. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
-4. Use a password with at least 12 characters.
-5. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, backends, and routes.
+2. Include the setup token in the URL, for example `https://your-server:8081/?setup_token=<token>`.
+3. On **Setup Admin**, create the primary administrator account.
+4. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
+5. Use a password with at least 12 characters.
+6. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, backends, and routes.
 
 ## Runtime Rules
 
@@ -34,6 +36,7 @@ docker compose restart p2pstream
 | --- | --- |
 | Usernames | Normalized to lowercase and limited to lowercase letters, numbers, underscores, and hyphens. |
 | Passwords | Minimum length is 12 characters. |
+| Setup token | Required only before the first admin exists. If `MANAGEMENT_SETUP_TOKEN` is unset, a generated token is printed once at startup. |
 | Sessions | Stored in SQLite and expire after 7 days. |
 | Cookie security | Session cookie is HTTP-only, SameSite Lax, and Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`. |
 
@@ -51,6 +54,7 @@ After login, the **Overview** dashboard should load with live proxy status, requ
 | Symptom | Fix |
 | --- | --- |
 | Setup window expired and no users exist | Restart the server and create the first admin within 5 minutes. |
+| Setup says token is required | Use the URL from the server log, or set `MANAGEMENT_SETUP_TOKEN` and restart before first setup. |
 | Forgot an existing password | Reset the user against the same SQLite database. |
 | Reset command uses the wrong database | Run it in the container or pass the same `CONFIG_DIR` or `--database-url` used by the server. |
 

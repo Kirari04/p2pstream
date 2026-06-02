@@ -70,6 +70,8 @@ const (
 	publicWafChallengeTimeoutSeconds = 3
 )
 
+var maxWafWaitingRoomQueuedSessions = 100000
+
 type publicWafCaptchaProviderConfig struct {
 	ID           int64
 	Name         string
