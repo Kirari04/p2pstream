@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -50,6 +51,13 @@ var (
 )
 
 const upstreamResponseHeaderTimeout = 30 * time.Second
+
+var (
+	agentWebSocketPingInterval = 20 * time.Second
+	agentWebSocketPingTimeout  = 10 * time.Second
+	agentReconnectBackoffMin   = time.Second
+	agentReconnectBackoffMax   = 30 * time.Second
+)
 
 type forwardClientKey struct {
 	tlsSkipVerify bool
@@ -90,16 +98,47 @@ func Run(opts Options) error {
 
 	go startStatsReporter(managementClient, opts.ManagementURL, opts.PublicID, opts.Token)
 
+	backoff := agentReconnectBackoffMin
 	for {
 		log.Info().Str("ws_url", wsURL).Msg("Attempting to connect to management server...")
 
+		connectedAt := time.Now()
 		err := connectAndServe(managementClient, wsURL, opts.PublicID, opts.Name, opts.Token)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
+		if time.Since(connectedAt) >= agentWebSocketPingInterval {
+			backoff = agentReconnectBackoffMin
+		}
 
-		time.Sleep(2 * time.Second)
+		sleep := jitterAgentReconnectBackoff(backoff)
+		log.Info().Dur("retry_in", sleep).Msg("Waiting before reconnect")
+		time.Sleep(sleep)
+		backoff = nextAgentReconnectBackoff(backoff)
 	}
+}
+
+func nextAgentReconnectBackoff(current time.Duration) time.Duration {
+	if current <= 0 {
+		return agentReconnectBackoffMin
+	}
+	next := current * 2
+	if next > agentReconnectBackoffMax {
+		return agentReconnectBackoffMax
+	}
+	return next
+}
+
+func jitterAgentReconnectBackoff(base time.Duration) time.Duration {
+	if base <= 0 {
+		return 0
+	}
+	jitter := int64(float64(base) * 0.2)
+	if jitter <= 0 {
+		return base
+	}
+	delta := rand.Int63n(jitter*2+1) - jitter
+	return base + time.Duration(delta)
 }
 
 func validateOptions(opts Options) error {
@@ -241,6 +280,8 @@ func connectAndServe(client *http.Client, wsURL string, agentPublicID string, ag
 	}
 	defer conn.closeIncomingRequests()
 
+	startAgentWebSocketHeartbeat(ctx, cancel, c)
+
 	go func() {
 		defer cancel()
 		for {
@@ -309,6 +350,33 @@ func connectAndServe(client *http.Client, wsURL string, agentPublicID string, ag
 			}
 		}
 	}
+}
+
+func startAgentWebSocketHeartbeat(ctx context.Context, cancel context.CancelFunc, c *websocket.Conn) {
+	if c == nil || cancel == nil || agentWebSocketPingInterval <= 0 || agentWebSocketPingTimeout <= 0 {
+		return
+	}
+	go func() {
+		ticker := time.NewTicker(agentWebSocketPingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pingCtx, pingCancel := context.WithTimeout(ctx, agentWebSocketPingTimeout)
+				err := c.Ping(pingCtx)
+				pingCancel()
+				if err == nil {
+					continue
+				}
+				log.Warn().Err(err).Msg("Management websocket heartbeat failed")
+				cancel()
+				_ = c.CloseNow()
+				return
+			}
+		}
+	}()
 }
 
 func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request) {

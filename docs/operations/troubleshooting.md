@@ -114,6 +114,8 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
 | Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. |
 
+Client cancellations reported as `context canceled` do not create passive health cooldowns. Real upstream timeouts, agent disconnects, and transport failures can still create cooldowns when backend health checks are enabled.
+
 When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_backend_available`.
 
 ## Backend Returns Gateway Timeout
@@ -126,6 +128,24 @@ When health checks are disabled, transient upstream failures fail only the curre
 | Old agent binary | Upgrade agents so they honor per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
 
 The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
+
+## Agent WebSocket Disconnects
+
+| Cause | Fix |
+| --- | --- |
+| Management reverse proxy blocks upgrades | Ensure the proxy forwards WebSocket upgrade headers to the management listener. |
+| Idle WebSocket timeout is too low | Set the management proxy idle timeout higher than the 20 second agent heartbeat interval. |
+| Heartbeat failures | Check network reachability between the agent host and management URL; failed heartbeats disconnect the agent so it can reconnect cleanly. |
+
+## Agent Uptime Looks Wrong
+
+| Cause | Fix |
+| --- | --- |
+| Retention window changed | Uptime percentages use retained management connection history, not all-time history. Check the dashboard retention window. |
+| Agent record is new | The observation window starts at the later of retention start or agent creation time. New agents do not include time before they existed. |
+| Server restarted after an unclean exit | Startup closes stale open connection rows and marks affected agents disconnected at that startup time. This prevents old sessions from looking active forever. |
+| Agent is offline | The Agents page shows current offline duration from the last recorded disconnect time. |
+| Missing historical rows | Uptime is based on local management `connections` data. Deleted or expired rows cannot be reconstructed from agent self-reporting. |
 
 ## Static Asset Is Not Cached
 

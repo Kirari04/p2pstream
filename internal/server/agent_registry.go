@@ -318,6 +318,10 @@ func isUniqueConstraintError(err error) bool {
 }
 
 func (a *App) agentToProto(ctx context.Context, agent db.Agent) *p2pstreamv1.Agent {
+	return a.agentToProtoWithLatestStats(ctx, agent, true)
+}
+
+func (a *App) agentToProtoWithLatestStats(ctx context.Context, agent db.Agent, useDBFallback bool) *p2pstreamv1.Agent {
 	conn := a.AgentHub.connectedByID(agent.ID)
 	resp := &p2pstreamv1.Agent{
 		Id:                           agent.ID,
@@ -333,7 +337,9 @@ func (a *App) agentToProto(ctx context.Context, agent db.Agent) *p2pstreamv1.Age
 	if conn != nil {
 		resp.ActiveRequests = conn.ActiveRequests.Load()
 	}
-	if a.DB != nil {
+	if latest, ok := a.latestAgentStatsSnapshot(agent.ID); ok {
+		resp.LatestStats = latest
+	} else if useDBFallback && a.DB != nil {
 		latest, err := a.DB.GetLatestAgentStatByAgent(ctx, sql.NullInt64{Int64: agent.ID, Valid: true})
 		if err == nil {
 			resp.LatestStats = agentStatRowToProto(latest)

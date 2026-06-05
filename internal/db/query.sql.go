@@ -215,6 +215,17 @@ func (q *Queries) ClearEnvironmentTrust(ctx context.Context, id int64) (Environm
 	return i, err
 }
 
+const closeOpenConnectionsAt = `-- name: CloseOpenConnectionsAt :exec
+UPDATE connections
+SET disconnected_at = ?
+WHERE disconnected_at IS NULL
+`
+
+func (q *Queries) CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error {
+	_, err := q.db.ExecContext(ctx, closeOpenConnectionsAt, disconnectedAt)
+	return err
+}
+
 const countEnabledAgentPoolBackendsWhereAgentIsLast = `-- name: CountEnabledAgentPoolBackendsWhereAgentIsLast :one
 SELECT COUNT(*)
 FROM public_backend_agents pba
@@ -3067,6 +3078,82 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 	return id, err
 }
 
+const listAgentStatRollupMinutesSince = `-- name: ListAgentStatRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    samples,
+    req_success,
+    req_client_error,
+    req_server_error,
+    req_internal_error,
+    bytes_rx,
+    bytes_tx,
+    memory_mb_sum,
+    max_memory_mb,
+    goroutines_sum,
+    max_goroutines,
+    cpu_percent_sum,
+    max_cpu_percent
+FROM agent_stat_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC
+`
+
+type ListAgentStatRollupMinutesSinceRow struct {
+	BucketUnixMillis int64   `json:"bucket_unix_millis"`
+	Samples          int64   `json:"samples"`
+	ReqSuccess       int64   `json:"req_success"`
+	ReqClientError   int64   `json:"req_client_error"`
+	ReqServerError   int64   `json:"req_server_error"`
+	ReqInternalError int64   `json:"req_internal_error"`
+	BytesRx          int64   `json:"bytes_rx"`
+	BytesTx          int64   `json:"bytes_tx"`
+	MemoryMbSum      int64   `json:"memory_mb_sum"`
+	MaxMemoryMb      int64   `json:"max_memory_mb"`
+	GoroutinesSum    int64   `json:"goroutines_sum"`
+	MaxGoroutines    int64   `json:"max_goroutines"`
+	CpuPercentSum    float64 `json:"cpu_percent_sum"`
+	MaxCpuPercent    float64 `json:"max_cpu_percent"`
+}
+
+func (q *Queries) ListAgentStatRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListAgentStatRollupMinutesSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAgentStatRollupMinutesSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAgentStatRollupMinutesSinceRow
+	for rows.Next() {
+		var i ListAgentStatRollupMinutesSinceRow
+		if err := rows.Scan(
+			&i.BucketUnixMillis,
+			&i.Samples,
+			&i.ReqSuccess,
+			&i.ReqClientError,
+			&i.ReqServerError,
+			&i.ReqInternalError,
+			&i.BytesRx,
+			&i.BytesTx,
+			&i.MemoryMbSum,
+			&i.MaxMemoryMb,
+			&i.GoroutinesSum,
+			&i.MaxGoroutines,
+			&i.CpuPercentSum,
+			&i.MaxCpuPercent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAgents = `-- name: ListAgents :many
 SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
 FROM agents
@@ -3092,6 +3179,66 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.LastDisconnectedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listConnectionsSince = `-- name: ListConnectionsSince :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+WHERE c.connected_at >= ?
+   OR c.disconnected_at IS NULL
+   OR c.disconnected_at >= ?
+ORDER BY c.connected_at ASC
+`
+
+type ListConnectionsSinceParams struct {
+	ConnectedAt    time.Time    `json:"connected_at"`
+	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+}
+
+type ListConnectionsSinceRow struct {
+	ID             int64         `json:"id"`
+	AgentID        sql.NullInt64 `json:"agent_id"`
+	AgentPublicID  string        `json:"agent_public_id"`
+	AgentName      string        `json:"agent_name"`
+	ConnectedAt    time.Time     `json:"connected_at"`
+	DisconnectedAt sql.NullTime  `json:"disconnected_at"`
+}
+
+func (q *Queries) ListConnectionsSince(ctx context.Context, arg ListConnectionsSinceParams) ([]ListConnectionsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listConnectionsSince, arg.ConnectedAt, arg.DisconnectedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListConnectionsSinceRow
+	for rows.Next() {
+		var i ListConnectionsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.AgentPublicID,
+			&i.AgentName,
+			&i.ConnectedAt,
+			&i.DisconnectedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -3182,6 +3329,173 @@ func (q *Queries) ListManagementAccessTokens(ctx context.Context) ([]ManagementA
 			&i.LastUsedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProxyRequestRollupMinutesSince = `-- name: ListProxyRequestRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    requests,
+    success,
+    client_error,
+    server_error,
+    internal_error,
+    duration_ms_sum,
+    max_duration_ms,
+    slow_requests,
+    request_bytes,
+    response_bytes,
+    cache_hits,
+    cache_misses,
+    cache_bypasses,
+    cache_stored,
+    cache_store_failed,
+    cache_hit_bytes,
+    cache_stored_bytes
+FROM proxy_request_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC
+`
+
+type ListProxyRequestRollupMinutesSinceRow struct {
+	BucketUnixMillis int64 `json:"bucket_unix_millis"`
+	Requests         int64 `json:"requests"`
+	Success          int64 `json:"success"`
+	ClientError      int64 `json:"client_error"`
+	ServerError      int64 `json:"server_error"`
+	InternalError    int64 `json:"internal_error"`
+	DurationMsSum    int64 `json:"duration_ms_sum"`
+	MaxDurationMs    int64 `json:"max_duration_ms"`
+	SlowRequests     int64 `json:"slow_requests"`
+	RequestBytes     int64 `json:"request_bytes"`
+	ResponseBytes    int64 `json:"response_bytes"`
+	CacheHits        int64 `json:"cache_hits"`
+	CacheMisses      int64 `json:"cache_misses"`
+	CacheBypasses    int64 `json:"cache_bypasses"`
+	CacheStored      int64 `json:"cache_stored"`
+	CacheStoreFailed int64 `json:"cache_store_failed"`
+	CacheHitBytes    int64 `json:"cache_hit_bytes"`
+	CacheStoredBytes int64 `json:"cache_stored_bytes"`
+}
+
+func (q *Queries) ListProxyRequestRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRequestRollupMinutesSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyRequestRollupMinutesSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyRequestRollupMinutesSinceRow
+	for rows.Next() {
+		var i ListProxyRequestRollupMinutesSinceRow
+		if err := rows.Scan(
+			&i.BucketUnixMillis,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.DurationMsSum,
+			&i.MaxDurationMs,
+			&i.SlowRequests,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+			&i.CacheHits,
+			&i.CacheMisses,
+			&i.CacheBypasses,
+			&i.CacheStored,
+			&i.CacheStoreFailed,
+			&i.CacheHitBytes,
+			&i.CacheStoredBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProxyRequestTupleRollupMinutesSince = `-- name: ListProxyRequestTupleRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    listener_id,
+    backend_id,
+    route_id,
+    agent_id,
+    error_kind,
+    status_class,
+    requests,
+    success,
+    client_error,
+    server_error,
+    internal_error,
+    duration_ms_sum,
+    request_bytes,
+    response_bytes
+FROM proxy_request_tuple_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC
+`
+
+type ListProxyRequestTupleRollupMinutesSinceRow struct {
+	BucketUnixMillis int64  `json:"bucket_unix_millis"`
+	ListenerID       int64  `json:"listener_id"`
+	BackendID        int64  `json:"backend_id"`
+	RouteID          int64  `json:"route_id"`
+	AgentID          int64  `json:"agent_id"`
+	ErrorKind        string `json:"error_kind"`
+	StatusClass      int64  `json:"status_class"`
+	Requests         int64  `json:"requests"`
+	Success          int64  `json:"success"`
+	ClientError      int64  `json:"client_error"`
+	ServerError      int64  `json:"server_error"`
+	InternalError    int64  `json:"internal_error"`
+	DurationMsSum    int64  `json:"duration_ms_sum"`
+	RequestBytes     int64  `json:"request_bytes"`
+	ResponseBytes    int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListProxyRequestTupleRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRequestTupleRollupMinutesSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyRequestTupleRollupMinutesSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyRequestTupleRollupMinutesSinceRow
+	for rows.Next() {
+		var i ListProxyRequestTupleRollupMinutesSinceRow
+		if err := rows.Scan(
+			&i.BucketUnixMillis,
+			&i.ListenerID,
+			&i.BackendID,
+			&i.RouteID,
+			&i.AgentID,
+			&i.ErrorKind,
+			&i.StatusClass,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.DurationMsSum,
+			&i.RequestBytes,
+			&i.ResponseBytes,
 		); err != nil {
 			return nil, err
 		}
@@ -4405,6 +4719,59 @@ func (q *Queries) ListPublicWafRules(ctx context.Context) ([]PublicWafRule, erro
 	return items, nil
 }
 
+const listRecentConnections = `-- name: ListRecentConnections :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+ORDER BY c.connected_at DESC, c.id DESC
+LIMIT ?
+`
+
+type ListRecentConnectionsRow struct {
+	ID             int64         `json:"id"`
+	AgentID        sql.NullInt64 `json:"agent_id"`
+	AgentPublicID  string        `json:"agent_public_id"`
+	AgentName      string        `json:"agent_name"`
+	ConnectedAt    time.Time     `json:"connected_at"`
+	DisconnectedAt sql.NullTime  `json:"disconnected_at"`
+}
+
+func (q *Queries) ListRecentConnections(ctx context.Context, limit int64) ([]ListRecentConnectionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentConnections, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRecentConnectionsRow
+	for rows.Next() {
+		var i ListRecentConnectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.AgentPublicID,
+			&i.AgentName,
+			&i.ConnectedAt,
+			&i.DisconnectedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopProxyAgentsRollupsSince = `-- name: ListTopProxyAgentsRollupsSince :many
 SELECT
     r.agent_id AS id,
@@ -5124,6 +5491,28 @@ WHERE id = 1
 
 func (q *Queries) MarkAgentRollupBackfilledThrough(ctx context.Context, agentBackfilledThroughID int64) error {
 	_, err := q.db.ExecContext(ctx, markAgentRollupBackfilledThrough, agentBackfilledThroughID)
+	return err
+}
+
+const markAgentsWithOpenConnectionsDisconnectedAt = `-- name: MarkAgentsWithOpenConnectionsDisconnectedAt :exec
+UPDATE agents
+SET last_disconnected_at = ?,
+    updated_at = ?
+WHERE id IN (
+    SELECT DISTINCT agent_id
+    FROM connections
+    WHERE disconnected_at IS NULL
+      AND agent_id IS NOT NULL
+)
+`
+
+type MarkAgentsWithOpenConnectionsDisconnectedAtParams struct {
+	LastDisconnectedAt sql.NullTime `json:"last_disconnected_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Context, arg MarkAgentsWithOpenConnectionsDisconnectedAtParams) error {
+	_, err := q.db.ExecContext(ctx, markAgentsWithOpenConnectionsDisconnectedAt, arg.LastDisconnectedAt, arg.UpdatedAt)
 	return err
 }
 

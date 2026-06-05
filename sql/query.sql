@@ -8,6 +8,22 @@ UPDATE connections
 SET disconnected_at = CURRENT_TIMESTAMP
 WHERE id = ?;
 
+-- name: MarkAgentsWithOpenConnectionsDisconnectedAt :exec
+UPDATE agents
+SET last_disconnected_at = ?,
+    updated_at = ?
+WHERE id IN (
+    SELECT DISTINCT agent_id
+    FROM connections
+    WHERE disconnected_at IS NULL
+      AND agent_id IS NOT NULL
+);
+
+-- name: CloseOpenConnectionsAt :exec
+UPDATE connections
+SET disconnected_at = ?
+WHERE disconnected_at IS NULL;
+
 -- name: InsertAgentStat :exec
 INSERT INTO agent_stats (
     agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent
@@ -477,6 +493,71 @@ WHERE bucket_unix_millis >= sqlc.arg(since_unix_millis)
 GROUP BY 1
 ORDER BY bucket_unix_millis ASC;
 
+-- name: ListProxyRequestRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    requests,
+    success,
+    client_error,
+    server_error,
+    internal_error,
+    duration_ms_sum,
+    max_duration_ms,
+    slow_requests,
+    request_bytes,
+    response_bytes,
+    cache_hits,
+    cache_misses,
+    cache_bypasses,
+    cache_stored,
+    cache_store_failed,
+    cache_hit_bytes,
+    cache_stored_bytes
+FROM proxy_request_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC;
+
+-- name: ListProxyRequestTupleRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    listener_id,
+    backend_id,
+    route_id,
+    agent_id,
+    error_kind,
+    status_class,
+    requests,
+    success,
+    client_error,
+    server_error,
+    internal_error,
+    duration_ms_sum,
+    request_bytes,
+    response_bytes
+FROM proxy_request_tuple_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC;
+
+-- name: ListAgentStatRollupMinutesSince :many
+SELECT
+    bucket_unix_millis,
+    samples,
+    req_success,
+    req_client_error,
+    req_server_error,
+    req_internal_error,
+    bytes_rx,
+    bytes_tx,
+    memory_mb_sum,
+    max_memory_mb,
+    goroutines_sum,
+    max_goroutines,
+    cpu_percent_sum,
+    max_cpu_percent
+FROM agent_stat_rollup_minutes
+WHERE bucket_unix_millis >= ?
+ORDER BY bucket_unix_millis ASC;
+
 -- name: GetConnectionSummarySince :one
 SELECT
     COUNT(*) AS total_connections,
@@ -491,6 +572,34 @@ FROM connections
 WHERE disconnected_at IS NULL
 ORDER BY connected_at DESC
 LIMIT 1;
+
+-- name: ListConnectionsSince :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+WHERE c.connected_at >= ?
+   OR c.disconnected_at IS NULL
+   OR c.disconnected_at >= ?
+ORDER BY c.connected_at ASC;
+
+-- name: ListRecentConnections :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+ORDER BY c.connected_at DESC, c.id DESC
+LIMIT ?;
 
 -- name: ListAgents :many
 SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at

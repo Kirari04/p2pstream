@@ -45,6 +45,18 @@ func (a *App) GetDashboard(
 	}
 
 	now := time.Now().UTC()
+	if a.dashboardCacheActive() {
+		return connect.NewResponse(a.dashboardResponseFromCache(now)), nil
+	}
+
+	resp, err := a.buildDashboardDirect(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstreamv1.GetDashboardResponse, error) {
 	useRollups, err := a.observabilityRollupsReady(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -89,6 +101,10 @@ func (a *App) GetDashboard(
 	}
 
 	agentConnections, err := a.agentConnectionSummary(ctx, now)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	agentUptimeSummaries, recentAgentConnections, err := a.agentUptimeDashboard(ctx, now)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -187,21 +203,23 @@ func (a *App) GetDashboard(
 	}
 
 	resp := &p2pstreamv1.GetDashboardResponse{
-		Status:                a.statusResponse(),
-		Windows:               windows,
-		AgentConnections:      agentConnections,
-		RetentionDays:         int64(a.observabilityRetentionDays()),
-		GeneratedAtUnixMillis: now.UnixMilli(),
-		TopListeners:          topListeners,
-		TopBackends:           topBackends,
-		TopRoutes:             topRoutes,
-		TopAgents:             topAgents,
-		TopErrorKinds:         topErrorKinds,
-		StatusClasses:         statusClasses,
-		TrafficBuckets:        trafficBuckets,
-		ManagementSecurity:    a.managementSecurity(),
+		Status:                 a.statusResponse(),
+		Windows:                windows,
+		AgentConnections:       agentConnections,
+		RetentionDays:          int64(a.observabilityRetentionDays()),
+		GeneratedAtUnixMillis:  now.UnixMilli(),
+		TopListeners:           topListeners,
+		TopBackends:            topBackends,
+		TopRoutes:              topRoutes,
+		TopAgents:              topAgents,
+		TopErrorKinds:          topErrorKinds,
+		StatusClasses:          statusClasses,
+		TrafficBuckets:         trafficBuckets,
+		ManagementSecurity:     a.managementSecurity(),
+		AgentUptimeSummaries:   agentUptimeSummaries,
+		RecentAgentConnections: recentAgentConnections,
 	}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 func (a *App) managementSecurity() *p2pstreamv1.ManagementSecurity {
@@ -923,10 +941,236 @@ func (a *App) agentConnectionSummary(ctx context.Context, now time.Time) (*p2pst
 	return resp, nil
 }
 
+type dashboardTimeInterval struct {
+	start time.Time
+	end   time.Time
+}
+
+type dashboardAgentUptimeState struct {
+	summary               *p2pstreamv1.AgentUptimeSummary
+	observedSince         time.Time
+	observedUntil         time.Time
+	intervals             []dashboardTimeInterval
+	currentConnectedAt    time.Time
+	hasCurrentConnectedAt bool
+	lastConnectedAt       sql.NullTime
+}
+
+func (a *App) agentUptimeDashboard(ctx context.Context, now time.Time) ([]*p2pstreamv1.AgentUptimeSummary, []*p2pstreamv1.AgentConnectionSession, error) {
+	summaries, err := a.agentUptimeSummaries(ctx, now)
+	if err != nil {
+		return nil, nil, err
+	}
+	recent, err := a.recentAgentConnectionSessions(ctx, now)
+	if err != nil {
+		return nil, nil, err
+	}
+	return summaries, recent, nil
+}
+
+func (a *App) agentUptimeSummaries(ctx context.Context, now time.Time) ([]*p2pstreamv1.AgentUptimeSummary, error) {
+	agents, err := a.DB.ListAgents(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	retentionSince := now.AddDate(0, 0, -a.observabilityRetentionDays()).UTC()
+	now = now.UTC()
+	connectedAgents := map[int64]*AgentConn{}
+	if a.AgentHub != nil {
+		connectedAgents = a.AgentHub.connectedIDs()
+	}
+
+	states := make(map[int64]*dashboardAgentUptimeState, len(agents))
+	summaries := make([]*p2pstreamv1.AgentUptimeSummary, 0, len(agents))
+	for _, agent := range agents {
+		observedSince := maxTime(retentionSince, agent.CreatedAt.UTC())
+		if observedSince.After(now) {
+			observedSince = now
+		}
+		_, connected := connectedAgents[agent.ID]
+		summary := &p2pstreamv1.AgentUptimeSummary{
+			AgentId:                      agent.ID,
+			AgentPublicId:                agent.PublicID,
+			AgentName:                    agent.Name,
+			Enabled:                      agent.Enabled != 0,
+			Connected:                    connected,
+			ObservedSinceUnixMillis:      observedSince.UnixMilli(),
+			ObservedUntilUnixMillis:      now.UnixMilli(),
+			LastConnectedAtUnixMillis:    nullTimeUnixMillis(agent.LastConnectedAt),
+			LastDisconnectedAtUnixMillis: nullTimeUnixMillis(agent.LastDisconnectedAt),
+		}
+		states[agent.ID] = &dashboardAgentUptimeState{
+			summary:         summary,
+			observedSince:   observedSince,
+			observedUntil:   now,
+			lastConnectedAt: agent.LastConnectedAt,
+		}
+		summaries = append(summaries, summary)
+	}
+
+	connections, err := a.DB.ListConnectionsSince(ctx, db.ListConnectionsSinceParams{
+		ConnectedAt:    retentionSince,
+		DisconnectedAt: sql.NullTime{Time: retentionSince, Valid: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range connections {
+		if !row.AgentID.Valid {
+			continue
+		}
+		state := states[row.AgentID.Int64]
+		if state == nil {
+			continue
+		}
+
+		end := now
+		if row.DisconnectedAt.Valid {
+			end = row.DisconnectedAt.Time.UTC()
+		}
+		if end.After(state.observedUntil) {
+			end = state.observedUntil
+		}
+		start := maxTime(row.ConnectedAt.UTC(), state.observedSince)
+		if end.After(start) {
+			state.intervals = append(state.intervals, dashboardTimeInterval{start: start, end: end})
+			state.summary.ConnectionCount++
+		}
+		if row.DisconnectedAt.Valid {
+			disconnectedAt := row.DisconnectedAt.Time.UTC()
+			if !disconnectedAt.Before(state.observedSince) && !disconnectedAt.After(state.observedUntil) {
+				state.summary.DisconnectCount++
+			}
+		}
+		if !row.DisconnectedAt.Valid {
+			conn := connectedAgents[row.AgentID.Int64]
+			if conn != nil && (conn.ConnectionDBID == 0 || conn.ConnectionDBID == row.ID || !state.hasCurrentConnectedAt || row.ConnectedAt.After(state.currentConnectedAt)) {
+				state.currentConnectedAt = row.ConnectedAt.UTC()
+				state.hasCurrentConnectedAt = true
+			}
+		}
+	}
+
+	for _, state := range states {
+		summary := state.summary
+		observedDurationMillis := dashboardDurationMillis(state.observedSince, state.observedUntil)
+		summary.UptimeMillis = sumMergedIntervalMillis(state.intervals)
+		if summary.UptimeMillis > observedDurationMillis {
+			summary.UptimeMillis = observedDurationMillis
+		}
+		summary.DowntimeMillis = observedDurationMillis - summary.UptimeMillis
+		if summary.DowntimeMillis < 0 {
+			summary.DowntimeMillis = 0
+		}
+		if observedDurationMillis > 0 {
+			summary.UptimePercent = float64(summary.UptimeMillis) / float64(observedDurationMillis)
+		}
+
+		conn := connectedAgents[summary.AgentId]
+		summary.Connected = conn != nil
+		if conn != nil {
+			if !state.hasCurrentConnectedAt && !conn.ConnectedAt.IsZero() {
+				state.currentConnectedAt = conn.ConnectedAt.UTC()
+				state.hasCurrentConnectedAt = true
+			}
+			if !state.hasCurrentConnectedAt && state.lastConnectedAt.Valid {
+				state.currentConnectedAt = state.lastConnectedAt.Time.UTC()
+				state.hasCurrentConnectedAt = true
+			}
+			if state.hasCurrentConnectedAt {
+				summary.CurrentConnectedAtUnixMillis = state.currentConnectedAt.UnixMilli()
+				summary.CurrentUptimeMillis = dashboardDurationMillis(state.currentConnectedAt, now)
+			}
+			continue
+		}
+
+		summary.CurrentConnectedAtUnixMillis = 0
+		summary.CurrentUptimeMillis = 0
+		if summary.LastDisconnectedAtUnixMillis > 0 {
+			offlineSince := time.UnixMilli(summary.LastDisconnectedAtUnixMillis).UTC()
+			summary.CurrentOfflineSinceUnixMillis = summary.LastDisconnectedAtUnixMillis
+			summary.CurrentDowntimeMillis = dashboardDurationMillis(offlineSince, now)
+		}
+	}
+
+	return summaries, nil
+}
+
+func (a *App) recentAgentConnectionSessions(ctx context.Context, now time.Time) ([]*p2pstreamv1.AgentConnectionSession, error) {
+	rows, err := a.DB.ListRecentConnections(ctx, 50)
+	if err != nil {
+		return nil, err
+	}
+	now = now.UTC()
+	sessions := make([]*p2pstreamv1.AgentConnectionSession, 0, len(rows))
+	for _, row := range rows {
+		agentID := int64(0)
+		if row.AgentID.Valid {
+			agentID = row.AgentID.Int64
+		}
+		end := now
+		disconnectedAtUnixMillis := int64(0)
+		active := !row.DisconnectedAt.Valid
+		if row.DisconnectedAt.Valid {
+			end = row.DisconnectedAt.Time.UTC()
+			disconnectedAtUnixMillis = end.UnixMilli()
+		}
+		sessions = append(sessions, &p2pstreamv1.AgentConnectionSession{
+			Id:                       row.ID,
+			AgentId:                  agentID,
+			AgentPublicId:            row.AgentPublicID,
+			AgentName:                row.AgentName,
+			ConnectedAtUnixMillis:    row.ConnectedAt.UTC().UnixMilli(),
+			DisconnectedAtUnixMillis: disconnectedAtUnixMillis,
+			DurationMillis:           dashboardDurationMillis(row.ConnectedAt.UTC(), end),
+			Active:                   active,
+		})
+	}
+	return sessions, nil
+}
+
+func sumMergedIntervalMillis(intervals []dashboardTimeInterval) int64 {
+	if len(intervals) == 0 {
+		return 0
+	}
+	current := intervals[0]
+	total := int64(0)
+	for _, interval := range intervals[1:] {
+		if interval.start.After(current.end) {
+			total += dashboardDurationMillis(current.start, current.end)
+			current = interval
+			continue
+		}
+		if interval.end.After(current.end) {
+			current.end = interval.end
+		}
+	}
+	total += dashboardDurationMillis(current.start, current.end)
+	return total
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+func dashboardDurationMillis(start, end time.Time) int64 {
+	if end.Before(start) || end.Equal(start) {
+		return 0
+	}
+	return end.Sub(start).Milliseconds()
+}
+
 func sqliteTimeUnixMillis(value any) int64 {
 	switch v := value.(type) {
 	case nil:
 		return 0
+	case sql.NullTime:
+		return nullTimeUnixMillis(v)
 	case time.Time:
 		if v.IsZero() {
 			return 0

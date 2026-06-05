@@ -77,6 +77,7 @@ var serverCmd = &cobra.Command{
 		if _, err := app.StartProxyListener(context.Background()); err != nil {
 			log.Error().Err(err).Msg("Proxy server failed to start")
 		}
+		app.StartDashboardCache(ctx)
 
 		// Start Management Listener
 		go func() {
