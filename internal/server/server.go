@@ -35,6 +35,11 @@ type AgentConn struct {
 	ConnectionDBID int64
 }
 
+var (
+	agentWebSocketPingInterval = 20 * time.Second
+	agentWebSocketPingTimeout  = 10 * time.Second
+)
+
 type App struct {
 	Config             *config.Config
 	DB                 *db.DB
@@ -313,6 +318,8 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 		Str("agent", agent.PublicID).
 		Msg("Agent connected successfully")
 
+	startAgentWebSocketHeartbeat(ctx, cancel, c, agent.PublicID)
+
 	go func() {
 		defer cancel()
 		for {
@@ -396,6 +403,33 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
 		}
 	}
+}
+
+func startAgentWebSocketHeartbeat(ctx context.Context, cancel context.CancelFunc, c *websocket.Conn, agentPublicID string) {
+	if c == nil || cancel == nil || agentWebSocketPingInterval <= 0 || agentWebSocketPingTimeout <= 0 {
+		return
+	}
+	go func() {
+		ticker := time.NewTicker(agentWebSocketPingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pingCtx, pingCancel := context.WithTimeout(ctx, agentWebSocketPingTimeout)
+				err := c.Ping(pingCtx)
+				pingCancel()
+				if err == nil {
+					continue
+				}
+				log.Warn().Err(err).Str("agent", agentPublicID).Msg("Agent websocket heartbeat failed")
+				cancel()
+				_ = c.CloseNow()
+				return
+			}
+		}
+	}()
 }
 
 func bearerToken(header string) string {

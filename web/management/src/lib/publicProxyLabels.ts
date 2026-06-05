@@ -243,6 +243,8 @@ export function healthTraceReasonSummary(trace: PublicBackendHealthTrace): strin
   if (trace.error) return trace.error;
   switch (trace.errorKind) {
     case "timeout": return "Timed out";
+    case "health_check_timeout": return "Health check timed out";
+    case "health_check_cancelled": return "Health check cancelled";
     case "request_failed": return "Request failed";
     case "response_body_read_failed": return "Response body read failed";
     case "request_encode_failed": return "Request encode failed";

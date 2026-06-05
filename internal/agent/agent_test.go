@@ -97,6 +97,34 @@ func TestAgentHealthCheckMetadataDoesNotIncrementRequestCounters(t *testing.T) {
 	}
 }
 
+func TestAgentReconnectBackoffBounds(t *testing.T) {
+	originalMin := agentReconnectBackoffMin
+	originalMax := agentReconnectBackoffMax
+	agentReconnectBackoffMin = time.Second
+	agentReconnectBackoffMax = 30 * time.Second
+	t.Cleanup(func() {
+		agentReconnectBackoffMin = originalMin
+		agentReconnectBackoffMax = originalMax
+	})
+
+	if got := nextAgentReconnectBackoff(0); got != time.Second {
+		t.Fatalf("next backoff from zero = %s, want 1s", got)
+	}
+	if got := nextAgentReconnectBackoff(time.Second); got != 2*time.Second {
+		t.Fatalf("next backoff from 1s = %s, want 2s", got)
+	}
+	if got := nextAgentReconnectBackoff(20 * time.Second); got != 30*time.Second {
+		t.Fatalf("next backoff from 20s = %s, want capped 30s", got)
+	}
+
+	for range 20 {
+		got := jitterAgentReconnectBackoff(10 * time.Second)
+		if got < 8*time.Second || got > 12*time.Second {
+			t.Fatalf("jittered backoff = %s, want within +/-20%%", got)
+		}
+	}
+}
+
 func performAgentRequest(t *testing.T, targetURL string, tlsSkipVerify bool) (int, string) {
 	t.Helper()
 

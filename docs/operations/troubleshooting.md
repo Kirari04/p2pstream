@@ -114,6 +114,8 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
 | Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. |
 
+Client cancellations reported as `context canceled` do not create passive health cooldowns. Real upstream timeouts, agent disconnects, and transport failures can still create cooldowns when backend health checks are enabled.
+
 When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_backend_available`.
 
 ## Backend Returns Gateway Timeout
@@ -126,6 +128,14 @@ When health checks are disabled, transient upstream failures fail only the curre
 | Old agent binary | Upgrade agents so they honor per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
 
 The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
+
+## Agent WebSocket Disconnects
+
+| Cause | Fix |
+| --- | --- |
+| Management reverse proxy blocks upgrades | Ensure the proxy forwards WebSocket upgrade headers to the management listener. |
+| Idle WebSocket timeout is too low | Set the management proxy idle timeout higher than the 20 second agent heartbeat interval. |
+| Heartbeat failures | Check network reachability between the agent host and management URL; failed heartbeats disconnect the agent so it can reconnect cleanly. |
 
 ## Static Asset Is Not Cached
 

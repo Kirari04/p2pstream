@@ -19,6 +19,8 @@ Agents connect outbound to management:
 - HTTPS for stats and API calls,
 - WSS for request forwarding.
 
+The agent and server send periodic WebSocket heartbeat pings so stale or idle intermediary connections are detected before traffic depends on them. The default ping interval is 20 seconds with a 10 second ping timeout. If another reverse proxy sits in front of the management listener, it must allow WebSocket upgrades and its idle timeout should be greater than the heartbeat interval.
+
 By default, agents reject insecure HTTP management URLs and verify HTTPS certificates. For auto-generated management TLS, pass one of:
 
 | Variable | Use |
@@ -39,6 +41,7 @@ AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 
 - Reusing an old token after rotating it in management.
 - Setting `MANAGEMENT_URL` to a public listener instead of management.
+- Putting management behind a reverse proxy that blocks WebSocket upgrades or closes idle WebSockets too aggressively.
 - Forgetting CA material when management uses the auto-generated local CA.
 - Deleting the management agent record and expecting files to be removed from the remote host.
 

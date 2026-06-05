@@ -663,6 +663,62 @@ func TestPassiveCooldownExpiryStillRecoversWhenHealthEnabled(t *testing.T) {
 	}
 }
 
+func TestCancelledActiveHealthCheckIsSkippedWithoutUnhealthyStreak(t *testing.T) {
+	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthBackend(t, 55, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	backend.HealthCheck.UnhealthyThreshold = 1
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	attempt := runPublicBackendHealthCheck(ctx, backend)
+	if !attempt.Skipped || attempt.ErrorKind != "health_check_cancelled" {
+		t.Fatalf("cancelled attempt skipped=%v errorKind=%q err=%v, want skipped health_check_cancelled", attempt.Skipped, attempt.ErrorKind, attempt.Err)
+	}
+	monitor.recordDirectExplicitCheck(backend.ID, attempt)
+
+	monitor.mu.Lock()
+	state := monitor.states[backend.ID].direct
+	monitor.mu.Unlock()
+	if state.unhealthyStreak != 0 || state.explicitStatus != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN {
+		t.Fatalf("state after cancelled check = %+v, want no unhealthy streak and UNKNOWN", state)
+	}
+	traces, _ := monitor.listHealthTraces(backend.ID, 0, 10, false)
+	if len(traces) != 1 ||
+		traces[0].Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED ||
+		traces[0].ErrorKind != "health_check_cancelled" ||
+		traces[0].DebugAttributes["cancel_source"] != "health_monitor" {
+		t.Fatalf("cancelled trace = %+v", traces)
+	}
+}
+
+func TestActiveHealthCheckTimeoutIncrementsUnhealthyStreak(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(50 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthBackend(t, 56, publicBackendForwardModeDirect, upstream.URL)
+	backend.HealthCheck.Timeout = time.Millisecond
+	backend.HealthCheck.UnhealthyThreshold = 1
+	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+
+	attempt := runPublicBackendHealthCheck(context.Background(), backend)
+	if attempt.Skipped || attempt.ErrorKind != "health_check_timeout" {
+		t.Fatalf("timeout attempt skipped=%v errorKind=%q err=%v, want health_check_timeout", attempt.Skipped, attempt.ErrorKind, attempt.Err)
+	}
+	monitor.recordDirectExplicitCheck(backend.ID, attempt)
+
+	monitor.mu.Lock()
+	state := monitor.states[backend.ID].direct
+	monitor.mu.Unlock()
+	if state.unhealthyStreak != 1 || state.explicitStatus != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY {
+		t.Fatalf("state after timeout = %+v, want unhealthy streak 1 and UNHEALTHY", state)
+	}
+}
+
 func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 6, publicBackendForwardModeDirect, "http://127.0.0.1:8080")

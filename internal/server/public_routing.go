@@ -24,7 +24,7 @@ import (
 	"p2pstream/msg"
 )
 
-const publicAgentResponseGracePeriod = 5 * time.Second
+var publicAgentResponseGracePeriod = 5 * time.Second
 
 var errNoRouteBackendAvailable = errors.New("no route backend available")
 
@@ -924,15 +924,31 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	var firstMsg *msg.Request
 	select {
 	case <-timeoutCtx.Done():
+		if requestContextCanceled(r.Context(), timeoutCtx.Err()) {
+			pendingFinishReason = "client_cancelled"
+			statusCode = http.StatusGatewayTimeout
+			errorKind = "client_cancelled"
+			return
+		}
 		pendingFinishReason = "agent_timeout"
-		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, timeoutCtx.Err())
+		if shouldMarkAgentPassiveFailure(r.Context(), timeoutCtx.Err()) {
+			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, timeoutCtx.Err())
+		}
 		statusCode = http.StatusGatewayTimeout
 		errorKind = "agent_timeout"
 		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 		return
 	case err := <-pending.ErrorCh:
+		if requestContextCanceled(r.Context(), err) {
+			pendingFinishReason = "client_cancelled"
+			statusCode = http.StatusGatewayTimeout
+			errorKind = "client_cancelled"
+			return
+		}
 		pendingFinishReason, errorKind = agentPendingFailureReason(err)
-		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
+		if shouldMarkAgentPassiveFailure(r.Context(), err) {
+			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
+		}
 		statusCode = http.StatusBadGateway
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
 		return
@@ -950,9 +966,18 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 	stream := &httpmsg.ChannelStream{Ctx: pendingCtx, Ch: pending.ResponseCh}
 	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
 	if err != nil {
+		if requestContextCanceled(r.Context(), err) {
+			log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent response decode cancelled by client")
+			pendingFinishReason = "client_cancelled"
+			statusCode = http.StatusGatewayTimeout
+			errorKind = "client_cancelled"
+			return
+		}
 		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
 		pendingFinishReason = "response_decode_failed"
-		a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
+		if shouldMarkAgentPassiveFailure(r.Context(), err) {
+			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
+		}
 		statusCode = http.StatusBadGateway
 		errorKind = "response_decode_failed"
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
@@ -990,7 +1015,35 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 			resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
 		}
 		defer resp.Body.Close()
-		_, _ = io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			if requestContextCanceled(r.Context(), err) {
+				log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent response body copy cancelled by client")
+				pendingFinishReason = "client_cancelled"
+				errorKind = "client_cancelled"
+				return
+			}
+			passiveErr := err
+			pendingFinishReason = "response_body_read_failed"
+			errorKind = "response_body_read_failed"
+			select {
+			case pendingErr := <-pending.ErrorCh:
+				passiveErr = pendingErr
+				pendingFinishReason, errorKind = agentPendingFailureReason(pendingErr)
+			default:
+				select {
+				case <-agent.Done:
+					passiveErr = errAgentDisconnected
+					pendingFinishReason = "agent_disconnected"
+					errorKind = "agent_disconnected"
+				default:
+				}
+			}
+			log.Error().Err(passiveErr).Str("req_id", id.String()).Msg("Agent response body stream failed")
+			if shouldMarkAgentPassiveFailure(r.Context(), passiveErr) {
+				a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, passiveErr)
+			}
+			return
+		}
 	}
 
 	log.Info().Str("req_id", id.String()).Int("status", resp.StatusCode).Msg("Finished proxying request")
@@ -1048,6 +1101,23 @@ func agentPendingFailureReason(err error) (string, string) {
 	default:
 		return "agent_failed", "agent_failed"
 	}
+}
+
+func requestContextCanceled(ctx context.Context, err error) bool {
+	if ctx == nil {
+		return false
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return true
+	}
+	return errors.Is(err, context.Canceled) && errors.Is(ctx.Err(), context.Canceled)
+}
+
+func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	return !requestContextCanceled(requestCtx, err)
 }
 
 func (a *App) selectRouteBackend(snap publicProxySnapshot, route publicRouteConfig) (publicBackendConfig, bool, bool) {
