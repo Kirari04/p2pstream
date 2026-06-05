@@ -215,6 +215,17 @@ func (q *Queries) ClearEnvironmentTrust(ctx context.Context, id int64) (Environm
 	return i, err
 }
 
+const closeOpenConnectionsAt = `-- name: CloseOpenConnectionsAt :exec
+UPDATE connections
+SET disconnected_at = ?
+WHERE disconnected_at IS NULL
+`
+
+func (q *Queries) CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error {
+	_, err := q.db.ExecContext(ctx, closeOpenConnectionsAt, disconnectedAt)
+	return err
+}
+
 const countEnabledAgentPoolBackendsWhereAgentIsLast = `-- name: CountEnabledAgentPoolBackendsWhereAgentIsLast :one
 SELECT COUNT(*)
 FROM public_backend_agents pba
@@ -3182,6 +3193,66 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 	return items, nil
 }
 
+const listConnectionsSince = `-- name: ListConnectionsSince :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+WHERE c.connected_at >= ?
+   OR c.disconnected_at IS NULL
+   OR c.disconnected_at >= ?
+ORDER BY c.connected_at ASC
+`
+
+type ListConnectionsSinceParams struct {
+	ConnectedAt    time.Time    `json:"connected_at"`
+	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+}
+
+type ListConnectionsSinceRow struct {
+	ID             int64         `json:"id"`
+	AgentID        sql.NullInt64 `json:"agent_id"`
+	AgentPublicID  string        `json:"agent_public_id"`
+	AgentName      string        `json:"agent_name"`
+	ConnectedAt    time.Time     `json:"connected_at"`
+	DisconnectedAt sql.NullTime  `json:"disconnected_at"`
+}
+
+func (q *Queries) ListConnectionsSince(ctx context.Context, arg ListConnectionsSinceParams) ([]ListConnectionsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listConnectionsSince, arg.ConnectedAt, arg.DisconnectedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListConnectionsSinceRow
+	for rows.Next() {
+		var i ListConnectionsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.AgentPublicID,
+			&i.AgentName,
+			&i.ConnectedAt,
+			&i.DisconnectedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEnvironments = `-- name: ListEnvironments :many
 SELECT id, name, management_url, transport, agent_id, access_token,
        trusted_certificate_pem, trusted_certificate_sha256, trusted_certificate_subject, trusted_certificate_not_after,
@@ -4648,6 +4719,59 @@ func (q *Queries) ListPublicWafRules(ctx context.Context) ([]PublicWafRule, erro
 	return items, nil
 }
 
+const listRecentConnections = `-- name: ListRecentConnections :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+ORDER BY c.connected_at DESC, c.id DESC
+LIMIT ?
+`
+
+type ListRecentConnectionsRow struct {
+	ID             int64         `json:"id"`
+	AgentID        sql.NullInt64 `json:"agent_id"`
+	AgentPublicID  string        `json:"agent_public_id"`
+	AgentName      string        `json:"agent_name"`
+	ConnectedAt    time.Time     `json:"connected_at"`
+	DisconnectedAt sql.NullTime  `json:"disconnected_at"`
+}
+
+func (q *Queries) ListRecentConnections(ctx context.Context, limit int64) ([]ListRecentConnectionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentConnections, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRecentConnectionsRow
+	for rows.Next() {
+		var i ListRecentConnectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.AgentPublicID,
+			&i.AgentName,
+			&i.ConnectedAt,
+			&i.DisconnectedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopProxyAgentsRollupsSince = `-- name: ListTopProxyAgentsRollupsSince :many
 SELECT
     r.agent_id AS id,
@@ -5367,6 +5491,28 @@ WHERE id = 1
 
 func (q *Queries) MarkAgentRollupBackfilledThrough(ctx context.Context, agentBackfilledThroughID int64) error {
 	_, err := q.db.ExecContext(ctx, markAgentRollupBackfilledThrough, agentBackfilledThroughID)
+	return err
+}
+
+const markAgentsWithOpenConnectionsDisconnectedAt = `-- name: MarkAgentsWithOpenConnectionsDisconnectedAt :exec
+UPDATE agents
+SET last_disconnected_at = ?,
+    updated_at = ?
+WHERE id IN (
+    SELECT DISTINCT agent_id
+    FROM connections
+    WHERE disconnected_at IS NULL
+      AND agent_id IS NOT NULL
+)
+`
+
+type MarkAgentsWithOpenConnectionsDisconnectedAtParams struct {
+	LastDisconnectedAt sql.NullTime `json:"last_disconnected_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Context, arg MarkAgentsWithOpenConnectionsDisconnectedAtParams) error {
+	_, err := q.db.ExecContext(ctx, markAgentsWithOpenConnectionsDisconnectedAt, arg.LastDisconnectedAt, arg.UpdatedAt)
 	return err
 }
 

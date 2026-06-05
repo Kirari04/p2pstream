@@ -70,11 +70,11 @@ func (a *App) dashboardCacheActive() bool {
 
 func (a *App) dashboardResponseFromCache(now time.Time) *p2pstreamv1.GetDashboardResponse {
 	if resp, ok := a.DashboardCache.clone(); ok {
-		a.overlayDashboardLive(resp)
+		a.overlayDashboardLive(resp, now)
 		return resp
 	}
 	resp := a.emptyDashboardResponse(now)
-	a.overlayDashboardLive(resp)
+	a.overlayDashboardLive(resp, now)
 	return resp
 }
 
@@ -147,20 +147,61 @@ func (a *App) emptyDashboardResponse(now time.Time) *p2pstreamv1.GetDashboardRes
 		})
 	}
 	return &p2pstreamv1.GetDashboardResponse{
-		Windows:               windows,
-		AgentConnections:      &p2pstreamv1.AgentConnectionSummary{},
-		RetentionDays:         int64(a.observabilityRetentionDays()),
-		GeneratedAtUnixMillis: now.UnixMilli(),
+		Windows:                windows,
+		AgentConnections:       &p2pstreamv1.AgentConnectionSummary{},
+		RetentionDays:          int64(a.observabilityRetentionDays()),
+		GeneratedAtUnixMillis:  now.UnixMilli(),
+		AgentUptimeSummaries:   []*p2pstreamv1.AgentUptimeSummary{},
+		RecentAgentConnections: []*p2pstreamv1.AgentConnectionSession{},
 	}
 }
 
-func (a *App) overlayDashboardLive(resp *p2pstreamv1.GetDashboardResponse) {
+func (a *App) overlayDashboardLive(resp *p2pstreamv1.GetDashboardResponse, now time.Time) {
 	resp.Status = a.statusResponse()
 	resp.ManagementSecurity = a.managementSecurity()
 	if resp.AgentConnections == nil {
 		resp.AgentConnections = &p2pstreamv1.AgentConnectionSummary{}
 	}
 	resp.AgentConnections.Connected = a.AgentHub.connectedCount() > 0
+	a.overlayDashboardAgentUptimeLive(resp, now.UTC())
+}
+
+func (a *App) overlayDashboardAgentUptimeLive(resp *p2pstreamv1.GetDashboardResponse, now time.Time) {
+	if a == nil || a.AgentHub == nil || resp == nil {
+		return
+	}
+	connected := a.AgentHub.connectedIDs()
+	for _, summary := range resp.AgentUptimeSummaries {
+		if summary == nil {
+			continue
+		}
+		conn := connected[summary.AgentId]
+		summary.Connected = conn != nil
+		if conn == nil {
+			summary.CurrentConnectedAtUnixMillis = 0
+			summary.CurrentUptimeMillis = 0
+			if summary.CurrentOfflineSinceUnixMillis > 0 {
+				offlineSince := time.UnixMilli(summary.CurrentOfflineSinceUnixMillis).UTC()
+				summary.CurrentDowntimeMillis = dashboardDurationMillis(offlineSince, now)
+			}
+			continue
+		}
+		connectedAt := conn.ConnectedAt.UTC()
+		if connectedAt.IsZero() {
+			connectedAt = now
+		}
+		summary.CurrentConnectedAtUnixMillis = connectedAt.UnixMilli()
+		summary.CurrentUptimeMillis = dashboardDurationMillis(connectedAt, now)
+		summary.CurrentOfflineSinceUnixMillis = 0
+		summary.CurrentDowntimeMillis = 0
+	}
+	for _, session := range resp.RecentAgentConnections {
+		if session == nil || !session.Active {
+			continue
+		}
+		startedAt := time.UnixMilli(session.ConnectedAtUnixMillis).UTC()
+		session.DurationMillis = dashboardDurationMillis(startedAt, now)
+	}
 }
 
 func (a *App) buildDashboardCacheSnapshot(ctx context.Context, now time.Time) (*p2pstreamv1.GetDashboardResponse, error) {
@@ -192,16 +233,22 @@ func (a *App) buildDashboardCacheSnapshot(ctx context.Context, now time.Time) (*
 	if err != nil {
 		return nil, err
 	}
+	agentUptimeSummaries, recentAgentConnections, err := a.agentUptimeDashboard(ctx, now)
+	if err != nil {
+		return nil, err
+	}
 
 	topSinceUnixMillis := rollupBucketUnixMillis(now.Add(-dashboardTopWindow))
 	resp := &p2pstreamv1.GetDashboardResponse{
-		Status:                a.statusResponse(),
-		Windows:               dashboardRollupWindows(now, proxyRows, agentRows),
-		AgentConnections:      agentConnections,
-		RetentionDays:         int64(a.observabilityRetentionDays()),
-		GeneratedAtUnixMillis: now.UnixMilli(),
-		TrafficBuckets:        dashboardCacheRollupTrafficBuckets(now, proxyRows),
-		ManagementSecurity:    a.managementSecurity(),
+		Status:                 a.statusResponse(),
+		Windows:                dashboardRollupWindows(now, proxyRows, agentRows),
+		AgentConnections:       agentConnections,
+		RetentionDays:          int64(a.observabilityRetentionDays()),
+		GeneratedAtUnixMillis:  now.UnixMilli(),
+		TrafficBuckets:         dashboardCacheRollupTrafficBuckets(now, proxyRows),
+		ManagementSecurity:     a.managementSecurity(),
+		AgentUptimeSummaries:   agentUptimeSummaries,
+		RecentAgentConnections: recentAgentConnections,
 	}
 	resp.TopListeners, resp.TopBackends, resp.TopRoutes, resp.TopAgents, resp.TopErrorKinds, resp.StatusClasses = dashboardRollupTopDimensions(tupleRows, topSinceUnixMillis, labels)
 	return resp, nil

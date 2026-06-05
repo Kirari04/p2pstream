@@ -21,6 +21,8 @@ Agents connect outbound to management:
 
 The agent and server send periodic WebSocket heartbeat pings so stale or idle intermediary connections are detected before traffic depends on them. The default ping interval is 20 seconds with a 10 second ping timeout. If another reverse proxy sits in front of the management listener, it must allow WebSocket upgrades and its idle timeout should be greater than the heartbeat interval.
 
+The Agents page shows uptime from management-side connection history. It includes current connected or offline duration, uptime percentage over the observability retention window, connection and disconnect counts, and the newest connection sessions. Uptime is calculated from retained `connections` rows, clipped to the retention window and the agent creation time. If the management server restarts after a crash or forced stop, stale open connection rows are closed at startup so old sessions do not appear active forever.
+
 By default, agents reject insecure HTTP management URLs and verify HTTPS certificates. For auto-generated management TLS, pass one of:
 
 | Variable | Use |
@@ -52,6 +54,6 @@ AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 - [Systemd uninstall](../operations/systemd#uninstall-agent)
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connection state, active requests, runtime metrics, token actions, and connection history">
-  <figcaption>The Agents page shows connection state, active requests, runtime metrics, token rotation, enable/disable actions, and connection history.</figcaption>
+  <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connection state, uptime, active requests, runtime metrics, token actions, and recent sessions">
+  <figcaption>The Agents page shows connection state, uptime, active requests, runtime metrics, token rotation, enable/disable actions, and recent sessions.</figcaption>
 </figure>

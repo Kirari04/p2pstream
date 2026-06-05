@@ -137,6 +137,16 @@ The backend response-header timeout limits only the wait for first upstream head
 | Idle WebSocket timeout is too low | Set the management proxy idle timeout higher than the 20 second agent heartbeat interval. |
 | Heartbeat failures | Check network reachability between the agent host and management URL; failed heartbeats disconnect the agent so it can reconnect cleanly. |
 
+## Agent Uptime Looks Wrong
+
+| Cause | Fix |
+| --- | --- |
+| Retention window changed | Uptime percentages use retained management connection history, not all-time history. Check the dashboard retention window. |
+| Agent record is new | The observation window starts at the later of retention start or agent creation time. New agents do not include time before they existed. |
+| Server restarted after an unclean exit | Startup closes stale open connection rows and marks affected agents disconnected at that startup time. This prevents old sessions from looking active forever. |
+| Agent is offline | The Agents page shows current offline duration from the last recorded disconnect time. |
+| Missing historical rows | Uptime is based on local management `connections` data. Deleted or expired rows cannot be reconstructed from agent self-reporting. |
+
 ## Static Asset Is Not Cached
 
 | Cause | Fix |

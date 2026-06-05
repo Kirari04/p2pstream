@@ -15,6 +15,7 @@ type Querier interface {
 	BackfillProxyRequestRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestRollupMinutesRangeParams) error
 	BackfillProxyRequestTupleRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestTupleRollupMinutesRangeParams) error
 	ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error)
+	CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error
 	CountEnabledAgentPoolBackendsWhereAgentIsLast(ctx context.Context, agentID int64) (int64, error)
 	CountPublicBackendEnabledReferences(ctx context.Context, backendID int64) (int64, error)
 	CountPublicBackends(ctx context.Context) (int64, error)
@@ -108,6 +109,7 @@ type Querier interface {
 	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error)
 	ListAgentStatRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListAgentStatRollupMinutesSinceRow, error)
 	ListAgents(ctx context.Context) ([]Agent, error)
+	ListConnectionsSince(ctx context.Context, arg ListConnectionsSinceParams) ([]ListConnectionsSinceRow, error)
 	ListEnvironments(ctx context.Context) ([]Environment, error)
 	ListManagementAccessTokens(ctx context.Context) ([]ManagementAccessToken, error)
 	ListProxyRequestRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRequestRollupMinutesSinceRow, error)
@@ -137,6 +139,7 @@ type Querier interface {
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
 	ListPublicWafCaptchaProviders(ctx context.Context) ([]PublicWafCaptchaProvider, error)
 	ListPublicWafRules(ctx context.Context) ([]PublicWafRule, error)
+	ListRecentConnections(ctx context.Context, limit int64) ([]ListRecentConnectionsRow, error)
 	ListTopProxyAgentsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyAgentsRollupsSinceRow, error)
 	ListTopProxyAgentsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyAgentsSinceRow, error)
 	ListTopProxyBackendsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyBackendsRollupsSinceRow, error)
@@ -150,6 +153,7 @@ type Querier interface {
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
 	MarkAgentRollupBackfilledThrough(ctx context.Context, agentBackfilledThroughID int64) error
+	MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Context, arg MarkAgentsWithOpenConnectionsDisconnectedAtParams) error
 	MarkProxyRollupBackfilledThrough(ctx context.Context, proxyBackfilledThroughID int64) error
 	PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error)
 	PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error)

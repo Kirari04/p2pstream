@@ -73,7 +73,7 @@ Agent WebSockets use periodic heartbeat pings. The default ping interval is 20 s
 
 ## Verification
 
-Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Traffic** tracing to confirm traffic moves across the expected agents.
+Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Traffic** tracing to confirm traffic moves across the expected agents. Use **Agents** to check each agent's current uptime or offline duration, retention-window uptime percentage, connection and disconnect counts, and recent connection sessions.
 
 ## Troubleshooting
 

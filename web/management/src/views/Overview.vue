@@ -22,6 +22,7 @@ import {
   formatDuration,
   formatNumber,
   formatPercent,
+  fleetUptimePercent,
   requestsPerSecond,
   statusClassCounts,
   successRate,
@@ -62,6 +63,7 @@ const runningListeners = computed(() => listenerStatuses.value.filter((listener)
 const enabledAgents = computed(() => agents.value.filter((agent) => agent.enabled).length);
 const connectedAgents = computed(() => agents.value.filter((agent) => agent.connected).length);
 const activeAgentRequests = computed(() => agents.value.reduce((sum, agent) => sum + Number(agent.activeRequests || 0n), 0));
+const fleetUptime = computed(() => fleetUptimePercent(dashboardValue.value?.agentUptimeSummaries));
 const statusCounts = computed(() => statusClassCounts(dashboardValue.value?.statusClasses));
 const trafficBuckets = computed(() => filledTrafficBuckets(dashboardValue.value?.trafficBuckets, generatedAt.value));
 const maxBucketRequests = computed(() => Math.max(1, ...trafficBuckets.value.map((bucket) => Number(bucket.requests))));
@@ -141,6 +143,12 @@ function selectedDownloadRate(): string {
 
 function selectedUploadRate(): string {
   return formatByteRate(bytesPerSecond(selectedWindow.value?.proxyRequestBytes, selectedWindow.value, generatedAt.value));
+}
+
+function agentsMetricSubline(): string {
+  const active = `${formatNumber(activeAgentRequests.value)} active requests`;
+  if (fleetUptime.value === null) return active;
+  return `${formatPercent(fleetUptime.value)} uptime / ${active}`;
 }
 
 function rowErrors(row: DashboardProxyDimensionSummary): bigint {
@@ -236,7 +244,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
       <div class="metric-card">
         <p class="metric-kicker">Agents</p>
         <div class="metric-value">{{ connectedAgents }}/{{ enabledAgents }}</div>
-        <p class="metric-subline">{{ formatNumber(activeAgentRequests) }} active requests</p>
+        <p class="metric-subline">{{ agentsMetricSubline() }}</p>
       </div>
     </section>
 

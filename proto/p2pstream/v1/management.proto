@@ -1635,6 +1635,38 @@ message AgentConnectionSummary {
   int64 last_disconnected_at_unix_millis = 5;
 }
 
+message AgentUptimeSummary {
+  int64 agent_id = 1;
+  string agent_public_id = 2;
+  string agent_name = 3;
+  bool enabled = 4;
+  bool connected = 5;
+  int64 current_connected_at_unix_millis = 6;
+  int64 current_uptime_millis = 7;
+  int64 current_offline_since_unix_millis = 8;
+  int64 current_downtime_millis = 9;
+  int64 uptime_millis = 10;
+  int64 downtime_millis = 11;
+  double uptime_percent = 12;
+  int64 connection_count = 13;
+  int64 disconnect_count = 14;
+  int64 observed_since_unix_millis = 15;
+  int64 observed_until_unix_millis = 16;
+  int64 last_connected_at_unix_millis = 17;
+  int64 last_disconnected_at_unix_millis = 18;
+}
+
+message AgentConnectionSession {
+  int64 id = 1;
+  int64 agent_id = 2;
+  string agent_public_id = 3;
+  string agent_name = 4;
+  int64 connected_at_unix_millis = 5;
+  int64 disconnected_at_unix_millis = 6;
+  int64 duration_millis = 7;
+  bool active = 8;
+}
+
 message GetDashboardResponse {
   GetStatusResponse status = 1;
   repeated DashboardWindowSummary windows = 2;
@@ -1649,6 +1681,8 @@ message GetDashboardResponse {
   repeated DashboardProxyDimensionSummary status_classes = 11;
   repeated DashboardTrafficBucket traffic_buckets = 12;
   ManagementSecurity management_security = 13;
+  repeated AgentUptimeSummary agent_uptime_summaries = 14;
+  repeated AgentConnectionSession recent_agent_connections = 15;
 }
 
 message TrafficTraceSettings {

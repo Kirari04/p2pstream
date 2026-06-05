@@ -108,10 +108,27 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 	}
 	app.PublicACME = newPublicACMEManager(app)
 	if database != nil {
+		app.closeStaleAgentConnections(context.Background(), time.Now().UTC())
 		app.initializeSetupToken(context.Background())
 		app.ensureBootstrapAgent(context.Background())
 	}
 	return app
+}
+
+func (a *App) closeStaleAgentConnections(ctx context.Context, now time.Time) {
+	if a == nil || a.DB == nil {
+		return
+	}
+	disconnectedAt := sql.NullTime{Time: now.UTC(), Valid: true}
+	if err := a.DB.MarkAgentsWithOpenConnectionsDisconnectedAt(ctx, db.MarkAgentsWithOpenConnectionsDisconnectedAtParams{
+		LastDisconnectedAt: disconnectedAt,
+		UpdatedAt:          disconnectedAt.Time,
+	}); err != nil {
+		log.Warn().Err(err).Msg("Failed to mark stale agent connections disconnected")
+	}
+	if err := a.DB.CloseOpenConnectionsAt(ctx, disconnectedAt); err != nil {
+		log.Warn().Err(err).Msg("Failed to close stale agent connection rows")
+	}
 }
 
 // RegisterManagementRoutes attaches the WebSocket and ConnectRPC APIs (Port 8081).

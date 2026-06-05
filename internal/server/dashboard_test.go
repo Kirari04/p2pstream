@@ -521,6 +521,185 @@ func TestPublicProxyConfigAgentsUseMemoryLatestStats(t *testing.T) {
 	t.Fatalf("agent %d not found in public config", agent.ID)
 }
 
+func TestDashboardAgentUptimeSummaryConnectedAgent(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30}, newServerTestDB(t))
+	now := time.Unix(1_800_000_000, 0).UTC()
+	agent := createDashboardUptimeAgent(t, app.DB, "agent-connected", now.Add(-2*time.Hour))
+	connectedAt := now.Add(-90 * time.Minute)
+	connID := insertDashboardConnection(t, app.DB, agent.ID, connectedAt, sql.NullTime{})
+	setDashboardAgentTimes(t, app.DB, agent.ID, sql.NullTime{Time: connectedAt, Valid: true}, sql.NullTime{})
+
+	conn := testAgentConn(agent.ID, agent.PublicID)
+	conn.ConnectedAt = connectedAt
+	conn.ConnectionDBID = connID
+	if err := app.AgentHub.connect(conn); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	t.Cleanup(func() { app.AgentHub.disconnect(conn) })
+
+	summaries, err := app.agentUptimeSummaries(ctx, now)
+	if err != nil {
+		t.Fatalf("agent uptime summaries: %v", err)
+	}
+	summary := dashboardUptimeSummaryByAgentID(t, summaries, agent.ID)
+
+	if !summary.Connected {
+		t.Fatal("summary connected = false, want true")
+	}
+	if summary.CurrentConnectedAtUnixMillis != connectedAt.UnixMilli() {
+		t.Fatalf("current connected at = %d, want %d", summary.CurrentConnectedAtUnixMillis, connectedAt.UnixMilli())
+	}
+	if summary.CurrentUptimeMillis != int64((90 * time.Minute).Milliseconds()) {
+		t.Fatalf("current uptime = %d, want 90m", summary.CurrentUptimeMillis)
+	}
+	if summary.UptimeMillis != int64((90*time.Minute).Milliseconds()) || summary.DowntimeMillis != int64((30*time.Minute).Milliseconds()) {
+		t.Fatalf("uptime/downtime = %d/%d, want 90m/30m", summary.UptimeMillis, summary.DowntimeMillis)
+	}
+	assertDashboardFloatClose(t, summary.UptimePercent, 0.75)
+	if summary.ConnectionCount != 1 || summary.DisconnectCount != 0 {
+		t.Fatalf("connection/disconnect count = %d/%d, want 1/0", summary.ConnectionCount, summary.DisconnectCount)
+	}
+}
+
+func TestDashboardAgentUptimeSummaryDisconnectedAgent(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30}, newServerTestDB(t))
+	now := time.Unix(1_800_000_000, 0).UTC()
+	agent := createDashboardUptimeAgent(t, app.DB, "agent-disconnected", now.Add(-2*time.Hour))
+	connectedAt := now.Add(-90 * time.Minute)
+	disconnectedAt := now.Add(-30 * time.Minute)
+	insertDashboardConnection(t, app.DB, agent.ID, connectedAt, sql.NullTime{Time: disconnectedAt, Valid: true})
+	setDashboardAgentTimes(t, app.DB, agent.ID, sql.NullTime{Time: connectedAt, Valid: true}, sql.NullTime{Time: disconnectedAt, Valid: true})
+
+	summaries, err := app.agentUptimeSummaries(ctx, now)
+	if err != nil {
+		t.Fatalf("agent uptime summaries: %v", err)
+	}
+	summary := dashboardUptimeSummaryByAgentID(t, summaries, agent.ID)
+
+	if summary.Connected {
+		t.Fatal("summary connected = true, want false")
+	}
+	if summary.CurrentOfflineSinceUnixMillis != disconnectedAt.UnixMilli() {
+		t.Fatalf("offline since = %d, want %d", summary.CurrentOfflineSinceUnixMillis, disconnectedAt.UnixMilli())
+	}
+	if summary.CurrentDowntimeMillis != int64((30 * time.Minute).Milliseconds()) {
+		t.Fatalf("current downtime = %d, want 30m", summary.CurrentDowntimeMillis)
+	}
+	if summary.UptimeMillis != int64((60*time.Minute).Milliseconds()) || summary.DowntimeMillis != int64((60*time.Minute).Milliseconds()) {
+		t.Fatalf("uptime/downtime = %d/%d, want 60m/60m", summary.UptimeMillis, summary.DowntimeMillis)
+	}
+	assertDashboardFloatClose(t, summary.UptimePercent, 0.5)
+	if summary.ConnectionCount != 1 || summary.DisconnectCount != 1 {
+		t.Fatalf("connection/disconnect count = %d/%d, want 1/1", summary.ConnectionCount, summary.DisconnectCount)
+	}
+}
+
+func TestDashboardAgentUptimeClipsToRetentionWindow(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 1}, newServerTestDB(t))
+	now := time.Unix(1_800_000_000, 0).UTC()
+	agent := createDashboardUptimeAgent(t, app.DB, "agent-retention", now.Add(-48*time.Hour))
+	insertDashboardConnection(t, app.DB, agent.ID, now.Add(-36*time.Hour), sql.NullTime{Time: now.Add(-12 * time.Hour), Valid: true})
+
+	summaries, err := app.agentUptimeSummaries(ctx, now)
+	if err != nil {
+		t.Fatalf("agent uptime summaries: %v", err)
+	}
+	summary := dashboardUptimeSummaryByAgentID(t, summaries, agent.ID)
+
+	if summary.ObservedSinceUnixMillis != now.Add(-24*time.Hour).UnixMilli() {
+		t.Fatalf("observed since = %d, want retention boundary", summary.ObservedSinceUnixMillis)
+	}
+	if summary.UptimeMillis != int64((12*time.Hour).Milliseconds()) || summary.DowntimeMillis != int64((12*time.Hour).Milliseconds()) {
+		t.Fatalf("uptime/downtime = %d/%d, want 12h/12h", summary.UptimeMillis, summary.DowntimeMillis)
+	}
+	assertDashboardFloatClose(t, summary.UptimePercent, 0.5)
+}
+
+func TestDashboardAgentUptimeClipsToAgentCreationTime(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30}, newServerTestDB(t))
+	now := time.Unix(1_800_000_000, 0).UTC()
+	createdAt := now.Add(-2 * time.Hour)
+	agent := createDashboardUptimeAgent(t, app.DB, "agent-created", createdAt)
+	insertDashboardConnection(t, app.DB, agent.ID, now.Add(-5*time.Hour), sql.NullTime{Time: now.Add(-1 * time.Hour), Valid: true})
+
+	summaries, err := app.agentUptimeSummaries(ctx, now)
+	if err != nil {
+		t.Fatalf("agent uptime summaries: %v", err)
+	}
+	summary := dashboardUptimeSummaryByAgentID(t, summaries, agent.ID)
+
+	if summary.ObservedSinceUnixMillis != createdAt.UnixMilli() {
+		t.Fatalf("observed since = %d, want %d", summary.ObservedSinceUnixMillis, createdAt.UnixMilli())
+	}
+	if summary.UptimeMillis != int64((1*time.Hour).Milliseconds()) || summary.DowntimeMillis != int64((1*time.Hour).Milliseconds()) {
+		t.Fatalf("uptime/downtime = %d/%d, want 1h/1h", summary.UptimeMillis, summary.DowntimeMillis)
+	}
+	assertDashboardFloatClose(t, summary.UptimePercent, 0.5)
+}
+
+func TestDashboardRecentAgentConnectionSessions(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30}, newServerTestDB(t))
+	now := time.Unix(1_800_000_000, 0).UTC()
+	agent := createDashboardUptimeAgent(t, app.DB, "agent-recent", now.Add(-2*time.Hour))
+	oldID := insertDashboardConnection(t, app.DB, agent.ID, now.Add(-10*time.Minute), sql.NullTime{Time: now.Add(-7 * time.Minute), Valid: true})
+	activeID := insertDashboardConnection(t, app.DB, agent.ID, now.Add(-5*time.Minute), sql.NullTime{})
+	newID := insertDashboardConnection(t, app.DB, agent.ID, now.Add(-2*time.Minute), sql.NullTime{Time: now.Add(-1 * time.Minute), Valid: true})
+
+	sessions, err := app.recentAgentConnectionSessions(ctx, now)
+	if err != nil {
+		t.Fatalf("recent agent connection sessions: %v", err)
+	}
+	if len(sessions) < 3 {
+		t.Fatalf("sessions length = %d, want at least 3", len(sessions))
+	}
+	if sessions[0].Id != newID || sessions[1].Id != activeID || sessions[2].Id != oldID {
+		t.Fatalf("session order = %d/%d/%d, want %d/%d/%d", sessions[0].Id, sessions[1].Id, sessions[2].Id, newID, activeID, oldID)
+	}
+	if sessions[0].DurationMillis != int64((1*time.Minute).Milliseconds()) || sessions[0].Active {
+		t.Fatalf("new session duration/active = %d/%v, want 1m/false", sessions[0].DurationMillis, sessions[0].Active)
+	}
+	if sessions[1].DurationMillis != int64((5*time.Minute).Milliseconds()) || !sessions[1].Active {
+		t.Fatalf("active session duration/active = %d/%v, want 5m/true", sessions[1].DurationMillis, sessions[1].Active)
+	}
+}
+
+func TestNewAppClosesStaleOpenAgentConnections(t *testing.T) {
+	ctx := context.Background()
+	database := newServerTestDB(t)
+	agent, err := database.CreateAgent(ctx, db.CreateAgentParams{
+		PublicID:  "agent-stale",
+		Name:      "agent-stale",
+		TokenHash: "hash",
+		Enabled:   1,
+	})
+	if err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	connID := insertDashboardConnection(t, database, agent.ID, time.Unix(1_800_000_000, 0).UTC(), sql.NullTime{})
+
+	_ = NewApp(&config.Config{}, database)
+
+	var connectionDisconnectedAt sql.NullTime
+	if err := database.QueryRowContext(ctx, `SELECT disconnected_at FROM connections WHERE id = ?`, connID).Scan(&connectionDisconnectedAt); err != nil {
+		t.Fatalf("read connection disconnected_at: %v", err)
+	}
+	var agentLastDisconnectedAt sql.NullTime
+	if err := database.QueryRowContext(ctx, `SELECT last_disconnected_at FROM agents WHERE id = ?`, agent.ID).Scan(&agentLastDisconnectedAt); err != nil {
+		t.Fatalf("read agent last_disconnected_at: %v", err)
+	}
+	if !connectionDisconnectedAt.Valid || !agentLastDisconnectedAt.Valid {
+		t.Fatalf("disconnected timestamps valid = connection %v agent %v, want both true", connectionDisconnectedAt.Valid, agentLastDisconnectedAt.Valid)
+	}
+	if !connectionDisconnectedAt.Time.Equal(agentLastDisconnectedAt.Time) {
+		t.Fatalf("connection disconnected_at %s != agent last_disconnected_at %s", connectionDisconnectedAt.Time, agentLastDisconnectedAt.Time)
+	}
+}
+
 func dashboardTestWindow(t *testing.T, windows []*p2pstreamv1.DashboardWindowSummary, label string) *p2pstreamv1.DashboardWindowSummary {
 	t.Helper()
 	for _, window := range windows {
@@ -542,6 +721,81 @@ func dashboardTestWindowsByLabel(windows []*p2pstreamv1.DashboardWindowSummary) 
 
 func sqlNullInt64(value int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: value, Valid: true}
+}
+
+func createDashboardUptimeAgent(t *testing.T, database *db.DB, publicID string, createdAt time.Time) db.Agent {
+	t.Helper()
+	agent, err := database.CreateAgent(context.Background(), db.CreateAgentParams{
+		PublicID:  publicID,
+		Name:      publicID,
+		TokenHash: "hash-" + publicID,
+		Enabled:   1,
+	})
+	if err != nil {
+		t.Fatalf("create uptime agent: %v", err)
+	}
+	if _, err := database.ExecContext(context.Background(), `UPDATE agents SET created_at = ?, updated_at = ? WHERE id = ?`, createdAt.UTC(), createdAt.UTC(), agent.ID); err != nil {
+		t.Fatalf("update uptime agent created_at: %v", err)
+	}
+	agent.CreatedAt = createdAt.UTC()
+	return agent
+}
+
+func insertDashboardConnection(t *testing.T, database *db.DB, agentID int64, connectedAt time.Time, disconnectedAt sql.NullTime) int64 {
+	t.Helper()
+	row := database.QueryRowContext(context.Background(), `
+		INSERT INTO connections (agent_id, connected_at, disconnected_at)
+		VALUES (?, ?, ?)
+		RETURNING id`,
+		sql.NullInt64{Int64: agentID, Valid: true},
+		connectedAt.UTC(),
+		disconnectedAt,
+	)
+	var id int64
+	if err := row.Scan(&id); err != nil {
+		t.Fatalf("insert dashboard connection: %v", err)
+	}
+	return id
+}
+
+func setDashboardAgentTimes(t *testing.T, database *db.DB, agentID int64, lastConnectedAt, lastDisconnectedAt sql.NullTime) {
+	t.Helper()
+	if lastConnectedAt.Valid {
+		lastConnectedAt.Time = lastConnectedAt.Time.UTC()
+	}
+	if lastDisconnectedAt.Valid {
+		lastDisconnectedAt.Time = lastDisconnectedAt.Time.UTC()
+	}
+	if _, err := database.ExecContext(context.Background(), `
+		UPDATE agents
+		SET last_connected_at = ?,
+		    last_disconnected_at = ?,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`,
+		lastConnectedAt,
+		lastDisconnectedAt,
+		agentID,
+	); err != nil {
+		t.Fatalf("update dashboard agent times: %v", err)
+	}
+}
+
+func dashboardUptimeSummaryByAgentID(t *testing.T, summaries []*p2pstreamv1.AgentUptimeSummary, agentID int64) *p2pstreamv1.AgentUptimeSummary {
+	t.Helper()
+	for _, summary := range summaries {
+		if summary.GetAgentId() == agentID {
+			return summary
+		}
+	}
+	t.Fatalf("agent uptime summary %d not found", agentID)
+	return nil
+}
+
+func assertDashboardFloatClose(t *testing.T, got, want float64) {
+	t.Helper()
+	if got < want-0.000001 || got > want+0.000001 {
+		t.Fatalf("float = %f, want %f", got, want)
+	}
 }
 
 func seedDashboardRollupDimensionFixtures(t *testing.T, database *db.DB) {

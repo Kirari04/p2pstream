@@ -8,6 +8,22 @@ UPDATE connections
 SET disconnected_at = CURRENT_TIMESTAMP
 WHERE id = ?;
 
+-- name: MarkAgentsWithOpenConnectionsDisconnectedAt :exec
+UPDATE agents
+SET last_disconnected_at = ?,
+    updated_at = ?
+WHERE id IN (
+    SELECT DISTINCT agent_id
+    FROM connections
+    WHERE disconnected_at IS NULL
+      AND agent_id IS NOT NULL
+);
+
+-- name: CloseOpenConnectionsAt :exec
+UPDATE connections
+SET disconnected_at = ?
+WHERE disconnected_at IS NULL;
+
 -- name: InsertAgentStat :exec
 INSERT INTO agent_stats (
     agent_id, memory_mb, goroutines, req_success, req_client_error, req_server_error, req_internal_error, bytes_rx, bytes_tx, cpu_percent
@@ -556,6 +572,34 @@ FROM connections
 WHERE disconnected_at IS NULL
 ORDER BY connected_at DESC
 LIMIT 1;
+
+-- name: ListConnectionsSince :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+WHERE c.connected_at >= ?
+   OR c.disconnected_at IS NULL
+   OR c.disconnected_at >= ?
+ORDER BY c.connected_at ASC;
+
+-- name: ListRecentConnections :many
+SELECT
+    c.id,
+    c.agent_id,
+    COALESCE(a.public_id, '') AS agent_public_id,
+    COALESCE(a.name, '') AS agent_name,
+    c.connected_at,
+    c.disconnected_at
+FROM connections c
+LEFT JOIN agents a ON a.id = c.agent_id
+ORDER BY c.connected_at DESC, c.id DESC
+LIMIT ?;
 
 -- name: ListAgents :many
 SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
