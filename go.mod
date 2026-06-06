@@ -5,7 +5,7 @@ go 1.25.10
 require (
 	connectrpc.com/connect v1.19.2
 	github.com/caarlos0/env/v10 v10.0.0
-	github.com/google/cel-go v0.27.0
+	github.com/google/cel-go v0.28.1
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/joho/godotenv v1.5.1
