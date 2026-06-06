@@ -20,11 +20,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
-	"p2pstream/httpmsg"
-	"p2pstream/msg"
+	"p2pstream/internal/tunnel"
 )
-
-var publicAgentResponseGracePeriod = 5 * time.Second
 
 var errNoRouteBackendAvailable = errors.New("no route backend available")
 
@@ -849,30 +846,8 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		Str("req_id", id.String()).
 		Str("method", r.Method).
 		Str("path", r.URL.Path).
-		Msg("Proxying request")
-
-	pendingCtx, pendingCancel := context.WithCancel(r.Context())
-	defer pendingCancel()
-	pending := &pendingAgentRequest{
-		AgentID:       agent.AgentID,
-		AgentPublicID: agent.PublicID,
-		ResponseCh:    make(chan *msg.Request, 100),
-		ErrorCh:       make(chan error, 1),
-		ctx:           pendingCtx,
-		cancel:        pendingCancel,
-	}
-	a.PendingRequests.Store(id, pending)
-	pendingFinishReason := "completed"
-	defer func() {
-		a.finishPendingAgentRequest(id, pendingFinishReason)
-	}()
-
-	outReq := r.Clone(r.Context())
-	applyUpstreamRequestConfig(outReq, resolution.Backend)
-	applyTrustedForwardedHeaders(outReq, r)
-	if shaper != nil {
-		outReq.Body = shaper.wrapUploadBody(r.Context(), outReq.Body)
-	}
+		Str("agent", agent.PublicID).
+		Msg("Proxying request through agent tunnel")
 
 	if trace != nil {
 		trace.emit(
@@ -885,168 +860,169 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 			map[string]string{"handler": "agent_pool", "agent": agent.PublicID, "upstream": redactSensitiveTraceURL(targetOrigin.String())},
 		)
 	}
-	enc := httpmsg.NewRequestEncoderWithMetadata(id, outReq, map[string]string{
-		httpmsg.MetadataTLSSkipVerify:               strconv.FormatBool(resolution.Backend.TLSSkipVerify),
-		httpmsg.MetadataResponseHeaderTimeoutMillis: strconv.FormatInt(durationMillis(resolution.Backend.UpstreamResponseHeaderTimeout), 10),
-	})
-	for {
-		m, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode request chunk")
-			statusCode = http.StatusInternalServerError
-			errorKind = "request_encode_failed"
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		select {
-		case agent.WriteCh <- m:
-		case <-agent.Done:
-			pendingFinishReason = "agent_disconnected"
-			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, errAgentDisconnected)
-			statusCode = http.StatusBadGateway
-			errorKind = "agent_disconnected"
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
-			return
-		case <-r.Context().Done():
-			pendingFinishReason = "client_cancelled"
-			statusCode = http.StatusGatewayTimeout
-			errorKind = "client_cancelled"
-			return
-		}
-	}
 
-	timeoutCtx, cancel := context.WithTimeout(r.Context(), agentResponseWaitTimeout(resolution.Backend.UpstreamResponseHeaderTimeout))
-	defer cancel()
-
-	var firstMsg *msg.Request
-	select {
-	case <-timeoutCtx.Done():
-		if requestContextCanceled(r.Context(), timeoutCtx.Err()) {
-			pendingFinishReason = "client_cancelled"
-			statusCode = http.StatusGatewayTimeout
-			errorKind = "client_cancelled"
-			return
-		}
-		pendingFinishReason = "agent_timeout"
-		if shouldMarkAgentPassiveFailure(r.Context(), timeoutCtx.Err()) {
-			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, timeoutCtx.Err())
-		}
-		statusCode = http.StatusGatewayTimeout
-		errorKind = "agent_timeout"
-		http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
-		return
-	case err := <-pending.ErrorCh:
-		if requestContextCanceled(r.Context(), err) {
-			pendingFinishReason = "client_cancelled"
-			statusCode = http.StatusGatewayTimeout
-			errorKind = "client_cancelled"
-			return
-		}
-		pendingFinishReason, errorKind = agentPendingFailureReason(err)
-		if shouldMarkAgentPassiveFailure(r.Context(), err) {
-			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
-		}
-		statusCode = http.StatusBadGateway
-		http.Error(w, "Bad Gateway", http.StatusBadGateway)
-		return
-	case firstMsg = <-pending.ResponseCh:
-		if firstMsg == nil {
-			pendingFinishReason = "agent_disconnected"
-			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, errAgentDisconnected)
-			statusCode = http.StatusBadGateway
-			errorKind = "agent_disconnected"
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
-			return
-		}
-	}
-
-	stream := &httpmsg.ChannelStream{Ctx: pendingCtx, Ch: pending.ResponseCh}
-	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
-	if err != nil {
-		if requestContextCanceled(r.Context(), err) {
-			log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent response decode cancelled by client")
-			pendingFinishReason = "client_cancelled"
-			statusCode = http.StatusGatewayTimeout
-			errorKind = "client_cancelled"
-			return
-		}
-		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode response headers")
-		pendingFinishReason = "response_decode_failed"
-		if shouldMarkAgentPassiveFailure(r.Context(), err) {
-			a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
-		}
-		statusCode = http.StatusBadGateway
-		errorKind = "response_decode_failed"
-		http.Error(w, "Bad Gateway", http.StatusBadGateway)
-		return
-	}
-
-	statusCode = resp.StatusCode
-	if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
-		resp.Header.Set("X-p2pstream-Cache", "MISS")
-	}
-	if trace != nil {
-		trace.emit(
-			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
-			&resolution,
-			agent,
-			resp.StatusCode,
-			"",
-			resp.Header,
-			map[string]string{"handler": "agent_pool", "agent": agent.PublicID},
-		)
-	}
-
-	for k, vv := range resp.Header {
-		for _, v := range vv {
-			w.Header().Add(k, v)
-		}
-	}
-	w.WriteHeader(resp.StatusCode)
-
-	if resp.Body != nil {
-		if cacheDecision != nil && cacheDecision.Cacheable {
-			resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
-		}
-		if shaper != nil {
-			resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
-		}
-		defer resp.Body.Close()
-		if _, err := io.Copy(w, resp.Body); err != nil {
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(proxyReq *httputil.ProxyRequest) {
+			applyUpstreamRequestConfig(proxyReq.Out, resolution.Backend)
+			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In)
+			if shaper != nil {
+				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
+			}
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			statusCode = resp.StatusCode
+			if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
+				resp.Header.Set("X-p2pstream-Cache", "MISS")
+			}
+			if cacheDecision != nil && cacheDecision.Cacheable {
+				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
+			}
+			if shaper != nil {
+				resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
+			}
+			if trace != nil {
+				trace.emit(
+					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
+					&resolution,
+					agent,
+					resp.StatusCode,
+					"",
+					resp.Header,
+					map[string]string{"handler": "agent_pool", "agent": agent.PublicID},
+				)
+			}
+			return nil
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			if requestContextCanceled(r.Context(), err) {
-				log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent response body copy cancelled by client")
-				pendingFinishReason = "client_cancelled"
+				log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent proxy cancelled by client")
+				statusCode = http.StatusGatewayTimeout
 				errorKind = "client_cancelled"
 				return
 			}
-			passiveErr := err
-			pendingFinishReason = "response_body_read_failed"
-			errorKind = "response_body_read_failed"
-			select {
-			case pendingErr := <-pending.ErrorCh:
-				passiveErr = pendingErr
-				pendingFinishReason, errorKind = agentPendingFailureReason(pendingErr)
-			default:
-				select {
-				case <-agent.Done:
-					passiveErr = errAgentDisconnected
-					pendingFinishReason = "agent_disconnected"
-					errorKind = "agent_disconnected"
-				default:
+			log.Error().Err(err).Str("req_id", id.String()).Str("agent", agent.PublicID).Msg("Agent proxy failed")
+			if shouldMarkAgentPassiveFailure(r.Context(), err) {
+				a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
+			}
+			var dialErr agentDialError
+			switch {
+			case errors.Is(err, errAgentDisconnected):
+				statusCode = http.StatusBadGateway
+				errorKind = "agent_disconnected"
+				http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			case errors.As(err, &dialErr):
+				if dialErr.Kind == "dial_timeout" {
+					statusCode = http.StatusGatewayTimeout
+					errorKind = "agent_dial_timeout"
+					http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+					return
 				}
+				statusCode = http.StatusBadGateway
+				if dialErr.Kind == "" {
+					errorKind = "agent_dial_failed"
+				} else {
+					errorKind = "agent_" + dialErr.Kind
+				}
+				http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			case isTimeoutError(err):
+				statusCode = http.StatusGatewayTimeout
+				errorKind = "upstream_response_header_timeout"
+				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+			default:
+				statusCode = http.StatusBadGateway
+				errorKind = "agent_proxy_failed"
+				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			}
-			log.Error().Err(passiveErr).Str("req_id", id.String()).Msg("Agent response body stream failed")
-			if shouldMarkAgentPassiveFailure(r.Context(), passiveErr) {
-				a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, passiveErr)
-			}
-			return
-		}
+		},
+		Transport: a.agentProxyTransport(agent, resolution.Backend, id.String()),
 	}
 
-	log.Info().Str("req_id", id.String()).Int("status", resp.StatusCode).Msg("Finished proxying request")
+	proxy.ServeHTTP(w, r)
+	log.Info().Str("req_id", id.String()).Int("status", statusCode).Msg("Finished proxying request")
+}
+
+type agentDialError struct {
+	Kind string
+	Err  string
+}
+
+func (e agentDialError) Error() string {
+	if e.Err == "" {
+		return e.Kind
+	}
+	return e.Kind + ": " + e.Err
+}
+
+func (a *App) agentProxyTransport(agent *AgentConn, backend publicBackendConfig, requestID string) http.RoundTripper {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	transport := base.Clone()
+	transport.ResponseHeaderTimeout = normalizeUpstreamResponseHeaderTimeout(backend.UpstreamResponseHeaderTimeout)
+	transport.DisableKeepAlives = true
+	transport.DialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
+		return a.dialViaAgent(ctx, agent, network, address, requestID)
+	}
+	if backend.TLSSkipVerify {
+		if transport.TLSClientConfig == nil {
+			transport.TLSClientConfig = &tls.Config{}
+		} else {
+			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+		}
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	}
+	return transport
+}
+
+func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string, address string, requestID string) (net.Conn, error) {
+	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
+		return nil, errAgentDisconnected
+	}
+	openCh := make(chan struct {
+		conn net.Conn
+		err  error
+	}, 1)
+	go func() {
+		conn, err := agent.Session.Open()
+		openCh <- struct {
+			conn net.Conn
+			err  error
+		}{conn: conn, err: err}
+	}()
+
+	var conn net.Conn
+	select {
+	case result := <-openCh:
+		if result.err != nil {
+			return nil, result.err
+		}
+		conn = result.conn
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-agent.Done:
+		return nil, errAgentDisconnected
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	req := tunnel.NewOpenRequest(requestID, network, address)
+	if err := tunnel.WriteOpenRequest(conn, req); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	resp, err := tunnel.ReadOpenResponse(conn)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	if !resp.OK {
+		_ = conn.Close()
+		return nil, agentDialError{Kind: resp.ErrorKind, Err: resp.Error}
+	}
+	_ = conn.SetDeadline(time.Time{})
+	return conn, nil
 }
 
 func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
@@ -1090,17 +1066,6 @@ func (a *App) eligibleBackendAgentCandidate(snap *publicProxySnapshot, backend p
 		Position: assignment.Position,
 		Weight:   assignment.Weight,
 	}, true
-}
-
-func agentPendingFailureReason(err error) (string, string) {
-	switch {
-	case errors.Is(err, errAgentDisconnected):
-		return "agent_disconnected", "agent_disconnected"
-	case errors.Is(err, errAgentTokenRotated):
-		return "agent_token_rotated", "agent_token_rotated"
-	default:
-		return "agent_failed", "agent_failed"
-	}
 }
 
 func requestContextCanceled(ctx context.Context, err error) bool {
@@ -1542,14 +1507,6 @@ func normalizeUpstreamResponseHeaderTimeout(timeout time.Duration) time.Duration
 		return time.Duration(defaultBackendUpstreamResponseHeaderTimeoutMillis) * time.Millisecond
 	}
 	return timeout
-}
-
-func agentResponseWaitTimeout(responseHeaderTimeout time.Duration) time.Duration {
-	return normalizeUpstreamResponseHeaderTimeout(responseHeaderTimeout) + publicAgentResponseGracePeriod
-}
-
-func durationMillis(duration time.Duration) int64 {
-	return int64(normalizeUpstreamResponseHeaderTimeout(duration) / time.Millisecond)
 }
 
 func isTimeoutError(err error) bool {

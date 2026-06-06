@@ -58,13 +58,15 @@ Use an agent pool when multiple hosts can reach the same upstream, or when you w
 
 ## Runtime Effects
 
-For each matching request, p2pstream selects an enabled connected assigned agent using the backend load-balancing policy, sends the request over the agent WebSocket, and the agent connects to the target origin from its own network.
+For each matching request, p2pstream selects an enabled connected assigned agent using the backend load-balancing policy, opens a Yamux stream over that agent's authenticated management tunnel, and runs the server-owned HTTP transport over the resulting TCP stream.
 
 If health checks are enabled, checks run through each enabled assigned connected agent. A loopback origin such as `http://127.0.0.1:8888` means loopback on each agent host.
 
-Agent-pool backends enforce the backend response-header timeout on the selected agent. The default is `60000` ms. Older agents that do not understand the timeout metadata keep their built-in `30000` ms timeout until upgraded.
+Agent-pool backends enforce the backend response-header timeout in the server-side transport. The default is `60000` ms.
 
-Agent WebSockets use periodic heartbeat pings. The default ping interval is 20 seconds with a 10 second ping timeout. When management is behind another reverse proxy, allow WebSocket upgrades and configure that proxy's idle timeout above the heartbeat interval so connected agents are not dropped while idle.
+Agent tunnels use Yamux keepalives over an HTTP/1.1 upgraded management connection. When management is behind another reverse proxy, allow upgrade streaming for `p2pstream-yamux` on `/agent/tunnel` and configure that proxy's idle timeout high enough for long-lived agent sessions.
+
+Old WebSocket agents are incompatible with Yamux-tunnel servers. Upgrade agents and servers together.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/backend_agent_healthcheck_logs.png" alt="p2pstream agent-pool backend health panel showing assigned agents, health state, active requests, and health-check log entries">
@@ -82,8 +84,8 @@ Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Traff
 | One agent receives too much traffic | Review load-balancing policy and assignment weights. |
 | Requests fail from one site | Test the target origin from that agent host. |
 | Agent is skipped | Confirm it is enabled, connected, assigned, and healthy when health checks are on. |
-| Agent disconnects while idle | Check management reverse-proxy WebSocket support and idle timeout. |
-| Long first-byte delay times out | Increase backend response-header timeout and upgrade agents. |
+| Agent disconnects while idle | Check management reverse-proxy HTTP/1.1 upgrade support and idle timeout for `p2pstream-yamux`. |
+| Long first-byte delay times out | Increase backend response-header timeout. |
 
 ## Next Steps
 

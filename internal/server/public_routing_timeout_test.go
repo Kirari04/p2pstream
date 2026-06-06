@@ -3,15 +3,18 @@ package server
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"p2pstream/httpmsg"
-	"p2pstream/msg"
+	"github.com/hashicorp/yamux"
+
+	"p2pstream/internal/tunnel"
 )
 
 func TestDirectProxyResponseHeaderTimeoutReturnsGatewayTimeout(t *testing.T) {
@@ -45,107 +48,53 @@ func TestDirectProxyResponseHeaderTimeoutReturnsGatewayTimeout(t *testing.T) {
 	}
 }
 
-func TestAgentProxySendsResponseHeaderTimeoutMetadata(t *testing.T) {
-	origin, err := url.Parse("http://127.0.0.1:8888")
-	if err != nil {
-		t.Fatalf("parse upstream URL: %v", err)
-	}
-	app := NewApp(nil, nil)
-	agent := testAgentConn(7, "agent-7")
-	if err := app.AgentHub.connect(agent); err != nil {
-		t.Fatalf("connect agent: %v", err)
-	}
-	defer app.AgentHub.disconnect(agent)
-
-	backend := publicBackendConfig{
-		ID:                            1,
-		Name:                          "agent-timeout",
-		Enabled:                       true,
-		BackendType:                   publicBackendTypeProxyForward,
-		ForwardMode:                   publicBackendForwardModeAgentPool,
-		ParsedOrigin:                  origin,
-		UpstreamResponseHeaderTimeout: 45 * time.Second,
-		AgentAssignments: []publicBackendAgentConfig{{
-			BackendID: 1,
-			AgentID:   7,
-			Position:  0,
-			Weight:    100,
-			Enabled:   true,
-		}},
-	}
-	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{7: {ID: 7, PublicID: "agent-7", Enabled: true}},
-	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
-	app.BackendHealth.reconcile(app, snap, false)
-
-	served := make(chan struct{})
-	go func() {
-		defer close(served)
-		var first *msg.Request
-		select {
-		case first = <-agent.WriteCh:
-		case <-time.After(2 * time.Second):
-			t.Errorf("timed out waiting for agent request")
-			return
-		}
-		if got := httpmsg.FirstHeaderValue(first.Headers, httpmsg.MetadataResponseHeaderTimeoutMillis); got != "45000" {
-			t.Errorf("response header timeout metadata = %q, want 45000", got)
-		}
-		req, err := httpmsg.DecodeRequest(first, &httpmsg.ChannelStream{Ctx: context.Background(), Ch: agent.WriteCh})
+func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			t.Errorf("decode request: %v", err)
-			return
+			t.Errorf("read upstream body: %v", err)
 		}
-		if req.Header.Get(httpmsg.MetadataResponseHeaderTimeoutMillis) != "" {
-			t.Errorf("internal timeout metadata was forwarded upstream")
+		if r.URL.Path != "/agent" {
+			t.Errorf("upstream path = %q, want /agent", r.URL.Path)
 		}
-		pendingValue, ok := app.PendingRequests.Load(first.ID)
-		if !ok {
-			t.Errorf("pending request %s not registered", first.ID.String())
-			return
-		}
-		resp := &http.Response{
-			StatusCode:    http.StatusOK,
-			Status:        http.StatusText(http.StatusOK),
-			Header:        make(http.Header),
-			Body:          io.NopCloser(strings.NewReader("ok")),
-			ContentLength: 2,
-		}
-		enc := httpmsg.NewResponseEncoder(first.ID, resp)
-		pending := pendingValue.(*pendingAgentRequest)
-		for {
-			chunk, err := enc.Next()
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				t.Errorf("encode response: %v", err)
-				return
-			}
-			pending.ResponseCh <- chunk
-		}
-	}()
+		w.Header().Set("X-Upstream", "yamux")
+		_, _ = w.Write([]byte("upstream:" + string(body)))
+	}))
+	defer upstream.Close()
 
+	app, backend, _, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+	req := httptest.NewRequest(http.MethodPost, "http://public.test/agent", strings.NewReader("payload"))
 	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
-	if rec.Code != http.StatusOK || rec.Body.String() != "ok" {
-		t.Fatalf("agent proxy response = status %d body %q, want 200 ok", rec.Code, rec.Body.String())
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "upstream:payload" {
+		t.Fatalf("agent proxy response = status %d body %q, want 200 upstream:payload", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("X-Upstream") != "yamux" {
+		t.Fatalf("response header X-Upstream = %q, want yamux", rec.Header().Get("X-Upstream"))
 	}
 	select {
-	case <-served:
+	case open := <-fake.requests:
+		if open.Network != "tcp" {
+			t.Fatalf("open request network = %q, want tcp", open.Network)
+		}
+		if open.Address != backend.ParsedOrigin.Host {
+			t.Fatalf("open request address = %q, want %q", open.Address, backend.ParsedOrigin.Host)
+		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for fake agent")
+		t.Fatal("timed out waiting for fake agent open request")
 	}
 }
 
 func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *testing.T) {
-	app, backend, agent := newAgentProxyTimeoutTestApp(t, 7, 500*time.Millisecond)
+	reached := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(reached)
+		<-r.Context().Done()
+	}))
+	defer upstream.Close()
 
+	app, backend, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil).WithContext(ctx)
 	rec := httptest.NewRecorder()
@@ -156,9 +105,9 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 	}()
 
 	select {
-	case <-agent.WriteCh:
+	case <-reached:
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for agent request")
+		t.Fatal("timed out waiting for upstream request")
 	}
 	cancel()
 	select {
@@ -176,79 +125,17 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 	}
 }
 
-func TestAgentProxyClientCancelDuringResponseBodyDoesNotMarkPassiveFailure(t *testing.T) {
-	app, backend, agent := newAgentProxyTimeoutTestApp(t, 7, 500*time.Millisecond)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil).WithContext(ctx)
-	rec := newSignalResponseWriter()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
-	}()
-
-	var first *msg.Request
-	select {
-	case first = <-agent.WriteCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for agent request")
-	}
-	pendingValue, ok := app.PendingRequests.Load(first.ID)
-	if !ok {
-		t.Fatalf("pending request %s not registered", first.ID.String())
-	}
-	pending := pendingValue.(*pendingAgentRequest)
-	pending.ResponseCh <- msg.NewRequest(first.ID, msg.RequestTypeHeader, map[string][]string{":status": {"200"}}, nil, 0)
-
-	select {
-	case <-rec.wroteHeader:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for response headers")
-	}
-	cancel()
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for cancelled body copy")
-	}
-
-	if rec.code != http.StatusOK {
-		t.Fatalf("response status = %d, want 200 before client cancellation", rec.code)
-	}
-	if !app.BackendHealth.agentAvailable(backend.ID, agent.AgentID) {
-		t.Fatal("client cancellation during response body should not make the agent unavailable")
-	}
-	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, agent.AgentID, 10, false)
-	if len(traces) != 0 {
-		t.Fatalf("unexpected health traces after body cancellation: %+v", traces)
-	}
-}
-
 func TestAgentProxyResponseTimeoutMarksPassiveFailure(t *testing.T) {
-	originalGrace := publicAgentResponseGracePeriod
-	publicAgentResponseGracePeriod = time.Millisecond
-	t.Cleanup(func() { publicAgentResponseGracePeriod = originalGrace })
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(150 * time.Millisecond)
+		_, _ = w.Write([]byte("too late"))
+	}))
+	defer upstream.Close()
 
-	app, backend, agent := newAgentProxyTimeoutTestApp(t, 7, time.Millisecond)
+	app, backend, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 25*time.Millisecond)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
-	}()
-
-	select {
-	case <-agent.WriteCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for agent request")
-	}
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for proxy timeout")
-	}
+	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
 
 	if rec.Code != http.StatusGatewayTimeout {
 		t.Fatalf("timeout status = %d body=%q, want 504", rec.Code, rec.Body.String())
@@ -262,27 +149,18 @@ func TestAgentProxyResponseTimeoutMarksPassiveFailure(t *testing.T) {
 	}
 }
 
-func TestAgentProxyDisconnectMarksPassiveFailure(t *testing.T) {
-	app, backend, agent := newAgentProxyTimeoutTestApp(t, 7, 500*time.Millisecond)
+func TestAgentProxyClosedSessionMarksPassiveFailure(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("should not be reached"))
+	}))
+	defer upstream.Close()
+
+	app, backend, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
+	fake.close()
+
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
-	}()
-
-	select {
-	case <-agent.WriteCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for agent request")
-	}
-	app.failPendingRequestsForAgent(agent.AgentID, errAgentDisconnected)
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for disconnected proxy request")
-	}
+	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
 
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("disconnect status = %d body=%q, want 502", rec.Code, rec.Body.String())
@@ -291,19 +169,19 @@ func TestAgentProxyDisconnectMarksPassiveFailure(t *testing.T) {
 		t.Fatal("agent disconnect should make the agent unavailable during passive cooldown")
 	}
 	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, agent.AgentID, 10, false)
-	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" || traces[0].Error != errAgentDisconnected.Error() {
+	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" || !strings.Contains(traces[0].Error, errAgentDisconnected.Error()) {
 		t.Fatalf("latest trace = %+v, want passive agent_disconnected failure", traces)
 	}
 }
 
-func newAgentProxyTimeoutTestApp(t *testing.T, agentID int64, responseHeaderTimeout time.Duration) (*App, publicBackendConfig, *AgentConn) {
+func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string, responseHeaderTimeout time.Duration) (*App, publicBackendConfig, *AgentConn, *fakeYamuxAgent) {
 	t.Helper()
-	origin, err := url.Parse("http://127.0.0.1:8888")
+	origin, err := url.Parse(upstreamURL)
 	if err != nil {
 		t.Fatalf("parse upstream URL: %v", err)
 	}
 	app := NewApp(nil, nil)
-	agent := testAgentConn(agentID, "agent-timeout-test")
+	agent, fake := newFakeYamuxAgent(t, agentID, "agent-timeout-test")
 	if err := app.AgentHub.connect(agent); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
@@ -343,38 +221,111 @@ func newAgentProxyTimeoutTestApp(t *testing.T, agentID int64, responseHeaderTime
 	app.publicSnapshot = snap
 	app.proxyMu.Unlock()
 	app.BackendHealth.reconcile(app, snap, false)
-	return app, backend, agent
+	return app, backend, agent, fake
 }
 
-type signalResponseWriter struct {
-	header      http.Header
-	code        int
-	body        strings.Builder
-	wroteHeader chan struct{}
+type fakeYamuxAgent struct {
+	serverSession *yamux.Session
+	agentSession  *yamux.Session
+	requests      chan tunnel.OpenRequest
+	wg            sync.WaitGroup
+	closeOnce     sync.Once
 }
 
-func newSignalResponseWriter() *signalResponseWriter {
-	return &signalResponseWriter{
-		header:      make(http.Header),
-		wroteHeader: make(chan struct{}),
+func newFakeYamuxAgent(t *testing.T, agentID int64, publicID string) (*AgentConn, *fakeYamuxAgent) {
+	t.Helper()
+	agentConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(agentConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	fake := &fakeYamuxAgent{
+		serverSession: serverSession,
+		agentSession:  agentSession,
+		requests:      make(chan tunnel.OpenRequest, 16),
+	}
+	fake.wg.Add(1)
+	go fake.acceptLoop()
+	t.Cleanup(func() {
+		fake.close()
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			fake.wg.Wait()
+		}()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Error("timed out waiting for fake yamux agent shutdown")
+		}
+	})
+	return &AgentConn{
+		AgentID:     agentID,
+		PublicID:    publicID,
+		Name:        publicID,
+		ConnectedAt: time.Now(),
+		Done:        make(chan struct{}),
+		Session:     serverSession,
+	}, fake
+}
+
+func (f *fakeYamuxAgent) close() {
+	f.closeOnce.Do(func() {
+		_ = f.serverSession.Close()
+		_ = f.agentSession.Close()
+	})
+}
+
+func (f *fakeYamuxAgent) acceptLoop() {
+	defer f.wg.Done()
+	for {
+		stream, err := f.agentSession.Accept()
+		if err != nil {
+			return
+		}
+		f.wg.Add(1)
+		go func() {
+			defer f.wg.Done()
+			f.handleStream(stream)
+		}()
 	}
 }
 
-func (w *signalResponseWriter) Header() http.Header {
-	return w.header
-}
-
-func (w *signalResponseWriter) WriteHeader(statusCode int) {
-	if w.code != 0 {
+func (f *fakeYamuxAgent) handleStream(stream net.Conn) {
+	defer stream.Close()
+	open, err := tunnel.ReadOpenRequest(stream)
+	if err != nil {
 		return
 	}
-	w.code = statusCode
-	close(w.wroteHeader)
-}
-
-func (w *signalResponseWriter) Write(p []byte) (int, error) {
-	if w.code == 0 {
-		w.WriteHeader(http.StatusOK)
+	select {
+	case f.requests <- open:
+	default:
 	}
-	return w.body.Write(p)
+	upstream, err := (&net.Dialer{}).DialContext(context.Background(), open.Network, open.Address)
+	if err != nil {
+		_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{OK: false, ErrorKind: "dial_failed", Error: err.Error()})
+		return
+	}
+	if err := tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{OK: true}); err != nil {
+		_ = upstream.Close()
+		return
+	}
+	relayDone := make(chan struct{}, 2)
+	go func() {
+		_, _ = io.Copy(upstream, stream)
+		_ = upstream.Close()
+		_ = stream.Close()
+		relayDone <- struct{}{}
+	}()
+	go func() {
+		_, _ = io.Copy(stream, upstream)
+		_ = stream.Close()
+		_ = upstream.Close()
+		relayDone <- struct{}{}
+	}()
+	<-relayDone
 }

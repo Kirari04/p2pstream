@@ -19,22 +19,22 @@ import (
 	"time"
 )
 
-func TestManagementWebSocketURL(t *testing.T) {
+func TestManagementTunnelURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		mgmtURL string
 		want    string
 		wantErr bool
 	}{
-		{name: "http", mgmtURL: "http://example.test:8081", want: "ws://example.test:8081/ws"},
-		{name: "https", mgmtURL: "https://example.test:8081", want: "wss://example.test:8081/ws"},
-		{name: "base path", mgmtURL: "https://example.test/base/", want: "wss://example.test/base/ws"},
+		{name: "http", mgmtURL: "http://example.test:8081", want: "http://example.test:8081/agent/tunnel"},
+		{name: "https", mgmtURL: "https://example.test:8081", want: "https://example.test:8081/agent/tunnel"},
+		{name: "base path", mgmtURL: "https://example.test/base/", want: "https://example.test/base/agent/tunnel"},
 		{name: "unsupported", mgmtURL: "ftp://example.test", wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := managementWebSocketURL(tt.mgmtURL)
+			got, err := managementTunnelURL(tt.mgmtURL)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error")
@@ -42,12 +42,53 @@ func TestManagementWebSocketURL(t *testing.T) {
 				return
 			}
 			if err != nil {
-				t.Fatalf("managementWebSocketURL() error = %v", err)
+				t.Fatalf("managementTunnelURL() error = %v", err)
 			}
 			if got != tt.want {
-				t.Fatalf("managementWebSocketURL() = %q, want %q", got, tt.want)
+				t.Fatalf("managementTunnelURL() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestManagementTunnelHTTPClientForcesHTTP1ALPN(t *testing.T) {
+	protoCh := make(chan string, 1)
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		protoCh <- r.Proto
+		w.WriteHeader(http.StatusOK)
+	}))
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	srv.Config.Protocols = protocols
+	srv.StartTLS()
+	defer srv.Close()
+
+	baseTransport := srv.Client().Transport.(*http.Transport).Clone()
+	if baseTransport.TLSClientConfig == nil {
+		baseTransport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	} else {
+		baseTransport.TLSClientConfig = baseTransport.TLSClientConfig.Clone()
+	}
+	baseTransport.TLSClientConfig.NextProtos = []string{"h2", "http/1.1"}
+
+	client, err := managementTunnelHTTPClient(&http.Client{Transport: baseTransport})
+	if err != nil {
+		t.Fatalf("managementTunnelHTTPClient() error = %v", err)
+	}
+	resp, err := client.Get(srv.URL + "/agent/tunnel")
+	if err != nil {
+		t.Fatalf("tunnel GET: %v", err)
+	}
+	resp.Body.Close()
+
+	select {
+	case got := <-protoCh:
+		if got != "HTTP/1.1" {
+			t.Fatalf("tunnel request protocol = %q, want HTTP/1.1", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for tunnel request")
 	}
 }
 

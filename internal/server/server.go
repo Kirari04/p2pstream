@@ -1,10 +1,8 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -12,7 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/coder/websocket"
+	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
@@ -20,7 +18,7 @@ import (
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/managementui"
-	"p2pstream/msg"
+	"p2pstream/internal/tunnel"
 	"p2pstream/stats"
 )
 
@@ -28,24 +26,17 @@ type AgentConn struct {
 	AgentID        int64
 	PublicID       string
 	Name           string
-	WriteCh        chan *msg.Request
+	Session        *yamux.Session
 	Done           chan struct{}
 	ActiveRequests atomic.Int64
 	ConnectedAt    time.Time
 	ConnectionDBID int64
 }
 
-var (
-	agentWebSocketPingInterval = 20 * time.Second
-	agentWebSocketPingTimeout  = 10 * time.Second
-)
-
 type App struct {
 	Config             *config.Config
 	DB                 *db.DB
 	StartedAt          time.Time
-	PendingRequests    sync.Map // map[uuid.UUID]*pendingAgentRequest
-	LateAgentResponses *lateAgentResponseTracker
 	LatestAgentStats   atomic.Pointer[stats.AgentStats]
 	latestAgentStatsMu sync.RWMutex
 	latestAgentStats   map[int64]stats.AgentStats
@@ -91,7 +82,6 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		Config:              cfg,
 		DB:                  database,
 		StartedAt:           time.Now(),
-		LateAgentResponses:  newLateAgentResponseTracker(),
 		AgentHub:            newAgentHub(),
 		LoadBalancers:       newLoadBalancerRegistry(),
 		BackendHealth:       newPublicBackendHealthMonitor(),
@@ -131,10 +121,10 @@ func (a *App) closeStaleAgentConnections(ctx context.Context, now time.Time) {
 	}
 }
 
-// RegisterManagementRoutes attaches the WebSocket and ConnectRPC APIs (Port 8081).
+// RegisterManagementRoutes attaches the agent tunnel and ConnectRPC APIs (Port 8081).
 func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(sourceOfferPath, sourceOfferHandler)
-	mux.HandleFunc("/ws", a.wsHandler)
+	mux.HandleFunc(tunnel.BootstrapPath, a.agentTunnelHandler)
 	mux.Handle(environmentProxyPrefix, a.environmentProxyHandler())
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a,
 		connect.WithCodec(strictProtoJSONCodec{name: "json"}),
@@ -273,30 +263,36 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 	return resp
 }
 
-func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	agentRow, err := a.authenticateAgent(r.Context(), r.Header.Get("X-P2PStream-Agent-ID"), r.Header.Get("Authorization"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-
-	c, err := websocket.Accept(w, r, nil)
-	if err != nil {
-		log.Error().Err(err).Msg("websocket accept error")
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	defer c.Close(websocket.StatusInternalError, "internal server error")
-
-	c.SetReadLimit(128 * 1024)
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
+	if !headerHasToken(r.Header, "Connection", "upgrade") || !strings.EqualFold(r.Header.Get("Upgrade"), tunnel.UpgradeToken) {
+		http.Error(w, "agent tunnel upgrade required", http.StatusBadRequest)
+		return
+	}
+	if r.Header.Get(tunnel.TunnelVersionHeader) != "1" {
+		http.Error(w, "unsupported tunnel version", http.StatusUpgradeRequired)
+		return
+	}
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "agent tunnel requires HTTP/1.1 hijack support", http.StatusInternalServerError)
+		return
+	}
 
 	var connID int64
 	if a.DB != nil {
-		id, err := a.DB.InsertConnection(ctx, sql.NullInt64{Int64: agentRow.ID, Valid: true})
+		id, err := a.DB.InsertConnection(r.Context(), sql.NullInt64{Int64: agentRow.ID, Valid: true})
 		if err == nil {
 			connID = id
-			if err := a.DB.MarkAgentConnected(ctx, agentRow.ID); err != nil {
+			if err := a.DB.MarkAgentConnected(r.Context(), agentRow.ID); err != nil {
 				log.Warn().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to update agent connected timestamp")
 			}
 		} else {
@@ -308,7 +304,6 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 		AgentID:        agentRow.ID,
 		PublicID:       agentRow.PublicID,
 		Name:           agentRow.Name,
-		WriteCh:        make(chan *msg.Request, 100),
 		Done:           make(chan struct{}),
 		ConnectedAt:    time.Now(),
 		ConnectionDBID: connID,
@@ -316,137 +311,86 @@ func (a *App) wsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.AgentHub.connect(agent); err != nil {
 		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Rejecting duplicate agent connection")
-		c.Close(websocket.StatusPolicyViolation, err.Error())
+		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	if a.BackendHealth != nil {
-		a.BackendHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
-	}
-	defer func() {
+	cleanupAgent := func() {
 		a.AgentHub.disconnect(agent)
 		if a.BackendHealth != nil {
 			a.BackendHealth.recordAgentDisconnectedForAll(agent.AgentID)
 		}
-		a.failPendingRequestsForAgent(agent.AgentID, errAgentDisconnected)
-	}()
+	}
+
+	rawConn, rw, err := hijacker.Hijack()
+	if err != nil {
+		cleanupAgent()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to hijack agent tunnel")
+		return
+	}
+	if rw.Reader.Buffered() > 0 {
+		_, _ = rw.WriteString("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nunexpected buffered tunnel data\n")
+		_ = rw.Flush()
+		_ = rawConn.Close()
+		cleanupAgent()
+		return
+	}
+	_, _ = rw.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
+	_, _ = rw.WriteString("Connection: Upgrade\r\n")
+	_, _ = rw.WriteString("Upgrade: " + tunnel.UpgradeToken + "\r\n")
+	_, _ = rw.WriteString(tunnel.TunnelVersionHeader + ": 1\r\n")
+	_, _ = rw.WriteString("\r\n")
+	if err := rw.Flush(); err != nil {
+		_ = rawConn.Close()
+		cleanupAgent()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to write agent tunnel upgrade response")
+		return
+	}
+
+	session, err := yamux.Server(rawConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		_ = rawConn.Close()
+		cleanupAgent()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to initialize agent tunnel session")
+		return
+	}
+	agent.Session = session
+	if a.BackendHealth != nil {
+		a.BackendHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
+	}
 
 	log.Info().
 		Str("remote_addr", r.RemoteAddr).
 		Str("agent", agent.PublicID).
-		Msg("Agent connected successfully")
-
-	startAgentWebSocketHeartbeat(ctx, cancel, c, agent.PublicID)
+		Msg("Agent tunnel connected successfully")
 
 	go func() {
-		defer cancel()
-		for {
-			select {
-			case <-agent.Done:
-				return
-			case m := <-agent.WriteCh:
-				cw, err := c.Writer(ctx, websocket.MessageBinary)
-				if err != nil {
-					log.Error().Err(err).Msg("ws write error")
-					c.Close(websocket.StatusInternalError, "websocket write failed")
-					return
-				}
-				_, err = m.WriteTo(cw)
-				closeErr := cw.Close()
-				if err != nil {
-					log.Error().Err(err).Msg("failed to write message to ws")
-					c.Close(websocket.StatusInternalError, "websocket write failed")
-					return
-				}
-				if closeErr != nil {
-					log.Error().Err(closeErr).Msg("failed to close ws writer")
-					c.Close(websocket.StatusInternalError, "websocket write failed")
-					return
-				}
+		select {
+		case <-agent.Done:
+			_ = session.Close()
+		case <-session.CloseChan():
+		}
+		cleanupAgent()
+		log.Info().Str("agent", agent.PublicID).Msg("Agent tunnel disconnected")
+		if a.DB != nil && connID > 0 {
+			if err := a.DB.UpdateConnectionDisconnected(context.Background(), connID); err != nil {
+				log.Warn().Err(err).Msg("Failed to update disconnection time")
+			}
+			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
+				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
 			}
 		}
 	}()
-
-	for {
-		_, reader, err := c.Reader(ctx)
-		if err != nil {
-			log.Warn().Err(err).Msg("ws read loop ended")
-			break
-		}
-
-		b, err := io.ReadAll(reader)
-		if err != nil {
-			log.Error().Err(err).Msg("ws ReadAll error")
-			break
-		}
-
-		// Use bytes.NewReader here since msg.ParseRequest expects an io.Reader
-		m, err := msg.ParseRequest(bytes.NewReader(b))
-		if err != nil {
-			log.Error().Err(err).Msg("failed to parse message")
-			continue
-		}
-
-		if pendingValue, ok := a.PendingRequests.Load(m.ID); ok {
-			pending := pendingValue.(*pendingAgentRequest)
-			if pending.AgentID != agent.AgentID {
-				log.Warn().
-					Str("req_id", m.ID.String()).
-					Str("from_agent", agent.PublicID).
-					Str("expected_agent", pending.AgentPublicID).
-					Msg("Received response from wrong agent")
-				continue
-			}
-			select {
-			case pending.ResponseCh <- m:
-			case <-pending.ctx.Done():
-			case <-agent.Done:
-			case <-ctx.Done():
-			}
-		} else {
-			if reason, ok := a.LateAgentResponses.lookup(m.ID); ok {
-				log.Debug().Str("req_id", m.ID.String()).Str("reason", reason).Msg("Received late message for completed request")
-			} else {
-				log.Warn().Str("req_id", m.ID.String()).Msg("Received message for unknown request")
-			}
-		}
-	}
-
-	log.Info().Str("agent", agent.PublicID).Msg("Agent disconnected")
-	if a.DB != nil && connID > 0 {
-		if err := a.DB.UpdateConnectionDisconnected(context.Background(), connID); err != nil {
-			log.Warn().Err(err).Msg("Failed to update disconnection time")
-		}
-		if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
-			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
-		}
-	}
 }
 
-func startAgentWebSocketHeartbeat(ctx context.Context, cancel context.CancelFunc, c *websocket.Conn, agentPublicID string) {
-	if c == nil || cancel == nil || agentWebSocketPingInterval <= 0 || agentWebSocketPingTimeout <= 0 {
-		return
-	}
-	go func() {
-		ticker := time.NewTicker(agentWebSocketPingInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				pingCtx, pingCancel := context.WithTimeout(ctx, agentWebSocketPingTimeout)
-				err := c.Ping(pingCtx)
-				pingCancel()
-				if err == nil {
-					continue
-				}
-				log.Warn().Err(err).Str("agent", agentPublicID).Msg("Agent websocket heartbeat failed")
-				cancel()
-				_ = c.CloseNow()
-				return
+func headerHasToken(header http.Header, name string, want string) bool {
+	for _, value := range header.Values(name) {
+		for _, part := range strings.Split(value, ",") {
+			if strings.EqualFold(strings.TrimSpace(part), want) {
+				return true
 			}
 		}
-	}()
+	}
+	return false
 }
 
 func bearerToken(header string) string {

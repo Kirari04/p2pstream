@@ -188,7 +188,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 
 	agentDone := make(chan struct{})
 	go func() {
-		_ = runAgent(ctx, "ws"+mgmtSrv.URL[4:]+"/ws", "observability-agent", "observability-token")
+		_ = runAgent(ctx, mgmtSrv.URL, "observability-agent", "observability-token")
 		close(agentDone)
 	}()
 

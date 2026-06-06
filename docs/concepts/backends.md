@@ -26,7 +26,9 @@ Backends matter when choosing whether the p2pstream server or a remote agent sho
 
 Proxy-forward backends have an upstream response-header timeout. The default is `60000` milliseconds. It controls how long p2pstream waits for upstream response headers; it does not limit response streaming after headers arrive.
 
-Direct backends enforce this timeout from the p2pstream server. Agent-pool backends enforce it on the selected agent. Older agents that do not understand timeout metadata continue using their built-in `30000` ms timeout until upgraded.
+Direct and agent-pool backends enforce this timeout from the p2pstream server transport. For agent-pool backends, the selected agent carries the TCP stream over Yamux but does not own HTTP timeout or TLS policy.
+
+Origin TLS verification for agent-pool backends is also performed by the server transport. `tls_skip_verify` still applies to the server-side origin TLS handshake, even though the TCP connection is relayed through the agent.
 
 Agent-pool backends support round-robin, weighted round-robin, random, weighted random, least active requests, and weighted least active requests. Assignment weights must be between `1` and `1000`.
 

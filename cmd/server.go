@@ -82,10 +82,8 @@ var serverCmd = &cobra.Command{
 		// Start Management Listener
 		go func() {
 			scheme := "http"
-			wsScheme := "ws"
 			if managementTLS {
 				scheme = "https"
-				wsScheme = "wss"
 			}
 			displayAddr := managementDisplayAddress(mgmtAddr)
 			managementURL := scheme + "://" + displayAddr
@@ -93,7 +91,7 @@ var serverCmd = &cobra.Command{
 			log.Info().
 				Str("url", managementURL).
 				Str("bind", mgmtAddr).
-				Str("ws", wsScheme+"://"+displayAddr+"/ws").
+				Str("agent_tunnel", managementURL+"/agent/tunnel").
 				Msg("Management server listening")
 			var err error
 			if managementTLS {
