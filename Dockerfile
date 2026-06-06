@@ -61,6 +61,18 @@ RUN go test -race ./...
 
 FROM test-base AS smoke
 
+FROM golang:1.25.10-bookworm AS smoke-upstream-build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY internal/smoketest/upstream ./internal/smoketest/upstream
+RUN CGO_ENABLED=0 go build -trimpath -o /out/smoke-upstream ./internal/smoketest/upstream
+
+FROM scratch AS smoke-upstream
+COPY --from=smoke-upstream-build /out/smoke-upstream /smoke-upstream
+EXPOSE 9000
+CMD ["/smoke-upstream"]
+
 FROM test-base AS legal
 ARG VERSION
 ARG COMMIT

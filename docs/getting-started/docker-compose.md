@@ -73,9 +73,9 @@ Use this page after the quickstart when you need to change ports, understand wha
 | Setting | Effect |
 | --- | --- |
 | `CONFIG_DIR=/data` | Stores SQLite, certificates, ACME state, and cache defaults in the named volume. |
-| `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent WebSocket (WSS) listener bind inside the container. Agents connect to this port for request forwarding. |
+| `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent tunnel listener bind inside the container. Agents connect to this port for request forwarding. |
 | `MANAGEMENT_PUBLIC_URL` | Controls generated links, agent snippets, and management certificate naming. |
-| `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and agent WebSocket remain available. |
+| `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and the agent Yamux tunnel remain available. |
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 
 :::warning New listeners must be published explicitly
@@ -106,7 +106,7 @@ Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should sho
 | Symptom | Check |
 | --- | --- |
 | Browser opens the wrong host or port | `MANAGEMENT_PUBLIC_URL` must match the external URL. |
-| Agent cannot connect | Agent must reach management HTTPS/WSS, not a public listener URL. |
+| Agent cannot connect | Agent must reach management HTTPS/TLS and `/agent/tunnel`, not a public listener URL. |
 | Extra listener is unreachable | Add a Compose port mapping for that listener port. |
 | Forgot the admin password | Run `docker compose exec p2pstream p2pstream users reset-password admin`. |
 

@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test frontend-build frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test
+.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -26,6 +26,9 @@ frontend-install:
 frontend-build: frontend-install generate-proto
 	@cd web/management && bun run build
 
+frontend-e2e: frontend-install
+	@cd web/management && bun run e2e
+
 legal-notices: frontend-install
 	@scripts/build-legal-notices.sh
 
@@ -47,7 +50,18 @@ dev: frontend-install generate-proto kill
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
 	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
-	trap "kill $$FRONTEND_PID $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
+	cleanup() { \
+		trap - INT TERM EXIT; \
+		repo=$$(pwd); \
+		kill $$FRONTEND_PID $$SERVER_PID $$AGENT_PID 2>/dev/null || true; \
+		pkill -TERM -P $$SERVER_PID 2>/dev/null || true; \
+		pkill -TERM -f "$$repo/tmp/p2pstream-dev server|$$repo/tmp/p2pstream-agent-dev agent" 2>/dev/null || true; \
+		sleep 0.5; \
+		pkill -KILL -P $$SERVER_PID 2>/dev/null || true; \
+		pkill -KILL -f "$$repo/tmp/p2pstream-dev server|$$repo/tmp/p2pstream-agent-dev agent" 2>/dev/null || true; \
+	}; \
+	trap "cleanup; exit 0" INT TERM; \
+	trap "cleanup" EXIT; \
 	wait $$FRONTEND_PID $$SERVER_PID $$AGENT_PID
 
 run: build kill
@@ -58,7 +72,16 @@ run: build kill
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
 	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./bin/p2pstream agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
-	trap "kill $$SERVER_PID $$AGENT_PID 2>/dev/null; exit 0" INT TERM; \
+	cleanup() { \
+		trap - INT TERM EXIT; \
+		repo=$$(pwd); \
+		kill $$SERVER_PID $$AGENT_PID 2>/dev/null || true; \
+		pkill -TERM -f "$$repo/bin/p2pstream server|$$repo/bin/p2pstream agent" 2>/dev/null || true; \
+		sleep 0.5; \
+		pkill -KILL -f "$$repo/bin/p2pstream server|$$repo/bin/p2pstream agent" 2>/dev/null || true; \
+	}; \
+	trap "cleanup; exit 0" INT TERM; \
+	trap "cleanup" EXIT; \
 	wait $$SERVER_PID $$AGENT_PID
 
 docker-build:
@@ -84,7 +107,20 @@ test:
 
 kill:
 	@echo "Ensuring previous processes are killed..."
-	@-pkill -9 -f '[b]in/p2pstream|[t]mp/p2pstream-dev|[t]mp/p2pstream-agent-dev|[g]o tool air -c .air.toml|/go-build/.*/[a]ir -c .air.toml|[b]un run --bun vite --host 127.0.0.1 --port 5173|[n]ode .*vite --host 127.0.0.1 --port 5173|[g]o run main.go agent|/go-build/.*/[m]ain agent' || true
+	@-repo=$$(pwd); \
+	pkill -TERM -f '[g]o tool air -c .air.toml|/go-build/.*/[a]ir -c .air.toml|[b]un run --bun vite --host 127.0.0.1 --port 5173|[n]ode .*vite --host 127.0.0.1 --port 5173' 2>/dev/null || true; \
+	pkill -TERM -f "$$repo/bin/p2pstream|$$repo/tmp/p2pstream-dev|$$repo/tmp/p2pstream-agent-dev|[g]o run main.go agent|/go-build/.*/[m]ain agent" 2>/dev/null || true; \
+	for port in 8081 8088 8089 5173; do \
+		pids=$$(ss -H -ltnp "sport = :$$port" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u); \
+		[ -z "$$pids" ] || kill -TERM $$pids 2>/dev/null || true; \
+	done; \
+	sleep 0.5; \
+	pkill -KILL -f '[g]o tool air -c .air.toml|/go-build/.*/[a]ir -c .air.toml|[b]un run --bun vite --host 127.0.0.1 --port 5173|[n]ode .*vite --host 127.0.0.1 --port 5173' 2>/dev/null || true; \
+	pkill -KILL -f "$$repo/bin/p2pstream|$$repo/tmp/p2pstream-dev|$$repo/tmp/p2pstream-agent-dev|[g]o run main.go agent|/go-build/.*/[m]ain agent" 2>/dev/null || true; \
+	for port in 8081 8088 8089 5173; do \
+		pids=$$(ss -H -ltnp "sport = :$$port" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u); \
+		[ -z "$$pids" ] || kill -KILL $$pids 2>/dev/null || true; \
+	done
 
 clean:
 	@echo "Cleaning up..."

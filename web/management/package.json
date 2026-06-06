@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "bun run --bun vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vue-tsc --noEmit && bun run --bun vite build",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "^2.12.0",
     "@connectrpc/protoc-gen-connect-es": "^1.7.0",
+    "@playwright/test": "^1",
     "@tailwindcss/vite": "^4.2.4",
     "@vitejs/plugin-vue": "^6.0.6",
     "typescript": "^6.0.3",

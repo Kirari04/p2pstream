@@ -3,23 +3,22 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	"p2pstream/httpmsg"
 	"p2pstream/internal/db"
-	"p2pstream/msg"
 )
 
 const environmentProxyPrefix = "/environments/"
@@ -48,12 +47,6 @@ type environmentAuthRoundTripper struct {
 type environmentAgentRoundTripper struct {
 	app *App
 	env db.Environment
-}
-
-type pendingAgentResponseBody struct {
-	io.ReadCloser
-	closeOnce sync.Once
-	finish    func()
 }
 
 func (a *App) environmentProxyHandler() http.Handler {
@@ -176,147 +169,84 @@ func (rt environmentAgentRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	if rt.app == nil {
 		return nil, errors.New("environment agent transport is unavailable")
 	}
-	return rt.app.roundTripEnvironmentViaAgent(req.Context(), rt.env, req, map[string]string{
-		httpmsg.MetadataTrustedCertificatePEM:       rt.env.TrustedCertificatePem,
-		httpmsg.MetadataTrustedCertificateSHA256:    rt.env.TrustedCertificateSha256,
-		httpmsg.MetadataResponseHeaderTimeoutMillis: strconv.FormatInt(rt.env.ResponseHeaderTimeoutMillis, 10),
-	})
-}
-
-func (a *App) discoverEnvironmentCertificateViaAgent(ctx context.Context, row db.Environment, timeout time.Duration) (*x509.Certificate, string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, row.ManagementUrl, nil)
-	if err != nil {
-		return nil, "", err
-	}
-	resp, err := a.roundTripEnvironmentViaAgent(ctx, row, req, map[string]string{
-		httpmsg.MetadataDiscoverCertificate:         "true",
-		httpmsg.MetadataResponseHeaderTimeoutMillis: strconv.FormatInt(int64(timeout/time.Millisecond), 10),
-	})
-	if err != nil {
-		return nil, "", err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
-	if err != nil {
-		return nil, "", err
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, "", errors.New(strings.TrimSpace(string(body)))
-	}
-	cert, err := parseEnvironmentCertificatePEM(string(body))
-	if err != nil {
-		return nil, "", err
-	}
-	return cert, certificateSHA256Fingerprint(cert), nil
-}
-
-func (a *App) roundTripEnvironmentViaAgent(ctx context.Context, row db.Environment, req *http.Request, metadata map[string]string) (*http.Response, error) {
-	if !row.AgentID.Valid {
+	if !rt.env.AgentID.Valid {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("environment agent transport requires a selected agent"))
 	}
-	agent := a.AgentHub.connectedByID(row.AgentID.Int64)
+	agent := rt.app.AgentHub.connectedByID(rt.env.AgentID.Int64)
 	if agent == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("selected environment agent is not connected"))
 	}
-	id, err := uuid.NewV7()
+	tlsConfig, err := trustedEnvironmentTLSConfig(rt.env.ManagementUrl, rt.env.TrustedCertificatePem, rt.env.TrustedCertificateSha256)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	requestID, err := uuid.NewV7()
 	if err != nil {
 		return nil, err
 	}
-	pendingCtx, pendingCancel := context.WithCancel(ctx)
-	pending := &pendingAgentRequest{
-		AgentID:       agent.AgentID,
-		AgentPublicID: agent.PublicID,
-		ResponseCh:    make(chan *msg.Request, 100),
-		ErrorCh:       make(chan error, 1),
-		ctx:           pendingCtx,
-		cancel:        pendingCancel,
+	req = req.Clone(withAgentDialRequestID(req.Context(), requestID.String()))
+	if rt.app.AgentTransports == nil {
+		transport := newAgentTransportPool().environmentTransport(rt.app, agent, rt.env, tlsConfig)
+		return transport.RoundTrip(req)
 	}
-	a.PendingRequests.Store(id, pending)
-	pendingFinishReason := "environment_completed"
-	finishOnce := sync.Once{}
-	finish := func() {
-		finishOnce.Do(func() {
-			pendingCancel()
-			a.finishPendingAgentRequest(id, pendingFinishReason)
-		})
+	transport := rt.app.AgentTransports.environmentTransport(rt.app, agent, rt.env, tlsConfig)
+	return transport.RoundTrip(req)
+}
+
+func (a *App) discoverEnvironmentCertificateViaAgent(ctx context.Context, row db.Environment, timeout time.Duration) (*x509.Certificate, string, error) {
+	parsed, err := url.Parse(row.ManagementUrl)
+	if err != nil {
+		return nil, "", err
 	}
-	finishOnError := func(reason string) {
-		pendingFinishReason = reason
-		finish()
+	if parsed.Scheme != "https" {
+		return nil, "", fmt.Errorf("environment certificate discovery requires https")
 	}
-	enc := httpmsg.NewRequestEncoderWithMetadata(id, req, metadata)
-	for {
-		chunk, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			finishOnError("environment_request_encode_failed")
-			return nil, err
-		}
-		select {
-		case agent.WriteCh <- chunk:
-		case <-agent.Done:
-			finishOnError("environment_agent_disconnected")
-			return nil, connect.NewError(connect.CodeUnavailable, errAgentDisconnected)
-		case <-ctx.Done():
-			finishOnError("environment_client_cancelled")
-			return nil, ctx.Err()
-		}
+	addr := parsed.Host
+	if _, _, err := net.SplitHostPort(addr); err != nil {
+		addr = net.JoinHostPort(addr, "443")
 	}
-	timeoutCtx, cancel := context.WithTimeout(ctx, agentResponseWaitTimeout(environmentResponseHeaderTimeout(row)))
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, "", err
+	}
+	if !row.AgentID.Valid {
+		return nil, "", connect.NewError(connect.CodeFailedPrecondition, errors.New("environment agent transport requires a selected agent"))
+	}
+	agent := a.AgentHub.connectedByID(row.AgentID.Int64)
+	if agent == nil {
+		return nil, "", connect.NewError(connect.CodeUnavailable, errors.New("selected environment agent is not connected"))
+	}
+	if timeout <= 0 {
+		timeout = defaultEnvironmentResponseHeaderTimeout
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	var firstMsg *msg.Request
-	select {
-	case <-timeoutCtx.Done():
-		finishOnError("environment_agent_timeout")
-		return nil, connect.NewError(connect.CodeDeadlineExceeded, timeoutCtx.Err())
-	case err := <-pending.ErrorCh:
-		finishOnError("environment_agent_failed")
-		return nil, err
-	case firstMsg = <-pending.ResponseCh:
-		if firstMsg == nil {
-			finishOnError("environment_agent_disconnected")
-			return nil, connect.NewError(connect.CodeUnavailable, errAgentDisconnected)
-		}
-	}
-	stream := &httpmsg.ChannelStream{Ctx: pendingCtx, Ch: pending.ResponseCh}
-	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
+	requestID, err := uuid.NewV7()
 	if err != nil {
-		finishOnError("environment_response_decode_failed")
-		return nil, err
+		return nil, "", err
 	}
-	resp.Request = req
-	if resp.Body == nil {
-		resp.Body = http.NoBody
+	conn, err := a.dialViaAgent(dialCtx, agent, "tcp", addr, requestID.String())
+	if err != nil {
+		return nil, "", err
 	}
-	resp.Body = &pendingAgentResponseBody{
-		ReadCloser: resp.Body,
-		finish:     finish,
+	defer conn.Close()
+	if deadline, ok := dialCtx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
 	}
-	return resp, nil
-}
-
-func (b *pendingAgentResponseBody) Read(p []byte) (int, error) {
-	n, err := b.ReadCloser.Read(p)
-	if err == io.EOF {
-		b.closeOnce.Do(func() {
-			if b.finish != nil {
-				b.finish()
-			}
-		})
-	}
-	return n, err
-}
-
-func (b *pendingAgentResponseBody) Close() error {
-	err := b.ReadCloser.Close()
-	b.closeOnce.Do(func() {
-		if b.finish != nil {
-			b.finish()
-		}
+	tlsConn := tls.Client(conn, &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		ServerName:         host,
+		InsecureSkipVerify: true,
 	})
-	return err
+	if err := tlsConn.HandshakeContext(dialCtx); err != nil {
+		return nil, "", err
+	}
+	state := tlsConn.ConnectionState()
+	if len(state.PeerCertificates) == 0 {
+		return nil, "", fmt.Errorf("remote endpoint did not present a certificate")
+	}
+	cert := state.PeerCertificates[0]
+	return cert, certificateSHA256Fingerprint(cert), nil
 }
 
 func environmentResponseHeaderTimeout(row db.Environment) time.Duration {

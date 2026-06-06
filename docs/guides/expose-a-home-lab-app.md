@@ -16,7 +16,7 @@ Example:
 
 ## Prerequisites
 
-- The p2pstream server is reachable by the agent over management HTTPS/WSS.
+- The p2pstream server is reachable by the agent over management HTTPS/TLS and `/agent/tunnel`.
 - `MANAGEMENT_PUBLIC_URL` is set to the external management URL.
 - The home lab host can reach the upstream service.
 - Public DNS for `ha.example.com` points to the p2pstream server.

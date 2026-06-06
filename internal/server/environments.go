@@ -116,6 +116,9 @@ func (a *App) UpdateEnvironment(
 			return nil, publicDBError(err)
 		}
 	}
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeEnvironment(req.Msg.Id)
+	}
 	return connect.NewResponse(&p2pstreamv1.UpdateEnvironmentResponse{Environment: a.environmentToProto(ctx, row)}), nil
 }
 
@@ -128,6 +131,9 @@ func (a *App) DeleteEnvironment(
 	}
 	if err := a.DB.DeleteEnvironment(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
+	}
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeEnvironment(req.Msg.Id)
 	}
 	return connect.NewResponse(&p2pstreamv1.DeleteEnvironmentResponse{}), nil
 }
@@ -200,6 +206,9 @@ func (a *App) TrustEnvironmentCertificate(
 	})
 	if err != nil {
 		return nil, publicDBError(err)
+	}
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeEnvironment(req.Msg.Id)
 	}
 	return connect.NewResponse(&p2pstreamv1.TrustEnvironmentCertificateResponse{Environment: a.environmentToProto(ctx, updated)}), nil
 }

@@ -3,20 +3,18 @@ package server
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
-	"p2pstream/httpmsg"
 	"p2pstream/internal/db"
-	"p2pstream/msg"
 )
 
 func TestPublicBackendHealthCheckURLPreservesSchemeHostAndPort(t *testing.T) {
@@ -66,44 +64,37 @@ func TestDirectBackendHealthStillChecksFromServer(t *testing.T) {
 
 func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 10, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888/base?x=1")
+	served := make(chan struct{})
+	var closeServed sync.Once
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		closeServed.Do(func() { close(served) })
+		if r.Method != http.MethodHead {
+			t.Fatalf("health method = %s, want HEAD", r.Method)
+		}
+		if r.URL.Path != "/health" {
+			t.Fatalf("health request path = %s, want /health", r.URL.Path)
+		}
+		if r.Header.Get("X-Health") != "ok" {
+			t.Fatalf("missing upstream health header, got %q", r.Header.Get("X-Health"))
+		}
+		if got, _, ok := r.BasicAuth(); !ok || got != "user" {
+			t.Fatal("upstream basic auth was not applied")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	backend := testHealthBackend(t, 10, publicBackendForwardModeAgentPool, upstream.URL+"/base?x=1")
 	backend.HealthCheck.Method = http.MethodHead
 	backend.TLSSkipVerify = true
 	backend.UpstreamRequestHeaders = []publicRequestHeader{{Name: "X-Health", Value: "ok"}}
 	backend.UpstreamBasicAuth = publicBackendBasicAuthConfig{Enabled: true, Username: "user", Password: "pass"}
 	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
-	agent := testAgentConn(7, "agent-7")
+	agent, fake := newFakeYamuxAgent(t, 7, "agent-7")
 	if err := app.AgentHub.connect(agent); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
 	defer app.AgentHub.disconnect(agent)
-
-	served := serveOneAgentHealthCheck(t, app, agent, http.StatusOK, func(req *http.Request, first *msg.Request) {
-		if req.Method != http.MethodHead {
-			t.Fatalf("health method = %s, want HEAD", req.Method)
-		}
-		if req.URL.Scheme != "http" || req.URL.Host != "127.0.0.1:8888" || req.URL.Path != "/health" {
-			t.Fatalf("health request url = %s, want http://127.0.0.1:8888/health", req.URL.String())
-		}
-		if req.Header.Get(httpmsg.MetadataHealthCheck) != "" || req.Header.Get(httpmsg.MetadataTLSSkipVerify) != "" {
-			t.Fatal("internal health metadata was forwarded as upstream headers")
-		}
-		if httpmsg.FirstHeaderValue(first.Headers, httpmsg.MetadataHealthCheck) != "true" {
-			t.Fatal("missing health check metadata on agent request")
-		}
-		if httpmsg.FirstHeaderValue(first.Headers, httpmsg.MetadataTLSSkipVerify) != "true" {
-			t.Fatal("missing tls skip metadata on agent request")
-		}
-		if got := httpmsg.FirstHeaderValue(first.Headers, httpmsg.MetadataResponseHeaderTimeoutMillis); got != "1000" {
-			t.Fatalf("health timeout metadata = %q, want 1000", got)
-		}
-		if req.Header.Get("X-Health") != "ok" {
-			t.Fatalf("missing upstream health header, got %q", req.Header.Get("X-Health"))
-		}
-		if got, _, ok := req.BasicAuth(); !ok || got != "user" {
-			t.Fatal("upstream basic auth was not applied")
-		}
-	})
 
 	snap := &publicProxySnapshot{
 		Backends: map[int64]publicBackendConfig{backend.ID: backend},
@@ -116,6 +107,14 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 	case <-served:
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for agent health check")
+	}
+	select {
+	case open := <-fake.requests:
+		if open.Address != backend.ParsedOrigin.Host {
+			t.Fatalf("agent open address = %q, want %q", open.Address, backend.ParsedOrigin.Host)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for fake agent open request")
 	}
 	waitForHealthStatus(t, app.BackendHealth, backend.ID, p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY)
 }
@@ -225,9 +224,14 @@ func TestListHealthTracesReturnsDeepClonedTrace(t *testing.T) {
 
 func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 102, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	backend := testHealthBackend(t, 102, publicBackendForwardModeAgentPool, upstream.URL)
 	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
-	agent := testAgentConn(7, "agent-7")
+	agent, _ := newFakeYamuxAgent(t, 7, "agent-7")
 	agent.Name = "Agent Seven"
 	if err := app.AgentHub.connect(agent); err != nil {
 		t.Fatalf("connect agent: %v", err)
@@ -237,14 +241,8 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 		Backends: map[int64]publicBackendConfig{backend.ID: backend},
 		Agents:   map[int64]publicAgentConfig{7: {ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true}},
 	}, false)
-	served := serveOneAgentHealthCheck(t, app, agent, http.StatusOK, nil)
 
 	attempt := app.runPublicBackendHealthCheckViaAgent(context.Background(), backend, agent)
-	select {
-	case <-served:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for served health check")
-	}
 	app.BackendHealth.recordAgentExplicitCheck(backend.ID, 7, attempt)
 	traces, retained := app.BackendHealth.listHealthTraces(backend.ID, 7, 100, false)
 	if retained != 1 || len(traces) != 1 {
@@ -789,58 +787,8 @@ func testAgentConn(id int64, publicID string) *AgentConn {
 	return &AgentConn{
 		AgentID:  id,
 		PublicID: publicID,
-		WriteCh:  make(chan *msg.Request, 10),
 		Done:     make(chan struct{}),
 	}
-}
-
-func serveOneAgentHealthCheck(t *testing.T, app *App, agent *AgentConn, status int, assert func(*http.Request, *msg.Request)) <-chan struct{} {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		var first *msg.Request
-		select {
-		case first = <-agent.WriteCh:
-		case <-time.After(2 * time.Second):
-			t.Errorf("timed out waiting for health check request")
-			return
-		}
-		req, err := httpmsg.DecodeRequest(first, &httpmsg.ChannelStream{Ctx: context.Background(), Ch: agent.WriteCh})
-		if err != nil {
-			t.Errorf("decode health check request: %v", err)
-			return
-		}
-		if assert != nil {
-			assert(req, first)
-		}
-		pendingValue, ok := app.PendingRequests.Load(first.ID)
-		if !ok {
-			t.Errorf("pending request %s not registered", first.ID.String())
-			return
-		}
-		pending := pendingValue.(*pendingAgentRequest)
-		resp := &http.Response{
-			StatusCode:    status,
-			Status:        http.StatusText(status),
-			Header:        make(http.Header),
-			Body:          io.NopCloser(strings.NewReader("")),
-			ContentLength: 0,
-		}
-		enc := httpmsg.NewResponseEncoder(first.ID, resp)
-		for {
-			chunk, err := enc.Next()
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				t.Errorf("encode health response: %v", err)
-				return
-			}
-			pending.ResponseCh <- chunk
-		}
-	}()
-	return done
 }
 
 func testAgentPoolApp(t *testing.T) (*App, publicBackendConfig) {

@@ -8,7 +8,7 @@ p2pstream uses separate ports for public listeners and management.
 | --- | --- |
 | `80/tcp` | Public HTTP listener and ACME HTTP-01. |
 | `443/tcp` | Public HTTPS listener and ACME TLS-ALPN-01. |
-| `8081/tcp` | Management UI/API and agent HTTPS/WSS connections. |
+| `8081/tcp` | Management UI/API and agent tunnel connections. |
 
 The default Docker Compose mapping is:
 

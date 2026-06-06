@@ -363,6 +363,11 @@ func TestEnvironmentRequiresHTTPSAndTrustedCertificateBeforeProxy(t *testing.T) 
 	if _, err := proxyClient.GetStatus(ctx, trustedReq); err != nil {
 		t.Fatalf("trusted environment proxy GetStatus: %v", err)
 	}
+	publicConfigReq := connect.NewRequest(&p2pstreamv1.GetPublicProxyConfigRequest{})
+	publicConfigReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq); err != nil {
+		t.Fatalf("trusted environment proxy GetPublicProxyConfig: %v", err)
+	}
 
 	_, _, changedCert, err := generatePublicSelfSignedCertificatePEM("127.0.0.1", time.Hour)
 	if err != nil {
@@ -386,5 +391,142 @@ func TestEnvironmentRequiresHTTPSAndTrustedCertificateBeforeProxy(t *testing.T) 
 	setupReq.Header().Set("Cookie", localHeader.Get("Cookie"))
 	if _, err := proxyClient.GetSetupState(ctx, setupReq); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("disallowed proxy method error code = %s, want permission_denied: %v", connect.CodeOf(err), err)
+	}
+}
+
+func TestAgentEnvironmentProxyDiscoversAndPinsCertificate(t *testing.T) {
+	ctx := context.Background()
+	remoteApp := NewApp(&config.Config{}, newServerTestDB(t))
+	remoteToken, remoteTokenHash, err := newManagementAccessToken()
+	if err != nil {
+		t.Fatalf("remote token: %v", err)
+	}
+	if _, err := remoteApp.DB.CreateManagementAccessToken(ctx, db.CreateManagementAccessTokenParams{
+		Name:      "agent-control-plane",
+		TokenHash: remoteTokenHash,
+		Enabled:   1,
+		ExpiresAt: sql.NullTime{},
+	}); err != nil {
+		t.Fatalf("seed remote token: %v", err)
+	}
+	remoteMux := http.NewServeMux()
+	remoteApp.RegisterManagementRoutes(remoteMux)
+	remoteServer := httptest.NewTLSServer(remoteMux)
+	defer remoteServer.Close()
+
+	localApp := NewApp(&config.Config{}, newServerTestDB(t))
+	localHeader := createTestAdminSession(t, localApp)
+	agentRow, err := localApp.DB.CreateAgent(ctx, db.CreateAgentParams{
+		PublicID:  "agent-env-proxy",
+		Name:      "Agent Env Proxy",
+		TokenHash: hashAgentToken("agent-token"),
+		Enabled:   1,
+	})
+	if err != nil {
+		t.Fatalf("seed local agent: %v", err)
+	}
+	agentConn, fake := newFakeYamuxAgent(t, agentRow.ID, agentRow.PublicID)
+	if err := localApp.AgentHub.connect(agentConn); err != nil {
+		t.Fatalf("connect local agent: %v", err)
+	}
+	t.Cleanup(func() {
+		localApp.AgentHub.disconnect(agentConn)
+		fake.close()
+	})
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreateEnvironmentRequest{
+		Name:                        "agent-remote",
+		ManagementUrl:               remoteServer.URL,
+		Transport:                   p2pstreamv1.EnvironmentTransport_ENVIRONMENT_TRANSPORT_AGENT,
+		AgentId:                     agentRow.ID,
+		AccessToken:                 remoteToken,
+		ResponseHeaderTimeoutMillis: 10000,
+		Enabled:                     true,
+	})
+	createReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	createResp, err := localApp.CreateEnvironment(ctx, createReq)
+	if err != nil {
+		t.Fatalf("create agent environment: %v", err)
+	}
+
+	discoverReq := connect.NewRequest(&p2pstreamv1.DiscoverEnvironmentCertificateRequest{Id: createResp.Msg.Environment.Id})
+	discoverReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	discoverResp, err := localApp.DiscoverEnvironmentCertificate(ctx, discoverReq)
+	if err != nil {
+		t.Fatalf("discover agent environment certificate: %v", err)
+	}
+	if discoverResp.Msg.Certificate == nil || discoverResp.Msg.Certificate.Pem == "" || discoverResp.Msg.Certificate.Sha256Fingerprint == "" {
+		t.Fatalf("missing discovered agent certificate: %+v", discoverResp.Msg.Certificate)
+	}
+
+	trustReq := connect.NewRequest(&p2pstreamv1.TrustEnvironmentCertificateRequest{
+		Id:                createResp.Msg.Environment.Id,
+		Sha256Fingerprint: discoverResp.Msg.Certificate.Sha256Fingerprint,
+	})
+	trustReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := localApp.TrustEnvironmentCertificate(ctx, trustReq); err != nil {
+		t.Fatalf("trust agent environment certificate: %v", err)
+	}
+
+	localMux := http.NewServeMux()
+	localApp.RegisterManagementRoutes(localMux)
+	localServer := httptest.NewServer(localMux)
+	defer localServer.Close()
+	proxyClient := p2pstreamv1connect.NewAgentManagementServiceClient(
+		localServer.Client(),
+		localServer.URL+"/environments/"+strconv.FormatInt(createResp.Msg.Environment.Id, 10),
+	)
+	proxyOpenCount := fake.openRequestCount()
+	statusReq := connect.NewRequest(&p2pstreamv1.GetStatusRequest{})
+	statusReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := proxyClient.GetStatus(ctx, statusReq); err != nil {
+		t.Fatalf("trusted agent environment proxy GetStatus: %v", err)
+	}
+	publicConfigReq := connect.NewRequest(&p2pstreamv1.GetPublicProxyConfigRequest{})
+	publicConfigReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq); err != nil {
+		t.Fatalf("trusted agent environment proxy GetPublicProxyConfig: %v", err)
+	}
+	fake.waitOpenRequestCount(t, proxyOpenCount+1)
+	if got := localApp.AgentTransports.len(); got != 1 {
+		t.Fatalf("environment agent transport pool len = %d, want 1", got)
+	}
+
+	retrustReq := connect.NewRequest(&p2pstreamv1.TrustEnvironmentCertificateRequest{
+		Id:                createResp.Msg.Environment.Id,
+		Sha256Fingerprint: discoverResp.Msg.Certificate.Sha256Fingerprint,
+	})
+	retrustReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := localApp.TrustEnvironmentCertificate(ctx, retrustReq); err != nil {
+		t.Fatalf("retrust agent environment certificate: %v", err)
+	}
+	if got := localApp.AgentTransports.len(); got != 0 {
+		t.Fatalf("environment agent transport pool len after trust = %d, want 0", got)
+	}
+
+	_, _, changedCert, err := generatePublicSelfSignedCertificatePEM("127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatalf("generate changed certificate: %v", err)
+	}
+	if _, err := localApp.DB.UpdateEnvironmentObservedCertificate(ctx, db.UpdateEnvironmentObservedCertificateParams{
+		LastObservedCertificatePem:    environmentCertificatePEM(changedCert),
+		LastObservedCertificateSha256: certificateSHA256Fingerprint(changedCert),
+		LastError:                     "",
+		ID:                            createResp.Msg.Environment.Id,
+	}); err != nil {
+		t.Fatalf("seed changed observed certificate: %v", err)
+	}
+	changedReq := connect.NewRequest(&p2pstreamv1.GetStatusRequest{})
+	changedReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := proxyClient.GetStatus(ctx, changedReq); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("changed agent certificate proxy error code = %s, want failed_precondition: %v", connect.CodeOf(err), err)
+	}
+
+	localApp.AgentHub.disconnect(agentConn)
+	fake.close()
+	disconnectedReq := connect.NewRequest(&p2pstreamv1.DiscoverEnvironmentCertificateRequest{Id: createResp.Msg.Environment.Id})
+	disconnectedReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := localApp.DiscoverEnvironmentCertificate(ctx, disconnectedReq); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("disconnected agent discovery error code = %s, want unavailable: %v", connect.CodeOf(err), err)
 	}
 }
