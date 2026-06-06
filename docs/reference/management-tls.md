@@ -1,6 +1,6 @@
 # Management TLS Reference
 
-Management TLS protects the management UI/API and agent HTTPS/WSS connections.
+Management TLS protects the management UI/API, agent stats calls, and the authenticated Yamux agent tunnel.
 
 ## Exact Fields And Defaults
 

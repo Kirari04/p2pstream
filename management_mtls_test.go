@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/coder/websocket"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
@@ -84,9 +83,8 @@ func TestManagementAgentMTLSReportStats(t *testing.T) {
 	}
 }
 
-func TestManagementAgentMTLSWebSocket(t *testing.T) {
+func TestManagementAgentMTLSTunnel(t *testing.T) {
 	fixture := newManagementMTLSTestFixture(t)
-	wsURL := "wss" + fixture.server.URL[len("https"):] + "/ws"
 
 	tests := []struct {
 		name    string
@@ -120,24 +118,18 @@ func TestManagementAgentMTLSWebSocket(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn, _, err := websocket.Dial(context.Background(), wsURL, &websocket.DialOptions{
-				HTTPClient: fixture.httpClient(t, tt.certURI),
-				HTTPHeader: http.Header{
-					"Authorization":        []string{"Bearer " + tt.token},
-					"X-P2PStream-Agent-ID": []string{mtlsAgentID},
-				},
-			})
+			session, _, err := dialAgentTunnel(context.Background(), fixture.server.URL, mtlsAgentID, tt.token, fixture.httpClient(t, tt.certURI))
 			if tt.wantErr {
 				if err == nil {
-					conn.Close(websocket.StatusNormalClosure, "test complete")
-					t.Fatal("expected WebSocket dial to fail")
+					session.Close()
+					t.Fatal("expected tunnel dial to fail")
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("WebSocket dial error = %v", err)
+				t.Fatalf("tunnel dial error = %v", err)
 			}
-			conn.Close(websocket.StatusNormalClosure, "test complete")
+			session.Close()
 		})
 	}
 }

@@ -485,7 +485,7 @@ func TestAgentPoolPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 	defer cancel()
 	agentDone := make(chan struct{})
 	go func() {
-		_ = runAgent(ctx, "ws"+mgmtSrv.URL[4:]+"/ws", agent.GetPublicId(), token)
+		_ = runAgent(ctx, mgmtSrv.URL, agent.GetPublicId(), token)
 		close(agentDone)
 	}()
 	time.Sleep(250 * time.Millisecond)
@@ -508,8 +508,7 @@ func TestAgentPoolPublicBackendAppliesUpstreamRequestConfig(t *testing.T) {
 	}
 	if resp.Header.Get("X-Got-Upstream") != "configured" ||
 		resp.Header.Get("X-Got-Override") != "configured" ||
-		resp.Header.Get("X-Got-Basic-Auth") != "true" ||
-		resp.Header.Get("X-Mock-Agent") != agent.GetPublicId() {
+		resp.Header.Get("X-Got-Basic-Auth") != "true" {
 		t.Fatalf("agent upstream request config was not applied, response headers=%+v", resp.Header)
 	}
 	assertTrustedForwardedHeaders(t, resp.Header, listenerAddr)

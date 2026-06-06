@@ -6,20 +6,15 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/coder/websocket"
-	"github.com/google/uuid"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
-	"p2pstream/httpmsg"
 	"p2pstream/internal/config"
 	"p2pstream/internal/server"
-	"p2pstream/msg"
 	"p2pstream/stats"
 )
 
@@ -153,109 +148,6 @@ func TestE2E_GetStatus(t *testing.T) {
 	}
 }
 
-// --- MOCK AGENT LOGIC ---
-
-func runAgent(ctx context.Context, wsURL string, agentID string, token string) error {
-	c, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
-		HTTPHeader: http.Header{
-			"Authorization":        []string{"Bearer " + token},
-			"X-P2PStream-Agent-ID": []string{agentID},
-		},
-	})
-	if err != nil {
-		return err
-	}
-	defer c.Close(websocket.StatusInternalError, "agent stopping")
-
-	c.SetReadLimit(128 * 1024)
-
-	agentWriteCh := make(chan *msg.Request, 100)
-	var incomingRequests sync.Map
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case req := <-agentWriteCh:
-				cw, err := c.Writer(ctx, websocket.MessageBinary)
-				if err != nil {
-					return
-				}
-				req.WriteTo(cw)
-				cw.Close()
-			}
-		}
-	}()
-
-	for {
-		_, reader, err := c.Reader(ctx)
-		if err != nil {
-			return err
-		}
-
-		b, err := io.ReadAll(reader)
-		if err != nil {
-			return err
-		}
-
-		m, _ := msg.ParseRequest(bytes.NewReader(b))
-		if m != nil {
-			if m.Type == msg.RequestTypeHeader || m.Type == msg.RequestTypeHeaderAndBody {
-				reqCh := make(chan *msg.Request, 100)
-				incomingRequests.Store(m.ID, reqCh)
-				reqCh <- m
-				go handleAgentRequest(m.ID, reqCh, agentWriteCh, &incomingRequests, agentID)
-			} else {
-				if ch, ok := incomingRequests.Load(m.ID); ok {
-					ch.(chan *msg.Request) <- m
-				}
-			}
-		}
-	}
-}
-
-func handleAgentRequest(id uuid.UUID, reqCh chan *msg.Request, agentWriteCh chan<- *msg.Request, incomingRequests *sync.Map, agentID string) {
-	defer incomingRequests.Delete(id)
-
-	stream := &httpmsg.ChannelStream{Ch: reqCh}
-	firstMsg, err := stream.Next()
-	if err != nil {
-		return
-	}
-
-	req, err := httpmsg.DecodeRequest(firstMsg, stream)
-	if err != nil {
-		return
-	}
-
-	req.RequestURI = ""
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		resp = &http.Response{
-			StatusCode:    http.StatusBadGateway,
-			Status:        http.StatusText(http.StatusBadGateway),
-			Header:        make(http.Header),
-			Body:          io.NopCloser(bytes.NewReader([]byte(err.Error()))),
-			ContentLength: int64(len(err.Error())),
-		}
-	}
-	resp.Header.Set("X-Mock-Agent", agentID)
-
-	enc := httpmsg.NewResponseEncoder(id, resp)
-	for {
-		m, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err == nil {
-			agentWriteCh <- m
-		}
-	}
-}
-
 // --- ACTUAL E2E TEST ---
 
 func TestE2E_RoundTrip(t *testing.T) {
@@ -302,15 +194,12 @@ func TestE2E_RoundTrip(t *testing.T) {
 	mgmtSrv.Start()
 	defer mgmtSrv.Close()
 
-	// 3. Setup Agent
-	wsURL := "ws" + mgmtSrv.URL[4:] + "/ws"
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	agentDone := make(chan struct{})
 	go func() {
-		_ = runAgent(ctx, wsURL, "roundtrip-agent", "roundtrip-token")
+		_ = runAgent(ctx, mgmtSrv.URL, "roundtrip-agent", "roundtrip-token")
 		close(agentDone)
 	}()
 

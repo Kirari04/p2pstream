@@ -93,11 +93,11 @@ func TestRegisterManagementRoutesDisablesOnlyFrontendUI(t *testing.T) {
 		t.Fatalf("source offer with UI disabled missing license:\n%s", sourceRec.Body.String())
 	}
 
-	wsReq := httptest.NewRequest(http.MethodGet, "/ws", nil)
-	wsRec := httptest.NewRecorder()
-	mux.ServeHTTP(wsRec, wsReq)
-	if wsRec.Code != http.StatusUnauthorized {
-		t.Fatalf("websocket route status = %d, want 401 from agent auth", wsRec.Code)
+	tunnelReq := httptest.NewRequest(http.MethodGet, "/agent/tunnel", nil)
+	tunnelRec := httptest.NewRecorder()
+	mux.ServeHTTP(tunnelRec, tunnelReq)
+	if tunnelRec.Code != http.StatusUnauthorized {
+		t.Fatalf("agent tunnel route status = %d, want 401 from agent auth", tunnelRec.Code)
 	}
 
 	server := httptest.NewServer(mux)

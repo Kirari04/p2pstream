@@ -35,7 +35,7 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Port published | Publish `8081:8081` or use the actual host port. |
 | Scheme | Use `https://host:8081` unless management TLS is explicitly off. |
 | Firewall | Allow the management port from your admin network. |
-| Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; APIs and agent WebSocket remain available. |
+| Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; APIs and the agent Yamux tunnel remain available. |
 
 ## Browser Certificate Warning
 
@@ -61,7 +61,7 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | CA trust | Use `MANAGEMENT_CA_FILE` or `MANAGEMENT_CA_PEM_BASE64` for auto TLS. |
 | Token | Rotate the token and update the agent env file. |
 | Agent ID | Use the generated `agent-...` public ID. |
-| Firewall/NAT | Agent host must reach management HTTPS/WSS. |
+| Firewall/NAT | Agent host must reach management HTTPS/TLS and `/agent/tunnel`. |
 | Insecure URL | HTTP requires `AGENT_ALLOW_INSECURE_MANAGEMENT=true`, intended for development only. |
 
 ## Public Listener Fails To Bind
@@ -125,17 +125,17 @@ When health checks are disabled, transient upstream failures fail only the curre
 | Origin is slow to send response headers | Increase the backend response-header timeout. The default is `60000` ms. |
 | Agent-pool backend waits on a private app | SSH to the agent host and test `curl -I http://<origin>` with a long timeout (`--max-time 65`) to confirm the service responds. Raise the backend timeout if it does. |
 | Health check timeout confusion | Health-check timeout is separate from the response-header timeout and does not affect request serving. |
-| Old agent binary | Upgrade agents so they honor per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
+| Old agent binary | Upgrade agents and servers together; old WebSocket agents are incompatible with the Yamux tunnel transport. |
 
 The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
 
-## Agent WebSocket Disconnects
+## Agent Tunnel Disconnects
 
 | Cause | Fix |
 | --- | --- |
-| Management reverse proxy blocks upgrades | Ensure the proxy forwards WebSocket upgrade headers to the management listener. |
-| Idle WebSocket timeout is too low | Set the management proxy idle timeout higher than the 20 second agent heartbeat interval. |
-| Heartbeat failures | Check network reachability between the agent host and management URL; failed heartbeats disconnect the agent so it can reconnect cleanly. |
+| Management reverse proxy blocks upgrades | Ensure the proxy allows HTTP/1.1 upgrade streaming for `p2pstream-yamux` on `/agent/tunnel`. |
+| Idle upgraded-connection timeout is too low | Set the management proxy idle timeout high enough for long-lived Yamux tunnel sessions. |
+| Keepalive failures | Check network reachability between the agent host and management URL; tunnel failures disconnect the agent so it can reconnect cleanly. |
 
 ## Agent Uptime Looks Wrong
 

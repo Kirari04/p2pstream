@@ -17,8 +17,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
-	"p2pstream/httpmsg"
-	"p2pstream/msg"
 )
 
 const (
@@ -411,9 +409,9 @@ func (a *App) runPublicBackendHealthCheckViaAgent(parent context.Context, backen
 	if timeout <= 0 {
 		timeout = time.Duration(defaultBackendHealthCheckTimeoutMillis) * time.Millisecond
 	}
-	waitCtx, cancel := context.WithTimeout(parent, agentResponseWaitTimeout(timeout))
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(waitCtx, backend.HealthCheck.Method, checkURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, backend.HealthCheck.Method, checkURL.String(), nil)
 	if err != nil {
 		attempt.fail("request_failed", err)
 		return attempt
@@ -427,79 +425,32 @@ func (a *App) runPublicBackendHealthCheckViaAgent(parent context.Context, backen
 	}
 	attempt.DebugAttributes["agent_request_id"] = id.String()
 	attempt.DebugAttributes["response_header_timeout_ms"] = strconv.FormatInt(int64(timeout/time.Millisecond), 10)
-	pendingCtx, pendingCancel := context.WithCancel(waitCtx)
-	defer pendingCancel()
-	pending := &pendingAgentRequest{
-		AgentID:       agent.AgentID,
-		AgentPublicID: agent.PublicID,
-		ResponseCh:    make(chan *msg.Request, 100),
-		ErrorCh:       make(chan error, 1),
-		ctx:           pendingCtx,
-		cancel:        pendingCancel,
-	}
-	a.PendingRequests.Store(id, pending)
-	pendingFinishReason := "health_check_completed"
-	defer func() {
-		attempt.DebugAttributes["pending_finish_reason"] = pendingFinishReason
-		a.finishPendingAgentRequest(id, pendingFinishReason)
-	}()
+	req = req.WithContext(withAgentDialRequestID(req.Context(), id.String()))
 
-	enc := httpmsg.NewRequestEncoderWithMetadata(id, req, map[string]string{
-		httpmsg.MetadataTLSSkipVerify:               strconv.FormatBool(backend.TLSSkipVerify),
-		httpmsg.MetadataHealthCheck:                 "true",
-		httpmsg.MetadataResponseHeaderTimeoutMillis: strconv.FormatInt(int64(timeout/time.Millisecond), 10),
-	})
-	for {
-		chunk, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			attempt.fail("request_encode_failed", fmt.Errorf("encode health check request: %w", err))
-			return attempt
-		}
-		select {
-		case agent.WriteCh <- chunk:
-		case <-agent.Done:
-			pendingFinishReason = "agent_disconnected"
-			attempt.fail("agent_disconnected", errAgentDisconnected)
-			return attempt
-		case <-waitCtx.Done():
-			attempt.applyContextFailure(parent, waitCtx, "health_check_timeout", waitCtx.Err())
-			pendingFinishReason = attempt.ErrorKind
-			return attempt
-		}
-	}
-
-	var firstMsg *msg.Request
-	select {
-	case <-waitCtx.Done():
-		attempt.applyContextFailure(parent, waitCtx, "health_check_timeout", waitCtx.Err())
-		pendingFinishReason = attempt.ErrorKind
-		return attempt
-	case err := <-pending.ErrorCh:
-		attempt.applyContextFailure(parent, waitCtx, "agent_failed", err)
-		pendingFinishReason = attempt.ErrorKind
-		return attempt
-	case firstMsg = <-pending.ResponseCh:
-		if firstMsg == nil {
-			pendingFinishReason = "agent_disconnected"
-			attempt.fail("agent_disconnected", errAgentDisconnected)
-			return attempt
-		}
-	}
-	stream := &httpmsg.ChannelStream{Ctx: pendingCtx, Ch: pending.ResponseCh}
-	resp, err := httpmsg.DecodeResponse(firstMsg, stream)
+	healthBackend := backend
+	healthBackend.UpstreamResponseHeaderTimeout = timeout
+	client := &http.Client{Transport: a.agentProxyTransport(agent, healthBackend)}
+	resp, err := client.Do(req)
 	if err != nil {
-		attempt.applyContextFailure(parent, waitCtx, "response_decode_failed", fmt.Errorf("decode health check response: %w", err))
-		pendingFinishReason = attempt.ErrorKind
+		var dialErr agentDialError
+		switch {
+		case errors.Is(err, errAgentDisconnected):
+			attempt.fail("agent_disconnected", err)
+		case errors.As(err, &dialErr):
+			kind := "agent_dial_failed"
+			if dialErr.Kind != "" {
+				kind = "agent_" + dialErr.Kind
+			}
+			attempt.fail(kind, err)
+		default:
+			attempt.applyContextFailure(parent, ctx, "request_failed", err)
+		}
 		return attempt
 	}
 	defer resp.Body.Close()
 	attempt.StatusCode = int64(resp.StatusCode)
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-		attempt.applyContextFailure(parent, waitCtx, "response_body_read_failed", fmt.Errorf("drain health check response: %w", err))
-		pendingFinishReason = attempt.ErrorKind
+		attempt.applyContextFailure(parent, ctx, "response_body_read_failed", fmt.Errorf("drain health check response: %w", err))
 		return attempt
 	}
 	if int64(resp.StatusCode) < backend.HealthCheck.ExpectedStatusMin || int64(resp.StatusCode) > backend.HealthCheck.ExpectedStatusMax {

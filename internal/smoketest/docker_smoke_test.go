@@ -3,12 +3,21 @@
 package smoketest
 
 import (
+	"bufio"
 	"context"
+	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -50,13 +59,37 @@ func TestDockerSmoke(t *testing.T) {
 	defaultBackend = upsertProxyBackend(ctx, t, client, cookie, defaultBackend, upstreamURL)
 
 	waitAgentConnected(ctx, t, client, cookie)
-	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "Directory listing", "proxy-forward default listener")
+	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "smoke upstream ok", "proxy-forward default listener")
+	t.Run("direct baseline", func(t *testing.T) {
+		waitHTTPBody(t, httpClient(), smokeURL(publicDefaultURL, "/"), http.StatusOK, "smoke upstream ok", "direct GET")
+		smokePostEcho(t, smokeURL(publicDefaultURL, "/echo"))
+		smokeStream(t, smokeURL(publicDefaultURL, "/stream"))
+	})
 
 	cfg = getPublicProxyConfig(ctx, t, client, cookie)
 	dockerAgent := requireAgent(t, cfg, "docker-agent")
-	agentBackend := upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id)
+	agentBackend := upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id, 60000)
 	_ = upsertAgentListener(ctx, t, client, cookie, agentBackend.Id)
-	waitHTTPBody(t, httpClient(), publicAgentURL, http.StatusOK, "Directory listing", "agent-routed listener")
+	waitHTTPBody(t, httpClient(), publicAgentURL, http.StatusOK, "smoke upstream ok", "agent-routed listener")
+	t.Run("agent pool forwarding", func(t *testing.T) {
+		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent GET")
+		smokePostEcho(t, smokeURL(publicAgentURL, "/echo"))
+		smokeStream(t, smokeURL(publicAgentURL, "/stream"))
+		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"))
+		smokeWebSocketEcho(t, smokeURL(publicAgentURL, "/ws"))
+
+		agentBackend = upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id, 1000)
+		waitHTTPStatus(t, httpClient(), smokeURL(publicAgentURL, "/slow-headers"), func(resp *http.Response, body string) error {
+			if resp.StatusCode != http.StatusGatewayTimeout {
+				return fmt.Errorf("expected status 504, got %d with body %q", resp.StatusCode, body)
+			}
+			return nil
+		}, "agent response-header timeout")
+
+		agentBackend = upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id, 60000)
+		smokeCloseEarly(t, smokeURL(publicAgentURL, "/close-early"))
+		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent listener after close-early")
+	})
 
 	staticBackend := upsertStaticBackend(ctx, t, client, cookie)
 	staticListener := upsertStaticListener(ctx, t, client, cookie, staticBackend.Id)
@@ -85,6 +118,7 @@ func upsertAgentBackend(
 	cookie string,
 	targetOrigin string,
 	agentID int64,
+	responseHeaderTimeoutMillis int64,
 ) *p2pstreamv1.PublicBackend {
 	t.Helper()
 
@@ -96,14 +130,15 @@ func upsertAgentBackend(
 	cfg := getPublicProxyConfig(ctx, t, client, cookie)
 	if existing := findBackend(cfg, "docker-agent-backend"); existing != nil {
 		req := connect.NewRequest(&p2pstreamv1.UpdatePublicBackendRequest{
-			Id:               existing.GetId(),
-			Name:             "docker-agent-backend",
-			TargetOrigin:     targetOrigin,
-			Enabled:          true,
-			BackendType:      p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
-			ForwardMode:      p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
-			LoadBalancing:    p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN,
-			AgentAssignments: []*p2pstreamv1.PublicBackendAgent{assignment},
+			Id:                                  existing.GetId(),
+			Name:                                "docker-agent-backend",
+			TargetOrigin:                        targetOrigin,
+			Enabled:                             true,
+			BackendType:                         p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
+			ForwardMode:                         p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
+			LoadBalancing:                       p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN,
+			AgentAssignments:                    []*p2pstreamv1.PublicBackendAgent{assignment},
+			UpstreamResponseHeaderTimeoutMillis: responseHeaderTimeoutMillis,
 		})
 		req.Header().Set("Cookie", cookie)
 		resp, err := client.UpdatePublicBackend(ctx, req)
@@ -114,13 +149,14 @@ func upsertAgentBackend(
 	}
 
 	req := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:             "docker-agent-backend",
-		TargetOrigin:     targetOrigin,
-		Enabled:          true,
-		BackendType:      p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
-		ForwardMode:      p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
-		LoadBalancing:    p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN,
-		AgentAssignments: []*p2pstreamv1.PublicBackendAgent{assignment},
+		Name:                                "docker-agent-backend",
+		TargetOrigin:                        targetOrigin,
+		Enabled:                             true,
+		BackendType:                         p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
+		ForwardMode:                         p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
+		LoadBalancing:                       p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN,
+		AgentAssignments:                    []*p2pstreamv1.PublicBackendAgent{assignment},
+		UpstreamResponseHeaderTimeoutMillis: responseHeaderTimeoutMillis,
 	})
 	req.Header().Set("Cookie", cookie)
 	resp, err := client.CreatePublicBackend(ctx, req)
@@ -477,6 +513,251 @@ func waitDashboardHasProxyRequests(
 		time.Sleep(250 * time.Millisecond)
 	}
 	t.Fatalf("dashboard never reported proxy requests; last 5m total=%d", lastTotal)
+}
+
+func smokeURL(base string, path string) string {
+	return strings.TrimRight(base, "/") + path
+}
+
+func smokePostEcho(t *testing.T, requestURL string) {
+	t.Helper()
+
+	body := strings.Repeat("0123456789abcdef", 4096)
+	sum := sha256.Sum256([]byte(body))
+	req, err := http.NewRequest(http.MethodPost, requestURL, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("create POST request: %v", err)
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	resp, err := httpClient().Do(req)
+	if err != nil {
+		t.Fatalf("POST %s: %v", requestURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		data, _ := io.ReadAll(resp.Body)
+		t.Fatalf("POST %s status = %d body=%q, want 200", requestURL, resp.StatusCode, string(data))
+	}
+	var payload struct {
+		Method        string `json:"method"`
+		ContentLength int    `json:"content_length"`
+		SHA256        string `json:"sha256"`
+		Prefix        string `json:"prefix"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode POST echo response: %v", err)
+	}
+	if payload.Method != http.MethodPost {
+		t.Fatalf("echo method = %q, want POST", payload.Method)
+	}
+	if payload.ContentLength != len(body) {
+		t.Fatalf("echo content length = %d, want %d", payload.ContentLength, len(body))
+	}
+	if payload.SHA256 != hex.EncodeToString(sum[:]) {
+		t.Fatalf("echo sha256 = %q, want %q", payload.SHA256, hex.EncodeToString(sum[:]))
+	}
+	if payload.Prefix != body[:256] {
+		t.Fatalf("echo prefix = %q, want first 256 bytes", payload.Prefix)
+	}
+}
+
+func smokeStream(t *testing.T, requestURL string) {
+	t.Helper()
+
+	resp, body, err := getHTTP(httpClient(), requestURL)
+	if err != nil {
+		t.Fatalf("GET stream %s: %v", requestURL, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET stream status = %d body=%q, want 200", resp.StatusCode, body)
+	}
+	want := "chunk-1\nchunk-2\nchunk-3\nchunk-4\nchunk-5\n"
+	if body != want {
+		t.Fatalf("stream body = %q, want %q", body, want)
+	}
+}
+
+func smokeHeaders(t *testing.T, requestURL string) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	if err != nil {
+		t.Fatalf("create headers request: %v", err)
+	}
+	req.Header.Set("X-Smoke-Request", "agent-header-check")
+	req.Header.Set("X-Request-Method", http.MethodGet)
+	resp, err := httpClient().Do(req)
+	if err != nil {
+		t.Fatalf("GET headers %s: %v", requestURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		data, _ := io.ReadAll(resp.Body)
+		t.Fatalf("GET headers status = %d body=%q, want 200", resp.StatusCode, string(data))
+	}
+	var headers map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&headers); err != nil {
+		t.Fatalf("decode headers response: %v", err)
+	}
+	assertSmokeHeader(t, headers, "host", "upstream:9000")
+	assertSmokeHeader(t, headers, "x_forwarded_host", "server:8089")
+	assertSmokeHeader(t, headers, "x_forwarded_proto", "http")
+	assertSmokeHeader(t, headers, "x_request_method", http.MethodGet)
+	assertSmokeHeader(t, headers, "x_smoke_request", "agent-header-check")
+	if headers["x_forwarded_for"] == "" {
+		t.Fatalf("x_forwarded_for is empty in %+v", headers)
+	}
+}
+
+func assertSmokeHeader(t *testing.T, headers map[string]string, name string, want string) {
+	t.Helper()
+	if got := headers[name]; got != want {
+		t.Fatalf("header %s = %q, want %q in %+v", name, got, want, headers)
+	}
+}
+
+func smokeCloseEarly(t *testing.T, requestURL string) {
+	t.Helper()
+
+	resp, err := httpClient().Get(requestURL)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	body, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return
+	}
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("close-early status = %d body=%q, want 502 or client read error", resp.StatusCode, string(body))
+	}
+}
+
+func smokeWebSocketEcho(t *testing.T, requestURL string) {
+	t.Helper()
+
+	u, err := url.Parse(requestURL)
+	if err != nil {
+		t.Fatalf("parse websocket URL: %v", err)
+	}
+	if u.Scheme != "http" {
+		t.Fatalf("smoke websocket only supports ws over http, got %q", u.Scheme)
+	}
+	address := u.Host
+	if !strings.Contains(address, ":") {
+		address += ":80"
+	}
+	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+	if err != nil {
+		t.Fatalf("dial websocket target: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	key := base64.StdEncoding.EncodeToString([]byte("p2pstream-smoke!!"))
+	path := u.RequestURI()
+	if path == "" {
+		path = "/"
+	}
+	_, _ = fmt.Fprintf(conn, "GET %s HTTP/1.1\r\n", path)
+	_, _ = fmt.Fprintf(conn, "Host: %s\r\n", u.Host)
+	_, _ = fmt.Fprintf(conn, "Connection: Upgrade\r\n")
+	_, _ = fmt.Fprintf(conn, "Upgrade: websocket\r\n")
+	_, _ = fmt.Fprintf(conn, "Sec-WebSocket-Version: 13\r\n")
+	_, _ = fmt.Fprintf(conn, "Sec-WebSocket-Key: %s\r\n", key)
+	_, _ = fmt.Fprintf(conn, "\r\n")
+
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, &http.Request{Method: http.MethodGet})
+	if err != nil {
+		t.Fatalf("read websocket handshake: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("websocket handshake status = %d, want 101", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Sec-WebSocket-Accept"); got != websocketAccept(key) {
+		t.Fatalf("websocket accept = %q, want %q", got, websocketAccept(key))
+	}
+	if err := writeClientWebSocketText(conn, "ping"); err != nil {
+		t.Fatalf("write websocket frame: %v", err)
+	}
+	opcode, payload, err := readServerWebSocketFrame(reader)
+	if err != nil {
+		t.Fatalf("read websocket frame: %v", err)
+	}
+	if opcode != 0x1 || string(payload) != "pong" {
+		t.Fatalf("websocket response opcode=%d payload=%q, want text pong", opcode, string(payload))
+	}
+	_ = writeClientWebSocketClose(conn)
+}
+
+func websocketAccept(key string) string {
+	sum := sha1.Sum([]byte(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+func writeClientWebSocketText(conn net.Conn, payload string) error {
+	return writeClientWebSocketFrame(conn, 0x1, []byte(payload))
+}
+
+func writeClientWebSocketClose(conn net.Conn) error {
+	return writeClientWebSocketFrame(conn, 0x8, nil)
+}
+
+func writeClientWebSocketFrame(conn net.Conn, opcode byte, payload []byte) error {
+	header := []byte{0x80 | opcode}
+	maskBit := byte(0x80)
+	switch {
+	case len(payload) < 126:
+		header = append(header, maskBit|byte(len(payload)))
+	case len(payload) <= 0xffff:
+		header = append(header, maskBit|126, byte(len(payload)>>8), byte(len(payload)))
+	default:
+		header = append(header, maskBit|127)
+		var ext [8]byte
+		binary.BigEndian.PutUint64(ext[:], uint64(len(payload)))
+		header = append(header, ext[:]...)
+	}
+	mask := [4]byte{0x12, 0x34, 0x56, 0x78}
+	header = append(header, mask[:]...)
+	masked := make([]byte, len(payload))
+	for i := range payload {
+		masked[i] = payload[i] ^ mask[i%4]
+	}
+	if _, err := conn.Write(header); err != nil {
+		return err
+	}
+	_, err := conn.Write(masked)
+	return err
+}
+
+func readServerWebSocketFrame(r *bufio.Reader) (byte, []byte, error) {
+	header := make([]byte, 2)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return 0, nil, err
+	}
+	opcode := header[0] & 0x0f
+	payloadLen := uint64(header[1] & 0x7f)
+	switch payloadLen {
+	case 126:
+		var ext [2]byte
+		if _, err := io.ReadFull(r, ext[:]); err != nil {
+			return 0, nil, err
+		}
+		payloadLen = uint64(binary.BigEndian.Uint16(ext[:]))
+	case 127:
+		var ext [8]byte
+		if _, err := io.ReadFull(r, ext[:]); err != nil {
+			return 0, nil, err
+		}
+		payloadLen = binary.BigEndian.Uint64(ext[:])
+	}
+	payload := make([]byte, payloadLen)
+	if _, err := io.ReadFull(r, payload); err != nil {
+		return 0, nil, err
+	}
+	return opcode, payload, nil
 }
 
 func waitHTTPBody(t *testing.T, client *http.Client, url string, statusCode int, bodyContains string, label string) {

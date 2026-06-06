@@ -214,18 +214,19 @@ func TestAgentPoolBackendsRouteOnlyToAssignedAgents(t *testing.T) {
 	doneA := make(chan struct{})
 	doneB := make(chan struct{})
 	go func() {
-		_ = runAgent(ctx, "ws"+mgmtSrv.URL[4:]+"/ws", agentA.GetPublicId(), tokenA)
+		_ = runAgent(ctx, mgmtSrv.URL, agentA.GetPublicId(), tokenA)
 		close(doneA)
 	}()
 	go func() {
-		_ = runAgent(ctx, "ws"+mgmtSrv.URL[4:]+"/ws", agentB.GetPublicId(), tokenB)
+		_ = runAgent(ctx, mgmtSrv.URL, agentB.GetPublicId(), tokenB)
 		close(doneB)
 	}()
 	time.Sleep(250 * time.Millisecond)
 
 	baseURL := "http://" + publicListenerBoundAddress(t, status, listener.ID)
-	assertAgentHeader(t, baseURL+"/a", agentA.GetPublicId())
-	assertAgentHeader(t, baseURL+"/b", agentB.GetPublicId())
+	assertAgentRequest(t, baseURL+"/a")
+	assertAgentRequest(t, baseURL+"/b")
+	assertSelectedAgents(t, database, []int64{agentA.GetId(), agentB.GetId()})
 
 	cancel()
 	<-doneA
@@ -280,7 +281,7 @@ func createAgentPoolBackend(t *testing.T, database *db.DB, name string, targetOr
 	return backend
 }
 
-func assertAgentHeader(t *testing.T, url string, wantAgent string) {
+func assertAgentRequest(t *testing.T, url string) {
 	t.Helper()
 	resp, err := http.Get(url)
 	if err != nil {
@@ -291,8 +292,35 @@ func assertAgentHeader(t *testing.T, url string, wantAgent string) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("request %s status = %d, want 200", url, resp.StatusCode)
 	}
-	if got := resp.Header.Get("X-Mock-Agent"); got != wantAgent {
-		t.Fatalf("request %s used agent %q, want %q", url, got, wantAgent)
+}
+
+func assertSelectedAgents(t *testing.T, database *db.DB, want []int64) {
+	t.Helper()
+	rows, err := database.QueryContext(context.Background(), `SELECT agent_id FROM proxy_request_events WHERE agent_id IS NOT NULL ORDER BY id`)
+	if err != nil {
+		t.Fatalf("query proxy request events: %v", err)
+	}
+	defer rows.Close()
+	got := make([]int64, 0, len(want))
+	for rows.Next() {
+		var agentID sql.NullInt64
+		if err := rows.Scan(&agentID); err != nil {
+			t.Fatalf("scan proxy request event: %v", err)
+		}
+		if agentID.Valid {
+			got = append(got, agentID.Int64)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate proxy request events: %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("selected agents = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("selected agents = %v, want %v", got, want)
+		}
 	}
 }
 

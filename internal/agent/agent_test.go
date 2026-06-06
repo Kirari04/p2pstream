@@ -1,101 +1,17 @@
 package agent
 
 import (
-	"bytes"
 	"context"
-	"errors"
+	"encoding/binary"
 	"io"
-	"net/http"
-	"net/http/httptest"
-	"strconv"
+	"net"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/hashicorp/yamux"
 
-	"p2pstream/httpmsg"
-	"p2pstream/msg"
+	"p2pstream/internal/tunnel"
 )
-
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
-}
-
-type trackingReadCloser struct {
-	*bytes.Reader
-	closed bool
-}
-
-func (r *trackingReadCloser) Close() error {
-	r.closed = true
-	return nil
-}
-
-func TestHandleRequestTLSMetadataControlsVerification(t *testing.T) {
-	target := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(httpmsg.MetadataTLSSkipVerify) != "" {
-			t.Fatalf("internal TLS metadata was forwarded upstream")
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	}))
-	defer target.Close()
-
-	status, _ := performAgentRequest(t, target.URL, false)
-	if status != http.StatusBadGateway {
-		t.Fatalf("expected self-signed upstream to fail without tls skip verify, got %d", status)
-	}
-
-	status, body := performAgentRequest(t, target.URL, true)
-	if status != http.StatusOK || body != "ok" {
-		t.Fatalf("expected tls skip verify request to succeed, got status=%d body=%q", status, body)
-	}
-}
-
-func TestAgentHealthCheckMetadataDoesNotIncrementRequestCounters(t *testing.T) {
-	originalClient := defaultForwardClient
-	defaultForwardClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Header.Get(httpmsg.MetadataHealthCheck) != "" {
-			t.Fatalf("internal health check metadata was forwarded upstream")
-		}
-		if req.Header.Get(httpmsg.MetadataResponseHeaderTimeoutMillis) != "" {
-			t.Fatalf("internal timeout metadata was forwarded upstream")
-		}
-		return &http.Response{
-			StatusCode:    http.StatusOK,
-			Status:        http.StatusText(http.StatusOK),
-			Header:        make(http.Header),
-			Body:          io.NopCloser(bytes.NewReader([]byte("ok"))),
-			ContentLength: 2,
-		}, nil
-	})}
-	t.Cleanup(func() {
-		defaultForwardClient = originalClient
-		resetAgentRequestCounters()
-	})
-	resetAgentRequestCounters()
-
-	conn, done := startAgentRequestHandlerWithMetadata(t, "http://upstream.test/health", map[string]string{
-		httpmsg.MetadataHealthCheck: "true",
-	})
-	select {
-	case <-conn.writeCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for response")
-	}
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for handler")
-	}
-
-	if activeRequests.Load() != 0 || reqSuccess.Load() != 0 || reqClientError.Load() != 0 || reqServerError.Load() != 0 || reqInternalError.Load() != 0 {
-		t.Fatalf("health check changed counters: active=%d success=%d client=%d server=%d internal=%d",
-			activeRequests.Load(), reqSuccess.Load(), reqClientError.Load(), reqServerError.Load(), reqInternalError.Load())
-	}
-}
 
 func TestAgentReconnectBackoffBounds(t *testing.T) {
 	originalMin := agentReconnectBackoffMin
@@ -125,208 +41,240 @@ func TestAgentReconnectBackoffBounds(t *testing.T) {
 	}
 }
 
-func performAgentRequest(t *testing.T, targetURL string, tlsSkipVerify bool) (int, string) {
-	t.Helper()
-
-	id, err := uuid.NewV7()
-	if err != nil {
-		t.Fatalf("new request id: %v", err)
-	}
-	req, err := http.NewRequest(http.MethodGet, targetURL, nil)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	enc := httpmsg.NewRequestEncoderWithMetadata(id, req, map[string]string{
-		httpmsg.MetadataTLSSkipVerify: strconv.FormatBool(tlsSkipVerify),
-	})
-	firstReq, err := enc.Next()
-	if err != nil {
-		t.Fatalf("encode request: %v", err)
-	}
-
-	reqCh := make(chan *msg.Request, 10)
-	reqCh <- firstReq
-	conn := &agentConnection{
-		ctx:     context.Background(),
-		writeCh: make(chan *msg.Request, 10),
-	}
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		conn.handleRequest(id, reqCh)
-	}()
-
-	var firstResp *msg.Request
-	select {
-	case firstResp = <-conn.writeCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for agent response")
-	}
-
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for agent request handler")
-	}
-
-	resp, err := httpmsg.DecodeResponse(firstResp, &httpmsg.ChannelStream{Ch: conn.writeCh})
-	if err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read response body: %v", err)
-	}
-	return resp.StatusCode, string(body)
-}
-
-func TestHandleRequestClosesSuccessfulUpstreamBody(t *testing.T) {
-	originalClient := defaultForwardClient
-	body := &trackingReadCloser{Reader: bytes.NewReader([]byte("ok"))}
-	defaultForwardClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode:    http.StatusOK,
-			Status:        http.StatusText(http.StatusOK),
-			Header:        make(http.Header),
-			Body:          body,
-			ContentLength: int64(body.Len()),
-		}, nil
-	})}
-	t.Cleanup(func() {
-		defaultForwardClient = originalClient
-	})
-
-	conn, done := startAgentRequestHandler(t, "http://upstream.test/ok")
-	select {
-	case <-conn.writeCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for response")
-	}
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for handler")
-	}
-	if !body.closed {
-		t.Fatal("upstream response body was not closed")
-	}
-}
-
-func TestHandleRequestUsesGenericBadGatewayBody(t *testing.T) {
-	originalClient := defaultForwardClient
-	defaultForwardClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return nil, errors.New("dial tcp 10.0.0.5:8080: secret internal route")
-	})}
-	t.Cleanup(func() {
-		defaultForwardClient = originalClient
-	})
-
-	conn, done := startAgentRequestHandler(t, "http://upstream.test/fail")
-	var firstResp *msg.Request
-	select {
-	case firstResp = <-conn.writeCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for response")
-	}
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for handler")
-	}
-
-	resp, err := httpmsg.DecodeResponse(firstResp, &httpmsg.ChannelStream{Ch: conn.writeCh})
-	if err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read response body: %v", err)
-	}
-	if resp.StatusCode != http.StatusBadGateway || string(body) != "Bad Gateway\n" {
-		t.Fatalf("unexpected error response: status=%d body=%q", resp.StatusCode, body)
-	}
-}
-
-func TestHandleRequestUsesResponseHeaderTimeoutMetadata(t *testing.T) {
+func TestTunnelSessionRelaysTCPStream(t *testing.T) {
 	resetAgentRequestCounters()
 	t.Cleanup(resetAgentRequestCounters)
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(httpmsg.MetadataResponseHeaderTimeoutMillis) != "" {
-			t.Fatalf("internal timeout metadata was forwarded upstream")
-		}
-		time.Sleep(200 * time.Millisecond)
-		_, _ = w.Write([]byte("too late"))
-	}))
-	defer target.Close()
 
-	conn, done := startAgentRequestHandlerWithMetadata(t, target.URL, map[string]string{
-		httpmsg.MetadataResponseHeaderTimeoutMillis: "25",
-	})
-	var firstResp *msg.Request
-	select {
-	case firstResp = <-conn.writeCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for response")
+	upstream := startEchoListener(t)
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
 	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer agentSession.Close()
+	defer serverSession.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	serveDone := make(chan error, 1)
+	go func() {
+		serveDone <- serveTunnelSession(ctx, agentSession)
+	}()
+
+	stream, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open stream: %v", err)
+	}
+	defer stream.Close()
+	if err := tunnel.WriteOpenRequest(stream, tunnel.NewOpenRequest("req-1", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatalf("write open request: %v", err)
+	}
+	resp, err := tunnel.ReadOpenResponse(stream)
+	if err != nil {
+		t.Fatalf("read open response: %v", err)
+	}
+	if !resp.OK {
+		t.Fatalf("open response = %+v, want ok", resp)
+	}
+	if _, err := stream.Write([]byte("ping")); err != nil {
+		t.Fatalf("write stream: %v", err)
+	}
+	buf := make([]byte, 4)
+	if _, err := io.ReadFull(stream, buf); err != nil {
+		t.Fatalf("read stream: %v", err)
+	}
+	if string(buf) != "ping" {
+		t.Fatalf("echo = %q, want ping", buf)
+	}
+
+	cancel()
+	agentSession.Close()
+	select {
+	case <-serveDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for tunnel session to stop")
+	}
+}
+
+func TestTunnelSessionReturnsDialFailure(t *testing.T) {
+	resetAgentRequestCounters()
+	t.Cleanup(resetAgentRequestCounters)
+
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer agentSession.Close()
+	defer serverSession.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		_ = serveTunnelSession(ctx, agentSession)
+	}()
+
+	stream, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open stream: %v", err)
+	}
+	defer stream.Close()
+	if err := tunnel.WriteOpenRequest(stream, tunnel.NewOpenRequest("req-1", "tcp", "127.0.0.1:1")); err != nil {
+		t.Fatalf("write open request: %v", err)
+	}
+	resp, err := tunnel.ReadOpenResponse(stream)
+	if err != nil {
+		t.Fatalf("read open response: %v", err)
+	}
+	if resp.OK || resp.ErrorKind != "dial_failed" {
+		t.Fatalf("open response = %+v, want dial_failed", resp)
+	}
+}
+
+func TestTunnelSessionInvalidOpenRequestKeepsSessionUsable(t *testing.T) {
+	resetAgentRequestCounters()
+	t.Cleanup(resetAgentRequestCounters)
+
+	upstream := startEchoListener(t)
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer agentSession.Close()
+	defer serverSession.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		_ = serveTunnelSession(ctx, agentSession)
+	}()
+
+	unsupported, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open unsupported-version stream: %v", err)
+	}
+	if err := tunnel.WriteFrame(unsupported, tunnel.OpenRequest{Version: 2, Network: "tcp", Address: upstream.Addr().String()}); err != nil {
+		t.Fatalf("write unsupported request: %v", err)
+	}
+	resp, err := tunnel.ReadOpenResponse(unsupported)
+	if err != nil {
+		t.Fatalf("read unsupported response: %v", err)
+	}
+	if resp.OK || resp.ErrorKind != "unsupported_version" {
+		t.Fatalf("unsupported response = %+v, want unsupported_version", resp)
+	}
+	unsupported.Close()
+
+	malformed, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open malformed stream: %v", err)
+	}
+	if err := writeMalformedControlFrame(malformed); err != nil {
+		t.Fatalf("write malformed request: %v", err)
+	}
+	resp, err = tunnel.ReadOpenResponse(malformed)
+	if err != nil {
+		t.Fatalf("read malformed response: %v", err)
+	}
+	if resp.OK || resp.ErrorKind != "invalid_open_request" {
+		t.Fatalf("malformed response = %+v, want invalid_open_request", resp)
+	}
+	malformed.Close()
+
+	valid, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open valid stream after invalid requests: %v", err)
+	}
+	defer valid.Close()
+	if err := tunnel.WriteOpenRequest(valid, tunnel.NewOpenRequest("req-valid", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatalf("write valid open request: %v", err)
+	}
+	resp, err = tunnel.ReadOpenResponse(valid)
+	if err != nil {
+		t.Fatalf("read valid open response: %v", err)
+	}
+	if !resp.OK {
+		t.Fatalf("valid response = %+v, want ok", resp)
+	}
+	if _, err := valid.Write([]byte("ok")); err != nil {
+		t.Fatalf("write valid stream: %v", err)
+	}
+	buf := make([]byte, 2)
+	if _, err := io.ReadFull(valid, buf); err != nil {
+		t.Fatalf("read valid stream echo: %v", err)
+	}
+	if string(buf) != "ok" {
+		t.Fatalf("valid stream echo = %q, want ok", buf)
+	}
+}
+
+func TestTunnelSessionReturnsWhenSessionCloses(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer serverSession.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- serveTunnelSession(context.Background(), agentSession)
+	}()
+	agentSession.Close()
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for handler")
-	}
-
-	resp, err := httpmsg.DecodeResponse(firstResp, &httpmsg.ChannelStream{Ch: conn.writeCh})
-	if err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read response body: %v", err)
-	}
-	if resp.StatusCode != http.StatusGatewayTimeout || string(body) != "Gateway Timeout\n" {
-		t.Fatalf("unexpected timeout response: status=%d body=%q", resp.StatusCode, body)
-	}
-	if reqServerError.Load() != 1 || reqInternalError.Load() != 0 {
-		t.Fatalf("timeout counters = server %d internal %d, want server=1 internal=0", reqServerError.Load(), reqInternalError.Load())
+		t.Fatal("timed out waiting for serveTunnelSession to return after session close")
 	}
 }
 
-func startAgentRequestHandler(t *testing.T, targetURL string) (*agentConnection, <-chan struct{}) {
-	t.Helper()
-	return startAgentRequestHandlerWithMetadata(t, targetURL, nil)
+func writeMalformedControlFrame(w io.Writer) error {
+	var header [4]byte
+	binary.BigEndian.PutUint32(header[:], 1)
+	if _, err := w.Write(header[:]); err != nil {
+		return err
+	}
+	_, err := w.Write([]byte("{"))
+	return err
 }
 
-func startAgentRequestHandlerWithMetadata(t *testing.T, targetURL string, metadata map[string]string) (*agentConnection, <-chan struct{}) {
+func startEchoListener(t *testing.T) net.Listener {
 	t.Helper()
-
-	id, err := uuid.NewV7()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("new request id: %v", err)
+		t.Fatalf("listen echo: %v", err)
 	}
-	req, err := http.NewRequest(http.MethodGet, targetURL, nil)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	enc := httpmsg.NewRequestEncoderWithMetadata(id, req, metadata)
-	firstReq, err := enc.Next()
-	if err != nil {
-		t.Fatalf("encode request: %v", err)
-	}
-	reqCh := make(chan *msg.Request, 10)
-	reqCh <- firstReq
-	conn := &agentConnection{
-		ctx:     context.Background(),
-		writeCh: make(chan *msg.Request, 10),
-	}
-	done := make(chan struct{})
+	t.Cleanup(func() { ln.Close() })
 	go func() {
-		defer close(done)
-		conn.handleRequest(id, reqCh)
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				_, _ = io.Copy(conn, conn)
+			}()
+		}
 	}()
-	return conn, done
+	return ln
 }
 
 func resetAgentRequestCounters() {

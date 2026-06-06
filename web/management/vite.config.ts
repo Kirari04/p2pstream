@@ -26,6 +26,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: managementProxySecure,
       },
+      "/environments/": {
+        target: managementProxyTarget,
+        changeOrigin: true,
+        secure: managementProxySecure,
+      },
     },
     hmr: {
       protocol: hmrProtocol,

@@ -1,14 +1,10 @@
 package agent
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -20,20 +16,17 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/coder/websocket"
-	"github.com/google/uuid"
+	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
-	"p2pstream/httpmsg"
 	"p2pstream/internal/sysmetrics"
-	"p2pstream/msg"
+	"p2pstream/internal/tunnel"
 )
 
 var (
@@ -44,31 +37,13 @@ var (
 	reqInternalError atomic.Int32
 	bytesReceived    atomic.Uint64
 	bytesSent        atomic.Uint64
-
-	defaultForwardClient       = &http.Client{Transport: forwardTransport(false, upstreamResponseHeaderTimeout)}
-	tlsSkipVerifyForwardClient = &http.Client{Transport: forwardTransport(true, upstreamResponseHeaderTimeout)}
-	forwardClientCache         sync.Map // map[forwardClientKey]*http.Client
 )
-
-const upstreamResponseHeaderTimeout = 30 * time.Second
 
 var (
-	agentWebSocketPingInterval = 20 * time.Second
-	agentWebSocketPingTimeout  = 10 * time.Second
-	agentReconnectBackoffMin   = time.Second
-	agentReconnectBackoffMax   = 30 * time.Second
+	agentStableConnectionInterval = 20 * time.Second
+	agentReconnectBackoffMin      = time.Second
+	agentReconnectBackoffMax      = 30 * time.Second
 )
-
-type forwardClientKey struct {
-	tlsSkipVerify bool
-	timeoutMillis int64
-}
-
-type agentConnection struct {
-	ctx      context.Context
-	writeCh  chan *msg.Request
-	incoming sync.Map // map[uuid.UUID]chan *msg.Request
-}
 
 type Options struct {
 	ManagementURL           string
@@ -91,7 +66,11 @@ func Run(opts Options) error {
 	if err != nil {
 		return err
 	}
-	wsURL, err := managementWebSocketURL(opts.ManagementURL)
+	tunnelURL, err := managementTunnelURL(opts.ManagementURL)
+	if err != nil {
+		return err
+	}
+	tunnelClient, err := managementTunnelHTTPClient(managementClient)
 	if err != nil {
 		return err
 	}
@@ -100,14 +79,14 @@ func Run(opts Options) error {
 
 	backoff := agentReconnectBackoffMin
 	for {
-		log.Info().Str("ws_url", wsURL).Msg("Attempting to connect to management server...")
+		log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
 
 		connectedAt := time.Now()
-		err := connectAndServe(managementClient, wsURL, opts.PublicID, opts.Name, opts.Token)
+		err := connectAndServe(tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
-		if time.Since(connectedAt) >= agentWebSocketPingInterval {
+		if time.Since(connectedAt) >= agentStableConnectionInterval {
 			backoff = agentReconnectBackoffMin
 		}
 
@@ -166,20 +145,17 @@ func validateOptions(opts Options) error {
 	return nil
 }
 
-func managementWebSocketURL(mgmtURL string) (string, error) {
+func managementTunnelURL(mgmtURL string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(mgmtURL))
 	if err != nil {
 		return "", fmt.Errorf("invalid management URL: %w", err)
 	}
 	switch parsed.Scheme {
-	case "http":
-		parsed.Scheme = "ws"
-	case "https":
-		parsed.Scheme = "wss"
+	case "http", "https":
 	default:
 		return "", fmt.Errorf("unsupported management URL scheme %q", parsed.Scheme)
 	}
-	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/ws"
+	parsed.Path = strings.TrimRight(parsed.Path, "/") + tunnel.BootstrapPath
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String(), nil
@@ -252,480 +228,254 @@ func managementHTTPClient(opts Options) (*http.Client, error) {
 	return &http.Client{Transport: transport}, nil
 }
 
-func connectAndServe(client *http.Client, wsURL string, agentPublicID string, agentName string, agentToken string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	opts := &websocket.DialOptions{
-		HTTPClient: client,
-		HTTPHeader: http.Header{
-			"Authorization":          []string{"Bearer " + agentToken},
-			"X-P2PStream-Agent-ID":   []string{agentPublicID},
-			"X-P2PStream-Agent-Name": []string{agentName},
-		},
+func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
+	if base == nil {
+		base = http.DefaultClient
 	}
-
-	c, _, err := websocket.Dial(ctx, wsURL, opts)
-	if err != nil {
-		return fmt.Errorf("failed to dial: %w", err)
-	}
-	defer c.Close(websocket.StatusInternalError, "agent shutting down")
-
-	c.SetReadLimit(128 * 1024)
-
-	log.Info().Msg("Connected successfully!")
-
-	conn := &agentConnection{
-		ctx:     ctx,
-		writeCh: make(chan *msg.Request, 100),
-	}
-	defer conn.closeIncomingRequests()
-
-	startAgentWebSocketHeartbeat(ctx, cancel, c)
-
-	go func() {
-		defer cancel()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case req := <-conn.writeCh:
-				cw, err := c.Writer(ctx, websocket.MessageBinary)
-				if err != nil {
-					log.Error().Err(err).Msg("ws write error")
-					return
-				}
-				n, err := req.WriteTo(cw)
-				closeErr := cw.Close()
-				if err != nil {
-					log.Error().Err(err).Msg("msg WriteTo error")
-					return
-				}
-				if closeErr != nil {
-					log.Error().Err(closeErr).Msg("ws writer close error")
-					return
-				}
-				bytesSent.Add(uint64(n))
-			}
+	var transport *http.Transport
+	if base.Transport == nil {
+		defaultTransport, ok := http.DefaultTransport.(*http.Transport)
+		if !ok {
+			return nil, fmt.Errorf("default transport is %T, want *http.Transport", http.DefaultTransport)
 		}
-	}()
-
-	for {
-		_, reader, err := c.Reader(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get reader: %w", err)
-		}
-
-		b, err := io.ReadAll(reader)
-		if err != nil {
-			return fmt.Errorf("failed to read: %w", err)
-		}
-
-		bytesReceived.Add(uint64(len(b)))
-
-		m, err := msg.ParseRequest(bytes.NewReader(b))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to parse request")
-			continue
-		}
-
-		if m.Type == msg.RequestTypeHeader || m.Type == msg.RequestTypeHeaderAndBody {
-			reqCh := make(chan *msg.Request, 100)
-			conn.incoming.Store(m.ID, reqCh)
-			select {
-			case reqCh <- m:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-
-			go conn.handleRequest(m.ID, reqCh)
-		} else {
-			if ch, ok := conn.incoming.Load(m.ID); ok {
-				select {
-				case ch.(chan *msg.Request) <- m:
-				case <-ctx.Done():
-					return ctx.Err()
-				}
-			} else {
-				log.Warn().Str("req_id", m.ID.String()).Msg("Received chunk for unknown request")
-			}
-		}
-	}
-}
-
-func startAgentWebSocketHeartbeat(ctx context.Context, cancel context.CancelFunc, c *websocket.Conn) {
-	if c == nil || cancel == nil || agentWebSocketPingInterval <= 0 || agentWebSocketPingTimeout <= 0 {
-		return
-	}
-	go func() {
-		ticker := time.NewTicker(agentWebSocketPingInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				pingCtx, pingCancel := context.WithTimeout(ctx, agentWebSocketPingTimeout)
-				err := c.Ping(pingCtx)
-				pingCancel()
-				if err == nil {
-					continue
-				}
-				log.Warn().Err(err).Msg("Management websocket heartbeat failed")
-				cancel()
-				_ = c.CloseNow()
-				return
-			}
-		}
-	}()
-}
-
-func (conn *agentConnection) handleRequest(id uuid.UUID, reqCh chan *msg.Request) {
-	defer conn.incoming.Delete(id)
-
-	stream := &httpmsg.ChannelStream{Ctx: conn.ctx, Ch: reqCh}
-	firstMsg, err := stream.Next()
-	if err != nil {
-		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to get first chunk")
-		reqInternalError.Add(1)
-		return
-	}
-	tlsSkipVerify := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTLSSkipVerify), "true")
-	isHealthCheck := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataHealthCheck), "true")
-	isCertificateDiscovery := strings.EqualFold(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataDiscoverCertificate), "true")
-	trustedCertificatePEM := httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTrustedCertificatePEM)
-	trustedCertificateSHA256 := httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataTrustedCertificateSHA256)
-	responseHeaderTimeout := parseResponseHeaderTimeout(firstMsg)
-	if !isHealthCheck && !isCertificateDiscovery {
-		activeRequests.Add(1)
-		defer activeRequests.Add(-1)
-	}
-
-	if isCertificateDiscovery {
-		conn.handleCertificateDiscovery(id, firstMsg, responseHeaderTimeout)
-		return
-	}
-
-	req, err := httpmsg.DecodeRequest(firstMsg, stream)
-	if err != nil {
-		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to decode request")
-		if !isHealthCheck {
-			reqInternalError.Add(1)
-		}
-		return
-	}
-	req = req.WithContext(conn.ctx)
-
-	req.RequestURI = ""
-
-	log.Info().Str("req_id", id.String()).Str("method", req.Method).Str("url", req.URL.String()).Msg("Forwarding request")
-
-	client, err := forwardHTTPClient(tlsSkipVerify, trustedCertificatePEM, trustedCertificateSHA256, responseHeaderTimeout)
-	if err != nil {
-		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to configure forward client")
-		if !isHealthCheck {
-			reqInternalError.Add(1)
-		}
-		resp := &http.Response{
-			StatusCode:    http.StatusBadGateway,
-			Status:        fmt.Sprintf("%d %s", http.StatusBadGateway, http.StatusText(http.StatusBadGateway)),
-			Header:        make(http.Header),
-			Body:          io.NopCloser(bytes.NewReader([]byte("Bad Gateway\n"))),
-			ContentLength: int64(len("Bad Gateway\n")),
-		}
-		enc := httpmsg.NewResponseEncoder(id, resp)
-		for {
-			m, err := enc.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return
-			}
-			select {
-			case conn.writeCh <- m:
-			case <-conn.ctx.Done():
-				return
-			}
-		}
-		return
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to execute request")
-		statusCode := http.StatusBadGateway
-		body := []byte("Bad Gateway\n")
-		if isTimeoutError(err) {
-			statusCode = http.StatusGatewayTimeout
-			body = []byte("Gateway Timeout\n")
-		}
-		if !isHealthCheck {
-			if statusCode >= 500 && statusCode != http.StatusBadGateway {
-				reqServerError.Add(1)
-			} else {
-				reqInternalError.Add(1)
-			}
-		}
-		resp = &http.Response{
-			StatusCode:    statusCode,
-			Status:        fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
-			Header:        make(http.Header),
-			Body:          io.NopCloser(bytes.NewReader(body)),
-			ContentLength: int64(len(body)),
-		}
+		transport = defaultTransport.Clone()
 	} else {
-		if resp.Body != nil {
-			defer resp.Body.Close()
+		baseTransport, ok := base.Transport.(*http.Transport)
+		if !ok {
+			return nil, fmt.Errorf("management tunnel transport is %T, want *http.Transport", base.Transport)
 		}
-		if !isHealthCheck {
-			if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-				reqSuccess.Add(1)
-			} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-				reqClientError.Add(1)
-			} else {
-				reqServerError.Add(1)
-			}
-		}
+		transport = baseTransport.Clone()
 	}
-
-	enc := httpmsg.NewResponseEncoder(id, resp)
-	for {
-		m, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode response")
-			return
-		}
-		select {
-		case conn.writeCh <- m:
-		case <-conn.ctx.Done():
-			return
-		}
-	}
-
-	log.Info().Str("req_id", id.String()).Msg("Finished successfully")
-}
-
-func parseResponseHeaderTimeout(firstMsg *msg.Request) time.Duration {
-	timeoutMillis, err := strconv.ParseInt(strings.TrimSpace(httpmsg.FirstHeaderValue(firstMsg.Headers, httpmsg.MetadataResponseHeaderTimeoutMillis)), 10, 64)
-	if err != nil || timeoutMillis <= 0 {
-		return upstreamResponseHeaderTimeout
-	}
-	return time.Duration(timeoutMillis) * time.Millisecond
-}
-
-func (conn *agentConnection) handleCertificateDiscovery(id uuid.UUID, firstMsg *msg.Request, responseHeaderTimeout time.Duration) {
-	scheme := httpmsg.FirstHeaderValue(firstMsg.Headers, ":scheme")
-	host := httpmsg.FirstHeaderValue(firstMsg.Headers, ":host")
-	statusCode := http.StatusOK
-	body := []byte(nil)
-	headers := make(http.Header)
-	if scheme != "https" {
-		statusCode = http.StatusBadGateway
-		body = []byte("certificate discovery requires https\n")
-	} else if host == "" {
-		statusCode = http.StatusBadGateway
-		body = []byte("certificate discovery requires host\n")
-	} else {
-		certPEM, fingerprint, err := discoverRemoteCertificate(conn.ctx, host, responseHeaderTimeout)
-		if err != nil {
-			statusCode = http.StatusBadGateway
-			body = []byte(err.Error() + "\n")
-		} else {
-			body = certPEM
-			headers.Set("X-P2PStream-Certificate-SHA256", fingerprint)
-			headers.Set("Content-Type", "application/x-pem-file")
-		}
-	}
-	resp := &http.Response{
-		StatusCode:    statusCode,
-		Status:        fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
-		Header:        headers,
-		Body:          io.NopCloser(bytes.NewReader(body)),
-		ContentLength: int64(len(body)),
-	}
-	enc := httpmsg.NewResponseEncoder(id, resp)
-	for {
-		m, err := enc.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Error().Err(err).Str("req_id", id.String()).Msg("Failed to encode certificate discovery response")
-			return
-		}
-		select {
-		case conn.writeCh <- m:
-		case <-conn.ctx.Done():
-			return
-		}
-	}
-}
-
-func forwardHTTPClient(tlsSkipVerify bool, trustedCertificatePEM string, trustedCertificateSHA256 string, responseHeaderTimeout time.Duration) (*http.Client, error) {
-	timeout := normalizeResponseHeaderTimeout(responseHeaderTimeout)
-	if strings.TrimSpace(trustedCertificatePEM) != "" || strings.TrimSpace(trustedCertificateSHA256) != "" {
-		client, err := trustedCertificateHTTPClient(trustedCertificatePEM, trustedCertificateSHA256, timeout)
-		if err != nil {
-			return nil, err
-		}
-		return client, nil
-	}
-	if timeout == upstreamResponseHeaderTimeout {
-		if tlsSkipVerify {
-			return tlsSkipVerifyForwardClient, nil
-		}
-		return defaultForwardClient, nil
-	}
-	key := forwardClientKey{
-		tlsSkipVerify: tlsSkipVerify,
-		timeoutMillis: int64(timeout / time.Millisecond),
-	}
-	if cached, ok := forwardClientCache.Load(key); ok {
-		return cached.(*http.Client), nil
-	}
-	client := &http.Client{Transport: forwardTransport(tlsSkipVerify, timeout)}
-	actual, _ := forwardClientCache.LoadOrStore(key, client)
-	return actual.(*http.Client), nil
-}
-
-func trustedCertificateHTTPClient(trustedCertificatePEM string, trustedCertificateSHA256 string, responseHeaderTimeout time.Duration) (*http.Client, error) {
-	cert, err := parseTrustedCertificate(trustedCertificatePEM)
-	if err != nil {
-		return nil, err
-	}
-	wantFingerprint := normalizeCertificateFingerprint(trustedCertificateSHA256)
-	if wantFingerprint == "" {
-		wantFingerprint = normalizeCertificateFingerprint(certificateFingerprint(cert))
-	}
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return nil, fmt.Errorf("default transport is %T, want *http.Transport", http.DefaultTransport)
-	}
-	transport := base.Clone()
-	transport.ResponseHeaderTimeout = normalizeResponseHeaderTimeout(responseHeaderTimeout)
-	transport.TLSClientConfig = &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		// Environment forwarding verifies the pinned leaf fingerprint below
-		// while preserving hostname and validity checks in VerifyConnection.
-		InsecureSkipVerify: true,
-		VerifyConnection: func(state tls.ConnectionState) error {
-			return verifyPinnedCertificateConnection(state, wantFingerprint)
-		},
-	}
-	return &http.Client{Transport: transport}, nil
-}
-
-func normalizeResponseHeaderTimeout(responseHeaderTimeout time.Duration) time.Duration {
-	if responseHeaderTimeout <= 0 {
-		return upstreamResponseHeaderTimeout
-	}
-	return responseHeaderTimeout
-}
-
-func forwardTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duration) http.RoundTripper {
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return http.DefaultTransport
-	}
-	transport := base.Clone()
-	transport.ResponseHeaderTimeout = normalizeResponseHeaderTimeout(responseHeaderTimeout)
-	if !tlsSkipVerify {
-		return transport
-	}
+	transport.ForceAttemptHTTP2 = false
+	transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	transport.Protocols = protocols
 	if transport.TLSClientConfig == nil {
-		transport.TLSClientConfig = &tls.Config{}
+		transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	} else {
 		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
 	}
-	transport.TLSClientConfig.InsecureSkipVerify = true
-	return transport
+	transport.TLSClientConfig.NextProtos = []string{"http/1.1"}
+	return &http.Client{
+		Transport:     transport,
+		CheckRedirect: base.CheckRedirect,
+		Jar:           base.Jar,
+	}, nil
 }
 
-func discoverRemoteCertificate(ctx context.Context, host string, responseHeaderTimeout time.Duration) ([]byte, string, error) {
-	if _, _, err := net.SplitHostPort(host); err != nil {
-		host = net.JoinHostPort(host, "443")
-	}
-	dialCtx, cancel := context.WithTimeout(ctx, normalizeResponseHeaderTimeout(responseHeaderTimeout))
+func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string) error {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	hostName, _, err := net.SplitHostPort(host)
-	if err != nil {
-		return nil, "", err
-	}
-	// Discovery intentionally skips verification only to collect the unknown
-	// certificate for explicit TOFU review; no authorization token or
-	// management RPC is sent on this connection.
-	dialer := tls.Dialer{Config: &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		ServerName:         hostName,
-		InsecureSkipVerify: true,
-	}}
-	conn, err := dialer.DialContext(dialCtx, "tcp", host)
-	if err != nil {
-		return nil, "", err
-	}
-	defer conn.Close()
-	tlsConn, ok := conn.(*tls.Conn)
-	if !ok {
-		return nil, "", fmt.Errorf("connection did not use TLS")
-	}
-	state := tlsConn.ConnectionState()
-	if len(state.PeerCertificates) == 0 {
-		return nil, "", fmt.Errorf("remote endpoint did not present a certificate")
-	}
-	cert := state.PeerCertificates[0]
-	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}), certificateFingerprint(cert), nil
-}
 
-func parseTrustedCertificate(certPEM string) (*x509.Certificate, error) {
-	block, _ := pem.Decode([]byte(strings.TrimSpace(certPEM)))
-	if block == nil {
-		return nil, fmt.Errorf("trusted certificate is not PEM")
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tunnelURL, nil)
 	if err != nil {
-		return nil, err
-	}
-	return cert, nil
-}
-
-func verifyPinnedCertificateConnection(state tls.ConnectionState, wantFingerprint string) error {
-	if len(state.PeerCertificates) == 0 {
-		return fmt.Errorf("remote endpoint did not present a certificate")
-	}
-	leaf := state.PeerCertificates[0]
-	if normalizeCertificateFingerprint(certificateFingerprint(leaf)) != wantFingerprint {
-		return fmt.Errorf("remote certificate fingerprint changed")
-	}
-	now := time.Now()
-	if now.Before(leaf.NotBefore) || now.After(leaf.NotAfter) {
-		return fmt.Errorf("remote certificate is not currently valid")
-	}
-	if err := leaf.VerifyHostname(state.ServerName); err != nil {
 		return err
 	}
+	req.Header.Set("Authorization", "Bearer "+agentToken)
+	req.Header.Set("X-P2PStream-Agent-ID", agentPublicID)
+	req.Header.Set("X-P2PStream-Agent-Name", agentName)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", tunnel.UpgradeToken)
+	req.Header.Set(tunnel.TunnelVersionHeader, strconv.Itoa(tunnel.ProtocolVersion))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to dial tunnel: %w", err)
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		body := ""
+		if resp.Body != nil {
+			data, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+			body = strings.TrimSpace(string(data))
+			resp.Body.Close()
+		}
+		if body != "" {
+			return fmt.Errorf("agent tunnel upgrade failed: status %d: %s", resp.StatusCode, body)
+		}
+		return fmt.Errorf("agent tunnel upgrade failed: status %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Upgrade"); !strings.EqualFold(got, tunnel.UpgradeToken) {
+		resp.Body.Close()
+		return fmt.Errorf("agent tunnel upgrade response header = %q", got)
+	}
+	rwc, ok := resp.Body.(io.ReadWriteCloser)
+	if !ok {
+		resp.Body.Close()
+		return fmt.Errorf("agent tunnel response body is %T, want io.ReadWriteCloser", resp.Body)
+	}
+	session, err := yamux.Client(rwc, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		rwc.Close()
+		return fmt.Errorf("failed to initialize tunnel session: %w", err)
+	}
+	defer session.Close()
+
+	log.Info().Msg("Connected tunnel successfully")
+
+	go func() {
+		<-ctx.Done()
+		_ = session.Close()
+	}()
+
+	if err := serveTunnelSession(ctx, session); err != nil {
+		log.Debug().Err(err).Msg("Tunnel session ended")
+		return err
+	}
+	log.Debug().Msg("Tunnel session ended")
 	return nil
 }
 
-func certificateFingerprint(cert *x509.Certificate) string {
-	sum := sha256.Sum256(cert.Raw)
-	encoded := strings.ToUpper(hex.EncodeToString(sum[:]))
-	var b strings.Builder
-	for i := 0; i < len(encoded); i += 2 {
-		if i > 0 {
-			b.WriteByte(':')
+func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
+	for {
+		stream, err := session.Accept()
+		if err != nil {
+			if ctx.Err() != nil {
+				log.Debug().Err(ctx.Err()).Msg("Tunnel stream accept loop stopped by context")
+				return ctx.Err()
+			}
+			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
+			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
-		b.WriteString(encoded[i : i+2])
+		go handleTunnelStream(ctx, stream)
 	}
-	return b.String()
 }
 
-func normalizeCertificateFingerprint(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	value = strings.ReplaceAll(value, ":", "")
-	value = strings.ReplaceAll(value, " ", "")
-	return value
+func handleTunnelStream(ctx context.Context, stream net.Conn) {
+	defer stream.Close()
+
+	openReq, err := tunnel.ReadOpenRequest(stream)
+	if err != nil {
+		kind := tunnelOpenRequestErrorKind(err)
+		reqInternalError.Add(1)
+		_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
+			OK:        false,
+			ErrorKind: kind,
+			Error:     err.Error(),
+		})
+		return
+	}
+	startedAt := time.Now()
+	log.Debug().
+		Str("request_id", openReq.RequestID).
+		Str("network", openReq.Network).
+		Str("address", redactTunnelAddress(openReq.Address)).
+		Msg("Tunnel stream accepted")
+
+	activeRequests.Add(1)
+	defer activeRequests.Add(-1)
+
+	dialer := net.Dialer{}
+	upstream, err := dialer.DialContext(ctx, openReq.Network, openReq.Address)
+	if err != nil {
+		kind := tunnelDialErrorKind(err)
+		reqInternalError.Add(1)
+		log.Debug().
+			Err(err).
+			Str("request_id", openReq.RequestID).
+			Str("error_kind", kind).
+			Str("address", redactTunnelAddress(openReq.Address)).
+			Msg("Tunnel stream dial failed")
+		_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
+			OK:        false,
+			ErrorKind: kind,
+			Error:     err.Error(),
+		})
+		return
+	}
+	defer upstream.Close()
+
+	if err := tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{OK: true}); err != nil {
+		reqInternalError.Add(1)
+		return
+	}
+
+	received, sent, err := relayTunnelStream(ctx, stream, upstream)
+	log.Debug().
+		Str("request_id", openReq.RequestID).
+		Uint64("bytes_received", received).
+		Uint64("bytes_sent", sent).
+		Dur("duration", time.Since(startedAt)).
+		Err(err).
+		Msg("Tunnel stream relay finished")
+	if err != nil && ctx.Err() == nil {
+		reqInternalError.Add(1)
+		log.Debug().Err(err).Str("request_id", openReq.RequestID).Msg("Tunnel stream relay failed")
+		return
+	}
+	reqSuccess.Add(1)
+}
+
+func tunnelDialErrorKind(err error) string {
+	if isTimeoutError(err) {
+		return "dial_timeout"
+	}
+	return "dial_failed"
+}
+
+func tunnelOpenRequestErrorKind(err error) string {
+	if errors.Is(err, tunnel.ErrUnsupportedVersion) {
+		return "unsupported_version"
+	}
+	return "invalid_open_request"
+}
+
+func relayTunnelStream(ctx context.Context, stream net.Conn, upstream net.Conn) (uint64, uint64, error) {
+	type relayResult struct {
+		direction string
+		bytes     int64
+		err       error
+	}
+	errCh := make(chan relayResult, 2)
+	go func() {
+		n, err := io.Copy(upstream, stream)
+		bytesReceived.Add(uint64(n))
+		errCh <- relayResult{direction: "received", bytes: n, err: err}
+	}()
+	go func() {
+		n, err := io.Copy(stream, upstream)
+		bytesSent.Add(uint64(n))
+		errCh <- relayResult{direction: "sent", bytes: n, err: err}
+	}()
+
+	var received uint64
+	var sent uint64
+	select {
+	case first := <-errCh:
+		_ = stream.Close()
+		_ = upstream.Close()
+		second := <-errCh
+		for _, result := range []relayResult{first, second} {
+			if result.direction == "received" {
+				received = uint64(result.bytes)
+			} else {
+				sent = uint64(result.bytes)
+			}
+		}
+		err := first.err
+		if err == nil || errors.Is(err, net.ErrClosed) {
+			err = second.err
+		}
+		if errors.Is(err, net.ErrClosed) {
+			return received, sent, nil
+		}
+		return received, sent, err
+	case <-ctx.Done():
+		_ = stream.Close()
+		_ = upstream.Close()
+		return 0, 0, ctx.Err()
+	}
+}
+
+func redactTunnelAddress(address string) string {
+	_, port, err := net.SplitHostPort(strings.TrimSpace(address))
+	if err != nil {
+		return "<invalid>"
+	}
+	if port == "" {
+		return "<host>"
+	}
+	return net.JoinHostPort("<host>", port)
 }
 
 func isTimeoutError(err error) bool {
@@ -737,16 +487,6 @@ func isTimeoutError(err error) bool {
 	}
 	var netErr net.Error
 	return errors.As(err, &netErr) && netErr.Timeout()
-}
-
-func (conn *agentConnection) closeIncomingRequests() {
-	conn.incoming.Range(func(key, value any) bool {
-		conn.incoming.Delete(key)
-		if ch, ok := value.(chan *msg.Request); ok {
-			close(ch)
-		}
-		return true
-	})
 }
 
 func startStatsReporter(httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string) {

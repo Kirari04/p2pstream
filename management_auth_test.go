@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/coder/websocket"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
@@ -526,7 +525,7 @@ func TestProxyStartStopLifecycle(t *testing.T) {
 	}
 }
 
-func TestAgentTokenProtectsStatsAndWebSocket(t *testing.T) {
+func TestAgentTokenProtectsStatsAndTunnel(t *testing.T) {
 	app := server.NewApp(testManagementConfig(config.Config{
 		BootstrapAgentID:    "auth-agent",
 		BootstrapAgentName:  "Auth Agent",
@@ -543,21 +542,15 @@ func TestAgentTokenProtectsStatsAndWebSocket(t *testing.T) {
 	}
 
 	mgmtSrv, _ := newTestManagementClient(t, app)
-	wsURL := "ws" + mgmtSrv.URL[4:] + "/ws"
 
-	_, _, err = websocket.Dial(context.Background(), wsURL, nil)
+	_, _, err = dialAgentTunnel(context.Background(), mgmtSrv.URL, "auth-agent", "", nil)
 	if err == nil {
-		t.Fatal("expected websocket dial without token to fail")
+		t.Fatal("expected tunnel dial without token to fail")
 	}
 
-	c, _, err := websocket.Dial(context.Background(), wsURL, &websocket.DialOptions{
-		HTTPHeader: http.Header{
-			"Authorization":        []string{"Bearer agent-secret"},
-			"X-P2PStream-Agent-ID": []string{"auth-agent"},
-		},
-	})
+	session, _, err := dialAgentTunnel(context.Background(), mgmtSrv.URL, "auth-agent", "agent-secret", nil)
 	if err != nil {
-		t.Fatalf("websocket dial with token: %v", err)
+		t.Fatalf("tunnel dial with token: %v", err)
 	}
-	c.Close(websocket.StatusNormalClosure, "test complete")
+	session.Close()
 }
