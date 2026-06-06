@@ -2,10 +2,10 @@
 
 ## Current State
 
-- Branch: `rewrite/agent-yamux-transport`
+- Branch: `dev` (merged from `rewrite/agent-yamux-transport`)
 - Base commit: `ddb6c09f5eb5aa2e7e7335dd11ff8fccaa0eb0d2`
-- Last updated: `2026-06-06T19:07:24+02:00`
-- Current phase: Ready to merge to dev
+- Last updated: `2026-06-06T19:14:05+02:00`
+- Current phase: Merged to dev; post-merge validation complete
 - Current blocker: none.
 
 ## Decisions
@@ -68,8 +68,8 @@
 - [x] Browser E2E validation
 - [x] Legacy runtime reference scan
 - [x] Merge decision recorded
-- [ ] Merge to dev
-- [ ] Post-merge validation
+- [x] Merge to dev
+- [x] Post-merge validation
 
 ## Files Changed
 
@@ -207,6 +207,20 @@
 | `2026-06-06T19:06:00+02:00` | `make docker-smoke-clean && make docker-smoke && make docker-smoke-clean` | passed | Docker smoke passed direct and agent-pool GET/POST/stream/header/timeout/close-early/WebSocket scenarios and cleaned up containers/volume/network. |
 | `2026-06-06T19:07:00+02:00` | `timeout -s INT 30s make dev; make kill; ss -ltnp '( sport = :8081 or sport = :8088 or sport = :8089 or sport = :5173 or sport = :19081 )'` | passed | Dev server started, Vite bound, agent tunnel connected, interrupt shut services down, and no checked ports remained bound. |
 | `2026-06-06T19:07:00+02:00` | `rg -n "github.com/coder/websocket\|p2pstream/msg\|httpmsg\|PendingRequests\|LateAgentResponses\|pendingAgentRequest\|WriteCh\|/ws\\b" -S --glob '!docs/.plans/**' --glob '!web/management/bun.lock'` | passed | Only allowed matches: smoke `/ws` endpoint/test and unrelated frontend `PendingRequestsPerFlush` naming. |
+| `2026-06-06T19:08:00+02:00` | `git switch dev && git pull --ff-only origin dev && git merge --no-ff rewrite/agent-yamux-transport -m "Merge yamux agent transport rewrite"` | passed | Created merge commit `692f598`; merge was clean. |
+| `2026-06-06T19:08:00+02:00` | `git status --short --branch && git log --oneline --decorate -6` | passed | `dev` was clean and ahead of `origin/dev` by the merge history; recent log showed `692f598` plus the five feature-branch commits. |
+| `2026-06-06T19:09:00+02:00` | `make generate && git diff --exit-code` | passed | No generated files changed after the merge. |
+| `2026-06-06T19:09:00+02:00` | `bash -n scripts/install-agent.sh` | passed | Installer shell syntax still valid on merged `dev`. |
+| `2026-06-06T19:10:00+02:00` | `go test ./...` | passed | Full Go suite passed on merged `dev`. |
+| `2026-06-06T19:10:00+02:00` | `go vet ./...` | passed | Go vet passed on merged `dev`. |
+| `2026-06-06T19:10:00+02:00` | `cd web/management && bun test src/lib/*.test.ts` | passed | Frontend unit tests passed: 92 tests across 9 files. |
+| `2026-06-06T19:10:00+02:00` | `bun run --cwd web/management typecheck` | passed | Management UI typecheck passed. |
+| `2026-06-06T19:10:00+02:00` | `bun run --cwd web/management build` | passed | Frontend production build passed; Vite emitted the existing large-chunk warning. |
+| `2026-06-06T19:11:00+02:00` | `bun run --cwd web/management e2e` | passed | Browser environment switch passed in both `management-proxy` and `vite-direct` projects after cleaning stale Playwright artifacts. |
+| `2026-06-06T19:12:00+02:00` | `make docker-smoke-clean && make docker-smoke && make docker-smoke-clean` | passed | Docker smoke passed direct and agent-pool GET/POST/stream/header/timeout/close-early/WebSocket scenarios and cleaned up containers/volume/network. |
+| `2026-06-06T19:12:00+02:00` | `docker build --target runtime -t p2pstream:dev-merged .` | passed | Optional merged runtime image build passed. |
+| `2026-06-06T19:13:00+02:00` | `go test -race ./internal/tunnel ./internal/agent ./internal/server` | passed | Optional race checks passed for tunnel, agent, and server packages. |
+| `2026-06-06T19:14:00+02:00` | `make kill && ss -ltnp '( sport = :8081 or sport = :8088 or sport = :8089 or sport = :5173 or sport = :19081 )'` | passed | Final cleanup left no dev/E2E listeners bound. |
 
 ## Deferred: Per-Agent Transport Pool Refinements
 
@@ -227,16 +241,18 @@ Final branch commits:
 - `4881478 Harden yamux transport smoke and lifecycle coverage`
 - `0bda8c0 Fix environment-scoped management proxy in dev`
 - `7cf9677 Add agent transport pooling and browser e2e coverage`
+- `566ec5c Record yamux rewrite pre-merge validation`
+- `692f598 Merge yamux agent transport rewrite`
 
 Merge decision:
-- Merge `rewrite/agent-yamux-transport` into `dev` with `git merge --no-ff`.
+- Merged `rewrite/agent-yamux-transport` into `dev` with `git merge --no-ff`.
 - Preserve branch commits; do not squash.
 - Add no new protocol, API, proto, or production metrics changes in Phase 4.
-- Create only this ledger validation commit before the merge.
+- Created only ledger validation commits during Phase 4.
 
 ## Handoff Notes
 
-- Next task: merge `rewrite/agent-yamux-transport` into `dev` and run post-merge validation.
+- Next task: monitor CI on `origin/dev` and plan the separate `main` release when `dev` is stable.
 - Known failing tests: none.
 - Known risks: pooled transports intentionally reuse Yamux streams for sequential same-key HTTP requests; invalidation coverage is broad, but future config surfaces must close the relevant pool entries when they affect dialing, TLS, origin, or timeout behavior.
 - Important implementation details:
