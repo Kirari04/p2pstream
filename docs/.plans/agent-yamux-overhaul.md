@@ -4,8 +4,8 @@
 
 - Branch: `rewrite/agent-yamux-transport`
 - Base commit: `ddb6c09f5eb5aa2e7e7335dd11ff8fccaa0eb0d2`
-- Last updated: `2026-06-06T14:41:10+02:00`
-- Current phase: Phase 2 hardening complete
+- Last updated: `2026-06-06T14:50:29+02:00`
+- Current phase: Phase 2 hardening complete; environment switch dev proxy fix applied
 - Current blocker: none.
 
 ## Decisions
@@ -75,6 +75,7 @@
 | `internal/server/public_routing_timeout_test.go` | Added upload cancellation, mid-response agent disconnect, and agent-backed HTTPS verification tests. |
 | `internal/server/environments_test.go` | Added agent environment certificate discovery, trust, proxy, changed-certificate rejection, and disconnected-agent discovery tests. |
 | `internal/server/public_cache_test.go` | Added agent-pool cache miss/store/hit parity coverage with selected agent event recording. |
+| `web/management/vite.config.ts` | Proxies environment-scoped Connect calls under `/environments/` during Vite dev sessions. |
 | `README.md`, `docs/**` | Updated transport, reverse proxy, TLS ownership, and compatibility documentation. |
 | `docs/public/architecture.svg` | Updated architecture diagram text from WSS to Yamux tunnel. |
 
@@ -118,6 +119,9 @@
 | `2026-06-06T14:40:00+02:00` | `make docker-smoke-clean && make docker-smoke` | passed | Expanded Docker smoke passed direct GET/POST/stream and agent-pool GET/POST/stream/headers/timeout/close-early/WebSocket scenarios. |
 | `2026-06-06T14:41:00+02:00` | `make docker-smoke-clean` | passed | Removed smoke containers, network, and data volume after the successful run. |
 | `2026-06-06T14:41:00+02:00` | `go test -race ./internal/tunnel ./internal/agent ./internal/server` | passed | Race run passed for the tunnel protocol, agent relay, and server proxy/lifecycle packages. |
+| `2026-06-06T14:48:00+02:00` | `go test ./internal/server -run 'TestEnvironmentRequiresHTTPSAndTrustedCertificateBeforeProxy\|TestAgentEnvironmentProxyDiscoversAndPinsCertificate'` | passed | Added `GetPublicProxyConfig` coverage through direct and agent environment proxies. |
+| `2026-06-06T14:49:00+02:00` | `bun run --cwd web/management typecheck` | passed | Verified management UI types after adding the Vite `/environments/` dev proxy. |
+| `2026-06-06T14:50:00+02:00` | `bun run --cwd web/management build` | passed | Vite build passed; emitted the existing large-chunk warning. |
 
 ## Deferred: Per-Agent Transport Pooling
 
@@ -132,7 +136,7 @@ Future design:
 
 ## Handoff Notes
 
-- Next task: review the phase 2 hardening commit or start the next rewrite phase.
+- Next task: verify environment switching in `make dev` from both `https://localhost:8081` and direct Vite `http://127.0.0.1:5173` if needed.
 - Known failing tests: none.
 - Known risks: performance may regress because agent-pool transports intentionally use `DisableKeepAlives = true` until per-agent pooling is designed.
 - Important implementation details:

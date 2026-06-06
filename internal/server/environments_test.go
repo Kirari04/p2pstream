@@ -363,6 +363,11 @@ func TestEnvironmentRequiresHTTPSAndTrustedCertificateBeforeProxy(t *testing.T) 
 	if _, err := proxyClient.GetStatus(ctx, trustedReq); err != nil {
 		t.Fatalf("trusted environment proxy GetStatus: %v", err)
 	}
+	publicConfigReq := connect.NewRequest(&p2pstreamv1.GetPublicProxyConfigRequest{})
+	publicConfigReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq); err != nil {
+		t.Fatalf("trusted environment proxy GetPublicProxyConfig: %v", err)
+	}
 
 	_, _, changedCert, err := generatePublicSelfSignedCertificatePEM("127.0.0.1", time.Hour)
 	if err != nil {
@@ -475,6 +480,11 @@ func TestAgentEnvironmentProxyDiscoversAndPinsCertificate(t *testing.T) {
 	statusReq.Header().Set("Cookie", localHeader.Get("Cookie"))
 	if _, err := proxyClient.GetStatus(ctx, statusReq); err != nil {
 		t.Fatalf("trusted agent environment proxy GetStatus: %v", err)
+	}
+	publicConfigReq := connect.NewRequest(&p2pstreamv1.GetPublicProxyConfigRequest{})
+	publicConfigReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq); err != nil {
+		t.Fatalf("trusted agent environment proxy GetPublicProxyConfig: %v", err)
 	}
 
 	_, _, changedCert, err := generatePublicSelfSignedCertificatePEM("127.0.0.1", time.Hour)
