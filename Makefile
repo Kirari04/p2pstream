@@ -107,9 +107,17 @@ kill:
 	@-repo=$$(pwd); \
 	pkill -TERM -f '[g]o tool air -c .air.toml|/go-build/.*/[a]ir -c .air.toml|[b]un run --bun vite --host 127.0.0.1 --port 5173|[n]ode .*vite --host 127.0.0.1 --port 5173' 2>/dev/null || true; \
 	pkill -TERM -f "$$repo/bin/p2pstream|$$repo/tmp/p2pstream-dev|$$repo/tmp/p2pstream-agent-dev|[g]o run main.go agent|/go-build/.*/[m]ain agent" 2>/dev/null || true; \
+	for port in 8081 8088 8089 5173; do \
+		pids=$$(ss -H -ltnp "sport = :$$port" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u); \
+		[ -z "$$pids" ] || kill -TERM $$pids 2>/dev/null || true; \
+	done; \
 	sleep 0.5; \
 	pkill -KILL -f '[g]o tool air -c .air.toml|/go-build/.*/[a]ir -c .air.toml|[b]un run --bun vite --host 127.0.0.1 --port 5173|[n]ode .*vite --host 127.0.0.1 --port 5173' 2>/dev/null || true; \
-	pkill -KILL -f "$$repo/bin/p2pstream|$$repo/tmp/p2pstream-dev|$$repo/tmp/p2pstream-agent-dev|[g]o run main.go agent|/go-build/.*/[m]ain agent" 2>/dev/null || true
+	pkill -KILL -f "$$repo/bin/p2pstream|$$repo/tmp/p2pstream-dev|$$repo/tmp/p2pstream-agent-dev|[g]o run main.go agent|/go-build/.*/[m]ain agent" 2>/dev/null || true; \
+	for port in 8081 8088 8089 5173; do \
+		pids=$$(ss -H -ltnp "sport = :$$port" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u); \
+		[ -z "$$pids" ] || kill -KILL $$pids 2>/dev/null || true; \
+	done
 
 clean:
 	@echo "Cleaning up..."

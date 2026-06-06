@@ -911,6 +911,12 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 				errorKind = "agent_disconnected"
 				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			case errors.As(err, &dialErr):
+				log.Debug().
+					Err(err).
+					Str("req_id", id.String()).
+					Str("agent", agent.PublicID).
+					Str("kind", dialErr.Kind).
+					Msg("Agent dial failed")
 				if dialErr.Kind == "dial_timeout" {
 					statusCode = http.StatusGatewayTimeout
 					errorKind = "agent_dial_timeout"
@@ -982,25 +988,57 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	openCh := make(chan struct {
 		conn net.Conn
 		err  error
-	}, 1)
+	})
 	go func() {
 		conn, err := agent.Session.Open()
-		openCh <- struct {
+		result := struct {
 			conn net.Conn
 			err  error
 		}{conn: conn, err: err}
+		select {
+		case openCh <- result:
+		case <-ctx.Done():
+			if conn != nil {
+				_ = conn.Close()
+			}
+		case <-agent.Done:
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
 	}()
 
 	var conn net.Conn
 	select {
 	case result := <-openCh:
 		if result.err != nil {
+			if agent != nil {
+				log.Debug().
+					Err(result.err).
+					Str("request_id", requestID).
+					Str("agent", agent.PublicID).
+					Str("address", redactAgentDialAddress(address)).
+					Msg("Failed to open agent tunnel stream")
+			}
 			return nil, result.err
 		}
 		conn = result.conn
 	case <-ctx.Done():
+		if agent != nil {
+			log.Debug().
+				Err(ctx.Err()).
+				Str("request_id", requestID).
+				Str("agent", agent.PublicID).
+				Str("address", redactAgentDialAddress(address)).
+				Msg("Agent tunnel stream open cancelled")
+		}
 		return nil, ctx.Err()
 	case <-agent.Done:
+		log.Debug().
+			Str("request_id", requestID).
+			Str("agent", agent.PublicID).
+			Str("address", redactAgentDialAddress(address)).
+			Msg("Agent disconnected before tunnel stream opened")
 		return nil, errAgentDisconnected
 	}
 
@@ -1019,10 +1057,27 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	}
 	if !resp.OK {
 		_ = conn.Close()
+		log.Debug().
+			Str("request_id", requestID).
+			Str("agent", agent.PublicID).
+			Str("kind", resp.ErrorKind).
+			Str("address", redactAgentDialAddress(address)).
+			Msg("Agent dial failed")
 		return nil, agentDialError{Kind: resp.ErrorKind, Err: resp.Error}
 	}
 	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
+}
+
+func redactAgentDialAddress(address string) string {
+	_, port, err := net.SplitHostPort(strings.TrimSpace(address))
+	if err != nil {
+		return "<invalid>"
+	}
+	if port == "" {
+		return "<host>"
+	}
+	return net.JoinHostPort("<host>", port)
 }
 
 func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {

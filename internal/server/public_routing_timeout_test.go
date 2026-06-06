@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"io"
 	"net"
 	"net/http"
@@ -125,6 +127,92 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 	}
 }
 
+func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
+	reached := make(chan struct{})
+	upstreamClosed := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(reached)
+		_, _ = io.Copy(io.Discard, r.Body)
+		close(upstreamClosed)
+	}))
+	defer upstream.Close()
+
+	app, backend, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	reader, writer := io.Pipe()
+	req := httptest.NewRequest(http.MethodPost, "http://public.test/agent", reader).WithContext(ctx)
+	rec := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+	}()
+
+	if _, err := writer.Write([]byte(strings.Repeat("x", 4096))); err != nil {
+		t.Fatalf("write request body: %v", err)
+	}
+	select {
+	case <-reached:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for upstream upload")
+	}
+	cancel()
+	_ = writer.CloseWithError(context.Canceled)
+
+	select {
+	case <-upstreamClosed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for upstream body reader to close")
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for cancelled upload proxy request")
+	}
+	waitForAgentActiveRequests(t, agent, 0)
+	if !app.BackendHealth.agentAvailable(backend.ID, agent.AgentID) {
+		t.Fatal("client upload cancellation should not make the agent unavailable")
+	}
+}
+
+func TestAgentProxyAgentDisconnectDuringResponseReleasesActiveRequest(t *testing.T) {
+	responseStarted := make(chan struct{})
+	releaseResponse := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("partial\n"))
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		close(responseStarted)
+		<-releaseResponse
+	}))
+	defer upstream.Close()
+	defer close(releaseResponse)
+
+	app, backend, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+	}()
+
+	select {
+	case <-responseStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for upstream response start")
+	}
+	fake.close()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for proxy request after agent session close")
+	}
+	waitForAgentActiveRequests(t, agent, 0)
+}
+
 func TestAgentProxyResponseTimeoutMarksPassiveFailure(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(150 * time.Millisecond)
@@ -172,6 +260,45 @@ func TestAgentProxyClosedSessionMarksPassiveFailure(t *testing.T) {
 	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" || !strings.Contains(traces[0].Error, errAgentDisconnected.Error()) {
 		t.Fatalf("latest trace = %+v, want passive agent_disconnected failure", traces)
 	}
+}
+
+func TestAgentProxyHTTPSOriginTLSVerification(t *testing.T) {
+	tlsUpstream := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("secure upstream"))
+	}))
+	defer tlsUpstream.Close()
+
+	t.Run("rejects unknown self signed cert by default", func(t *testing.T) {
+		app, backend, _, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("self-signed upstream status = %d body=%q, want 502", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("succeeds with trusted root", func(t *testing.T) {
+		withTrustedHTTPDefaultTransport(t, tlsUpstream.Certificate())
+		app, backend, _, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		if rec.Code != http.StatusOK || rec.Body.String() != "secure upstream" {
+			t.Fatalf("trusted upstream response = status %d body=%q, want 200 secure upstream", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("succeeds with tls skip verify", func(t *testing.T) {
+		app, backend, _, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
+		backend.TLSSkipVerify = true
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		if rec.Code != http.StatusOK || rec.Body.String() != "secure upstream" {
+			t.Fatalf("skip-verify upstream response = status %d body=%q, want 200 secure upstream", rec.Code, rec.Body.String())
+		}
+	})
 }
 
 func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string, responseHeaderTimeout time.Duration) (*App, publicBackendConfig, *AgentConn, *fakeYamuxAgent) {
@@ -328,4 +455,38 @@ func (f *fakeYamuxAgent) handleStream(stream net.Conn) {
 		relayDone <- struct{}{}
 	}()
 	<-relayDone
+}
+
+func waitForAgentActiveRequests(t *testing.T, agent *AgentConn, want int64) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := agent.ActiveRequests.Load(); got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("agent active requests = %d, want %d", agent.ActiveRequests.Load(), want)
+}
+
+func withTrustedHTTPDefaultTransport(t *testing.T, cert *x509.Certificate) {
+	t.Helper()
+	oldDefault := http.DefaultTransport
+	roots := x509.NewCertPool()
+	roots.AddCert(cert)
+	base, ok := oldDefault.(*http.Transport)
+	if !ok {
+		t.Fatalf("http.DefaultTransport is %T, want *http.Transport", oldDefault)
+	}
+	transport := base.Clone()
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{}
+	} else {
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	}
+	transport.TLSClientConfig.RootCAs = roots
+	http.DefaultTransport = transport
+	t.Cleanup(func() {
+		http.DefaultTransport = oldDefault
+	})
 }

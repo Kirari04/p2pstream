@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
@@ -190,7 +191,15 @@ func TestRotateAgentTokenClosesTunnelConnection(t *testing.T) {
 	defer session.Close()
 	waitForAgentHubConnection(t, app, agent.ID, true)
 
-	rotateAgentTokenForTest(t, app, header, agent.ID)
+	connectedConn := app.AgentHub.connectedByID(agent.ID)
+	if connectedConn == nil {
+		t.Fatal("agent was not connected in hub")
+	}
+	if connectedConn.ConnectionDBID == 0 {
+		t.Fatal("agent connection db id was not recorded")
+	}
+
+	rotateResp := rotateAgentTokenForTest(t, app, header, agent.ID)
 
 	waitForAgentHubConnection(t, app, agent.ID, false)
 	select {
@@ -198,6 +207,25 @@ func TestRotateAgentTokenClosesTunnelConnection(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for tunnel session to close after token rotation")
 	}
+	waitForConnectionDisconnected(t, database, connectedConn.ConnectionDBID)
+
+	if oldSession, oldConn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "old-token"); err == nil {
+		if oldSession != nil {
+			oldSession.Close()
+		}
+		if oldConn != nil {
+			oldConn.Close()
+		}
+		t.Fatal("old token reconnected after rotation")
+	}
+
+	newSession, newConn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, rotateResp.Msg.Token)
+	if err != nil {
+		t.Fatalf("new token did not reconnect after rotation: %v", err)
+	}
+	defer newConn.Close()
+	defer newSession.Close()
+	waitForAgentHubConnection(t, app, agent.ID, true)
 }
 
 func TestAgentTunnelRejectsMissingUpgrade(t *testing.T) {
@@ -396,4 +424,20 @@ func waitForAgentHubConnection(t *testing.T, app *App, agentID int64, wantConnec
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("agent connected state did not become %v", wantConnected)
+}
+
+func waitForConnectionDisconnected(t *testing.T, database *db.DB, connID int64) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var disconnectedAt sql.NullTime
+		if err := database.QueryRowContext(context.Background(), `SELECT disconnected_at FROM connections WHERE id = ?`, connID).Scan(&disconnectedAt); err != nil {
+			t.Fatalf("read connection %d disconnected_at: %v", connID, err)
+		}
+		if disconnectedAt.Valid {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("connection %d disconnected_at was not set", connID)
 }

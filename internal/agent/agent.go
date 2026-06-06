@@ -318,7 +318,12 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 		_ = session.Close()
 	}()
 
-	return serveTunnelSession(ctx, session)
+	if err := serveTunnelSession(ctx, session); err != nil {
+		log.Debug().Err(err).Msg("Tunnel session ended")
+		return err
+	}
+	log.Debug().Msg("Tunnel session ended")
+	return nil
 }
 
 func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
@@ -326,8 +331,10 @@ func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
 		stream, err := session.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
+				log.Debug().Err(ctx.Err()).Msg("Tunnel stream accept loop stopped by context")
 				return ctx.Err()
 			}
+			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
 		go handleTunnelStream(ctx, stream)
@@ -339,14 +346,21 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 
 	openReq, err := tunnel.ReadOpenRequest(stream)
 	if err != nil {
+		kind := tunnelOpenRequestErrorKind(err)
 		reqInternalError.Add(1)
 		_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
 			OK:        false,
-			ErrorKind: "invalid_open_request",
+			ErrorKind: kind,
 			Error:     err.Error(),
 		})
 		return
 	}
+	startedAt := time.Now()
+	log.Debug().
+		Str("request_id", openReq.RequestID).
+		Str("network", openReq.Network).
+		Str("address", redactTunnelAddress(openReq.Address)).
+		Msg("Tunnel stream accepted")
 
 	activeRequests.Add(1)
 	defer activeRequests.Add(-1)
@@ -356,6 +370,12 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 	if err != nil {
 		kind := tunnelDialErrorKind(err)
 		reqInternalError.Add(1)
+		log.Debug().
+			Err(err).
+			Str("request_id", openReq.RequestID).
+			Str("error_kind", kind).
+			Str("address", redactTunnelAddress(openReq.Address)).
+			Msg("Tunnel stream dial failed")
 		_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
 			OK:        false,
 			ErrorKind: kind,
@@ -370,7 +390,15 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 		return
 	}
 
-	if err := relayTunnelStream(ctx, stream, upstream); err != nil && ctx.Err() == nil {
+	received, sent, err := relayTunnelStream(ctx, stream, upstream)
+	log.Debug().
+		Str("request_id", openReq.RequestID).
+		Uint64("bytes_received", received).
+		Uint64("bytes_sent", sent).
+		Dur("duration", time.Since(startedAt)).
+		Err(err).
+		Msg("Tunnel stream relay finished")
+	if err != nil && ctx.Err() == nil {
 		reqInternalError.Add(1)
 		log.Debug().Err(err).Str("request_id", openReq.RequestID).Msg("Tunnel stream relay failed")
 		return
@@ -385,31 +413,69 @@ func tunnelDialErrorKind(err error) string {
 	return "dial_failed"
 }
 
-func relayTunnelStream(ctx context.Context, stream net.Conn, upstream net.Conn) error {
-	errCh := make(chan error, 2)
+func tunnelOpenRequestErrorKind(err error) string {
+	if errors.Is(err, tunnel.ErrUnsupportedVersion) {
+		return "unsupported_version"
+	}
+	return "invalid_open_request"
+}
+
+func relayTunnelStream(ctx context.Context, stream net.Conn, upstream net.Conn) (uint64, uint64, error) {
+	type relayResult struct {
+		direction string
+		bytes     int64
+		err       error
+	}
+	errCh := make(chan relayResult, 2)
 	go func() {
 		n, err := io.Copy(upstream, stream)
 		bytesReceived.Add(uint64(n))
-		errCh <- err
+		errCh <- relayResult{direction: "received", bytes: n, err: err}
 	}()
 	go func() {
 		n, err := io.Copy(stream, upstream)
 		bytesSent.Add(uint64(n))
-		errCh <- err
+		errCh <- relayResult{direction: "sent", bytes: n, err: err}
 	}()
+
+	var received uint64
+	var sent uint64
 	select {
-	case err := <-errCh:
+	case first := <-errCh:
 		_ = stream.Close()
 		_ = upstream.Close()
-		if errors.Is(err, net.ErrClosed) {
-			return nil
+		second := <-errCh
+		for _, result := range []relayResult{first, second} {
+			if result.direction == "received" {
+				received = uint64(result.bytes)
+			} else {
+				sent = uint64(result.bytes)
+			}
 		}
-		return err
+		err := first.err
+		if err == nil || errors.Is(err, net.ErrClosed) {
+			err = second.err
+		}
+		if errors.Is(err, net.ErrClosed) {
+			return received, sent, nil
+		}
+		return received, sent, err
 	case <-ctx.Done():
 		_ = stream.Close()
 		_ = upstream.Close()
-		return ctx.Err()
+		return 0, 0, ctx.Err()
 	}
+}
+
+func redactTunnelAddress(address string) string {
+	_, port, err := net.SplitHostPort(strings.TrimSpace(address))
+	if err != nil {
+		return "<invalid>"
+	}
+	if port == "" {
+		return "<host>"
+	}
+	return net.JoinHostPort("<host>", port)
 }
 
 func isTimeoutError(err error) bool {

@@ -488,6 +488,102 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	}
 }
 
+func TestPublicCacheAgentBackendMissStoresThenHit(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	originHits := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		originHits++
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Cache-Control", "max-age=300")
+		_, _ = w.Write([]byte("agent-asset-v1"))
+	}))
+	defer upstream.Close()
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	agentRow, err := app.DB.CreateAgent(context.Background(), db.CreateAgentParams{
+		PublicID:  "agent-cache-test",
+		Name:      "Agent Cache Test",
+		TokenHash: hashAgentToken("agent-token"),
+		Enabled:   1,
+	})
+	if err != nil {
+		t.Fatalf("seed cache agent: %v", err)
+	}
+	agentID := agentRow.ID
+	agent, _ := newFakeYamuxAgent(t, agentID, agentRow.PublicID)
+	if err := app.AgentHub.connect(agent); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	t.Cleanup(func() { app.AgentHub.disconnect(agent) })
+
+	resolution.Backend.ParsedOrigin = origin
+	resolution.Backend.ForwardMode = publicBackendForwardModeAgentPool
+	resolution.Backend.AgentAssignments = []publicBackendAgentConfig{{
+		BackendID: resolution.Backend.ID,
+		AgentID:   agentID,
+		Weight:    100,
+		Enabled:   true,
+	}}
+	app.proxyMu.Lock()
+	snap := app.publicSnapshot
+	snap.Backends = map[int64]publicBackendConfig{resolution.Backend.ID: resolution.Backend}
+	snap.Agents = map[int64]publicAgentConfig{agentID: {ID: agentID, PublicID: agent.PublicID, Enabled: true}}
+	app.proxyMu.Unlock()
+	app.BackendHealth.reconcile(app, snap, false)
+
+	firstReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/agent.txt?v=1", nil)
+	firstDecision := app.checkPublicCache(firstReq, resolution)
+	if firstDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("first cache status = %q, want miss", firstDecision.Status)
+	}
+	firstRec := httptest.NewRecorder()
+	app.proxyAgentRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
+	if firstRec.Code != http.StatusOK || firstRec.Body.String() != "agent-asset-v1" {
+		t.Fatalf("first agent response = status %d body %q, want 200 agent-asset-v1", firstRec.Code, firstRec.Body.String())
+	}
+	if got := firstRec.Header().Get("X-p2pstream-Cache"); got != "MISS" {
+		t.Fatalf("first cache header = %q, want MISS", got)
+	}
+	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("agent-asset-v1")) {
+		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
+	}
+
+	var eventAgentID sql.NullInt64
+	var eventStatus string
+	var eventBytes int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT agent_id, cache_status, cache_bytes FROM proxy_request_events ORDER BY id DESC LIMIT 1`).Scan(&eventAgentID, &eventStatus, &eventBytes); err != nil {
+		t.Fatalf("query proxy event cache fields: %v", err)
+	}
+	if !eventAgentID.Valid || eventAgentID.Int64 != agentID {
+		t.Fatalf("proxy event agent id = %+v, want %d", eventAgentID, agentID)
+	}
+	if eventStatus != publicCacheStatusStored || eventBytes != int64(len("agent-asset-v1")) {
+		t.Fatalf("proxy event cache = %q/%d, want stored/%d", eventStatus, eventBytes, len("agent-asset-v1"))
+	}
+
+	secondReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/agent.txt?v=1", nil)
+	secondDecision := app.checkPublicCache(secondReq, resolution)
+	if secondDecision.Status != publicCacheStatusHit {
+		t.Fatalf("second cache status = %q, want hit", secondDecision.Status)
+	}
+	secondRec := httptest.NewRecorder()
+	app.servePublicCacheHit(secondRec, secondReq, resolution, nil, nil, secondDecision, proxyRequestObservability{})
+	if secondRec.Code != http.StatusOK || secondRec.Body.String() != "agent-asset-v1" {
+		t.Fatalf("second cache response = status %d body %q, want 200 agent-asset-v1", secondRec.Code, secondRec.Body.String())
+	}
+	if got := secondRec.Header().Get("X-p2pstream-Cache"); got != "HIT" {
+		t.Fatalf("second cache header = %q, want HIT", got)
+	}
+	if originHits != 1 {
+		t.Fatalf("origin hits = %d, want 1", originHits)
+	}
+}
+
 func TestPublicCacheStoreReadCloserDoesNotRaceWithReconcile(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()

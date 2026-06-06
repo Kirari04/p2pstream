@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/binary"
 	"io"
 	"net"
 	"testing"
@@ -136,6 +137,122 @@ func TestTunnelSessionReturnsDialFailure(t *testing.T) {
 	if resp.OK || resp.ErrorKind != "dial_failed" {
 		t.Fatalf("open response = %+v, want dial_failed", resp)
 	}
+}
+
+func TestTunnelSessionInvalidOpenRequestKeepsSessionUsable(t *testing.T) {
+	resetAgentRequestCounters()
+	t.Cleanup(resetAgentRequestCounters)
+
+	upstream := startEchoListener(t)
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer agentSession.Close()
+	defer serverSession.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		_ = serveTunnelSession(ctx, agentSession)
+	}()
+
+	unsupported, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open unsupported-version stream: %v", err)
+	}
+	if err := tunnel.WriteFrame(unsupported, tunnel.OpenRequest{Version: 2, Network: "tcp", Address: upstream.Addr().String()}); err != nil {
+		t.Fatalf("write unsupported request: %v", err)
+	}
+	resp, err := tunnel.ReadOpenResponse(unsupported)
+	if err != nil {
+		t.Fatalf("read unsupported response: %v", err)
+	}
+	if resp.OK || resp.ErrorKind != "unsupported_version" {
+		t.Fatalf("unsupported response = %+v, want unsupported_version", resp)
+	}
+	unsupported.Close()
+
+	malformed, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open malformed stream: %v", err)
+	}
+	if err := writeMalformedControlFrame(malformed); err != nil {
+		t.Fatalf("write malformed request: %v", err)
+	}
+	resp, err = tunnel.ReadOpenResponse(malformed)
+	if err != nil {
+		t.Fatalf("read malformed response: %v", err)
+	}
+	if resp.OK || resp.ErrorKind != "invalid_open_request" {
+		t.Fatalf("malformed response = %+v, want invalid_open_request", resp)
+	}
+	malformed.Close()
+
+	valid, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open valid stream after invalid requests: %v", err)
+	}
+	defer valid.Close()
+	if err := tunnel.WriteOpenRequest(valid, tunnel.NewOpenRequest("req-valid", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatalf("write valid open request: %v", err)
+	}
+	resp, err = tunnel.ReadOpenResponse(valid)
+	if err != nil {
+		t.Fatalf("read valid open response: %v", err)
+	}
+	if !resp.OK {
+		t.Fatalf("valid response = %+v, want ok", resp)
+	}
+	if _, err := valid.Write([]byte("ok")); err != nil {
+		t.Fatalf("write valid stream: %v", err)
+	}
+	buf := make([]byte, 2)
+	if _, err := io.ReadFull(valid, buf); err != nil {
+		t.Fatalf("read valid stream echo: %v", err)
+	}
+	if string(buf) != "ok" {
+		t.Fatalf("valid stream echo = %q, want ok", buf)
+	}
+}
+
+func TestTunnelSessionReturnsWhenSessionCloses(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer serverSession.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- serveTunnelSession(context.Background(), agentSession)
+	}()
+	agentSession.Close()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for serveTunnelSession to return after session close")
+	}
+}
+
+func writeMalformedControlFrame(w io.Writer) error {
+	var header [4]byte
+	binary.BigEndian.PutUint32(header[:], 1)
+	if _, err := w.Write(header[:]); err != nil {
+		return err
+	}
+	_, err := w.Write([]byte("{"))
+	return err
 }
 
 func startEchoListener(t *testing.T) net.Listener {

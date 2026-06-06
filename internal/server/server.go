@@ -361,6 +361,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	log.Info().
 		Str("remote_addr", r.RemoteAddr).
 		Str("agent", agent.PublicID).
+		Int("tunnel_version", tunnel.ProtocolVersion).
 		Msg("Agent tunnel connected successfully")
 
 	go func() {
@@ -370,7 +371,11 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		case <-session.CloseChan():
 		}
 		cleanupAgent()
-		log.Info().Str("agent", agent.PublicID).Msg("Agent tunnel disconnected")
+		log.Info().
+			Str("agent", agent.PublicID).
+			Int64("duration_ms", time.Since(agent.ConnectedAt).Milliseconds()).
+			Int64("active_requests", agent.ActiveRequests.Load()).
+			Msg("Agent tunnel disconnected")
 		if a.DB != nil && connID > 0 {
 			if err := a.DB.UpdateConnectionDisconnected(context.Background(), connID); err != nil {
 				log.Warn().Err(err).Msg("Failed to update disconnection time")
