@@ -4,8 +4,8 @@
 
 - Branch: `rewrite/agent-yamux-transport`
 - Base commit: `ddb6c09f5eb5aa2e7e7335dd11ff8fccaa0eb0d2`
-- Last updated: `2026-06-06T15:49:44+02:00`
-- Current phase: Phase 3 pooling and browser E2E completed
+- Last updated: `2026-06-06T19:07:24+02:00`
+- Current phase: Ready to merge to dev
 - Current blocker: none.
 
 ## Decisions
@@ -57,6 +57,19 @@
 - [x] Environment switch browser tests
 - [x] Smoke and regression validation
 - [x] Final handoff
+
+## Phase 4 Pre-Merge Checklist
+
+- [x] Branch hygiene and remote sync
+- [x] High-risk implementation review
+- [x] Generated file check
+- [x] Full local validation
+- [x] Docker smoke validation
+- [x] Browser E2E validation
+- [x] Legacy runtime reference scan
+- [x] Merge decision recorded
+- [ ] Merge to dev
+- [ ] Post-merge validation
 
 ## Files Changed
 
@@ -176,6 +189,24 @@
 | `2026-06-06T15:48:00+02:00` | `make docker-smoke-clean && make docker-smoke && make docker-smoke-clean` | passed | Docker smoke passed direct and agent-pool GET/POST/stream/header/timeout/close-early/WebSocket scenarios and cleaned up containers/volume/network. |
 | `2026-06-06T15:49:00+02:00` | `go test -race ./internal/server` | passed | Race coverage passed for server pooling, proxying, environment, and lifecycle tests. |
 | `2026-06-06T15:49:00+02:00` | `make kill && ss -ltnp '( sport = :8081 or sport = :8088 or sport = :8089 or sport = :5173 or sport = :19081 )'` | passed | Final cleanup left no dev/E2E listeners bound. |
+| `2026-06-06T18:58:00+02:00` | `git switch rewrite/agent-yamux-transport && git status --short --branch && git fetch origin && git rev-list --left-right --count origin/dev...rewrite/agent-yamux-transport && git log --oneline origin/dev..rewrite/agent-yamux-transport` | passed | Branch clean; `origin/dev` had not moved; branch was `0` behind and `4` commits ahead. |
+| `2026-06-06T18:59:00+02:00` | Manual high-risk review | passed | Reviewed pool keys, invalidation hooks, request-ID context propagation, Playwright isolated `DATABASE_URL`, and legacy transport removal points. No code changes needed. |
+| `2026-06-06T19:00:00+02:00` | `make generate && git diff --exit-code -- . ':(exclude)docs/.plans/agent-yamux-overhaul.md'` | passed | No generated-file changes; ledger was intentionally dirty for Phase 4 bookkeeping. |
+| `2026-06-06T19:00:00+02:00` | `bash -n scripts/install-agent.sh` | passed | Installer shell syntax check passed. |
+| `2026-06-06T19:01:00+02:00` | `go test ./...` | passed | Full Go suite passed. |
+| `2026-06-06T19:01:00+02:00` | `go vet ./...` | passed | Go vet passed. |
+| `2026-06-06T19:01:00+02:00` | `bun test --cwd web/management src/lib/*.test.ts` | failed | This invocation treats the glob as a Bun filter; reran using the CI workflow form below. |
+| `2026-06-06T19:01:00+02:00` | `cd web/management && bun test src/lib/*.test.ts` | passed | Frontend unit tests passed: 92 tests across 9 files. |
+| `2026-06-06T19:01:00+02:00` | `bun run --cwd web/management typecheck` | passed | Management UI typecheck passed. |
+| `2026-06-06T19:01:00+02:00` | `bun run --cwd web/management build` | passed | Frontend build passed; Vite emitted the existing large-chunk warning. |
+| `2026-06-06T19:02:00+02:00` | `docker build --target runtime -t p2pstream:premerge .` | passed | Runtime image build passed; frontend build emitted the existing large-chunk warning. |
+| `2026-06-06T19:02:00+02:00` | `go test -race ./internal/tunnel ./internal/agent ./internal/server` | passed | Race checks passed for tunnel, agent, and server packages. |
+| `2026-06-06T19:02:00+02:00` | `bun run --cwd web/management e2e` | failed | A stale previous dev instance was bound to `5173`, `8081`, `8088`, and `8089`; cleaned with `make kill`. |
+| `2026-06-06T19:04:00+02:00` | `bun run --cwd web/management e2e` | failed | Vite process stayed alive without binding after stale-state cleanup; terminated and removed `web/management/test-results`, `web/management/playwright-report`, and Playwright tmp dirs. |
+| `2026-06-06T19:05:00+02:00` | `bun run --cwd web/management e2e` | passed | Browser environment switch passed in both `management-proxy` and `vite-direct` projects after clean artifact state. |
+| `2026-06-06T19:06:00+02:00` | `make docker-smoke-clean && make docker-smoke && make docker-smoke-clean` | passed | Docker smoke passed direct and agent-pool GET/POST/stream/header/timeout/close-early/WebSocket scenarios and cleaned up containers/volume/network. |
+| `2026-06-06T19:07:00+02:00` | `timeout -s INT 30s make dev; make kill; ss -ltnp '( sport = :8081 or sport = :8088 or sport = :8089 or sport = :5173 or sport = :19081 )'` | passed | Dev server started, Vite bound, agent tunnel connected, interrupt shut services down, and no checked ports remained bound. |
+| `2026-06-06T19:07:00+02:00` | `rg -n "github.com/coder/websocket\|p2pstream/msg\|httpmsg\|PendingRequests\|LateAgentResponses\|pendingAgentRequest\|WriteCh\|/ws\\b" -S --glob '!docs/.plans/**' --glob '!web/management/bun.lock'` | passed | Only allowed matches: smoke `/ws` endpoint/test and unrelated frontend `PendingRequestsPerFlush` naming. |
 
 ## Deferred: Per-Agent Transport Pool Refinements
 
@@ -189,9 +220,23 @@ Future design:
 - Tune idle connection limits from production data.
 - Consider closing environment pools on management access-token changes if token lifecycle grows beyond current auth wrapping.
 
+## Phase 4 Merge Decision
+
+Final branch commits:
+- `131ba39 Rewrite agent transport with yamux tunnel`
+- `4881478 Harden yamux transport smoke and lifecycle coverage`
+- `0bda8c0 Fix environment-scoped management proxy in dev`
+- `7cf9677 Add agent transport pooling and browser e2e coverage`
+
+Merge decision:
+- Merge `rewrite/agent-yamux-transport` into `dev` with `git merge --no-ff`.
+- Preserve branch commits; do not squash.
+- Add no new protocol, API, proto, or production metrics changes in Phase 4.
+- Create only this ledger validation commit before the merge.
+
 ## Handoff Notes
 
-- Next task: review Phase 3 diff, then decide whether to commit or add deeper production observability around pool hit/miss counts.
+- Next task: merge `rewrite/agent-yamux-transport` into `dev` and run post-merge validation.
 - Known failing tests: none.
 - Known risks: pooled transports intentionally reuse Yamux streams for sequential same-key HTTP requests; invalidation coverage is broad, but future config surfaces must close the relevant pool entries when they affect dialing, TLS, origin, or timeout behavior.
 - Important implementation details:
