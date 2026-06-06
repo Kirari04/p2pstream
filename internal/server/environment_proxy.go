@@ -234,8 +234,11 @@ func (a *App) discoverEnvironmentCertificateViaAgent(ctx context.Context, row db
 		_ = conn.SetDeadline(deadline)
 	}
 	tlsConn := tls.Client(conn, &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		ServerName:         host,
+		MinVersion: tls.VersionTLS12,
+		ServerName: host,
+		// Discovery intentionally skips verification only to collect the unknown
+		// certificate for explicit TOFU review. No authorization token or
+		// management RPC is sent on this connection.
 		InsecureSkipVerify: true,
 	})
 	if err := tlsConn.HandshakeContext(dialCtx); err != nil {

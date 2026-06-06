@@ -4,9 +4,9 @@
 
 - Branch: `dev` (merged from `rewrite/agent-yamux-transport`)
 - Base commit: `ddb6c09f5eb5aa2e7e7335dd11ff8fccaa0eb0d2`
-- Last updated: `2026-06-06T19:14:05+02:00`
-- Current phase: Merged to dev; post-merge validation complete
-- Current blocker: none.
+- Last updated: `2026-06-06T19:24:56+02:00`
+- Current phase: PR merge path open because `dev` is protected; CodeQL false-positive dismissal pending
+- Current blocker: PR #45 CodeQL alert must be dismissed as intentional discovery-only certificate collection.
 
 ## Decisions
 
@@ -221,6 +221,12 @@
 | `2026-06-06T19:12:00+02:00` | `docker build --target runtime -t p2pstream:dev-merged .` | passed | Optional merged runtime image build passed. |
 | `2026-06-06T19:13:00+02:00` | `go test -race ./internal/tunnel ./internal/agent ./internal/server` | passed | Optional race checks passed for tunnel, agent, and server packages. |
 | `2026-06-06T19:14:00+02:00` | `make kill && ss -ltnp '( sport = :8081 or sport = :8088 or sport = :8089 or sport = :5173 or sport = :19081 )'` | passed | Final cleanup left no dev/E2E listeners bound. |
+| `2026-06-06T19:16:00+02:00` | `git push origin dev` | failed | GitHub rejected direct `dev` update because branch protection requires pull requests and the required `Verify` status check. |
+| `2026-06-06T19:17:00+02:00` | `git push origin HEAD:refs/heads/merge/yamux-agent-transport-dev && gh pr create --base dev --head merge/yamux-agent-transport-dev` | passed | Opened PR #45 with the locally validated merge state. |
+| `2026-06-06T19:23:00+02:00` | `gh pr checks 45 --watch` | failed | Required `Verify` passed; CodeQL raised one new high alert for intentional certificate-discovery `InsecureSkipVerify` in agent-backed environment discovery. |
+| `2026-06-06T19:25:00+02:00` | CodeQL fix attempt | failed | A narrow `codeql[go/disabled-certificate-check]` suppression did not clear the code-scanning status. |
+| `2026-06-06T19:31:00+02:00` | CodeQL structural fix attempt | failed | A normal TLS handshake does not expose the peer certificate after unknown-authority failure in this path, so agent-backed discovery could no longer trust a self-signed environment. |
+| `2026-06-06T19:35:00+02:00` | CodeQL false-positive handling | pending | Restored the working discovery-only `InsecureSkipVerify` path with a source-code rationale; the alert needs repository code-scanning dismissal. |
 
 ## Deferred: Per-Agent Transport Pool Refinements
 
@@ -243,16 +249,18 @@ Final branch commits:
 - `7cf9677 Add agent transport pooling and browser e2e coverage`
 - `566ec5c Record yamux rewrite pre-merge validation`
 - `692f598 Merge yamux agent transport rewrite`
+- Follow-up commit: document the protected-branch PR path and the intentional discovery-only CodeQL certificate-check false positive.
 
 Merge decision:
 - Merged `rewrite/agent-yamux-transport` into `dev` with `git merge --no-ff`.
+- Direct push to `origin/dev` is blocked by branch protection; PR #45 carries the locally validated merge state.
 - Preserve branch commits; do not squash.
 - Add no new protocol, API, proto, or production metrics changes in Phase 4.
 - Created only ledger validation commits during Phase 4.
 
 ## Handoff Notes
 
-- Next task: monitor CI on `origin/dev` and plan the separate `main` release when `dev` is stable.
+- Next task: monitor PR #45, merge it through GitHub after CodeQL rerun passes, then plan the separate `main` release when `dev` is stable.
 - Known failing tests: none.
 - Known risks: pooled transports intentionally reuse Yamux streams for sequential same-key HTTP requests; invalidation coverage is broad, but future config surfaces must close the relevant pool entries when they affect dialing, TLS, origin, or timeout behavior.
 - Important implementation details:
