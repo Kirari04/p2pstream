@@ -974,9 +974,27 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	openCh := make(chan struct {
 		conn net.Conn
 		err  error
-	})
+	}, 1)
+	openDone := make(chan struct{})
+	stopOpenWatch := func() {
+		select {
+		case <-openDone:
+		default:
+			close(openDone)
+		}
+	}
+	session := agent.Session
 	go func() {
-		conn, err := agent.Session.Open()
+		select {
+		case <-ctx.Done():
+			_ = session.Close()
+		case <-agent.Done:
+			_ = session.Close()
+		case <-openDone:
+		}
+	}()
+	go func() {
+		conn, err := session.Open()
 		result := struct {
 			conn net.Conn
 			err  error
@@ -997,6 +1015,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	var conn net.Conn
 	select {
 	case result := <-openCh:
+		stopOpenWatch()
 		if result.err != nil {
 			if agent != nil {
 				log.Debug().
@@ -1010,6 +1029,8 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		}
 		conn = result.conn
 	case <-ctx.Done():
+		_ = agent.Session.Close()
+		stopOpenWatch()
 		if agent != nil {
 			log.Debug().
 				Err(ctx.Err()).
@@ -1020,6 +1041,8 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		}
 		return nil, ctx.Err()
 	case <-agent.Done:
+		_ = agent.Session.Close()
+		stopOpenWatch()
 		log.Debug().
 			Str("request_id", requestID).
 			Str("agent", agent.PublicID).
@@ -1031,6 +1054,24 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)
 	}
+	handshakeDone := make(chan struct{})
+	stopHandshakeWatch := func() {
+		select {
+		case <-handshakeDone:
+		default:
+			close(handshakeDone)
+		}
+	}
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-agent.Done:
+			_ = conn.Close()
+		case <-handshakeDone:
+		}
+	}()
+	defer stopHandshakeWatch()
 	req := tunnel.NewOpenRequest(requestID, network, address)
 	if err := tunnel.WriteOpenRequest(conn, req); err != nil {
 		_ = conn.Close()

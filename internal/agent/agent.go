@@ -45,6 +45,8 @@ var (
 	agentReconnectBackoffMax      = 30 * time.Second
 )
 
+const agentTunnelResponseHeaderTimeout = 15 * time.Second
+
 type Options struct {
 	ManagementURL           string
 	PublicID                string
@@ -248,6 +250,9 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}
 	transport.ForceAttemptHTTP2 = false
 	transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
+	if transport.ResponseHeaderTimeout == 0 {
+		transport.ResponseHeaderTimeout = agentTunnelResponseHeaderTimeout
+	}
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
 	transport.Protocols = protocols
@@ -288,7 +293,7 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 		if resp.Body != nil {
 			data, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 			body = strings.TrimSpace(string(data))
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		if body != "" {
 			return fmt.Errorf("agent tunnel upgrade failed: status %d: %s", resp.StatusCode, body)
@@ -296,17 +301,17 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 		return fmt.Errorf("agent tunnel upgrade failed: status %d", resp.StatusCode)
 	}
 	if got := resp.Header.Get("Upgrade"); !strings.EqualFold(got, tunnel.UpgradeToken) {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel upgrade response header = %q", got)
 	}
 	rwc, ok := resp.Body.(io.ReadWriteCloser)
 	if !ok {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel response body is %T, want io.ReadWriteCloser", resp.Body)
 	}
 	session, err := yamux.Client(rwc, tunnel.DefaultYamuxConfig(nil))
 	if err != nil {
-		rwc.Close()
+		_ = rwc.Close()
 		return fmt.Errorf("failed to initialize tunnel session: %w", err)
 	}
 	defer session.Close()

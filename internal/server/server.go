@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -284,7 +285,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "agent tunnel upgrade required", http.StatusBadRequest)
 		return
 	}
-	if r.Header.Get(tunnel.TunnelVersionHeader) != "1" {
+	version := strconv.Itoa(tunnel.ProtocolVersion)
+	if r.Header.Get(tunnel.TunnelVersionHeader) != version {
 		http.Error(w, "unsupported tunnel version", http.StatusUpgradeRequired)
 		return
 	}
@@ -294,11 +296,54 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var connID int64
+	if existing := a.AgentHub.connectedByID(agentRow.ID); existing != nil {
+		log.Warn().Str("agent", agentRow.PublicID).Msg("Rejecting duplicate agent connection")
+		http.Error(w, "agent is already connected", http.StatusConflict)
+		return
+	}
+
+	agent := &AgentConn{
+		AgentID:     agentRow.ID,
+		PublicID:    agentRow.PublicID,
+		Name:        agentRow.Name,
+		Done:        make(chan struct{}),
+		ConnectedAt: time.Now(),
+	}
+
+	rawConn, rw, err := hijacker.Hijack()
+	if err != nil {
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to hijack agent tunnel")
+		return
+	}
+	if rw.Reader.Buffered() > 0 {
+		_, _ = rw.WriteString("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nunexpected buffered tunnel data\n")
+		_ = rw.Flush()
+		_ = rawConn.Close()
+		return
+	}
+	_, _ = rw.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
+	_, _ = rw.WriteString("Connection: Upgrade\r\n")
+	_, _ = rw.WriteString("Upgrade: " + tunnel.UpgradeToken + "\r\n")
+	_, _ = rw.WriteString(tunnel.TunnelVersionHeader + ": " + version + "\r\n")
+	_, _ = rw.WriteString("\r\n")
+	if err := rw.Flush(); err != nil {
+		_ = rawConn.Close()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to write agent tunnel upgrade response")
+		return
+	}
+
+	session, err := yamux.Server(rawConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		_ = rawConn.Close()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to initialize agent tunnel session")
+		return
+	}
+	agent.Session = session
+
 	if a.DB != nil {
 		id, err := a.DB.InsertConnection(r.Context(), sql.NullInt64{Int64: agentRow.ID, Valid: true})
 		if err == nil {
-			connID = id
+			agent.ConnectionDBID = id
 			if err := a.DB.MarkAgentConnected(r.Context(), agentRow.ID); err != nil {
 				log.Warn().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to update agent connected timestamp")
 			}
@@ -306,19 +351,17 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Msg("Failed to insert connection into DB")
 		}
 	}
-
-	agent := &AgentConn{
-		AgentID:        agentRow.ID,
-		PublicID:       agentRow.PublicID,
-		Name:           agentRow.Name,
-		Done:           make(chan struct{}),
-		ConnectedAt:    time.Now(),
-		ConnectionDBID: connID,
-	}
-
 	if err := a.AgentHub.connect(agent); err != nil {
+		_ = session.Close()
+		if a.DB != nil && agent.ConnectionDBID > 0 {
+			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
+				log.Warn().Err(err).Msg("Failed to update rejected connection disconnection time")
+			}
+			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
+				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update rejected agent disconnected timestamp")
+			}
+		}
 		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Rejecting duplicate agent connection")
-		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 	cleanupAgent := func() {
@@ -327,40 +370,6 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			a.BackendHealth.recordAgentDisconnectedForAll(agent.AgentID)
 		}
 	}
-
-	rawConn, rw, err := hijacker.Hijack()
-	if err != nil {
-		cleanupAgent()
-		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to hijack agent tunnel")
-		return
-	}
-	if rw.Reader.Buffered() > 0 {
-		_, _ = rw.WriteString("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nunexpected buffered tunnel data\n")
-		_ = rw.Flush()
-		_ = rawConn.Close()
-		cleanupAgent()
-		return
-	}
-	_, _ = rw.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
-	_, _ = rw.WriteString("Connection: Upgrade\r\n")
-	_, _ = rw.WriteString("Upgrade: " + tunnel.UpgradeToken + "\r\n")
-	_, _ = rw.WriteString(tunnel.TunnelVersionHeader + ": 1\r\n")
-	_, _ = rw.WriteString("\r\n")
-	if err := rw.Flush(); err != nil {
-		_ = rawConn.Close()
-		cleanupAgent()
-		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to write agent tunnel upgrade response")
-		return
-	}
-
-	session, err := yamux.Server(rawConn, tunnel.DefaultYamuxConfig(nil))
-	if err != nil {
-		_ = rawConn.Close()
-		cleanupAgent()
-		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to initialize agent tunnel session")
-		return
-	}
-	agent.Session = session
 	if a.BackendHealth != nil {
 		a.BackendHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
 	}
@@ -383,8 +392,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			Int64("duration_ms", time.Since(agent.ConnectedAt).Milliseconds()).
 			Int64("active_requests", agent.ActiveRequests.Load()).
 			Msg("Agent tunnel disconnected")
-		if a.DB != nil && connID > 0 {
-			if err := a.DB.UpdateConnectionDisconnected(context.Background(), connID); err != nil {
+		if a.DB != nil && agent.ConnectionDBID > 0 {
+			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
 				log.Warn().Err(err).Msg("Failed to update disconnection time")
 			}
 			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {

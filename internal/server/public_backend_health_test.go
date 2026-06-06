@@ -95,6 +95,7 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 		t.Fatalf("connect agent: %v", err)
 	}
 	defer app.AgentHub.disconnect(agent)
+	defer fake.close()
 
 	snap := &publicProxySnapshot{
 		Backends: map[int64]publicBackendConfig{backend.ID: backend},
@@ -231,12 +232,13 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 
 	backend := testHealthBackend(t, 102, publicBackendForwardModeAgentPool, upstream.URL)
 	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
-	agent, _ := newFakeYamuxAgent(t, 7, "agent-7")
+	agent, fake := newFakeYamuxAgent(t, 7, "agent-7")
 	agent.Name = "Agent Seven"
 	if err := app.AgentHub.connect(agent); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
 	defer app.AgentHub.disconnect(agent)
+	defer fake.close()
 	app.BackendHealth.reconcile(app, &publicProxySnapshot{
 		Backends: map[int64]publicBackendConfig{backend.ID: backend},
 		Agents:   map[int64]publicAgentConfig{7: {ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true}},

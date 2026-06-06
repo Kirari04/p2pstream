@@ -53,6 +53,7 @@ func dialAgentTunnel(ctx context.Context, managementURL string, publicID string,
 		return nil, resp, err
 	}
 	if resp.StatusCode != http.StatusSwitchingProtocols {
+		_ = resp.Body.Close()
 		return nil, resp, fmt.Errorf("expected tunnel upgrade status 101, got %d", resp.StatusCode)
 	}
 	body, ok := resp.Body.(io.ReadWriteCloser)
