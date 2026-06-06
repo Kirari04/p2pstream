@@ -91,11 +91,11 @@ func (a *App) UpdateAgent(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
-		return nil, err
-	}
 	if a.AgentTransports != nil {
 		a.AgentTransports.closeAgent(req.Msg.Id)
+	}
+	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
+		return nil, err
 	}
 	return connect.NewResponse(&p2pstreamv1.UpdateAgentResponse{Agent: a.agentToProto(ctx, agent)}), nil
 }

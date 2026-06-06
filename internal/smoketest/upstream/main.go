@@ -142,7 +142,11 @@ func closeEarlyHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("close early connection close: %v", err)
+		}
+	}()
 	_, _ = rw.WriteString("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 64\r\n\r\npartial")
 	_ = rw.Flush()
 }
@@ -182,7 +186,11 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("websocket connection close: %v", err)
+		}
+	}()
 
 	accept := websocketAccept(key)
 	_, _ = rw.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
@@ -194,7 +202,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reader := bufio.NewReader(conn)
+	reader := rw.Reader
 	for {
 		opcode, payload, err := readWebSocketFrame(reader)
 		if err != nil {

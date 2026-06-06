@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -75,7 +76,7 @@ func TestDockerSmoke(t *testing.T) {
 		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent GET")
 		smokePostEcho(t, smokeURL(publicAgentURL, "/echo"))
 		smokeStream(t, smokeURL(publicAgentURL, "/stream"))
-		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"))
+		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"), mustURLHost(t, upstreamURL), mustURLHost(t, publicAgentURL))
 		smokeWebSocketEcho(t, smokeURL(publicAgentURL, "/ws"))
 
 		agentBackend = upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id, 1000)
@@ -577,7 +578,7 @@ func smokeStream(t *testing.T, requestURL string) {
 	}
 }
 
-func smokeHeaders(t *testing.T, requestURL string) {
+func smokeHeaders(t *testing.T, requestURL string, expectedUpstreamHost string, expectedForwardedHost string) {
 	t.Helper()
 
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
@@ -599,8 +600,8 @@ func smokeHeaders(t *testing.T, requestURL string) {
 	if err := json.NewDecoder(resp.Body).Decode(&headers); err != nil {
 		t.Fatalf("decode headers response: %v", err)
 	}
-	assertSmokeHeader(t, headers, "host", "upstream:9000")
-	assertSmokeHeader(t, headers, "x_forwarded_host", "server:8089")
+	assertSmokeHeader(t, headers, "host", expectedUpstreamHost)
+	assertSmokeHeader(t, headers, "x_forwarded_host", expectedForwardedHost)
 	assertSmokeHeader(t, headers, "x_forwarded_proto", "http")
 	assertSmokeHeader(t, headers, "x_request_method", http.MethodGet)
 	assertSmokeHeader(t, headers, "x_smoke_request", "agent-header-check")
@@ -616,21 +617,49 @@ func assertSmokeHeader(t *testing.T, headers map[string]string, name string, wan
 	}
 }
 
+func mustURLHost(t *testing.T, raw string) string {
+	t.Helper()
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		t.Fatalf("invalid URL %q: %v", raw, err)
+	}
+	return parsed.Host
+}
+
 func smokeCloseEarly(t *testing.T, requestURL string) {
 	t.Helper()
 
 	resp, err := httpClient().Get(requestURL)
 	if err != nil {
-		return
+		if isExpectedCloseEarlyError(err) {
+			return
+		}
+		t.Fatalf("close-early request failed unexpectedly: %v", err)
 	}
 	defer resp.Body.Close()
 	body, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
-		return
+		if isExpectedCloseEarlyError(readErr) {
+			return
+		}
+		t.Fatalf("close-early read failed unexpectedly: %v", readErr)
 	}
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("close-early status = %d body=%q, want 502 or client read error", resp.StatusCode, string(body))
 	}
+}
+
+func isExpectedCloseEarlyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unexpected eof") ||
+		strings.Contains(message, "server closed idle connection") ||
+		strings.Contains(message, "connection reset by peer")
 }
 
 func smokeWebSocketEcho(t *testing.T, requestURL string) {
