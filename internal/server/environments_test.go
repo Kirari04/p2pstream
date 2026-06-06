@@ -476,6 +476,7 @@ func TestAgentEnvironmentProxyDiscoversAndPinsCertificate(t *testing.T) {
 		localServer.Client(),
 		localServer.URL+"/environments/"+strconv.FormatInt(createResp.Msg.Environment.Id, 10),
 	)
+	proxyOpenCount := fake.openRequestCount()
 	statusReq := connect.NewRequest(&p2pstreamv1.GetStatusRequest{})
 	statusReq.Header().Set("Cookie", localHeader.Get("Cookie"))
 	if _, err := proxyClient.GetStatus(ctx, statusReq); err != nil {
@@ -485,6 +486,22 @@ func TestAgentEnvironmentProxyDiscoversAndPinsCertificate(t *testing.T) {
 	publicConfigReq.Header().Set("Cookie", localHeader.Get("Cookie"))
 	if _, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq); err != nil {
 		t.Fatalf("trusted agent environment proxy GetPublicProxyConfig: %v", err)
+	}
+	fake.waitOpenRequestCount(t, proxyOpenCount+1)
+	if got := localApp.AgentTransports.len(); got != 1 {
+		t.Fatalf("environment agent transport pool len = %d, want 1", got)
+	}
+
+	retrustReq := connect.NewRequest(&p2pstreamv1.TrustEnvironmentCertificateRequest{
+		Id:                createResp.Msg.Environment.Id,
+		Sha256Fingerprint: discoverResp.Msg.Certificate.Sha256Fingerprint,
+	})
+	retrustReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := localApp.TrustEnvironmentCertificate(ctx, retrustReq); err != nil {
+		t.Fatalf("retrust agent environment certificate: %v", err)
+	}
+	if got := localApp.AgentTransports.len(); got != 0 {
+		t.Fatalf("environment agent transport pool len after trust = %d, want 0", got)
 	}
 
 	_, _, changedCert, err := generatePublicSelfSignedCertificatePEM("127.0.0.1", time.Hour)

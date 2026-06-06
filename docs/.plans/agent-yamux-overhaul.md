@@ -4,8 +4,8 @@
 
 - Branch: `rewrite/agent-yamux-transport`
 - Base commit: `ddb6c09f5eb5aa2e7e7335dd11ff8fccaa0eb0d2`
-- Last updated: `2026-06-06T14:50:29+02:00`
-- Current phase: Phase 2 hardening complete; environment switch dev proxy fix applied
+- Last updated: `2026-06-06T15:49:44+02:00`
+- Current phase: Phase 3 pooling and browser E2E completed
 - Current blocker: none.
 
 ## Decisions
@@ -44,6 +44,20 @@
 - [x] Dev ergonomics cleanup
 - [x] Final validation
 
+## Phase 3 Pooling And Browser E2E Checklist
+
+- [x] Baseline validation
+- [x] Agent transport pool implementation
+- [x] Public proxy pooling integration
+- [x] Health check pooling integration
+- [x] Environment proxy pooling integration
+- [x] Pool invalidation hooks
+- [x] Pool lifecycle/concurrency tests
+- [x] Playwright setup
+- [x] Environment switch browser tests
+- [x] Smoke and regression validation
+- [x] Final handoff
+
 ## Files Changed
 
 | File | Purpose |
@@ -76,6 +90,20 @@
 | `internal/server/environments_test.go` | Added agent environment certificate discovery, trust, proxy, changed-certificate rejection, and disconnected-agent discovery tests. |
 | `internal/server/public_cache_test.go` | Added agent-pool cache miss/store/hit parity coverage with selected agent event recording. |
 | `web/management/vite.config.ts` | Proxies environment-scoped Connect calls under `/environments/` during Vite dev sessions. |
+| `internal/server/agent_transport_pool.go` | Added keyed per-agent `http.Transport` pooling with request-ID context propagation, close-by-agent/backend/environment invalidation, and shutdown cleanup. |
+| `internal/server/agent_transport_pool_test.go` | Added pool reuse, separation, invalidation, reconnect, concurrency, and request-ID fallback coverage. |
+| `internal/server/server.go` | Added `App.AgentTransports`, disconnect-hook pool cleanup, and app-level transport cleanup helper. |
+| `internal/server/agent_hub.go` | Added disconnect hook execution outside the hub mutex for pool invalidation. |
+| `internal/server/public_routing.go` | Switched agent-backed public proxying from per-request transports to pooled per-agent/backend transports. |
+| `internal/server/public_backend_health.go` | Switched agent-backed health checks to the public backend transport pool and request-ID context propagation. |
+| `internal/server/environment_proxy.go` | Switched agent-backed environment proxy calls to pooled per-agent/environment transports while keeping auth wrapping outside the pool. |
+| `internal/server/agent_registry.go`, `internal/server/public_config.go`, `internal/server/environments.go` | Added defensive pool invalidation after agent, backend, environment, token, and trust changes. |
+| `internal/server/agent_registry_test.go`, `internal/server/environments_test.go`, `internal/server/public_routing_timeout_test.go` | Extended existing lifecycle/environment fixtures to assert pooling and invalidation behavior. |
+| `web/management/package.json`, `web/management/bun.lock` | Added Playwright as an explicit frontend dev dependency and added E2E scripts. |
+| `web/management/playwright.config.ts` | Added deterministic browser E2E server orchestration with isolated SQLite/cache directories and management/Vite projects. |
+| `web/management/e2e/environment-switch.spec.ts`, `web/management/e2e/helpers/connect.ts` | Added browser coverage for switching to a trusted loopback environment through management proxy and direct Vite. |
+| `Makefile` | Added `frontend-e2e` target for explicit Playwright execution. |
+| `.air.toml`, `.gitignore` | Excluded Playwright artifact directories from Air and Git. |
 | `README.md`, `docs/**` | Updated transport, reverse proxy, TLS ownership, and compatibility documentation. |
 | `docs/public/architecture.svg` | Updated architecture diagram text from WSS to Yamux tunnel. |
 
@@ -122,28 +150,59 @@
 | `2026-06-06T14:48:00+02:00` | `go test ./internal/server -run 'TestEnvironmentRequiresHTTPSAndTrustedCertificateBeforeProxy\|TestAgentEnvironmentProxyDiscoversAndPinsCertificate'` | passed | Added `GetPublicProxyConfig` coverage through direct and agent environment proxies. |
 | `2026-06-06T14:49:00+02:00` | `bun run --cwd web/management typecheck` | passed | Verified management UI types after adding the Vite `/environments/` dev proxy. |
 | `2026-06-06T14:50:00+02:00` | `bun run --cwd web/management build` | passed | Vite build passed; emitted the existing large-chunk warning. |
+| `2026-06-06T15:09:00+02:00` | `git status --short --branch` | passed | Clean phase 3 starting point on `rewrite/agent-yamux-transport`. |
+| `2026-06-06T15:09:00+02:00` | `git diff --check` | passed | Baseline diff check before phase 3 edits. |
+| `2026-06-06T15:11:00+02:00` | `go test ./...` | passed | Baseline full Go suite before pooling changes. |
+| `2026-06-06T15:12:00+02:00` | `make test` | passed | Baseline full Go suite plus management UI typecheck. |
+| `2026-06-06T15:13:00+02:00` | `make build` | passed | Baseline frontend/backend build; Vite emitted the existing large-chunk warning. |
+| `2026-06-06T15:16:00+02:00` | `make docker-smoke-clean && make docker-smoke` | passed | Baseline Docker smoke passed before pooling changes. |
+| `2026-06-06T15:16:00+02:00` | `make docker-smoke-clean` | passed | Removed smoke containers, network, and data volume after the baseline run. |
+| `2026-06-06T15:24:00+02:00` | `go test ./internal/server -run 'TestAgentPoolHealthCheckRunsThroughAssignedAgent\|TestAgentEnvironmentProxyDiscoversAndPinsCertificate\|TestAgentProxy'` | passed | Initial pooling integration checkpoint. |
+| `2026-06-06T15:26:00+02:00` | `go test ./internal/server -run 'TestAgentTransportPool\|TestRotateAgentTokenDisconnectsActiveAgent\|TestAgentEnvironmentProxyDiscoversAndPinsCertificate\|TestAgentProxy\|TestPublicBackendHealth'` | passed | Pool unit/integration tests, token rotation invalidation, and environment reuse checkpoint. |
+| `2026-06-06T15:27:00+02:00` | `bun run --cwd web/management typecheck` | passed | Frontend typecheck after adding Playwright files. |
+| `2026-06-06T15:28:00+02:00` | `bun run --cwd web/management e2e` | failed | Playwright browser binary was not installed in the local environment. |
+| `2026-06-06T15:29:00+02:00` | `bun run --cwd web/management e2e:install` | passed | Installed Chromium for local Playwright execution. |
+| `2026-06-06T15:31:00+02:00` | `bun run --cwd web/management e2e` | failed | Exposed Playwright setup isolation issue: implicit config DB migrated the repo-root legacy `p2pstream.db`. |
+| `2026-06-06T15:42:00+02:00` | `bun run --cwd web/management e2e` | passed | Browser environment switch passed through both `management-proxy` and `vite-direct` projects after using an explicit isolated SQLite URL and deterministic E2E server startup. |
+| `2026-06-06T15:43:00+02:00` | `git diff --check` | passed | No whitespace errors after Phase 3 implementation. |
+| `2026-06-06T15:43:00+02:00` | `go test ./internal/server -run 'TestAgentTransportPool\|TestEnvironment\|TestAgentProxy\|TestPublicBackendHealth'` | passed | Focused server regression set passed. |
+| `2026-06-06T15:43:00+02:00` | `bun run --cwd web/management typecheck` | passed | Frontend typecheck passed after Playwright config fixes. |
+| `2026-06-06T15:44:00+02:00` | `go test ./internal/server` | passed | Full server package passed with pooling enabled. |
+| `2026-06-06T15:44:00+02:00` | `bun run --cwd web/management build` | passed | Frontend production build passed; Vite emitted the existing large-chunk warning. |
+| `2026-06-06T15:45:00+02:00` | `go test ./...` | passed | Full Go suite passed after pooling and E2E changes. |
+| `2026-06-06T15:45:00+02:00` | `make test` | passed | Full Makefile test target passed, including management UI typecheck. |
+| `2026-06-06T15:46:00+02:00` | `make build` | passed | Frontend/backend build passed; Vite emitted the existing large-chunk warning. |
+| `2026-06-06T15:47:00+02:00` | `bun run --cwd web/management e2e` | passed | Final browser E2E rerun passed both management proxy and direct Vite projects. |
+| `2026-06-06T15:48:00+02:00` | `make docker-smoke-clean && make docker-smoke && make docker-smoke-clean` | passed | Docker smoke passed direct and agent-pool GET/POST/stream/header/timeout/close-early/WebSocket scenarios and cleaned up containers/volume/network. |
+| `2026-06-06T15:49:00+02:00` | `go test -race ./internal/server` | passed | Race coverage passed for server pooling, proxying, environment, and lifecycle tests. |
+| `2026-06-06T15:49:00+02:00` | `make kill && ss -ltnp '( sport = :8081 or sport = :8088 or sport = :8089 or sport = :5173 or sport = :19081 )'` | passed | Final cleanup left no dev/E2E listeners bound. |
 
-## Deferred: Per-Agent Transport Pooling
+## Deferred: Per-Agent Transport Pool Refinements
 
 Current state:
-- Agent transports use `DisableKeepAlives=true` to guarantee each request uses the selected agent.
+- Agent-backed public proxy, health check, and environment proxy paths use pooled `http.Transport` instances.
+- Pools are keyed by agent plus backend/environment/TLS/timeout/origin inputs.
+- Idle connections are closed on agent disconnect, token rotation, backend update/delete, environment update/delete/trust, and app shutdown.
 
 Future design:
-- Cache `http.Transport` per `(agent_id, backend_id, tls_config_fingerprint, timeout_config)`.
-- Close the pool on agent disconnect, token rotation, or backend config change.
-- Never reuse a transport across agents.
-- Add idle connection limits and explicit close-idle behavior.
+- Add per-agent/backend pool observability if operators need runtime visibility into idle connection reuse.
+- Tune idle connection limits from production data.
+- Consider closing environment pools on management access-token changes if token lifecycle grows beyond current auth wrapping.
 
 ## Handoff Notes
 
-- Next task: verify environment switching in `make dev` from both `https://localhost:8081` and direct Vite `http://127.0.0.1:5173` if needed.
+- Next task: review Phase 3 diff, then decide whether to commit or add deeper production observability around pool hit/miss counts.
 - Known failing tests: none.
-- Known risks: performance may regress because agent-pool transports intentionally use `DisableKeepAlives = true` until per-agent pooling is designed.
+- Known risks: pooled transports intentionally reuse Yamux streams for sequential same-key HTTP requests; invalidation coverage is broad, but future config surfaces must close the relevant pool entries when they affect dialing, TLS, origin, or timeout behavior.
 - Important implementation details:
   - `/agent/tunnel` requires HTTP/1.1 hijack; tunnel clients disable HTTP/2 for bootstrap and force TLS ALPN to `http/1.1`.
   - `make dev` now traps `INT`, `TERM`, and `EXIT` and cleans up both wrapper PIDs and repo-local child binaries so restarts do not leave `8081`, `8088`, or `8089` bound.
+  - Playwright E2E uses an explicit isolated `DATABASE_URL`; relying only on `CONFIG_DIR` would migrate the repo-root legacy `p2pstream.db`.
+  - Playwright starts the backend, waits for `GetSetupState`, starts the agent, then starts Vite so both `management-proxy` and `vite-direct` projects are ready deterministically.
+  - `web/management/test-results` and `web/management/playwright-report` are ignored by Git and Air.
   - Each upstream TCP connection maps to one Yamux stream.
   - `OpenRequest` and `OpenResponse` are length-prefixed JSON control frames capped at 16 KiB.
   - Agent decode/open failures close only the stream, not the session.
   - Server-side proxy, health check, environment proxy, and certificate discovery all use `dialViaAgent`.
+  - Pooled agent transports pull the request ID from context; if absent, `dialViaAgent` receives a generated UUID fallback.
   - Old WebSocket agents are intentionally incompatible.

@@ -180,21 +180,16 @@ func (rt environmentAgentRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("default transport is %T, want *http.Transport", http.DefaultTransport))
-	}
 	requestID, err := uuid.NewV7()
 	if err != nil {
 		return nil, err
 	}
-	transport := base.Clone()
-	transport.TLSClientConfig = tlsConfig
-	transport.ResponseHeaderTimeout = environmentResponseHeaderTimeout(rt.env)
-	transport.DisableKeepAlives = true
-	transport.DialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
-		return rt.app.dialViaAgent(ctx, agent, network, address, requestID.String())
+	req = req.Clone(withAgentDialRequestID(req.Context(), requestID.String()))
+	if rt.app.AgentTransports == nil {
+		transport := newAgentTransportPool().environmentTransport(rt.app, agent, rt.env, tlsConfig)
+		return transport.RoundTrip(req)
 	}
+	transport := rt.app.AgentTransports.environmentTransport(rt.app, agent, rt.env, tlsConfig)
 	return transport.RoundTrip(req)
 }
 

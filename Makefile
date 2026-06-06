@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test frontend-build frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test
+.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -25,6 +25,9 @@ frontend-install:
 
 frontend-build: frontend-install generate-proto
 	@cd web/management && bun run build
+
+frontend-e2e: frontend-install
+	@cd web/management && bun run e2e
 
 legal-notices: frontend-install
 	@scripts/build-legal-notices.sh

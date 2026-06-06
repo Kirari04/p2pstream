@@ -37,6 +37,7 @@ var serverCmd = &cobra.Command{
 		defer database.Close()
 
 		app := server.NewApp(cfg, database)
+		defer app.CloseAgentTransports()
 
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()

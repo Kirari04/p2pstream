@@ -425,10 +425,11 @@ func (a *App) runPublicBackendHealthCheckViaAgent(parent context.Context, backen
 	}
 	attempt.DebugAttributes["agent_request_id"] = id.String()
 	attempt.DebugAttributes["response_header_timeout_ms"] = strconv.FormatInt(int64(timeout/time.Millisecond), 10)
+	req = req.WithContext(withAgentDialRequestID(req.Context(), id.String()))
 
 	healthBackend := backend
 	healthBackend.UpstreamResponseHeaderTimeout = timeout
-	client := &http.Client{Transport: a.agentProxyTransport(agent, healthBackend, id.String())}
+	client := &http.Client{Transport: a.agentProxyTransport(agent, healthBackend)}
 	resp, err := client.Do(req)
 	if err != nil {
 		var dialErr agentDialError

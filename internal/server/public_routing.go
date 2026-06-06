@@ -940,9 +940,10 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			}
 		},
-		Transport: a.agentProxyTransport(agent, resolution.Backend, id.String()),
+		Transport: a.agentProxyTransport(agent, resolution.Backend),
 	}
 
+	r = r.WithContext(withAgentDialRequestID(r.Context(), id.String()))
 	proxy.ServeHTTP(w, r)
 	log.Info().Str("req_id", id.String()).Int("status", statusCode).Msg("Finished proxying request")
 }
@@ -959,26 +960,11 @@ func (e agentDialError) Error() string {
 	return e.Kind + ": " + e.Err
 }
 
-func (a *App) agentProxyTransport(agent *AgentConn, backend publicBackendConfig, requestID string) http.RoundTripper {
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return http.DefaultTransport
+func (a *App) agentProxyTransport(agent *AgentConn, backend publicBackendConfig) http.RoundTripper {
+	if a.AgentTransports == nil {
+		return newAgentTransportPool().publicBackendTransport(a, agent, backend)
 	}
-	transport := base.Clone()
-	transport.ResponseHeaderTimeout = normalizeUpstreamResponseHeaderTimeout(backend.UpstreamResponseHeaderTimeout)
-	transport.DisableKeepAlives = true
-	transport.DialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
-		return a.dialViaAgent(ctx, agent, network, address, requestID)
-	}
-	if backend.TLSSkipVerify {
-		if transport.TLSClientConfig == nil {
-			transport.TLSClientConfig = &tls.Config{}
-		} else {
-			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
-		}
-		transport.TLSClientConfig.InsecureSkipVerify = true
-	}
-	return transport
+	return a.AgentTransports.publicBackendTransport(a, agent, backend)
 }
 
 func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string, address string, requestID string) (net.Conn, error) {

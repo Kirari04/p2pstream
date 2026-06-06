@@ -125,6 +125,14 @@ func TestRotateAgentTokenDisconnectsActiveAgent(t *testing.T) {
 	if err := app.AgentHub.connect(conn); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
+	_ = app.agentProxyTransport(conn, publicBackendConfig{
+		ID:                            700,
+		TargetOrigin:                  "http://upstream.test:9000",
+		UpstreamResponseHeaderTimeout: time.Second,
+	})
+	if got := app.AgentTransports.len(); got != 1 {
+		t.Fatalf("pool len before rotation = %d, want 1", got)
+	}
 
 	resp := rotateAgentTokenForTest(t, app, header, agent.ID)
 	if resp.Msg.Token == "" {
@@ -135,6 +143,9 @@ func TestRotateAgentTokenDisconnectsActiveAgent(t *testing.T) {
 	}
 	if got := app.AgentHub.connectedByID(agent.ID); got != nil {
 		t.Fatalf("connected agent after rotation = %#v, want nil", got)
+	}
+	if got := app.AgentTransports.len(); got != 0 {
+		t.Fatalf("pool len after rotation = %d, want 0", got)
 	}
 	assertAgentDoneClosed(t, conn)
 	if _, err := app.authenticateAgent(context.Background(), agent.PublicID, "Bearer old-token"); err == nil {

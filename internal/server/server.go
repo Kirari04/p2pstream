@@ -49,6 +49,7 @@ type App struct {
 	PublicWAF          *publicWAF
 	PublicCache        *publicProxyCache
 	PublicACME         *publicACMEManager
+	AgentTransports    *agentTransportPool
 	DashboardCache     *dashboardResponseCache
 	LoginThrottle      *loginThrottle
 
@@ -90,11 +91,17 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		TrafficShaper:       newPublicTrafficShaper(),
 		PublicWAF:           newPublicWAF(),
 		PublicCache:         newPublicProxyCache(cfg.PublicCacheDir),
+		AgentTransports:     newAgentTransportPool(),
 		DashboardCache:      newDashboardResponseCache(),
 		LoginThrottle:       newLoginThrottle(cfg.LoginThrottleMaxKeys),
 		latestAgentStats:    make(map[int64]stats.AgentStats),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
+	}
+	app.AgentHub.onDisconnect = func(conn *AgentConn) {
+		if app.AgentTransports != nil {
+			app.AgentTransports.closeAgent(conn.AgentID)
+		}
 	}
 	app.PublicACME = newPublicACMEManager(app)
 	if database != nil {

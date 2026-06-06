@@ -411,6 +411,9 @@ func (a *App) UpdatePublicBackend(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeBackend(req.Msg.Id)
+	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -433,6 +436,9 @@ func (a *App) DeletePublicBackend(
 	}
 	if err := a.DB.DeletePublicBackend(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
+	}
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeBackend(req.Msg.Id)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err

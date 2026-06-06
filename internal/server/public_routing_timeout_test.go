@@ -355,6 +355,8 @@ type fakeYamuxAgent struct {
 	serverSession *yamux.Session
 	agentSession  *yamux.Session
 	requests      chan tunnel.OpenRequest
+	mu            sync.Mutex
+	openRequests  int
 	wg            sync.WaitGroup
 	closeOnce     sync.Once
 }
@@ -428,6 +430,9 @@ func (f *fakeYamuxAgent) handleStream(stream net.Conn) {
 	if err != nil {
 		return
 	}
+	f.mu.Lock()
+	f.openRequests++
+	f.mu.Unlock()
 	select {
 	case f.requests <- open:
 	default:
@@ -455,6 +460,24 @@ func (f *fakeYamuxAgent) handleStream(stream net.Conn) {
 		relayDone <- struct{}{}
 	}()
 	<-relayDone
+}
+
+func (f *fakeYamuxAgent) openRequestCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.openRequests
+}
+
+func (f *fakeYamuxAgent) waitOpenRequestCount(t *testing.T, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := f.openRequestCount(); got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("fake yamux open requests = %d, want %d", f.openRequestCount(), want)
 }
 
 func waitForAgentActiveRequests(t *testing.T, agent *AgentConn, want int64) {

@@ -94,6 +94,9 @@ func (a *App) UpdateAgent(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeAgent(req.Msg.Id)
+	}
 	return connect.NewResponse(&p2pstreamv1.UpdateAgentResponse{Agent: a.agentToProto(ctx, agent)}), nil
 }
 
@@ -112,6 +115,9 @@ func (a *App) DeleteAgent(
 	}
 	if err := a.DB.DeleteAgent(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
+	}
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeAgent(req.Msg.Id)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
@@ -138,6 +144,9 @@ func (a *App) RotateAgentToken(
 		return nil, publicDBError(err)
 	}
 	a.revokeAgentConnection(agent.ID)
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeAgent(agent.ID)
+	}
 	return connect.NewResponse(&p2pstreamv1.RotateAgentTokenResponse{
 		Agent: a.agentToProto(ctx, agent),
 		Token: token,

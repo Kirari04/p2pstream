@@ -8,9 +8,10 @@ import (
 var errAgentDisconnected = errors.New("agent disconnected")
 
 type agentHub struct {
-	mu         sync.RWMutex
-	byID       map[int64]*AgentConn
-	byPublicID map[string]*AgentConn
+	mu           sync.RWMutex
+	byID         map[int64]*AgentConn
+	byPublicID   map[string]*AgentConn
+	onDisconnect func(*AgentConn)
 }
 
 func newAgentHub() *agentHub {
@@ -36,8 +37,12 @@ func (h *agentHub) disconnect(conn *AgentConn) {
 		return
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.disconnectLocked(conn)
+	disconnected := h.disconnectLocked(conn)
+	onDisconnect := h.onDisconnect
+	h.mu.Unlock()
+	if disconnected && onDisconnect != nil {
+		onDisconnect(conn)
+	}
 }
 
 func (h *agentHub) disconnectByID(agentID int64) *AgentConn {
@@ -45,33 +50,42 @@ func (h *agentHub) disconnectByID(agentID int64) *AgentConn {
 		return nil
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	conn := h.byID[agentID]
 	if conn == nil {
+		h.mu.Unlock()
 		return nil
 	}
-	h.disconnectLocked(conn)
+	disconnected := h.disconnectLocked(conn)
+	onDisconnect := h.onDisconnect
+	h.mu.Unlock()
+	if disconnected && onDisconnect != nil {
+		onDisconnect(conn)
+	}
 	return conn
 }
 
-func (h *agentHub) disconnectLocked(conn *AgentConn) {
+func (h *agentHub) disconnectLocked(conn *AgentConn) bool {
 	if conn == nil {
-		return
+		return false
 	}
+	disconnected := false
 	if current := h.byPublicID[conn.PublicID]; current == conn {
 		delete(h.byPublicID, conn.PublicID)
+		disconnected = true
 	}
 	if current := h.byID[conn.AgentID]; current == conn {
 		delete(h.byID, conn.AgentID)
+		disconnected = true
 	}
 	if conn.Done == nil {
-		return
+		return disconnected
 	}
 	select {
 	case <-conn.Done:
 	default:
 		close(conn.Done)
 	}
+	return disconnected
 }
 
 func (h *agentHub) connectedByID(agentID int64) *AgentConn {
