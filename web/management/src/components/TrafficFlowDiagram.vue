@@ -15,7 +15,6 @@ import TrafficFlowEdge from "@/components/TrafficFlowEdge.vue";
 import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
 import {
   CACHE_KEY,
-  DEFAULT_ROUTE_KEY,
   RATE_LIMIT_KEY,
   TRAFFIC_SHAPER_KEY,
   WAF_KEY,
@@ -23,8 +22,10 @@ import {
   agentKey,
   targetKey,
   createTrafficFlowConfigIndex,
+  agentsMatchingTargetSelector,
   isRedirectRoute,
   isTerminalTraceRequest,
+  listenerDefaultRouteKey,
   listenerKey,
   redirectKey,
   routeTargetAssignments,
@@ -317,22 +318,23 @@ const layout = computed(() => {
       addEdge(shaperEntryKey, TRAFFIC_SHAPER_KEY);
     }
 
+    const defaultRouteKey = listenerDefaultRouteKey(listener.id);
     addNode({
-      key: DEFAULT_ROUTE_KEY,
+      key: defaultRouteKey,
       label: "Default route",
       subLabel: "Listener fallbacks",
       column: 5,
       kind: "route",
       editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, "Default target")],
     });
-    addEdge(routeEntryKey, DEFAULT_ROUTE_KEY);
+    addEdge(routeEntryKey, defaultRouteKey);
     const defaultRoute = (index.routesByListenerId.get(listener.id.toString()) ?? []).find((route) => route.isDefault);
     if (defaultRoute) {
       for (const target of routeTargetAssignments(defaultRoute, index).filter((item) => item.enabled)) {
-        addEdge(DEFAULT_ROUTE_KEY, targetKey(target.id));
+        addEdge(defaultRouteKey, targetKey(target.id));
       }
     } else {
-      addEdge(DEFAULT_ROUTE_KEY, "response", "agent-bypass");
+      addEdge(defaultRouteKey, "response", "agent-bypass");
     }
 
     for (const route of index.routesByListenerId.get(listener.id.toString()) ?? []) {
@@ -1356,7 +1358,7 @@ function addObservedNodes(
     }
   } else if (request.defaultRoute && request.listenerId > 0n) {
     addNode({
-      key: DEFAULT_ROUTE_KEY,
+      key: listenerDefaultRouteKey(request.listenerId),
       label: "Default route",
       subLabel: "Observed fallback",
       column: 5,
@@ -1466,10 +1468,7 @@ function agentNodeStatus(agent: Agent | undefined): AgentNodeStatus {
 }
 
 function agentsMatchingTarget(target: PublicRouteTarget, agents: readonly Agent[]): Agent[] {
-  const labels = target.agentSelector?.matchLabels ?? {};
-  const entries = Object.entries(labels);
-  if (!entries.length) return agents.filter((agent) => agent.enabled);
-  return agents.filter((agent) => entries.every(([key, value]) => agent.labels[key] === value));
+  return agentsMatchingTargetSelector(target, agents);
 }
 
 function mergeAgentStatus(existing: AgentNodeStatus | undefined, next: AgentNodeStatus | undefined): AgentNodeStatus | undefined {

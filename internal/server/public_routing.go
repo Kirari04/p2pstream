@@ -261,10 +261,6 @@ func writeNoRouteTargetAvailable(w http.ResponseWriter) {
 </html>`)
 }
 
-func writeNoRouteBackendAvailable(w http.ResponseWriter) {
-	writeNoRouteTargetAvailable(w)
-}
-
 func applyTrafficShaperResolutionFields(resolution *publicRouteResolution, decision publicTrafficShaperDecision) {
 	if resolution == nil {
 		return

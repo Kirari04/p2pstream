@@ -116,6 +116,70 @@ func TestCreateAgentWithGeneratedPublicIDCollisionFailure(t *testing.T) {
 	}
 }
 
+func TestCreateAgentStoresSystemAndUserLabels(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	header := createTestAdminSession(t, app)
+
+	req := connect.NewRequest(&p2pstreamv1.CreateAgentRequest{
+		Name:    "Labelled Agent",
+		Enabled: true,
+		Labels:  map[string]string{"site": "home", "role": "app"},
+	})
+	req.Header().Set("Cookie", header.Get("Cookie"))
+	resp, err := app.CreateAgent(context.Background(), req)
+	if err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	labels := agentLabelsForTest(t, database, resp.Msg.Agent.Id)
+	if labels[agentIDSystemLabelKey] != resp.Msg.Agent.PublicId {
+		t.Fatalf("system label = %q, want %q (all labels=%+v)", labels[agentIDSystemLabelKey], resp.Msg.Agent.PublicId, labels)
+	}
+	if labels["site"] != "home" || labels["role"] != "app" {
+		t.Fatalf("user labels = %+v, want site=home role=app", labels)
+	}
+}
+
+func TestUpdateAgentReplacesUserLabelsAndPreservesSystemLabel(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	header := createTestAdminSession(t, app)
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreateAgentRequest{
+		Name:    "Original Agent",
+		Enabled: true,
+		Labels:  map[string]string{"site": "home", "role": "app"},
+	})
+	createReq.Header().Set("Cookie", header.Get("Cookie"))
+	createResp, err := app.CreateAgent(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	updateReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
+		Id:      createResp.Msg.Agent.Id,
+		Name:    "Updated Agent",
+		Enabled: true,
+		Labels:  map[string]string{"site": "edge"},
+	})
+	updateReq.Header().Set("Cookie", header.Get("Cookie"))
+	if _, err := app.UpdateAgent(context.Background(), updateReq); err != nil {
+		t.Fatalf("update agent: %v", err)
+	}
+
+	labels := agentLabelsForTest(t, database, createResp.Msg.Agent.Id)
+	if labels[agentIDSystemLabelKey] != createResp.Msg.Agent.PublicId {
+		t.Fatalf("system label = %q, want %q (all labels=%+v)", labels[agentIDSystemLabelKey], createResp.Msg.Agent.PublicId, labels)
+	}
+	if labels["site"] != "edge" {
+		t.Fatalf("site label = %q, want edge (all labels=%+v)", labels["site"], labels)
+	}
+	if _, ok := labels["role"]; ok {
+		t.Fatalf("role label was not replaced: %+v", labels)
+	}
+}
+
 func TestRotateAgentTokenDisconnectsActiveAgent(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(nil, database)
@@ -333,6 +397,19 @@ func createAgentRegistryTestAgent(t *testing.T, database *db.DB, publicID string
 		t.Fatalf("create agent: %v", err)
 	}
 	return agent
+}
+
+func agentLabelsForTest(t *testing.T, database *db.DB, agentID int64) map[string]string {
+	t.Helper()
+	rows, err := database.ListAgentLabelsByAgent(context.Background(), agentID)
+	if err != nil {
+		t.Fatalf("list agent labels: %v", err)
+	}
+	labels := make(map[string]string, len(rows))
+	for _, row := range rows {
+		labels[row.Key] = row.Value
+	}
+	return labels
 }
 
 func agentRegistryTestConn(agent db.Agent) *AgentConn {

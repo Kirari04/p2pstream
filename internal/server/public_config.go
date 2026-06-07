@@ -3140,8 +3140,8 @@ func publicRouteTargetHealthToProto(target db.PublicRouteTarget, monitor *public
 	}
 	return &p2pstreamv1.PublicRouteTargetHealth{
 		Status:                          snapshot.Status,
-		Available:                       snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY && snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISABLED,
-		Connected:                       true,
+		Available:                       snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY && snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISABLED && snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISCONNECTED,
+		Connected:                       snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISCONNECTED,
 		LastCheckedAtUnixMillis:         snapshot.LastCheckedAtUnixMillis,
 		LastError:                       snapshot.LastError,
 		PassiveUnhealthyUntilUnixMillis: snapshot.PassiveUnhealthyUntilUnixMillis,

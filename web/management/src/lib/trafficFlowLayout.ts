@@ -181,7 +181,7 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
   if (request.routeId > 0n) {
     path.push(routeKey(request.routeId));
   } else if (request.defaultRoute && request.listenerId > 0n) {
-    path.push(DEFAULT_ROUTE_KEY);
+    path.push(listenerDefaultRouteKey(request.listenerId));
   }
 
   const redirectNodeKey = redirectKeyForRequest(request, index);
@@ -305,6 +305,10 @@ export function listenerKey(id: bigint | string | number): string {
   return `listener:${id.toString()}`;
 }
 
+export function listenerDefaultRouteKey(listenerId: bigint | string | number): string {
+  return `${DEFAULT_ROUTE_KEY}:${listenerId.toString()}`;
+}
+
 export function routeKey(id: bigint | string | number): string {
   return `route:${id.toString()}`;
 }
@@ -321,13 +325,21 @@ export function agentKey(id: bigint | string | number): string {
   return `agent:${id.toString()}`;
 }
 
+export function agentsMatchingTargetSelector(target: PublicRouteTarget, agents: readonly Agent[]): Agent[] {
+  const labels = target.agentSelector?.matchLabels ?? {};
+  const entries = Object.entries(labels);
+  const enabledAgents = agents.filter((agent) => agent.enabled);
+  if (!entries.length) return enabledAgents;
+  return enabledAgents.filter((agent) => entries.every(([key, value]) => agent.labels[key] === value));
+}
+
 function nodeKeyForTraceStage(request: TraceRequest): string {
   switch (request.stage) {
     case TraceStage.RECEIVED:
       return request.listenerId > 0n ? listenerKey(request.listenerId) : "ingress";
     case TraceStage.ROUTE_RESOLVED:
       if (request.routeId > 0n) return routeKey(request.routeId);
-      if (request.defaultRoute && request.listenerId > 0n) return DEFAULT_ROUTE_KEY;
+      if (request.defaultRoute && request.listenerId > 0n) return listenerDefaultRouteKey(request.listenerId);
       return request.listenerId > 0n ? listenerKey(request.listenerId) : "ingress";
     case TraceStage.BACKEND_SELECTED:
       return request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "response";

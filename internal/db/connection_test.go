@@ -798,8 +798,18 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if len(routes) != 2 {
 		t.Fatalf("got %d routes, want explicit route plus generated default route", len(routes))
 	}
-	route := routes[0]
-	defaultRoute := routes[1]
+	var route PublicRoute
+	var defaultRoute PublicRoute
+	for _, candidate := range routes {
+		if candidate.IsDefault != 0 {
+			defaultRoute = candidate
+		} else {
+			route = candidate
+		}
+	}
+	if route.ID == 0 || defaultRoute.ID == 0 {
+		t.Fatalf("expected one explicit route and one default route, got %+v", routes)
+	}
 	if route.Action != "forward" || route.RedirectStatusCode != 302 || route.RedirectPreservePathSuffix != 1 || route.RedirectPreserveQuery != 1 {
 		t.Fatalf("unexpected migrated redirect defaults: %+v", route)
 	}
@@ -829,11 +839,23 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if len(targets) != 2 {
 		t.Fatalf("got %d route targets, want explicit and default targets: %+v", len(targets), targets)
 	}
-	if targets[0].RouteID != route.ID || targets[0].Url != "https://example.com" || targets[0].Transport != "direct" || targets[0].TargetType != "proxy" {
-		t.Fatalf("unexpected migrated explicit target: %+v", targets[0])
+	targetsByRoute := make(map[int64]PublicRouteTarget, len(targets))
+	for _, target := range targets {
+		targetsByRoute[target.RouteID] = target
 	}
-	if targets[1].RouteID != defaultRoute.ID || targets[1].Url != "https://example.com" || targets[1].Transport != "direct" || targets[1].TargetType != "proxy" {
-		t.Fatalf("unexpected generated default target: %+v", targets[1])
+	explicitTarget, ok := targetsByRoute[route.ID]
+	if !ok {
+		t.Fatalf("missing explicit route target for route %d: %+v", route.ID, targets)
+	}
+	if explicitTarget.Url != "https://example.com" || explicitTarget.Transport != "direct" || explicitTarget.TargetType != "proxy" {
+		t.Fatalf("unexpected migrated explicit target: %+v", explicitTarget)
+	}
+	defaultTarget, ok := targetsByRoute[defaultRoute.ID]
+	if !ok {
+		t.Fatalf("missing default route target for route %d: %+v", defaultRoute.ID, targets)
+	}
+	if defaultTarget.Url != "https://example.com" || defaultTarget.Transport != "direct" || defaultTarget.TargetType != "proxy" {
+		t.Fatalf("unexpected generated default target: %+v", defaultTarget)
 	}
 	for _, table := range []string{"public_backends", "public_backend_agents", "public_backend_headers", "public_backend_upstream_headers", "public_route_backends"} {
 		if tableExists(t, database, table) {
@@ -911,6 +933,40 @@ func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create target: %v", err)
 	}
+	otherTarget, err := database.CreatePublicRouteTarget(context.Background(), CreatePublicRouteTargetParams{
+		RouteID:                             route.ID,
+		Name:                                "other-upstream-headers",
+		Position:                            1,
+		PriorityGroup:                       0,
+		Weight:                              100,
+		Enabled:                             1,
+		TargetType:                          "proxy",
+		Url:                                 "http://other.example.com",
+		Transport:                           "direct",
+		AgentSelectorJson:                   "{}",
+		AgentLoadBalancing:                  "round_robin",
+		TlsSkipVerify:                       0,
+		UpstreamBasicAuthEnabled:            0,
+		UpstreamBasicAuthUsername:           "",
+		UpstreamBasicAuthPassword:           "",
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckEnabled:                  0,
+		HealthCheckMethod:                   "GET",
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    200,
+		StaticResponseBody:                  "",
+		StaticResponseBodyMode:              "inline",
+		StaticResponseTemplateID:            sql.NullInt64{},
+	})
+	if err != nil {
+		t.Fatalf("create other target: %v", err)
+	}
 	first, err := database.CreatePublicRouteTargetUpstreamHeader(context.Background(), CreatePublicRouteTargetUpstreamHeaderParams{
 		TargetID:  target.ID,
 		Position:  0,
@@ -931,6 +987,16 @@ func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create sensitive upstream header: %v", err)
 	}
+	otherHeader, err := database.CreatePublicRouteTargetUpstreamHeader(context.Background(), CreatePublicRouteTargetUpstreamHeaderParams{
+		TargetID:  otherTarget.ID,
+		Position:  0,
+		Name:      "X-Other",
+		Value:     "other",
+		Sensitive: 0,
+	})
+	if err != nil {
+		t.Fatalf("create other upstream header: %v", err)
+	}
 
 	byTarget, err := database.ListPublicRouteTargetUpstreamHeadersByTarget(context.Background(), target.ID)
 	if err != nil {
@@ -943,7 +1009,7 @@ func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list upstream headers: %v", err)
 	}
-	if len(all) != 2 || all[0].Name != "X-Upstream-One" || all[1].Sensitive != 1 {
+	if len(all) != 3 || all[0].Name != "X-Upstream-One" || all[1].Sensitive != 1 || all[2].ID != otherHeader.ID {
 		t.Fatalf("unexpected upstream headers: %+v", all)
 	}
 	if err := database.DeletePublicRouteTargetUpstreamHeaders(context.Background(), target.ID); err != nil {
@@ -955,6 +1021,13 @@ func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 	}
 	if len(empty) != 0 {
 		t.Fatalf("expected deleted upstream headers, got %+v", empty)
+	}
+	remaining, err := database.ListPublicRouteTargetUpstreamHeadersByTarget(context.Background(), otherTarget.ID)
+	if err != nil {
+		t.Fatalf("list other upstream headers: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0].ID != otherHeader.ID || remaining[0].Name != "X-Other" || remaining[0].Value != "other" {
+		t.Fatalf("other target upstream headers were not preserved: %+v", remaining)
 	}
 }
 

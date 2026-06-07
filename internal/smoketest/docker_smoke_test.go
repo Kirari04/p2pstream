@@ -191,12 +191,18 @@ func ensureDefaultListeners(
 	t.Helper()
 
 	httpListener := requireListener(t, cfg, "public-http")
-	if httpListener.GetPort() != 8080 || !httpListener.GetEnabled() {
+	if httpListener.GetPort() != 8080 ||
+		!httpListener.GetEnabled() ||
+		httpListener.GetProtocol() != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP ||
+		httpListener.GetBindAddress() != "" {
 		updateListener(ctx, t, client, cookie, httpListener.GetId(), "public-http", "", 8080, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true)
 	}
 
 	httpsListener := requireListener(t, cfg, "public-https")
-	if httpsListener.GetPort() != 443 || !httpsListener.GetEnabled() {
+	if httpsListener.GetPort() != 443 ||
+		!httpsListener.GetEnabled() ||
+		httpsListener.GetProtocol() != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS ||
+		httpsListener.GetBindAddress() != "" {
 		updateListener(ctx, t, client, cookie, httpsListener.GetId(), "public-https", "", 443, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS, true)
 	}
 }

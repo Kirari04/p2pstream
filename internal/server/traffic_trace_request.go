@@ -211,6 +211,9 @@ func redactSensitiveTraceURL(rawURL string) string {
 	if err != nil {
 		return rawURL
 	}
+	if parsed.User != nil {
+		parsed.User = url.User(trafficTraceRedactedValue)
+	}
 	parsed.RawQuery = redactSensitiveQuery(parsed.RawQuery)
 	return parsed.String()
 }
@@ -260,7 +263,7 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 		event.RouteTargetType = protoPublicRouteTargetTypeFromString(resolution.Target.TargetType)
 		event.RouteTargetTransport = protoPublicRouteTargetTransportFromString(resolution.Target.Transport)
 		if resolution.Target.URL != "" {
-			event.TargetOrigin = resolution.Target.URL
+			event.TargetOrigin = redactSensitiveTraceURL(resolution.Target.URL)
 		}
 	} else if resolution.RouteTargetID.Valid {
 		event.RouteTargetId = resolution.RouteTargetID.Int64

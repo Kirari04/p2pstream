@@ -1344,6 +1344,7 @@ func (m *publicRouteTargetHealthMonitor) agentPoolSnapshotLocked(state *publicRo
 		return &publicRouteTargetHealthSnapshot{Status: p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN}
 	}
 	now := time.Now()
+	enabledAssignments := 0
 	connectedCount := 0
 	unhealthyCount := 0
 	healthyCount := 0
@@ -1357,6 +1358,7 @@ func (m *publicRouteTargetHealthMonitor) agentPoolSnapshotLocked(state *publicRo
 		if !assignment.Enabled {
 			continue
 		}
+		enabledAssignments++
 		agentState := state.agentStates[assignment.AgentID]
 		publicID := ""
 		if agentState != nil {
@@ -1400,7 +1402,9 @@ func (m *publicRouteTargetHealthMonitor) agentPoolSnapshotLocked(state *publicRo
 
 	status := p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN
 	outputPassiveUntil := int64(0)
-	if healthyCount > 0 {
+	if connectedCount == 0 && enabledAssignments > 0 {
+		status = p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISCONNECTED
+	} else if healthyCount > 0 {
 		status = p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY
 	} else if connectedCount > 0 && unhealthyCount == connectedCount {
 		status = p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY

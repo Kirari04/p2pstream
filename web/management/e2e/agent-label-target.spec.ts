@@ -50,7 +50,9 @@ test("configures agent labels and an agent-selected route target", async ({ page
 
   await page.goto("/#/agent");
   await expect(page.getByRole("heading", { name: "Agents", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Edit agent" }).first().click();
+  const agentRow = page.getByRole("row").filter({ hasText: agentPublicID }).first();
+  await expect(agentRow).toBeVisible();
+  await agentRow.getByRole("button", { name: "Edit agent" }).click();
   await expect(page.getByRole("heading", { name: "Edit Agent" })).toBeVisible();
   await page.getByRole("button", { name: "Add Label" }).click();
   await page.getByTestId("agent-label-row").nth(0).getByTestId("agent-label-key").fill("site");

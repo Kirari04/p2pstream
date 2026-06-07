@@ -20,17 +20,19 @@ import {
 import {
   CACHE_KEY,
   TrafficRequestPathCache,
+  agentsMatchingTargetSelector,
   agentKey,
   targetKey,
   buildTrafficFlowRequestPath,
   createTrafficFlowConfigIndex,
+  listenerDefaultRouteKey,
   listenerKey,
   redirectKey,
   routeKey,
   requestUsesCacheNode,
   targetIndexForTraceRequest,
 } from "@/lib/trafficFlowLayout";
-import { DEFAULT_ROUTE_KEY, RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY } from "@/lib/trafficFlowLayout";
+import { RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY } from "@/lib/trafficFlowLayout";
 import { newTraceRequest } from "@/lib/trafficTraceStore";
 import type { TraceRequest } from "@/types/trafficTrace";
 
@@ -48,7 +50,7 @@ describe("trafficFlowLayout", () => {
     expect(buildTrafficFlowRequestPath(request, emptyIndex())).toEqual([
       "ingress",
       listenerKey(1n),
-      DEFAULT_ROUTE_KEY,
+      listenerDefaultRouteKey(1n),
       targetKey(2n),
       "upstream",
       "response",
@@ -124,7 +126,7 @@ describe("trafficFlowLayout", () => {
       listenerKey(1n),
       RATE_LIMIT_KEY,
       TRAFFIC_SHAPER_KEY,
-      DEFAULT_ROUTE_KEY,
+      listenerDefaultRouteKey(1n),
       targetKey(2n),
       "upstream",
       "response",
@@ -352,6 +354,37 @@ describe("trafficFlowLayout", () => {
     expect(index.hasEnabledRateLimitRules).toBe(true);
     expect(index.enabledTrafficShaperTargets[0]?.kind).toBe("traffic-shaper");
     expect(index.hasEnabledTrafficShaperRules).toBe(true);
+  });
+
+  test("default route path keys are listener scoped", () => {
+    const first = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ROUTE_RESOLVED,
+    });
+    const second = traceRequest({
+      listenerId: 2n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ROUTE_RESOLVED,
+    });
+
+    expect(buildTrafficFlowRequestPath(first, emptyIndex())).toContain(listenerDefaultRouteKey(1n));
+    expect(buildTrafficFlowRequestPath(second, emptyIndex())).toContain(listenerDefaultRouteKey(2n));
+    expect(listenerDefaultRouteKey(1n)).not.toBe(listenerDefaultRouteKey(2n));
+  });
+
+  test("agent selector matches enabled agents only", () => {
+    const target = routeTarget({
+      agentSelector: {
+        $typeName: "p2pstream.v1.PublicAgentSelector",
+        matchLabels: { site: "loopback" },
+      },
+    });
+    const enabled = agent({ id: 1n, enabled: true, labels: { site: "loopback" } });
+    const disabled = agent({ id: 2n, enabled: false, labels: { site: "loopback" } });
+    const other = agent({ id: 3n, enabled: true, labels: { site: "other" } });
+
+    expect(agentsMatchingTargetSelector(target, [enabled, disabled, other]).map((item) => item.id)).toEqual([1n]);
   });
 });
 

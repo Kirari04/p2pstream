@@ -22,7 +22,7 @@ Proxy request events include status code, duration, error kind, listener ID, rou
 
 Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 
-Traffic tracing levels (all levels record every matching request — no sampling occurs):
+Traffic tracing levels (tracing records every matching request; the Traffic Flow visualization may display a sampled subset of recorded paths so busy systems remain readable):
 
 | Level | Includes |
 | --- | --- |
@@ -52,7 +52,7 @@ Use Headers and Debug temporarily because they can expose operational details an
 
 <figure class="doc-screenshot">
   <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, target, cache, agent, upstream, and response">
-  <figcaption>Traffic Flow renders sampled request paths across listeners, policy checks, route and target selection, cache decisions, agents, upstreams, and responses.</figcaption>
+  <figcaption>Traffic Flow renders a sampled visualization of recorded request paths across listeners, policy checks, route and target selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
 The request details modal complements the flow diagram when one stage needs deeper inspection. Use it to check timing, selected rule and target IDs, cache status, response metadata, and the trace attributes available at the selected tracing level.

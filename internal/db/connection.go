@@ -2503,12 +2503,23 @@ func (db *DB) migrateDropLegacyPublicBackendConfig() error {
 		return nil
 	}
 
-	if _, err := db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
+	conn, err := db.Conn(context.Background())
+	if err != nil {
 		return err
 	}
-	defer db.Exec(`PRAGMA foreign_keys = ON`)
+	defer conn.Close()
 
-	tx, err := db.Begin()
+	if _, err := conn.ExecContext(context.Background(), `PRAGMA foreign_keys = OFF`); err != nil {
+		return err
+	}
+	foreignKeysOff := true
+	defer func() {
+		if foreignKeysOff {
+			_, _ = conn.ExecContext(context.Background(), `PRAGMA foreign_keys = ON`)
+		}
+	}()
+
+	tx, err := conn.BeginTx(context.Background(), nil)
 	if err != nil {
 		return err
 	}
@@ -2785,10 +2796,11 @@ func (db *DB) migrateDropLegacyPublicBackendConfig() error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
+	if _, err := conn.ExecContext(context.Background(), `PRAGMA foreign_keys = ON`); err != nil {
 		return err
 	}
-	rows, err := db.Query(`PRAGMA foreign_key_check`)
+	foreignKeysOff = false
+	rows, err := conn.QueryContext(context.Background(), `PRAGMA foreign_key_check`)
 	if err != nil {
 		return err
 	}

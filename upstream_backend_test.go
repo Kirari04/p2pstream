@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/server"
@@ -357,7 +358,7 @@ func TestAgentPublicRouteTargetAppliesUpstreamRequestConfig(t *testing.T) {
 		_ = runAgent(ctx, mgmtSrv.URL, agent.GetPublicId(), token)
 		close(agentDone)
 	}()
-	time.Sleep(250 * time.Millisecond)
+	waitForAgentConnectedInConfig(t, ctx, client, cookie, agent.GetPublicId(), agentDone)
 
 	listenerAddr := publicListenerBoundAddress(t, status, listener.ID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+listenerAddr+"/upstream", nil)
@@ -384,6 +385,44 @@ func TestAgentPublicRouteTargetAppliesUpstreamRequestConfig(t *testing.T) {
 
 	cancel()
 	<-agentDone
+}
+
+func waitForAgentConnectedInConfig(
+	t *testing.T,
+	ctx context.Context,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	publicID string,
+	agentDone <-chan struct{},
+) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+
+	for {
+		req := connect.NewRequest(&p2pstreamv1.GetPublicProxyConfigRequest{})
+		req.Header().Set("Cookie", cookie)
+		resp, err := client.GetPublicProxyConfig(ctx, req)
+		if err == nil {
+			for _, agent := range resp.Msg.GetAgents() {
+				if agent.GetPublicId() == publicID && agent.GetConnected() {
+					return
+				}
+			}
+		}
+
+		select {
+		case <-agentDone:
+			t.Fatalf("agent exited before reporting connected; last config error: %v", err)
+		case <-ctx.Done():
+			t.Fatalf("context ended before agent connected: %v", ctx.Err())
+		case <-timeout.C:
+			t.Fatalf("timed out waiting for agent %s to connect; last config error: %v", publicID, err)
+		case <-ticker.C:
+		}
+	}
 }
 
 func upstreamConfigEchoServer(t *testing.T, body string) *httptest.Server {

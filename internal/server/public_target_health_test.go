@@ -572,9 +572,13 @@ func TestAgentPassiveFailureIgnoredWhenHealthCheckDisabled(t *testing.T) {
 	if !app.TargetHealth.available(backend) {
 		t.Fatal("backend should remain available when health checks are disabled")
 	}
+	snapshot := app.TargetHealth.snapshot(publicRouteTargetHealthDBAdapter{id: backend.ID, enabled: true})
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN {
+		t.Fatalf("disabled health check aggregate status = %+v, want UNKNOWN", snapshot)
+	}
 }
 
-func TestAgentHealthCheckDisconnectedAgentIsUnknownNotUnhealthy(t *testing.T) {
+func TestAgentHealthCheckDisconnectedAgentIsDisconnectedNotUnhealthy(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthTarget(t, 40, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
 	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 99, Position: 0, Weight: 100, Enabled: true}}
@@ -584,8 +588,13 @@ func TestAgentHealthCheckDisconnectedAgentIsUnknownNotUnhealthy(t *testing.T) {
 	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
 	snapshot := app.TargetHealth.snapshot(publicRouteTargetHealthDBAdapter{id: backend.ID, enabled: true})
-	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN {
-		t.Fatalf("disconnected agent aggregate status = %+v, want UNKNOWN", snapshot)
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISCONNECTED || snapshot.PassiveUnhealthyUntilUnixMillis != 0 || snapshot.LastCheckedAtUnixMillis != 0 || snapshot.LastError != "" {
+		t.Fatalf("disconnected agent aggregate status = %+v, want DISCONNECTED without check metadata", snapshot)
+	}
+	target := db.PublicRouteTarget{ID: backend.ID, Enabled: 1, TargetType: publicRouteTargetTypeProxy, Transport: publicRouteTargetTransportAgent}
+	health := publicRouteTargetHealthToProto(target, app.TargetHealth)
+	if health.Connected || health.Available || health.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISCONNECTED {
+		t.Fatalf("proto health for disconnected agent target = %+v, want disconnected unavailable", health)
 	}
 	if app.TargetHealth.available(backend) {
 		t.Fatal("backend route eligibility should still require a connected agent")

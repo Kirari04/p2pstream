@@ -166,17 +166,21 @@ func TestPublicRouteRedirectResponses(t *testing.T) {
 			}
 
 			var routeID sql.NullInt64
+			var routeTargetID sql.NullInt64
 			var statusCode int64
 			if err := database.QueryRowContext(context.Background(), `
-				SELECT route_id, status_code
+				SELECT route_id, route_target_id, status_code
 				FROM proxy_request_events
 				ORDER BY id DESC
 				LIMIT 1
-			`).Scan(&routeID, &statusCode); err != nil {
+			`).Scan(&routeID, &routeTargetID, &statusCode); err != nil {
 				t.Fatalf("read proxy request event: %v", err)
 			}
 			if !routeID.Valid || routeID.Int64 != route.GetId() {
 				t.Fatalf("redirect event route_id = %+v, want %d", routeID, route.GetId())
+			}
+			if routeTargetID.Valid {
+				t.Fatalf("redirect event route_target_id = %+v, want NULL", routeTargetID)
 			}
 			if statusCode != int64(tt.wantCode) {
 				t.Fatalf("redirect event status = %d, want %d", statusCode, tt.wantCode)

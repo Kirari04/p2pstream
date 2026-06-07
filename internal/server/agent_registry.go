@@ -50,15 +50,25 @@ func (a *App) CreateAgent(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	agent, err := a.createAgentWithGeneratedPublicID(ctx, name, tokenHash, boolInt(req.Msg.Enabled))
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	defer tx.Rollback()
+
+	qtx := a.DB.WithTx(tx)
+	agent, err := a.createAgentWithGeneratedPublicIDTx(ctx, qtx, name, tokenHash, boolInt(req.Msg.Enabled))
 	if err != nil {
 		return nil, err
 	}
-	if err := a.ensureAgentSystemLabel(ctx, agent); err != nil {
+	if err := ensureAgentSystemLabelTx(ctx, qtx, agent); err != nil {
 		return nil, err
 	}
-	if err := a.replaceAgentUserLabels(ctx, agent.ID, labels); err != nil {
+	if err := replaceAgentUserLabelsTx(ctx, qtx, agent.ID, labels); err != nil {
 		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
@@ -93,7 +103,14 @@ func (a *App) UpdateAgent(
 			return nil, err
 		}
 	}
-	agent, err := a.DB.UpdateAgent(ctx, db.UpdateAgentParams{
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	defer tx.Rollback()
+
+	qtx := a.DB.WithTx(tx)
+	agent, err := qtx.UpdateAgent(ctx, db.UpdateAgentParams{
 		ID:      req.Msg.Id,
 		Name:    name,
 		Enabled: boolInt(req.Msg.Enabled),
@@ -101,11 +118,14 @@ func (a *App) UpdateAgent(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if err := a.ensureAgentSystemLabel(ctx, existing); err != nil {
+	if err := ensureAgentSystemLabelTx(ctx, qtx, existing); err != nil {
 		return nil, err
 	}
-	if err := a.replaceAgentUserLabels(ctx, agent.ID, labels); err != nil {
+	if err := replaceAgentUserLabelsTx(ctx, qtx, agent.ID, labels); err != nil {
 		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, publicDBError(err)
 	}
 	if a.AgentTransports != nil {
 		a.AgentTransports.closeAgent(req.Msg.Id)
@@ -238,6 +258,10 @@ func (a *App) ensureAgentCanBeDisabled(ctx context.Context, agentID int64) error
 }
 
 func (a *App) createAgentWithGeneratedPublicID(ctx context.Context, name string, tokenHash string, enabled int64) (db.Agent, error) {
+	return a.createAgentWithGeneratedPublicIDTx(ctx, a.DB.Queries, name, tokenHash, enabled)
+}
+
+func (a *App) createAgentWithGeneratedPublicIDTx(ctx context.Context, q *db.Queries, name string, tokenHash string, enabled int64) (db.Agent, error) {
 	for attempt := 0; attempt < agentPublicIDMaxAttempts; attempt++ {
 		publicID, err := newAgentPublicID()
 		if err != nil {
@@ -246,7 +270,7 @@ func (a *App) createAgentWithGeneratedPublicID(ctx context.Context, name string,
 		if _, err := validateGeneratedAgentPublicID(publicID); err != nil {
 			return db.Agent{}, connect.NewError(connect.CodeInternal, errors.New("generated invalid agent id"))
 		}
-		agent, err := a.DB.CreateAgent(ctx, db.CreateAgentParams{
+		agent, err := q.CreateAgent(ctx, db.CreateAgentParams{
 			PublicID:  publicID,
 			Name:      name,
 			TokenHash: tokenHash,
@@ -344,7 +368,11 @@ func validateAgentLabel(key string, value string) (string, string, error) {
 }
 
 func (a *App) ensureAgentSystemLabel(ctx context.Context, agent db.Agent) error {
-	if _, err := a.DB.UpsertAgentLabel(ctx, db.UpsertAgentLabelParams{
+	return ensureAgentSystemLabelTx(ctx, a.DB.Queries, agent)
+}
+
+func ensureAgentSystemLabelTx(ctx context.Context, q *db.Queries, agent db.Agent) error {
+	if _, err := q.UpsertAgentLabel(ctx, db.UpsertAgentLabelParams{
 		AgentID: agent.ID,
 		Key:     agentIDSystemLabelKey,
 		Value:   agent.PublicID,
@@ -356,11 +384,15 @@ func (a *App) ensureAgentSystemLabel(ctx context.Context, agent db.Agent) error 
 }
 
 func (a *App) replaceAgentUserLabels(ctx context.Context, agentID int64, labels map[string]string) error {
-	if err := a.DB.DeleteUserAgentLabelsByAgent(ctx, agentID); err != nil {
+	return replaceAgentUserLabelsTx(ctx, a.DB.Queries, agentID, labels)
+}
+
+func replaceAgentUserLabelsTx(ctx context.Context, q *db.Queries, agentID int64, labels map[string]string) error {
+	if err := q.DeleteUserAgentLabelsByAgent(ctx, agentID); err != nil {
 		return publicDBError(err)
 	}
 	for key, value := range labels {
-		if _, err := a.DB.UpsertAgentLabel(ctx, db.UpsertAgentLabelParams{
+		if _, err := q.UpsertAgentLabel(ctx, db.UpsertAgentLabelParams{
 			AgentID: agentID,
 			Key:     key,
 			Value:   value,

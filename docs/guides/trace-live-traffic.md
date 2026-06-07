@@ -21,7 +21,7 @@ Use tracing while diagnosing why a request did not match a route, hit a target, 
    | Level | Use |
    | --- | --- |
    | Basic | Confirm requests are received and completed. |
-| Detailed | Diagnose route, target, cache, and agent selection. |
+   | Detailed | Diagnose route, target, cache, and agent selection. |
    | Headers | Inspect selected request/response headers. |
    | Debug | Temporary deep troubleshooting. |
 

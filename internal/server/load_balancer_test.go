@@ -209,6 +209,47 @@ func TestRouteAndAgentLoadBalancerStateIsolation(t *testing.T) {
 	}
 }
 
+func TestLoadBalancerReconcilePrunesStaleState(t *testing.T) {
+	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
+	registry.states[1] = &backendSelectorState{smooth: map[int64]int64{10: 1}}
+	registry.states[99] = &backendSelectorState{smooth: map[int64]int64{90: 1}}
+	registry.targetAgentStates[1] = &backendSelectorState{smooth: map[int64]int64{10: 1}}
+	registry.targetAgentStates[99] = &backendSelectorState{smooth: map[int64]int64{90: 1}}
+	registry.routeStates[2] = &backendSelectorState{smooth: map[int64]int64{20: 1}}
+	registry.routeStates[88] = &backendSelectorState{smooth: map[int64]int64{80: 1}}
+
+	registry.reconcile(&publicProxySnapshot{
+		RouteTargets: map[int64]publicRouteTargetConfig{1: {ID: 1}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {{ID: 2}},
+		},
+	})
+
+	if _, ok := registry.states[1]; !ok {
+		t.Fatal("current target state was pruned")
+	}
+	if _, ok := registry.states[99]; ok {
+		t.Fatal("stale target state was not pruned")
+	}
+	if _, ok := registry.targetAgentStates[1]; !ok {
+		t.Fatal("current target-agent state was pruned")
+	}
+	if _, ok := registry.targetAgentStates[99]; ok {
+		t.Fatal("stale target-agent state was not pruned")
+	}
+	if _, ok := registry.routeStates[2]; !ok {
+		t.Fatal("current route state was pruned")
+	}
+	if _, ok := registry.routeStates[88]; ok {
+		t.Fatal("stale route state was not pruned")
+	}
+
+	registry.reconcile(nil)
+	if len(registry.states) != 0 || len(registry.targetAgentStates) != 0 || len(registry.routeStates) != 0 {
+		t.Fatalf("nil snapshot did not clear all state maps: states=%d targetAgentStates=%d routeStates=%d", len(registry.states), len(registry.targetAgentStates), len(registry.routeStates))
+	}
+}
+
 func testCandidates(ids ...int64) []backendAgentCandidate {
 	resp := make([]backendAgentCandidate, 0, len(ids))
 	for idx, id := range ids {
