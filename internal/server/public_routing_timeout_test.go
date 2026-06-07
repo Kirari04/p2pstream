@@ -118,10 +118,10 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 		t.Fatal("timed out waiting for cancelled proxy request")
 	}
 
-	if !app.BackendHealth.agentAvailable(target.ID, agent.AgentID) {
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("client cancellation should not make the agent unavailable")
 	}
-	traces, _ := app.BackendHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
 	if len(traces) != 0 {
 		t.Fatalf("unexpected health traces after client cancellation: %+v", traces)
 	}
@@ -170,7 +170,7 @@ func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
 		t.Fatal("timed out waiting for cancelled upload proxy request")
 	}
 	waitForAgentActiveRequests(t, agent, 0)
-	if !app.BackendHealth.agentAvailable(target.ID, agent.AgentID) {
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("client upload cancellation should not make the agent unavailable")
 	}
 }
@@ -228,10 +228,10 @@ func TestAgentProxyResponseTimeoutMarksPassiveFailure(t *testing.T) {
 	if rec.Code != http.StatusGatewayTimeout {
 		t.Fatalf("timeout status = %d body=%q, want 504", rec.Code, rec.Body.String())
 	}
-	if app.BackendHealth.agentAvailable(target.ID, agent.AgentID) {
+	if app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("agent timeout should make the agent unavailable during passive cooldown")
 	}
-	traces, _ := app.BackendHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
 	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" {
 		t.Fatalf("latest trace = %+v, want passive_failure", traces)
 	}
@@ -253,10 +253,10 @@ func TestAgentProxyClosedSessionMarksPassiveFailure(t *testing.T) {
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("disconnect status = %d body=%q, want 502", rec.Code, rec.Body.String())
 	}
-	if app.BackendHealth.agentAvailable(target.ID, agent.AgentID) {
+	if app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("agent disconnect should make the agent unavailable during passive cooldown")
 	}
-	traces, _ := app.BackendHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
 	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" || !strings.Contains(traces[0].Error, errAgentDisconnected.Error()) {
 		t.Fatalf("latest trace = %+v, want passive agent_disconnected failure", traces)
 	}
@@ -324,11 +324,11 @@ func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string,
 		Enabled:                       true,
 		TargetType:                    publicRouteTargetTypeProxy,
 		Transport:                     publicRouteTargetTransportAgent,
-		AgentLoadBalancing:            publicBackendLoadBalancingRoundRobin,
+		AgentLoadBalancing:            publicRouteTargetLoadBalancingRoundRobin,
 		AgentSelector:                 publicAgentSelectorConfig{MatchLabels: map[string]string{agentIDSystemLabelKey: agent.PublicID}},
 		ParsedURL:                     origin,
 		UpstreamResponseHeaderTimeout: responseHeaderTimeout,
-		HealthCheck: publicBackendHealthCheckConfig{
+		HealthCheck: publicRouteTargetHealthCheckConfig{
 			Enabled:            true,
 			Method:             http.MethodGet,
 			Path:               "/",
@@ -346,7 +346,7 @@ func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string,
 	app.proxyMu.Lock()
 	app.publicSnapshot = snap
 	app.proxyMu.Unlock()
-	app.BackendHealth.reconcile(app, snap, false)
+	app.TargetHealth.reconcile(app, snap, false)
 	return app, target, agent, fake
 }
 

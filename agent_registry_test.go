@@ -173,7 +173,7 @@ func TestAgentSelectorRouteTargetAPIValidationAndReadback(t *testing.T) {
 		Priority:            20,
 		PathPrefix:          "/api-agent-target",
 		Enabled:             true,
-		TargetLoadBalancing: p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN,
+		TargetLoadBalancing: p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN,
 		Targets: []*p2pstreamv1.PublicRouteTarget{{
 			Name:       "api-agent-target",
 			TargetType: p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_PROXY,
@@ -183,7 +183,7 @@ func TestAgentSelectorRouteTargetAPIValidationAndReadback(t *testing.T) {
 				"region": "api",
 				"role":   "edge",
 			}},
-			AgentLoadBalancing: p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN,
+			AgentLoadBalancing: p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN,
 			Weight:             7,
 			Enabled:            true,
 		}},
@@ -194,7 +194,7 @@ func TestAgentSelectorRouteTargetAPIValidationAndReadback(t *testing.T) {
 		t.Fatalf("create agent target route: %v", err)
 	}
 	created := createResp.Msg.GetRoute()
-	if created.GetTargetLoadBalancing() != p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN ||
+	if created.GetTargetLoadBalancing() != p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN ||
 		len(created.GetTargets()) != 1 ||
 		created.GetTargets()[0].GetWeight() != 7 ||
 		created.GetTargets()[0].GetTransport() != p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT {

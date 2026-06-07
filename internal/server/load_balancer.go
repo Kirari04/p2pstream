@@ -99,22 +99,22 @@ func (r *loadBalancerRegistry) selectTargetAgent(target publicRouteTargetConfig,
 	}
 
 	switch target.AgentLoadBalancing {
-	case publicBackendLoadBalancingRandom:
+	case publicRouteTargetLoadBalancingRandom:
 		return candidates[r.rng.Intn(len(candidates))].Conn
-	case publicBackendLoadBalancingWeightedRandom:
+	case publicRouteTargetLoadBalancingWeightedRandom:
 		return weightedRandom(candidates, r.rng).Conn
-	case publicBackendLoadBalancingLeastActiveRequests:
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
 		return state.leastActive(candidates, false).Conn
-	case publicBackendLoadBalancingWeightedLeastActiveRequests:
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
 		return state.leastActive(candidates, true).Conn
-	case publicBackendLoadBalancingWeightedRoundRobin:
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
 		return state.weightedRoundRobin(candidates).Conn
 	default:
 		return state.roundRobinPick(candidates).Conn
 	}
 }
 
-func (r *loadBalancerRegistry) selectAgent(backend publicBackendConfig, candidates []backendAgentCandidate) *AgentConn {
+func (r *loadBalancerRegistry) selectAgent(backend publicRouteTargetHealthConfig, candidates []backendAgentCandidate) *AgentConn {
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -134,15 +134,15 @@ func (r *loadBalancerRegistry) selectAgent(backend publicBackendConfig, candidat
 	}
 
 	switch backend.LoadBalancing {
-	case publicBackendLoadBalancingRandom:
+	case publicRouteTargetLoadBalancingRandom:
 		return candidates[r.rng.Intn(len(candidates))].Conn
-	case publicBackendLoadBalancingWeightedRandom:
+	case publicRouteTargetLoadBalancingWeightedRandom:
 		return weightedRandom(candidates, r.rng).Conn
-	case publicBackendLoadBalancingLeastActiveRequests:
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
 		return state.leastActive(candidates, false).Conn
-	case publicBackendLoadBalancingWeightedLeastActiveRequests:
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
 		return state.leastActive(candidates, true).Conn
-	case publicBackendLoadBalancingWeightedRoundRobin:
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
 		return state.weightedRoundRobin(candidates).Conn
 	default:
 		return state.roundRobinPick(candidates).Conn
@@ -169,15 +169,15 @@ func (r *loadBalancerRegistry) selectRouteTarget(route publicRouteConfig, candid
 	}
 
 	switch route.TargetLoadBalancing {
-	case publicBackendLoadBalancingRandom:
+	case publicRouteTargetLoadBalancingRandom:
 		return candidates[r.rng.Intn(len(candidates))], true
-	case publicBackendLoadBalancingWeightedRandom:
+	case publicRouteTargetLoadBalancingWeightedRandom:
 		return weightedRandomTarget(candidates, r.rng), true
-	case publicBackendLoadBalancingLeastActiveRequests:
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
 		return state.leastActiveTarget(candidates, false), true
-	case publicBackendLoadBalancingWeightedLeastActiveRequests:
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
 		return state.leastActiveTarget(candidates, true), true
-	case publicBackendLoadBalancingWeightedRoundRobin:
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
 		return state.weightedTargetRoundRobin(candidates), true
 	default:
 		return state.roundRobinTargetPick(candidates), true

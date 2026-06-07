@@ -126,14 +126,13 @@ func (q *Queries) BackfillProxyRequestRollupMinutesRange(ctx context.Context, ar
 
 const backfillProxyRequestTupleRollupMinutesRange = `-- name: BackfillProxyRequestTupleRollupMinutesRange :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 )
 SELECT
     CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
     CAST(COALESCE(listener_id, 0) AS INTEGER) AS listener_id,
-    CAST(COALESCE(backend_id, 0) AS INTEGER) AS backend_id,
     CAST(COALESCE(route_target_id, 0) AS INTEGER) AS route_target_id,
     CAST(COALESCE(route_id, 0) AS INTEGER) AS route_id,
     CAST(COALESCE(agent_id, 0) AS INTEGER) AS agent_id,
@@ -150,8 +149,8 @@ SELECT
 FROM proxy_request_events
 WHERE id > ?1
   AND id <= ?2
-GROUP BY bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+GROUP BY bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class
+ON CONFLICT(bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -1147,7 +1146,7 @@ INSERT INTO public_waf_rules (
     trigger_minimum_request_rate,
     trigger_traffic_spike_multiplier,
     trigger_proxy_active_requests,
-    trigger_backend_active_requests,
+    trigger_route_target_active_requests,
     trigger_agent_active_requests,
     trigger_server_cpu_percent,
     trigger_agent_cpu_percent,
@@ -1168,7 +1167,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
           waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at
@@ -1195,7 +1194,7 @@ type CreatePublicWafRuleParams struct {
 	TriggerMinimumRequestRate            int64         `json:"trigger_minimum_request_rate"`
 	TriggerTrafficSpikeMultiplier        float64       `json:"trigger_traffic_spike_multiplier"`
 	TriggerProxyActiveRequests           int64         `json:"trigger_proxy_active_requests"`
-	TriggerBackendActiveRequests         int64         `json:"trigger_backend_active_requests"`
+	TriggerRouteTargetActiveRequests     int64         `json:"trigger_route_target_active_requests"`
 	TriggerAgentActiveRequests           int64         `json:"trigger_agent_active_requests"`
 	TriggerServerCpuPercent              float64       `json:"trigger_server_cpu_percent"`
 	TriggerAgentCpuPercent               float64       `json:"trigger_agent_cpu_percent"`
@@ -1233,7 +1232,7 @@ func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRu
 		arg.TriggerMinimumRequestRate,
 		arg.TriggerTrafficSpikeMultiplier,
 		arg.TriggerProxyActiveRequests,
-		arg.TriggerBackendActiveRequests,
+		arg.TriggerRouteTargetActiveRequests,
 		arg.TriggerAgentActiveRequests,
 		arg.TriggerServerCpuPercent,
 		arg.TriggerAgentCpuPercent,
@@ -1271,7 +1270,7 @@ func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRu
 		&i.TriggerMinimumRequestRate,
 		&i.TriggerTrafficSpikeMultiplier,
 		&i.TriggerProxyActiveRequests,
-		&i.TriggerBackendActiveRequests,
+		&i.TriggerRouteTargetActiveRequests,
 		&i.TriggerAgentActiveRequests,
 		&i.TriggerServerCpuPercent,
 		&i.TriggerAgentCpuPercent,
@@ -2677,7 +2676,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
        waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
@@ -2710,7 +2709,7 @@ func (q *Queries) GetPublicWafRule(ctx context.Context, id int64) (PublicWafRule
 		&i.TriggerMinimumRequestRate,
 		&i.TriggerTrafficSpikeMultiplier,
 		&i.TriggerProxyActiveRequests,
-		&i.TriggerBackendActiveRequests,
+		&i.TriggerRouteTargetActiveRequests,
 		&i.TriggerAgentActiveRequests,
 		&i.TriggerServerCpuPercent,
 		&i.TriggerAgentCpuPercent,
@@ -2884,9 +2883,9 @@ func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -2895,7 +2894,6 @@ type InsertProxyRequestEventParams struct {
 	DurationMs    int64         `json:"duration_ms"`
 	ErrorKind     string        `json:"error_kind"`
 	ListenerID    sql.NullInt64 `json:"listener_id"`
-	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
 	RouteTargetID sql.NullInt64 `json:"route_target_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
@@ -2914,7 +2912,6 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.DurationMs,
 		arg.ErrorKind,
 		arg.ListenerID,
-		arg.BackendID,
 		arg.RouteID,
 		arg.RouteTargetID,
 		arg.WafRuleID,
@@ -2931,9 +2928,9 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 
 const insertProxyRequestEventAt = `-- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id
 `
@@ -2944,7 +2941,6 @@ type InsertProxyRequestEventAtParams struct {
 	DurationMs    int64         `json:"duration_ms"`
 	ErrorKind     string        `json:"error_kind"`
 	ListenerID    sql.NullInt64 `json:"listener_id"`
-	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
 	RouteTargetID sql.NullInt64 `json:"route_target_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
@@ -2964,7 +2960,6 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 		arg.DurationMs,
 		arg.ErrorKind,
 		arg.ListenerID,
-		arg.BackendID,
 		arg.RouteID,
 		arg.RouteTargetID,
 		arg.WafRuleID,
@@ -3411,7 +3406,6 @@ const listProxyRequestTupleRollupMinutesSince = `-- name: ListProxyRequestTupleR
 SELECT
     bucket_unix_millis,
     listener_id,
-    backend_id,
     route_id,
     route_target_id,
     agent_id,
@@ -3433,7 +3427,6 @@ ORDER BY bucket_unix_millis ASC
 type ListProxyRequestTupleRollupMinutesSinceRow struct {
 	BucketUnixMillis int64  `json:"bucket_unix_millis"`
 	ListenerID       int64  `json:"listener_id"`
-	BackendID        int64  `json:"backend_id"`
 	RouteID          int64  `json:"route_id"`
 	RouteTargetID    int64  `json:"route_target_id"`
 	AgentID          int64  `json:"agent_id"`
@@ -3461,7 +3454,6 @@ func (q *Queries) ListProxyRequestTupleRollupMinutesSince(ctx context.Context, b
 		if err := rows.Scan(
 			&i.BucketUnixMillis,
 			&i.ListenerID,
-			&i.BackendID,
 			&i.RouteID,
 			&i.RouteTargetID,
 			&i.AgentID,
@@ -4557,7 +4549,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
        waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
@@ -4596,7 +4588,7 @@ func (q *Queries) ListPublicWafRules(ctx context.Context) ([]PublicWafRule, erro
 			&i.TriggerMinimumRequestRate,
 			&i.TriggerTrafficSpikeMultiplier,
 			&i.TriggerProxyActiveRequests,
-			&i.TriggerBackendActiveRequests,
+			&i.TriggerRouteTargetActiveRequests,
 			&i.TriggerAgentActiveRequests,
 			&i.TriggerServerCpuPercent,
 			&i.TriggerAgentCpuPercent,
@@ -6840,7 +6832,7 @@ SET name = ?,
     trigger_minimum_request_rate = ?,
     trigger_traffic_spike_multiplier = ?,
     trigger_proxy_active_requests = ?,
-    trigger_backend_active_requests = ?,
+    trigger_route_target_active_requests = ?,
     trigger_agent_active_requests = ?,
     trigger_server_cpu_percent = ?,
     trigger_agent_cpu_percent = ?,
@@ -6860,7 +6852,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
           waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at
@@ -6887,7 +6879,7 @@ type UpdatePublicWafRuleParams struct {
 	TriggerMinimumRequestRate            int64         `json:"trigger_minimum_request_rate"`
 	TriggerTrafficSpikeMultiplier        float64       `json:"trigger_traffic_spike_multiplier"`
 	TriggerProxyActiveRequests           int64         `json:"trigger_proxy_active_requests"`
-	TriggerBackendActiveRequests         int64         `json:"trigger_backend_active_requests"`
+	TriggerRouteTargetActiveRequests     int64         `json:"trigger_route_target_active_requests"`
 	TriggerAgentActiveRequests           int64         `json:"trigger_agent_active_requests"`
 	TriggerServerCpuPercent              float64       `json:"trigger_server_cpu_percent"`
 	TriggerAgentCpuPercent               float64       `json:"trigger_agent_cpu_percent"`
@@ -6926,7 +6918,7 @@ func (q *Queries) UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRu
 		arg.TriggerMinimumRequestRate,
 		arg.TriggerTrafficSpikeMultiplier,
 		arg.TriggerProxyActiveRequests,
-		arg.TriggerBackendActiveRequests,
+		arg.TriggerRouteTargetActiveRequests,
 		arg.TriggerAgentActiveRequests,
 		arg.TriggerServerCpuPercent,
 		arg.TriggerAgentCpuPercent,
@@ -6965,7 +6957,7 @@ func (q *Queries) UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRu
 		&i.TriggerMinimumRequestRate,
 		&i.TriggerTrafficSpikeMultiplier,
 		&i.TriggerProxyActiveRequests,
-		&i.TriggerBackendActiveRequests,
+		&i.TriggerRouteTargetActiveRequests,
 		&i.TriggerAgentActiveRequests,
 		&i.TriggerServerCpuPercent,
 		&i.TriggerAgentCpuPercent,
@@ -7221,13 +7213,13 @@ func (q *Queries) UpsertProxyRequestRollupMinute(ctx context.Context, arg Upsert
 
 const upsertProxyRequestTupleRollupMinute = `-- name: UpsertProxyRequestTupleRollupMinute :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+ON CONFLICT(bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -7242,7 +7234,6 @@ ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_
 type UpsertProxyRequestTupleRollupMinuteParams struct {
 	BucketUnixMillis int64  `json:"bucket_unix_millis"`
 	ListenerID       int64  `json:"listener_id"`
-	BackendID        int64  `json:"backend_id"`
 	RouteTargetID    int64  `json:"route_target_id"`
 	RouteID          int64  `json:"route_id"`
 	AgentID          int64  `json:"agent_id"`
@@ -7262,7 +7253,6 @@ func (q *Queries) UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg U
 	_, err := q.db.ExecContext(ctx, upsertProxyRequestTupleRollupMinute,
 		arg.BucketUnixMillis,
 		arg.ListenerID,
-		arg.BackendID,
 		arg.RouteTargetID,
 		arg.RouteID,
 		arg.AgentID,

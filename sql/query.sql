@@ -46,16 +46,16 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id;
 
@@ -90,13 +90,13 @@ ON CONFLICT(bucket_unix_millis) DO UPDATE SET
 
 -- name: UpsertProxyRequestTupleRollupMinute :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+ON CONFLICT(bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -521,7 +521,6 @@ ORDER BY bucket_unix_millis ASC;
 SELECT
     bucket_unix_millis,
     listener_id,
-    backend_id,
     route_id,
     route_target_id,
     agent_id,
@@ -836,14 +835,13 @@ ON CONFLICT(bucket_unix_millis) DO UPDATE SET
 
 -- name: BackfillProxyRequestTupleRollupMinutesRange :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 )
 SELECT
     CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
     CAST(COALESCE(listener_id, 0) AS INTEGER) AS listener_id,
-    CAST(COALESCE(backend_id, 0) AS INTEGER) AS backend_id,
     CAST(COALESCE(route_target_id, 0) AS INTEGER) AS route_target_id,
     CAST(COALESCE(route_id, 0) AS INTEGER) AS route_id,
     CAST(COALESCE(agent_id, 0) AS INTEGER) AS agent_id,
@@ -860,8 +858,8 @@ SELECT
 FROM proxy_request_events
 WHERE id > sqlc.arg(from_id)
   AND id <= sqlc.arg(through_id)
-GROUP BY bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+GROUP BY bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class
+ON CONFLICT(bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -1640,7 +1638,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
        waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
@@ -1652,7 +1650,7 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
        waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
        trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-       trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+       trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
        block_response_content_type, block_response_headers_json, created_at, updated_at
@@ -1681,7 +1679,7 @@ INSERT INTO public_waf_rules (
     trigger_minimum_request_rate,
     trigger_traffic_spike_multiplier,
     trigger_proxy_active_requests,
-    trigger_backend_active_requests,
+    trigger_route_target_active_requests,
     trigger_agent_active_requests,
     trigger_server_cpu_percent,
     trigger_agent_cpu_percent,
@@ -1702,7 +1700,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
           waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at;
@@ -1729,7 +1727,7 @@ SET name = ?,
     trigger_minimum_request_rate = ?,
     trigger_traffic_spike_multiplier = ?,
     trigger_proxy_active_requests = ?,
-    trigger_backend_active_requests = ?,
+    trigger_route_target_active_requests = ?,
     trigger_agent_active_requests = ?,
     trigger_server_cpu_percent = ?,
     trigger_agent_cpu_percent = ?,
@@ -1749,7 +1747,7 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
           waiting_room_queue_poll_interval_millis, waiting_room_queue_timeout_millis, waiting_room_page_title, waiting_room_page_body,
           trigger_request_window_millis, trigger_minimum_request_rate, trigger_traffic_spike_multiplier, trigger_proxy_active_requests,
-          trigger_backend_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
+          trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
           block_response_content_type, block_response_headers_json, created_at, updated_at;

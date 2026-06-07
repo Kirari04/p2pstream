@@ -1,12 +1,10 @@
 import {
   ProxyState,
   PublicAcmeChallengeType,
-  PublicBackendForwardMode,
-  PublicBackendHealthTraceOutcome,
-  PublicBackendHealthTraceSource,
-  PublicBackendHealthStatus,
-  PublicBackendLoadBalancing,
-  PublicBackendType,
+  PublicRouteTargetHealthTraceOutcome,
+  PublicRouteTargetHealthTraceSource,
+  PublicRouteTargetHealthStatus,
+  PublicRouteTargetLoadBalancing,
   PublicCacheQueryMode,
   PublicCacheScope,
   PublicCacheTtlMode,
@@ -27,7 +25,7 @@ import {
   PublicWafCaptchaProviderType,
   PublicWafRuleAction,
   type Agent,
-  type PublicBackendHealthTrace,
+  type PublicRouteTargetHealthTrace,
   type PublicCacheRule,
   type PublicListener,
   type PublicListenerStatus,
@@ -90,19 +88,11 @@ export function protocolLabel(protocol: PublicListenerProtocol): string {
   return protocol === PublicListenerProtocol.HTTPS ? "HTTPS" : "HTTP";
 }
 
-export function backendTypeLabel(type: PublicBackendType): string {
-  return type === PublicBackendType.STATIC ? "Static" : "Proxy forward";
-}
-
-export function forwardModeLabel(mode: PublicBackendForwardMode): string {
-  return mode === PublicBackendForwardMode.AGENT_POOL ? "Agents" : "Direct";
-}
-
 export function routeAction(route: PublicRoute): PublicRouteAction {
   return route.action === PublicRouteAction.REDIRECT ? PublicRouteAction.REDIRECT : PublicRouteAction.FORWARD;
 }
 
-export function routeAssignments(route: PublicRoute, _routeBackends: readonly unknown[] = []): PublicRouteTarget[] {
+export function routeAssignments(route: PublicRoute, _legacyAssignments: readonly unknown[] = []): PublicRouteTarget[] {
   return [...route.targets].sort((a, b) => {
     if (a.priorityGroup !== b.priorityGroup) return a.priorityGroup < b.priorityGroup ? -1 : 1;
     if (a.position !== b.position) return a.position < b.position ? -1 : 1;
@@ -111,19 +101,19 @@ export function routeAssignments(route: PublicRoute, _routeBackends: readonly un
   });
 }
 
-export function routeDestinationLabel(route: PublicRoute, _backends: readonly unknown[] = [], routeBackends: readonly unknown[] = []): string {
-  if (routeAction(route) === PublicRouteAction.REDIRECT) {
-    return `Redirect ${route.redirectStatusCode || 302}`;
-  }
-  const assignments = routeAssignments(route, routeBackends);
-  if (assignments.length > 1) return `${assignments.length.toString()} targets`;
-  return routeTargetName(assignments[0]);
+export function routeDestinationLabel(route: PublicRoute, _legacyTargets: readonly unknown[] = [], routeTargets: readonly unknown[] = []): string {
+	if (routeAction(route) === PublicRouteAction.REDIRECT) {
+		return `Redirect ${route.redirectStatusCode || 302}`;
+	}
+	const assignments = routeAssignments(route, routeTargets);
+	if (assignments.length > 1) return `${assignments.length.toString()} targets`;
+	return routeTargetName(assignments[0]);
 }
 
-export function routeTargetSummary(route: PublicRoute, _backends: readonly unknown[] = [], routeBackends: readonly unknown[] = []): string {
-  if (routeAction(route) !== PublicRouteAction.REDIRECT) {
-    const assignments = routeAssignments(route, routeBackends);
-    const names = assignments.map(routeTargetName).join(", ");
+export function routeTargetSummary(route: PublicRoute, _legacyTargets: readonly unknown[] = [], routeTargets: readonly unknown[] = []): string {
+	if (routeAction(route) !== PublicRouteAction.REDIRECT) {
+		const assignments = routeAssignments(route, routeTargets);
+		const names = assignments.map(routeTargetName).join(", ");
     return `${loadBalancingLabel(route.targetLoadBalancing)} / ${names || "No targets"}`;
   }
   const target = route.redirectTarget || redirectModeLabel(route.redirectTargetMode);
@@ -156,58 +146,58 @@ export function redirectModeLabel(mode: PublicRouteRedirectTargetMode): string {
   }
 }
 
-export function loadBalancingLabel(algorithm: PublicBackendLoadBalancing): string {
+export function loadBalancingLabel(algorithm: PublicRouteTargetLoadBalancing): string {
   switch (algorithm) {
-    case PublicBackendLoadBalancing.WEIGHTED_ROUND_ROBIN: return "Weighted round-robin";
-    case PublicBackendLoadBalancing.RANDOM: return "Random";
-    case PublicBackendLoadBalancing.WEIGHTED_RANDOM: return "Weighted random";
-    case PublicBackendLoadBalancing.LEAST_ACTIVE_REQUESTS: return "Least active";
-    case PublicBackendLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS: return "Weighted least active";
+    case PublicRouteTargetLoadBalancing.WEIGHTED_ROUND_ROBIN: return "Weighted round-robin";
+    case PublicRouteTargetLoadBalancing.RANDOM: return "Random";
+    case PublicRouteTargetLoadBalancing.WEIGHTED_RANDOM: return "Weighted random";
+    case PublicRouteTargetLoadBalancing.LEAST_ACTIVE_REQUESTS: return "Least active";
+    case PublicRouteTargetLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS: return "Weighted least active";
     default: return "Round-robin";
   }
 }
 
-export function healthTraceOutcomeLabel(outcome: PublicBackendHealthTraceOutcome): string {
+export function healthTraceOutcomeLabel(outcome: PublicRouteTargetHealthTraceOutcome): string {
   switch (outcome) {
-    case PublicBackendHealthTraceOutcome.SUCCESS:
+    case PublicRouteTargetHealthTraceOutcome.SUCCESS:
       return "Success";
-    case PublicBackendHealthTraceOutcome.FAILURE:
+    case PublicRouteTargetHealthTraceOutcome.FAILURE:
       return "Failed";
-    case PublicBackendHealthTraceOutcome.SKIPPED:
+    case PublicRouteTargetHealthTraceOutcome.SKIPPED:
       return "Skipped";
     default:
       return "Unknown";
   }
 }
 
-export function healthTraceOutcomeSeverity(outcome: PublicBackendHealthTraceOutcome): "success" | "warn" | "danger" | "info" {
+export function healthTraceOutcomeSeverity(outcome: PublicRouteTargetHealthTraceOutcome): "success" | "warn" | "danger" | "info" {
   switch (outcome) {
-    case PublicBackendHealthTraceOutcome.SUCCESS:
+    case PublicRouteTargetHealthTraceOutcome.SUCCESS:
       return "success";
-    case PublicBackendHealthTraceOutcome.FAILURE:
+    case PublicRouteTargetHealthTraceOutcome.FAILURE:
       return "danger";
-    case PublicBackendHealthTraceOutcome.SKIPPED:
+    case PublicRouteTargetHealthTraceOutcome.SKIPPED:
       return "warn";
     default:
       return "info";
   }
 }
 
-export function healthTraceSourceLabel(source: PublicBackendHealthTraceSource): string {
+export function healthTraceSourceLabel(source: PublicRouteTargetHealthTraceSource): string {
   switch (source) {
-    case PublicBackendHealthTraceSource.ACTIVE_CHECK:
+    case PublicRouteTargetHealthTraceSource.ACTIVE_CHECK:
       return "Active check";
-    case PublicBackendHealthTraceSource.PASSIVE_FAILURE:
+    case PublicRouteTargetHealthTraceSource.PASSIVE_FAILURE:
       return "Passive failure";
-    case PublicBackendHealthTraceSource.AGENT_CONNECTIVITY:
+    case PublicRouteTargetHealthTraceSource.AGENT_CONNECTIVITY:
       return "Agent connectivity";
     default:
       return "Unknown";
   }
 }
 
-export function healthTraceReasonSummary(trace: PublicBackendHealthTrace): string {
-  if (trace.errorKind === "success" || trace.outcome === PublicBackendHealthTraceOutcome.SUCCESS) {
+export function healthTraceReasonSummary(trace: PublicRouteTargetHealthTrace): string {
+  if (trace.errorKind === "success" || trace.outcome === PublicRouteTargetHealthTraceOutcome.SUCCESS) {
     return trace.statusCode ? `HTTP ${trace.statusCode.toString()}` : "OK";
   }
   if (trace.errorKind === "unexpected_status" && trace.statusCode) {
@@ -232,7 +222,7 @@ export function healthTraceReasonSummary(trace: PublicBackendHealthTrace): strin
   }
 }
 
-export function healthTraceTransitionSummary(trace: PublicBackendHealthTrace): string {
+export function healthTraceTransitionSummary(trace: PublicRouteTargetHealthTrace): string {
   const before = healthStatusLabel(trace.statusBefore);
   const after = healthStatusLabel(trace.statusAfter);
   const availability = trace.availableAfter ? "available" : "unavailable";
@@ -240,7 +230,7 @@ export function healthTraceTransitionSummary(trace: PublicBackendHealthTrace): s
   return `${before} -> ${after} / ${availability}`;
 }
 
-export function healthTraceTargetLabel(trace: PublicBackendHealthTrace, agents: readonly Agent[] = []): string {
+export function healthTraceTargetLabel(trace: PublicRouteTargetHealthTrace, agents: readonly Agent[] = []): string {
   if (!trace.agentId) return "Direct";
   const agent = agents.find((item) => item.id === trace.agentId);
   if (agent) return agentName(trace.agentId, agents);
@@ -249,15 +239,15 @@ export function healthTraceTargetLabel(trace: PublicBackendHealthTrace, agents: 
   return `#${trace.agentId.toString()}`;
 }
 
-function healthStatusLabel(status: PublicBackendHealthStatus): string {
+function healthStatusLabel(status: PublicRouteTargetHealthStatus): string {
   switch (status) {
-    case PublicBackendHealthStatus.HEALTHY:
+    case PublicRouteTargetHealthStatus.HEALTHY:
       return "Healthy";
-    case PublicBackendHealthStatus.UNHEALTHY:
+    case PublicRouteTargetHealthStatus.UNHEALTHY:
       return "Unhealthy";
-    case PublicBackendHealthStatus.DISABLED:
+    case PublicRouteTargetHealthStatus.DISABLED:
       return "Disabled";
-    case PublicBackendHealthStatus.DISCONNECTED:
+    case PublicRouteTargetHealthStatus.DISCONNECTED:
       return "Disconnected";
     default:
       return "Unknown";
@@ -435,7 +425,7 @@ export function cacheTtlModeLabel(mode: PublicCacheTtlMode): string {
 }
 
 export function cacheScopeLabel(scope: PublicCacheScope): string {
-  return scope === PublicCacheScope.ROUTE ? "Route scope" : "Backend scope";
+  return scope === PublicCacheScope.ROUTE ? "Route scope" : "Target scope";
 }
 
 export function cacheQueryModeLabel(mode: PublicCacheQueryMode): string {

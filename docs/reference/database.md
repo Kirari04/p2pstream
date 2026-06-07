@@ -45,7 +45,7 @@ Conceptual table groups:
 | Controls | `public_rate_limit_rules`, `public_waf_captcha_providers`, `public_waf_rules`, `public_waf_settings`, `public_traffic_shaper_rules`, `public_cache_settings`, `public_cache_rules`, `public_cache_entries` |
 | Observability | `proxy_request_events` |
 
-Upgrades migrate old public backend configuration into route targets and then drop the old backend config tables. `public_waf_settings` stores the cookie signing secret used for WAF pass, admission, and queue cookies. `proxy_request_events` includes WAF, cache, route, route target, agent, byte, status, and duration fields. Older retained rows may still contain legacy backend IDs for historical trace compatibility. `agent_stats` includes reported agent CPU percentage for dashboard summaries and automatic WAF activation.
+Upgrades migrate old public backend configuration into route targets and then drop the old backend config tables. `public_waf_settings` stores the cookie signing secret used for WAF pass, admission, and queue cookies. `proxy_request_events` includes WAF, cache, route, route target, agent, byte, status, and duration fields. The route-target-only migration resets proxy request events and proxy rollups instead of retaining legacy backend IDs. `agent_stats` includes reported agent CPU percentage for dashboard summaries and automatic WAF activation, and agent stats history is not reset by that proxy observability migration.
 
 ## Examples
 

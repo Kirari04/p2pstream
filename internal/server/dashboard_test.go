@@ -87,7 +87,6 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 		1500*time.Millisecond,
 		"agent_timeout",
 		sqlNullInt64(7),
-		sqlNullInt64(8),
 		sqlNullInt64(9),
 		sql.NullInt64{},
 		"",
@@ -118,16 +117,16 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 		t.Fatalf("unexpected proxy rollup metrics: requests=%d server=%d internal=%d slow=%d cache_hits=%d cache_hit_bytes=%d", requests, serverError, internalError, slowRequests, cacheHits, cacheHitBytes)
 	}
 
-	var listenerID, backendID, routeID, agentID, statusClass int64
+	var listenerID, routeID, agentID, statusClass int64
 	var errorKind string
 	if err := app.DB.QueryRowContext(ctx, `
-		SELECT listener_id, backend_id, route_id, agent_id, error_kind, status_class
+		SELECT listener_id, route_id, agent_id, error_kind, status_class
 		FROM proxy_request_tuple_rollup_minutes
-	`).Scan(&listenerID, &backendID, &routeID, &agentID, &errorKind, &statusClass); err != nil {
+	`).Scan(&listenerID, &routeID, &agentID, &errorKind, &statusClass); err != nil {
 		t.Fatalf("read proxy tuple rollup: %v", err)
 	}
-	if listenerID != 7 || backendID != 8 || routeID != 9 || agentID != 10 || errorKind != "agent_timeout" || statusClass != 5 {
-		t.Fatalf("unexpected tuple rollup dimensions: listener=%d backend=%d route=%d agent=%d error=%q status_class=%d", listenerID, backendID, routeID, agentID, errorKind, statusClass)
+	if listenerID != 7 || routeID != 9 || agentID != 10 || errorKind != "agent_timeout" || statusClass != 5 {
+		t.Fatalf("unexpected tuple rollup dimensions: listener=%d route=%d agent=%d error=%q status_class=%d", listenerID, routeID, agentID, errorKind, statusClass)
 	}
 }
 
@@ -180,8 +179,8 @@ func TestDashboardUsesBackfilledRollups(t *testing.T) {
 	seedDashboardRollupDimensionFixtures(t, app.DB)
 
 	now := time.Now().UTC()
-	insertDashboardRollupProxyEvent(t, app.DB, now.Add(-2*time.Minute), http.StatusOK, 100, "", sqlNullInt64(1), sql.NullInt64{}, sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(1), 10, 100)
-	insertDashboardRollupProxyEvent(t, app.DB, now.Add(-30*time.Minute), http.StatusBadGateway, 1300, "agent_timeout", sqlNullInt64(1), sql.NullInt64{}, sqlNullInt64(1), sql.NullInt64{}, sql.NullInt64{}, 20, 200)
+	insertDashboardRollupProxyEvent(t, app.DB, now.Add(-2*time.Minute), http.StatusOK, 100, "", sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(1), 10, 100)
+	insertDashboardRollupProxyEvent(t, app.DB, now.Add(-30*time.Minute), http.StatusBadGateway, 1300, "agent_timeout", sqlNullInt64(1), sqlNullInt64(1), sql.NullInt64{}, sql.NullInt64{}, 20, 200)
 	insertDashboardRollupAgentStat(t, app.DB, now.Add(-2*time.Minute), 100, 8, 10, 1, 2, 3, 1000, 2000)
 	insertDashboardRollupAgentStat(t, app.DB, now.Add(-30*time.Minute), 150, 10, 20, 2, 3, 4, 3000, 4000)
 	resetRollupStateToRawMax(t, app.DB)
@@ -851,7 +850,6 @@ func insertDashboardRollupProxyEvent(
 	durationMs int64,
 	errorKind string,
 	listenerID sql.NullInt64,
-	backendID sql.NullInt64,
 	routeTargetID sql.NullInt64,
 	routeID sql.NullInt64,
 	agentID sql.NullInt64,
@@ -862,15 +860,14 @@ func insertDashboardRollupProxyEvent(
 	if _, err := database.ExecContext(
 		context.Background(),
 		`INSERT INTO proxy_request_events (
-			occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_target_id, route_id,
+			occurred_at, status_code, duration_ms, error_kind, listener_id, route_target_id, route_id,
 			agent_id, request_bytes, response_bytes
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		occurredAt,
 		statusCode,
 		durationMs,
 		errorKind,
 		listenerID,
-		backendID,
 		routeTargetID,
 		routeID,
 		agentID,
@@ -966,7 +963,6 @@ func insertRollupEventAt(
 		DurationMs:    durationMs,
 		ErrorKind:     errorKind,
 		ListenerID:    sql.NullInt64{Int64: listenerID, Valid: true},
-		BackendID:     sql.NullInt64{},
 		RouteID:       sql.NullInt64{Int64: routeID, Valid: true},
 		RouteTargetID: sql.NullInt64{Int64: routeTargetID, Valid: true},
 		AgentID:       sql.NullInt64{Int64: agentID, Valid: true},

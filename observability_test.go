@@ -43,10 +43,10 @@ func TestE2E_GetDashboardSummaries(t *testing.T) {
 	insertAgentStatAt(t, database, now.Add(-2*time.Hour), 200, 12, 30, 3, 4, 5, 5000, 6000)
 
 	seedDashboardDimensionFixtures(t, database)
-	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusOK, 100, "", validInt64(1), sql.NullInt64{}, validInt64(1), validInt64(1), validInt64(1), 10, 100)
-	insertProxyEventWithIDsAt(t, database, now.Add(-30*time.Minute), http.StatusNotFound, 200, "", validInt64(1), sql.NullInt64{}, validInt64(1), validInt64(1), sql.NullInt64{}, 20, 200)
-	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Hour), http.StatusBadGateway, 1300, "", validInt64(2), sql.NullInt64{}, validInt64(2), validInt64(2), sql.NullInt64{}, 30, 300)
-	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusGatewayTimeout, 1400, "agent_timeout", validInt64(2), sql.NullInt64{}, validInt64(2), validInt64(2), sql.NullInt64{}, 40, 400)
+	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusOK, 100, "", validInt64(1), validInt64(1), validInt64(1), validInt64(1), 10, 100)
+	insertProxyEventWithIDsAt(t, database, now.Add(-30*time.Minute), http.StatusNotFound, 200, "", validInt64(1), validInt64(1), validInt64(1), sql.NullInt64{}, 20, 200)
+	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Hour), http.StatusBadGateway, 1300, "", validInt64(2), validInt64(2), validInt64(2), sql.NullInt64{}, 30, 300)
+	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusGatewayTimeout, 1400, "agent_timeout", validInt64(2), validInt64(2), validInt64(2), sql.NullInt64{}, 40, 400)
 	forceDashboardRawFallback(t, database)
 
 	req := connect.NewRequest(&p2pstreamv1.GetDashboardRequest{})
@@ -219,7 +219,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 	}
 
 	columns := proxyRequestEventColumns(t, database)
-	expected := []string{"agent_id", "backend_id", "cache_bytes", "cache_rule_id", "cache_status", "duration_ms", "error_kind", "id", "listener_id", "occurred_at", "request_bytes", "response_bytes", "route_id", "route_target_id", "status_code", "waf_action", "waf_rule_id"}
+	expected := []string{"agent_id", "cache_bytes", "cache_rule_id", "cache_status", "duration_ms", "error_kind", "id", "listener_id", "occurred_at", "request_bytes", "response_bytes", "route_id", "route_target_id", "status_code", "waf_action", "waf_rule_id"}
 	if !equalStringSlices(columns, expected) {
 		t.Fatalf("proxy_request_events columns changed: got %v, want %v", columns, expected)
 	}
@@ -384,7 +384,6 @@ func insertProxyEventWithIDsAt(
 	durationMs int64,
 	errorKind string,
 	listenerID sql.NullInt64,
-	backendID sql.NullInt64,
 	routeTargetID sql.NullInt64,
 	routeID sql.NullInt64,
 	agentID sql.NullInt64,
@@ -395,15 +394,14 @@ func insertProxyEventWithIDsAt(
 	if _, err := database.ExecContext(
 		context.Background(),
 		`INSERT INTO proxy_request_events (
-			occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_target_id, route_id,
+			occurred_at, status_code, duration_ms, error_kind, listener_id, route_target_id, route_id,
 			agent_id, request_bytes, response_bytes
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		occurredAt,
 		statusCode,
 		durationMs,
 		errorKind,
 		listenerID,
-		backendID,
 		routeTargetID,
 		routeID,
 		agentID,

@@ -17,14 +17,14 @@ import (
 	"p2pstream/internal/db"
 )
 
-func TestPublicBackendHealthCheckURLPreservesSchemeHostAndPort(t *testing.T) {
+func TestPublicRouteTargetHealthCheckURLPreservesSchemeHostAndPort(t *testing.T) {
 	origin, err := url.Parse("http://127.0.0.1:8888/base?x=1")
 	if err != nil {
 		t.Fatalf("parse origin: %v", err)
 	}
-	got, err := publicBackendHealthCheckURL(publicBackendConfig{
+	got, err := publicRouteTargetHealthCheckURL(publicRouteTargetHealthConfig{
 		ParsedOrigin: origin,
-		HealthCheck:  publicBackendHealthCheckConfig{Path: "/health"},
+		HealthCheck:  publicRouteTargetHealthCheckConfig{Path: "/health"},
 	})
 	if err != nil {
 		t.Fatalf("health check url: %v", err)
@@ -34,7 +34,7 @@ func TestPublicBackendHealthCheckURLPreservesSchemeHostAndPort(t *testing.T) {
 	}
 }
 
-func TestDirectBackendHealthStillChecksFromServer(t *testing.T) {
+func TestDirectTargetHealthStillChecksFromServer(t *testing.T) {
 	var status atomic.Int64
 	status.Store(http.StatusInternalServerError)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,19 +44,19 @@ func TestDirectBackendHealthStillChecksFromServer(t *testing.T) {
 		w.WriteHeader(int(status.Load()))
 	}))
 	defer srv.Close()
-	backend := testHealthBackend(t, 1, publicBackendForwardModeDirect, srv.URL)
+	backend := testHealthTarget(t, 1, publicRouteTargetTransportDirect, srv.URL)
 
-	monitor := newPublicBackendHealthMonitor()
+	monitor := newPublicRouteTargetHealthMonitor()
 	snap := testHealthSnapshot(backend)
 	monitor.reconcile(nil, snap, true)
 	t.Cleanup(func() { monitor.reconcile(nil, nil, false) })
 
-	waitForHealthStatus(t, monitor, 1, p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY)
+	waitForHealthStatus(t, monitor, 1, p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY)
 	if monitor.available(backend) {
 		t.Fatal("backend should be unavailable after explicit unhealthy check")
 	}
 	status.Store(http.StatusOK)
-	waitForHealthStatus(t, monitor, 1, p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY)
+	waitForHealthStatus(t, monitor, 1, p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY)
 	if !monitor.available(backend) {
 		t.Fatal("backend should be available after explicit health recovery")
 	}
@@ -84,12 +84,12 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	backend := testHealthBackend(t, 10, publicBackendForwardModeAgentPool, upstream.URL+"/base?x=1")
+	backend := testHealthTarget(t, 10, publicRouteTargetTransportAgent, upstream.URL+"/base?x=1")
 	backend.HealthCheck.Method = http.MethodHead
 	backend.TLSSkipVerify = true
 	backend.UpstreamRequestHeaders = []publicRequestHeader{{Name: "X-Health", Value: "ok"}}
-	backend.UpstreamBasicAuth = publicBackendBasicAuthConfig{Enabled: true, Username: "user", Password: "pass"}
-	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
+	backend.UpstreamBasicAuth = publicRouteTargetBasicAuthConfig{Enabled: true, Username: "user", Password: "pass"}
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
 	agent, fake := newFakeYamuxAgent(t, 7, "agent-7")
 	if err := app.AgentHub.connect(agent); err != nil {
 		t.Fatalf("connect agent: %v", err)
@@ -99,8 +99,8 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 
 	snap := testHealthSnapshot(backend)
 	snap.Agents[7] = publicAgentConfig{ID: 7, PublicID: "agent-7", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
-	app.BackendHealth.reconcile(app, snap, true)
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+	app.TargetHealth.reconcile(app, snap, true)
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
 	select {
 	case <-served:
@@ -115,7 +115,7 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for fake agent open request")
 	}
-	waitForHealthStatus(t, app.BackendHealth, backend.ID, p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY)
+	waitForHealthStatus(t, app.TargetHealth, backend.ID, p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY)
 }
 
 func TestDirectHealthTraceRecordsSuccessAndFailure(t *testing.T) {
@@ -125,20 +125,20 @@ func TestDirectHealthTraceRecordsSuccessAndFailure(t *testing.T) {
 		w.WriteHeader(int(status.Load()))
 	}))
 	defer srv.Close()
-	backend := testHealthBackend(t, 101, publicBackendForwardModeDirect, srv.URL+"?token=secret")
-	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthTarget(t, 101, publicRouteTargetTransportDirect, srv.URL+"?token=secret")
+	monitor := newPublicRouteTargetHealthMonitor()
 	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
-	monitor.recordDirectExplicitCheck(backend.ID, runPublicBackendHealthCheck(context.Background(), backend))
+	monitor.recordDirectExplicitCheck(backend.ID, runPublicRouteTargetHealthCheck(context.Background(), backend))
 	traces, retained := monitor.listHealthTraces(backend.ID, 0, 100, false)
 	if retained != 1 || len(traces) != 1 {
 		t.Fatalf("trace count = retained %d len %d, want 1", retained, len(traces))
 	}
 	trace := traces[0]
-	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS || trace.StatusCode != http.StatusOK {
+	if trace.Outcome != p2pstreamv1.PublicRouteTargetHealthTraceOutcome_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SUCCESS || trace.StatusCode != http.StatusOK {
 		t.Fatalf("success trace = %+v", trace)
 	}
-	if trace.StatusAfter != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY || trace.HealthyStreakAfter != 1 {
+	if trace.StatusAfter != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY || trace.HealthyStreakAfter != 1 {
 		t.Fatalf("success trace state = %+v, want healthy streak", trace)
 	}
 	if strings.Contains(trace.Url, "secret") || strings.Contains(trace.Url, "token") {
@@ -146,20 +146,20 @@ func TestDirectHealthTraceRecordsSuccessAndFailure(t *testing.T) {
 	}
 
 	status.Store(http.StatusServiceUnavailable)
-	monitor.recordDirectExplicitCheck(backend.ID, runPublicBackendHealthCheck(context.Background(), backend))
+	monitor.recordDirectExplicitCheck(backend.ID, runPublicRouteTargetHealthCheck(context.Background(), backend))
 	traces, retained = monitor.listHealthTraces(backend.ID, 0, 100, false)
 	if retained != 2 || len(traces) != 2 {
 		t.Fatalf("trace count after failure = retained %d len %d, want 2", retained, len(traces))
 	}
 	trace = traces[0]
-	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE ||
+	if trace.Outcome != p2pstreamv1.PublicRouteTargetHealthTraceOutcome_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_FAILURE ||
 		trace.ErrorKind != "unexpected_status" ||
 		trace.StatusCode != http.StatusServiceUnavailable ||
 		trace.UnhealthyStreakAfter != 1 {
 		t.Fatalf("failure trace = %+v", trace)
 	}
 	failures, retained := monitor.listHealthTraces(backend.ID, 0, 100, true)
-	if retained != 2 || len(failures) != 1 || failures[0].Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE {
+	if retained != 2 || len(failures) != 1 || failures[0].Outcome != p2pstreamv1.PublicRouteTargetHealthTraceOutcome_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_FAILURE {
 		t.Fatalf("failure filter = retained %d traces %+v", retained, failures)
 	}
 }
@@ -168,7 +168,7 @@ func TestListHealthTracesReturnsDeepClonedTrace(t *testing.T) {
 	if cloneHealthTrace(nil) != nil {
 		t.Fatal("nil health trace clone should remain nil")
 	}
-	nilDebugClone := cloneHealthTrace(&p2pstreamv1.PublicBackendHealthTrace{Sequence: 1})
+	nilDebugClone := cloneHealthTrace(&p2pstreamv1.PublicRouteTargetHealthTrace{Sequence: 1})
 	if nilDebugClone == nil {
 		t.Fatal("nil-debug health trace clone is nil")
 	}
@@ -176,13 +176,13 @@ func TestListHealthTracesReturnsDeepClonedTrace(t *testing.T) {
 		t.Fatalf("nil debug attributes clone = %+v, want nil", nilDebugClone.DebugAttributes)
 	}
 
-	backend := testHealthBackend(t, 105, publicBackendForwardModeDirect, "http://127.0.0.1:8888")
-	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthTarget(t, 105, publicRouteTargetTransportDirect, "http://127.0.0.1:8888")
+	monitor := newPublicRouteTargetHealthMonitor()
 	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
-	attempt := newPublicBackendHealthCheckAttempt(backend)
+	attempt := newPublicRouteTargetHealthCheckAttempt(backend)
 	attempt.StatusCode = http.StatusOK
-	finishPublicBackendHealthCheckAttempt(&attempt)
+	finishPublicRouteTargetHealthCheckAttempt(&attempt)
 	monitor.recordDirectExplicitCheck(backend.ID, attempt)
 
 	traces, retained := monitor.listHealthTraces(backend.ID, 0, 100, false)
@@ -228,8 +228,8 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	backend := testHealthBackend(t, 102, publicBackendForwardModeAgentPool, upstream.URL)
-	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
+	backend := testHealthTarget(t, 102, publicRouteTargetTransportAgent, upstream.URL)
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
 	agent, fake := newFakeYamuxAgent(t, 7, "agent-7")
 	agent.Name = "Agent Seven"
 	if err := app.AgentHub.connect(agent); err != nil {
@@ -239,16 +239,16 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 	defer fake.close()
 	snap := testHealthSnapshot(backend)
 	snap.Agents[7] = publicAgentConfig{ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
-	app.BackendHealth.reconcile(app, snap, false)
+	app.TargetHealth.reconcile(app, snap, false)
 
-	attempt := app.runPublicBackendHealthCheckViaAgent(context.Background(), backend, agent)
-	app.BackendHealth.recordAgentExplicitCheck(backend.ID, 7, attempt)
-	traces, retained := app.BackendHealth.listHealthTraces(backend.ID, 7, 100, false)
+	attempt := app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), backend, agent)
+	app.TargetHealth.recordAgentExplicitCheck(backend.ID, 7, attempt)
+	traces, retained := app.TargetHealth.listHealthTraces(backend.ID, 7, 100, false)
 	if retained != 1 || len(traces) != 1 {
 		t.Fatalf("agent trace count = retained %d len %d", retained, len(traces))
 	}
 	trace := traces[0]
-	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS ||
+	if trace.Outcome != p2pstreamv1.PublicRouteTargetHealthTraceOutcome_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SUCCESS ||
 		trace.AgentId != 7 ||
 		trace.AgentPublicId != "agent-7" ||
 		trace.AgentName != "Agent Seven" ||
@@ -260,20 +260,20 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 
 func TestHealthTraceRecordsSkippedDisconnectedAgent(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 103, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
-	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 9, Position: 0, Weight: 100, Enabled: true}}
+	backend := testHealthTarget(t, 103, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 9, Position: 0, Weight: 100, Enabled: true}}
 	snap := testHealthSnapshot(backend)
 	snap.Agents[9] = publicAgentConfig{ID: 9, PublicID: "agent-9", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
-	app.BackendHealth.reconcile(app, snap, false)
+	app.TargetHealth.reconcile(app, snap, false)
 
-	app.BackendHealth.recordAgentDisconnected(backend.ID, 9)
-	app.BackendHealth.recordAgentActiveCheckSkipped(backend.ID, 9, backend, "agent_disconnected", errAgentDisconnected)
-	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, 9, 100, false)
+	app.TargetHealth.recordAgentDisconnected(backend.ID, 9)
+	app.TargetHealth.recordAgentActiveCheckSkipped(backend.ID, 9, backend, "agent_disconnected", errAgentDisconnected)
+	traces, _ := app.TargetHealth.listHealthTraces(backend.ID, 9, 100, false)
 	if len(traces) != 1 {
 		t.Fatalf("skipped trace count = %d, want 1", len(traces))
 	}
 	trace := traces[0]
-	if trace.Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED ||
+	if trace.Outcome != p2pstreamv1.PublicRouteTargetHealthTraceOutcome_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SKIPPED ||
 		trace.ErrorKind != "agent_disconnected" ||
 		trace.StatusCode != 0 {
 		t.Fatalf("skipped trace = %+v", trace)
@@ -282,42 +282,42 @@ func TestHealthTraceRecordsSkippedDisconnectedAgent(t *testing.T) {
 
 func TestPassiveAndConnectivityHealthTraces(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, errors.New("agent timeout"))
-	agentOneTraces, _ := app.BackendHealth.listHealthTraces(backend.ID, 1, 100, false)
-	agentTwoTraces, _ := app.BackendHealth.listHealthTraces(backend.ID, 2, 100, false)
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, errors.New("agent timeout"))
+	agentOneTraces, _ := app.TargetHealth.listHealthTraces(backend.ID, 1, 100, false)
+	agentTwoTraces, _ := app.TargetHealth.listHealthTraces(backend.ID, 2, 100, false)
 	if len(agentOneTraces) != 1 || len(agentTwoTraces) != 0 {
 		t.Fatalf("agent passive traces agent1=%d agent2=%d, want 1/0", len(agentOneTraces), len(agentTwoTraces))
 	}
-	if agentOneTraces[0].Source != p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE ||
+	if agentOneTraces[0].Source != p2pstreamv1.PublicRouteTargetHealthTraceSource_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE ||
 		agentOneTraces[0].PassiveUnhealthyUntilUnixMillis == 0 {
 		t.Fatalf("passive trace = %+v", agentOneTraces[0])
 	}
 
-	app.BackendHealth.recordAgentConnected(backend.ID, 1, "agent-a")
-	app.BackendHealth.recordAgentDisconnected(backend.ID, 1)
-	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, 1, 100, false)
+	app.TargetHealth.recordAgentConnected(backend.ID, 1, "agent-a")
+	app.TargetHealth.recordAgentDisconnected(backend.ID, 1)
+	traces, _ := app.TargetHealth.listHealthTraces(backend.ID, 1, 100, false)
 	if len(traces) < 3 {
 		t.Fatalf("connectivity traces = %+v, want passive plus connect/disconnect", traces)
 	}
-	if traces[0].Source != p2pstreamv1.PublicBackendHealthTraceSource_PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY ||
+	if traces[0].Source != p2pstreamv1.PublicRouteTargetHealthTraceSource_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY ||
 		traces[0].ErrorKind != "agent_disconnected_event" {
 		t.Fatalf("latest connectivity trace = %+v", traces[0])
 	}
 }
 
 func TestDirectHealthTraceRetentionCapsPerTarget(t *testing.T) {
-	backend := testHealthBackend(t, 104, publicBackendForwardModeDirect, "http://127.0.0.1:8888")
-	monitor := newPublicBackendHealthMonitor()
+	backend := testHealthTarget(t, 104, publicRouteTargetTransportDirect, "http://127.0.0.1:8888")
+	monitor := newPublicRouteTargetHealthMonitor()
 	monitor.reconcile(nil, testHealthSnapshot(backend), false)
-	for range publicBackendHealthTraceLimitPerTarget + 5 {
-		attempt := newPublicBackendHealthCheckAttempt(backend)
+	for range publicRouteTargetHealthTraceLimitPerTarget + 5 {
+		attempt := newPublicRouteTargetHealthCheckAttempt(backend)
 		attempt.StatusCode = http.StatusOK
-		finishPublicBackendHealthCheckAttempt(&attempt)
+		finishPublicRouteTargetHealthCheckAttempt(&attempt)
 		monitor.recordDirectExplicitCheck(backend.ID, attempt)
 	}
 	traces, retained := monitor.listHealthTraces(backend.ID, 0, 200, false)
-	if retained != publicBackendHealthTraceLimitPerTarget || len(traces) != publicBackendHealthTraceLimitPerTarget {
-		t.Fatalf("retention = retained %d len %d, want %d", retained, len(traces), publicBackendHealthTraceLimitPerTarget)
+	if retained != publicRouteTargetHealthTraceLimitPerTarget || len(traces) != publicRouteTargetHealthTraceLimitPerTarget {
+		t.Fatalf("retention = retained %d len %d, want %d", retained, len(traces), publicRouteTargetHealthTraceLimitPerTarget)
 	}
 	if traces[0].Sequence <= traces[len(traces)-1].Sequence {
 		t.Fatalf("traces not newest first: first=%d last=%d", traces[0].Sequence, traces[len(traces)-1].Sequence)
@@ -327,7 +327,7 @@ func TestDirectHealthTraceRetentionCapsPerTarget(t *testing.T) {
 func TestAgentPoolHealthCheckUnhealthySkipsOnlyThatAgent(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
 	target := testRouteTargetFromBackend(backend)
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 
 	for range 10 {
 		selected := app.selectTargetAgent(target)
@@ -338,21 +338,21 @@ func TestAgentPoolHealthCheckUnhealthySkipsOnlyThatAgent(t *testing.T) {
 			t.Fatal("unhealthy agent was selected")
 		}
 	}
-	if !app.BackendHealth.available(backend) {
+	if !app.TargetHealth.available(backend) {
 		t.Fatal("backend should remain available while another agent is eligible")
 	}
 }
 
 func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 21, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend := testHealthTarget(t, 21, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
 	for i := int64(1); i <= 5; i++ {
-		backend.AgentAssignments = append(backend.AgentAssignments, publicBackendAgentConfig{
-			BackendID: backend.ID,
-			AgentID:   i,
-			Position:  i - 1,
-			Weight:    100,
-			Enabled:   true,
+		backend.AgentAssignments = append(backend.AgentAssignments, publicRouteTargetAgentAssignment{
+			TargetID: backend.ID,
+			AgentID:  i,
+			Position: i - 1,
+			Weight:   100,
+			Enabled:  true,
 		})
 	}
 	target := testRouteTargetFromBackend(backend)
@@ -365,7 +365,7 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 	app.proxyMu.Lock()
 	app.publicSnapshot = snap
 	app.proxyMu.Unlock()
-	app.BackendHealth.reconcile(app, snap, false)
+	app.TargetHealth.reconcile(app, snap, false)
 	for i := int64(1); i <= 4; i++ {
 		agent := testAgentConn(i, "agent-"+strconv.FormatInt(i, 10))
 		if err := app.AgentHub.connect(agent); err != nil {
@@ -373,7 +373,7 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 		}
 		t.Cleanup(func() { app.AgentHub.disconnect(agent) })
 	}
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
 	for range 25 {
 		selected := app.selectTargetAgent(target)
@@ -389,10 +389,10 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
 	target := testRouteTargetFromBackend(backend)
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 2, nil)
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 2, nil)
 
-	if app.BackendHealth.available(backend) {
+	if app.TargetHealth.available(backend) {
 		t.Fatal("backend should be unavailable when all connected assigned agents are unhealthy")
 	}
 	route := publicRouteConfig{
@@ -455,9 +455,9 @@ func TestDefaultBackendRequiresEligibleAgent(t *testing.T) {
 
 func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 	app := NewApp(nil, nil)
-	primary := testHealthBackend(t, 80, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
-	primary.AgentAssignments = []publicBackendAgentConfig{{BackendID: primary.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
-	fallback := testHealthBackend(t, 81, publicBackendForwardModeDirect, "http://127.0.0.1:9999")
+	primary := testHealthTarget(t, 80, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	primary.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: primary.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	fallback := testHealthTarget(t, 81, publicRouteTargetTransportDirect, "http://127.0.0.1:9999")
 	primaryTarget := testRouteTargetFromBackend(primary)
 	fallbackTarget := testRouteTargetFromBackend(fallback)
 	primaryTarget.PriorityGroup = 0
@@ -475,8 +475,8 @@ func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 		},
 		Agents: map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}}},
 	}
-	app.BackendHealth.reconcile(app, &snap, false)
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+	app.TargetHealth.reconcile(app, &snap, false)
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
 	selected, _, ok := app.selectRouteTarget(snap, route)
 	if !ok || selected.ID != fallbackTarget.ID {
@@ -486,68 +486,68 @@ func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 
 func TestAgentPassiveFailureAppliesWhenHealthCheckEnabled(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 
-	if app.BackendHealth.agentAvailable(backend.ID, 1) {
+	if app.TargetHealth.agentAvailable(backend.ID, 1) {
 		t.Fatal("agent 1 should be unavailable during passive cooldown")
 	}
-	if !app.BackendHealth.agentAvailable(backend.ID, 2) {
+	if !app.TargetHealth.agentAvailable(backend.ID, 2) {
 		t.Fatal("agent 2 should remain available")
 	}
-	if !app.BackendHealth.available(backend) {
+	if !app.TargetHealth.available(backend) {
 		t.Fatal("backend should remain available while agent 2 is eligible")
 	}
 }
 
 func TestAgentReconnectClearsPassiveCooldownToUnknown(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 22, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
-	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	backend := testHealthTarget(t, 22, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
 	snap := testHealthSnapshot(backend)
 	snap.Agents[1] = publicAgentConfig{ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
-	app.BackendHealth.reconcile(app, snap, false)
+	app.TargetHealth.reconcile(app, snap, false)
 	agent := testAgentConn(1, "agent-a")
 	if err := app.AgentHub.connect(agent); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
-	app.BackendHealth.recordAgentConnected(backend.ID, 1, "agent-a")
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
-	if app.BackendHealth.agentAvailable(backend.ID, 1) {
+	app.TargetHealth.recordAgentConnected(backend.ID, 1, "agent-a")
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+	if app.TargetHealth.agentAvailable(backend.ID, 1) {
 		t.Fatal("agent should be unavailable during passive cooldown")
 	}
 	app.AgentHub.disconnect(agent)
-	app.BackendHealth.recordAgentDisconnected(backend.ID, 1)
+	app.TargetHealth.recordAgentDisconnected(backend.ID, 1)
 	reconnected := testAgentConn(1, "agent-a")
 	if err := app.AgentHub.connect(reconnected); err != nil {
 		t.Fatalf("reconnect agent: %v", err)
 	}
 	t.Cleanup(func() { app.AgentHub.disconnect(reconnected) })
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
-	app.BackendHealth.recordAgentConnected(backend.ID, 1, "agent-a")
-	snapshot := app.BackendHealth.agentSnapshot(backend.ID, 1, true, true)
-	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || !snapshot.Available || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
+	app.TargetHealth.recordAgentConnected(backend.ID, 1, "agent-a")
+	snapshot := app.TargetHealth.agentSnapshot(backend.ID, 1, true, true)
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN || !snapshot.Available || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
 		t.Fatalf("agent snapshot after reconnect = %+v, want available UNKNOWN without passive cooldown", snapshot)
 	}
 }
 
 func TestPublicRouteTargetProtoIncludesHealth(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 23, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
-	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	backend := testHealthTarget(t, 23, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
 	snap := testHealthSnapshot(backend)
 	snap.Agents[1] = publicAgentConfig{ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
-	app.BackendHealth.reconcile(app, snap, false)
+	app.TargetHealth.reconcile(app, snap, false)
 	agent := testAgentConn(1, "agent-a")
 	agent.ActiveRequests.Store(3)
 	if err := app.AgentHub.connect(agent); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
 	t.Cleanup(func() { app.AgentHub.disconnect(agent) })
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 	var done []func()
 	for range 3 {
-		done = append(done, app.BackendHealth.beginRequest(backend.ID))
+		done = append(done, app.TargetHealth.beginRequest(backend.ID))
 	}
 	t.Cleanup(func() {
 		for _, finish := range done {
@@ -556,45 +556,45 @@ func TestPublicRouteTargetProtoIncludesHealth(t *testing.T) {
 	})
 
 	target := db.PublicRouteTarget{ID: backend.ID, Enabled: 1, TargetType: publicRouteTargetTypeProxy, Transport: publicRouteTargetTransportAgent}
-	health := publicRouteTargetHealthToProto(target, app.BackendHealth)
-	if !health.Connected || !health.Available || health.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || health.ActiveRequests != 3 {
+	health := publicRouteTargetHealthToProto(target, app.TargetHealth)
+	if !health.Connected || !health.Available || health.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN || health.ActiveRequests != 3 {
 		t.Fatalf("target health = %+v, want connected available UNKNOWN with active requests", health)
 	}
 }
 
 func TestAgentPassiveFailureIgnoredWhenHealthCheckDisabled(t *testing.T) {
 	app, backend := testAgentPoolAppWithHealth(t, false)
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 
-	if !app.BackendHealth.agentAvailable(backend.ID, 1) {
+	if !app.TargetHealth.agentAvailable(backend.ID, 1) {
 		t.Fatal("agent 1 should remain available when health checks are disabled")
 	}
-	if !app.BackendHealth.available(backend) {
+	if !app.TargetHealth.available(backend) {
 		t.Fatal("backend should remain available when health checks are disabled")
 	}
 }
 
 func TestAgentHealthCheckDisconnectedAgentIsUnknownNotUnhealthy(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 40, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
-	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 99, Position: 0, Weight: 100, Enabled: true}}
+	backend := testHealthTarget(t, 40, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 99, Position: 0, Weight: 100, Enabled: true}}
 	snap := testHealthSnapshot(backend)
 	snap.Agents[99] = publicAgentConfig{ID: 99, PublicID: "agent-missing", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
-	app.BackendHealth.reconcile(app, snap, true)
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+	app.TargetHealth.reconcile(app, snap, true)
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
-	snapshot := app.BackendHealth.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: true})
-	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN {
+	snapshot := app.TargetHealth.snapshot(publicRouteTargetHealthDBAdapter{id: backend.ID, enabled: true})
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN {
 		t.Fatalf("disconnected agent aggregate status = %+v, want UNKNOWN", snapshot)
 	}
-	if app.BackendHealth.available(backend) {
+	if app.TargetHealth.available(backend) {
 		t.Fatal("backend route eligibility should still require a connected agent")
 	}
 }
 
 func TestPassiveFailureIgnoredWhenHealthCheckDisabledDirect(t *testing.T) {
-	monitor := newPublicBackendHealthMonitor()
-	backend := testHealthBackend(t, 2, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	monitor := newPublicRouteTargetHealthMonitor()
+	backend := testHealthTarget(t, 2, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
 	backend.HealthCheck.Enabled = false
 	snap := testHealthSnapshot(backend)
 	monitor.reconcile(nil, snap, false)
@@ -603,15 +603,15 @@ func TestPassiveFailureIgnoredWhenHealthCheckDisabledDirect(t *testing.T) {
 	if !monitor.available(backend) {
 		t.Fatal("backend should remain available when health checks are disabled")
 	}
-	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: true})
-	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
+	snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: backend.ID, enabled: true})
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
 		t.Fatalf("unexpected disabled health snapshot: %+v", snapshot)
 	}
 }
 
 func TestPassiveFailureAppliesWhenHealthCheckEnabledDirect(t *testing.T) {
-	monitor := newPublicBackendHealthMonitor()
-	backend := testHealthBackend(t, 3, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	monitor := newPublicRouteTargetHealthMonitor()
+	backend := testHealthTarget(t, 3, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
 	snap := testHealthSnapshot(backend)
 	monitor.reconcile(nil, snap, false)
 
@@ -619,15 +619,15 @@ func TestPassiveFailureAppliesWhenHealthCheckEnabledDirect(t *testing.T) {
 	if monitor.available(backend) {
 		t.Fatal("backend should be unavailable during passive cooldown")
 	}
-	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: true})
-	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY || snapshot.PassiveUnhealthyUntilUnixMillis == 0 {
+	snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: backend.ID, enabled: true})
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY || snapshot.PassiveUnhealthyUntilUnixMillis == 0 {
 		t.Fatalf("unexpected passive health snapshot: %+v", snapshot)
 	}
 }
 
 func TestDisablingHealthChecksClearsPassiveState(t *testing.T) {
-	monitor := newPublicBackendHealthMonitor()
-	backend := testHealthBackend(t, 4, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	monitor := newPublicRouteTargetHealthMonitor()
+	backend := testHealthTarget(t, 4, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
 	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 	monitor.markPassiveFailure(backend.ID, nil)
 	if monitor.available(backend) {
@@ -640,15 +640,15 @@ func TestDisablingHealthChecksClearsPassiveState(t *testing.T) {
 	if !monitor.available(disabled) {
 		t.Fatal("backend should become available after disabling health checks")
 	}
-	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: disabled.ID, enabled: true})
-	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
+	snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: disabled.ID, enabled: true})
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN || snapshot.PassiveUnhealthyUntilUnixMillis != 0 {
 		t.Fatalf("unexpected snapshot after disabling health checks: %+v", snapshot)
 	}
 }
 
 func TestPassiveCooldownExpiryStillRecoversWhenHealthEnabled(t *testing.T) {
-	monitor := newPublicBackendHealthMonitor()
-	backend := testHealthBackend(t, 5, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	monitor := newPublicRouteTargetHealthMonitor()
+	backend := testHealthTarget(t, 5, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
 	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 	monitor.markPassiveFailure(backend.ID, nil)
 	if monitor.available(backend) {
@@ -664,14 +664,14 @@ func TestPassiveCooldownExpiryStillRecoversWhenHealthEnabled(t *testing.T) {
 }
 
 func TestCancelledActiveHealthCheckIsSkippedWithoutUnhealthyStreak(t *testing.T) {
-	monitor := newPublicBackendHealthMonitor()
-	backend := testHealthBackend(t, 55, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	monitor := newPublicRouteTargetHealthMonitor()
+	backend := testHealthTarget(t, 55, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
 	backend.HealthCheck.UnhealthyThreshold = 1
 	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	attempt := runPublicBackendHealthCheck(ctx, backend)
+	attempt := runPublicRouteTargetHealthCheck(ctx, backend)
 	if !attempt.Skipped || attempt.ErrorKind != "health_check_cancelled" {
 		t.Fatalf("cancelled attempt skipped=%v errorKind=%q err=%v, want skipped health_check_cancelled", attempt.Skipped, attempt.ErrorKind, attempt.Err)
 	}
@@ -680,12 +680,12 @@ func TestCancelledActiveHealthCheckIsSkippedWithoutUnhealthyStreak(t *testing.T)
 	monitor.mu.Lock()
 	state := monitor.states[backend.ID].direct
 	monitor.mu.Unlock()
-	if state.unhealthyStreak != 0 || state.explicitStatus != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN {
+	if state.unhealthyStreak != 0 || state.explicitStatus != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN {
 		t.Fatalf("state after cancelled check = %+v, want no unhealthy streak and UNKNOWN", state)
 	}
 	traces, _ := monitor.listHealthTraces(backend.ID, 0, 10, false)
 	if len(traces) != 1 ||
-		traces[0].Outcome != p2pstreamv1.PublicBackendHealthTraceOutcome_PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED ||
+		traces[0].Outcome != p2pstreamv1.PublicRouteTargetHealthTraceOutcome_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SKIPPED ||
 		traces[0].ErrorKind != "health_check_cancelled" ||
 		traces[0].DebugAttributes["cancel_source"] != "health_monitor" {
 		t.Fatalf("cancelled trace = %+v", traces)
@@ -699,13 +699,13 @@ func TestActiveHealthCheckTimeoutIncrementsUnhealthyStreak(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	monitor := newPublicBackendHealthMonitor()
-	backend := testHealthBackend(t, 56, publicBackendForwardModeDirect, upstream.URL)
+	monitor := newPublicRouteTargetHealthMonitor()
+	backend := testHealthTarget(t, 56, publicRouteTargetTransportDirect, upstream.URL)
 	backend.HealthCheck.Timeout = time.Millisecond
 	backend.HealthCheck.UnhealthyThreshold = 1
 	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
-	attempt := runPublicBackendHealthCheck(context.Background(), backend)
+	attempt := runPublicRouteTargetHealthCheck(context.Background(), backend)
 	if attempt.Skipped || attempt.ErrorKind != "health_check_timeout" {
 		t.Fatalf("timeout attempt skipped=%v errorKind=%q err=%v, want health_check_timeout", attempt.Skipped, attempt.ErrorKind, attempt.Err)
 	}
@@ -714,21 +714,21 @@ func TestActiveHealthCheckTimeoutIncrementsUnhealthyStreak(t *testing.T) {
 	monitor.mu.Lock()
 	state := monitor.states[backend.ID].direct
 	monitor.mu.Unlock()
-	if state.unhealthyStreak != 1 || state.explicitStatus != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY {
+	if state.unhealthyStreak != 1 || state.explicitStatus != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY {
 		t.Fatalf("state after timeout = %+v, want unhealthy streak 1 and UNHEALTHY", state)
 	}
 }
 
 func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 6, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
+	backend := testHealthTarget(t, 6, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
 	backend.HealthCheck.Enabled = false
 	target := testRouteTargetFromBackend(backend)
 	snap := publicProxySnapshot{
 		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
 	}
-	app.BackendHealth.reconcile(app, &snap, false)
-	app.BackendHealth.markPassiveFailure(backend.ID, nil)
+	app.TargetHealth.reconcile(app, &snap, false)
+	app.TargetHealth.markPassiveFailure(backend.ID, nil)
 
 	route := publicRouteConfig{
 		ID:      60,
@@ -745,7 +745,7 @@ func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testi
 func TestAgentPoolRouteKeepsAgentEligibleAfterPassiveFailureWhenHealthDisabled(t *testing.T) {
 	app, backend := testAgentPoolAppWithHealth(t, false)
 	target := testRouteTargetFromBackend(backend)
-	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
+	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 
 	selected := app.selectTargetAgent(target)
 	if selected == nil {
@@ -756,19 +756,19 @@ func TestAgentPoolRouteKeepsAgentEligibleAfterPassiveFailureWhenHealthDisabled(t
 	}
 }
 
-func testHealthBackend(t *testing.T, id int64, forwardMode string, originText string) publicBackendConfig {
+func testHealthTarget(t *testing.T, id int64, transport string, originText string) publicRouteTargetHealthConfig {
 	t.Helper()
 	origin, err := url.Parse(originText)
 	if err != nil {
 		t.Fatalf("parse backend origin: %v", err)
 	}
-	return publicBackendConfig{
+	return publicRouteTargetHealthConfig{
 		ID:           id,
 		Enabled:      true,
-		BackendType:  publicBackendTypeProxyForward,
-		ForwardMode:  forwardMode,
+		TargetType:   publicRouteTargetTypeProxy,
+		Transport:    transport,
 		ParsedOrigin: origin,
-		HealthCheck: publicBackendHealthCheckConfig{
+		HealthCheck: publicRouteTargetHealthCheckConfig{
 			Enabled:            true,
 			Method:             http.MethodGet,
 			Path:               "/health",
@@ -790,19 +790,19 @@ func testAgentConn(id int64, publicID string) *AgentConn {
 	}
 }
 
-func testAgentPoolApp(t *testing.T) (*App, publicBackendConfig) {
+func testAgentPoolApp(t *testing.T) (*App, publicRouteTargetHealthConfig) {
 	t.Helper()
 	return testAgentPoolAppWithHealth(t, true)
 }
 
-func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicBackendConfig) {
+func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicRouteTargetHealthConfig) {
 	t.Helper()
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 20, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
+	backend := testHealthTarget(t, 20, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
 	backend.HealthCheck.Enabled = healthEnabled
-	backend.AgentAssignments = []publicBackendAgentConfig{
-		{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true},
-		{BackendID: backend.ID, AgentID: 2, Position: 1, Weight: 100, Enabled: true},
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{
+		{TargetID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true},
+		{TargetID: backend.ID, AgentID: 2, Position: 1, Weight: 100, Enabled: true},
 	}
 	target := testRouteTargetFromBackend(backend)
 	snap := testHealthSnapshot(backend)
@@ -814,18 +814,18 @@ func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicB
 	app.proxyMu.Lock()
 	app.publicSnapshot = snap
 	app.proxyMu.Unlock()
-	app.BackendHealth.reconcile(app, snap, false)
+	app.TargetHealth.reconcile(app, snap, false)
 	for _, agent := range []*AgentConn{testAgentConn(1, "agent-a"), testAgentConn(2, "agent-b")} {
 		if err := app.AgentHub.connect(agent); err != nil {
 			t.Fatalf("connect agent: %v", err)
 		}
 		t.Cleanup(func() { app.AgentHub.disconnect(agent) })
 	}
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 	return app, backend
 }
 
-func testHealthSnapshot(backends ...publicBackendConfig) *publicProxySnapshot {
+func testHealthSnapshot(backends ...publicRouteTargetHealthConfig) *publicProxySnapshot {
 	snap := &publicProxySnapshot{
 		RouteTargets: map[int64]publicRouteTargetConfig{},
 		Agents:       map[int64]publicAgentConfig{},
@@ -846,24 +846,24 @@ func testHealthSnapshot(backends ...publicBackendConfig) *publicProxySnapshot {
 	return snap
 }
 
-func testRouteTargetFromBackend(backend publicBackendConfig) publicRouteTargetConfig {
-	target := publicRouteTargetConfigFromHealthBackend(backend)
+func testRouteTargetFromBackend(backend publicRouteTargetHealthConfig) publicRouteTargetConfig {
+	target := publicRouteTargetConfigFromHealthTarget(backend)
 	if target.Transport == publicRouteTargetTransportAgent {
 		target.AgentSelector = publicAgentSelectorConfig{MatchLabels: map[string]string{"pool": "health-test"}}
 	}
 	return target
 }
 
-func waitForHealthStatus(t *testing.T, monitor *publicBackendHealthMonitor, backendID int64, want p2pstreamv1.PublicBackendHealthStatus) {
+func waitForHealthStatus(t *testing.T, monitor *publicRouteTargetHealthMonitor, targetID int64, want p2pstreamv1.PublicRouteTargetHealthStatus) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: backendID, enabled: true})
+		snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: targetID, enabled: true})
 		if snapshot != nil && snapshot.Status == want {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: backendID, enabled: true})
+	snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: targetID, enabled: true})
 	t.Fatalf("health status = %+v, want %s", snapshot, want)
 }

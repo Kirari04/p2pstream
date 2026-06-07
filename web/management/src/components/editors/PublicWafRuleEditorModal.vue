@@ -169,11 +169,11 @@ const automaticTriggerGroups: AutomaticTriggerGroup[] = [
         body: "Activates when total active public proxy requests reaches this threshold.",
       },
       {
-        key: "backendActiveRequests",
+        key: "routeTargetActiveRequests",
         label: "Target active",
         unit: "requests",
         min: 1,
-        body: "Activates when any backend reaches this active request count.",
+        body: "Activates when any route target reaches this active request count.",
       },
       {
         key: "agentActiveRequests",

@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS proxy_request_events (
     duration_ms INTEGER NOT NULL,
     error_kind TEXT NOT NULL DEFAULT '',
     listener_id INTEGER,
-    backend_id INTEGER,
     route_id INTEGER,
     route_target_id INTEGER,
     waf_rule_id INTEGER,
@@ -78,7 +77,6 @@ CREATE TABLE IF NOT EXISTS proxy_request_rollup_minutes (
 CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
     bucket_unix_millis INTEGER NOT NULL,
     listener_id INTEGER NOT NULL DEFAULT 0,
-    backend_id INTEGER NOT NULL DEFAULT 0,
     route_id INTEGER NOT NULL DEFAULT 0,
     route_target_id INTEGER NOT NULL DEFAULT 0,
     agent_id INTEGER NOT NULL DEFAULT 0,
@@ -94,7 +92,7 @@ CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
     response_bytes INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_id, route_target_id, agent_id, error_kind, status_class)
+    PRIMARY KEY (bucket_unix_millis, listener_id, route_id, route_target_id, agent_id, error_kind, status_class)
 );
 
 CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
@@ -353,7 +351,7 @@ CREATE TABLE IF NOT EXISTS public_waf_rules (
     trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
     trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
     trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
-    trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+    trigger_route_target_active_requests INTEGER NOT NULL DEFAULT 100,
     trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
     trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
     trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
@@ -495,9 +493,6 @@ ON proxy_request_events (occurred_at);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id
 ON proxy_request_events (listener_id);
-
-CREATE INDEX IF NOT EXISTS idx_proxy_request_events_backend_id
-ON proxy_request_events (backend_id);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id
 ON proxy_request_events (route_id);

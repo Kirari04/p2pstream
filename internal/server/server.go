@@ -43,7 +43,7 @@ type App struct {
 	latestAgentStats   map[int64]stats.AgentStats
 	AgentHub           *agentHub
 	LoadBalancers      *loadBalancerRegistry
-	BackendHealth      *publicBackendHealthMonitor
+	TargetHealth       *publicRouteTargetHealthMonitor
 	TrafficTracer      *trafficTracer
 	RateLimiter        *publicRateLimiter
 	TrafficShaper      *publicTrafficShaper
@@ -86,7 +86,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		StartedAt:           time.Now(),
 		AgentHub:            newAgentHub(),
 		LoadBalancers:       newLoadBalancerRegistry(),
-		BackendHealth:       newPublicBackendHealthMonitor(),
+		TargetHealth:        newPublicRouteTargetHealthMonitor(),
 		TrafficTracer:       newTrafficTracer(),
 		RateLimiter:         newPublicRateLimiter(),
 		TrafficShaper:       newPublicTrafficShaper(),
@@ -366,12 +366,12 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	cleanupAgent := func() {
 		a.AgentHub.disconnect(agent)
-		if a.BackendHealth != nil {
-			a.BackendHealth.recordAgentDisconnectedForAll(agent.AgentID)
+		if a.TargetHealth != nil {
+			a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
 		}
 	}
-	if a.BackendHealth != nil {
-		a.BackendHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
+	if a.TargetHealth != nil {
+		a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
 	}
 
 	log.Info().

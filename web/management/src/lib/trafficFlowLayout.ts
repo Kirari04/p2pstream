@@ -1,6 +1,4 @@
 import {
-  PublicBackendForwardMode,
-  PublicBackendType,
   PublicCacheTtlMode,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
@@ -193,9 +191,9 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
     return dedupeConsecutive(path);
   }
 
-  const selectedTargetId = request.routeTargetId || request.backendId;
+  const selectedTargetId = request.routeTargetId;
   if (selectedTargetId > 0n) {
-    path.push(backendKey(selectedTargetId));
+    path.push(targetKey(selectedTargetId));
 
     if (requestTargetType(request) === PublicRouteTargetType.STATIC) {
       path.push("static-response");
@@ -244,9 +242,6 @@ export function trafficRequestPathSignature(request: TraceRequest): string {
     request.routeTargetId,
     request.routeTargetType,
     request.routeTargetTransport,
-    request.backendId,
-    request.backendType,
-    request.forwardMode,
     request.agentId,
     request.rateLimitRuleId,
     request.wafRuleId,
@@ -283,17 +278,11 @@ function requestTraversesCacheNode(request: TraceRequest): boolean {
 }
 
 function requestTargetType(request: TraceRequest): PublicRouteTargetType {
-  if (request.routeTargetType) return request.routeTargetType;
-  if (request.backendType === PublicBackendType.STATIC) return PublicRouteTargetType.STATIC;
-  if (request.backendType === PublicBackendType.PROXY_FORWARD) return PublicRouteTargetType.PROXY;
-  return PublicRouteTargetType.UNSPECIFIED;
+  return request.routeTargetType || PublicRouteTargetType.UNSPECIFIED;
 }
 
 function requestTargetTransport(request: TraceRequest): PublicRouteTargetTransport {
-  if (request.routeTargetTransport) return request.routeTargetTransport;
-  if (request.forwardMode === PublicBackendForwardMode.AGENT_POOL) return PublicRouteTargetTransport.AGENT;
-  if (request.forwardMode === PublicBackendForwardMode.DIRECT) return PublicRouteTargetTransport.DIRECT;
-  return PublicRouteTargetTransport.UNSPECIFIED;
+  return request.routeTargetTransport || PublicRouteTargetTransport.UNSPECIFIED;
 }
 
 export function routeConfigForRequest(request: TraceRequest, index: TrafficFlowConfigIndex | null): PublicRoute | undefined {
@@ -320,8 +309,8 @@ export function routeKey(id: bigint | string | number): string {
   return `route:${id.toString()}`;
 }
 
-export function backendKey(id: bigint | string | number): string {
-  return `backend:${id.toString()}`;
+export function targetKey(id: bigint | string | number): string {
+  return `target:${id.toString()}`;
 }
 
 export function redirectKey(id: bigint | string | number): string {
@@ -341,9 +330,9 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
       if (request.defaultRoute && request.listenerId > 0n) return DEFAULT_ROUTE_KEY;
       return request.listenerId > 0n ? listenerKey(request.listenerId) : "ingress";
     case TraceStage.BACKEND_SELECTED:
-      return request.routeTargetId > 0n ? backendKey(request.routeTargetId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
+      return request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "response";
     case TraceStage.AGENT_SELECTED:
-      return request.agentId > 0n ? agentKey(request.agentId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
+      return request.agentId > 0n ? agentKey(request.agentId) : "response";
     case TraceStage.TRAFFIC_SHAPER_SELECTED:
       return TRAFFIC_SHAPER_KEY;
     case TraceStage.WAF_EVALUATED:
@@ -357,13 +346,13 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
       return CACHE_KEY;
     case TraceStage.CACHE_MISS:
     case TraceStage.CACHE_BYPASS:
-      return request.routeTargetId > 0n ? backendKey(request.routeTargetId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
+      return request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "response";
     case TraceStage.CACHE_STORED:
       return "response";
     case TraceStage.UPSTREAM_STARTED:
       if (requestTargetType(request) === PublicRouteTargetType.STATIC) return "static-response";
       if (request.agentId > 0n || requestTargetTransport(request) !== PublicRouteTargetTransport.AGENT) return "upstream";
-      return request.routeTargetId > 0n ? backendKey(request.routeTargetId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
+      return request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "response";
     case TraceStage.UPSTREAM_RESPONDED:
       return requestTargetType(request) === PublicRouteTargetType.STATIC ? "static-response" : "upstream";
     case TraceStage.RATE_LIMITED:

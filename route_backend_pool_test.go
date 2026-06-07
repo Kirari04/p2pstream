@@ -24,7 +24,7 @@ func TestPublicRouteTargetPoolAPIRoundTrip(t *testing.T) {
 		Priority:            10,
 		PathPrefix:          "/pool",
 		Action:              p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD,
-		TargetLoadBalancing: p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM,
+		TargetLoadBalancing: p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_RANDOM,
 		Targets: []*p2pstreamv1.PublicRouteTarget{
 			routePoolTarget("route-pool-a", "http://127.0.0.1:18081", true, 0, 25),
 			routePoolTarget("route-pool-b", "http://127.0.0.1:18082", false, 0, 75),
@@ -38,7 +38,7 @@ func TestPublicRouteTargetPoolAPIRoundTrip(t *testing.T) {
 		t.Fatalf("create route target pool: %v", err)
 	}
 	route := createResp.Msg.GetRoute()
-	if route.GetTargetLoadBalancing() != p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM {
+	if route.GetTargetLoadBalancing() != p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_RANDOM {
 		t.Fatalf("unexpected target load balancing: %+v", route)
 	}
 	if len(route.GetTargets()) != 3 ||
@@ -73,7 +73,7 @@ func TestPublicRouteTargetPoolValidation(t *testing.T) {
 			Url:        "http://127.0.0.1:1",
 			Transport:  p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT,
 			Enabled:    true,
-			HealthCheck: &p2pstreamv1.PublicBackendHealthCheck{
+			HealthCheck: &p2pstreamv1.PublicRouteTargetHealthCheck{
 				Enabled:        true,
 				Method:         "POST",
 				Path:           "/health",
@@ -99,7 +99,7 @@ func routePoolTarget(name string, target string, enabled bool, priorityGroup int
 		Weight:                              weight,
 		Enabled:                             enabled,
 		UpstreamResponseHeaderTimeoutMillis: 60000,
-		HealthCheck: &p2pstreamv1.PublicBackendHealthCheck{
+		HealthCheck: &p2pstreamv1.PublicRouteTargetHealthCheck{
 			Enabled:            false,
 			Method:             http.MethodGet,
 			Path:               "/",

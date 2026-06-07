@@ -22,12 +22,6 @@ enum PublicListenerProtocol {
   PUBLIC_LISTENER_PROTOCOL_HTTPS = 2;
 }
 
-enum PublicBackendType {
-  PUBLIC_BACKEND_TYPE_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_TYPE_PROXY_FORWARD = 1;
-  PUBLIC_BACKEND_TYPE_STATIC = 2;
-}
-
 enum PublicResponseBodyMode {
   PUBLIC_RESPONSE_BODY_MODE_UNSPECIFIED = 0;
   PUBLIC_RESPONSE_BODY_MODE_INLINE = 1;
@@ -39,12 +33,6 @@ enum PublicResponseTemplateKind {
   PUBLIC_RESPONSE_TEMPLATE_KIND_GENERIC_BODY = 1;
   PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_CAPTCHA_PAGE = 2;
   PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_WAITING_ROOM_PAGE = 3;
-}
-
-enum PublicBackendForwardMode {
-  PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_FORWARD_MODE_DIRECT = 1;
-  PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL = 2;
 }
 
 enum PublicRouteTargetType {
@@ -59,37 +47,37 @@ enum PublicRouteTargetTransport {
   PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT = 2;
 }
 
-enum PublicBackendLoadBalancing {
-  PUBLIC_BACKEND_LOAD_BALANCING_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN = 1;
-  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN = 2;
-  PUBLIC_BACKEND_LOAD_BALANCING_RANDOM = 3;
-  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM = 4;
-  PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS = 5;
-  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
+enum PublicRouteTargetLoadBalancing {
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN = 1;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN = 2;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_RANDOM = 3;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_RANDOM = 4;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS = 5;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
 }
 
-enum PublicBackendHealthStatus {
-  PUBLIC_BACKEND_HEALTH_STATUS_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN = 1;
-  PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY = 2;
-  PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY = 3;
-  PUBLIC_BACKEND_HEALTH_STATUS_DISABLED = 4;
-  PUBLIC_BACKEND_HEALTH_STATUS_DISCONNECTED = 5;
+enum PublicRouteTargetHealthStatus {
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN = 1;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY = 2;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY = 3;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISABLED = 4;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISCONNECTED = 5;
 }
 
-enum PublicBackendHealthTraceSource {
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_ACTIVE_CHECK = 1;
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE = 2;
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY = 3;
+enum PublicRouteTargetHealthTraceSource {
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_ACTIVE_CHECK = 1;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE = 2;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY = 3;
 }
 
-enum PublicBackendHealthTraceOutcome {
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS = 1;
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE = 2;
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED = 3;
+enum PublicRouteTargetHealthTraceOutcome {
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SUCCESS = 1;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_FAILURE = 2;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SKIPPED = 3;
 }
 
 enum PublicRouteAction {
@@ -344,9 +332,9 @@ message PublicHeader {
   string value = 2;
 }
 
-message PublicBackendUpstreamHeader {
+message PublicRouteTargetUpstreamHeader {
   int64 id = 1;
-  int64 backend_id = 2;
+  int64 target_id = 2;
   string name = 3;
   string value = 4;
   bool sensitive = 5;
@@ -354,14 +342,14 @@ message PublicBackendUpstreamHeader {
   int64 position = 7;
 }
 
-message PublicBackendBasicAuth {
+message PublicRouteTargetBasicAuth {
   bool enabled = 1;
   string username = 2;
   string password = 3;
   bool password_set = 4;
 }
 
-message PublicBackendHealthCheck {
+message PublicRouteTargetHealthCheck {
   bool enabled = 1;
   string method = 2;
   string path = 3;
@@ -371,14 +359,14 @@ message PublicBackendHealthCheck {
   int64 unhealthy_threshold = 7;
   int64 expected_status_min = 8;
   int64 expected_status_max = 9;
-  PublicBackendHealthStatus status = 10;
+  PublicRouteTargetHealthStatus status = 10;
   int64 last_checked_at_unix_millis = 11;
   string last_error = 12;
   int64 passive_unhealthy_until_unix_millis = 13;
 }
 
-message PublicBackendAgentHealth {
-  PublicBackendHealthStatus status = 1;
+message PublicRouteTargetAgentHealth {
+  PublicRouteTargetHealthStatus status = 1;
   bool connected = 2;
   bool available = 3;
   int64 last_checked_at_unix_millis = 4;
@@ -402,54 +390,12 @@ message Agent {
   map<string, string> labels = 12;
 }
 
-message PublicBackendHealthTrace {
-  uint64 sequence = 1;
-  int64 backend_id = 2;
-  string backend_name = 3;
-  PublicBackendForwardMode forward_mode = 4;
-  PublicBackendHealthTraceSource source = 5;
-  PublicBackendHealthTraceOutcome outcome = 6;
-  int64 agent_id = 7;
-  string agent_public_id = 8;
-  string agent_name = 9;
-  int64 started_at_unix_millis = 10;
-  int64 finished_at_unix_millis = 11;
-  int64 duration_millis = 12;
-  string method = 13;
-  string url = 14;
-  int64 status_code = 15;
-  int64 expected_status_min = 16;
-  int64 expected_status_max = 17;
-  int64 timeout_millis = 18;
-  bool tls_skip_verify = 19;
-  PublicBackendHealthStatus status_before = 20;
-  PublicBackendHealthStatus status_after = 21;
-  bool available_before = 22;
-  bool available_after = 23;
-  int64 healthy_streak_before = 24;
-  int64 healthy_streak_after = 25;
-  int64 unhealthy_streak_before = 26;
-  int64 unhealthy_streak_after = 27;
-  int64 passive_unhealthy_until_unix_millis = 28;
-  string error_kind = 29;
-  string error = 30;
-  map<string, string> debug_attributes = 31;
-}
-
-message PublicRouteBackend {
-  int64 route_id = 1;
-  int64 backend_id = 2;
-  int64 position = 3;
-  int64 weight = 4;
-  bool enabled = 5;
-}
-
 message PublicAgentSelector {
   map<string, string> match_labels = 1;
 }
 
 message PublicRouteTargetHealth {
-  PublicBackendHealthStatus status = 1;
+  PublicRouteTargetHealthStatus status = 1;
   bool available = 2;
   bool connected = 3;
   int64 agent_id = 4;
@@ -471,12 +417,12 @@ message PublicRouteTarget {
   string url = 9;
   PublicRouteTargetTransport transport = 10;
   PublicAgentSelector agent_selector = 11;
-  PublicBackendLoadBalancing agent_load_balancing = 12;
+  PublicRouteTargetLoadBalancing agent_load_balancing = 12;
   bool tls_skip_verify = 13;
   int64 upstream_response_header_timeout_millis = 14;
-  repeated PublicBackendUpstreamHeader upstream_request_headers = 15;
-  PublicBackendBasicAuth upstream_basic_auth = 16;
-  PublicBackendHealthCheck health_check = 17;
+  repeated PublicRouteTargetUpstreamHeader upstream_request_headers = 15;
+  PublicRouteTargetBasicAuth upstream_basic_auth = 16;
+  PublicRouteTargetHealthCheck health_check = 17;
   int64 static_status_code = 18;
   repeated PublicHeader static_response_headers = 19;
   string static_response_body = 20;
@@ -517,7 +463,7 @@ message PublicRoute {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
-  PublicBackendLoadBalancing target_load_balancing = 19;
+  PublicRouteTargetLoadBalancing target_load_balancing = 19;
   bool is_default = 20;
   repeated PublicRouteTarget targets = 21;
 }
@@ -650,7 +596,7 @@ message PublicWafTriggerConfig {
   int64 minimum_request_rate = 2;
   double traffic_spike_multiplier = 3;
   int64 proxy_active_requests = 4;
-  int64 backend_active_requests = 5;
+  int64 route_target_active_requests = 5;
   int64 agent_active_requests = 6;
   double server_cpu_percent = 7;
   double agent_cpu_percent = 8;
@@ -782,8 +728,8 @@ message PublicRouteTargetHealthTrace {
   int64 route_target_id = 2;
   string route_target_name = 3;
   PublicRouteTargetTransport transport = 4;
-  PublicBackendHealthTraceSource source = 5;
-  PublicBackendHealthTraceOutcome outcome = 6;
+  PublicRouteTargetHealthTraceSource source = 5;
+  PublicRouteTargetHealthTraceOutcome outcome = 6;
   int64 agent_id = 7;
   string agent_public_id = 8;
   string agent_name = 9;
@@ -797,8 +743,8 @@ message PublicRouteTargetHealthTrace {
   int64 expected_status_max = 17;
   int64 timeout_millis = 18;
   bool tls_skip_verify = 19;
-  PublicBackendHealthStatus status_before = 20;
-  PublicBackendHealthStatus status_after = 21;
+  PublicRouteTargetHealthStatus status_before = 20;
+  PublicRouteTargetHealthStatus status_after = 21;
   bool available_before = 22;
   bool available_after = 23;
   int64 healthy_streak_before = 24;
@@ -1131,7 +1077,7 @@ message CreatePublicRouteRequest {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
-  PublicBackendLoadBalancing target_load_balancing = 19;
+  PublicRouteTargetLoadBalancing target_load_balancing = 19;
   bool is_default = 20;
   repeated PublicRouteTarget targets = 21;
 }
@@ -1156,7 +1102,7 @@ message UpdatePublicRouteRequest {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
-  PublicBackendLoadBalancing target_load_balancing = 19;
+  PublicRouteTargetLoadBalancing target_load_balancing = 19;
   bool is_default = 20;
   repeated PublicRouteTarget targets = 21;
 }
@@ -1752,10 +1698,8 @@ message TrafficTraceEvent {
   int64 route_id = 11;
   string route_label = 12;
   bool default_route = 13;
-  int64 backend_id = 14;
-  string backend_name = 15;
-  PublicBackendType backend_type = 16;
-  PublicBackendForwardMode forward_mode = 17;
+  reserved 14, 15, 16, 17;
+  reserved "backend_id", "backend_name", "backend_type", "forward_mode";
   string target_origin = 18;
   int64 agent_id = 19;
   string agent_public_id = 20;

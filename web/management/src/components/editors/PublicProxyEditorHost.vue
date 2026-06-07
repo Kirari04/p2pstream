@@ -38,8 +38,8 @@ function openTarget(target: TrafficFlowEditTarget) {
     case "route":
       openRoute(target.id);
       break;
-    case "backend":
-      openBackend(target.id);
+    case "target":
+      openRouteTarget(target.id);
       break;
     case "agent":
       openAgent(target.id);
@@ -71,12 +71,12 @@ function openCloneRoute(routeId: bigint | string) {
   routeEditor.value?.openClone(routeId);
 }
 
-function openBackend(backendId: bigint | string) {
-  void backendId;
+function openRouteTarget(targetId: bigint | string) {
+  void targetId;
 }
 
-function openCloneBackend(backendId: bigint | string) {
-  void backendId;
+function openCloneRouteTarget(targetId: bigint | string) {
+  void targetId;
 }
 
 function openAgent(agentId: bigint | string) {
@@ -111,7 +111,7 @@ function openCreateRoute() {
   routeEditor.value?.openCreate();
 }
 
-function openCreateBackend() {
+function openCreateRouteTarget() {
 }
 
 function openCreateAgent() {
@@ -143,8 +143,8 @@ defineExpose({
   openListener,
   openRoute,
   openCloneRoute,
-  openBackend,
-  openCloneBackend,
+  openRouteTarget,
+  openCloneRouteTarget,
   openAgent,
   openRateLimitRule,
   openTrafficShaperRule,
@@ -153,7 +153,7 @@ defineExpose({
   openWafCaptchaProvider,
   openCreateListener,
   openCreateRoute,
-  openCreateBackend,
+  openCreateRouteTarget,
   openCreateAgent,
   openCreateRateLimitRule,
   openCreateTrafficShaperRule,

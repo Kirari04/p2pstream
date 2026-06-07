@@ -213,7 +213,6 @@ func (db *DB) migrate() error {
 		duration_ms INTEGER NOT NULL,
 		error_kind TEXT NOT NULL DEFAULT '',
 		listener_id INTEGER,
-		backend_id INTEGER,
 		route_target_id INTEGER,
 		route_id INTEGER,
 		waf_rule_id INTEGER,
@@ -252,7 +251,6 @@ func (db *DB) migrate() error {
 		CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
 			bucket_unix_millis INTEGER NOT NULL,
 			listener_id INTEGER NOT NULL DEFAULT 0,
-			backend_id INTEGER NOT NULL DEFAULT 0,
 			route_target_id INTEGER NOT NULL DEFAULT 0,
 			route_id INTEGER NOT NULL DEFAULT 0,
 			agent_id INTEGER NOT NULL DEFAULT 0,
@@ -268,7 +266,7 @@ func (db *DB) migrate() error {
 			response_bytes INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class)
+			PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
 		);
 
 		CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
@@ -434,7 +432,7 @@ func (db *DB) migrate() error {
 		trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
 		trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
 		trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
-		trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+		trigger_route_target_active_requests INTEGER NOT NULL DEFAULT 100,
 		trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
 		trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
 		trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
@@ -597,7 +595,6 @@ func (db *DB) migrate() error {
 		`ALTER TABLE agent_stats ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
 		`ALTER TABLE agent_stats ADD COLUMN cpu_percent REAL NOT NULL DEFAULT 0`,
 		`ALTER TABLE proxy_request_events ADD COLUMN listener_id INTEGER`,
-		`ALTER TABLE proxy_request_events ADD COLUMN backend_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN route_target_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN route_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN waf_rule_id INTEGER`,
@@ -647,9 +644,6 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id ON proxy_request_events (listener_id)`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_backend_id ON proxy_request_events (backend_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_target_id ON proxy_request_events (route_target_id)`); err != nil {
@@ -894,7 +888,7 @@ func (db *DB) migrate() error {
 			trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
 			trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
 			trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
-			trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+			trigger_route_target_active_requests INTEGER NOT NULL DEFAULT 100,
 			trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
 			trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
 			trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
@@ -969,6 +963,22 @@ func (db *DB) migrate() error {
 	}
 	if _, err := db.Exec(`ALTER TABLE public_cache_rules ADD COLUMN target_ids_json TEXT NOT NULL DEFAULT '[]'`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return err
+	}
+	wafRuleColumns, err := db.sqliteTableColumns("public_waf_rules")
+	if err != nil {
+		return err
+	}
+	hasOldWAFRouteTargetTrigger := sqliteColumnExists(wafRuleColumns, "trigger_backend_active_requests")
+	hasWAFRouteTargetTrigger := sqliteColumnExists(wafRuleColumns, "trigger_route_target_active_requests")
+	switch {
+	case hasOldWAFRouteTargetTrigger && !hasWAFRouteTargetTrigger:
+		if _, err := db.Exec(`ALTER TABLE public_waf_rules RENAME COLUMN trigger_backend_active_requests TO trigger_route_target_active_requests`); err != nil {
+			return err
+		}
+	case !hasWAFRouteTargetTrigger:
+		if _, err := db.Exec(`ALTER TABLE public_waf_rules ADD COLUMN trigger_route_target_active_requests INTEGER NOT NULL DEFAULT 100`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
 	}
 	for _, stmt := range []string{
 		`ALTER TABLE public_waf_rules ADD COLUMN block_response_body_mode TEXT NOT NULL DEFAULT 'inline'`,
@@ -1084,7 +1094,6 @@ func (db *DB) migrateObservabilityRollups() error {
 	CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
 		bucket_unix_millis INTEGER NOT NULL,
 		listener_id INTEGER NOT NULL DEFAULT 0,
-		backend_id INTEGER NOT NULL DEFAULT 0,
 		route_target_id INTEGER NOT NULL DEFAULT 0,
 		route_id INTEGER NOT NULL DEFAULT 0,
 		agent_id INTEGER NOT NULL DEFAULT 0,
@@ -1100,7 +1109,7 @@ func (db *DB) migrateObservabilityRollups() error {
 		response_bytes INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class)
+		PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
 	);
 
 	CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
@@ -1146,15 +1155,21 @@ func (db *DB) migrateObservabilityRollups() error {
 	if err != nil {
 		return err
 	}
-	return db.migrateProxyRequestTupleRollupRouteTarget()
+	return db.migrateProxyObservabilityTargetOnly()
 }
 
-func (db *DB) migrateProxyRequestTupleRollupRouteTarget() error {
-	columns, err := db.sqliteTableColumns("proxy_request_tuple_rollup_minutes")
+func (db *DB) migrateProxyObservabilityTargetOnly() error {
+	eventColumns, err := db.sqliteTableColumns("proxy_request_events")
 	if err != nil {
 		return err
 	}
-	if _, ok := columns["route_target_id"]; ok {
+	tupleColumns, err := db.sqliteTableColumns("proxy_request_tuple_rollup_minutes")
+	if err != nil {
+		return err
+	}
+	_, eventHasBackend := eventColumns["backend_id"]
+	_, tupleHasBackend := tupleColumns["backend_id"]
+	if !eventHasBackend && !tupleHasBackend {
 		return nil
 	}
 
@@ -1165,10 +1180,57 @@ func (db *DB) migrateProxyRequestTupleRollupRouteTarget() error {
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(`
+		DROP INDEX IF EXISTS idx_proxy_request_events_backend_id;
+		DELETE FROM proxy_request_events;
+		DELETE FROM proxy_request_rollup_minutes;
+		DELETE FROM proxy_request_tuple_rollup_minutes;
+		UPDATE observability_rollup_state
+		SET proxy_backfill_upper_id = 0,
+		    proxy_backfilled_through_id = 0,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = 1;
+	`); err != nil {
+		return err
+	}
+
+	if eventHasBackend {
+		if _, err := tx.Exec(`
+			CREATE TABLE proxy_request_events_new (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				status_code INTEGER NOT NULL,
+				duration_ms INTEGER NOT NULL,
+				error_kind TEXT NOT NULL DEFAULT '',
+				listener_id INTEGER,
+				route_target_id INTEGER,
+				route_id INTEGER,
+				waf_rule_id INTEGER,
+				waf_action TEXT NOT NULL DEFAULT '',
+				agent_id INTEGER REFERENCES agents(id),
+				request_bytes INTEGER NOT NULL DEFAULT 0,
+				response_bytes INTEGER NOT NULL DEFAULT 0,
+				cache_rule_id INTEGER,
+				cache_status TEXT NOT NULL DEFAULT '',
+				cache_bytes INTEGER NOT NULL DEFAULT 0
+			)
+		`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DROP TABLE proxy_request_events`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`ALTER TABLE proxy_request_events_new RENAME TO proxy_request_events`); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS proxy_request_tuple_rollup_minutes`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`
 		CREATE TABLE proxy_request_tuple_rollup_minutes_new (
 			bucket_unix_millis INTEGER NOT NULL,
 			listener_id INTEGER NOT NULL DEFAULT 0,
-			backend_id INTEGER NOT NULL DEFAULT 0,
 			route_target_id INTEGER NOT NULL DEFAULT 0,
 			route_id INTEGER NOT NULL DEFAULT 0,
 			agent_id INTEGER NOT NULL DEFAULT 0,
@@ -1184,56 +1246,9 @@ func (db *DB) migrateProxyRequestTupleRollupRouteTarget() error {
 			response_bytes INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class)
+			PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
 		)
 	`); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`
-		INSERT INTO proxy_request_tuple_rollup_minutes_new (
-			bucket_unix_millis,
-			listener_id,
-			backend_id,
-			route_target_id,
-			route_id,
-			agent_id,
-			error_kind,
-			status_class,
-			requests,
-			success,
-			client_error,
-			server_error,
-			internal_error,
-			duration_ms_sum,
-			request_bytes,
-			response_bytes,
-			created_at,
-			updated_at
-		)
-		SELECT
-			bucket_unix_millis,
-			listener_id,
-			backend_id,
-			0,
-			route_id,
-			agent_id,
-			error_kind,
-			status_class,
-			requests,
-			success,
-			client_error,
-			server_error,
-			internal_error,
-			duration_ms_sum,
-			request_bytes,
-			response_bytes,
-			created_at,
-			updated_at
-		FROM proxy_request_tuple_rollup_minutes
-	`); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`DROP TABLE proxy_request_tuple_rollup_minutes`); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`ALTER TABLE proxy_request_tuple_rollup_minutes_new RENAME TO proxy_request_tuple_rollup_minutes`); err != nil {

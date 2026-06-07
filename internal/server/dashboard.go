@@ -411,7 +411,7 @@ func dashboardAgentWindowFromRollup(row db.GetAgentStatsRollupSummarySinceRow) d
 }
 
 func (a *App) recordProxyRequestEvent(ctx context.Context, statusCode int, duration time.Duration, errorKind string) {
-	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, 0, 0)
+	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, 0, 0)
 }
 
 func (a *App) recordProxyRequestEventWithIDs(
@@ -420,13 +420,12 @@ func (a *App) recordProxyRequestEventWithIDs(
 	duration time.Duration,
 	errorKind string,
 	listenerID sql.NullInt64,
-	backendID sql.NullInt64,
 	routeID sql.NullInt64,
 	agentID sql.NullInt64,
 	requestBytes uint64,
 	responseBytes uint64,
 ) {
-	a.recordProxyRequestEventWithPolicyIDs(ctx, statusCode, duration, errorKind, listenerID, backendID, routeID, sql.NullInt64{}, "", agentID, requestBytes, responseBytes)
+	a.recordProxyRequestEventWithPolicyIDs(ctx, statusCode, duration, errorKind, listenerID, routeID, sql.NullInt64{}, "", agentID, requestBytes, responseBytes)
 }
 
 func (a *App) recordProxyRequestEventWithPolicyIDs(
@@ -435,7 +434,6 @@ func (a *App) recordProxyRequestEventWithPolicyIDs(
 	duration time.Duration,
 	errorKind string,
 	listenerID sql.NullInt64,
-	backendID sql.NullInt64,
 	routeID sql.NullInt64,
 	wafRuleID sql.NullInt64,
 	wafAction string,
@@ -443,7 +441,7 @@ func (a *App) recordProxyRequestEventWithPolicyIDs(
 	requestBytes uint64,
 	responseBytes uint64,
 ) {
-	a.recordProxyRequestEventWithCache(ctx, statusCode, duration, errorKind, listenerID, backendID, routeID, wafRuleID, wafAction, agentID, sql.NullInt64{}, "", 0, requestBytes, responseBytes)
+	a.recordProxyRequestEventWithCache(ctx, statusCode, duration, errorKind, listenerID, routeID, wafRuleID, wafAction, agentID, sql.NullInt64{}, "", 0, requestBytes, responseBytes)
 }
 
 func (a *App) recordProxyRequestEventWithCache(
@@ -452,7 +450,6 @@ func (a *App) recordProxyRequestEventWithCache(
 	duration time.Duration,
 	errorKind string,
 	listenerID sql.NullInt64,
-	backendID sql.NullInt64,
 	routeID sql.NullInt64,
 	wafRuleID sql.NullInt64,
 	wafAction string,
@@ -463,7 +460,7 @@ func (a *App) recordProxyRequestEventWithCache(
 	requestBytes uint64,
 	responseBytes uint64,
 ) {
-	a.recordProxyRequestEventWithRouteTargetCache(ctx, statusCode, duration, errorKind, listenerID, backendID, routeID, sql.NullInt64{}, wafRuleID, wafAction, agentID, cacheRuleID, cacheStatus, cacheBytes, requestBytes, responseBytes)
+	a.recordProxyRequestEventWithRouteTargetCache(ctx, statusCode, duration, errorKind, listenerID, routeID, sql.NullInt64{}, wafRuleID, wafAction, agentID, cacheRuleID, cacheStatus, cacheBytes, requestBytes, responseBytes)
 }
 
 func (a *App) recordProxyRequestEventWithRouteTargetCache(
@@ -472,7 +469,6 @@ func (a *App) recordProxyRequestEventWithRouteTargetCache(
 	duration time.Duration,
 	errorKind string,
 	listenerID sql.NullInt64,
-	backendID sql.NullInt64,
 	routeID sql.NullInt64,
 	routeTargetID sql.NullInt64,
 	wafRuleID sql.NullInt64,
@@ -501,7 +497,6 @@ func (a *App) recordProxyRequestEventWithRouteTargetCache(
 		DurationMs:    duration.Milliseconds(),
 		ErrorKind:     errorKind,
 		ListenerID:    listenerID,
-		BackendID:     backendID,
 		RouteID:       routeID,
 		RouteTargetID: routeTargetID,
 		WafRuleID:     wafRuleID,

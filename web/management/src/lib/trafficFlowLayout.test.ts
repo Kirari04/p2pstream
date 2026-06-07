@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  PublicBackendForwardMode,
-  PublicBackendType,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicCacheQueryMode,
   PublicCacheScope,
   PublicCacheTtlMode,
@@ -21,7 +21,7 @@ import {
   CACHE_KEY,
   TrafficRequestPathCache,
   agentKey,
-  backendKey,
+  targetKey,
   buildTrafficFlowRequestPath,
   createTrafficFlowConfigIndex,
   listenerKey,
@@ -35,13 +35,13 @@ import { newTraceRequest } from "@/lib/trafficTraceStore";
 import type { TraceRequest } from "@/types/trafficTrace";
 
 describe("trafficFlowLayout", () => {
-  test("direct backend request path includes upstream", () => {
+  test("direct target request path includes upstream", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
@@ -49,19 +49,19 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       DEFAULT_ROUTE_KEY,
-      backendKey(2n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
   });
 
-  test("agent backend request path includes selected agent", () => {
+  test("agent target request path includes selected agent", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.AGENT_POOL,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.AGENT,
       agentId: 7n,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
@@ -70,19 +70,19 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       agentKey(7n),
       "upstream",
       "response",
     ]);
   });
 
-  test("static backend request path includes static response", () => {
+  test("static target request path includes static response", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.STATIC,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.STATIC,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
@@ -112,9 +112,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       trafficShaperRuleId: 10n,
       stage: TrafficTraceStage.TRAFFIC_SHAPER_SELECTED,
     });
@@ -125,7 +125,7 @@ describe("trafficFlowLayout", () => {
       RATE_LIMIT_KEY,
       TRAFFIC_SHAPER_KEY,
       DEFAULT_ROUTE_KEY,
-      backendKey(2n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
@@ -154,9 +154,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "hit",
       stage: TrafficTraceStage.CACHE_HIT,
@@ -166,7 +166,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       CACHE_KEY,
       "response",
     ]);
@@ -176,9 +176,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "miss",
       stage: TrafficTraceStage.CACHE_MISS,
@@ -188,7 +188,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
@@ -199,9 +199,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.AGENT_POOL,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.AGENT,
       agentId: 7n,
       cacheRuleId: 4n,
       cacheStatus: "bypass",
@@ -212,7 +212,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       agentKey(7n),
       "upstream",
       "response",
@@ -220,15 +220,15 @@ describe("trafficFlowLayout", () => {
     expect(buildTrafficFlowRequestPath(request, emptyIndex())).not.toContain(CACHE_KEY);
   });
 
-  test("static backend does not include cache", () => {
+  test("static target does not include cache", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       cacheRules: [cacheRule({ id: 4n, enabled: true })],
     }));
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.STATIC,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.STATIC,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
@@ -253,9 +253,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "stored",
       stage: TrafficTraceStage.CACHE_STORED,
@@ -266,7 +266,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
@@ -278,9 +278,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "miss",
       stage: TrafficTraceStage.CACHE_LOOKUP,
@@ -291,7 +291,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       CACHE_KEY,
     ]);
     expect(targetIndexForTraceRequest(request, path)).toBe(path.indexOf(CACHE_KEY));
@@ -304,9 +304,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
@@ -320,9 +320,9 @@ describe("trafficFlowLayout", () => {
       requestId: "cached",
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       stage: TrafficTraceStage.BACKEND_SELECTED,
     });
     const first = cache.get(request, emptyIndex());

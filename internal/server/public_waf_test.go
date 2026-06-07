@@ -922,7 +922,7 @@ func TestPublicWafAutomaticActivationUsesPressureSignals(t *testing.T) {
 	rule.Triggers.MinimumRequestRate = 0
 	rule.Triggers.TrafficSpikeMultiplier = 0
 	rule.Triggers.ProxyActiveRequests = 1
-	rule.Triggers.BackendActiveRequests = 0
+	rule.Triggers.RouteTargetActiveRequests = 0
 	rule.Triggers.AgentActiveRequests = 0
 	rule.Triggers.ServerCPUPercent = 0
 	rule.Triggers.AgentCPUPercent = 0
@@ -945,13 +945,13 @@ func TestPublicWafAutomaticActivationUsesPressureSignals(t *testing.T) {
 }
 
 func TestPublicWafAutomaticActivationUsesRouteTargetPressure(t *testing.T) {
-	app := &App{PublicWAF: newPublicWAF(), BackendHealth: newPublicBackendHealthMonitor()}
+	app := &App{PublicWAF: newPublicWAF(), TargetHealth: newPublicRouteTargetHealthMonitor()}
 	rule := testWafRule(1, publicWafActionBlock)
 	rule.ActivationMode = publicWafActivationAutomatic
 	rule.Triggers.MinimumRequestRate = 0
 	rule.Triggers.TrafficSpikeMultiplier = 0
 	rule.Triggers.ProxyActiveRequests = 0
-	rule.Triggers.BackendActiveRequests = 1
+	rule.Triggers.RouteTargetActiveRequests = 1
 	rule.Triggers.AgentActiveRequests = 0
 	rule.Triggers.ServerCPUPercent = 0
 	rule.Triggers.AgentCPUPercent = 0
@@ -1063,7 +1063,7 @@ func TestPublicWafTriggerValidationPreservesDisabledSignals(t *testing.T) {
 		MinimumRequestRate:     0,
 		TrafficSpikeMultiplier: 0,
 		ProxyActiveRequests:    0,
-		BackendActiveRequests:  0,
+		RouteTargetActiveRequests:  0,
 		AgentActiveRequests:    0,
 		ServerCpuPercent:       0,
 		AgentCpuPercent:        0,
@@ -1076,7 +1076,7 @@ func TestPublicWafTriggerValidationPreservesDisabledSignals(t *testing.T) {
 	if cfg.MinimumRequestRate != 0 ||
 		cfg.TrafficSpikeMultiplier != 0 ||
 		cfg.ProxyActiveRequests != 0 ||
-		cfg.BackendActiveRequests != 0 ||
+		cfg.RouteTargetActiveRequests != 0 ||
 		cfg.AgentActiveRequests != 0 ||
 		cfg.ServerCPUPercent != 0 ||
 		cfg.AgentCPUPercent != 0 {
@@ -1187,7 +1187,7 @@ func testWafRule(id int64, action string) publicWafRuleConfig {
 		CaptchaProviderID:        1,
 		CaptchaPassTTL:           defaultWafCaptchaPassTTL,
 		WaitingRoom:              publicWafWaitingRoomConfig{MaxAdmittedSessions: 50, AdmissionRatePerSecond: 10, AdmissionSessionTTLMillis: 600000, QueuePollIntervalMillis: 5000, QueueTimeoutMillis: 1800000, PageTitle: "Waiting room", PageBody: "Traffic is high."},
-		Triggers:                 publicWafTriggerConfig{RequestWindowMillis: 10000, MinimumRequestRate: 50, TrafficSpikeMultiplier: 4, ProxyActiveRequests: 100, BackendActiveRequests: 100, AgentActiveRequests: 50, ServerCPUPercent: 85, AgentCPUPercent: 85, MinimumActiveMillis: 30000, QuietPeriodMillis: 60000},
+		Triggers:                 publicWafTriggerConfig{RequestWindowMillis: 10000, MinimumRequestRate: 50, TrafficSpikeMultiplier: 4, ProxyActiveRequests: 100, RouteTargetActiveRequests: 100, AgentActiveRequests: 50, ServerCPUPercent: 85, AgentCPUPercent: 85, MinimumActiveMillis: 30000, QuietPeriodMillis: 60000},
 		BlockResponseStatusCode:  http.StatusForbidden,
 		BlockResponseBody:        "blocked\n",
 		BlockResponseContentType: "text/plain; charset=utf-8",

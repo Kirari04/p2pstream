@@ -145,7 +145,7 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	}
 }
 
-func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
+func TestStaticPublicRouteTargetRespondsWithoutAgent(t *testing.T) {
 	database := newTestDB(t)
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
 		Name:        "static-http",
@@ -231,7 +231,7 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 
 	resp, err := http.Get("http://" + boundAddress + "/static")
 	if err != nil {
-		t.Fatalf("static backend request: %v", err)
+		t.Fatalf("static target request: %v", err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)

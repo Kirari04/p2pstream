@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
-  PublicBackendForwardMode,
-  PublicBackendHealthStatus,
-  PublicBackendHealthTraceOutcome,
-  PublicBackendHealthTraceSource,
+  PublicRouteTargetTransport,
+  PublicRouteTargetHealthStatus,
+  PublicRouteTargetHealthTraceOutcome,
+  PublicRouteTargetHealthTraceSource,
   PublicAcmeChallengeType,
   PublicAcmeCa,
   PublicTlsCertificateSource,
   PublicTlsCertificateStatus,
   type Agent,
-  type PublicBackendHealthTrace,
+  type PublicRouteTargetHealthTrace,
   type PublicTlsCertificate,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
@@ -56,15 +56,15 @@ describe("publicProxyLabels", () => {
 
   test("formats health trace labels and summaries", () => {
     const trace = healthTrace({
-      outcome: PublicBackendHealthTraceOutcome.FAILURE,
-      source: PublicBackendHealthTraceSource.ACTIVE_CHECK,
+      outcome: PublicRouteTargetHealthTraceOutcome.FAILURE,
+      source: PublicRouteTargetHealthTraceSource.ACTIVE_CHECK,
       agentId: 2n,
       agentPublicId: "agent-b",
       statusCode: 503n,
       expectedStatusMin: 200n,
       expectedStatusMax: 399n,
-      statusBefore: PublicBackendHealthStatus.HEALTHY,
-      statusAfter: PublicBackendHealthStatus.UNHEALTHY,
+      statusBefore: PublicRouteTargetHealthStatus.HEALTHY,
+      statusAfter: PublicRouteTargetHealthStatus.UNHEALTHY,
       availableAfter: false,
       errorKind: "unexpected_status",
     });
@@ -122,15 +122,15 @@ function agent(id: bigint, publicId: string): Agent {
   };
 }
 
-function healthTrace(overrides: Partial<PublicBackendHealthTrace> = {}): PublicBackendHealthTrace {
+function healthTrace(overrides: Partial<PublicRouteTargetHealthTrace> = {}): PublicRouteTargetHealthTrace {
   return {
-    $typeName: "p2pstream.v1.PublicBackendHealthTrace",
+    $typeName: "p2pstream.v1.PublicRouteTargetHealthTrace",
     sequence: 1n,
-    backendId: 1n,
-    backendName: "backend",
-    forwardMode: PublicBackendForwardMode.DIRECT,
-    source: PublicBackendHealthTraceSource.ACTIVE_CHECK,
-    outcome: PublicBackendHealthTraceOutcome.SUCCESS,
+    routeTargetId: 1n,
+    routeTargetName: "target",
+    transport: PublicRouteTargetTransport.DIRECT,
+    source: PublicRouteTargetHealthTraceSource.ACTIVE_CHECK,
+    outcome: PublicRouteTargetHealthTraceOutcome.SUCCESS,
     agentId: 0n,
     agentPublicId: "",
     agentName: "",
@@ -144,8 +144,8 @@ function healthTrace(overrides: Partial<PublicBackendHealthTrace> = {}): PublicB
     expectedStatusMax: 399n,
     timeoutMillis: 2000n,
     tlsSkipVerify: false,
-    statusBefore: PublicBackendHealthStatus.UNKNOWN,
-    statusAfter: PublicBackendHealthStatus.HEALTHY,
+    statusBefore: PublicRouteTargetHealthStatus.UNKNOWN,
+    statusAfter: PublicRouteTargetHealthStatus.HEALTHY,
     availableBefore: true,
     availableAfter: true,
     healthyStreakBefore: 0n,

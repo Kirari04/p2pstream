@@ -36,12 +36,12 @@ func TestPublicRouteTargetUpstreamConfigAPIValidationAndReadback(t *testing.T) {
 			Transport:  p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT,
 			Url:        "http://example.com",
 			Enabled:    true,
-			UpstreamRequestHeaders: []*p2pstreamv1.PublicBackendUpstreamHeader{
+			UpstreamRequestHeaders: []*p2pstreamv1.PublicRouteTargetUpstreamHeader{
 				{Name: "X-Visible", Value: "visible", ValueSet: true},
 				{Name: "Cookie", Value: "session=secret", ValueSet: true},
 				{Name: "X-Secret", Value: "hidden", Sensitive: true, ValueSet: true},
 			},
-			UpstreamBasicAuth: &p2pstreamv1.PublicBackendBasicAuth{
+			UpstreamBasicAuth: &p2pstreamv1.PublicRouteTargetBasicAuth{
 				Enabled:     true,
 				Username:    "service",
 				Password:    "old-password",
@@ -156,24 +156,24 @@ func TestPublicRouteTargetUpstreamConfigValidationRejectsInvalidInputs(t *testin
 
 	cases := []struct {
 		name    string
-		headers []*p2pstreamv1.PublicBackendUpstreamHeader
-		auth    *p2pstreamv1.PublicBackendBasicAuth
+		headers []*p2pstreamv1.PublicRouteTargetUpstreamHeader
+		auth    *p2pstreamv1.PublicRouteTargetBasicAuth
 	}{
 		{
 			name: "duplicate-header",
-			headers: []*p2pstreamv1.PublicBackendUpstreamHeader{
+			headers: []*p2pstreamv1.PublicRouteTargetUpstreamHeader{
 				{Name: "X-Dupe", Value: "1", ValueSet: true},
 				{Name: "x-dupe", Value: "2", ValueSet: true},
 			},
 		},
-		{name: "blocked-header", headers: []*p2pstreamv1.PublicBackendUpstreamHeader{{Name: "Host", Value: "example.com", ValueSet: true}}},
+		{name: "blocked-header", headers: []*p2pstreamv1.PublicRouteTargetUpstreamHeader{{Name: "Host", Value: "example.com", ValueSet: true}}},
 		{
 			name:    "authorization-with-basic-auth",
-			headers: []*p2pstreamv1.PublicBackendUpstreamHeader{{Name: "Authorization", Value: "Bearer token", ValueSet: true}},
-			auth:    &p2pstreamv1.PublicBackendBasicAuth{Enabled: true, Username: "service", Password: "secret", PasswordSet: true},
+			headers: []*p2pstreamv1.PublicRouteTargetUpstreamHeader{{Name: "Authorization", Value: "Bearer token", ValueSet: true}},
+			auth:    &p2pstreamv1.PublicRouteTargetBasicAuth{Enabled: true, Username: "service", Password: "secret", PasswordSet: true},
 		},
-		{name: "missing-basic-auth-username", auth: &p2pstreamv1.PublicBackendBasicAuth{Enabled: true, Password: "secret", PasswordSet: true}},
-		{name: "missing-basic-auth-password", auth: &p2pstreamv1.PublicBackendBasicAuth{Enabled: true, Username: "service"}},
+		{name: "missing-basic-auth-username", auth: &p2pstreamv1.PublicRouteTargetBasicAuth{Enabled: true, Password: "secret", PasswordSet: true}},
+		{name: "missing-basic-auth-password", auth: &p2pstreamv1.PublicRouteTargetBasicAuth{Enabled: true, Username: "service"}},
 	}
 
 	for idx, tc := range cases {
@@ -217,10 +217,10 @@ func TestStaticPublicRouteTargetClearsUpstreamConfig(t *testing.T) {
 			Name:             "static-clears-upstream",
 			TargetType:       p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC,
 			StaticStatusCode: http.StatusNoContent,
-			UpstreamRequestHeaders: []*p2pstreamv1.PublicBackendUpstreamHeader{
+			UpstreamRequestHeaders: []*p2pstreamv1.PublicRouteTargetUpstreamHeader{
 				{Name: "X-Ignored", Value: "ignored", ValueSet: true},
 			},
-			UpstreamBasicAuth: &p2pstreamv1.PublicBackendBasicAuth{
+			UpstreamBasicAuth: &p2pstreamv1.PublicRouteTargetBasicAuth{
 				Enabled:     true,
 				Username:    "ignored",
 				Password:    "ignored",
@@ -543,7 +543,7 @@ func assertTrustedForwardedHeaders(t *testing.T, got http.Header, listenerAddr s
 	}
 }
 
-func assertUpstreamHeaderProto(t *testing.T, target *p2pstreamv1.PublicRouteTarget, name string, value string, sensitive bool, valueSet bool) *p2pstreamv1.PublicBackendUpstreamHeader {
+func assertUpstreamHeaderProto(t *testing.T, target *p2pstreamv1.PublicRouteTarget, name string, value string, sensitive bool, valueSet bool) *p2pstreamv1.PublicRouteTargetUpstreamHeader {
 	t.Helper()
 	for _, header := range target.GetUpstreamRequestHeaders() {
 		if header.GetName() == name {

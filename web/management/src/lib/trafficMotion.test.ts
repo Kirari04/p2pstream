@@ -84,15 +84,15 @@ describe("trafficMotion", () => {
   });
 
   test("consecutive motion segments are continuous", () => {
-    const nodes = nodeMap(["ingress", "listener", "backend", "response"]);
+    const nodes = nodeMap(["ingress", "listener", "target", "response"]);
     const plan = buildMotionPlan({
-      path: ["ingress", "listener", "backend", "response"],
+      path: ["ingress", "listener", "target", "response"],
       targetNodeIndex: 3,
       nodes,
       edgeRoutes: new Map([
         ...edgeMap(nodes, "ingress", "listener"),
-        ...edgeMap(nodes, "listener", "backend"),
-        ...edgeMap(nodes, "backend", "response"),
+        ...edgeMap(nodes, "listener", "target"),
+        ...edgeMap(nodes, "target", "response"),
       ]),
       signature: "continuous",
     });

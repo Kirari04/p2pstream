@@ -21,7 +21,7 @@ import DangerButton from "@/volt/DangerButton.vue";
 import Modal from "@/volt/Modal.vue";
 import SecondaryButton from "@/volt/SecondaryButton.vue";
 import {
-  PublicBackendLoadBalancing,
+  PublicRouteTargetLoadBalancing,
   PublicResponseBodyMode,
   PublicRouteAction,
   PublicRouteRedirectTargetMode,
@@ -77,7 +77,7 @@ const routeForm = reactive({
   priority: 100,
   hostPattern: "",
   pathPrefix: "",
-  targetLoadBalancing: PublicBackendLoadBalancing.ROUND_ROBIN,
+  targetLoadBalancing: PublicRouteTargetLoadBalancing.ROUND_ROBIN,
   isDefault: false,
   targets: [] as TargetForm[],
   redirectTargetMode: PublicRouteRedirectTargetMode.SAME_HOST_PATH,
@@ -150,7 +150,7 @@ function resetForm() {
   routeForm.priority = 100;
   routeForm.hostPattern = "";
   routeForm.pathPrefix = "";
-  routeForm.targetLoadBalancing = PublicBackendLoadBalancing.ROUND_ROBIN;
+  routeForm.targetLoadBalancing = PublicRouteTargetLoadBalancing.ROUND_ROBIN;
   routeForm.isDefault = false;
   routeForm.targets = [defaultTarget(0)];
   routeForm.redirectTargetMode = PublicRouteRedirectTargetMode.SAME_HOST_PATH;
@@ -191,7 +191,7 @@ function populateRouteForm(route: PublicRoute, mode: "edit" | "clone") {
   routeForm.priority = Number(route.priority);
   routeForm.hostPattern = route.hostPattern;
   routeForm.pathPrefix = route.pathPrefix;
-  routeForm.targetLoadBalancing = route.targetLoadBalancing || PublicBackendLoadBalancing.ROUND_ROBIN;
+  routeForm.targetLoadBalancing = route.targetLoadBalancing || PublicRouteTargetLoadBalancing.ROUND_ROBIN;
   routeForm.isDefault = route.isDefault;
   routeForm.targets = action === PublicRouteAction.REDIRECT ? [] : route.targets.map(targetFormFromProto);
   if (action !== PublicRouteAction.REDIRECT && !routeForm.targets.length) routeForm.targets = [defaultTarget(0)];
@@ -261,7 +261,7 @@ function targetPayload(target: TargetForm, index: number) {
     url: isStatic ? "" : target.url.trim(),
     transport: isStatic ? PublicRouteTargetTransport.DIRECT : target.transport,
     agentSelector: selectorPayload(target),
-    agentLoadBalancing: PublicBackendLoadBalancing.ROUND_ROBIN,
+    agentLoadBalancing: PublicRouteTargetLoadBalancing.ROUND_ROBIN,
     tlsSkipVerify: !isStatic && target.tlsSkipVerify,
     upstreamResponseHeaderTimeoutMillis: BigInt(Math.max(1, target.responseHeaderTimeoutMillis || 60000)),
     upstreamRequestHeaders: [],
@@ -368,7 +368,7 @@ async function submitRoute() {
       hostPattern: routeForm.hostPattern,
       pathPrefix: routeForm.pathPrefix,
       action: routeForm.action,
-      targetLoadBalancing: isRedirect ? PublicBackendLoadBalancing.ROUND_ROBIN : routeForm.targetLoadBalancing,
+      targetLoadBalancing: isRedirect ? PublicRouteTargetLoadBalancing.ROUND_ROBIN : routeForm.targetLoadBalancing,
       isDefault: routeForm.isDefault,
       targets: isRedirect ? [] : routeForm.targets.map(targetPayload),
       redirectTargetMode: isRedirect ? routeForm.redirectTargetMode : PublicRouteRedirectTargetMode.UNSPECIFIED,
@@ -444,12 +444,12 @@ defineExpose({ openCreate, openEdit, openClone, close });
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Target balancing
           <select v-model="routeForm.targetLoadBalancing" class="vercel-input text-sm normal-case tracking-normal" :disabled="routeIsRedirect">
-            <option :value="PublicBackendLoadBalancing.ROUND_ROBIN">Round-robin</option>
-            <option :value="PublicBackendLoadBalancing.WEIGHTED_ROUND_ROBIN">Weighted round-robin</option>
-            <option :value="PublicBackendLoadBalancing.RANDOM">Random</option>
-            <option :value="PublicBackendLoadBalancing.WEIGHTED_RANDOM">Weighted random</option>
-            <option :value="PublicBackendLoadBalancing.LEAST_ACTIVE_REQUESTS">Least active</option>
-            <option :value="PublicBackendLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS">Weighted least active</option>
+            <option :value="PublicRouteTargetLoadBalancing.ROUND_ROBIN">Round-robin</option>
+            <option :value="PublicRouteTargetLoadBalancing.WEIGHTED_ROUND_ROBIN">Weighted round-robin</option>
+            <option :value="PublicRouteTargetLoadBalancing.RANDOM">Random</option>
+            <option :value="PublicRouteTargetLoadBalancing.WEIGHTED_RANDOM">Weighted random</option>
+            <option :value="PublicRouteTargetLoadBalancing.LEAST_ACTIVE_REQUESTS">Least active</option>
+            <option :value="PublicRouteTargetLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS">Weighted least active</option>
           </select>
         </label>
         <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">

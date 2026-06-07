@@ -1,7 +1,5 @@
 import type { TrafficTraceEvent } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
-  PublicBackendForwardMode,
-  PublicBackendType,
   PublicRateLimitAlgorithm,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
@@ -26,10 +24,6 @@ export type TraceRequest = {
   routeId: bigint;
   routeLabel: string;
   defaultRoute: boolean;
-  backendId: bigint;
-  backendName: string;
-  backendType: PublicBackendType;
-  forwardMode: PublicBackendForwardMode;
   routeTargetId: bigint;
   routeTargetName: string;
   routeTargetType: PublicRouteTargetType;

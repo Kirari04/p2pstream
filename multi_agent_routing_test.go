@@ -20,7 +20,7 @@ import (
 	"p2pstream/internal/server"
 )
 
-func TestDirectPublicBackendProxiesWithoutAgent(t *testing.T) {
+func TestDirectPublicRouteTargetProxiesWithoutAgent(t *testing.T) {
 	targetMux := http.NewServeMux()
 	targetMux.HandleFunc("/direct", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.RawQuery != "x=1" {
@@ -64,7 +64,7 @@ func TestDirectPublicBackendProxiesWithoutAgent(t *testing.T) {
 	}
 }
 
-func TestDirectPublicBackendHonorsTLSSkipVerify(t *testing.T) {
+func TestDirectPublicRouteTargetHonorsTLSSkipVerify(t *testing.T) {
 	targetSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("tls ok"))
 	}))

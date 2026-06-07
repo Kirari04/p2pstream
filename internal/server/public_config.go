@@ -125,61 +125,57 @@ const (
 </body>
 </html>
 `
-	publicBackendTypeProxyForward                         = "proxy_forward"
-	publicBackendTypeStatic                               = "static"
-	publicResponseBodyModeInline                          = "inline"
-	publicResponseBodyModeTemplate                        = "template"
-	publicResponseTemplateKindGenericBody                 = "generic_body"
-	publicResponseTemplateKindWafCaptchaPage              = "waf_captcha_page"
-	publicResponseTemplateKindWafWaitingRoomPage          = "waf_waiting_room_page"
-	defaultResponseTemplateContentType                    = "text/html; charset=utf-8"
-	publicBackendForwardModeDirect                        = "direct"
-	publicBackendForwardModeAgentPool                     = "agent_pool"
-	publicRouteTargetTypeProxy                            = "proxy"
-	publicRouteTargetTypeStatic                           = "static"
-	publicRouteTargetTransportDirect                      = "direct"
-	publicRouteTargetTransportAgent                       = "agent"
-	publicBackendLoadBalancingRoundRobin                  = "round_robin"
-	publicBackendLoadBalancingWeightedRoundRobin          = "weighted_round_robin"
-	publicBackendLoadBalancingRandom                      = "random"
-	publicBackendLoadBalancingWeightedRandom              = "weighted_random"
-	publicBackendLoadBalancingLeastActiveRequests         = "least_active_requests"
-	publicBackendLoadBalancingWeightedLeastActiveRequests = "weighted_least_active_requests"
-	publicRouteActionForward                              = "forward"
-	publicRouteActionRedirect                             = "redirect"
-	publicRouteRedirectTargetModeSameHostPath             = "same_host_path"
-	publicRouteRedirectTargetModeExternalOriginKeepPath   = "external_origin_keep_path"
-	publicRouteRedirectTargetModeAbsoluteURL              = "absolute_url"
-	publicRateLimitAlgorithmFixedWindow                   = "fixed_window"
-	publicRateLimitAlgorithmSlidingWindow                 = "sliding_window"
-	publicRateLimitAlgorithmTokenBucket                   = "token_bucket"
-	publicRateLimitAlgorithmLeakyBucket                   = "leaky_bucket"
-	publicTLSCertificateSourceManual                      = "manual"
-	publicTLSCertificateSourceACME                        = "acme"
-	publicACMEChallengeHTTP01                             = "http_01"
-	publicACMEChallengeTLSALPN01                          = "tls_alpn_01"
-	publicACMEChallengeDNS01                              = "dns_01"
-	publicACMECAProduction                                = "letsencrypt_production"
-	publicACMECAStaging                                   = "letsencrypt_staging"
-	publicDNSProviderCloudflare                           = "cloudflare"
-	publicTLSCertificateStatusPending                     = "pending"
-	publicTLSCertificateStatusReady                       = "ready"
-	publicTLSCertificateStatusRenewing                    = "renewing"
-	publicTLSCertificateStatusError                       = "error"
-	defaultStaticStatusCode                               = int64(http.StatusOK)
-	defaultRedirectStatusCode                             = int64(http.StatusFound)
-	defaultBackendHealthCheckMethod                       = http.MethodGet
-	defaultBackendHealthCheckPath                         = "/"
-	defaultBackendHealthCheckIntervalMillis               = int64(10000)
-	defaultBackendHealthCheckTimeoutMillis                = int64(2000)
-	defaultBackendHealthCheckHealthyThreshold             = int64(2)
-	defaultBackendHealthCheckUnhealthyThreshold           = int64(2)
-	defaultBackendHealthCheckExpectedStatusMin            = int64(200)
-	defaultBackendHealthCheckExpectedStatusMax            = int64(399)
-	defaultBackendUpstreamResponseHeaderTimeoutMillis     = int64(60000)
-	minBackendUpstreamResponseHeaderTimeoutMillis         = int64(1000)
-	maxBackendUpstreamResponseHeaderTimeoutMillis         = int64(3600000)
-	maxUpstreamHeaderValueBytes                           = 8192
+	publicResponseBodyModeInline                              = "inline"
+	publicResponseBodyModeTemplate                            = "template"
+	publicResponseTemplateKindGenericBody                     = "generic_body"
+	publicResponseTemplateKindWafCaptchaPage                  = "waf_captcha_page"
+	publicResponseTemplateKindWafWaitingRoomPage              = "waf_waiting_room_page"
+	defaultResponseTemplateContentType                        = "text/html; charset=utf-8"
+	publicRouteTargetTypeProxy                                = "proxy"
+	publicRouteTargetTypeStatic                               = "static"
+	publicRouteTargetTransportDirect                          = "direct"
+	publicRouteTargetTransportAgent                           = "agent"
+	publicRouteTargetLoadBalancingRoundRobin                  = "round_robin"
+	publicRouteTargetLoadBalancingWeightedRoundRobin          = "weighted_round_robin"
+	publicRouteTargetLoadBalancingRandom                      = "random"
+	publicRouteTargetLoadBalancingWeightedRandom              = "weighted_random"
+	publicRouteTargetLoadBalancingLeastActiveRequests         = "least_active_requests"
+	publicRouteTargetLoadBalancingWeightedLeastActiveRequests = "weighted_least_active_requests"
+	publicRouteActionForward                                  = "forward"
+	publicRouteActionRedirect                                 = "redirect"
+	publicRouteRedirectTargetModeSameHostPath                 = "same_host_path"
+	publicRouteRedirectTargetModeExternalOriginKeepPath       = "external_origin_keep_path"
+	publicRouteRedirectTargetModeAbsoluteURL                  = "absolute_url"
+	publicRateLimitAlgorithmFixedWindow                       = "fixed_window"
+	publicRateLimitAlgorithmSlidingWindow                     = "sliding_window"
+	publicRateLimitAlgorithmTokenBucket                       = "token_bucket"
+	publicRateLimitAlgorithmLeakyBucket                       = "leaky_bucket"
+	publicTLSCertificateSourceManual                          = "manual"
+	publicTLSCertificateSourceACME                            = "acme"
+	publicACMEChallengeHTTP01                                 = "http_01"
+	publicACMEChallengeTLSALPN01                              = "tls_alpn_01"
+	publicACMEChallengeDNS01                                  = "dns_01"
+	publicACMECAProduction                                    = "letsencrypt_production"
+	publicACMECAStaging                                       = "letsencrypt_staging"
+	publicDNSProviderCloudflare                               = "cloudflare"
+	publicTLSCertificateStatusPending                         = "pending"
+	publicTLSCertificateStatusReady                           = "ready"
+	publicTLSCertificateStatusRenewing                        = "renewing"
+	publicTLSCertificateStatusError                           = "error"
+	defaultStaticStatusCode                                   = int64(http.StatusOK)
+	defaultRedirectStatusCode                                 = int64(http.StatusFound)
+	defaultTargetHealthCheckMethod                            = http.MethodGet
+	defaultTargetHealthCheckPath                              = "/"
+	defaultTargetHealthCheckIntervalMillis                    = int64(10000)
+	defaultTargetHealthCheckTimeoutMillis                     = int64(2000)
+	defaultTargetHealthCheckHealthyThreshold                  = int64(2)
+	defaultTargetHealthCheckUnhealthyThreshold                = int64(2)
+	defaultTargetHealthCheckExpectedStatusMin                 = int64(200)
+	defaultTargetHealthCheckExpectedStatusMax                 = int64(399)
+	defaultTargetUpstreamResponseHeaderTimeoutMillis          = int64(60000)
+	minTargetUpstreamResponseHeaderTimeoutMillis              = int64(1000)
+	maxTargetUpstreamResponseHeaderTimeoutMillis              = int64(3600000)
+	maxUpstreamHeaderValueBytes                               = 8192
 )
 
 var publicNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
@@ -210,12 +206,12 @@ type cachedPublicConfig struct {
 	Valid    bool
 }
 
-type publicBackendHeaderInput struct {
+type publicRouteTargetResponseHeaderInput struct {
 	Name  string
 	Value string
 }
 
-type publicBackendUpstreamHeaderInput struct {
+type publicRouteTargetUpstreamHeaderInput struct {
 	ID        int64
 	Name      string
 	Value     string
@@ -224,8 +220,8 @@ type publicBackendUpstreamHeaderInput struct {
 
 type publicRouteTargetMutationInput struct {
 	Params          db.CreatePublicRouteTargetParams
-	UpstreamHeaders []publicBackendUpstreamHeaderInput
-	ResponseHeaders []publicBackendHeaderInput
+	UpstreamHeaders []publicRouteTargetUpstreamHeaderInput
+	ResponseHeaders []publicRouteTargetResponseHeaderInput
 }
 
 type publicTLSCertificateMutationInput struct {
@@ -279,18 +275,18 @@ func (a *App) ListPublicRouteTargetHealthTraces(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route target id is required"))
 	}
 	limit := req.Msg.Limit
-	if limit <= 0 || limit > publicBackendHealthTraceLimitPerTarget {
-		limit = publicBackendHealthTraceLimitPerTarget
+	if limit <= 0 || limit > publicRouteTargetHealthTraceLimitPerTarget {
+		limit = publicRouteTargetHealthTraceLimitPerTarget
 	}
-	var traces []*p2pstreamv1.PublicBackendHealthTrace
+	var traces []*p2pstreamv1.PublicRouteTargetHealthTrace
 	var retained int64
-	if a.BackendHealth != nil {
-		traces, retained = a.BackendHealth.listHealthTraces(req.Msg.RouteTargetId, req.Msg.AgentId, limit, req.Msg.FailuresOnly)
+	if a.TargetHealth != nil {
+		traces, retained = a.TargetHealth.listHealthTraces(req.Msg.RouteTargetId, req.Msg.AgentId, limit, req.Msg.FailuresOnly)
 	}
 	return connect.NewResponse(&p2pstreamv1.ListPublicRouteTargetHealthTracesResponse{
-		Traces:               publicBackendHealthTracesToRouteTargetTraces(traces),
+		Traces:               traces,
 		RetainedCount:        retained,
-		MaxRetainedPerTarget: publicBackendHealthTraceLimitPerTarget,
+		MaxRetainedPerTarget: publicRouteTargetHealthTraceLimitPerTarget,
 	}), nil
 }
 
@@ -501,7 +497,7 @@ func (a *App) CreatePublicRoute(
 		return nil, err
 	}
 	upstreamHeaders, responseHeaders := a.publicRouteTargetHeaderMaps(ctx)
-	return connect.NewResponse(&p2pstreamv1.CreatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, a.BackendHealth)}), nil
+	return connect.NewResponse(&p2pstreamv1.CreatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, a.TargetHealth)}), nil
 }
 
 func (a *App) UpdatePublicRoute(
@@ -540,7 +536,7 @@ func (a *App) UpdatePublicRoute(
 		return nil, err
 	}
 	upstreamHeaders, responseHeaders := a.publicRouteTargetHeaderMaps(ctx)
-	return connect.NewResponse(&p2pstreamv1.UpdatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, a.BackendHealth)}), nil
+	return connect.NewResponse(&p2pstreamv1.UpdatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, a.TargetHealth)}), nil
 }
 
 func (a *App) createPublicRouteWithTargets(
@@ -1010,8 +1006,8 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
 		Listeners:           publicListenersToProto(rows.Listeners),
-		Routes:              publicRoutesToProto(rows.Routes, rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.BackendHealth),
-		RouteTargets:        publicRouteTargetsToProto(rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.BackendHealth),
+		Routes:              publicRoutesToProto(rows.Routes, rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
+		RouteTargets:        publicRouteTargetsToProto(rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		TlsCertificates:     publicTLSCertificatesToProto(rows.TLSCertificates),
 		Proxy:               a.proxyStatus(),
 		Agents:              a.publicAgentsToProto(ctx, rows.Agents, false),
@@ -1043,8 +1039,8 @@ func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	active := a.proxyServiceActive
 	a.proxyMu.Unlock()
 	a.LoadBalancers.reconcile(snap)
-	if a.BackendHealth != nil {
-		a.BackendHealth.reconcile(a, snap, active)
+	if a.TargetHealth != nil {
+		a.TargetHealth.reconcile(a, snap, active)
 	}
 	if a.RateLimiter != nil {
 		a.RateLimiter.reconcile(snap)
@@ -1247,7 +1243,7 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 			Priority:                   defaultPublicRoutePriority,
 			HostPattern:                "",
 			PathPrefix:                 "/",
-			TargetLoadBalancing:        publicBackendLoadBalancingRoundRobin,
+			TargetLoadBalancing:        publicRouteTargetLoadBalancingRoundRobin,
 			IsDefault:                  1,
 			Action:                     publicRouteActionForward,
 			RedirectTargetMode:         "",
@@ -1271,21 +1267,21 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 			Url:                                 "",
 			Transport:                           publicRouteTargetTransportDirect,
 			AgentSelectorJson:                   "{}",
-			AgentLoadBalancing:                  publicBackendLoadBalancingRoundRobin,
+			AgentLoadBalancing:                  publicRouteTargetLoadBalancingRoundRobin,
 			TlsSkipVerify:                       0,
 			UpstreamBasicAuthEnabled:            0,
 			UpstreamBasicAuthUsername:           "",
 			UpstreamBasicAuthPassword:           "",
-			UpstreamResponseHeaderTimeoutMillis: defaultBackendUpstreamResponseHeaderTimeoutMillis,
+			UpstreamResponseHeaderTimeoutMillis: defaultTargetUpstreamResponseHeaderTimeoutMillis,
 			HealthCheckEnabled:                  0,
-			HealthCheckMethod:                   defaultBackendHealthCheckMethod,
-			HealthCheckPath:                     defaultBackendHealthCheckPath,
-			HealthCheckIntervalMillis:           defaultBackendHealthCheckIntervalMillis,
-			HealthCheckTimeoutMillis:            defaultBackendHealthCheckTimeoutMillis,
-			HealthCheckHealthyThreshold:         defaultBackendHealthCheckHealthyThreshold,
-			HealthCheckUnhealthyThreshold:       defaultBackendHealthCheckUnhealthyThreshold,
-			HealthCheckExpectedStatusMin:        defaultBackendHealthCheckExpectedStatusMin,
-			HealthCheckExpectedStatusMax:        defaultBackendHealthCheckExpectedStatusMax,
+			HealthCheckMethod:                   defaultTargetHealthCheckMethod,
+			HealthCheckPath:                     defaultTargetHealthCheckPath,
+			HealthCheckIntervalMillis:           defaultTargetHealthCheckIntervalMillis,
+			HealthCheckTimeoutMillis:            defaultTargetHealthCheckTimeoutMillis,
+			HealthCheckHealthyThreshold:         defaultTargetHealthCheckHealthyThreshold,
+			HealthCheckUnhealthyThreshold:       defaultTargetHealthCheckUnhealthyThreshold,
+			HealthCheckExpectedStatusMin:        defaultTargetHealthCheckExpectedStatusMin,
+			HealthCheckExpectedStatusMax:        defaultTargetHealthCheckExpectedStatusMax,
 			StaticStatusCode:                    defaultStaticStatusCode,
 			StaticResponseBody:                  defaultWelcomeBody,
 			StaticResponseBodyMode:              publicResponseBodyModeTemplate,
@@ -1294,7 +1290,7 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 		if err != nil {
 			return publicDBError(err)
 		}
-		for idx, header := range []publicBackendHeaderInput{
+		for idx, header := range []publicRouteTargetResponseHeaderInput{
 			{Name: "Content-Type", Value: defaultWelcomeContentType},
 			{Name: "X-Content-Type-Options", Value: "nosniff"},
 			{Name: "Cache-Control", Value: defaultWelcomeCacheControl},
@@ -1383,11 +1379,11 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			URL:                           target.Url,
 			Transport:                     transport,
 			AgentSelector:                 selector,
-			AgentLoadBalancing:            normalizePublicBackendLoadBalancing(target.AgentLoadBalancing),
+			AgentLoadBalancing:            normalizePublicRouteTargetLoadBalancing(target.AgentLoadBalancing),
 			TLSSkipVerify:                 target.TlsSkipVerify != 0,
-			UpstreamResponseHeaderTimeout: time.Duration(normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(target.UpstreamResponseHeaderTimeoutMillis)) * time.Millisecond,
+			UpstreamResponseHeaderTimeout: time.Duration(normalizePublicRouteTargetUpstreamResponseHeaderTimeoutMillis(target.UpstreamResponseHeaderTimeoutMillis)) * time.Millisecond,
 			UpstreamRequestHeaders:        publicRouteTargetUpstreamHeadersToConfig(targetUpstreamHeadersByTarget[target.ID]),
-			UpstreamBasicAuth: publicBackendBasicAuthConfig{
+			UpstreamBasicAuth: publicRouteTargetBasicAuthConfig{
 				Enabled:  target.UpstreamBasicAuthEnabled != 0,
 				Username: target.UpstreamBasicAuthUsername,
 				Password: target.UpstreamBasicAuthPassword,
@@ -1432,7 +1428,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			Priority:                   route.Priority,
 			HostPattern:                normalizeHostPattern(route.HostPattern),
 			PathPrefix:                 route.PathPrefix,
-			TargetLoadBalancing:        normalizePublicBackendLoadBalancing(route.TargetLoadBalancing),
+			TargetLoadBalancing:        normalizePublicRouteTargetLoadBalancing(route.TargetLoadBalancing),
 			IsDefault:                  route.IsDefault != 0,
 			Targets:                    routeTargetsByRoute[route.ID],
 			Action:                     normalizePublicRouteAction(route.Action),
@@ -1552,17 +1548,17 @@ func (a *App) restartTLSListenerIfActive(ctx context.Context, listenerID int64) 
 	return a.restartPublicListenerRuntime(ctx, listenerID)
 }
 
-func validatePublicBackendHealthCheck(input *p2pstreamv1.PublicBackendHealthCheck) (publicBackendHealthCheckConfig, error) {
-	cfg := publicBackendHealthCheckConfig{
+func validatePublicRouteTargetHealthCheck(input *p2pstreamv1.PublicRouteTargetHealthCheck) (publicRouteTargetHealthCheckConfig, error) {
+	cfg := publicRouteTargetHealthCheckConfig{
 		Enabled:            false,
-		Method:             defaultBackendHealthCheckMethod,
-		Path:               defaultBackendHealthCheckPath,
-		Interval:           time.Duration(defaultBackendHealthCheckIntervalMillis) * time.Millisecond,
-		Timeout:            time.Duration(defaultBackendHealthCheckTimeoutMillis) * time.Millisecond,
-		HealthyThreshold:   defaultBackendHealthCheckHealthyThreshold,
-		UnhealthyThreshold: defaultBackendHealthCheckUnhealthyThreshold,
-		ExpectedStatusMin:  defaultBackendHealthCheckExpectedStatusMin,
-		ExpectedStatusMax:  defaultBackendHealthCheckExpectedStatusMax,
+		Method:             defaultTargetHealthCheckMethod,
+		Path:               defaultTargetHealthCheckPath,
+		Interval:           time.Duration(defaultTargetHealthCheckIntervalMillis) * time.Millisecond,
+		Timeout:            time.Duration(defaultTargetHealthCheckTimeoutMillis) * time.Millisecond,
+		HealthyThreshold:   defaultTargetHealthCheckHealthyThreshold,
+		UnhealthyThreshold: defaultTargetHealthCheckUnhealthyThreshold,
+		ExpectedStatusMin:  defaultTargetHealthCheckExpectedStatusMin,
+		ExpectedStatusMax:  defaultTargetHealthCheckExpectedStatusMax,
 	}
 	if input == nil {
 		return cfg, nil
@@ -1570,56 +1566,56 @@ func validatePublicBackendHealthCheck(input *p2pstreamv1.PublicBackendHealthChec
 	cfg.Enabled = input.Enabled
 	method := strings.ToUpper(strings.TrimSpace(input.Method))
 	if method == "" {
-		method = defaultBackendHealthCheckMethod
+		method = defaultTargetHealthCheckMethod
 	}
 	if method != http.MethodGet && method != http.MethodHead {
-		return publicBackendHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check method must be GET or HEAD"))
+		return publicRouteTargetHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check method must be GET or HEAD"))
 	}
 	path := strings.TrimSpace(input.Path)
 	if path == "" {
-		path = defaultBackendHealthCheckPath
+		path = defaultTargetHealthCheckPath
 	}
 	if !strings.HasPrefix(path, "/") {
-		return publicBackendHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check path must start with /"))
+		return publicRouteTargetHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check path must start with /"))
 	}
 	intervalMillis := input.IntervalMillis
 	if intervalMillis == 0 {
-		intervalMillis = defaultBackendHealthCheckIntervalMillis
+		intervalMillis = defaultTargetHealthCheckIntervalMillis
 	}
 	if intervalMillis < 1000 || intervalMillis > 3600000 {
-		return publicBackendHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check interval must be between 1000 and 3600000 milliseconds"))
+		return publicRouteTargetHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check interval must be between 1000 and 3600000 milliseconds"))
 	}
 	timeoutMillis := input.TimeoutMillis
 	if timeoutMillis == 0 {
-		timeoutMillis = defaultBackendHealthCheckTimeoutMillis
+		timeoutMillis = defaultTargetHealthCheckTimeoutMillis
 	}
 	if timeoutMillis < 100 || timeoutMillis > 30000 {
-		return publicBackendHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check timeout must be between 100 and 30000 milliseconds"))
+		return publicRouteTargetHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check timeout must be between 100 and 30000 milliseconds"))
 	}
 	if timeoutMillis > intervalMillis {
-		return publicBackendHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check timeout must not exceed interval"))
+		return publicRouteTargetHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check timeout must not exceed interval"))
 	}
 	healthyThreshold := input.HealthyThreshold
 	if healthyThreshold == 0 {
-		healthyThreshold = defaultBackendHealthCheckHealthyThreshold
+		healthyThreshold = defaultTargetHealthCheckHealthyThreshold
 	}
 	unhealthyThreshold := input.UnhealthyThreshold
 	if unhealthyThreshold == 0 {
-		unhealthyThreshold = defaultBackendHealthCheckUnhealthyThreshold
+		unhealthyThreshold = defaultTargetHealthCheckUnhealthyThreshold
 	}
 	if healthyThreshold < 1 || healthyThreshold > 10 || unhealthyThreshold < 1 || unhealthyThreshold > 10 {
-		return publicBackendHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check thresholds must be between 1 and 10"))
+		return publicRouteTargetHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check thresholds must be between 1 and 10"))
 	}
 	statusMin := input.ExpectedStatusMin
 	if statusMin == 0 {
-		statusMin = defaultBackendHealthCheckExpectedStatusMin
+		statusMin = defaultTargetHealthCheckExpectedStatusMin
 	}
 	statusMax := input.ExpectedStatusMax
 	if statusMax == 0 {
-		statusMax = defaultBackendHealthCheckExpectedStatusMax
+		statusMax = defaultTargetHealthCheckExpectedStatusMax
 	}
 	if statusMin < 100 || statusMax > 599 || statusMin > statusMax {
-		return publicBackendHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check expected status range must be between 100 and 599"))
+		return publicRouteTargetHealthCheckConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("health check expected status range must be between 100 and 599"))
 	}
 	cfg.Method = method
 	cfg.Path = path
@@ -1632,23 +1628,23 @@ func validatePublicBackendHealthCheck(input *p2pstreamv1.PublicBackendHealthChec
 	return cfg, nil
 }
 
-func validatePublicBackendUpstreamResponseHeaderTimeout(timeoutMillis int64) (int64, error) {
+func validatePublicRouteTargetUpstreamResponseHeaderTimeout(timeoutMillis int64) (int64, error) {
 	if timeoutMillis == 0 {
-		return defaultBackendUpstreamResponseHeaderTimeoutMillis, nil
+		return defaultTargetUpstreamResponseHeaderTimeoutMillis, nil
 	}
-	if timeoutMillis < minBackendUpstreamResponseHeaderTimeoutMillis || timeoutMillis > maxBackendUpstreamResponseHeaderTimeoutMillis {
+	if timeoutMillis < minTargetUpstreamResponseHeaderTimeoutMillis || timeoutMillis > maxTargetUpstreamResponseHeaderTimeoutMillis {
 		return 0, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf(
 			"upstream response header timeout must be between %d and %d milliseconds",
-			minBackendUpstreamResponseHeaderTimeoutMillis,
-			maxBackendUpstreamResponseHeaderTimeoutMillis,
+			minTargetUpstreamResponseHeaderTimeoutMillis,
+			maxTargetUpstreamResponseHeaderTimeoutMillis,
 		))
 	}
 	return timeoutMillis, nil
 }
 
-func normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(timeoutMillis int64) int64 {
-	if timeoutMillis < minBackendUpstreamResponseHeaderTimeoutMillis || timeoutMillis > maxBackendUpstreamResponseHeaderTimeoutMillis {
-		return defaultBackendUpstreamResponseHeaderTimeoutMillis
+func normalizePublicRouteTargetUpstreamResponseHeaderTimeoutMillis(timeoutMillis int64) int64 {
+	if timeoutMillis < minTargetUpstreamResponseHeaderTimeoutMillis || timeoutMillis > maxTargetUpstreamResponseHeaderTimeoutMillis {
+		return defaultTargetUpstreamResponseHeaderTimeoutMillis
 	}
 	return timeoutMillis
 }
@@ -1700,20 +1696,20 @@ func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstre
 			Transport:                           transport,
 			AgentLoadBalancing:                  agentLoadBalancing,
 			TlsSkipVerify:                       boolInt(target.TlsSkipVerify),
-			UpstreamResponseHeaderTimeoutMillis: defaultBackendUpstreamResponseHeaderTimeoutMillis,
-			HealthCheckMethod:                   defaultBackendHealthCheckMethod,
-			HealthCheckPath:                     defaultBackendHealthCheckPath,
-			HealthCheckIntervalMillis:           defaultBackendHealthCheckIntervalMillis,
-			HealthCheckTimeoutMillis:            defaultBackendHealthCheckTimeoutMillis,
-			HealthCheckHealthyThreshold:         defaultBackendHealthCheckHealthyThreshold,
-			HealthCheckUnhealthyThreshold:       defaultBackendHealthCheckUnhealthyThreshold,
-			HealthCheckExpectedStatusMin:        defaultBackendHealthCheckExpectedStatusMin,
-			HealthCheckExpectedStatusMax:        defaultBackendHealthCheckExpectedStatusMax,
+			UpstreamResponseHeaderTimeoutMillis: defaultTargetUpstreamResponseHeaderTimeoutMillis,
+			HealthCheckMethod:                   defaultTargetHealthCheckMethod,
+			HealthCheckPath:                     defaultTargetHealthCheckPath,
+			HealthCheckIntervalMillis:           defaultTargetHealthCheckIntervalMillis,
+			HealthCheckTimeoutMillis:            defaultTargetHealthCheckTimeoutMillis,
+			HealthCheckHealthyThreshold:         defaultTargetHealthCheckHealthyThreshold,
+			HealthCheckUnhealthyThreshold:       defaultTargetHealthCheckUnhealthyThreshold,
+			HealthCheckExpectedStatusMin:        defaultTargetHealthCheckExpectedStatusMin,
+			HealthCheckExpectedStatusMax:        defaultTargetHealthCheckExpectedStatusMax,
 			StaticStatusCode:                    defaultStaticStatusCode,
 			StaticResponseBodyMode:              publicResponseBodyModeInline,
 		}
-		var upstreamHeaders []publicBackendUpstreamHeaderInput
-		var responseHeaders []publicBackendHeaderInput
+		var upstreamHeaders []publicRouteTargetUpstreamHeaderInput
+		var responseHeaders []publicRouteTargetResponseHeaderInput
 		if targetType == publicRouteTargetTypeProxy {
 			targetURL := strings.TrimSpace(target.Url)
 			parsed, err := parsePublicTargetOrigin(targetURL)
@@ -1730,18 +1726,18 @@ func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstre
 			} else {
 				params.AgentSelectorJson = "{}"
 			}
-			upstreamHeaders, err = validatePublicBackendUpstreamHeaders(target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled)
+			upstreamHeaders, err = validatePublicRouteTargetUpstreamHeaders(target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled)
 			if err != nil {
 				return nil, err
 			}
-			authEnabled, authUsername, authPassword, err := validatePublicBackendBasicAuth(target.UpstreamBasicAuth)
+			authEnabled, authUsername, authPassword, err := validatePublicRouteTargetBasicAuth(target.UpstreamBasicAuth)
 			if err != nil {
 				return nil, err
 			}
 			params.UpstreamBasicAuthEnabled = authEnabled
 			params.UpstreamBasicAuthUsername = authUsername
 			params.UpstreamBasicAuthPassword = authPassword
-			health, err := validatePublicBackendHealthCheck(target.HealthCheck)
+			health, err := validatePublicRouteTargetHealthCheck(target.HealthCheck)
 			if err != nil {
 				return nil, err
 			}
@@ -1754,7 +1750,7 @@ func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstre
 			params.HealthCheckUnhealthyThreshold = health.UnhealthyThreshold
 			params.HealthCheckExpectedStatusMin = health.ExpectedStatusMin
 			params.HealthCheckExpectedStatusMax = health.ExpectedStatusMax
-			timeoutMillis, err := validatePublicBackendUpstreamResponseHeaderTimeout(target.UpstreamResponseHeaderTimeoutMillis)
+			timeoutMillis, err := validatePublicRouteTargetUpstreamResponseHeaderTimeout(target.UpstreamResponseHeaderTimeoutMillis)
 			if err != nil {
 				return nil, err
 			}
@@ -1856,7 +1852,7 @@ func (a *App) validatePublicRouteInput(
 	priority int64,
 	hostPattern string,
 	pathPrefix string,
-	targetLoadBalancing p2pstreamv1.PublicBackendLoadBalancing,
+	targetLoadBalancing p2pstreamv1.PublicRouteTargetLoadBalancing,
 	isDefault bool,
 	targets []*p2pstreamv1.PublicRouteTarget,
 	enabled bool,
@@ -1887,7 +1883,7 @@ func (a *App) validatePublicRouteInput(
 	if err != nil {
 		return db.UpdatePublicRouteParams{}, nil, err
 	}
-	targetLoadBalancingString := publicBackendLoadBalancingRoundRobin
+	targetLoadBalancingString := publicRouteTargetLoadBalancingRoundRobin
 	var routeTargets []publicRouteTargetMutationInput
 	redirectMode := ""
 	redirectTarget = strings.TrimSpace(redirectTarget)
@@ -2320,8 +2316,8 @@ func normalizeBindAddress(bindAddress string) (string, error) {
 	return bindAddress, nil
 }
 
-func validatePublicStaticHeaders(headers []*p2pstreamv1.PublicHeader) ([]publicBackendHeaderInput, error) {
-	resp := make([]publicBackendHeaderInput, 0, len(headers))
+func validatePublicStaticHeaders(headers []*p2pstreamv1.PublicHeader) ([]publicRouteTargetResponseHeaderInput, error) {
+	resp := make([]publicRouteTargetResponseHeaderInput, 0, len(headers))
 	for _, header := range headers {
 		if header == nil {
 			continue
@@ -2342,16 +2338,16 @@ func validatePublicStaticHeaders(headers []*p2pstreamv1.PublicHeader) ([]publicB
 		if !utf8.ValidString(header.Value) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("static response header %q must be valid UTF-8", name))
 		}
-		resp = append(resp, publicBackendHeaderInput{Name: name, Value: header.Value})
+		resp = append(resp, publicRouteTargetResponseHeaderInput{Name: name, Value: header.Value})
 	}
 	return resp, nil
 }
 
-func validatePublicBackendUpstreamHeaders(
-	headers []*p2pstreamv1.PublicBackendUpstreamHeader,
+func validatePublicRouteTargetUpstreamHeaders(
+	headers []*p2pstreamv1.PublicRouteTargetUpstreamHeader,
 	basicAuthEnabled bool,
-) ([]publicBackendUpstreamHeaderInput, error) {
-	resp := make([]publicBackendUpstreamHeaderInput, 0, len(headers))
+) ([]publicRouteTargetUpstreamHeaderInput, error) {
+	resp := make([]publicRouteTargetUpstreamHeaderInput, 0, len(headers))
 	seen := make(map[string]struct{}, len(headers))
 	for _, header := range headers {
 		if header == nil {
@@ -2384,7 +2380,7 @@ func validatePublicBackendUpstreamHeaders(
 		if err := validateUpstreamHeaderValue(name, value); err != nil {
 			return nil, err
 		}
-		resp = append(resp, publicBackendUpstreamHeaderInput{
+		resp = append(resp, publicRouteTargetUpstreamHeaderInput{
 			ID:        header.Id,
 			Name:      name,
 			Value:     value,
@@ -2394,7 +2390,7 @@ func validatePublicBackendUpstreamHeaders(
 	return resp, nil
 }
 
-func validatePublicBackendBasicAuth(auth *p2pstreamv1.PublicBackendBasicAuth) (int64, string, string, error) {
+func validatePublicRouteTargetBasicAuth(auth *p2pstreamv1.PublicRouteTargetBasicAuth) (int64, string, string, error) {
 	if auth == nil || !auth.Enabled {
 		return 0, "", "", nil
 	}
@@ -2520,18 +2516,6 @@ func validateHostPattern(pattern string) error {
 	return nil
 }
 
-func backendTypeStringFromProto(backendType p2pstreamv1.PublicBackendType) (string, error) {
-	switch backendType {
-	case p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED,
-		p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD:
-		return publicBackendTypeProxyForward, nil
-	case p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC:
-		return publicBackendTypeStatic, nil
-	default:
-		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("backend type must be proxy_forward or static"))
-	}
-}
-
 func publicRouteTargetTypeStringFromProto(targetType p2pstreamv1.PublicRouteTargetType) (string, error) {
 	switch targetType {
 	case p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_UNSPECIFIED,
@@ -2603,18 +2587,6 @@ func routeRedirectTargetModeStringFromProto(mode p2pstreamv1.PublicRouteRedirect
 	}
 }
 
-func forwardModeStringFromProto(forwardMode p2pstreamv1.PublicBackendForwardMode) (string, error) {
-	switch forwardMode {
-	case p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED,
-		p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_DIRECT:
-		return publicBackendForwardModeDirect, nil
-	case p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL:
-		return publicBackendForwardModeAgentPool, nil
-	default:
-		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("backend forward mode must be direct or agent_pool"))
-	}
-}
-
 func validateRouteRedirectTarget(mode string, target string) error {
 	if strings.TrimSpace(target) == "" {
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("redirect target is required"))
@@ -2658,62 +2630,51 @@ func validRedirectStatusCode(statusCode int64) bool {
 	}
 }
 
-func loadBalancingStringFromProto(loadBalancing p2pstreamv1.PublicBackendLoadBalancing) (string, error) {
+func loadBalancingStringFromProto(loadBalancing p2pstreamv1.PublicRouteTargetLoadBalancing) (string, error) {
 	switch loadBalancing {
-	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_UNSPECIFIED,
-		p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN:
-		return publicBackendLoadBalancingRoundRobin, nil
-	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN:
-		return publicBackendLoadBalancingWeightedRoundRobin, nil
-	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_RANDOM:
-		return publicBackendLoadBalancingRandom, nil
-	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM:
-		return publicBackendLoadBalancingWeightedRandom, nil
-	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS:
-		return publicBackendLoadBalancingLeastActiveRequests, nil
-	case p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS:
-		return publicBackendLoadBalancingWeightedLeastActiveRequests, nil
+	case p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_UNSPECIFIED,
+		p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN:
+		return publicRouteTargetLoadBalancingRoundRobin, nil
+	case p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN:
+		return publicRouteTargetLoadBalancingWeightedRoundRobin, nil
+	case p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_RANDOM:
+		return publicRouteTargetLoadBalancingRandom, nil
+	case p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_RANDOM:
+		return publicRouteTargetLoadBalancingWeightedRandom, nil
+	case p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS:
+		return publicRouteTargetLoadBalancingLeastActiveRequests, nil
+	case p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS:
+		return publicRouteTargetLoadBalancingWeightedLeastActiveRequests, nil
 	default:
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported backend load balancing algorithm"))
 	}
 }
 
-func normalizePublicBackendType(backendType string) string {
+func normalizePublicTargetType(backendType string) string {
 	switch strings.TrimSpace(strings.ToLower(backendType)) {
-	case "", publicBackendTypeProxyForward:
-		return publicBackendTypeProxyForward
-	case publicBackendTypeStatic:
-		return publicBackendTypeStatic
+	case "", publicRouteTargetTypeProxy:
+		return publicRouteTargetTypeProxy
+	case publicRouteTargetTypeStatic:
+		return publicRouteTargetTypeStatic
 	default:
 		return strings.TrimSpace(strings.ToLower(backendType))
 	}
 }
 
-func normalizePublicBackendForwardMode(forwardMode string) string {
-	switch strings.TrimSpace(strings.ToLower(forwardMode)) {
-	case "", publicBackendForwardModeDirect:
-		return publicBackendForwardModeDirect
-	case publicBackendForwardModeAgentPool:
-		return publicBackendForwardModeAgentPool
-	default:
-		return strings.TrimSpace(strings.ToLower(forwardMode))
-	}
-}
-
-func normalizePublicBackendLoadBalancing(loadBalancing string) string {
+func normalizePublicRouteTargetLoadBalancing(loadBalancing string) string {
 	switch strings.TrimSpace(strings.ToLower(loadBalancing)) {
-	case "", publicBackendLoadBalancingRoundRobin:
-		return publicBackendLoadBalancingRoundRobin
-	case publicBackendLoadBalancingWeightedRoundRobin:
-		return publicBackendLoadBalancingWeightedRoundRobin
-	case publicBackendLoadBalancingRandom:
-		return publicBackendLoadBalancingRandom
-	case publicBackendLoadBalancingWeightedRandom:
-		return publicBackendLoadBalancingWeightedRandom
-	case publicBackendLoadBalancingLeastActiveRequests:
-		return publicBackendLoadBalancingLeastActiveRequests
-	case publicBackendLoadBalancingWeightedLeastActiveRequests:
-		return publicBackendLoadBalancingWeightedLeastActiveRequests
+	case "", publicRouteTargetLoadBalancingRoundRobin:
+		return publicRouteTargetLoadBalancingRoundRobin
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
+		return publicRouteTargetLoadBalancingWeightedRoundRobin
+	case publicRouteTargetLoadBalancingRandom:
+		return publicRouteTargetLoadBalancingRandom
+	case publicRouteTargetLoadBalancingWeightedRandom:
+		return publicRouteTargetLoadBalancingWeightedRandom
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
+		return publicRouteTargetLoadBalancingLeastActiveRequests
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
+		return publicRouteTargetLoadBalancingWeightedLeastActiveRequests
 	default:
 		return strings.TrimSpace(strings.ToLower(loadBalancing))
 	}
@@ -2743,17 +2704,6 @@ func normalizePublicRouteRedirectTargetMode(mode string) string {
 	}
 }
 
-func protoBackendTypeFromString(backendType string) p2pstreamv1.PublicBackendType {
-	switch normalizePublicBackendType(backendType) {
-	case publicBackendTypeProxyForward:
-		return p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD
-	case publicBackendTypeStatic:
-		return p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC
-	default:
-		return p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED
-	}
-}
-
 func protoRouteActionFromString(action string) p2pstreamv1.PublicRouteAction {
 	switch normalizePublicRouteAction(action) {
 	case publicRouteActionRedirect:
@@ -2778,33 +2728,22 @@ func protoRouteRedirectTargetModeFromString(mode string) p2pstreamv1.PublicRoute
 	}
 }
 
-func protoForwardModeFromString(forwardMode string) p2pstreamv1.PublicBackendForwardMode {
-	switch normalizePublicBackendForwardMode(forwardMode) {
-	case publicBackendForwardModeAgentPool:
-		return p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL
-	case publicBackendForwardModeDirect:
-		return p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_DIRECT
+func protoLoadBalancingFromString(loadBalancing string) p2pstreamv1.PublicRouteTargetLoadBalancing {
+	switch normalizePublicRouteTargetLoadBalancing(loadBalancing) {
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
+		return p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN
+	case publicRouteTargetLoadBalancingRandom:
+		return p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_RANDOM
+	case publicRouteTargetLoadBalancingWeightedRandom:
+		return p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_RANDOM
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
+		return p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
+		return p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS
+	case publicRouteTargetLoadBalancingRoundRobin:
+		return p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN
 	default:
-		return p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED
-	}
-}
-
-func protoLoadBalancingFromString(loadBalancing string) p2pstreamv1.PublicBackendLoadBalancing {
-	switch normalizePublicBackendLoadBalancing(loadBalancing) {
-	case publicBackendLoadBalancingWeightedRoundRobin:
-		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN
-	case publicBackendLoadBalancingRandom:
-		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_RANDOM
-	case publicBackendLoadBalancingWeightedRandom:
-		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM
-	case publicBackendLoadBalancingLeastActiveRequests:
-		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS
-	case publicBackendLoadBalancingWeightedLeastActiveRequests:
-		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS
-	case publicBackendLoadBalancingRoundRobin:
-		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN
-	default:
-		return p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_UNSPECIFIED
+		return p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_UNSPECIFIED
 	}
 }
 
@@ -3053,8 +2992,8 @@ func publicRouteTargetResponseHeadersToConfig(headers []db.PublicRouteTargetResp
 	return resp
 }
 
-func publicRouteTargetHealthCheckRowToConfig(target db.PublicRouteTarget) publicBackendHealthCheckConfig {
-	return publicBackendHealthCheckConfig{
+func publicRouteTargetHealthCheckRowToConfig(target db.PublicRouteTarget) publicRouteTargetHealthCheckConfig {
+	return publicRouteTargetHealthCheckConfig{
 		Enabled:            target.HealthCheckEnabled != 0,
 		Method:             target.HealthCheckMethod,
 		Path:               target.HealthCheckPath,
@@ -3122,7 +3061,7 @@ func (a *App) publicRouteTargetHeaderMaps(ctx context.Context) (map[int64][]db.P
 	return publicRouteTargetUpstreamHeadersByTarget(upstreamHeaders), publicRouteTargetResponseHeadersByTarget(responseHeaders)
 }
 
-func publicRouteTargetsToProto(targets []db.PublicRouteTarget, upstreamHeaders map[int64][]db.PublicRouteTargetUpstreamHeader, responseHeaders map[int64][]db.PublicRouteTargetResponseHeader, monitor *publicBackendHealthMonitor) []*p2pstreamv1.PublicRouteTarget {
+func publicRouteTargetsToProto(targets []db.PublicRouteTarget, upstreamHeaders map[int64][]db.PublicRouteTargetUpstreamHeader, responseHeaders map[int64][]db.PublicRouteTargetResponseHeader, monitor *publicRouteTargetHealthMonitor) []*p2pstreamv1.PublicRouteTarget {
 	resp := make([]*p2pstreamv1.PublicRouteTarget, 0, len(targets))
 	for _, target := range targets {
 		resp = append(resp, publicRouteTargetToProto(target, upstreamHeaders[target.ID], responseHeaders[target.ID], monitor))
@@ -3130,7 +3069,7 @@ func publicRouteTargetsToProto(targets []db.PublicRouteTarget, upstreamHeaders m
 	return resp
 }
 
-func publicRouteTargetToProto(target db.PublicRouteTarget, upstreamHeaders []db.PublicRouteTargetUpstreamHeader, responseHeaders []db.PublicRouteTargetResponseHeader, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicRouteTarget {
+func publicRouteTargetToProto(target db.PublicRouteTarget, upstreamHeaders []db.PublicRouteTargetUpstreamHeader, responseHeaders []db.PublicRouteTargetResponseHeader, monitor *publicRouteTargetHealthMonitor) *p2pstreamv1.PublicRouteTarget {
 	return &p2pstreamv1.PublicRouteTarget{
 		Id:                                  target.ID,
 		RouteId:                             target.RouteID,
@@ -3147,12 +3086,12 @@ func publicRouteTargetToProto(target db.PublicRouteTarget, upstreamHeaders []db.
 		TlsSkipVerify:                       target.TlsSkipVerify != 0,
 		UpstreamResponseHeaderTimeoutMillis: target.UpstreamResponseHeaderTimeoutMillis,
 		UpstreamRequestHeaders:              publicRouteTargetUpstreamHeadersToProto(upstreamHeaders),
-		UpstreamBasicAuth: &p2pstreamv1.PublicBackendBasicAuth{
+		UpstreamBasicAuth: &p2pstreamv1.PublicRouteTargetBasicAuth{
 			Enabled:     target.UpstreamBasicAuthEnabled != 0,
 			Username:    target.UpstreamBasicAuthUsername,
 			PasswordSet: target.UpstreamBasicAuthPassword != "",
 		},
-		HealthCheck: &p2pstreamv1.PublicBackendHealthCheck{
+		HealthCheck: &p2pstreamv1.PublicRouteTargetHealthCheck{
 			Enabled:            target.HealthCheckEnabled != 0,
 			Method:             target.HealthCheckMethod,
 			Path:               target.HealthCheckPath,
@@ -3172,36 +3111,36 @@ func publicRouteTargetToProto(target db.PublicRouteTarget, upstreamHeaders []db.
 	}
 }
 
-func publicRouteTargetHealthToProto(target db.PublicRouteTarget, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicRouteTargetHealth {
+func publicRouteTargetHealthToProto(target db.PublicRouteTarget, monitor *publicRouteTargetHealthMonitor) *p2pstreamv1.PublicRouteTargetHealth {
 	if target.Enabled == 0 {
 		return &p2pstreamv1.PublicRouteTargetHealth{
-			Status:    p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED,
+			Status:    p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISABLED,
 			Available: false,
 		}
 	}
 	if target.TargetType == publicRouteTargetTypeStatic {
 		return &p2pstreamv1.PublicRouteTargetHealth{
-			Status:    p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY,
+			Status:    p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY,
 			Available: true,
 			Connected: true,
 		}
 	}
 	if monitor == nil {
 		return &p2pstreamv1.PublicRouteTargetHealth{
-			Status:    p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN,
+			Status:    p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN,
 			Available: true,
 		}
 	}
-	snapshot := monitor.snapshot(publicBackendHealthDBAdapter{id: target.ID, enabled: target.Enabled != 0})
+	snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: target.ID, enabled: target.Enabled != 0})
 	if snapshot == nil {
 		return &p2pstreamv1.PublicRouteTargetHealth{
-			Status:    p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN,
+			Status:    p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN,
 			Available: true,
 		}
 	}
 	return &p2pstreamv1.PublicRouteTargetHealth{
 		Status:                          snapshot.Status,
-		Available:                       snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY && snapshot.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED,
+		Available:                       snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY && snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISABLED,
 		Connected:                       true,
 		LastCheckedAtUnixMillis:         snapshot.LastCheckedAtUnixMillis,
 		LastError:                       snapshot.LastError,
@@ -3210,66 +3149,23 @@ func publicRouteTargetHealthToProto(target db.PublicRouteTarget, monitor *public
 	}
 }
 
-func publicBackendHealthTracesToRouteTargetTraces(traces []*p2pstreamv1.PublicBackendHealthTrace) []*p2pstreamv1.PublicRouteTargetHealthTrace {
-	resp := make([]*p2pstreamv1.PublicRouteTargetHealthTrace, 0, len(traces))
-	for _, trace := range traces {
-		if trace == nil {
-			continue
-		}
-		resp = append(resp, &p2pstreamv1.PublicRouteTargetHealthTrace{
-			Sequence:                        trace.Sequence,
-			RouteTargetId:                   trace.BackendId,
-			RouteTargetName:                 trace.BackendName,
-			Transport:                       publicRouteTargetTransportFromBackendForwardMode(trace.ForwardMode),
-			Source:                          trace.Source,
-			Outcome:                         trace.Outcome,
-			AgentId:                         trace.AgentId,
-			AgentPublicId:                   trace.AgentPublicId,
-			AgentName:                       trace.AgentName,
-			StartedAtUnixMillis:             trace.StartedAtUnixMillis,
-			FinishedAtUnixMillis:            trace.FinishedAtUnixMillis,
-			DurationMillis:                  trace.DurationMillis,
-			Method:                          trace.Method,
-			Url:                             trace.Url,
-			StatusCode:                      trace.StatusCode,
-			ExpectedStatusMin:               trace.ExpectedStatusMin,
-			ExpectedStatusMax:               trace.ExpectedStatusMax,
-			TimeoutMillis:                   trace.TimeoutMillis,
-			TlsSkipVerify:                   trace.TlsSkipVerify,
-			StatusBefore:                    trace.StatusBefore,
-			StatusAfter:                     trace.StatusAfter,
-			AvailableBefore:                 trace.AvailableBefore,
-			AvailableAfter:                  trace.AvailableAfter,
-			HealthyStreakBefore:             trace.HealthyStreakBefore,
-			HealthyStreakAfter:              trace.HealthyStreakAfter,
-			UnhealthyStreakBefore:           trace.UnhealthyStreakBefore,
-			UnhealthyStreakAfter:            trace.UnhealthyStreakAfter,
-			PassiveUnhealthyUntilUnixMillis: trace.PassiveUnhealthyUntilUnixMillis,
-			ErrorKind:                       trace.ErrorKind,
-			Error:                           trace.Error,
-			DebugAttributes:                 trace.DebugAttributes,
-		})
-	}
-	return resp
-}
-
-func publicRouteTargetTransportFromBackendForwardMode(mode p2pstreamv1.PublicBackendForwardMode) p2pstreamv1.PublicRouteTargetTransport {
-	if mode == p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL {
+func publicRouteTargetTransportFromConfig(transport string) p2pstreamv1.PublicRouteTargetTransport {
+	if transport == publicRouteTargetTransportAgent {
 		return p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT
 	}
 	return p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT
 }
 
-func publicRouteTargetUpstreamHeadersToProto(headers []db.PublicRouteTargetUpstreamHeader) []*p2pstreamv1.PublicBackendUpstreamHeader {
-	resp := make([]*p2pstreamv1.PublicBackendUpstreamHeader, 0, len(headers))
+func publicRouteTargetUpstreamHeadersToProto(headers []db.PublicRouteTargetUpstreamHeader) []*p2pstreamv1.PublicRouteTargetUpstreamHeader {
+	resp := make([]*p2pstreamv1.PublicRouteTargetUpstreamHeader, 0, len(headers))
 	for _, header := range headers {
 		value := header.Value
 		if header.Sensitive != 0 {
 			value = ""
 		}
-		resp = append(resp, &p2pstreamv1.PublicBackendUpstreamHeader{
+		resp = append(resp, &p2pstreamv1.PublicRouteTargetUpstreamHeader{
 			Id:        header.ID,
-			BackendId: header.TargetID,
+			TargetId:  header.TargetID,
 			Name:      header.Name,
 			Value:     value,
 			Sensitive: header.Sensitive != 0,
@@ -3342,7 +3238,7 @@ func publicListenersToProto(listeners []db.PublicListener) []*p2pstreamv1.Public
 	return resp
 }
 
-func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, upstreamHeaders map[int64][]db.PublicRouteTargetUpstreamHeader, responseHeaders map[int64][]db.PublicRouteTargetResponseHeader, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicRoute {
+func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, upstreamHeaders map[int64][]db.PublicRouteTargetUpstreamHeader, responseHeaders map[int64][]db.PublicRouteTargetResponseHeader, monitor *publicRouteTargetHealthMonitor) *p2pstreamv1.PublicRoute {
 	return &p2pstreamv1.PublicRoute{
 		Id:                         route.ID,
 		ListenerId:                 route.ListenerID,
@@ -3364,7 +3260,7 @@ func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, up
 	}
 }
 
-func publicRoutesToProto(routes []db.PublicRoute, targets []db.PublicRouteTarget, upstreamHeaders map[int64][]db.PublicRouteTargetUpstreamHeader, responseHeaders map[int64][]db.PublicRouteTargetResponseHeader, monitor *publicBackendHealthMonitor) []*p2pstreamv1.PublicRoute {
+func publicRoutesToProto(routes []db.PublicRoute, targets []db.PublicRouteTarget, upstreamHeaders map[int64][]db.PublicRouteTargetUpstreamHeader, responseHeaders map[int64][]db.PublicRouteTargetResponseHeader, monitor *publicRouteTargetHealthMonitor) []*p2pstreamv1.PublicRoute {
 	targetsByRoute := publicRouteTargetsByRoute(targets)
 	resp := make([]*p2pstreamv1.PublicRoute, 0, len(routes))
 	for _, route := range routes {

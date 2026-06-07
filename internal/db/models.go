@@ -112,7 +112,6 @@ type ProxyRequestEvent struct {
 	DurationMs    int64         `json:"duration_ms"`
 	ErrorKind     string        `json:"error_kind"`
 	ListenerID    sql.NullInt64 `json:"listener_id"`
-	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
 	RouteTargetID sql.NullInt64 `json:"route_target_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
@@ -151,7 +150,6 @@ type ProxyRequestRollupMinute struct {
 type ProxyRequestTupleRollupMinute struct {
 	BucketUnixMillis int64     `json:"bucket_unix_millis"`
 	ListenerID       int64     `json:"listener_id"`
-	BackendID        int64     `json:"backend_id"`
 	RouteID          int64     `json:"route_id"`
 	RouteTargetID    int64     `json:"route_target_id"`
 	AgentID          int64     `json:"agent_id"`
@@ -435,7 +433,7 @@ type PublicWafRule struct {
 	TriggerMinimumRequestRate            int64         `json:"trigger_minimum_request_rate"`
 	TriggerTrafficSpikeMultiplier        float64       `json:"trigger_traffic_spike_multiplier"`
 	TriggerProxyActiveRequests           int64         `json:"trigger_proxy_active_requests"`
-	TriggerBackendActiveRequests         int64         `json:"trigger_backend_active_requests"`
+	TriggerRouteTargetActiveRequests     int64         `json:"trigger_route_target_active_requests"`
 	TriggerAgentActiveRequests           int64         `json:"trigger_agent_active_requests"`
 	TriggerServerCpuPercent              float64       `json:"trigger_server_cpu_percent"`
 	TriggerAgentCpuPercent               float64       `json:"trigger_agent_cpu_percent"`

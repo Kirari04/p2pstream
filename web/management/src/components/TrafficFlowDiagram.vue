@@ -21,7 +21,7 @@ import {
   WAF_KEY,
   TrafficRequestPathCache,
   agentKey,
-  backendKey,
+  targetKey,
   createTrafficFlowConfigIndex,
   isRedirectRoute,
   isTerminalTraceRequest,
@@ -46,8 +46,6 @@ import {
   type MotionPoint,
 } from "@/lib/trafficMotion";
 import {
-  PublicBackendForwardMode,
-  PublicBackendType,
   PublicRouteRedirectTargetMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
@@ -62,7 +60,7 @@ import type { TraceRequest } from "@/types/trafficTrace";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
-export type TrafficNodeKind = "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+export type TrafficNodeKind = "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "target" | "redirect" | "agent" | "upstream" | "response";
 type AgentNodeStatus = {
   state: "connected" | "offline" | "disabled" | "unknown";
   label: string;
@@ -325,13 +323,13 @@ const layout = computed(() => {
       subLabel: "Listener fallbacks",
       column: 5,
       kind: "route",
-      editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, "Default backend")],
+      editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, "Default target")],
     });
     addEdge(routeEntryKey, DEFAULT_ROUTE_KEY);
     const defaultRoute = (index.routesByListenerId.get(listener.id.toString()) ?? []).find((route) => route.isDefault);
     if (defaultRoute) {
       for (const target of routeTargetAssignments(defaultRoute, index).filter((item) => item.enabled)) {
-        addEdge(DEFAULT_ROUTE_KEY, backendKey(target.id));
+        addEdge(DEFAULT_ROUTE_KEY, targetKey(target.id));
       }
     } else {
       addEdge(DEFAULT_ROUTE_KEY, "response", "agent-bypass");
@@ -357,7 +355,7 @@ const layout = computed(() => {
         const assignments = routeTargetAssignments(route, index).filter((target) => target.enabled);
         if (assignments.length) {
           for (const target of assignments) {
-            addEdge(key, backendKey(target.id));
+            addEdge(key, targetKey(target.id));
           }
         } else {
           addEdge(key, "response", "agent-bypass");
@@ -367,7 +365,7 @@ const layout = computed(() => {
   }
 
   for (const target of targets) {
-    const key = backendKey(target.id);
+    const key = targetKey(target.id);
     const isStatic = target.targetType === PublicRouteTargetType.STATIC;
     const isAgentTarget = target.transport === PublicRouteTargetTransport.AGENT;
     addNode({
@@ -375,12 +373,12 @@ const layout = computed(() => {
       label: target.name || `Target ${target.id.toString()}`,
       subLabel: isStatic ? "Static" : isAgentTarget ? "Agent selected" : "Direct",
       column: 6,
-      kind: "backend",
-      editTargets: [backendEditTarget(target.id, target.name || `Target ${target.id.toString()}`, isStatic ? "Static" : isAgentTarget ? "Agent selected" : "Direct")],
+      kind: "target",
+      editTargets: [targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, isStatic ? "Static" : isAgentTarget ? "Agent selected" : "Direct")],
     });
 
     if (isStatic) {
-      addStaticNode(addNode, backendEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Static"));
+      addStaticNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Static"));
       addEdge(key, "static-response", "agent-bypass");
       addEdge("static-response", "response");
       continue;
@@ -400,7 +398,7 @@ const layout = computed(() => {
             agentStatus: agentNodeStatus(agent),
             editTargets: [agentEditTarget(agent.id, agent.name || `Agent ${agent.id.toString()}`, agent.publicId)],
           });
-          addUpstreamNode(addNode, backendEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Agent selected"));
+          addUpstreamNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Agent selected"));
           if (showCacheNode) {
             addEdge(key, CACHE_KEY);
             addEdge(CACHE_KEY, "response", "intermediate-bypass");
@@ -419,7 +417,7 @@ const layout = computed(() => {
       continue;
     }
 
-    addUpstreamNode(addNode, backendEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Direct"));
+    addUpstreamNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Direct"));
     if (showCacheNode) {
       addEdge(key, CACHE_KEY);
       addEdge(CACHE_KEY, "response", "intermediate-bypass");
@@ -1020,8 +1018,8 @@ function routeForRequestSegment(request: TraceRequest, from: string, to: string)
   if (from === RATE_LIMIT_KEY && to === "response") return "intermediate-bypass";
   if (from === TRAFFIC_SHAPER_KEY && to === "response") return "intermediate-bypass";
   if (from === CACHE_KEY && to === "response") return "intermediate-bypass";
-  const backendNode = request.backendId > 0n ? backendKey(request.backendId) : "";
-  if (from !== backendNode) return "default";
+  const targetNode = request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "";
+  if (from !== targetNode) return "default";
   if (to === CACHE_KEY) return "default";
   if (request.agentId > 0n) return "default";
   if (to === "static-response" || to === "upstream" || to === "response") return "agent-bypass";
@@ -1075,7 +1073,7 @@ function bypassBoundsForEdge(edge: DiagramEdge): Bounds | null {
   if (edge.route === "intermediate-bypass") {
     return boundsForNodes(layout.value.nodes.filter((node) => {
       if (node.key === edge.from || node.key === edge.to) return false;
-      return node.kind === "route" || node.kind === "backend" || node.kind === "redirect" || node.kind === "agent" || node.kind === "upstream";
+      return node.kind === "route" || node.kind === "target" || node.kind === "redirect" || node.kind === "agent" || node.kind === "upstream";
     }));
   }
   return null;
@@ -1372,19 +1370,19 @@ function addObservedNodes(
   const selectedTargetId = requestTargetID(request);
   if (selectedTargetId > 0n) {
     addNode({
-      key: backendKey(selectedTargetId),
+      key: targetKey(selectedTargetId),
       label: requestTargetLabel(request),
-      subLabel: backendTypeLabel(request),
+      subLabel: targetTypeLabel(request),
       column: 6,
-      kind: "backend",
-      editTargets: [backendEditTarget(selectedTargetId, requestTargetLabel(request), backendTypeLabel(request))],
+      kind: "target",
+      editTargets: [targetEditTarget(selectedTargetId, requestTargetLabel(request), targetTypeLabel(request))],
     });
   }
 
   if (requestTargetType(request) === PublicRouteTargetType.STATIC) {
-    addStaticNode(addNode, selectedTargetId > 0n ? backendEditTarget(selectedTargetId, requestTargetLabel(request), "Static") : undefined);
+    addStaticNode(addNode, selectedTargetId > 0n ? targetEditTarget(selectedTargetId, requestTargetLabel(request), "Static") : undefined);
   } else if (selectedTargetId > 0n && requestTargetTransport(request) !== PublicRouteTargetTransport.AGENT) {
-    addUpstreamNode(addNode, backendEditTarget(selectedTargetId, requestTargetLabel(request), "Direct"));
+    addUpstreamNode(addNode, targetEditTarget(selectedTargetId, requestTargetLabel(request), "Direct"));
   }
 
   if (request.agentId > 0n) {
@@ -1398,7 +1396,7 @@ function addObservedNodes(
       agentStatus: agentNodeStatus(agent),
       editTargets: [agentEditTarget(request.agentId, request.agentName || request.agentPublicId || `Agent ${request.agentId.toString()}`, request.agentPublicId || "Observed")],
     });
-    addUpstreamNode(addNode, selectedTargetId > 0n ? backendEditTarget(selectedTargetId, requestTargetLabel(request), "Agent selected") : undefined);
+    addUpstreamNode(addNode, selectedTargetId > 0n ? targetEditTarget(selectedTargetId, requestTargetLabel(request), "Agent selected") : undefined);
   }
 }
 
@@ -1574,7 +1572,7 @@ function kindOrder(kind: TrafficNodeKind): number {
     case "rate-limit": return 3;
     case "traffic-shaper": return 4;
     case "route": return 5;
-    case "backend": return 6;
+    case "target": return 6;
     case "redirect": return 6;
     case "cache": return 7;
     case "agent": return 8;
@@ -1601,8 +1599,8 @@ function routeEditTargetByID(id: bigint | string | number, label: string, subLab
   return { kind: "route", id: id.toString(), label, subLabel };
 }
 
-function backendEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
-  return { kind: "backend", id: id.toString(), label, subLabel };
+function targetEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "target", id: id.toString(), label, subLabel };
 }
 
 function agentEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
@@ -1621,33 +1619,27 @@ function cacheEditTarget(id: bigint | string | number, label: string, subLabel?:
   return { kind: "cache", id: id.toString(), label, subLabel };
 }
 
-function backendTypeLabel(request: TraceRequest): string {
+function targetTypeLabel(request: TraceRequest): string {
   if (requestTargetType(request) === PublicRouteTargetType.STATIC) return "Static";
   if (requestTargetTransport(request) === PublicRouteTargetTransport.AGENT) return "Agent selected";
   return "Direct";
 }
 
 function requestTargetID(request: TraceRequest): bigint {
-  return request.routeTargetId || request.backendId;
+  return request.routeTargetId;
 }
 
 function requestTargetLabel(request: TraceRequest): string {
   const id = requestTargetID(request);
-  return request.routeTargetName || request.backendName || `Target ${id.toString()}`;
+  return request.routeTargetName || `Target ${id.toString()}`;
 }
 
 function requestTargetType(request: TraceRequest): PublicRouteTargetType {
-  if (request.routeTargetType) return request.routeTargetType;
-  if (request.backendType === PublicBackendType.STATIC) return PublicRouteTargetType.STATIC;
-  if (request.backendType === PublicBackendType.PROXY_FORWARD) return PublicRouteTargetType.PROXY;
-  return PublicRouteTargetType.UNSPECIFIED;
+  return request.routeTargetType || PublicRouteTargetType.UNSPECIFIED;
 }
 
 function requestTargetTransport(request: TraceRequest): PublicRouteTargetTransport {
-  if (request.routeTargetTransport) return request.routeTargetTransport;
-  if (request.forwardMode === PublicBackendForwardMode.AGENT_POOL) return PublicRouteTargetTransport.AGENT;
-  if (request.forwardMode === PublicBackendForwardMode.DIRECT) return PublicRouteTargetTransport.DIRECT;
-  return PublicRouteTargetTransport.UNSPECIFIED;
+  return request.routeTargetTransport || PublicRouteTargetTransport.UNSPECIFIED;
 }
 
 function redirectNodeSubLabel(route: PublicRoute): string {

@@ -165,19 +165,15 @@ func TestPublicRouteRedirectResponses(t *testing.T) {
 				t.Fatalf("Location = %q, want %q", got, tt.wantLoc)
 			}
 
-			var backendID sql.NullInt64
 			var routeID sql.NullInt64
 			var statusCode int64
 			if err := database.QueryRowContext(context.Background(), `
-				SELECT backend_id, route_id, status_code
+				SELECT route_id, status_code
 				FROM proxy_request_events
 				ORDER BY id DESC
 				LIMIT 1
-			`).Scan(&backendID, &routeID, &statusCode); err != nil {
+			`).Scan(&routeID, &statusCode); err != nil {
 				t.Fatalf("read proxy request event: %v", err)
-			}
-			if backendID.Valid {
-				t.Fatalf("redirect event backend_id = %d, want NULL", backendID.Int64)
 			}
 			if !routeID.Valid || routeID.Int64 != route.GetId() {
 				t.Fatalf("redirect event route_id = %+v, want %d", routeID, route.GetId())
@@ -238,8 +234,8 @@ func TestPublicRouteRedirectTraceStages(t *testing.T) {
 		p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT,
 	)
 	finalEvent := events[len(events)-1]
-	if finalEvent.GetBackendId() != 0 {
-		t.Fatalf("redirect trace backend id = %d, want 0", finalEvent.GetBackendId())
+	if finalEvent.GetRouteTargetId() != 0 {
+		t.Fatalf("redirect trace target id = %d, want 0", finalEvent.GetRouteTargetId())
 	}
 	if finalEvent.GetResponseHeaders()["Location"] != "/target/a?x=1" {
 		t.Fatalf("redirect trace Location header = %q", finalEvent.GetResponseHeaders()["Location"])

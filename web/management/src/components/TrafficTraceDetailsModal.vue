@@ -3,9 +3,9 @@ import { computed } from "vue";
 import Modal from "@/volt/Modal.vue";
 import type { TraceRequest } from "@/types/trafficTrace";
 import {
-  PublicBackendForwardMode,
-  PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicTrafficShaperBudgetScope,
   PublicWafActivationMode,
   PublicWafRuleAction,
@@ -49,7 +49,7 @@ function stageLabel(stage: TrafficTraceStage): string {
   switch (stage) {
     case TrafficTraceStage.RECEIVED: return "Received";
     case TrafficTraceStage.ROUTE_RESOLVED: return "Route resolved";
-    case TrafficTraceStage.BACKEND_SELECTED: return "Backend selected";
+    case TrafficTraceStage.BACKEND_SELECTED: return "Target selected";
     case TrafficTraceStage.AGENT_SELECTED: return "Agent selected";
     case TrafficTraceStage.WAF_EVALUATED: return "WAF evaluated";
     case TrafficTraceStage.WAF_BLOCKED: return "WAF blocked";
@@ -102,15 +102,15 @@ function formatRate(value: bigint): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MiB/s`;
 }
 
-function backendTypeLabel(type: PublicBackendType): string {
-  if (type === PublicBackendType.STATIC) return "Static";
-  if (type === PublicBackendType.PROXY_FORWARD) return "Proxy forward";
+function routeTargetTypeLabel(type: PublicRouteTargetType): string {
+  if (type === PublicRouteTargetType.STATIC) return "Static";
+  if (type === PublicRouteTargetType.PROXY) return "Proxy";
   return "-";
 }
 
-function forwardModeLabel(mode: PublicBackendForwardMode): string {
-  if (mode === PublicBackendForwardMode.AGENT_POOL) return "Agent pool";
-  if (mode === PublicBackendForwardMode.DIRECT) return "Direct";
+function routeTargetTransportLabel(transport: PublicRouteTargetTransport): string {
+  if (transport === PublicRouteTargetTransport.AGENT) return "Agent-selected";
+  if (transport === PublicRouteTargetTransport.DIRECT) return "Direct";
   return "-";
 }
 
@@ -187,8 +187,8 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <strong>{{ request.routeLabel || (request.defaultRoute ? "Default route" : "-") }}</strong>
         </div>
         <div class="trace-field">
-          <span>Backend</span>
-          <strong>{{ request.backendName || (request.backendId ? `#${request.backendId.toString()}` : "-") }}</strong>
+          <span>Target</span>
+          <strong>{{ request.routeTargetName || (request.routeTargetId ? `#${request.routeTargetId.toString()}` : "-") }}</strong>
         </div>
         <div class="trace-field">
           <span>Agent</span>
@@ -236,12 +236,12 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <strong class="break-all font-mono">{{ request.query || "-" }}</strong>
         </div>
         <div class="trace-field">
-          <span>Backend type</span>
-          <strong>{{ backendTypeLabel(request.backendType) }}</strong>
+          <span>Target type</span>
+          <strong>{{ routeTargetTypeLabel(request.routeTargetType) }}</strong>
         </div>
         <div class="trace-field">
-          <span>Forward mode</span>
-          <strong>{{ forwardModeLabel(request.forwardMode) }}</strong>
+          <span>Transport</span>
+          <strong>{{ routeTargetTransportLabel(request.routeTargetTransport) }}</strong>
         </div>
         <div class="trace-field sm:col-span-2">
           <span>Target origin</span>

@@ -122,7 +122,6 @@ func proxyRequestRollupParams(event db.InsertProxyRequestEventAtParams) (db.Upse
 	tuple := db.UpsertProxyRequestTupleRollupMinuteParams{
 		BucketUnixMillis: bucketUnixMillis,
 		ListenerID:       nullInt64Value(event.ListenerID),
-		BackendID:        nullInt64Value(event.BackendID),
 		RouteTargetID:    nullInt64Value(event.RouteTargetID),
 		RouteID:          nullInt64Value(event.RouteID),
 		AgentID:          nullInt64Value(event.AgentID),

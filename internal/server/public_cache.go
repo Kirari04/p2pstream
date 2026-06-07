@@ -626,7 +626,6 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			time.Since(startedAt),
 			errorKind,
 			resolution.ListenerID,
-			sql.NullInt64{},
 			resolution.RouteID,
 			resolution.RouteTargetID,
 			sql.NullInt64{},

@@ -1,7 +1,5 @@
 import type { TrafficTraceEvent } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
-  PublicBackendForwardMode,
-  PublicBackendType,
   PublicRateLimitAlgorithm,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
@@ -230,10 +228,6 @@ export class TrafficTraceStore {
     request.routeId = event.routeId || request.routeId;
     request.routeLabel = event.routeLabel || request.routeLabel;
     request.defaultRoute = event.defaultRoute || request.defaultRoute;
-    request.backendId = event.backendId || request.backendId;
-    request.backendName = event.backendName || request.backendName;
-    request.backendType = event.backendType || request.backendType;
-    request.forwardMode = event.forwardMode || request.forwardMode;
     request.routeTargetId = event.routeTargetId || request.routeTargetId;
     request.routeTargetName = event.routeTargetName || request.routeTargetName;
     request.routeTargetType = event.routeTargetType || request.routeTargetType;
@@ -347,10 +341,6 @@ export function newTraceRequest(requestId: string, now = Date.now()): TraceReque
     routeId: 0n,
     routeLabel: "",
     defaultRoute: false,
-    backendId: 0n,
-    backendName: "",
-    backendType: PublicBackendType.UNSPECIFIED,
-    forwardMode: PublicBackendForwardMode.UNSPECIFIED,
     routeTargetId: 0n,
     routeTargetName: "",
     routeTargetType: PublicRouteTargetType.UNSPECIFIED,
@@ -413,7 +403,7 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
   switch (stage) {
     case TrafficTraceStage.RECEIVED: return "Received";
     case TrafficTraceStage.ROUTE_RESOLVED: return "Route";
-    case TrafficTraceStage.BACKEND_SELECTED: return "Backend";
+    case TrafficTraceStage.BACKEND_SELECTED: return "Target";
     case TrafficTraceStage.AGENT_SELECTED: return "Agent";
     case TrafficTraceStage.WAF_EVALUATED: return "WAF";
     case TrafficTraceStage.WAF_BLOCKED: return "WAF blocked";
@@ -467,8 +457,6 @@ export function traceFlowLabel(request: TraceRequest): string {
   }
   if (request.routeTargetName) {
     parts.push(request.routeTargetName);
-  } else if (request.backendName) {
-    parts.push(request.backendName);
   }
   if (request.agentName || request.agentPublicId) {
     parts.push(request.agentName || request.agentPublicId);

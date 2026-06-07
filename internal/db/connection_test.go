@@ -102,12 +102,18 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 			t.Fatalf("proxy_request_events missing column %s in %v", column, proxyEventColumns)
 		}
 	}
+	if containsString(proxyEventColumns, "backend_id") {
+		t.Fatalf("proxy_request_events still has backend_id in %v", proxyEventColumns)
+	}
+	tupleColumns := tableColumns(t, database, "proxy_request_tuple_rollup_minutes")
+	if containsString(tupleColumns, "backend_id") {
+		t.Fatalf("proxy_request_tuple_rollup_minutes still has backend_id in %v", tupleColumns)
+	}
 	agentStatColumns := tableColumns(t, database, "agent_stats")
 	if !containsString(agentStatColumns, "cpu_percent") {
 		t.Fatalf("agent_stats missing cpu_percent in %v", agentStatColumns)
 	}
 	for _, index := range []string{
-		"idx_proxy_request_events_backend_id",
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
 		"idx_proxy_request_events_waf_rule_id",
@@ -421,7 +427,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
 		"agent_stats":          {"agent_id", "req_internal_error", "cpu_percent"},
-		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes"},
+		"proxy_request_events": {"agent_id", "listener_id", "route_id", "route_target_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes"},
 		"public_cache_rules":   {"allow_cookie_requests"},
 	} {
 		got := tableColumns(t, database, table)
@@ -447,7 +453,6 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 		t.Fatal("expected idx_public_waf_rules_captcha_provider_id after migration")
 	}
 	for _, index := range []string{
-		"idx_proxy_request_events_backend_id",
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
 		"idx_proxy_request_events_waf_rule_id",

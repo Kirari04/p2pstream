@@ -761,7 +761,7 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		Listener:      publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP},
 		Route: publicRouteConfig{
 			ID:                  10,
-			TargetLoadBalancing: publicBackendLoadBalancingRoundRobin,
+			TargetLoadBalancing: publicRouteTargetLoadBalancingRoundRobin,
 		},
 		Target: publicRouteTargetConfig{
 			ID:                            30,
@@ -770,7 +770,7 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 			Enabled:                       true,
 			TargetType:                    publicRouteTargetTypeProxy,
 			Transport:                     publicRouteTargetTransportDirect,
-			AgentLoadBalancing:            publicBackendLoadBalancingRoundRobin,
+			AgentLoadBalancing:            publicRouteTargetLoadBalancingRoundRobin,
 			UpstreamResponseHeaderTimeout: time.Second,
 		},
 		CacheRuleID: rule.ID,

@@ -277,7 +277,7 @@ async function confirmRotateAgentToken() {
 }
 
 async function deleteAgent(agent: Agent) {
-  if (!await confirm("Delete Agent", "This agent and its backend assignments will be permanently removed.")) return;
+  if (!await confirm("Delete Agent", "This agent and its agent-selected target matches will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deleteAgent({ id: agent.id });
   });

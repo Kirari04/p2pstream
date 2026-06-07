@@ -170,7 +170,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
         <EmptyState
           v-if="!templates.length"
           title="No response templates"
-          description="Create reusable bodies for static backends, rate limits, WAF blocks, captcha pages, and waiting-room pages."
+          description="Create reusable bodies for static targets, rate limits, WAF blocks, captcha pages, and waiting-room pages."
           action-label="Add Template"
           @action="openCreate()"
         />

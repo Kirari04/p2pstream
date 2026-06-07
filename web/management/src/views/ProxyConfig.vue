@@ -146,7 +146,7 @@ async function deleteRoute(id: bigint) {
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h3 class="mb-2 text-xl font-bold">Proxy</h3>
-        <p class="text-sm text-[#888]">Public listeners, routes, and upstream backends.</p>
+        <p class="text-sm text-[#888]">Public listeners, routes, and route targets.</p>
       </div>
       <div class="flex items-center gap-3">
         <Tag :severity="proxySeverity" :value="proxyStateLabel(proxyState, status?.proxyRunning)" />

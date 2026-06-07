@@ -15,7 +15,7 @@ type CacheNodeStatus = {
 type TrafficNodeData = {
   label: string;
   subLabel: string;
-  kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "backend" | "redirect" | "agent" | "upstream" | "response";
+  kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "target" | "redirect" | "agent" | "upstream" | "response";
   editTargets: TrafficFlowEditTarget[];
   agentStatus?: AgentNodeStatus;
   cacheStatus?: CacheNodeStatus;
@@ -134,7 +134,7 @@ defineProps<NodeProps<TrafficNodeData>>();
   background: #050505;
 }
 
-.traffic-flow-node-backend {
+.traffic-flow-node-target {
   border-color: #71717a;
 }
 

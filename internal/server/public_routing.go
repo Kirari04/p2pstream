@@ -26,12 +26,12 @@ var errNoRouteBackendAvailable = errors.New("no route backend available")
 var errNoRouteTargetAvailable = errors.New("no route target available")
 var errNoPublicRouteAvailable = errors.New("no public route available")
 
-type publicBackendConfig struct {
+type publicRouteTargetHealthConfig struct {
 	ID                            int64
 	Name                          string
 	TargetOrigin                  string
-	BackendType                   string
-	ForwardMode                   string
+	TargetType                    string
+	Transport                     string
 	LoadBalancing                 string
 	TLSSkipVerify                 bool
 	StaticStatusCode              int
@@ -40,12 +40,12 @@ type publicBackendConfig struct {
 	StaticResponseBodyMode        string
 	StaticResponseTemplateID      int64
 	UpstreamRequestHeaders        []publicRequestHeader
-	UpstreamBasicAuth             publicBackendBasicAuthConfig
+	UpstreamBasicAuth             publicRouteTargetBasicAuthConfig
 	UpstreamResponseHeaderTimeout time.Duration
 	Enabled                       bool
 	ParsedOrigin                  *url.URL
-	AgentAssignments              []publicBackendAgentConfig
-	HealthCheck                   publicBackendHealthCheckConfig
+	AgentAssignments              []publicRouteTargetAgentAssignment
+	HealthCheck                   publicRouteTargetHealthCheckConfig
 }
 
 type publicAgentConfig struct {
@@ -56,12 +56,12 @@ type publicAgentConfig struct {
 	Labels   map[string]string
 }
 
-type publicBackendAgentConfig struct {
-	BackendID int64
-	AgentID   int64
-	Position  int64
-	Weight    int64
-	Enabled   bool
+type publicRouteTargetAgentAssignment struct {
+	TargetID int64
+	AgentID  int64
+	Position int64
+	Weight   int64
+	Enabled  bool
 }
 
 type publicResponseHeader struct {
@@ -75,13 +75,13 @@ type publicRequestHeader struct {
 	Sensitive bool
 }
 
-type publicBackendBasicAuthConfig struct {
+type publicRouteTargetBasicAuthConfig struct {
 	Enabled  bool
 	Username string
 	Password string
 }
 
-type publicBackendHealthCheckConfig struct {
+type publicRouteTargetHealthCheckConfig struct {
 	Enabled            bool
 	Method             string
 	Path               string
@@ -113,8 +113,8 @@ type publicRouteTargetConfig struct {
 	TLSSkipVerify                 bool
 	UpstreamResponseHeaderTimeout time.Duration
 	UpstreamRequestHeaders        []publicRequestHeader
-	UpstreamBasicAuth             publicBackendBasicAuthConfig
-	HealthCheck                   publicBackendHealthCheckConfig
+	UpstreamBasicAuth             publicRouteTargetBasicAuthConfig
+	HealthCheck                   publicRouteTargetHealthCheckConfig
 	StaticStatusCode              int
 	StaticResponseHeaders         []publicResponseHeader
 	StaticResponseBody            string
@@ -316,7 +316,6 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			time.Since(startedAt),
 			errorKind,
 			resolution.ListenerID,
-			sql.NullInt64{},
 			resolution.RouteID,
 			sql.NullInt64{},
 			observability.requestBytesValue(),
@@ -346,7 +345,6 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 			time.Since(startedAt),
 			errorKind,
 			resolution.ListenerID,
-			sql.NullInt64{},
 			resolution.RouteID,
 			resolution.RouteTargetID,
 			sql.NullInt64{},
@@ -417,7 +415,6 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			time.Since(startedAt),
 			errorKind,
 			resolution.ListenerID,
-			sql.NullInt64{},
 			resolution.RouteID,
 			resolution.RouteTargetID,
 			sql.NullInt64{},
@@ -793,7 +790,7 @@ func (a *App) eligibleTargetAgentCandidates(target publicRouteTargetConfig) []ba
 		if conn == nil {
 			continue
 		}
-		if a.BackendHealth != nil && !a.BackendHealth.agentAvailable(target.ID, agentID) {
+		if a.TargetHealth != nil && !a.TargetHealth.agentAvailable(target.ID, agentID) {
 			continue
 		}
 		candidates = append(candidates, backendAgentCandidate{
@@ -897,7 +894,7 @@ func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRout
 	if target.TargetType != publicRouteTargetTypeProxy || target.ParsedURL == nil {
 		return false
 	}
-	if a.BackendHealth != nil && !a.BackendHealth.available(publicBackendConfigFromRouteTarget(target, snap.Agents)) {
+	if a.TargetHealth != nil && !a.TargetHealth.available(publicRouteTargetHealthConfigFromRouteTarget(target, snap.Agents)) {
 		return false
 	}
 	if target.Transport == publicRouteTargetTransportAgent {
@@ -915,7 +912,7 @@ func (a *App) targetHasEligibleAgent(snap publicProxySnapshot, target publicRout
 			continue
 		}
 		if a.AgentHub.connectedByID(agentID) != nil {
-			if a.BackendHealth == nil || a.BackendHealth.agentAvailable(target.ID, agentID) {
+			if a.TargetHealth == nil || a.TargetHealth.agentAvailable(target.ID, agentID) {
 				return true
 			}
 		}
@@ -924,27 +921,27 @@ func (a *App) targetHasEligibleAgent(snap publicProxySnapshot, target publicRout
 }
 
 func (a *App) beginPublicRouteTargetRequest(targetID int64) func() {
-	if a.BackendHealth == nil {
+	if a.TargetHealth == nil {
 		return func() {}
 	}
-	return a.BackendHealth.beginRequest(targetID)
+	return a.TargetHealth.beginRequest(targetID)
 }
 
 func (a *App) markPublicRouteTargetPassiveFailure(targetID int64, err error) {
-	if a.BackendHealth == nil {
+	if a.TargetHealth == nil {
 		return
 	}
-	a.BackendHealth.markPassiveFailure(targetID, err)
+	a.TargetHealth.markPassiveFailure(targetID, err)
 }
 
 func (a *App) markPublicRouteTargetAgentPassiveFailure(targetID int64, agentID int64, err error) {
-	if a.BackendHealth == nil {
+	if a.TargetHealth == nil {
 		return
 	}
-	a.BackendHealth.markAgentPassiveFailure(targetID, agentID, err)
+	a.TargetHealth.markAgentPassiveFailure(targetID, agentID, err)
 }
 
-func applyUpstreamRequestConfig(req *http.Request, backend publicBackendConfig) {
+func applyUpstreamRequestConfig(req *http.Request, backend publicRouteTargetHealthConfig) {
 	if backend.ParsedOrigin != nil {
 		req.URL.Scheme = backend.ParsedOrigin.Scheme
 		req.URL.Host = backend.ParsedOrigin.Host
@@ -1279,7 +1276,7 @@ func directProxyTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duratio
 
 func normalizeUpstreamResponseHeaderTimeout(timeout time.Duration) time.Duration {
 	if timeout <= 0 {
-		return time.Duration(defaultBackendUpstreamResponseHeaderTimeoutMillis) * time.Millisecond
+		return time.Duration(defaultTargetUpstreamResponseHeaderTimeoutMillis) * time.Millisecond
 	}
 	return timeout
 }
