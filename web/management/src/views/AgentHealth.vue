@@ -14,6 +14,7 @@ import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
+import { AGENT_ID_SYSTEM_LABEL_KEY, userAgentLabelPairs } from "@/lib/agentLabels";
 import {
   FALLBACK_RELEASE_REPOSITORY,
   cliSnippet as buildCliSnippet,
@@ -214,6 +215,15 @@ function editAgent(agent: Agent) {
   agentEditor.value?.openEdit(agent.id);
 }
 
+function agentUserLabels(agent: Agent) {
+  return userAgentLabelPairs(agent.labels);
+}
+
+function exactAgentSelector(agent: Agent): string {
+  const value = agent.labels[AGENT_ID_SYSTEM_LABEL_KEY] || agent.publicId;
+  return `${AGENT_ID_SYSTEM_LABEL_KEY}=${value}`;
+}
+
 function openUninstallModal(agent: Agent) {
   uninstallAgent.value = agent;
   uninstallReleaseRepository.value = defaultReleaseRepository();
@@ -267,7 +277,7 @@ async function confirmRotateAgentToken() {
 }
 
 async function deleteAgent(agent: Agent) {
-  if (!await confirm("Delete Agent", "This agent and its backend assignments will be permanently removed.")) return;
+  if (!await confirm("Delete Agent", "This agent and its agent-selected target matches will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deleteAgent({ id: agent.id });
   });
@@ -482,6 +492,17 @@ async function copyUninstallSnippet() {
               <td class="px-5 py-4">
                 <p class="font-medium text-white">{{ agent.name }}</p>
                 <p class="font-mono text-xs text-[#888]">{{ agent.publicId }}</p>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <span
+                    v-for="label in agentUserLabels(agent)"
+                    :key="label.id"
+                    class="rounded border border-[#333] bg-[#101010] px-2 py-0.5 font-mono text-[11px] text-[#d4d4d8]"
+                  >
+                    {{ label.key }}={{ label.value }}
+                  </span>
+                  <span v-if="!agentUserLabels(agent).length" class="text-xs text-[#666]">No user labels</span>
+                </div>
+                <code class="mt-1 block break-all font-mono text-[11px] text-[#666]">{{ exactAgentSelector(agent) }}</code>
               </td>
               <td class="px-5 py-4">
                 <div class="flex items-center gap-2">

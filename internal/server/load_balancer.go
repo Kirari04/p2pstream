@@ -14,19 +14,20 @@ type backendAgentCandidate struct {
 	Weight   int64
 }
 
-type routeBackendCandidate struct {
-	Backend        publicBackendConfig
-	BackendID      int64
+type routeTargetCandidate struct {
+	Target         publicRouteTargetConfig
+	TargetID       int64
 	Position       int64
 	Weight         int64
 	ActiveRequests int64
 }
 
 type loadBalancerRegistry struct {
-	mu          sync.Mutex
-	states      map[int64]*backendSelectorState
-	routeStates map[int64]*backendSelectorState
-	rng         *rand.Rand
+	mu                sync.Mutex
+	states            map[int64]*backendSelectorState
+	targetAgentStates map[int64]*backendSelectorState
+	routeStates       map[int64]*backendSelectorState
+	rng               *rand.Rand
 }
 
 type backendSelectorState struct {
@@ -36,17 +37,19 @@ type backendSelectorState struct {
 
 func newLoadBalancerRegistry() *loadBalancerRegistry {
 	return &loadBalancerRegistry{
-		states:      make(map[int64]*backendSelectorState),
-		routeStates: make(map[int64]*backendSelectorState),
-		rng:         rand.New(rand.NewSource(time.Now().UnixNano())),
+		states:            make(map[int64]*backendSelectorState),
+		targetAgentStates: make(map[int64]*backendSelectorState),
+		routeStates:       make(map[int64]*backendSelectorState),
+		rng:               rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
 func newLoadBalancerRegistryWithRand(rng *rand.Rand) *loadBalancerRegistry {
 	return &loadBalancerRegistry{
-		states:      make(map[int64]*backendSelectorState),
-		routeStates: make(map[int64]*backendSelectorState),
-		rng:         rng,
+		states:            make(map[int64]*backendSelectorState),
+		targetAgentStates: make(map[int64]*backendSelectorState),
+		routeStates:       make(map[int64]*backendSelectorState),
+		rng:               rng,
 	}
 }
 
@@ -55,12 +58,18 @@ func (r *loadBalancerRegistry) reconcile(snap *publicProxySnapshot) {
 	defer r.mu.Unlock()
 	if snap == nil {
 		r.states = make(map[int64]*backendSelectorState)
+		r.targetAgentStates = make(map[int64]*backendSelectorState)
 		r.routeStates = make(map[int64]*backendSelectorState)
 		return
 	}
-	for backendID := range r.states {
-		if _, ok := snap.Backends[backendID]; !ok {
-			delete(r.states, backendID)
+	for targetID := range r.states {
+		if _, ok := snap.RouteTargets[targetID]; !ok {
+			delete(r.states, targetID)
+		}
+	}
+	for targetID := range r.targetAgentStates {
+		if _, ok := snap.RouteTargets[targetID]; !ok {
+			delete(r.targetAgentStates, targetID)
 		}
 	}
 	activeRoutes := make(map[int64]struct{})
@@ -76,7 +85,42 @@ func (r *loadBalancerRegistry) reconcile(snap *publicProxySnapshot) {
 	}
 }
 
-func (r *loadBalancerRegistry) selectAgent(backend publicBackendConfig, candidates []backendAgentCandidate) *AgentConn {
+func (r *loadBalancerRegistry) selectTargetAgent(target publicRouteTargetConfig, candidates []backendAgentCandidate) *AgentConn {
+	if len(candidates) == 0 {
+		return nil
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].Position == candidates[j].Position {
+			return candidates[i].AgentID < candidates[j].AgentID
+		}
+		return candidates[i].Position < candidates[j].Position
+	})
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	state := r.targetAgentStates[target.ID]
+	if state == nil {
+		state = &backendSelectorState{smooth: make(map[int64]int64)}
+		r.targetAgentStates[target.ID] = state
+	}
+
+	switch target.AgentLoadBalancing {
+	case publicRouteTargetLoadBalancingRandom:
+		return candidates[r.rng.Intn(len(candidates))].Conn
+	case publicRouteTargetLoadBalancingWeightedRandom:
+		return weightedRandom(candidates, r.rng).Conn
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
+		return state.leastActive(candidates, false).Conn
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
+		return state.leastActive(candidates, true).Conn
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
+		return state.weightedRoundRobin(candidates).Conn
+	default:
+		return state.roundRobinPick(candidates).Conn
+	}
+}
+
+func (r *loadBalancerRegistry) selectAgent(backend publicRouteTargetHealthConfig, candidates []backendAgentCandidate) *AgentConn {
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -96,28 +140,28 @@ func (r *loadBalancerRegistry) selectAgent(backend publicBackendConfig, candidat
 	}
 
 	switch backend.LoadBalancing {
-	case publicBackendLoadBalancingRandom:
+	case publicRouteTargetLoadBalancingRandom:
 		return candidates[r.rng.Intn(len(candidates))].Conn
-	case publicBackendLoadBalancingWeightedRandom:
+	case publicRouteTargetLoadBalancingWeightedRandom:
 		return weightedRandom(candidates, r.rng).Conn
-	case publicBackendLoadBalancingLeastActiveRequests:
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
 		return state.leastActive(candidates, false).Conn
-	case publicBackendLoadBalancingWeightedLeastActiveRequests:
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
 		return state.leastActive(candidates, true).Conn
-	case publicBackendLoadBalancingWeightedRoundRobin:
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
 		return state.weightedRoundRobin(candidates).Conn
 	default:
 		return state.roundRobinPick(candidates).Conn
 	}
 }
 
-func (r *loadBalancerRegistry) selectRouteBackend(route publicRouteConfig, candidates []routeBackendCandidate) (routeBackendCandidate, bool) {
+func (r *loadBalancerRegistry) selectRouteTarget(route publicRouteConfig, candidates []routeTargetCandidate) (routeTargetCandidate, bool) {
 	if len(candidates) == 0 {
-		return routeBackendCandidate{}, false
+		return routeTargetCandidate{}, false
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].Position == candidates[j].Position {
-			return candidates[i].BackendID < candidates[j].BackendID
+			return candidates[i].TargetID < candidates[j].TargetID
 		}
 		return candidates[i].Position < candidates[j].Position
 	})
@@ -130,19 +174,19 @@ func (r *loadBalancerRegistry) selectRouteBackend(route publicRouteConfig, candi
 		r.routeStates[route.ID] = state
 	}
 
-	switch route.LoadBalancing {
-	case publicBackendLoadBalancingRandom:
+	switch route.TargetLoadBalancing {
+	case publicRouteTargetLoadBalancingRandom:
 		return candidates[r.rng.Intn(len(candidates))], true
-	case publicBackendLoadBalancingWeightedRandom:
-		return weightedRandomRoute(candidates, r.rng), true
-	case publicBackendLoadBalancingLeastActiveRequests:
-		return state.leastActiveRoute(candidates, false), true
-	case publicBackendLoadBalancingWeightedLeastActiveRequests:
-		return state.leastActiveRoute(candidates, true), true
-	case publicBackendLoadBalancingWeightedRoundRobin:
-		return state.weightedRouteRoundRobin(candidates), true
+	case publicRouteTargetLoadBalancingWeightedRandom:
+		return weightedRandomTarget(candidates, r.rng), true
+	case publicRouteTargetLoadBalancingLeastActiveRequests:
+		return state.leastActiveTarget(candidates, false), true
+	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
+		return state.leastActiveTarget(candidates, true), true
+	case publicRouteTargetLoadBalancingWeightedRoundRobin:
+		return state.weightedTargetRoundRobin(candidates), true
 	default:
-		return state.roundRobinRoutePick(candidates), true
+		return state.roundRobinTargetPick(candidates), true
 	}
 }
 
@@ -152,7 +196,7 @@ func (s *backendSelectorState) roundRobinPick(candidates []backendAgentCandidate
 	return pick
 }
 
-func (s *backendSelectorState) roundRobinRoutePick(candidates []routeBackendCandidate) routeBackendCandidate {
+func (s *backendSelectorState) roundRobinTargetPick(candidates []routeTargetCandidate) routeTargetCandidate {
 	pick := candidates[int(s.roundRobin%uint64(len(candidates)))]
 	s.roundRobin++
 	return pick
@@ -187,32 +231,32 @@ func (s *backendSelectorState) weightedRoundRobin(candidates []backendAgentCandi
 	return best
 }
 
-func (s *backendSelectorState) weightedRouteRoundRobin(candidates []routeBackendCandidate) routeBackendCandidate {
+func (s *backendSelectorState) weightedTargetRoundRobin(candidates []routeTargetCandidate) routeTargetCandidate {
 	if s.smooth == nil {
 		s.smooth = make(map[int64]int64)
 	}
 	active := make(map[int64]struct{}, len(candidates))
 	var total int64
-	var best routeBackendCandidate
+	var best routeTargetCandidate
 	bestSet := false
 	for _, candidate := range candidates {
 		weight := normalizedWeight(candidate.Weight)
-		active[candidate.BackendID] = struct{}{}
+		active[candidate.TargetID] = struct{}{}
 		total += weight
-		current := s.smooth[candidate.BackendID] + weight
-		s.smooth[candidate.BackendID] = current
-		if !bestSet || current > s.smooth[best.BackendID] ||
-			(current == s.smooth[best.BackendID] && candidate.Position < best.Position) {
+		current := s.smooth[candidate.TargetID] + weight
+		s.smooth[candidate.TargetID] = current
+		if !bestSet || current > s.smooth[best.TargetID] ||
+			(current == s.smooth[best.TargetID] && candidate.Position < best.Position) {
 			best = candidate
 			bestSet = true
 		}
 	}
-	for backendID := range s.smooth {
-		if _, ok := active[backendID]; !ok {
-			delete(s.smooth, backendID)
+	for targetID := range s.smooth {
+		if _, ok := active[targetID]; !ok {
+			delete(s.smooth, targetID)
 		}
 	}
-	s.smooth[best.BackendID] -= total
+	s.smooth[best.TargetID] -= total
 	return best
 }
 
@@ -240,11 +284,11 @@ func (s *backendSelectorState) leastActive(candidates []backendAgentCandidate, w
 	return s.roundRobinPick(tied)
 }
 
-func (s *backendSelectorState) leastActiveRoute(candidates []routeBackendCandidate, weighted bool) routeBackendCandidate {
-	tied := make([]routeBackendCandidate, 0, len(candidates))
+func (s *backendSelectorState) leastActiveTarget(candidates []routeTargetCandidate, weighted bool) routeTargetCandidate {
+	tied := make([]routeTargetCandidate, 0, len(candidates))
 	best := candidates[0]
 	for _, candidate := range candidates {
-		cmp := compareRouteActive(candidate, best, weighted)
+		cmp := compareTargetActive(candidate, best, weighted)
 		if cmp < 0 {
 			best = candidate
 			tied = tied[:0]
@@ -259,9 +303,9 @@ func (s *backendSelectorState) leastActiveRoute(candidates []routeBackendCandida
 		return best
 	}
 	if weighted {
-		return s.weightedRouteRoundRobin(tied)
+		return s.weightedTargetRoundRobin(tied)
 	}
-	return s.roundRobinRoutePick(tied)
+	return s.roundRobinTargetPick(tied)
 }
 
 func compareActive(a, b backendAgentCandidate, weighted bool) int {
@@ -287,7 +331,7 @@ func compareActive(a, b backendAgentCandidate, weighted bool) int {
 	return 0
 }
 
-func compareRouteActive(a, b routeBackendCandidate, weighted bool) int {
+func compareTargetActive(a, b routeTargetCandidate, weighted bool) int {
 	activeA := a.ActiveRequests
 	activeB := b.ActiveRequests
 	if weighted {
@@ -328,7 +372,7 @@ func weightedRandom(candidates []backendAgentCandidate, rng *rand.Rand) backendA
 	return candidates[len(candidates)-1]
 }
 
-func weightedRandomRoute(candidates []routeBackendCandidate, rng *rand.Rand) routeBackendCandidate {
+func weightedRandomTarget(candidates []routeTargetCandidate, rng *rand.Rand) routeTargetCandidate {
 	var total int64
 	for _, candidate := range candidates {
 		total += normalizedWeight(candidate.Weight)

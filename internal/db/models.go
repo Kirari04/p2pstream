@@ -112,8 +112,8 @@ type ProxyRequestEvent struct {
 	DurationMs    int64         `json:"duration_ms"`
 	ErrorKind     string        `json:"error_kind"`
 	ListenerID    sql.NullInt64 `json:"listener_id"`
-	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
+	RouteTargetID sql.NullInt64 `json:"route_target_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
 	WafAction     string        `json:"waf_action"`
 	AgentID       sql.NullInt64 `json:"agent_id"`
@@ -150,8 +150,8 @@ type ProxyRequestRollupMinute struct {
 type ProxyRequestTupleRollupMinute struct {
 	BucketUnixMillis int64     `json:"bucket_unix_millis"`
 	ListenerID       int64     `json:"listener_id"`
-	BackendID        int64     `json:"backend_id"`
 	RouteID          int64     `json:"route_id"`
+	RouteTargetID    int64     `json:"route_target_id"`
 	AgentID          int64     `json:"agent_id"`
 	ErrorKind        string    `json:"error_kind"`
 	StatusClass      int64     `json:"status_class"`
@@ -167,63 +167,11 @@ type ProxyRequestTupleRollupMinute struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
-type PublicBackend struct {
-	ID                                  int64         `json:"id"`
-	Name                                string        `json:"name"`
-	TargetOrigin                        string        `json:"target_origin"`
-	BackendType                         string        `json:"backend_type"`
-	ForwardMode                         string        `json:"forward_mode"`
-	LoadBalancing                       string        `json:"load_balancing"`
-	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
-	StaticStatusCode                    int64         `json:"static_status_code"`
-	StaticResponseBody                  string        `json:"static_response_body"`
-	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
-	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
-	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
-	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
-	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
-	HealthCheckMethod                   string        `json:"health_check_method"`
-	HealthCheckPath                     string        `json:"health_check_path"`
-	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
-	Enabled                             int64         `json:"enabled"`
-	CreatedAt                           time.Time     `json:"created_at"`
-	UpdatedAt                           time.Time     `json:"updated_at"`
-}
-
-type PublicBackendAgent struct {
-	BackendID int64     `json:"backend_id"`
+type PublicAgentLabel struct {
 	AgentID   int64     `json:"agent_id"`
-	Position  int64     `json:"position"`
-	Weight    int64     `json:"weight"`
-	Enabled   int64     `json:"enabled"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type PublicBackendHeader struct {
-	ID        int64     `json:"id"`
-	BackendID int64     `json:"backend_id"`
-	Position  int64     `json:"position"`
-	Name      string    `json:"name"`
+	Key       string    `json:"key"`
 	Value     string    `json:"value"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type PublicBackendUpstreamHeader struct {
-	ID        int64     `json:"id"`
-	BackendID int64     `json:"backend_id"`
-	Position  int64     `json:"position"`
-	Name      string    `json:"name"`
-	Value     string    `json:"value"`
-	Sensitive int64     `json:"sensitive"`
+	Source    string    `json:"source"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -237,7 +185,7 @@ type PublicCacheEntry struct {
 	Path                string        `json:"path"`
 	QueryKey            string        `json:"query_key"`
 	RouteID             sql.NullInt64 `json:"route_id"`
-	BackendID           sql.NullInt64 `json:"backend_id"`
+	RouteTargetID       sql.NullInt64 `json:"route_target_id"`
 	Method              string        `json:"method"`
 	VaryHeadersJson     string        `json:"vary_headers_json"`
 	ResponseHeadersJson string        `json:"response_headers_json"`
@@ -257,7 +205,7 @@ type PublicCacheRule struct {
 	Enabled              int64     `json:"enabled"`
 	MatchJson            string    `json:"match_json"`
 	RouteIdsJson         string    `json:"route_ids_json"`
-	BackendIdsJson       string    `json:"backend_ids_json"`
+	TargetIdsJson        string    `json:"target_ids_json"`
 	Scope                string    `json:"scope"`
 	TtlMode              string    `json:"ttl_mode"`
 	TtlMillis            int64     `json:"ttl_millis"`
@@ -285,15 +233,14 @@ type PublicCacheSetting struct {
 }
 
 type PublicListener struct {
-	ID               int64     `json:"id"`
-	Name             string    `json:"name"`
-	BindAddress      string    `json:"bind_address"`
-	Port             int64     `json:"port"`
-	Protocol         string    `json:"protocol"`
-	Enabled          int64     `json:"enabled"`
-	DefaultBackendID int64     `json:"default_backend_id"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	BindAddress string    `json:"bind_address"`
+	Port        int64     `json:"port"`
+	Protocol    string    `json:"protocol"`
+	Enabled     int64     `json:"enabled"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type PublicRateLimitRule struct {
@@ -329,31 +276,76 @@ type PublicResponseTemplate struct {
 }
 
 type PublicRoute struct {
-	ID                         int64         `json:"id"`
-	ListenerID                 int64         `json:"listener_id"`
-	Priority                   int64         `json:"priority"`
-	HostPattern                string        `json:"host_pattern"`
-	PathPrefix                 string        `json:"path_prefix"`
-	BackendID                  sql.NullInt64 `json:"backend_id"`
-	LoadBalancing              string        `json:"load_balancing"`
-	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
-	Action                     string        `json:"action"`
-	RedirectTargetMode         string        `json:"redirect_target_mode"`
-	RedirectTarget             string        `json:"redirect_target"`
-	RedirectStatusCode         int64         `json:"redirect_status_code"`
-	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
-	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
-	Enabled                    int64         `json:"enabled"`
-	CreatedAt                  time.Time     `json:"created_at"`
-	UpdatedAt                  time.Time     `json:"updated_at"`
+	ID                         int64     `json:"id"`
+	ListenerID                 int64     `json:"listener_id"`
+	Priority                   int64     `json:"priority"`
+	HostPattern                string    `json:"host_pattern"`
+	PathPrefix                 string    `json:"path_prefix"`
+	TargetLoadBalancing        string    `json:"target_load_balancing"`
+	IsDefault                  int64     `json:"is_default"`
+	Action                     string    `json:"action"`
+	RedirectTargetMode         string    `json:"redirect_target_mode"`
+	RedirectTarget             string    `json:"redirect_target"`
+	RedirectStatusCode         int64     `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64     `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64     `json:"redirect_preserve_query"`
+	Enabled                    int64     `json:"enabled"`
+	CreatedAt                  time.Time `json:"created_at"`
+	UpdatedAt                  time.Time `json:"updated_at"`
 }
 
-type PublicRouteBackend struct {
-	RouteID   int64     `json:"route_id"`
-	BackendID int64     `json:"backend_id"`
+type PublicRouteTarget struct {
+	ID                                  int64         `json:"id"`
+	RouteID                             int64         `json:"route_id"`
+	Name                                string        `json:"name"`
+	Position                            int64         `json:"position"`
+	PriorityGroup                       int64         `json:"priority_group"`
+	Weight                              int64         `json:"weight"`
+	Enabled                             int64         `json:"enabled"`
+	TargetType                          string        `json:"target_type"`
+	Url                                 string        `json:"url"`
+	Transport                           string        `json:"transport"`
+	AgentSelectorJson                   string        `json:"agent_selector_json"`
+	AgentLoadBalancing                  string        `json:"agent_load_balancing"`
+	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
+	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
+	HealthCheckMethod                   string        `json:"health_check_method"`
+	HealthCheckPath                     string        `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
+	StaticStatusCode                    int64         `json:"static_status_code"`
+	StaticResponseBody                  string        `json:"static_response_body"`
+	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
+	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
+	CreatedAt                           time.Time     `json:"created_at"`
+	UpdatedAt                           time.Time     `json:"updated_at"`
+}
+
+type PublicRouteTargetResponseHeader struct {
+	ID        int64     `json:"id"`
+	TargetID  int64     `json:"target_id"`
 	Position  int64     `json:"position"`
-	Weight    int64     `json:"weight"`
-	Enabled   int64     `json:"enabled"`
+	Name      string    `json:"name"`
+	Value     string    `json:"value"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PublicRouteTargetUpstreamHeader struct {
+	ID        int64     `json:"id"`
+	TargetID  int64     `json:"target_id"`
+	Position  int64     `json:"position"`
+	Name      string    `json:"name"`
+	Value     string    `json:"value"`
+	Sensitive int64     `json:"sensitive"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -441,7 +433,7 @@ type PublicWafRule struct {
 	TriggerMinimumRequestRate            int64         `json:"trigger_minimum_request_rate"`
 	TriggerTrafficSpikeMultiplier        float64       `json:"trigger_traffic_spike_multiplier"`
 	TriggerProxyActiveRequests           int64         `json:"trigger_proxy_active_requests"`
-	TriggerBackendActiveRequests         int64         `json:"trigger_backend_active_requests"`
+	TriggerRouteTargetActiveRequests     int64         `json:"trigger_route_target_active_requests"`
 	TriggerAgentActiveRequests           int64         `json:"trigger_agent_active_requests"`
 	TriggerServerCpuPercent              float64       `json:"trigger_server_cpu_percent"`
 	TriggerAgentCpuPercent               float64       `json:"trigger_agent_cpu_percent"`

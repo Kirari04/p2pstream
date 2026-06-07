@@ -84,18 +84,9 @@ const (
 	// AgentManagementServiceDeletePublicResponseTemplateProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicResponseTemplate RPC.
 	AgentManagementServiceDeletePublicResponseTemplateProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicResponseTemplate"
-	// AgentManagementServiceListPublicBackendHealthTracesProcedure is the fully-qualified name of the
-	// AgentManagementService's ListPublicBackendHealthTraces RPC.
-	AgentManagementServiceListPublicBackendHealthTracesProcedure = "/p2pstream.v1.AgentManagementService/ListPublicBackendHealthTraces"
-	// AgentManagementServiceCreatePublicBackendProcedure is the fully-qualified name of the
-	// AgentManagementService's CreatePublicBackend RPC.
-	AgentManagementServiceCreatePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicBackend"
-	// AgentManagementServiceUpdatePublicBackendProcedure is the fully-qualified name of the
-	// AgentManagementService's UpdatePublicBackend RPC.
-	AgentManagementServiceUpdatePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicBackend"
-	// AgentManagementServiceDeletePublicBackendProcedure is the fully-qualified name of the
-	// AgentManagementService's DeletePublicBackend RPC.
-	AgentManagementServiceDeletePublicBackendProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicBackend"
+	// AgentManagementServiceListPublicRouteTargetHealthTracesProcedure is the fully-qualified name of
+	// the AgentManagementService's ListPublicRouteTargetHealthTraces RPC.
+	AgentManagementServiceListPublicRouteTargetHealthTracesProcedure = "/p2pstream.v1.AgentManagementService/ListPublicRouteTargetHealthTraces"
 	// AgentManagementServiceCreateAgentProcedure is the fully-qualified name of the
 	// AgentManagementService's CreateAgent RPC.
 	AgentManagementServiceCreateAgentProcedure = "/p2pstream.v1.AgentManagementService/CreateAgent"
@@ -261,10 +252,7 @@ type AgentManagementServiceClient interface {
 	CreatePublicResponseTemplate(context.Context, *connect.Request[v1.CreatePublicResponseTemplateRequest]) (*connect.Response[v1.CreatePublicResponseTemplateResponse], error)
 	UpdatePublicResponseTemplate(context.Context, *connect.Request[v1.UpdatePublicResponseTemplateRequest]) (*connect.Response[v1.UpdatePublicResponseTemplateResponse], error)
 	DeletePublicResponseTemplate(context.Context, *connect.Request[v1.DeletePublicResponseTemplateRequest]) (*connect.Response[v1.DeletePublicResponseTemplateResponse], error)
-	ListPublicBackendHealthTraces(context.Context, *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error)
-	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
-	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
-	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
+	ListPublicRouteTargetHealthTraces(context.Context, *connect.Request[v1.ListPublicRouteTargetHealthTracesRequest]) (*connect.Response[v1.ListPublicRouteTargetHealthTracesResponse], error)
 	CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error)
 	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
 	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
@@ -428,28 +416,10 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicResponseTemplate")),
 			connect.WithClientOptions(opts...),
 		),
-		listPublicBackendHealthTraces: connect.NewClient[v1.ListPublicBackendHealthTracesRequest, v1.ListPublicBackendHealthTracesResponse](
+		listPublicRouteTargetHealthTraces: connect.NewClient[v1.ListPublicRouteTargetHealthTracesRequest, v1.ListPublicRouteTargetHealthTracesResponse](
 			httpClient,
-			baseURL+AgentManagementServiceListPublicBackendHealthTracesProcedure,
-			connect.WithSchema(agentManagementServiceMethods.ByName("ListPublicBackendHealthTraces")),
-			connect.WithClientOptions(opts...),
-		),
-		createPublicBackend: connect.NewClient[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse](
-			httpClient,
-			baseURL+AgentManagementServiceCreatePublicBackendProcedure,
-			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicBackend")),
-			connect.WithClientOptions(opts...),
-		),
-		updatePublicBackend: connect.NewClient[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse](
-			httpClient,
-			baseURL+AgentManagementServiceUpdatePublicBackendProcedure,
-			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicBackend")),
-			connect.WithClientOptions(opts...),
-		),
-		deletePublicBackend: connect.NewClient[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse](
-			httpClient,
-			baseURL+AgentManagementServiceDeletePublicBackendProcedure,
-			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicBackend")),
+			baseURL+AgentManagementServiceListPublicRouteTargetHealthTracesProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ListPublicRouteTargetHealthTraces")),
 			connect.WithClientOptions(opts...),
 		),
 		createAgent: connect.NewClient[v1.CreateAgentRequest, v1.CreateAgentResponse](
@@ -745,75 +715,72 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 
 // agentManagementServiceClient implements AgentManagementServiceClient.
 type agentManagementServiceClient struct {
-	reportStats                    *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
-	getStatus                      *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
-	getDashboard                   *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
-	getTrafficTraceSettings        *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
-	setTrafficTraceSettings        *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
-	streamTrafficTraceEvents       *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
-	getSetupState                  *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
-	setupAdmin                     *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
-	login                          *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	logout                         *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	getCurrentUser                 *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
-	startProxy                     *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
-	stopProxy                      *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
-	getPublicProxyConfig           *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
-	createPublicResponseTemplate   *connect.Client[v1.CreatePublicResponseTemplateRequest, v1.CreatePublicResponseTemplateResponse]
-	updatePublicResponseTemplate   *connect.Client[v1.UpdatePublicResponseTemplateRequest, v1.UpdatePublicResponseTemplateResponse]
-	deletePublicResponseTemplate   *connect.Client[v1.DeletePublicResponseTemplateRequest, v1.DeletePublicResponseTemplateResponse]
-	listPublicBackendHealthTraces  *connect.Client[v1.ListPublicBackendHealthTracesRequest, v1.ListPublicBackendHealthTracesResponse]
-	createPublicBackend            *connect.Client[v1.CreatePublicBackendRequest, v1.CreatePublicBackendResponse]
-	updatePublicBackend            *connect.Client[v1.UpdatePublicBackendRequest, v1.UpdatePublicBackendResponse]
-	deletePublicBackend            *connect.Client[v1.DeletePublicBackendRequest, v1.DeletePublicBackendResponse]
-	createAgent                    *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
-	updateAgent                    *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
-	deleteAgent                    *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
-	rotateAgentToken               *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
-	createManagementAccessToken    *connect.Client[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse]
-	listManagementAccessTokens     *connect.Client[v1.ListManagementAccessTokensRequest, v1.ListManagementAccessTokensResponse]
-	deleteManagementAccessToken    *connect.Client[v1.DeleteManagementAccessTokenRequest, v1.DeleteManagementAccessTokenResponse]
-	listEnvironments               *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
-	createEnvironment              *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
-	updateEnvironment              *connect.Client[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse]
-	deleteEnvironment              *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
-	discoverEnvironmentCertificate *connect.Client[v1.DiscoverEnvironmentCertificateRequest, v1.DiscoverEnvironmentCertificateResponse]
-	trustEnvironmentCertificate    *connect.Client[v1.TrustEnvironmentCertificateRequest, v1.TrustEnvironmentCertificateResponse]
-	testEnvironment                *connect.Client[v1.TestEnvironmentRequest, v1.TestEnvironmentResponse]
-	createPublicListener           *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
-	updatePublicListener           *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
-	deletePublicListener           *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
-	enablePublicListener           *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
-	disablePublicListener          *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
-	startPublicListener            *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
-	stopPublicListener             *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
-	createPublicRoute              *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
-	updatePublicRoute              *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
-	deletePublicRoute              *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
-	createPublicTlsDnsCredential   *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
-	updatePublicTlsDnsCredential   *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
-	deletePublicTlsDnsCredential   *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
-	createPublicTlsCertificate     *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
-	updatePublicTlsCertificate     *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
-	deletePublicTlsCertificate     *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
-	renewPublicTlsCertificate      *connect.Client[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse]
-	createPublicRateLimitRule      *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
-	updatePublicRateLimitRule      *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
-	deletePublicRateLimitRule      *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
-	createPublicTrafficShaperRule  *connect.Client[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse]
-	updatePublicTrafficShaperRule  *connect.Client[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse]
-	deletePublicTrafficShaperRule  *connect.Client[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse]
-	createPublicWafCaptchaProvider *connect.Client[v1.CreatePublicWafCaptchaProviderRequest, v1.CreatePublicWafCaptchaProviderResponse]
-	updatePublicWafCaptchaProvider *connect.Client[v1.UpdatePublicWafCaptchaProviderRequest, v1.UpdatePublicWafCaptchaProviderResponse]
-	deletePublicWafCaptchaProvider *connect.Client[v1.DeletePublicWafCaptchaProviderRequest, v1.DeletePublicWafCaptchaProviderResponse]
-	createPublicWafRule            *connect.Client[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse]
-	updatePublicWafRule            *connect.Client[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse]
-	deletePublicWafRule            *connect.Client[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse]
-	createPublicCacheRule          *connect.Client[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse]
-	updatePublicCacheRule          *connect.Client[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse]
-	deletePublicCacheRule          *connect.Client[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse]
-	updatePublicCacheSettings      *connect.Client[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse]
-	purgePublicCache               *connect.Client[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse]
+	reportStats                       *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
+	getStatus                         *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
+	getDashboard                      *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getTrafficTraceSettings           *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
+	setTrafficTraceSettings           *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
+	streamTrafficTraceEvents          *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
+	getSetupState                     *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
+	setupAdmin                        *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
+	login                             *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout                            *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getCurrentUser                    *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
+	startProxy                        *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
+	stopProxy                         *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
+	getPublicProxyConfig              *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
+	createPublicResponseTemplate      *connect.Client[v1.CreatePublicResponseTemplateRequest, v1.CreatePublicResponseTemplateResponse]
+	updatePublicResponseTemplate      *connect.Client[v1.UpdatePublicResponseTemplateRequest, v1.UpdatePublicResponseTemplateResponse]
+	deletePublicResponseTemplate      *connect.Client[v1.DeletePublicResponseTemplateRequest, v1.DeletePublicResponseTemplateResponse]
+	listPublicRouteTargetHealthTraces *connect.Client[v1.ListPublicRouteTargetHealthTracesRequest, v1.ListPublicRouteTargetHealthTracesResponse]
+	createAgent                       *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
+	updateAgent                       *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
+	deleteAgent                       *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
+	rotateAgentToken                  *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
+	createManagementAccessToken       *connect.Client[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse]
+	listManagementAccessTokens        *connect.Client[v1.ListManagementAccessTokensRequest, v1.ListManagementAccessTokensResponse]
+	deleteManagementAccessToken       *connect.Client[v1.DeleteManagementAccessTokenRequest, v1.DeleteManagementAccessTokenResponse]
+	listEnvironments                  *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
+	createEnvironment                 *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
+	updateEnvironment                 *connect.Client[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse]
+	deleteEnvironment                 *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
+	discoverEnvironmentCertificate    *connect.Client[v1.DiscoverEnvironmentCertificateRequest, v1.DiscoverEnvironmentCertificateResponse]
+	trustEnvironmentCertificate       *connect.Client[v1.TrustEnvironmentCertificateRequest, v1.TrustEnvironmentCertificateResponse]
+	testEnvironment                   *connect.Client[v1.TestEnvironmentRequest, v1.TestEnvironmentResponse]
+	createPublicListener              *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
+	updatePublicListener              *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
+	deletePublicListener              *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
+	enablePublicListener              *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
+	disablePublicListener             *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
+	startPublicListener               *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
+	stopPublicListener                *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
+	createPublicRoute                 *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
+	updatePublicRoute                 *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
+	deletePublicRoute                 *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
+	createPublicTlsDnsCredential      *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
+	updatePublicTlsDnsCredential      *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
+	deletePublicTlsDnsCredential      *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
+	createPublicTlsCertificate        *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
+	updatePublicTlsCertificate        *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
+	deletePublicTlsCertificate        *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
+	renewPublicTlsCertificate         *connect.Client[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse]
+	createPublicRateLimitRule         *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
+	updatePublicRateLimitRule         *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
+	deletePublicRateLimitRule         *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
+	createPublicTrafficShaperRule     *connect.Client[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse]
+	updatePublicTrafficShaperRule     *connect.Client[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse]
+	deletePublicTrafficShaperRule     *connect.Client[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse]
+	createPublicWafCaptchaProvider    *connect.Client[v1.CreatePublicWafCaptchaProviderRequest, v1.CreatePublicWafCaptchaProviderResponse]
+	updatePublicWafCaptchaProvider    *connect.Client[v1.UpdatePublicWafCaptchaProviderRequest, v1.UpdatePublicWafCaptchaProviderResponse]
+	deletePublicWafCaptchaProvider    *connect.Client[v1.DeletePublicWafCaptchaProviderRequest, v1.DeletePublicWafCaptchaProviderResponse]
+	createPublicWafRule               *connect.Client[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse]
+	updatePublicWafRule               *connect.Client[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse]
+	deletePublicWafRule               *connect.Client[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse]
+	createPublicCacheRule             *connect.Client[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse]
+	updatePublicCacheRule             *connect.Client[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse]
+	deletePublicCacheRule             *connect.Client[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse]
+	updatePublicCacheSettings         *connect.Client[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse]
+	purgePublicCache                  *connect.Client[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
@@ -904,25 +871,10 @@ func (c *agentManagementServiceClient) DeletePublicResponseTemplate(ctx context.
 	return c.deletePublicResponseTemplate.CallUnary(ctx, req)
 }
 
-// ListPublicBackendHealthTraces calls
-// p2pstream.v1.AgentManagementService.ListPublicBackendHealthTraces.
-func (c *agentManagementServiceClient) ListPublicBackendHealthTraces(ctx context.Context, req *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error) {
-	return c.listPublicBackendHealthTraces.CallUnary(ctx, req)
-}
-
-// CreatePublicBackend calls p2pstream.v1.AgentManagementService.CreatePublicBackend.
-func (c *agentManagementServiceClient) CreatePublicBackend(ctx context.Context, req *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error) {
-	return c.createPublicBackend.CallUnary(ctx, req)
-}
-
-// UpdatePublicBackend calls p2pstream.v1.AgentManagementService.UpdatePublicBackend.
-func (c *agentManagementServiceClient) UpdatePublicBackend(ctx context.Context, req *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error) {
-	return c.updatePublicBackend.CallUnary(ctx, req)
-}
-
-// DeletePublicBackend calls p2pstream.v1.AgentManagementService.DeletePublicBackend.
-func (c *agentManagementServiceClient) DeletePublicBackend(ctx context.Context, req *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error) {
-	return c.deletePublicBackend.CallUnary(ctx, req)
+// ListPublicRouteTargetHealthTraces calls
+// p2pstream.v1.AgentManagementService.ListPublicRouteTargetHealthTraces.
+func (c *agentManagementServiceClient) ListPublicRouteTargetHealthTraces(ctx context.Context, req *connect.Request[v1.ListPublicRouteTargetHealthTracesRequest]) (*connect.Response[v1.ListPublicRouteTargetHealthTracesResponse], error) {
+	return c.listPublicRouteTargetHealthTraces.CallUnary(ctx, req)
 }
 
 // CreateAgent calls p2pstream.v1.AgentManagementService.CreateAgent.
@@ -1198,10 +1150,7 @@ type AgentManagementServiceHandler interface {
 	CreatePublicResponseTemplate(context.Context, *connect.Request[v1.CreatePublicResponseTemplateRequest]) (*connect.Response[v1.CreatePublicResponseTemplateResponse], error)
 	UpdatePublicResponseTemplate(context.Context, *connect.Request[v1.UpdatePublicResponseTemplateRequest]) (*connect.Response[v1.UpdatePublicResponseTemplateResponse], error)
 	DeletePublicResponseTemplate(context.Context, *connect.Request[v1.DeletePublicResponseTemplateRequest]) (*connect.Response[v1.DeletePublicResponseTemplateResponse], error)
-	ListPublicBackendHealthTraces(context.Context, *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error)
-	CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error)
-	UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error)
-	DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error)
+	ListPublicRouteTargetHealthTraces(context.Context, *connect.Request[v1.ListPublicRouteTargetHealthTracesRequest]) (*connect.Response[v1.ListPublicRouteTargetHealthTracesResponse], error)
 	CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error)
 	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
 	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
@@ -1361,28 +1310,10 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicResponseTemplate")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentManagementServiceListPublicBackendHealthTracesHandler := connect.NewUnaryHandler(
-		AgentManagementServiceListPublicBackendHealthTracesProcedure,
-		svc.ListPublicBackendHealthTraces,
-		connect.WithSchema(agentManagementServiceMethods.ByName("ListPublicBackendHealthTraces")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagementServiceCreatePublicBackendHandler := connect.NewUnaryHandler(
-		AgentManagementServiceCreatePublicBackendProcedure,
-		svc.CreatePublicBackend,
-		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicBackend")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagementServiceUpdatePublicBackendHandler := connect.NewUnaryHandler(
-		AgentManagementServiceUpdatePublicBackendProcedure,
-		svc.UpdatePublicBackend,
-		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicBackend")),
-		connect.WithHandlerOptions(opts...),
-	)
-	agentManagementServiceDeletePublicBackendHandler := connect.NewUnaryHandler(
-		AgentManagementServiceDeletePublicBackendProcedure,
-		svc.DeletePublicBackend,
-		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicBackend")),
+	agentManagementServiceListPublicRouteTargetHealthTracesHandler := connect.NewUnaryHandler(
+		AgentManagementServiceListPublicRouteTargetHealthTracesProcedure,
+		svc.ListPublicRouteTargetHealthTraces,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ListPublicRouteTargetHealthTraces")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceCreateAgentHandler := connect.NewUnaryHandler(
@@ -1709,14 +1640,8 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicResponseTemplateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicResponseTemplateProcedure:
 			agentManagementServiceDeletePublicResponseTemplateHandler.ServeHTTP(w, r)
-		case AgentManagementServiceListPublicBackendHealthTracesProcedure:
-			agentManagementServiceListPublicBackendHealthTracesHandler.ServeHTTP(w, r)
-		case AgentManagementServiceCreatePublicBackendProcedure:
-			agentManagementServiceCreatePublicBackendHandler.ServeHTTP(w, r)
-		case AgentManagementServiceUpdatePublicBackendProcedure:
-			agentManagementServiceUpdatePublicBackendHandler.ServeHTTP(w, r)
-		case AgentManagementServiceDeletePublicBackendProcedure:
-			agentManagementServiceDeletePublicBackendHandler.ServeHTTP(w, r)
+		case AgentManagementServiceListPublicRouteTargetHealthTracesProcedure:
+			agentManagementServiceListPublicRouteTargetHealthTracesHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreateAgentProcedure:
 			agentManagementServiceCreateAgentHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdateAgentProcedure:
@@ -1890,20 +1815,8 @@ func (UnimplementedAgentManagementServiceHandler) DeletePublicResponseTemplate(c
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicResponseTemplate is not implemented"))
 }
 
-func (UnimplementedAgentManagementServiceHandler) ListPublicBackendHealthTraces(context.Context, *connect.Request[v1.ListPublicBackendHealthTracesRequest]) (*connect.Response[v1.ListPublicBackendHealthTracesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ListPublicBackendHealthTraces is not implemented"))
-}
-
-func (UnimplementedAgentManagementServiceHandler) CreatePublicBackend(context.Context, *connect.Request[v1.CreatePublicBackendRequest]) (*connect.Response[v1.CreatePublicBackendResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicBackend is not implemented"))
-}
-
-func (UnimplementedAgentManagementServiceHandler) UpdatePublicBackend(context.Context, *connect.Request[v1.UpdatePublicBackendRequest]) (*connect.Response[v1.UpdatePublicBackendResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicBackend is not implemented"))
-}
-
-func (UnimplementedAgentManagementServiceHandler) DeletePublicBackend(context.Context, *connect.Request[v1.DeletePublicBackendRequest]) (*connect.Response[v1.DeletePublicBackendResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicBackend is not implemented"))
+func (UnimplementedAgentManagementServiceHandler) ListPublicRouteTargetHealthTraces(context.Context, *connect.Request[v1.ListPublicRouteTargetHealthTracesRequest]) (*connect.Response[v1.ListPublicRouteTargetHealthTracesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ListPublicRouteTargetHealthTraces is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error) {

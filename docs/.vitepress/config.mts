@@ -64,7 +64,7 @@ export default defineConfig({
           { text: "Architecture", link: "/concepts/architecture" },
           { text: "Listeners", link: "/concepts/listeners" },
           { text: "Routing", link: "/concepts/routing" },
-          { text: "Backends", link: "/concepts/backends" },
+          { text: "Route Targets", link: "/concepts/backends" },
           { text: "Agents", link: "/concepts/agents" }
         ]
       },

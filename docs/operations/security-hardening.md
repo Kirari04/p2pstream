@@ -44,7 +44,7 @@ Use this before exposing management beyond a private network, after adding agent
 
    - Use ACME or trusted manual certificates for public hostnames.
    - Avoid relying on fallback self-signed public HTTPS certificates.
-   - Avoid backend `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
+   - Avoid target `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
    - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
 
 5. Scope WAF, rate-limit, shaper, and cache rules by host/path/method so broad policies do not catch unrelated traffic.

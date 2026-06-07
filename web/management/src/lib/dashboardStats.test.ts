@@ -150,7 +150,7 @@ function dashboardResponse(overrides: Partial<GetDashboardResponse> = {}): GetDa
     retentionDays: 0n,
     generatedAtUnixMillis: 0n,
     topListeners: [],
-    topBackends: [],
+    topRouteTargets: [],
     topRoutes: [],
     topAgents: [],
     topErrorKinds: [],

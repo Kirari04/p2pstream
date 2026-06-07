@@ -247,7 +247,7 @@ describe("publicPolicyMatch", () => {
       { kind: "rate-limit", matchRule },
       { kind: "traffic-shaper", matchRule },
       { kind: "waf", matchRule },
-      { kind: "cache", matchRule, routeIds: [1n], backendIds: [2n] },
+      { kind: "cache", matchRule, routeIds: [1n], targetIds: [2n] },
     ];
 
     expect(matchRule?.builder?.root?.conditions[0]?.values).toEqual(["/assets"]);
@@ -314,16 +314,16 @@ describe("publicPolicyMatch", () => {
     expect(publicPolicyMatchSummary(complexBuilderRule)).toBe("Complex builder rule");
   });
 
-  test("summarizes cache matchRule with route and backend filters", () => {
+  test("summarizes cache matchRule with route and target filters", () => {
     const cacheRule = create(PublicCacheRuleSchema, {
       matchRule: create(PublicPolicyMatchRuleSchema, {
         celExpression: 'host_match(host, "*.example.com")',
       }),
       routeIds: [1n, 2n],
-      backendIds: [3n],
+      targetIds: [3n],
     });
 
     expect(cacheRuleMatchSummary(create(PublicCacheRuleSchema))).toBe("Any request");
-    expect(cacheRuleMatchSummary(cacheRule)).toBe('CEL: host_match(host, "*.example.com") / 2 routes / 1 backend');
+    expect(cacheRuleMatchSummary(cacheRule)).toBe('CEL: host_match(host, "*.example.com") / 2 routes / 1 target');
   });
 });

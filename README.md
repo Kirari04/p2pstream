@@ -1,6 +1,6 @@
 # p2pstream
 
-p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, static and forwarded backends, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
+p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, route-owned proxy/static targets, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
 
 ## Quick Start With Docker Compose
 

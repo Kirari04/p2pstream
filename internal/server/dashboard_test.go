@@ -87,7 +87,6 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 		1500*time.Millisecond,
 		"agent_timeout",
 		sqlNullInt64(7),
-		sqlNullInt64(8),
 		sqlNullInt64(9),
 		sql.NullInt64{},
 		"",
@@ -118,16 +117,16 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 		t.Fatalf("unexpected proxy rollup metrics: requests=%d server=%d internal=%d slow=%d cache_hits=%d cache_hit_bytes=%d", requests, serverError, internalError, slowRequests, cacheHits, cacheHitBytes)
 	}
 
-	var listenerID, backendID, routeID, agentID, statusClass int64
+	var listenerID, routeID, agentID, statusClass int64
 	var errorKind string
 	if err := app.DB.QueryRowContext(ctx, `
-		SELECT listener_id, backend_id, route_id, agent_id, error_kind, status_class
+		SELECT listener_id, route_id, agent_id, error_kind, status_class
 		FROM proxy_request_tuple_rollup_minutes
-	`).Scan(&listenerID, &backendID, &routeID, &agentID, &errorKind, &statusClass); err != nil {
+	`).Scan(&listenerID, &routeID, &agentID, &errorKind, &statusClass); err != nil {
 		t.Fatalf("read proxy tuple rollup: %v", err)
 	}
-	if listenerID != 7 || backendID != 8 || routeID != 9 || agentID != 10 || errorKind != "agent_timeout" || statusClass != 5 {
-		t.Fatalf("unexpected tuple rollup dimensions: listener=%d backend=%d route=%d agent=%d error=%q status_class=%d", listenerID, backendID, routeID, agentID, errorKind, statusClass)
+	if listenerID != 7 || routeID != 9 || agentID != 10 || errorKind != "agent_timeout" || statusClass != 5 {
+		t.Fatalf("unexpected tuple rollup dimensions: listener=%d route=%d agent=%d error=%q status_class=%d", listenerID, routeID, agentID, errorKind, statusClass)
 	}
 }
 
@@ -353,9 +352,9 @@ func TestDashboardCacheSnapshotAggregatesRollups(t *testing.T) {
 	app := NewApp(nil, newServerTestDB(t))
 	now := time.Date(2026, 6, 2, 12, 34, 20, 0, time.UTC)
 
-	backendID := insertPublicBackendRow(t, app, "rollup-backend")
-	listenerID := insertPublicListenerRow(t, app, "rollup-listener", backendID)
-	routeID := insertPublicRouteRow(t, app, listenerID, backendID)
+	listenerID := insertPublicListenerRow(t, app, "rollup-listener")
+	routeID := insertPublicRouteRow(t, app, listenerID)
+	targetID := insertPublicRouteTargetRow(t, app, routeID, "rollup-target")
 	agent, err := app.DB.CreateAgent(ctx, db.CreateAgentParams{
 		PublicID:  "agent-rollup",
 		Name:      "rollup-agent",
@@ -369,9 +368,9 @@ func TestDashboardCacheSnapshotAggregatesRollups(t *testing.T) {
 		t.Fatalf("refresh public proxy snapshot: %v", err)
 	}
 
-	insertRollupEventAt(t, app, now.Add(-2*time.Minute), http.StatusOK, "", listenerID, backendID, routeID, agent.ID, publicCacheStatusHit, 25, 10, 20, 100)
-	insertRollupEventAt(t, app, now.Add(-4*time.Minute), http.StatusBadGateway, "upstream", listenerID, backendID, routeID, agent.ID, publicCacheStatusStored, 45, 30, 40, 1500)
-	insertRollupEventAt(t, app, now.Add(-2*time.Hour), http.StatusNotFound, "", listenerID, backendID, routeID, agent.ID, publicCacheStatusBypass, 0, 50, 60, 20)
+	insertRollupEventAt(t, app, now.Add(-2*time.Minute), http.StatusOK, "", listenerID, targetID, routeID, agent.ID, publicCacheStatusHit, 25, 10, 20, 100)
+	insertRollupEventAt(t, app, now.Add(-4*time.Minute), http.StatusBadGateway, "upstream", listenerID, targetID, routeID, agent.ID, publicCacheStatusStored, 45, 30, 40, 1500)
+	insertRollupEventAt(t, app, now.Add(-2*time.Hour), http.StatusNotFound, "", listenerID, targetID, routeID, agent.ID, publicCacheStatusBypass, 0, 50, 60, 20)
 	if err := app.insertAgentStatWithRollup(ctx, db.InsertAgentStatAtParams{
 		ReportedAt:       now.Add(-3 * time.Minute),
 		AgentID:          sql.NullInt64{Int64: agent.ID, Valid: true},
@@ -420,8 +419,8 @@ func TestDashboardCacheSnapshotAggregatesRollups(t *testing.T) {
 	if len(resp.TopListeners) != 1 || resp.TopListeners[0].Label != "rollup-listener" || resp.TopListeners[0].Requests != 2 {
 		t.Fatalf("unexpected top listeners: %+v", resp.TopListeners)
 	}
-	if len(resp.TopBackends) != 1 || resp.TopBackends[0].Label != "rollup-backend" || resp.TopBackends[0].Requests != 2 {
-		t.Fatalf("unexpected top backends: %+v", resp.TopBackends)
+	if len(resp.TopRouteTargets) != 1 || resp.TopRouteTargets[0].Label != "rollup-target" || resp.TopRouteTargets[0].Requests != 2 {
+		t.Fatalf("unexpected top route targets: %+v", resp.TopRouteTargets)
 	}
 	if len(resp.TopRoutes) != 1 || resp.TopRoutes[0].Label != "rollup.example /api" || resp.TopRoutes[0].Requests != 2 {
 		t.Fatalf("unexpected top routes: %+v", resp.TopRoutes)
@@ -445,22 +444,26 @@ func TestPublicProxyConfigResponseUsesCachedRowsUntilRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load public config: %v", err)
 	}
-	if publicConfigHasBackend(first, "direct-only") {
-		t.Fatal("unexpected direct-only backend before insert")
+	if publicConfigHasTarget(first, "direct-only") {
+		t.Fatal("unexpected direct-only target before insert")
 	}
 
+	var routeID int64
+	if err := app.DB.QueryRowContext(ctx, `SELECT id FROM public_routes ORDER BY id LIMIT 1`).Scan(&routeID); err != nil {
+		t.Fatalf("select route: %v", err)
+	}
 	if _, err := app.DB.ExecContext(ctx, `
-		INSERT INTO public_backends (name, target_origin, backend_type, enabled)
-		VALUES ('direct-only', 'http://direct-only.local', 'proxy_forward', 1)
-	`); err != nil {
-		t.Fatalf("insert direct backend: %v", err)
+		INSERT INTO public_route_targets (route_id, name, position, target_type, url, transport, enabled)
+		VALUES (?, 'direct-only', 99, 'proxy', 'http://direct-only.local', 'direct', 1)
+	`, routeID); err != nil {
+		t.Fatalf("insert direct target: %v", err)
 	}
 
 	cached, err := app.publicProxyConfigResponse(ctx)
 	if err != nil {
 		t.Fatalf("load cached public config: %v", err)
 	}
-	if publicConfigHasBackend(cached, "direct-only") {
+	if publicConfigHasTarget(cached, "direct-only") {
 		t.Fatal("cached public config unexpectedly reflected direct DB change")
 	}
 
@@ -471,8 +474,8 @@ func TestPublicProxyConfigResponseUsesCachedRowsUntilRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load refreshed public config: %v", err)
 	}
-	if !publicConfigHasBackend(refreshed, "direct-only") {
-		t.Fatal("refreshed public config did not include direct-only backend")
+	if !publicConfigHasTarget(refreshed, "direct-only") {
+		t.Fatal("refreshed public config did not include direct-only target")
 	}
 }
 
@@ -803,24 +806,24 @@ func seedDashboardRollupDimensionFixtures(t *testing.T, database *db.DB) {
 	insertDashboardRollupAgentFixture(t, database, 1)
 	if _, err := database.ExecContext(
 		context.Background(),
-		`INSERT INTO public_backends (id, name, target_origin, backend_type, enabled) VALUES
-			(1, 'backend-one', 'http://backend-one.local', 'proxy_forward', 1)`,
-	); err != nil {
-		t.Fatalf("insert dashboard backend fixtures: %v", err)
-	}
-	if _, err := database.ExecContext(
-		context.Background(),
-		`INSERT INTO public_listeners (id, name, bind_address, port, protocol, enabled, default_backend_id) VALUES
-			(1, 'listener-one', '127.0.0.1', 18080, 'http', 1, 1)`,
+		`INSERT INTO public_listeners (id, name, bind_address, port, protocol, enabled) VALUES
+			(1, 'listener-one', '127.0.0.1', 18080, 'http', 1)`,
 	); err != nil {
 		t.Fatalf("insert dashboard listener fixtures: %v", err)
 	}
 	if _, err := database.ExecContext(
 		context.Background(),
-		`INSERT INTO public_routes (id, listener_id, priority, host_pattern, path_prefix, backend_id, action, enabled) VALUES
-			(1, 1, 10, 'example.com', '/api', 1, 'forward', 1)`,
+		`INSERT INTO public_routes (id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, action, enabled) VALUES
+			(1, 1, 10, 'example.com', '/api', 'round_robin', 'forward', 1)`,
 	); err != nil {
 		t.Fatalf("insert dashboard route fixtures: %v", err)
+	}
+	if _, err := database.ExecContext(
+		context.Background(),
+		`INSERT INTO public_route_targets (id, route_id, name, position, target_type, url, transport, enabled) VALUES
+			(1, 1, 'target-one', 0, 'proxy', 'http://target-one.local', 'direct', 1)`,
+	); err != nil {
+		t.Fatalf("insert dashboard route target fixtures: %v", err)
 	}
 }
 
@@ -847,7 +850,7 @@ func insertDashboardRollupProxyEvent(
 	durationMs int64,
 	errorKind string,
 	listenerID sql.NullInt64,
-	backendID sql.NullInt64,
+	routeTargetID sql.NullInt64,
 	routeID sql.NullInt64,
 	agentID sql.NullInt64,
 	requestBytes int64,
@@ -857,7 +860,7 @@ func insertDashboardRollupProxyEvent(
 	if _, err := database.ExecContext(
 		context.Background(),
 		`INSERT INTO proxy_request_events (
-			occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id,
+			occurred_at, status_code, duration_ms, error_kind, listener_id, route_target_id, route_id,
 			agent_id, request_bytes, response_bytes
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		occurredAt,
@@ -865,7 +868,7 @@ func insertDashboardRollupProxyEvent(
 		durationMs,
 		errorKind,
 		listenerID,
-		backendID,
+		routeTargetID,
 		routeID,
 		agentID,
 		requestBytes,
@@ -944,7 +947,7 @@ func insertRollupEventAt(
 	statusCode int,
 	errorKind string,
 	listenerID int64,
-	backendID int64,
+	routeTargetID int64,
 	routeID int64,
 	agentID int64,
 	cacheStatus string,
@@ -960,8 +963,8 @@ func insertRollupEventAt(
 		DurationMs:    durationMs,
 		ErrorKind:     errorKind,
 		ListenerID:    sql.NullInt64{Int64: listenerID, Valid: true},
-		BackendID:     sql.NullInt64{Int64: backendID, Valid: true},
 		RouteID:       sql.NullInt64{Int64: routeID, Valid: true},
+		RouteTargetID: sql.NullInt64{Int64: routeTargetID, Valid: true},
 		AgentID:       sql.NullInt64{Int64: agentID, Valid: true},
 		CacheStatus:   cacheStatus,
 		CacheBytes:    int64FromUint64(cacheBytes),
@@ -972,48 +975,48 @@ func insertRollupEventAt(
 	}
 }
 
-func insertPublicBackendRow(t *testing.T, app *App, name string) int64 {
+func insertPublicListenerRow(t *testing.T, app *App, name string) int64 {
 	t.Helper()
 	var id int64
 	if err := app.DB.QueryRowContext(context.Background(), `
-		INSERT INTO public_backends (name, target_origin, backend_type, enabled)
-		VALUES (?, ?, 'proxy_forward', 1)
+		INSERT INTO public_listeners (name, bind_address, port, protocol, enabled)
+		VALUES (?, '127.0.0.1', 19081, 'http', 1)
 		RETURNING id
-	`, name, "http://"+name+".local").Scan(&id); err != nil {
-		t.Fatalf("insert public backend: %v", err)
-	}
-	return id
-}
-
-func insertPublicListenerRow(t *testing.T, app *App, name string, backendID int64) int64 {
-	t.Helper()
-	var id int64
-	if err := app.DB.QueryRowContext(context.Background(), `
-		INSERT INTO public_listeners (name, bind_address, port, protocol, enabled, default_backend_id)
-		VALUES (?, '127.0.0.1', 19081, 'http', 1, ?)
-		RETURNING id
-	`, name, backendID).Scan(&id); err != nil {
+	`, name).Scan(&id); err != nil {
 		t.Fatalf("insert public listener: %v", err)
 	}
 	return id
 }
 
-func insertPublicRouteRow(t *testing.T, app *App, listenerID int64, backendID int64) int64 {
+func insertPublicRouteRow(t *testing.T, app *App, listenerID int64) int64 {
 	t.Helper()
 	var id int64
 	if err := app.DB.QueryRowContext(context.Background(), `
-		INSERT INTO public_routes (listener_id, priority, host_pattern, path_prefix, backend_id, enabled)
-		VALUES (?, 10, 'rollup.example', '/api', ?, 1)
+		INSERT INTO public_routes (listener_id, priority, host_pattern, path_prefix, target_load_balancing, enabled)
+		VALUES (?, 10, 'rollup.example', '/api', 'round_robin', 1)
 		RETURNING id
-	`, listenerID, backendID).Scan(&id); err != nil {
+	`, listenerID).Scan(&id); err != nil {
 		t.Fatalf("insert public route: %v", err)
 	}
 	return id
 }
 
-func publicConfigHasBackend(resp *p2pstreamv1.GetPublicProxyConfigResponse, name string) bool {
-	for _, backend := range resp.Backends {
-		if backend.Name == name {
+func insertPublicRouteTargetRow(t *testing.T, app *App, routeID int64, name string) int64 {
+	t.Helper()
+	var id int64
+	if err := app.DB.QueryRowContext(context.Background(), `
+		INSERT INTO public_route_targets (route_id, name, position, target_type, url, transport, enabled)
+		VALUES (?, ?, 0, 'proxy', ?, 'direct', 1)
+		RETURNING id
+	`, routeID, name, "http://"+name+".local").Scan(&id); err != nil {
+		t.Fatalf("insert public route target: %v", err)
+	}
+	return id
+}
+
+func publicConfigHasTarget(resp *p2pstreamv1.GetPublicProxyConfigResponse, name string) bool {
+	for _, target := range resp.RouteTargets {
+		if target.Name == name {
 			return true
 		}
 	}

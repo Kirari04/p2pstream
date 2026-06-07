@@ -36,8 +36,8 @@ func TestPublicRouteRedirectValidationAndConfig(t *testing.T) {
 	if route.GetAction() != p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_REDIRECT {
 		t.Fatalf("route action = %s, want REDIRECT", route.GetAction())
 	}
-	if route.GetBackendId() != 0 {
-		t.Fatalf("redirect route backend id = %d, want 0", route.GetBackendId())
+	if len(route.GetTargets()) != 0 {
+		t.Fatalf("redirect route targets = %+v, want none", route.GetTargets())
 	}
 	if route.GetRedirectStatusCode() != http.StatusMovedPermanently {
 		t.Fatalf("redirect status = %d, want 301", route.GetRedirectStatusCode())
@@ -165,22 +165,22 @@ func TestPublicRouteRedirectResponses(t *testing.T) {
 				t.Fatalf("Location = %q, want %q", got, tt.wantLoc)
 			}
 
-			var backendID sql.NullInt64
 			var routeID sql.NullInt64
+			var routeTargetID sql.NullInt64
 			var statusCode int64
 			if err := database.QueryRowContext(context.Background(), `
-				SELECT backend_id, route_id, status_code
+				SELECT route_id, route_target_id, status_code
 				FROM proxy_request_events
 				ORDER BY id DESC
 				LIMIT 1
-			`).Scan(&backendID, &routeID, &statusCode); err != nil {
+			`).Scan(&routeID, &routeTargetID, &statusCode); err != nil {
 				t.Fatalf("read proxy request event: %v", err)
-			}
-			if backendID.Valid {
-				t.Fatalf("redirect event backend_id = %d, want NULL", backendID.Int64)
 			}
 			if !routeID.Valid || routeID.Int64 != route.GetId() {
 				t.Fatalf("redirect event route_id = %+v, want %d", routeID, route.GetId())
+			}
+			if routeTargetID.Valid {
+				t.Fatalf("redirect event route_target_id = %+v, want NULL", routeTargetID)
 			}
 			if statusCode != int64(tt.wantCode) {
 				t.Fatalf("redirect event status = %d, want %d", statusCode, tt.wantCode)
@@ -238,8 +238,8 @@ func TestPublicRouteRedirectTraceStages(t *testing.T) {
 		p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT,
 	)
 	finalEvent := events[len(events)-1]
-	if finalEvent.GetBackendId() != 0 {
-		t.Fatalf("redirect trace backend id = %d, want 0", finalEvent.GetBackendId())
+	if finalEvent.GetRouteTargetId() != 0 {
+		t.Fatalf("redirect trace target id = %d, want 0", finalEvent.GetRouteTargetId())
 	}
 	if finalEvent.GetResponseHeaders()["Location"] != "/target/a?x=1" {
 		t.Fatalf("redirect trace Location header = %q", finalEvent.GetResponseHeaders()["Location"])

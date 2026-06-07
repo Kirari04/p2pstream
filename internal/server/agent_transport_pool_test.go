@@ -10,18 +10,18 @@ import (
 	"time"
 )
 
-func TestAgentTransportPoolReusesPublicBackendConnection(t *testing.T) {
+func TestAgentTransportPoolReusesPublicRouteTargetConnection(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		_, _ = w.Write([]byte("ok"))
 	}))
 	defer upstream.Close()
 
-	app, backend, _, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	for i := 0; i < 3; i++ {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "http://public.test/reuse", nil)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 		if rec.Code != http.StatusOK || rec.Body.String() != "ok" {
 			t.Fatalf("request %d response = status %d body %q, want 200 ok", i, rec.Code, rec.Body.String())
 		}
@@ -33,7 +33,7 @@ func TestAgentTransportPoolReusesPublicBackendConnection(t *testing.T) {
 	}
 }
 
-func TestAgentTransportPoolConcurrentPublicBackendRequestsOpenParallelStreams(t *testing.T) {
+func TestAgentTransportPoolConcurrentPublicRouteTargetRequestsOpenParallelStreams(t *testing.T) {
 	release := make(chan struct{})
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		<-release
@@ -41,7 +41,7 @@ func TestAgentTransportPoolConcurrentPublicBackendRequestsOpenParallelStreams(t 
 	}))
 	defer upstream.Close()
 
-	app, backend, _, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	const requestCount = 3
 	var wg sync.WaitGroup
 	errCh := make(chan string, requestCount)
@@ -51,7 +51,7 @@ func TestAgentTransportPoolConcurrentPublicBackendRequestsOpenParallelStreams(t 
 			defer wg.Done()
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "http://public.test/concurrent", nil)
-			app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+			proxyAgentTargetForTest(app, rec, req, target, agent)
 			if rec.Code != http.StatusOK || rec.Body.String() != "ok" {
 				errCh <- rec.Body.String()
 			}
@@ -66,37 +66,37 @@ func TestAgentTransportPoolConcurrentPublicBackendRequestsOpenParallelStreams(t 
 	}
 }
 
-func TestAgentTransportPoolSeparatesAgentsAndBackends(t *testing.T) {
+func TestAgentTransportPoolSeparatesAgentsAndRouteTargets(t *testing.T) {
 	app := NewApp(nil, nil)
 	first, firstFake := newFakeYamuxAgent(t, 7, "agent-7")
 	defer firstFake.close()
 	second, secondFake := newFakeYamuxAgent(t, 8, "agent-8")
 	defer secondFake.close()
 
-	backend := publicBackendConfig{
+	target := publicRouteTargetConfig{
 		ID:                            70,
-		TargetOrigin:                  "http://upstream.test:9000",
+		URL:                           "http://upstream.test:9000",
 		UpstreamResponseHeaderTimeout: time.Second,
 	}
-	firstTransport := app.agentProxyTransport(first, backend)
-	secondAgentTransport := app.agentProxyTransport(second, backend)
+	firstTransport := app.agentTargetTransport(first, target)
+	secondAgentTransport := app.agentTargetTransport(second, target)
 	if firstTransport == secondAgentTransport {
 		t.Fatal("different agents shared a pooled transport")
 	}
 
-	secondBackend := backend
-	secondBackend.ID = 71
-	secondBackend.TargetOrigin = "http://upstream.test:9000"
-	secondBackendTransport := app.agentProxyTransport(first, secondBackend)
-	if firstTransport == secondBackendTransport {
-		t.Fatal("different backend ids shared a pooled transport")
+	secondTarget := target
+	secondTarget.ID = 71
+	secondTarget.URL = "http://upstream.test:9000"
+	secondTargetTransport := app.agentTargetTransport(first, secondTarget)
+	if firstTransport == secondTargetTransport {
+		t.Fatal("different route target ids shared a pooled transport")
 	}
 
-	timeoutBackend := backend
-	timeoutBackend.UpstreamResponseHeaderTimeout = 2 * time.Second
-	timeoutTransport := app.agentProxyTransport(first, timeoutBackend)
+	timeoutTarget := target
+	timeoutTarget.UpstreamResponseHeaderTimeout = 2 * time.Second
+	timeoutTransport := app.agentTargetTransport(first, timeoutTarget)
 	if firstTransport == timeoutTransport {
-		t.Fatal("different backend timeout config shared a pooled transport")
+		t.Fatal("different route target timeout config shared a pooled transport")
 	}
 
 	if got := app.AgentTransports.len(); got != 4 {
@@ -104,23 +104,23 @@ func TestAgentTransportPoolSeparatesAgentsAndBackends(t *testing.T) {
 	}
 }
 
-func TestAgentTransportPoolCloseBackendForcesNewPublicStream(t *testing.T) {
+func TestAgentTransportPoolCloseRouteTargetForcesNewPublicStream(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("ok"))
 	}))
 	defer upstream.Close()
 
-	app, backend, _, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	for i := 0; i < 2; i++ {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "http://public.test/reuse", nil)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("request %d status = %d, want 200", i, rec.Code)
 		}
 		if i == 0 {
 			fake.waitOpenRequestCount(t, 1)
-			app.AgentTransports.closeBackend(backend.ID)
+			app.AgentTransports.closeRouteTarget(target.ID)
 		}
 	}
 	fake.waitOpenRequestCount(t, 2)
@@ -132,10 +132,10 @@ func TestAgentTransportPoolAgentDisconnectInvalidatesPool(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	app, backend, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/first", nil)
-	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+	proxyAgentTargetForTest(app, rec, req, target, agent)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("first request status = %d, want 200", rec.Code)
 	}
@@ -157,7 +157,7 @@ func TestAgentTransportPoolAgentDisconnectInvalidatesPool(t *testing.T) {
 	t.Cleanup(func() { app.AgentHub.disconnect(reconnected) })
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "http://public.test/second", nil)
-	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+	proxyAgentTargetForTest(app, rec, req, target, reconnected)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("second request status = %d, want 200", rec.Code)
 	}

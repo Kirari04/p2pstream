@@ -50,24 +50,56 @@ func newTestDB(t *testing.T) *db.DB {
 func seedTestHTTPPublicListener(t *testing.T, database *db.DB, targetOrigin string) db.PublicListener {
 	t.Helper()
 
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:         "test-default",
-		TargetOrigin: targetOrigin,
-		Enabled:      1,
-	})
-	if err != nil {
-		t.Fatalf("seed test backend: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "test-http",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "test-http",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("seed test listener: %v", err)
+	}
+	route, err := database.CreatePublicRoute(context.Background(), db.CreatePublicRouteParams{
+		ListenerID:                 listener.ID,
+		Priority:                   1000,
+		PathPrefix:                 "/",
+		TargetLoadBalancing:        "round_robin",
+		IsDefault:                  1,
+		Action:                     "forward",
+		RedirectStatusCode:         http.StatusFound,
+		RedirectPreservePathSuffix: 1,
+		RedirectPreserveQuery:      1,
+		Enabled:                    1,
+	})
+	if err != nil {
+		t.Fatalf("seed test route: %v", err)
+	}
+	if _, err := database.CreatePublicRouteTarget(context.Background(), db.CreatePublicRouteTargetParams{
+		RouteID:                             route.ID,
+		Name:                                "test-default",
+		Position:                            0,
+		PriorityGroup:                       0,
+		Weight:                              100,
+		Enabled:                             1,
+		TargetType:                          "proxy",
+		Url:                                 targetOrigin,
+		Transport:                           "direct",
+		AgentSelectorJson:                   "{}",
+		AgentLoadBalancing:                  "round_robin",
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckMethod:                   http.MethodGet,
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    http.StatusOK,
+		StaticResponseBodyMode:              "inline",
+	}); err != nil {
+		t.Fatalf("seed test route target: %v", err)
 	}
 	return listener
 }

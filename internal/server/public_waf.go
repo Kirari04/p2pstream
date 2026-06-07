@@ -53,7 +53,7 @@ const (
 	defaultWafTriggerMinimumRequestRate  = int64(50)
 	defaultWafTriggerSpikeMultiplier     = 4.0
 	defaultWafTriggerProxyActiveRequests = int64(100)
-	defaultWafTriggerBackendActive       = int64(100)
+	defaultWafTriggerRouteTargetActive       = int64(100)
 	defaultWafTriggerAgentActive         = int64(50)
 	defaultWafTriggerServerCPU           = 85.0
 	defaultWafTriggerAgentCPU            = 85.0
@@ -88,7 +88,7 @@ type publicWafTriggerConfig struct {
 	MinimumRequestRate     int64
 	TrafficSpikeMultiplier float64
 	ProxyActiveRequests    int64
-	BackendActiveRequests  int64
+	RouteTargetActiveRequests  int64
 	AgentActiveRequests    int64
 	ServerCPUPercent       float64
 	AgentCPUPercent        float64
@@ -155,7 +155,7 @@ type publicWafRuleMutationInput struct {
 	TriggerMinimumRequestRate            int64
 	TriggerTrafficSpikeMultiplier        float64
 	TriggerProxyActiveRequests           int64
-	TriggerBackendActiveRequests         int64
+	TriggerRouteTargetActiveRequests         int64
 	TriggerAgentActiveRequests           int64
 	TriggerServerCpuPercent              float64
 	TriggerAgentCpuPercent               float64
@@ -402,7 +402,7 @@ func (w *publicWAF) updateAutomaticActivationLocked(runtime *publicWafRuleRuntim
 	if rule.Triggers.ProxyActiveRequests > 0 && w.proxyActiveRequests.Load() >= rule.Triggers.ProxyActiveRequests {
 		pressure = true
 	}
-	if rule.Triggers.BackendActiveRequests > 0 && app.maxPublicBackendActiveRequests(snap) >= rule.Triggers.BackendActiveRequests {
+	if rule.Triggers.RouteTargetActiveRequests > 0 && app.maxPublicRouteTargetActiveRequests(snap) >= rule.Triggers.RouteTargetActiveRequests {
 		pressure = true
 	}
 	if rule.Triggers.AgentActiveRequests > 0 && app.maxAgentActiveRequests() >= rule.Triggers.AgentActiveRequests {
@@ -484,13 +484,13 @@ func (w *publicWAF) serverCPUPercentLocked(now time.Time) float64 {
 	return percent
 }
 
-func (a *App) maxPublicBackendActiveRequests(snap *publicProxySnapshot) int64 {
-	if a == nil || a.BackendHealth == nil || snap == nil {
+func (a *App) maxPublicRouteTargetActiveRequests(snap *publicProxySnapshot) int64 {
+	if a == nil || a.TargetHealth == nil || snap == nil {
 		return 0
 	}
 	var maxActive int64
-	for id := range snap.Backends {
-		if active := a.BackendHealth.activeRequests(id); active > maxActive {
+	for id := range snap.RouteTargets {
+		if active := a.TargetHealth.activeRequests(id); active > maxActive {
 			maxActive = active
 		}
 	}
@@ -620,7 +620,7 @@ func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error)
 			MinimumRequestRate:     row.TriggerMinimumRequestRate,
 			TrafficSpikeMultiplier: row.TriggerTrafficSpikeMultiplier,
 			ProxyActiveRequests:    row.TriggerProxyActiveRequests,
-			BackendActiveRequests:  row.TriggerBackendActiveRequests,
+			RouteTargetActiveRequests:  row.TriggerRouteTargetActiveRequests,
 			AgentActiveRequests:    row.TriggerAgentActiveRequests,
 			ServerCPUPercent:       row.TriggerServerCpuPercent,
 			AgentCPUPercent:        row.TriggerAgentCpuPercent,
@@ -829,7 +829,7 @@ func publicWafTriggersToProto(cfg publicWafTriggerConfig) *p2pstreamv1.PublicWaf
 		MinimumRequestRate:     cfg.MinimumRequestRate,
 		TrafficSpikeMultiplier: cfg.TrafficSpikeMultiplier,
 		ProxyActiveRequests:    cfg.ProxyActiveRequests,
-		BackendActiveRequests:  cfg.BackendActiveRequests,
+		RouteTargetActiveRequests:  cfg.RouteTargetActiveRequests,
 		AgentActiveRequests:    cfg.AgentActiveRequests,
 		ServerCpuPercent:       cfg.ServerCPUPercent,
 		AgentCpuPercent:        cfg.AgentCPUPercent,
@@ -1019,7 +1019,7 @@ func (a *App) validatePublicWafRuleInput(
 		TriggerMinimumRequestRate:            triggerConfig.MinimumRequestRate,
 		TriggerTrafficSpikeMultiplier:        triggerConfig.TrafficSpikeMultiplier,
 		TriggerProxyActiveRequests:           triggerConfig.ProxyActiveRequests,
-		TriggerBackendActiveRequests:         triggerConfig.BackendActiveRequests,
+		TriggerRouteTargetActiveRequests:         triggerConfig.RouteTargetActiveRequests,
 		TriggerAgentActiveRequests:           triggerConfig.AgentActiveRequests,
 		TriggerServerCpuPercent:              triggerConfig.ServerCPUPercent,
 		TriggerAgentCpuPercent:               triggerConfig.AgentCPUPercent,
@@ -1093,7 +1093,7 @@ func validatePublicWafTriggers(cfg *p2pstreamv1.PublicWafTriggerConfig) (publicW
 		MinimumRequestRate:     defaultWafTriggerMinimumRequestRate,
 		TrafficSpikeMultiplier: defaultWafTriggerSpikeMultiplier,
 		ProxyActiveRequests:    defaultWafTriggerProxyActiveRequests,
-		BackendActiveRequests:  defaultWafTriggerBackendActive,
+		RouteTargetActiveRequests:  defaultWafTriggerRouteTargetActive,
 		AgentActiveRequests:    defaultWafTriggerAgentActive,
 		ServerCPUPercent:       defaultWafTriggerServerCPU,
 		AgentCPUPercent:        defaultWafTriggerAgentCPU,
@@ -1105,7 +1105,7 @@ func validatePublicWafTriggers(cfg *p2pstreamv1.PublicWafTriggerConfig) (publicW
 		resp.MinimumRequestRate = cfg.MinimumRequestRate
 		resp.TrafficSpikeMultiplier = cfg.TrafficSpikeMultiplier
 		resp.ProxyActiveRequests = cfg.ProxyActiveRequests
-		resp.BackendActiveRequests = cfg.BackendActiveRequests
+		resp.RouteTargetActiveRequests = cfg.RouteTargetActiveRequests
 		resp.AgentActiveRequests = cfg.AgentActiveRequests
 		resp.ServerCPUPercent = cfg.ServerCpuPercent
 		resp.AgentCPUPercent = cfg.AgentCpuPercent
@@ -1115,7 +1115,7 @@ func validatePublicWafTriggers(cfg *p2pstreamv1.PublicWafTriggerConfig) (publicW
 	if resp.RequestWindowMillis < 1000 || resp.RequestWindowMillis > 300000 {
 		return publicWafTriggerConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("WAF trigger request window must be between 1 second and 5 minutes"))
 	}
-	if resp.MinimumRequestRate < 0 || resp.ProxyActiveRequests < 0 || resp.BackendActiveRequests < 0 || resp.AgentActiveRequests < 0 {
+	if resp.MinimumRequestRate < 0 || resp.ProxyActiveRequests < 0 || resp.RouteTargetActiveRequests < 0 || resp.AgentActiveRequests < 0 {
 		return publicWafTriggerConfig{}, connect.NewError(connect.CodeInvalidArgument, errors.New("WAF trigger thresholds must be non-negative"))
 	}
 	if resp.TrafficSpikeMultiplier < 0 || resp.TrafficSpikeMultiplier > 100 {
@@ -1429,7 +1429,7 @@ func wafCreateParams(input publicWafRuleMutationInput) db.CreatePublicWafRulePar
 		TriggerMinimumRequestRate:            input.TriggerMinimumRequestRate,
 		TriggerTrafficSpikeMultiplier:        input.TriggerTrafficSpikeMultiplier,
 		TriggerProxyActiveRequests:           input.TriggerProxyActiveRequests,
-		TriggerBackendActiveRequests:         input.TriggerBackendActiveRequests,
+		TriggerRouteTargetActiveRequests:         input.TriggerRouteTargetActiveRequests,
 		TriggerAgentActiveRequests:           input.TriggerAgentActiveRequests,
 		TriggerServerCpuPercent:              input.TriggerServerCpuPercent,
 		TriggerAgentCpuPercent:               input.TriggerAgentCpuPercent,
@@ -1469,7 +1469,7 @@ func wafUpdateParams(id int64, input publicWafRuleMutationInput) db.UpdatePublic
 		TriggerMinimumRequestRate:            input.TriggerMinimumRequestRate,
 		TriggerTrafficSpikeMultiplier:        input.TriggerTrafficSpikeMultiplier,
 		TriggerProxyActiveRequests:           input.TriggerProxyActiveRequests,
-		TriggerBackendActiveRequests:         input.TriggerBackendActiveRequests,
+		TriggerRouteTargetActiveRequests:         input.TriggerRouteTargetActiveRequests,
 		TriggerAgentActiveRequests:           input.TriggerAgentActiveRequests,
 		TriggerServerCpuPercent:              input.TriggerServerCpuPercent,
 		TriggerAgentCpuPercent:               input.TriggerAgentCpuPercent,

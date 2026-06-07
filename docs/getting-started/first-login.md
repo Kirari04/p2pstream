@@ -28,7 +28,7 @@ docker compose restart p2pstream
 3. On **Setup Admin**, create the primary administrator account.
 4. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
 5. Use a password with at least 12 characters.
-6. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, backends, and routes.
+6. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, routes, and route targets.
 
 ## Runtime Rules
 

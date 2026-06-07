@@ -22,12 +22,6 @@ enum PublicListenerProtocol {
   PUBLIC_LISTENER_PROTOCOL_HTTPS = 2;
 }
 
-enum PublicBackendType {
-  PUBLIC_BACKEND_TYPE_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_TYPE_PROXY_FORWARD = 1;
-  PUBLIC_BACKEND_TYPE_STATIC = 2;
-}
-
 enum PublicResponseBodyMode {
   PUBLIC_RESPONSE_BODY_MODE_UNSPECIFIED = 0;
   PUBLIC_RESPONSE_BODY_MODE_INLINE = 1;
@@ -41,43 +35,49 @@ enum PublicResponseTemplateKind {
   PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_WAITING_ROOM_PAGE = 3;
 }
 
-enum PublicBackendForwardMode {
-  PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_FORWARD_MODE_DIRECT = 1;
-  PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL = 2;
+enum PublicRouteTargetType {
+  PUBLIC_ROUTE_TARGET_TYPE_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_TYPE_PROXY = 1;
+  PUBLIC_ROUTE_TARGET_TYPE_STATIC = 2;
 }
 
-enum PublicBackendLoadBalancing {
-  PUBLIC_BACKEND_LOAD_BALANCING_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN = 1;
-  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN = 2;
-  PUBLIC_BACKEND_LOAD_BALANCING_RANDOM = 3;
-  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_RANDOM = 4;
-  PUBLIC_BACKEND_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS = 5;
-  PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
+enum PublicRouteTargetTransport {
+  PUBLIC_ROUTE_TARGET_TRANSPORT_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT = 1;
+  PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT = 2;
 }
 
-enum PublicBackendHealthStatus {
-  PUBLIC_BACKEND_HEALTH_STATUS_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN = 1;
-  PUBLIC_BACKEND_HEALTH_STATUS_HEALTHY = 2;
-  PUBLIC_BACKEND_HEALTH_STATUS_UNHEALTHY = 3;
-  PUBLIC_BACKEND_HEALTH_STATUS_DISABLED = 4;
-  PUBLIC_BACKEND_HEALTH_STATUS_DISCONNECTED = 5;
+enum PublicRouteTargetLoadBalancing {
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN = 1;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN = 2;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_RANDOM = 3;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_RANDOM = 4;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_LEAST_ACTIVE_REQUESTS = 5;
+  PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS = 6;
 }
 
-enum PublicBackendHealthTraceSource {
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_ACTIVE_CHECK = 1;
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE = 2;
-  PUBLIC_BACKEND_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY = 3;
+enum PublicRouteTargetHealthStatus {
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN = 1;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY = 2;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNHEALTHY = 3;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISABLED = 4;
+  PUBLIC_ROUTE_TARGET_HEALTH_STATUS_DISCONNECTED = 5;
 }
 
-enum PublicBackendHealthTraceOutcome {
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_UNSPECIFIED = 0;
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SUCCESS = 1;
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_FAILURE = 2;
-  PUBLIC_BACKEND_HEALTH_TRACE_OUTCOME_SKIPPED = 3;
+enum PublicRouteTargetHealthTraceSource {
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_ACTIVE_CHECK = 1;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_PASSIVE_FAILURE = 2;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_SOURCE_AGENT_CONNECTIVITY = 3;
+}
+
+enum PublicRouteTargetHealthTraceOutcome {
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SUCCESS = 1;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_FAILURE = 2;
+  PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SKIPPED = 3;
 }
 
 enum PublicRouteAction {
@@ -327,37 +327,14 @@ message ProxyStatus {
   repeated PublicListenerStatus listeners = 5;
 }
 
-message PublicBackend {
-  int64 id = 1;
-  string name = 2;
-  string target_origin = 3;
-  bool enabled = 4;
-  int64 created_at_unix_millis = 5;
-  int64 updated_at_unix_millis = 6;
-  PublicBackendType backend_type = 7;
-  bool tls_skip_verify = 8;
-  int64 static_status_code = 9;
-  repeated PublicHeader static_response_headers = 10;
-  string static_response_body = 11;
-  PublicBackendForwardMode forward_mode = 12;
-  PublicBackendLoadBalancing load_balancing = 13;
-  repeated PublicBackendAgent agent_assignments = 14;
-  repeated PublicBackendUpstreamHeader upstream_request_headers = 15;
-  PublicBackendBasicAuth upstream_basic_auth = 16;
-  PublicBackendHealthCheck health_check = 17;
-  int64 upstream_response_header_timeout_millis = 18;
-  PublicResponseBodyMode static_response_body_mode = 19;
-  int64 static_response_template_id = 20;
-}
-
 message PublicHeader {
   string name = 1;
   string value = 2;
 }
 
-message PublicBackendUpstreamHeader {
+message PublicRouteTargetUpstreamHeader {
   int64 id = 1;
-  int64 backend_id = 2;
+  int64 target_id = 2;
   string name = 3;
   string value = 4;
   bool sensitive = 5;
@@ -365,14 +342,14 @@ message PublicBackendUpstreamHeader {
   int64 position = 7;
 }
 
-message PublicBackendBasicAuth {
+message PublicRouteTargetBasicAuth {
   bool enabled = 1;
   string username = 2;
   string password = 3;
   bool password_set = 4;
 }
 
-message PublicBackendHealthCheck {
+message PublicRouteTargetHealthCheck {
   bool enabled = 1;
   string method = 2;
   string path = 3;
@@ -382,14 +359,14 @@ message PublicBackendHealthCheck {
   int64 unhealthy_threshold = 7;
   int64 expected_status_min = 8;
   int64 expected_status_max = 9;
-  PublicBackendHealthStatus status = 10;
+  PublicRouteTargetHealthStatus status = 10;
   int64 last_checked_at_unix_millis = 11;
   string last_error = 12;
   int64 passive_unhealthy_until_unix_millis = 13;
 }
 
-message PublicBackendAgentHealth {
-  PublicBackendHealthStatus status = 1;
+message PublicRouteTargetAgentHealth {
+  PublicRouteTargetHealthStatus status = 1;
   bool connected = 2;
   bool available = 3;
   int64 last_checked_at_unix_millis = 4;
@@ -410,78 +387,73 @@ message Agent {
   int64 last_connected_at_unix_millis = 9;
   int64 last_disconnected_at_unix_millis = 10;
   AgentStatsSnapshot latest_stats = 11;
+  map<string, string> labels = 12;
 }
 
-message PublicBackendAgent {
-  int64 backend_id = 1;
-  int64 agent_id = 2;
-  int64 position = 3;
-  int64 weight = 4;
-  bool enabled = 5;
-  PublicBackendAgentHealth health = 6;
+message PublicAgentSelector {
+  map<string, string> match_labels = 1;
 }
 
-message PublicBackendHealthTrace {
-  uint64 sequence = 1;
-  int64 backend_id = 2;
-  string backend_name = 3;
-  PublicBackendForwardMode forward_mode = 4;
-  PublicBackendHealthTraceSource source = 5;
-  PublicBackendHealthTraceOutcome outcome = 6;
-  int64 agent_id = 7;
-  string agent_public_id = 8;
-  string agent_name = 9;
-  int64 started_at_unix_millis = 10;
-  int64 finished_at_unix_millis = 11;
-  int64 duration_millis = 12;
-  string method = 13;
-  string url = 14;
-  int64 status_code = 15;
-  int64 expected_status_min = 16;
-  int64 expected_status_max = 17;
-  int64 timeout_millis = 18;
-  bool tls_skip_verify = 19;
-  PublicBackendHealthStatus status_before = 20;
-  PublicBackendHealthStatus status_after = 21;
-  bool available_before = 22;
-  bool available_after = 23;
-  int64 healthy_streak_before = 24;
-  int64 healthy_streak_after = 25;
-  int64 unhealthy_streak_before = 26;
-  int64 unhealthy_streak_after = 27;
-  int64 passive_unhealthy_until_unix_millis = 28;
-  string error_kind = 29;
-  string error = 30;
-  map<string, string> debug_attributes = 31;
+message PublicRouteTargetHealth {
+  PublicRouteTargetHealthStatus status = 1;
+  bool available = 2;
+  bool connected = 3;
+  int64 agent_id = 4;
+  int64 last_checked_at_unix_millis = 5;
+  string last_error = 6;
+  int64 passive_unhealthy_until_unix_millis = 7;
+  int64 active_requests = 8;
 }
 
-message PublicRouteBackend {
-  int64 route_id = 1;
-  int64 backend_id = 2;
-  int64 position = 3;
-  int64 weight = 4;
-  bool enabled = 5;
+message PublicRouteTarget {
+  int64 id = 1;
+  int64 route_id = 2;
+  string name = 3;
+  int64 position = 4;
+  int64 priority_group = 5;
+  int64 weight = 6;
+  bool enabled = 7;
+  PublicRouteTargetType target_type = 8;
+  string url = 9;
+  PublicRouteTargetTransport transport = 10;
+  PublicAgentSelector agent_selector = 11;
+  PublicRouteTargetLoadBalancing agent_load_balancing = 12;
+  bool tls_skip_verify = 13;
+  int64 upstream_response_header_timeout_millis = 14;
+  repeated PublicRouteTargetUpstreamHeader upstream_request_headers = 15;
+  PublicRouteTargetBasicAuth upstream_basic_auth = 16;
+  PublicRouteTargetHealthCheck health_check = 17;
+  int64 static_status_code = 18;
+  repeated PublicHeader static_response_headers = 19;
+  string static_response_body = 20;
+  PublicResponseBodyMode static_response_body_mode = 21;
+  int64 static_response_template_id = 22;
+  PublicRouteTargetHealth health = 23;
 }
 
 message PublicListener {
+  reserved 7;
+  reserved "default_backend_id";
+
   int64 id = 1;
   string name = 2;
   string bind_address = 3;
   int64 port = 4;
   PublicListenerProtocol protocol = 5;
   bool enabled = 6;
-  int64 default_backend_id = 7;
   int64 created_at_unix_millis = 8;
   int64 updated_at_unix_millis = 9;
 }
 
 message PublicRoute {
+  reserved 6, 16, 17, 18;
+  reserved "backend_id", "load_balancing", "backend_assignments", "fallback_backend_id";
+
   int64 id = 1;
   int64 listener_id = 2;
   int64 priority = 3;
   string host_pattern = 4;
   string path_prefix = 5;
-  int64 backend_id = 6;
   bool enabled = 7;
   int64 created_at_unix_millis = 8;
   int64 updated_at_unix_millis = 9;
@@ -491,9 +463,9 @@ message PublicRoute {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
-  PublicBackendLoadBalancing load_balancing = 16;
-  repeated PublicRouteBackend backend_assignments = 17;
-  int64 fallback_backend_id = 18;
+  PublicRouteTargetLoadBalancing target_load_balancing = 19;
+  bool is_default = 20;
+  repeated PublicRouteTarget targets = 21;
 }
 
 message PublicTlsCertificate {
@@ -624,7 +596,7 @@ message PublicWafTriggerConfig {
   int64 minimum_request_rate = 2;
   double traffic_spike_multiplier = 3;
   int64 proxy_active_requests = 4;
-  int64 backend_active_requests = 5;
+  int64 route_target_active_requests = 5;
   int64 agent_active_requests = 6;
   double server_cpu_percent = 7;
   double agent_cpu_percent = 8;
@@ -693,15 +665,14 @@ message PublicCacheSettings {
 }
 
 message PublicCacheRule {
-  reserved 5;
-  reserved "match";
+  reserved 5, 7;
+  reserved "match", "backend_ids";
 
   int64 id = 1;
   string name = 2;
   int64 priority = 3;
   bool enabled = 4;
   repeated int64 route_ids = 6;
-  repeated int64 backend_ids = 7;
   PublicCacheScope scope = 8;
   PublicCacheTtlMode ttl_mode = 9;
   int64 ttl_millis = 10;
@@ -715,6 +686,7 @@ message PublicCacheRule {
   int64 updated_at_unix_millis = 18;
   bool allow_cookie_requests = 19;
   PublicPolicyMatchRule match_rule = 20;
+  repeated int64 target_ids = 21;
 }
 
 message PublicListenerStatus {
@@ -732,91 +704,70 @@ message GetPublicProxyConfigRequest {
 }
 
 message GetPublicProxyConfigResponse {
-  repeated PublicBackend backends = 1;
+  reserved 1, 7, 11;
+  reserved "backends", "backend_agents", "route_backends";
+
   repeated PublicListener listeners = 2;
   repeated PublicRoute routes = 3;
   repeated PublicTlsCertificate tls_certificates = 4;
   ProxyStatus proxy = 5;
   repeated Agent agents = 6;
-  repeated PublicBackendAgent backend_agents = 7;
   repeated PublicRateLimitRule rate_limit_rules = 8;
   repeated PublicTrafficShaperRule traffic_shaper_rules = 9;
   repeated PublicTlsDnsCredential tls_dns_credentials = 10;
-  repeated PublicRouteBackend route_backends = 11;
   repeated PublicWafCaptchaProvider waf_captcha_providers = 12;
   repeated PublicWafRule waf_rules = 13;
   PublicCacheSettings cache_settings = 14;
   repeated PublicCacheRule cache_rules = 15;
   repeated PublicResponseTemplate response_templates = 16;
+  repeated PublicRouteTarget route_targets = 17;
 }
 
-message ListPublicBackendHealthTracesRequest {
-  int64 backend_id = 1;
+message PublicRouteTargetHealthTrace {
+  uint64 sequence = 1;
+  int64 route_target_id = 2;
+  string route_target_name = 3;
+  PublicRouteTargetTransport transport = 4;
+  PublicRouteTargetHealthTraceSource source = 5;
+  PublicRouteTargetHealthTraceOutcome outcome = 6;
+  int64 agent_id = 7;
+  string agent_public_id = 8;
+  string agent_name = 9;
+  int64 started_at_unix_millis = 10;
+  int64 finished_at_unix_millis = 11;
+  int64 duration_millis = 12;
+  string method = 13;
+  string url = 14;
+  int64 status_code = 15;
+  int64 expected_status_min = 16;
+  int64 expected_status_max = 17;
+  int64 timeout_millis = 18;
+  bool tls_skip_verify = 19;
+  PublicRouteTargetHealthStatus status_before = 20;
+  PublicRouteTargetHealthStatus status_after = 21;
+  bool available_before = 22;
+  bool available_after = 23;
+  int64 healthy_streak_before = 24;
+  int64 healthy_streak_after = 25;
+  int64 unhealthy_streak_before = 26;
+  int64 unhealthy_streak_after = 27;
+  int64 passive_unhealthy_until_unix_millis = 28;
+  string error_kind = 29;
+  string error = 30;
+  map<string, string> debug_attributes = 31;
+}
+
+message ListPublicRouteTargetHealthTracesRequest {
+  int64 route_target_id = 1;
   int64 agent_id = 2;
   int64 limit = 3;
   bool failures_only = 4;
 }
 
-message ListPublicBackendHealthTracesResponse {
-  repeated PublicBackendHealthTrace traces = 1;
+message ListPublicRouteTargetHealthTracesResponse {
+  repeated PublicRouteTargetHealthTrace traces = 1;
   int64 retained_count = 2;
   int64 max_retained_per_target = 3;
-}
-
-message CreatePublicBackendRequest {
-  string name = 1;
-  string target_origin = 2;
-  bool enabled = 3;
-  PublicBackendType backend_type = 4;
-  bool tls_skip_verify = 5;
-  int64 static_status_code = 6;
-  repeated PublicHeader static_response_headers = 7;
-  string static_response_body = 8;
-  PublicBackendForwardMode forward_mode = 9;
-  PublicBackendLoadBalancing load_balancing = 10;
-  repeated PublicBackendAgent agent_assignments = 11;
-  repeated PublicBackendUpstreamHeader upstream_request_headers = 12;
-  PublicBackendBasicAuth upstream_basic_auth = 13;
-  PublicBackendHealthCheck health_check = 14;
-  int64 upstream_response_header_timeout_millis = 15;
-  PublicResponseBodyMode static_response_body_mode = 16;
-  int64 static_response_template_id = 17;
-}
-
-message CreatePublicBackendResponse {
-  PublicBackend backend = 1;
-}
-
-message UpdatePublicBackendRequest {
-  int64 id = 1;
-  string name = 2;
-  string target_origin = 3;
-  bool enabled = 4;
-  PublicBackendType backend_type = 5;
-  bool tls_skip_verify = 6;
-  int64 static_status_code = 7;
-  repeated PublicHeader static_response_headers = 8;
-  string static_response_body = 9;
-  PublicBackendForwardMode forward_mode = 10;
-  PublicBackendLoadBalancing load_balancing = 11;
-  repeated PublicBackendAgent agent_assignments = 12;
-  repeated PublicBackendUpstreamHeader upstream_request_headers = 13;
-  PublicBackendBasicAuth upstream_basic_auth = 14;
-  PublicBackendHealthCheck health_check = 15;
-  int64 upstream_response_header_timeout_millis = 16;
-  PublicResponseBodyMode static_response_body_mode = 17;
-  int64 static_response_template_id = 18;
-}
-
-message UpdatePublicBackendResponse {
-  PublicBackend backend = 1;
-}
-
-message DeletePublicBackendRequest {
-  int64 id = 1;
-}
-
-message DeletePublicBackendResponse {
 }
 
 message CreatePublicResponseTemplateRequest {
@@ -852,9 +803,12 @@ message DeletePublicResponseTemplateResponse {
 }
 
 message CreateAgentRequest {
-  string public_id = 1 [deprecated = true];
+  reserved 1;
+  reserved "public_id";
+
   string name = 2;
   bool enabled = 3;
+  map<string, string> labels = 4;
 }
 
 message CreateAgentResponse {
@@ -863,10 +817,13 @@ message CreateAgentResponse {
 }
 
 message UpdateAgentRequest {
+  reserved 2;
+  reserved "public_id";
+
   int64 id = 1;
-  string public_id = 2 [deprecated = true];
   string name = 3;
   bool enabled = 4;
+  map<string, string> labels = 5;
 }
 
 message UpdateAgentResponse {
@@ -1026,12 +983,14 @@ message TestEnvironmentResponse {
 }
 
 message CreatePublicListenerRequest {
+  reserved 6;
+  reserved "default_backend_id";
+
   string name = 1;
   string bind_address = 2;
   int64 port = 3;
   PublicListenerProtocol protocol = 4;
   bool enabled = 5;
-  int64 default_backend_id = 6;
 }
 
 message CreatePublicListenerResponse {
@@ -1041,13 +1000,15 @@ message CreatePublicListenerResponse {
 }
 
 message UpdatePublicListenerRequest {
+  reserved 7;
+  reserved "default_backend_id";
+
   int64 id = 1;
   string name = 2;
   string bind_address = 3;
   int64 port = 4;
   PublicListenerProtocol protocol = 5;
   bool enabled = 6;
-  int64 default_backend_id = 7;
 }
 
 message UpdatePublicListenerResponse {
@@ -1102,11 +1063,13 @@ message StopPublicListenerResponse {
 }
 
 message CreatePublicRouteRequest {
+  reserved 5, 16, 17, 18;
+  reserved "backend_id", "load_balancing", "backend_assignments", "fallback_backend_id";
+
   int64 listener_id = 1;
   int64 priority = 2;
   string host_pattern = 3;
   string path_prefix = 4;
-  int64 backend_id = 5;
   bool enabled = 6;
   PublicRouteAction action = 10;
   PublicRouteRedirectTargetMode redirect_target_mode = 11;
@@ -1114,9 +1077,9 @@ message CreatePublicRouteRequest {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
-  PublicBackendLoadBalancing load_balancing = 16;
-  repeated PublicRouteBackend backend_assignments = 17;
-  int64 fallback_backend_id = 18;
+  PublicRouteTargetLoadBalancing target_load_balancing = 19;
+  bool is_default = 20;
+  repeated PublicRouteTarget targets = 21;
 }
 
 message CreatePublicRouteResponse {
@@ -1124,12 +1087,14 @@ message CreatePublicRouteResponse {
 }
 
 message UpdatePublicRouteRequest {
+  reserved 6, 16, 17, 18;
+  reserved "backend_id", "load_balancing", "backend_assignments", "fallback_backend_id";
+
   int64 id = 1;
   int64 listener_id = 2;
   int64 priority = 3;
   string host_pattern = 4;
   string path_prefix = 5;
-  int64 backend_id = 6;
   bool enabled = 7;
   PublicRouteAction action = 10;
   PublicRouteRedirectTargetMode redirect_target_mode = 11;
@@ -1137,9 +1102,9 @@ message UpdatePublicRouteRequest {
   int64 redirect_status_code = 13;
   bool redirect_preserve_path_suffix = 14;
   bool redirect_preserve_query = 15;
-  PublicBackendLoadBalancing load_balancing = 16;
-  repeated PublicRouteBackend backend_assignments = 17;
-  int64 fallback_backend_id = 18;
+  PublicRouteTargetLoadBalancing target_load_balancing = 19;
+  bool is_default = 20;
+  repeated PublicRouteTarget targets = 21;
 }
 
 message UpdatePublicRouteResponse {
@@ -1452,14 +1417,13 @@ message DeletePublicWafRuleResponse {
 }
 
 message CreatePublicCacheRuleRequest {
-  reserved 4;
-  reserved "match";
+  reserved 4, 6;
+  reserved "match", "backend_ids";
 
   string name = 1;
   int64 priority = 2;
   bool enabled = 3;
   repeated int64 route_ids = 5;
-  repeated int64 backend_ids = 6;
   PublicCacheScope scope = 7;
   PublicCacheTtlMode ttl_mode = 8;
   int64 ttl_millis = 9;
@@ -1472,6 +1436,7 @@ message CreatePublicCacheRuleRequest {
   bool allow_cookie_requests = 16;
   PublicPolicyMatchRule match_rule = 17;
   bool allow_cookie_requests_acknowledged = 18;
+  repeated int64 target_ids = 19;
 }
 
 message CreatePublicCacheRuleResponse {
@@ -1479,15 +1444,14 @@ message CreatePublicCacheRuleResponse {
 }
 
 message UpdatePublicCacheRuleRequest {
-  reserved 5;
-  reserved "match";
+  reserved 5, 7;
+  reserved "match", "backend_ids";
 
   int64 id = 1;
   string name = 2;
   int64 priority = 3;
   bool enabled = 4;
   repeated int64 route_ids = 6;
-  repeated int64 backend_ids = 7;
   PublicCacheScope scope = 8;
   PublicCacheTtlMode ttl_mode = 9;
   int64 ttl_millis = 10;
@@ -1500,6 +1464,7 @@ message UpdatePublicCacheRuleRequest {
   bool allow_cookie_requests = 17;
   PublicPolicyMatchRule match_rule = 18;
   bool allow_cookie_requests_acknowledged = 19;
+  repeated int64 target_ids = 20;
 }
 
 message UpdatePublicCacheRuleResponse {
@@ -1587,6 +1552,7 @@ enum DashboardProxyDimension {
   DASHBOARD_PROXY_DIMENSION_AGENT = 4;
   DASHBOARD_PROXY_DIMENSION_ERROR_KIND = 5;
   DASHBOARD_PROXY_DIMENSION_STATUS_CLASS = 6;
+  DASHBOARD_PROXY_DIMENSION_ROUTE_TARGET = 7;
 }
 
 message DashboardProxyDimensionSummary {
@@ -1668,13 +1634,15 @@ message AgentConnectionSession {
 }
 
 message GetDashboardResponse {
+  reserved 7;
+  reserved "top_backends";
+
   GetStatusResponse status = 1;
   repeated DashboardWindowSummary windows = 2;
   AgentConnectionSummary agent_connections = 3;
   int64 retention_days = 4;
   int64 generated_at_unix_millis = 5;
   repeated DashboardProxyDimensionSummary top_listeners = 6;
-  repeated DashboardProxyDimensionSummary top_backends = 7;
   repeated DashboardProxyDimensionSummary top_routes = 8;
   repeated DashboardProxyDimensionSummary top_agents = 9;
   repeated DashboardProxyDimensionSummary top_error_kinds = 10;
@@ -1683,6 +1651,7 @@ message GetDashboardResponse {
   ManagementSecurity management_security = 13;
   repeated AgentUptimeSummary agent_uptime_summaries = 14;
   repeated AgentConnectionSession recent_agent_connections = 15;
+  repeated DashboardProxyDimensionSummary top_route_targets = 16;
 }
 
 message TrafficTraceSettings {
@@ -1729,10 +1698,8 @@ message TrafficTraceEvent {
   int64 route_id = 11;
   string route_label = 12;
   bool default_route = 13;
-  int64 backend_id = 14;
-  string backend_name = 15;
-  PublicBackendType backend_type = 16;
-  PublicBackendForwardMode forward_mode = 17;
+  reserved 14, 15, 16, 17;
+  reserved "backend_id", "backend_name", "backend_type", "forward_mode";
   string target_origin = 18;
   int64 agent_id = 19;
   string agent_public_id = 20;
@@ -1765,6 +1732,10 @@ message TrafficTraceEvent {
   string cache_rule_name = 47;
   string cache_status = 48;
   string cache_key_digest = 49;
+  int64 route_target_id = 50;
+  string route_target_name = 51;
+  PublicRouteTargetType route_target_type = 52;
+  PublicRouteTargetTransport route_target_transport = 53;
 }
 
 message StreamTrafficTraceEventsResponse {
@@ -1847,10 +1818,7 @@ service AgentManagementService {
   rpc CreatePublicResponseTemplate(CreatePublicResponseTemplateRequest) returns (CreatePublicResponseTemplateResponse) {}
   rpc UpdatePublicResponseTemplate(UpdatePublicResponseTemplateRequest) returns (UpdatePublicResponseTemplateResponse) {}
   rpc DeletePublicResponseTemplate(DeletePublicResponseTemplateRequest) returns (DeletePublicResponseTemplateResponse) {}
-  rpc ListPublicBackendHealthTraces(ListPublicBackendHealthTracesRequest) returns (ListPublicBackendHealthTracesResponse) {}
-  rpc CreatePublicBackend(CreatePublicBackendRequest) returns (CreatePublicBackendResponse) {}
-  rpc UpdatePublicBackend(UpdatePublicBackendRequest) returns (UpdatePublicBackendResponse) {}
-  rpc DeletePublicBackend(DeletePublicBackendRequest) returns (DeletePublicBackendResponse) {}
+  rpc ListPublicRouteTargetHealthTraces(ListPublicRouteTargetHealthTracesRequest) returns (ListPublicRouteTargetHealthTracesResponse) {}
   rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse) {}
   rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse) {}
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse) {}

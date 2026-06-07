@@ -4,7 +4,7 @@ Cache rules are global public proxy policy rules for public static assets.
 
 ## Exact Fields And Defaults
 
-Cache rules run after route/backend selection and before forwarding a cache miss upstream.
+Cache rules run after route/target selection and before forwarding a cache miss upstream.
 
 | Field | Default | Description |
 | --- | --- | --- |
@@ -13,8 +13,8 @@ Cache rules run after route/backend selection and before forwarding a cache miss
 | `enabled` | `true` | Disabled rules are ignored. |
 | `match_rule` | empty | Request-only CEL match rule. Empty matches every request. |
 | `route_ids` | empty | Optional route filter. |
-| `backend_ids` | empty | Optional backend filter. |
-| `scope` | selected backend | Isolate by selected backend or route. |
+| `target_ids` | empty | Optional route target filter. |
+| `scope` | selected target | Isolate by selected target or route. |
 | `ttl_mode` | `fixed` | `fixed` or `origin`. |
 | `ttl_millis` | `3600000` | Rule TTL, or origin-TTL fallback. |
 | `query_mode` | full query | `full`, `ignore`, `allowlist`, or `denylist`. |
@@ -49,10 +49,10 @@ Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
 
 Cache rule matches inspect only request data through CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, backend data, backend health, and load-balancer state are not available inside cache match CEL. Cache-specific `route_ids` and `backend_ids` remain separate filters evaluated after route/backend selection.
+Route data, target data, target health, and load-balancer state are not available inside cache match CEL. Cache-specific `route_ids` and `target_ids` remain separate filters evaluated after route/target selection.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing CEL match builder, route filters, backend filters, TTL mode, query mode, vary headers, cache status codes, and max object bytes">
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing CEL match builder, route filters, target filters, TTL mode, query mode, vary headers, cache status codes, and max object bytes">
   <figcaption>The cache rule editor keeps match criteria separate from post-routing filters and storage controls, which helps avoid accidentally caching dynamic or user-specific responses.</figcaption>
 </figure>
 
@@ -65,12 +65,12 @@ Request order:
 3. WAF evaluation
 4. Rate limits
 5. Traffic shaper selection
-6. Route/backend resolution
+6. Route/target resolution
 7. Cache rule evaluation and lookup
 8. Cache hit response, or upstream forwarding and cache store
 9. Final response
 
-Cache hits still consume rate-limit buckets and still use traffic shaping. Redirect routes and static backends are not cached. `HEAD` requests can be served from a cached `GET` object, but `HEAD` does not create a new cache object.
+Cache hits still consume rate-limit buckets and still use traffic shaping. Redirect routes and static targets are not cached. `HEAD` requests can be served from a cached `GET` object, but `HEAD` does not create a new cache object.
 
 Cache statuses in traces and events:
 

@@ -217,8 +217,8 @@ func TestTrafficTraceDirectRequestStagesAndLevels(t *testing.T) {
 	if finalEvent.StatusCode != http.StatusOK {
 		t.Fatalf("final status = %d, want 200", finalEvent.StatusCode)
 	}
-	if finalEvent.BackendName == "" || finalEvent.ListenerName == "" {
-		t.Fatalf("expected listener/backend names in final event: %+v", finalEvent)
+	if finalEvent.RouteTargetName == "" || finalEvent.ListenerName == "" {
+		t.Fatalf("expected listener/target names in final event: %+v", finalEvent)
 	}
 }
 

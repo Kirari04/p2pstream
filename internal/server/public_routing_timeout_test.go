@@ -33,14 +33,14 @@ func TestDirectProxyResponseHeaderTimeoutReturnsGatewayTimeout(t *testing.T) {
 	app := NewApp(nil, nil)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/slow", nil)
-	app.proxyDirectRequest(rec, req, publicRouteResolution{
-		Backend: publicBackendConfig{
+	app.proxyDirectTargetRequest(rec, req, publicRouteResolution{
+		Target: publicRouteTargetConfig{
 			ID:                            1,
 			Name:                          "slow-direct",
 			Enabled:                       true,
-			BackendType:                   publicBackendTypeProxyForward,
-			ForwardMode:                   publicBackendForwardModeDirect,
-			ParsedOrigin:                  origin,
+			TargetType:                    publicRouteTargetTypeProxy,
+			Transport:                     publicRouteTargetTransportDirect,
+			ParsedURL:                     origin,
 			UpstreamResponseHeaderTimeout: 25 * time.Millisecond,
 		},
 	}, nil, nil, nil, proxyRequestObservability{})
@@ -64,10 +64,10 @@ func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	app, backend, _, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "http://public.test/agent", strings.NewReader("payload"))
-	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+	proxyAgentTargetForTest(app, rec, req, target, agent)
 
 	if rec.Code != http.StatusOK || rec.Body.String() != "upstream:payload" {
 		t.Fatalf("agent proxy response = status %d body %q, want 200 upstream:payload", rec.Code, rec.Body.String())
@@ -80,8 +80,8 @@ func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 		if open.Network != "tcp" {
 			t.Fatalf("open request network = %q, want tcp", open.Network)
 		}
-		if open.Address != backend.ParsedOrigin.Host {
-			t.Fatalf("open request address = %q, want %q", open.Address, backend.ParsedOrigin.Host)
+		if open.Address != target.ParsedURL.Host {
+			t.Fatalf("open request address = %q, want %q", open.Address, target.ParsedURL.Host)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for fake agent open request")
@@ -96,14 +96,14 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 	}))
 	defer upstream.Close()
 
-	app, backend, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
+	app, target, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil).WithContext(ctx)
 	rec := httptest.NewRecorder()
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 	}()
 
 	select {
@@ -118,10 +118,10 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 		t.Fatal("timed out waiting for cancelled proxy request")
 	}
 
-	if !app.BackendHealth.agentAvailable(backend.ID, agent.AgentID) {
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("client cancellation should not make the agent unavailable")
 	}
-	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, agent.AgentID, 10, false)
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
 	if len(traces) != 0 {
 		t.Fatalf("unexpected health traces after client cancellation: %+v", traces)
 	}
@@ -137,7 +137,7 @@ func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	app, backend, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app, target, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
 	reader, writer := io.Pipe()
 	req := httptest.NewRequest(http.MethodPost, "http://public.test/agent", reader).WithContext(ctx)
@@ -145,7 +145,7 @@ func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 	}()
 
 	if _, err := writer.Write([]byte(strings.Repeat("x", 4096))); err != nil {
@@ -170,7 +170,7 @@ func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
 		t.Fatal("timed out waiting for cancelled upload proxy request")
 	}
 	waitForAgentActiveRequests(t, agent, 0)
-	if !app.BackendHealth.agentAvailable(backend.ID, agent.AgentID) {
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("client upload cancellation should not make the agent unavailable")
 	}
 }
@@ -190,13 +190,13 @@ func TestAgentProxyAgentDisconnectDuringResponseReleasesActiveRequest(t *testing
 	defer upstream.Close()
 	defer close(releaseResponse)
 
-	app, backend, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 	}()
 
 	select {
@@ -220,18 +220,18 @@ func TestAgentProxyResponseTimeoutMarksPassiveFailure(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	app, backend, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 25*time.Millisecond)
+	app, target, agent, _ := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 25*time.Millisecond)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+	proxyAgentTargetForTest(app, rec, req, target, agent)
 
 	if rec.Code != http.StatusGatewayTimeout {
 		t.Fatalf("timeout status = %d body=%q, want 504", rec.Code, rec.Body.String())
 	}
-	if app.BackendHealth.agentAvailable(backend.ID, agent.AgentID) {
+	if app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("agent timeout should make the agent unavailable during passive cooldown")
 	}
-	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, agent.AgentID, 10, false)
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
 	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" {
 		t.Fatalf("latest trace = %+v, want passive_failure", traces)
 	}
@@ -243,20 +243,20 @@ func TestAgentProxyClosedSessionMarksPassiveFailure(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	app, backend, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
 	fake.close()
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-	app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+	proxyAgentTargetForTest(app, rec, req, target, agent)
 
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("disconnect status = %d body=%q, want 502", rec.Code, rec.Body.String())
 	}
-	if app.BackendHealth.agentAvailable(backend.ID, agent.AgentID) {
+	if app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
 		t.Fatal("agent disconnect should make the agent unavailable during passive cooldown")
 	}
-	traces, _ := app.BackendHealth.listHealthTraces(backend.ID, agent.AgentID, 10, false)
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
 	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" || !strings.Contains(traces[0].Error, errAgentDisconnected.Error()) {
 		t.Fatalf("latest trace = %+v, want passive agent_disconnected failure", traces)
 	}
@@ -269,10 +269,10 @@ func TestAgentProxyHTTPSOriginTLSVerification(t *testing.T) {
 	defer tlsUpstream.Close()
 
 	t.Run("rejects unknown self signed cert by default", func(t *testing.T) {
-		app, backend, _, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
+		app, target, agent, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 		if rec.Code != http.StatusBadGateway {
 			t.Fatalf("self-signed upstream status = %d body=%q, want 502", rec.Code, rec.Body.String())
 		}
@@ -280,28 +280,32 @@ func TestAgentProxyHTTPSOriginTLSVerification(t *testing.T) {
 
 	t.Run("succeeds with trusted root", func(t *testing.T) {
 		withTrustedHTTPDefaultTransport(t, tlsUpstream.Certificate())
-		app, backend, _, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
+		app, target, agent, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 		if rec.Code != http.StatusOK || rec.Body.String() != "secure upstream" {
 			t.Fatalf("trusted upstream response = status %d body=%q, want 200 secure upstream", rec.Code, rec.Body.String())
 		}
 	})
 
 	t.Run("succeeds with tls skip verify", func(t *testing.T) {
-		app, backend, _, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
-		backend.TLSSkipVerify = true
+		app, target, agent, _ := newAgentProxyTunnelTestApp(t, 7, tlsUpstream.URL, 2*time.Second)
+		target.TLSSkipVerify = true
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
-		app.proxyAgentRequest(rec, req, publicRouteResolution{Backend: backend}, nil, nil, nil, proxyRequestObservability{})
+		proxyAgentTargetForTest(app, rec, req, target, agent)
 		if rec.Code != http.StatusOK || rec.Body.String() != "secure upstream" {
 			t.Fatalf("skip-verify upstream response = status %d body=%q, want 200 secure upstream", rec.Code, rec.Body.String())
 		}
 	})
 }
 
-func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string, responseHeaderTimeout time.Duration) (*App, publicBackendConfig, *AgentConn, *fakeYamuxAgent) {
+func proxyAgentTargetForTest(app *App, rec *httptest.ResponseRecorder, req *http.Request, target publicRouteTargetConfig, agent *AgentConn) {
+	app.proxyAgentTargetRequest(rec, req, publicRouteResolution{Target: target, Agent: agent}, nil, nil, nil, proxyRequestObservability{})
+}
+
+func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string, responseHeaderTimeout time.Duration) (*App, publicRouteTargetConfig, *AgentConn, *fakeYamuxAgent) {
 	t.Helper()
 	origin, err := url.Parse(upstreamURL)
 	if err != nil {
@@ -314,15 +318,17 @@ func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string,
 	}
 	t.Cleanup(func() { app.AgentHub.disconnect(agent) })
 
-	backend := publicBackendConfig{
+	target := publicRouteTargetConfig{
 		ID:                            70,
 		Name:                          "agent-timeout-test",
 		Enabled:                       true,
-		BackendType:                   publicBackendTypeProxyForward,
-		ForwardMode:                   publicBackendForwardModeAgentPool,
-		ParsedOrigin:                  origin,
+		TargetType:                    publicRouteTargetTypeProxy,
+		Transport:                     publicRouteTargetTransportAgent,
+		AgentLoadBalancing:            publicRouteTargetLoadBalancingRoundRobin,
+		AgentSelector:                 publicAgentSelectorConfig{MatchLabels: map[string]string{agentIDSystemLabelKey: agent.PublicID}},
+		ParsedURL:                     origin,
 		UpstreamResponseHeaderTimeout: responseHeaderTimeout,
-		HealthCheck: publicBackendHealthCheckConfig{
+		HealthCheck: publicRouteTargetHealthCheckConfig{
 			Enabled:            true,
 			Method:             http.MethodGet,
 			Path:               "/",
@@ -332,23 +338,16 @@ func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string,
 			ExpectedStatusMin:  200,
 			ExpectedStatusMax:  399,
 		},
-		AgentAssignments: []publicBackendAgentConfig{{
-			BackendID: 70,
-			AgentID:   agentID,
-			Position:  0,
-			Weight:    100,
-			Enabled:   true,
-		}},
 	}
 	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{agentID: {ID: agentID, PublicID: agent.PublicID, Enabled: true}},
+		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
+		Agents:       map[int64]publicAgentConfig{agentID: {ID: agentID, PublicID: agent.PublicID, Enabled: true, Labels: map[string]string{agentIDSystemLabelKey: agent.PublicID}}},
 	}
 	app.proxyMu.Lock()
 	app.publicSnapshot = snap
 	app.proxyMu.Unlock()
-	app.BackendHealth.reconcile(app, snap, false)
-	return app, backend, agent, fake
+	app.TargetHealth.reconcile(app, snap, false)
+	return app, target, agent, fake
 }
 
 type fakeYamuxAgent struct {

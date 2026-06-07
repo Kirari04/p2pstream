@@ -307,7 +307,7 @@ onBeforeUnmount(() => {
       <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3 class="text-xl font-bold mb-2">Traffic Flow</h3>
-          <p class="text-[#888] text-sm">Live request routing across listeners, routes, backends, agents, and upstreams.</p>
+          <p class="text-[#888] text-sm">Live request routing across listeners, routes, targets, agents, and upstreams.</p>
         </div>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -212,7 +213,7 @@ func (db *DB) migrate() error {
 		duration_ms INTEGER NOT NULL,
 		error_kind TEXT NOT NULL DEFAULT '',
 		listener_id INTEGER,
-		backend_id INTEGER,
+		route_target_id INTEGER,
 		route_id INTEGER,
 		waf_rule_id INTEGER,
 		waf_action TEXT NOT NULL DEFAULT '',
@@ -250,7 +251,7 @@ func (db *DB) migrate() error {
 		CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
 			bucket_unix_millis INTEGER NOT NULL,
 			listener_id INTEGER NOT NULL DEFAULT 0,
-			backend_id INTEGER NOT NULL DEFAULT 0,
+			route_target_id INTEGER NOT NULL DEFAULT 0,
 			route_id INTEGER NOT NULL DEFAULT 0,
 			agent_id INTEGER NOT NULL DEFAULT 0,
 			error_kind TEXT NOT NULL DEFAULT '',
@@ -265,7 +266,7 @@ func (db *DB) migrate() error {
 			response_bytes INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class)
+			PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
 		);
 
 		CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
@@ -298,69 +299,14 @@ func (db *DB) migrate() error {
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE IF NOT EXISTS public_backends (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL UNIQUE,
-		target_origin TEXT NOT NULL,
-		backend_type TEXT NOT NULL DEFAULT 'proxy_forward',
-		forward_mode TEXT NOT NULL DEFAULT 'direct',
-		load_balancing TEXT NOT NULL DEFAULT 'round_robin',
-		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
-		static_status_code INTEGER NOT NULL DEFAULT 200,
-		static_response_body TEXT NOT NULL DEFAULT '',
-		static_response_body_mode TEXT NOT NULL DEFAULT 'inline',
-		static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
-			upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
-			upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
-			upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
-			upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000,
-			health_check_enabled INTEGER NOT NULL DEFAULT 0,
-			health_check_method TEXT NOT NULL DEFAULT 'GET',
-			health_check_path TEXT NOT NULL DEFAULT '/',
-		health_check_interval_millis INTEGER NOT NULL DEFAULT 10000,
-		health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000,
-		health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2,
-		health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2,
-		health_check_expected_status_min INTEGER NOT NULL DEFAULT 200,
-		health_check_expected_status_max INTEGER NOT NULL DEFAULT 399,
-		enabled INTEGER NOT NULL DEFAULT 1,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-	);
-
-	CREATE TABLE IF NOT EXISTS public_backend_headers (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-		position INTEGER NOT NULL,
-		name TEXT NOT NULL,
-		value TEXT NOT NULL,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(backend_id, position)
-	);
-
-	CREATE TABLE IF NOT EXISTS public_backend_upstream_headers (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-		position INTEGER NOT NULL,
-		name TEXT NOT NULL,
-		value TEXT NOT NULL,
-		sensitive INTEGER NOT NULL DEFAULT 0,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(backend_id, position)
-	);
-
-	CREATE TABLE IF NOT EXISTS public_backend_agents (
-		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+	CREATE TABLE IF NOT EXISTS public_agent_labels (
 		agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-		position INTEGER NOT NULL,
-		weight INTEGER NOT NULL DEFAULT 100,
-		enabled INTEGER NOT NULL DEFAULT 1,
+		key TEXT NOT NULL,
+		value TEXT NOT NULL,
+		source TEXT NOT NULL DEFAULT 'user',
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (backend_id, agent_id),
-		UNIQUE(backend_id, position)
+		PRIMARY KEY (agent_id, key)
 	);
 
 	CREATE TABLE IF NOT EXISTS public_listeners (
@@ -370,7 +316,6 @@ func (db *DB) migrate() error {
 		port INTEGER NOT NULL,
 		protocol TEXT NOT NULL,
 		enabled INTEGER NOT NULL DEFAULT 1,
-		default_backend_id INTEGER NOT NULL REFERENCES public_backends(id),
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(bind_address, port)
@@ -382,9 +327,8 @@ func (db *DB) migrate() error {
 		priority INTEGER NOT NULL,
 		host_pattern TEXT NOT NULL DEFAULT '',
 		path_prefix TEXT NOT NULL DEFAULT '',
-		backend_id INTEGER REFERENCES public_backends(id),
-		load_balancing TEXT NOT NULL DEFAULT 'round_robin',
-		fallback_backend_id INTEGER REFERENCES public_backends(id),
+		target_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+		is_default INTEGER NOT NULL DEFAULT 0,
 		action TEXT NOT NULL DEFAULT 'forward',
 		redirect_target_mode TEXT NOT NULL DEFAULT '',
 		redirect_target TEXT NOT NULL DEFAULT '',
@@ -396,16 +340,63 @@ func (db *DB) migrate() error {
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE IF NOT EXISTS public_route_backends (
+	CREATE TABLE IF NOT EXISTS public_route_targets (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
-		backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+		name TEXT NOT NULL DEFAULT '',
 		position INTEGER NOT NULL,
+		priority_group INTEGER NOT NULL DEFAULT 0,
 		weight INTEGER NOT NULL DEFAULT 100,
 		enabled INTEGER NOT NULL DEFAULT 1,
+		target_type TEXT NOT NULL DEFAULT 'proxy',
+		url TEXT NOT NULL DEFAULT '',
+		transport TEXT NOT NULL DEFAULT 'direct',
+		agent_selector_json TEXT NOT NULL DEFAULT '{}',
+		agent_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+		upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
+		upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
+		upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
+		upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000,
+		health_check_enabled INTEGER NOT NULL DEFAULT 0,
+		health_check_method TEXT NOT NULL DEFAULT 'GET',
+		health_check_path TEXT NOT NULL DEFAULT '/',
+		health_check_interval_millis INTEGER NOT NULL DEFAULT 10000,
+		health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000,
+		health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2,
+		health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2,
+		health_check_expected_status_min INTEGER NOT NULL DEFAULT 200,
+		health_check_expected_status_max INTEGER NOT NULL DEFAULT 399,
+		static_status_code INTEGER NOT NULL DEFAULT 200,
+		static_response_body TEXT NOT NULL DEFAULT '',
+		static_response_body_mode TEXT NOT NULL DEFAULT 'inline',
+		static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (route_id, backend_id),
 		UNIQUE(route_id, position)
+	);
+
+	CREATE TABLE IF NOT EXISTS public_route_target_upstream_headers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		target_id INTEGER NOT NULL REFERENCES public_route_targets(id) ON DELETE CASCADE,
+		position INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		value TEXT NOT NULL,
+		sensitive INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(target_id, position)
+	);
+
+	CREATE TABLE IF NOT EXISTS public_route_target_response_headers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		target_id INTEGER NOT NULL REFERENCES public_route_targets(id) ON DELETE CASCADE,
+		position INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		value TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(target_id, position)
 	);
 
 	CREATE TABLE IF NOT EXISTS public_waf_captcha_providers (
@@ -441,7 +432,7 @@ func (db *DB) migrate() error {
 		trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
 		trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
 		trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
-		trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+		trigger_route_target_active_requests INTEGER NOT NULL DEFAULT 100,
 		trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
 		trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
 		trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
@@ -561,23 +552,20 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
 	ON public_routes (listener_id, priority, id);
 
-	CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position
-	ON public_backend_headers (backend_id, position);
+	CREATE INDEX IF NOT EXISTS idx_public_agent_labels_key_value
+	ON public_agent_labels (key, value);
 
-	CREATE INDEX IF NOT EXISTS idx_public_backend_upstream_headers_backend_position
-	ON public_backend_upstream_headers (backend_id, position);
+	CREATE INDEX IF NOT EXISTS idx_public_route_targets_route_position
+	ON public_route_targets (route_id, position);
 
-	CREATE INDEX IF NOT EXISTS idx_public_backend_agents_backend_position
-	ON public_backend_agents (backend_id, position);
+	CREATE INDEX IF NOT EXISTS idx_public_route_targets_route_group
+	ON public_route_targets (route_id, priority_group, position);
 
-	CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id
-	ON public_backend_agents (agent_id);
+	CREATE INDEX IF NOT EXISTS idx_public_route_target_upstream_headers_target_position
+	ON public_route_target_upstream_headers (target_id, position);
 
-	CREATE INDEX IF NOT EXISTS idx_public_route_backends_route_position
-	ON public_route_backends (route_id, position);
-
-	CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id
-	ON public_route_backends (backend_id);
+	CREATE INDEX IF NOT EXISTS idx_public_route_target_response_headers_target_position
+	ON public_route_target_response_headers (target_id, position);
 
 	CREATE INDEX IF NOT EXISTS idx_public_waf_rules_priority
 	ON public_waf_rules (priority, id);
@@ -607,7 +595,7 @@ func (db *DB) migrate() error {
 		`ALTER TABLE agent_stats ADD COLUMN agent_id INTEGER REFERENCES agents(id)`,
 		`ALTER TABLE agent_stats ADD COLUMN cpu_percent REAL NOT NULL DEFAULT 0`,
 		`ALTER TABLE proxy_request_events ADD COLUMN listener_id INTEGER`,
-		`ALTER TABLE proxy_request_events ADD COLUMN backend_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN route_target_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN route_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN waf_rule_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN waf_action TEXT NOT NULL DEFAULT ''`,
@@ -617,29 +605,8 @@ func (db *DB) migrate() error {
 		`ALTER TABLE proxy_request_events ADD COLUMN cache_rule_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN cache_status TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE proxy_request_events ADD COLUMN cache_bytes INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE public_backends ADD COLUMN backend_type TEXT NOT NULL DEFAULT 'proxy_forward'`,
-		`ALTER TABLE public_backends ADD COLUMN forward_mode TEXT NOT NULL DEFAULT 'direct'`,
-		`ALTER TABLE public_backends ADD COLUMN load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
-		`ALTER TABLE public_backends ADD COLUMN tls_skip_verify INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE public_backends ADD COLUMN static_status_code INTEGER NOT NULL DEFAULT 200`,
-		`ALTER TABLE public_backends ADD COLUMN static_response_body TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE public_backends ADD COLUMN static_response_body_mode TEXT NOT NULL DEFAULT 'inline'`,
-		`ALTER TABLE public_backends ADD COLUMN static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
-		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE public_backends ADD COLUMN upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_enabled INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_method TEXT NOT NULL DEFAULT 'GET'`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_path TEXT NOT NULL DEFAULT '/'`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_interval_millis INTEGER NOT NULL DEFAULT 10000`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_expected_status_min INTEGER NOT NULL DEFAULT 200`,
-		`ALTER TABLE public_backends ADD COLUMN health_check_expected_status_max INTEGER NOT NULL DEFAULT 399`,
-		`ALTER TABLE public_routes ADD COLUMN load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
-		`ALTER TABLE public_routes ADD COLUMN fallback_backend_id INTEGER REFERENCES public_backends(id)`,
+		`ALTER TABLE public_routes ADD COLUMN target_load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
+		`ALTER TABLE public_routes ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_tls_certificates ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`,
 		`ALTER TABLE public_tls_certificates ADD COLUMN acme_challenge_type TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE public_tls_certificates ADD COLUMN acme_ca TEXT NOT NULL DEFAULT ''`,
@@ -679,7 +646,7 @@ func (db *DB) migrate() error {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id ON proxy_request_events (listener_id)`); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_backend_id ON proxy_request_events (backend_id)`); err != nil {
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_target_id ON proxy_request_events (route_target_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id ON proxy_request_events (route_id)`); err != nil {
@@ -700,84 +667,109 @@ func (db *DB) migrate() error {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_dns_credential_id ON public_tls_certificates (dns_credential_id)`); err != nil {
 		return err
 	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener ON public_routes (listener_id) WHERE is_default = 1`); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS public_backend_headers (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-			position INTEGER NOT NULL,
-			name TEXT NOT NULL,
+		CREATE TABLE IF NOT EXISTS public_agent_labels (
+			agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			key TEXT NOT NULL,
 			value TEXT NOT NULL,
+			source TEXT NOT NULL DEFAULT 'user',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(backend_id, position)
+			PRIMARY KEY (agent_id, key)
 		)
 	`); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position ON public_backend_headers (backend_id, position)`); err != nil {
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_agent_labels_key_value ON public_agent_labels (key, value)`); err != nil {
+		return err
+	}
+	if err := db.backfillPublicAgentSystemLabels(); err != nil {
+		return err
+	}
+	if err := db.prepareLegacyPublicBackendMigration(); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS public_backend_upstream_headers (
+		CREATE TABLE IF NOT EXISTS public_route_targets (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+			name TEXT NOT NULL DEFAULT '',
+			position INTEGER NOT NULL,
+			priority_group INTEGER NOT NULL DEFAULT 0,
+			weight INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			target_type TEXT NOT NULL DEFAULT 'proxy',
+			url TEXT NOT NULL DEFAULT '',
+			transport TEXT NOT NULL DEFAULT 'direct',
+			agent_selector_json TEXT NOT NULL DEFAULT '{}',
+			agent_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+			tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+			upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
+			upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
+			upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
+			upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000,
+			health_check_enabled INTEGER NOT NULL DEFAULT 0,
+			health_check_method TEXT NOT NULL DEFAULT 'GET',
+			health_check_path TEXT NOT NULL DEFAULT '/',
+			health_check_interval_millis INTEGER NOT NULL DEFAULT 10000,
+			health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000,
+			health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2,
+			health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2,
+			health_check_expected_status_min INTEGER NOT NULL DEFAULT 200,
+			health_check_expected_status_max INTEGER NOT NULL DEFAULT 399,
+			static_status_code INTEGER NOT NULL DEFAULT 200,
+			static_response_body TEXT NOT NULL DEFAULT '',
+			static_response_body_mode TEXT NOT NULL DEFAULT 'inline',
+			static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(route_id, position)
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_targets_route_position ON public_route_targets (route_id, position)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_targets_route_group ON public_route_targets (route_id, priority_group, position)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_route_target_upstream_headers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			target_id INTEGER NOT NULL REFERENCES public_route_targets(id) ON DELETE CASCADE,
 			position INTEGER NOT NULL,
 			name TEXT NOT NULL,
 			value TEXT NOT NULL,
 			sensitive INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(backend_id, position)
+			UNIQUE(target_id, position)
 		)
 	`); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_upstream_headers_backend_position ON public_backend_upstream_headers (backend_id, position)`); err != nil {
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_target_upstream_headers_target_position ON public_route_target_upstream_headers (target_id, position)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS public_backend_agents (
-			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-			agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+		CREATE TABLE IF NOT EXISTS public_route_target_response_headers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			target_id INTEGER NOT NULL REFERENCES public_route_targets(id) ON DELETE CASCADE,
 			position INTEGER NOT NULL,
-			weight INTEGER NOT NULL DEFAULT 100,
-			enabled INTEGER NOT NULL DEFAULT 1,
+			name TEXT NOT NULL,
+			value TEXT NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (backend_id, agent_id),
-			UNIQUE(backend_id, position)
+			UNIQUE(target_id, position)
 		)
 	`); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_agents_backend_position ON public_backend_agents (backend_id, position)`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id ON public_backend_agents (agent_id)`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS public_route_backends (
-			route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
-			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-			position INTEGER NOT NULL,
-			weight INTEGER NOT NULL DEFAULT 100,
-			enabled INTEGER NOT NULL DEFAULT 1,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (route_id, backend_id),
-			UNIQUE(route_id, position)
-		)
-	`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_backends_route_position ON public_route_backends (route_id, position)`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id ON public_route_backends (backend_id)`); err != nil {
-		return err
-	}
-	if err := db.backfillPublicRouteBackends(); err != nil {
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_target_response_headers_target_position ON public_route_target_response_headers (target_id, position)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`
@@ -795,9 +787,6 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_response_templates_kind ON public_response_templates (kind, name)`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_backends_static_response_template_id ON public_backends (static_response_template_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`
@@ -899,7 +888,7 @@ func (db *DB) migrate() error {
 			trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
 			trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
 			trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
-			trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+			trigger_route_target_active_requests INTEGER NOT NULL DEFAULT 100,
 			trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
 			trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
 			trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
@@ -952,7 +941,7 @@ func (db *DB) migrate() error {
 			enabled INTEGER NOT NULL DEFAULT 1,
 			match_json TEXT NOT NULL DEFAULT '{}',
 			route_ids_json TEXT NOT NULL DEFAULT '[]',
-			backend_ids_json TEXT NOT NULL DEFAULT '[]',
+			target_ids_json TEXT NOT NULL DEFAULT '[]',
 			scope TEXT NOT NULL DEFAULT 'selected_backend',
 			ttl_mode TEXT NOT NULL DEFAULT 'fixed',
 			ttl_millis INTEGER NOT NULL DEFAULT 3600000,
@@ -971,6 +960,25 @@ func (db *DB) migrate() error {
 	}
 	if _, err := db.Exec(`ALTER TABLE public_cache_rules ADD COLUMN allow_cookie_requests INTEGER NOT NULL DEFAULT 0`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return err
+	}
+	if _, err := db.Exec(`ALTER TABLE public_cache_rules ADD COLUMN target_ids_json TEXT NOT NULL DEFAULT '[]'`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+	wafRuleColumns, err := db.sqliteTableColumns("public_waf_rules")
+	if err != nil {
+		return err
+	}
+	hasOldWAFRouteTargetTrigger := sqliteColumnExists(wafRuleColumns, "trigger_backend_active_requests")
+	hasWAFRouteTargetTrigger := sqliteColumnExists(wafRuleColumns, "trigger_route_target_active_requests")
+	switch {
+	case hasOldWAFRouteTargetTrigger && !hasWAFRouteTargetTrigger:
+		if _, err := db.Exec(`ALTER TABLE public_waf_rules RENAME COLUMN trigger_backend_active_requests TO trigger_route_target_active_requests`); err != nil {
+			return err
+		}
+	case !hasWAFRouteTargetTrigger:
+		if _, err := db.Exec(`ALTER TABLE public_waf_rules ADD COLUMN trigger_route_target_active_requests INTEGER NOT NULL DEFAULT 100`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
 	}
 	for _, stmt := range []string{
 		`ALTER TABLE public_waf_rules ADD COLUMN block_response_body_mode TEXT NOT NULL DEFAULT 'inline'`,
@@ -992,7 +1000,7 @@ func (db *DB) migrate() error {
 			path TEXT NOT NULL,
 			query_key TEXT NOT NULL,
 			route_id INTEGER,
-			backend_id INTEGER,
+			route_target_id INTEGER,
 			method TEXT NOT NULL DEFAULT 'GET',
 			vary_headers_json TEXT NOT NULL DEFAULT '[]',
 			response_headers_json TEXT NOT NULL DEFAULT '[]',
@@ -1005,6 +1013,15 @@ func (db *DB) migrate() error {
 			hit_count INTEGER NOT NULL DEFAULT 0
 		)
 	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`ALTER TABLE public_cache_entries ADD COLUMN route_target_id INTEGER`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+	if err := db.backfillPublicRouteTargets(); err != nil {
+		return err
+	}
+	if err := db.migrateDropLegacyPublicBackendConfig(); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_priority ON public_waf_rules (priority, id)`); err != nil {
@@ -1032,6 +1049,9 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_rule_id ON public_cache_entries (rule_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_route_target_id ON public_cache_entries (route_target_id)`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_expires_at ON public_cache_entries (expires_at)`); err != nil {
@@ -1074,7 +1094,7 @@ func (db *DB) migrateObservabilityRollups() error {
 	CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
 		bucket_unix_millis INTEGER NOT NULL,
 		listener_id INTEGER NOT NULL DEFAULT 0,
-		backend_id INTEGER NOT NULL DEFAULT 0,
+		route_target_id INTEGER NOT NULL DEFAULT 0,
 		route_id INTEGER NOT NULL DEFAULT 0,
 		agent_id INTEGER NOT NULL DEFAULT 0,
 		error_kind TEXT NOT NULL DEFAULT '',
@@ -1089,7 +1109,7 @@ func (db *DB) migrateObservabilityRollups() error {
 		response_bytes INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class)
+		PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
 	);
 
 	CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
@@ -1132,7 +1152,109 @@ func (db *DB) migrateObservabilityRollups() error {
 		0
 	WHERE NOT EXISTS (SELECT 1 FROM observability_rollup_state WHERE id = 1);
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+	return db.migrateProxyObservabilityTargetOnly()
+}
+
+func (db *DB) migrateProxyObservabilityTargetOnly() error {
+	eventColumns, err := db.sqliteTableColumns("proxy_request_events")
+	if err != nil {
+		return err
+	}
+	tupleColumns, err := db.sqliteTableColumns("proxy_request_tuple_rollup_minutes")
+	if err != nil {
+		return err
+	}
+	_, eventHasBackend := eventColumns["backend_id"]
+	_, tupleHasBackend := tupleColumns["backend_id"]
+	if !eventHasBackend && !tupleHasBackend {
+		return nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+		DROP INDEX IF EXISTS idx_proxy_request_events_backend_id;
+		DELETE FROM proxy_request_events;
+		DELETE FROM proxy_request_rollup_minutes;
+		DELETE FROM proxy_request_tuple_rollup_minutes;
+		UPDATE observability_rollup_state
+		SET proxy_backfill_upper_id = 0,
+		    proxy_backfilled_through_id = 0,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = 1;
+	`); err != nil {
+		return err
+	}
+
+	if eventHasBackend {
+		if _, err := tx.Exec(`
+			CREATE TABLE proxy_request_events_new (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				status_code INTEGER NOT NULL,
+				duration_ms INTEGER NOT NULL,
+				error_kind TEXT NOT NULL DEFAULT '',
+				listener_id INTEGER,
+				route_target_id INTEGER,
+				route_id INTEGER,
+				waf_rule_id INTEGER,
+				waf_action TEXT NOT NULL DEFAULT '',
+				agent_id INTEGER REFERENCES agents(id),
+				request_bytes INTEGER NOT NULL DEFAULT 0,
+				response_bytes INTEGER NOT NULL DEFAULT 0,
+				cache_rule_id INTEGER,
+				cache_status TEXT NOT NULL DEFAULT '',
+				cache_bytes INTEGER NOT NULL DEFAULT 0
+			)
+		`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DROP TABLE proxy_request_events`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`ALTER TABLE proxy_request_events_new RENAME TO proxy_request_events`); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS proxy_request_tuple_rollup_minutes`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`
+		CREATE TABLE proxy_request_tuple_rollup_minutes_new (
+			bucket_unix_millis INTEGER NOT NULL,
+			listener_id INTEGER NOT NULL DEFAULT 0,
+			route_target_id INTEGER NOT NULL DEFAULT 0,
+			route_id INTEGER NOT NULL DEFAULT 0,
+			agent_id INTEGER NOT NULL DEFAULT 0,
+			error_kind TEXT NOT NULL DEFAULT '',
+			status_class INTEGER NOT NULL DEFAULT 0,
+			requests INTEGER NOT NULL DEFAULT 0,
+			success INTEGER NOT NULL DEFAULT 0,
+			client_error INTEGER NOT NULL DEFAULT 0,
+			server_error INTEGER NOT NULL DEFAULT 0,
+			internal_error INTEGER NOT NULL DEFAULT 0,
+			duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+			request_bytes INTEGER NOT NULL DEFAULT 0,
+			response_bytes INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`ALTER TABLE proxy_request_tuple_rollup_minutes_new RENAME TO proxy_request_tuple_rollup_minutes`); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 type legacyPolicyMatchJSON struct {
@@ -1547,6 +1669,8 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 		"redirect_status_code",
 		"redirect_preserve_path_suffix",
 		"redirect_preserve_query",
+		"target_load_balancing",
+		"is_default",
 	}
 	needsRebuild := backendColumn.NotNull
 	for _, column := range requiredColumns {
@@ -1575,6 +1699,8 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			backend_id INTEGER REFERENCES public_backends(id),
 			load_balancing TEXT NOT NULL DEFAULT 'round_robin',
 			fallback_backend_id INTEGER REFERENCES public_backends(id),
+			target_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+			is_default INTEGER NOT NULL DEFAULT 0,
 			action TEXT NOT NULL DEFAULT 'forward',
 			redirect_target_mode TEXT NOT NULL DEFAULT '',
 			redirect_target TEXT NOT NULL DEFAULT '',
@@ -1605,6 +1731,8 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			backend_id,
 			load_balancing,
 			fallback_backend_id,
+			target_load_balancing,
+			is_default,
 			action,
 			redirect_target_mode,
 			redirect_target,
@@ -1630,6 +1758,8 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			%s,
 			%s,
 			%s,
+			%s,
+			%s,
 			enabled,
 			created_at,
 			updated_at
@@ -1637,6 +1767,8 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 	`,
 		columnExpr("load_balancing", "'round_robin'"),
 		columnExpr("fallback_backend_id", "NULL"),
+		columnExpr("target_load_balancing", columnExpr("load_balancing", "'round_robin'")),
+		columnExpr("is_default", "0"),
 		columnExpr("action", "'forward'"),
 		columnExpr("redirect_target_mode", "''"),
 		columnExpr("redirect_target", "''"),
@@ -1656,11 +1788,125 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority ON public_routes (listener_id, priority, id)`); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener ON public_routes (listener_id) WHERE is_default = 1`); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
+func (db *DB) prepareLegacyPublicBackendMigration() error {
+	hasBackends, err := db.sqliteTableExists("public_backends")
+	if err != nil {
+		return err
+	}
+	if !hasBackends {
+		return nil
+	}
+	for _, stmt := range []string{
+		`ALTER TABLE public_backends ADD COLUMN backend_type TEXT NOT NULL DEFAULT 'proxy_forward'`,
+		`ALTER TABLE public_backends ADD COLUMN forward_mode TEXT NOT NULL DEFAULT 'direct'`,
+		`ALTER TABLE public_backends ADD COLUMN load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
+		`ALTER TABLE public_backends ADD COLUMN tls_skip_verify INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN static_status_code INTEGER NOT NULL DEFAULT 200`,
+		`ALTER TABLE public_backends ADD COLUMN static_response_body TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN static_response_body_mode TEXT NOT NULL DEFAULT 'inline'`,
+		`ALTER TABLE public_backends ADD COLUMN static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_username TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_basic_auth_password TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE public_backends ADD COLUMN upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_enabled INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_method TEXT NOT NULL DEFAULT 'GET'`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_path TEXT NOT NULL DEFAULT '/'`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_interval_millis INTEGER NOT NULL DEFAULT 10000`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_expected_status_min INTEGER NOT NULL DEFAULT 200`,
+		`ALTER TABLE public_backends ADD COLUMN health_check_expected_status_max INTEGER NOT NULL DEFAULT 399`,
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
+	}
+	for _, stmt := range []string{
+		`CREATE TABLE IF NOT EXISTS public_backend_headers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			value TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(backend_id, position)
+		)`,
+		`CREATE TABLE IF NOT EXISTS public_backend_upstream_headers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			value TEXT NOT NULL,
+			sensitive INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(backend_id, position)
+		)`,
+		`CREATE TABLE IF NOT EXISTS public_backend_agents (
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			weight INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (backend_id, agent_id),
+			UNIQUE(backend_id, position)
+		)`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (db *DB) backfillPublicRouteBackends() error {
-	_, err := db.Exec(`
+	hasBackends, err := db.sqliteTableExists("public_backends")
+	if err != nil {
+		return err
+	}
+	if !hasBackends {
+		return nil
+	}
+	routeColumns, err := db.sqliteTableColumns("public_routes")
+	if err != nil {
+		return err
+	}
+	if !sqliteColumnExists(routeColumns, "backend_id") {
+		return nil
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_route_backends (
+			route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+			backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
+			position INTEGER NOT NULL,
+			weight INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (route_id, backend_id),
+			UNIQUE(route_id, position)
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_backends_route_position ON public_route_backends (route_id, position)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id ON public_route_backends (backend_id)`); err != nil {
+		return err
+	}
+	_, err = db.Exec(`
 		INSERT OR IGNORE INTO public_route_backends (route_id, backend_id, position, weight, enabled)
 		SELECT id, backend_id, 0, 100, 1
 		FROM public_routes
@@ -1668,6 +1914,933 @@ func (db *DB) backfillPublicRouteBackends() error {
 		  AND COALESCE(action, 'forward') = 'forward'
 	`)
 	return err
+}
+
+func (db *DB) backfillPublicAgentSystemLabels() error {
+	_, err := db.Exec(`
+		INSERT OR IGNORE INTO public_agent_labels (agent_id, key, value, source)
+		SELECT id, 'p2pstream.io/agent-id', public_id, 'system'
+		FROM agents
+		WHERE public_id != ''
+	`)
+	return err
+}
+
+func (db *DB) backfillPublicRouteTargets() error {
+	hasBackends, err := db.sqliteTableExists("public_backends")
+	if err != nil {
+		return err
+	}
+	if !hasBackends {
+		return nil
+	}
+	if err := db.backfillPublicRouteBackends(); err != nil {
+		return err
+	}
+	routeColumns, err := db.sqliteTableColumns("public_routes")
+	if err != nil {
+		return err
+	}
+	listenerColumns, err := db.sqliteTableColumns("public_listeners")
+	if err != nil {
+		return err
+	}
+	hasRouteBackends, err := db.sqliteTableExists("public_route_backends")
+	if err != nil {
+		return err
+	}
+	if !hasRouteBackends && !sqliteColumnExists(routeColumns, "fallback_backend_id") && !sqliteColumnExists(listenerColumns, "default_backend_id") {
+		return nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if sqliteColumnExists(listenerColumns, "default_backend_id") {
+		insertColumns := []string{
+			"listener_id",
+			"priority",
+			"host_pattern",
+			"path_prefix",
+		}
+		selectColumns := []string{
+			"l.id",
+			"9223372036854775807",
+			"''",
+			"''",
+		}
+		if sqliteColumnExists(routeColumns, "backend_id") {
+			insertColumns = append(insertColumns, "backend_id")
+			selectColumns = append(selectColumns, "l.default_backend_id")
+		}
+		if sqliteColumnExists(routeColumns, "load_balancing") {
+			insertColumns = append(insertColumns, "load_balancing")
+			selectColumns = append(selectColumns, "COALESCE(pb.load_balancing, 'round_robin')")
+		}
+		if sqliteColumnExists(routeColumns, "fallback_backend_id") {
+			insertColumns = append(insertColumns, "fallback_backend_id")
+			selectColumns = append(selectColumns, "NULL")
+		}
+		insertColumns = append(insertColumns,
+			"target_load_balancing",
+			"is_default",
+			"action",
+			"enabled",
+		)
+		selectColumns = append(selectColumns,
+			"'round_robin'",
+			"1",
+			"'forward'",
+			"l.enabled",
+		)
+		insertDefaultRouteSQL := fmt.Sprintf(`
+			INSERT OR IGNORE INTO public_routes (%s)
+			SELECT %s
+			FROM public_listeners l
+			LEFT JOIN public_backends pb ON pb.id = l.default_backend_id
+			WHERE l.default_backend_id IS NOT NULL
+			  AND NOT EXISTS (
+				SELECT 1
+				FROM public_routes r
+				WHERE r.listener_id = l.id
+				  AND r.is_default = 1
+			  )
+		`, strings.Join(insertColumns, ", "), strings.Join(selectColumns, ", "))
+		if _, err := tx.Exec(insertDefaultRouteSQL); err != nil {
+			return err
+		}
+		if hasRouteBackends {
+			if _, err := tx.Exec(`
+				INSERT OR IGNORE INTO public_route_backends (route_id, backend_id, position, weight, enabled)
+				SELECT id, backend_id, 0, 100, 1
+				FROM public_routes
+				WHERE backend_id IS NOT NULL
+				  AND COALESCE(action, 'forward') = 'forward'
+			`); err != nil {
+				return err
+			}
+		}
+	}
+
+	routeSources := []string{}
+	if sqliteColumnExists(listenerColumns, "default_backend_id") {
+		routeSources = append(routeSources, `
+			SELECT r.id AS route_id, l.default_backend_id AS backend_id, 0 AS position, 100 AS weight, 1 AS enabled, 0 AS priority_group
+			FROM public_listeners l
+			JOIN public_routes r ON r.listener_id = l.id AND r.is_default = 1
+			WHERE l.default_backend_id IS NOT NULL
+		`)
+	}
+	if hasRouteBackends {
+		routeSources = append(routeSources, `
+			SELECT route_id, backend_id, position, weight, enabled, 0 AS priority_group
+			FROM public_route_backends
+		`)
+	}
+	if sqliteColumnExists(routeColumns, "fallback_backend_id") {
+		routeSources = append(routeSources, `
+			SELECT id, fallback_backend_id, 0, 100, 1, 1
+			FROM public_routes
+			WHERE fallback_backend_id IS NOT NULL
+			  AND COALESCE(action, 'forward') = 'forward'
+		`)
+	}
+	if len(routeSources) == 0 {
+		if err := backfillPublicCacheRuleTargetFilters(tx, nil); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DELETE FROM public_cache_entries WHERE route_target_id IS NULL`); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	rows, err := tx.Query(strings.Join(routeSources, "\nUNION ALL\n") + "\nORDER BY route_id, priority_group, position, backend_id")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	targetsByBackend := map[int64]map[int64]struct{}{}
+	for rows.Next() {
+		var source legacyRouteTargetSource
+		if err := rows.Scan(
+			&source.RouteID,
+			&source.BackendID,
+			&source.Position,
+			&source.Weight,
+			&source.Enabled,
+			&source.PriorityGroup,
+		); err != nil {
+			return err
+		}
+		targetIDs, err := backfillLegacyRouteTarget(tx, source)
+		if err != nil {
+			return err
+		}
+		if len(targetIDs) == 0 {
+			continue
+		}
+		set := targetsByBackend[source.BackendID]
+		if set == nil {
+			set = map[int64]struct{}{}
+			targetsByBackend[source.BackendID] = set
+		}
+		for _, targetID := range targetIDs {
+			set[targetID] = struct{}{}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := backfillPublicCacheRuleTargetFilters(tx, targetsByBackend); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM public_cache_entries WHERE route_target_id IS NULL`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+type legacyRouteTargetSource struct {
+	RouteID       int64
+	BackendID     int64
+	Position      int64
+	Weight        int64
+	Enabled       int64
+	PriorityGroup int64
+}
+
+type legacyPublicBackend struct {
+	ID                                  int64
+	Name                                string
+	TargetOrigin                        string
+	BackendType                         string
+	ForwardMode                         string
+	LoadBalancing                       string
+	TLSSkipVerify                       int64
+	StaticStatusCode                    int64
+	StaticResponseBody                  string
+	StaticResponseBodyMode              string
+	StaticResponseTemplateID            sql.NullInt64
+	UpstreamBasicAuthEnabled            int64
+	UpstreamBasicAuthUsername           string
+	UpstreamBasicAuthPassword           string
+	UpstreamResponseHeaderTimeoutMillis int64
+	HealthCheckEnabled                  int64
+	HealthCheckMethod                   string
+	HealthCheckPath                     string
+	HealthCheckIntervalMillis           int64
+	HealthCheckTimeoutMillis            int64
+	HealthCheckHealthyThreshold         int64
+	HealthCheckUnhealthyThreshold       int64
+	HealthCheckExpectedStatusMin        int64
+	HealthCheckExpectedStatusMax        int64
+	Enabled                             int64
+}
+
+type legacyPublicBackendAgent struct {
+	AgentID  int64
+	Position int64
+	Weight   int64
+	Enabled  int64
+	PublicID string
+	Name     string
+}
+
+func backfillLegacyRouteTarget(tx *sql.Tx, source legacyRouteTargetSource) ([]int64, error) {
+	backend, err := loadLegacyPublicBackend(tx, source.BackendID)
+	if err != nil {
+		return nil, err
+	}
+	if backend.ID == 0 {
+		return nil, nil
+	}
+	if backend.BackendType == "proxy_forward" && backend.ForwardMode == "agent_pool" {
+		agents, err := loadLegacyPublicBackendAgents(tx, backend.ID)
+		if err != nil {
+			return nil, err
+		}
+		targetIDs := make([]int64, 0, len(agents))
+		for _, agent := range agents {
+			targetID, err := insertLegacyRouteTarget(tx, source, backend, &agent)
+			if err != nil {
+				return nil, err
+			}
+			if targetID != 0 {
+				targetIDs = append(targetIDs, targetID)
+			}
+		}
+		return targetIDs, nil
+	}
+	targetID, err := insertLegacyRouteTarget(tx, source, backend, nil)
+	if err != nil {
+		return nil, err
+	}
+	if targetID == 0 {
+		return nil, nil
+	}
+	return []int64{targetID}, nil
+}
+
+func loadLegacyPublicBackend(tx *sql.Tx, backendID int64) (legacyPublicBackend, error) {
+	var backend legacyPublicBackend
+	err := tx.QueryRow(`
+		SELECT
+			id,
+			name,
+			target_origin,
+			backend_type,
+			forward_mode,
+			load_balancing,
+			tls_skip_verify,
+			static_status_code,
+			static_response_body,
+			static_response_body_mode,
+			static_response_template_id,
+			upstream_basic_auth_enabled,
+			upstream_basic_auth_username,
+			upstream_basic_auth_password,
+			upstream_response_header_timeout_millis,
+			health_check_enabled,
+			health_check_method,
+			health_check_path,
+			health_check_interval_millis,
+			health_check_timeout_millis,
+			health_check_healthy_threshold,
+			health_check_unhealthy_threshold,
+			health_check_expected_status_min,
+			health_check_expected_status_max,
+			enabled
+		FROM public_backends
+		WHERE id = ?
+	`, backendID).Scan(
+		&backend.ID,
+		&backend.Name,
+		&backend.TargetOrigin,
+		&backend.BackendType,
+		&backend.ForwardMode,
+		&backend.LoadBalancing,
+		&backend.TLSSkipVerify,
+		&backend.StaticStatusCode,
+		&backend.StaticResponseBody,
+		&backend.StaticResponseBodyMode,
+		&backend.StaticResponseTemplateID,
+		&backend.UpstreamBasicAuthEnabled,
+		&backend.UpstreamBasicAuthUsername,
+		&backend.UpstreamBasicAuthPassword,
+		&backend.UpstreamResponseHeaderTimeoutMillis,
+		&backend.HealthCheckEnabled,
+		&backend.HealthCheckMethod,
+		&backend.HealthCheckPath,
+		&backend.HealthCheckIntervalMillis,
+		&backend.HealthCheckTimeoutMillis,
+		&backend.HealthCheckHealthyThreshold,
+		&backend.HealthCheckUnhealthyThreshold,
+		&backend.HealthCheckExpectedStatusMin,
+		&backend.HealthCheckExpectedStatusMax,
+		&backend.Enabled,
+	)
+	if err == sql.ErrNoRows {
+		return legacyPublicBackend{}, nil
+	}
+	return backend, err
+}
+
+func loadLegacyPublicBackendAgents(tx *sql.Tx, backendID int64) ([]legacyPublicBackendAgent, error) {
+	rows, err := tx.Query(`
+		SELECT pba.agent_id, pba.position, pba.weight, pba.enabled, a.public_id, a.name
+		FROM public_backend_agents pba
+		JOIN agents a ON a.id = pba.agent_id
+		WHERE pba.backend_id = ?
+		ORDER BY pba.position, pba.agent_id
+	`, backendID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var agents []legacyPublicBackendAgent
+	for rows.Next() {
+		var agent legacyPublicBackendAgent
+		if err := rows.Scan(&agent.AgentID, &agent.Position, &agent.Weight, &agent.Enabled, &agent.PublicID, &agent.Name); err != nil {
+			return nil, err
+		}
+		agents = append(agents, agent)
+	}
+	return agents, rows.Err()
+}
+
+func insertLegacyRouteTarget(tx *sql.Tx, source legacyRouteTargetSource, backend legacyPublicBackend, agent *legacyPublicBackendAgent) (int64, error) {
+	position := source.PriorityGroup*1_000_000_000 + source.Position*10_000
+	weight := clampLegacyRouteTargetWeight(source.Weight)
+	enabled := source.Enabled != 0 && backend.Enabled != 0
+	transport := "direct"
+	selectorJSON := "{}"
+	name := backend.Name
+	if agent != nil {
+		position += agent.Position
+		weight = clampLegacyRouteTargetWeight(source.Weight * agent.Weight)
+		enabled = enabled && agent.Enabled != 0
+		transport = "agent"
+		name = strings.TrimSpace(backend.Name + " / " + agent.Name)
+		selector, err := json.Marshal(map[string]map[string]string{
+			"match_labels": {
+				"p2pstream.io/agent-id": agent.PublicID,
+			},
+		})
+		if err != nil {
+			return 0, err
+		}
+		selectorJSON = string(selector)
+	}
+
+	targetType := "proxy"
+	if backend.BackendType == "static" {
+		targetType = "static"
+		transport = "direct"
+	}
+	staticTemplateID := any(nil)
+	if backend.StaticResponseTemplateID.Valid {
+		staticTemplateID = backend.StaticResponseTemplateID.Int64
+	}
+	enabledInt := int64(0)
+	if enabled {
+		enabledInt = 1
+	}
+	if _, err := tx.Exec(`
+		INSERT OR IGNORE INTO public_route_targets (
+			route_id,
+			name,
+			position,
+			priority_group,
+			weight,
+			enabled,
+			target_type,
+			url,
+			transport,
+			agent_selector_json,
+			agent_load_balancing,
+			tls_skip_verify,
+			upstream_basic_auth_enabled,
+			upstream_basic_auth_username,
+			upstream_basic_auth_password,
+			upstream_response_header_timeout_millis,
+			health_check_enabled,
+			health_check_method,
+			health_check_path,
+			health_check_interval_millis,
+			health_check_timeout_millis,
+			health_check_healthy_threshold,
+			health_check_unhealthy_threshold,
+			health_check_expected_status_min,
+			health_check_expected_status_max,
+			static_status_code,
+			static_response_body,
+			static_response_body_mode,
+			static_response_template_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, source.RouteID,
+		name,
+		position,
+		source.PriorityGroup,
+		weight,
+		enabledInt,
+		targetType,
+		backend.TargetOrigin,
+		transport,
+		selectorJSON,
+		backend.LoadBalancing,
+		backend.TLSSkipVerify,
+		backend.UpstreamBasicAuthEnabled,
+		backend.UpstreamBasicAuthUsername,
+		backend.UpstreamBasicAuthPassword,
+		backend.UpstreamResponseHeaderTimeoutMillis,
+		backend.HealthCheckEnabled,
+		backend.HealthCheckMethod,
+		backend.HealthCheckPath,
+		backend.HealthCheckIntervalMillis,
+		backend.HealthCheckTimeoutMillis,
+		backend.HealthCheckHealthyThreshold,
+		backend.HealthCheckUnhealthyThreshold,
+		backend.HealthCheckExpectedStatusMin,
+		backend.HealthCheckExpectedStatusMax,
+		backend.StaticStatusCode,
+		backend.StaticResponseBody,
+		backend.StaticResponseBodyMode,
+		staticTemplateID,
+	); err != nil {
+		return 0, err
+	}
+
+	var targetID int64
+	if err := tx.QueryRow(`
+		SELECT id
+		FROM public_route_targets
+		WHERE route_id = ?
+		  AND position = ?
+	`, source.RouteID, position).Scan(&targetID); err != nil {
+		return 0, err
+	}
+	if targetType == "proxy" {
+		if _, err := tx.Exec(`
+			INSERT OR IGNORE INTO public_route_target_upstream_headers (target_id, position, name, value, sensitive)
+			SELECT ?, position, name, value, sensitive
+			FROM public_backend_upstream_headers
+			WHERE backend_id = ?
+		`, targetID, backend.ID); err != nil {
+			return 0, err
+		}
+	} else {
+		if _, err := tx.Exec(`
+			INSERT OR IGNORE INTO public_route_target_response_headers (target_id, position, name, value)
+			SELECT ?, position, name, value
+			FROM public_backend_headers
+			WHERE backend_id = ?
+		`, targetID, backend.ID); err != nil {
+			return 0, err
+		}
+	}
+	return targetID, nil
+}
+
+func clampLegacyRouteTargetWeight(weight int64) int64 {
+	if weight < 1 {
+		return 1
+	}
+	if weight > 1_000_000 {
+		return 1_000_000
+	}
+	return weight
+}
+
+func backfillPublicCacheRuleTargetFilters(tx *sql.Tx, targetsByBackend map[int64]map[int64]struct{}) error {
+	columns, err := sqliteTxTableColumns(tx, "public_cache_rules")
+	if err != nil {
+		return err
+	}
+	if !sqliteColumnExists(columns, "backend_ids_json") {
+		return nil
+	}
+	rows, err := tx.Query(`SELECT id, backend_ids_json, target_ids_json FROM public_cache_rules`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	type cacheRuleUpdate struct {
+		id        int64
+		targetIDs []int64
+	}
+	var updates []cacheRuleUpdate
+	for rows.Next() {
+		var id int64
+		var backendIDsJSON string
+		var targetIDsJSON string
+		if err := rows.Scan(&id, &backendIDsJSON, &targetIDsJSON); err != nil {
+			return err
+		}
+		var existingTargetIDs []int64
+		if err := json.Unmarshal([]byte(targetIDsJSON), &existingTargetIDs); err == nil && len(existingTargetIDs) > 0 {
+			continue
+		}
+		var backendIDs []int64
+		if err := json.Unmarshal([]byte(backendIDsJSON), &backendIDs); err != nil || len(backendIDs) == 0 {
+			continue
+		}
+		targetSet := map[int64]struct{}{}
+		for _, backendID := range backendIDs {
+			for targetID := range targetsByBackend[backendID] {
+				targetSet[targetID] = struct{}{}
+			}
+		}
+		if len(targetSet) == 0 {
+			continue
+		}
+		targetIDs := make([]int64, 0, len(targetSet))
+		for targetID := range targetSet {
+			targetIDs = append(targetIDs, targetID)
+		}
+		sort.Slice(targetIDs, func(i, j int) bool { return targetIDs[i] < targetIDs[j] })
+		updates = append(updates, cacheRuleUpdate{id: id, targetIDs: targetIDs})
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, update := range updates {
+		payload, err := json.Marshal(update.targetIDs)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE public_cache_rules SET target_ids_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, string(payload), update.id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *DB) migrateDropLegacyPublicBackendConfig() error {
+	hasBackends, err := db.sqliteTableExists("public_backends")
+	if err != nil {
+		return err
+	}
+	listenerColumns, err := db.sqliteTableColumns("public_listeners")
+	if err != nil {
+		return err
+	}
+	routeColumns, err := db.sqliteTableColumns("public_routes")
+	if err != nil {
+		return err
+	}
+	cacheRuleColumns, err := db.sqliteTableColumns("public_cache_rules")
+	if err != nil {
+		return err
+	}
+	cacheEntryColumns, err := db.sqliteTableColumns("public_cache_entries")
+	if err != nil {
+		return err
+	}
+	needsRebuild := sqliteColumnExists(listenerColumns, "default_backend_id") ||
+		sqliteColumnExists(routeColumns, "backend_id") ||
+		sqliteColumnExists(routeColumns, "fallback_backend_id") ||
+		sqliteColumnExists(routeColumns, "load_balancing") ||
+		sqliteColumnExists(cacheRuleColumns, "backend_ids_json") ||
+		sqliteColumnExists(cacheEntryColumns, "backend_id")
+	if !hasBackends && !needsRebuild {
+		return nil
+	}
+
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(context.Background(), `PRAGMA foreign_keys = OFF`); err != nil {
+		return err
+	}
+	foreignKeysOff := true
+	defer func() {
+		if foreignKeysOff {
+			_, _ = conn.ExecContext(context.Background(), `PRAGMA foreign_keys = ON`)
+		}
+	}()
+
+	tx, err := conn.BeginTx(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, stmt := range []string{
+		`DROP INDEX IF EXISTS idx_public_backend_headers_backend_position`,
+		`DROP INDEX IF EXISTS idx_public_backend_upstream_headers_backend_position`,
+		`DROP INDEX IF EXISTS idx_public_backend_agents_backend_position`,
+		`DROP INDEX IF EXISTS idx_public_backend_agents_agent_id`,
+		`DROP INDEX IF EXISTS idx_public_route_backends_route_position`,
+		`DROP INDEX IF EXISTS idx_public_route_backends_backend_id`,
+		`DROP INDEX IF EXISTS idx_public_backends_static_response_template_id`,
+	} {
+		if _, err := tx.Exec(stmt); err != nil {
+			return err
+		}
+	}
+
+	if sqliteColumnExists(listenerColumns, "default_backend_id") {
+		if _, err := tx.Exec(`
+			CREATE TABLE public_listeners_new (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL UNIQUE,
+				bind_address TEXT NOT NULL DEFAULT '',
+				port INTEGER NOT NULL,
+				protocol TEXT NOT NULL,
+				enabled INTEGER NOT NULL DEFAULT 1,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				UNIQUE(bind_address, port)
+			)
+		`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`
+			INSERT INTO public_listeners_new (id, name, bind_address, port, protocol, enabled, created_at, updated_at)
+			SELECT id, name, bind_address, port, protocol, enabled, created_at, updated_at
+			FROM public_listeners
+		`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DROP TABLE public_listeners`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`ALTER TABLE public_listeners_new RENAME TO public_listeners`); err != nil {
+			return err
+		}
+	}
+
+	if sqliteColumnExists(routeColumns, "backend_id") || sqliteColumnExists(routeColumns, "fallback_backend_id") || sqliteColumnExists(routeColumns, "load_balancing") {
+		if _, err := tx.Exec(`
+			CREATE TABLE public_routes_new (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+				priority INTEGER NOT NULL,
+				host_pattern TEXT NOT NULL DEFAULT '',
+				path_prefix TEXT NOT NULL DEFAULT '',
+				target_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+				is_default INTEGER NOT NULL DEFAULT 0,
+				action TEXT NOT NULL DEFAULT 'forward',
+				redirect_target_mode TEXT NOT NULL DEFAULT '',
+				redirect_target TEXT NOT NULL DEFAULT '',
+				redirect_status_code INTEGER NOT NULL DEFAULT 302,
+				redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
+				redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+				enabled INTEGER NOT NULL DEFAULT 1,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)
+		`); err != nil {
+			return err
+		}
+		columnExpr := func(name string, fallback string) string {
+			if sqliteColumnExists(routeColumns, name) {
+				return name
+			}
+			return fallback
+		}
+		copyRoutesSQL := fmt.Sprintf(`
+			INSERT INTO public_routes_new (
+				id,
+				listener_id,
+				priority,
+				host_pattern,
+				path_prefix,
+				target_load_balancing,
+				is_default,
+				action,
+				redirect_target_mode,
+				redirect_target,
+				redirect_status_code,
+				redirect_preserve_path_suffix,
+				redirect_preserve_query,
+				enabled,
+				created_at,
+				updated_at
+			)
+			SELECT
+				id,
+				listener_id,
+				priority,
+				host_pattern,
+				path_prefix,
+				%s,
+				%s,
+				%s,
+				%s,
+				%s,
+				%s,
+				%s,
+				%s,
+				enabled,
+				created_at,
+				updated_at
+			FROM public_routes
+		`,
+			columnExpr("target_load_balancing", columnExpr("load_balancing", "'round_robin'")),
+			columnExpr("is_default", "0"),
+			columnExpr("action", "'forward'"),
+			columnExpr("redirect_target_mode", "''"),
+			columnExpr("redirect_target", "''"),
+			columnExpr("redirect_status_code", "302"),
+			columnExpr("redirect_preserve_path_suffix", "1"),
+			columnExpr("redirect_preserve_query", "1"),
+		)
+		if _, err := tx.Exec(copyRoutesSQL); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DROP TABLE public_routes`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`ALTER TABLE public_routes_new RENAME TO public_routes`); err != nil {
+			return err
+		}
+	}
+
+	if sqliteColumnExists(cacheRuleColumns, "backend_ids_json") {
+		if _, err := tx.Exec(`
+			CREATE TABLE public_cache_rules_new (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL UNIQUE,
+				priority INTEGER NOT NULL DEFAULT 100,
+				enabled INTEGER NOT NULL DEFAULT 1,
+				match_json TEXT NOT NULL DEFAULT '{}',
+				route_ids_json TEXT NOT NULL DEFAULT '[]',
+				target_ids_json TEXT NOT NULL DEFAULT '[]',
+				scope TEXT NOT NULL DEFAULT 'selected_backend',
+				ttl_mode TEXT NOT NULL DEFAULT 'fixed',
+				ttl_millis INTEGER NOT NULL DEFAULT 3600000,
+				query_mode TEXT NOT NULL DEFAULT 'full',
+				query_params_json TEXT NOT NULL DEFAULT '[]',
+				vary_headers_json TEXT NOT NULL DEFAULT '["Accept-Encoding"]',
+				cache_status_codes_json TEXT NOT NULL DEFAULT '[200,203,204,301,308]',
+				max_object_bytes INTEGER NOT NULL DEFAULT 104857600,
+				add_cache_status_header INTEGER NOT NULL DEFAULT 1,
+				allow_cookie_requests INTEGER NOT NULL DEFAULT 0,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)
+		`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`
+			INSERT INTO public_cache_rules_new (
+				id,
+				name,
+				priority,
+				enabled,
+				match_json,
+				route_ids_json,
+				target_ids_json,
+				scope,
+				ttl_mode,
+				ttl_millis,
+				query_mode,
+				query_params_json,
+				vary_headers_json,
+				cache_status_codes_json,
+				max_object_bytes,
+				add_cache_status_header,
+				allow_cookie_requests,
+				created_at,
+				updated_at
+			)
+			SELECT
+				id,
+				name,
+				priority,
+				enabled,
+				match_json,
+				route_ids_json,
+				target_ids_json,
+				scope,
+				ttl_mode,
+				ttl_millis,
+				query_mode,
+				query_params_json,
+				vary_headers_json,
+				cache_status_codes_json,
+				max_object_bytes,
+				add_cache_status_header,
+				allow_cookie_requests,
+				created_at,
+				updated_at
+			FROM public_cache_rules
+		`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DROP TABLE public_cache_rules`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`ALTER TABLE public_cache_rules_new RENAME TO public_cache_rules`); err != nil {
+			return err
+		}
+	}
+
+	if sqliteColumnExists(cacheEntryColumns, "backend_id") {
+		if _, err := tx.Exec(`DELETE FROM public_cache_entries`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`
+			CREATE TABLE public_cache_entries_new (
+				key_digest TEXT PRIMARY KEY,
+				rule_id INTEGER NOT NULL REFERENCES public_cache_rules(id) ON DELETE CASCADE,
+				scope TEXT NOT NULL,
+				listener_protocol TEXT NOT NULL,
+				host TEXT NOT NULL,
+				path TEXT NOT NULL,
+				query_key TEXT NOT NULL,
+				route_id INTEGER,
+				route_target_id INTEGER,
+				method TEXT NOT NULL DEFAULT 'GET',
+				vary_headers_json TEXT NOT NULL DEFAULT '[]',
+				response_headers_json TEXT NOT NULL DEFAULT '[]',
+				status_code INTEGER NOT NULL,
+				body_path TEXT NOT NULL,
+				size_bytes INTEGER NOT NULL,
+				stored_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				expires_at DATETIME NOT NULL,
+				last_accessed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				hit_count INTEGER NOT NULL DEFAULT 0
+			)
+		`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`DROP TABLE public_cache_entries`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`ALTER TABLE public_cache_entries_new RENAME TO public_cache_entries`); err != nil {
+			return err
+		}
+	}
+
+	for _, stmt := range []string{
+		`DROP TABLE IF EXISTS public_route_backends`,
+		`DROP TABLE IF EXISTS public_backend_agents`,
+		`DROP TABLE IF EXISTS public_backend_upstream_headers`,
+		`DROP TABLE IF EXISTS public_backend_headers`,
+		`DROP TABLE IF EXISTS public_backends`,
+		`CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority ON public_routes (listener_id, priority, id)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener ON public_routes (listener_id) WHERE is_default = 1`,
+		`CREATE INDEX IF NOT EXISTS idx_public_cache_rules_priority ON public_cache_rules (priority, id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_rule_id ON public_cache_entries (rule_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_route_target_id ON public_cache_entries (route_target_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_expires_at ON public_cache_entries (expires_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_cache_entries_last_accessed_at ON public_cache_entries (last_accessed_at)`,
+	} {
+		if _, err := tx.Exec(stmt); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if _, err := conn.ExecContext(context.Background(), `PRAGMA foreign_keys = ON`); err != nil {
+		return err
+	}
+	foreignKeysOff = false
+	rows, err := conn.QueryContext(context.Background(), `PRAGMA foreign_key_check`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return fmt.Errorf("foreign key check failed after legacy public backend cleanup")
+	}
+	return rows.Err()
+}
+
+func sqliteTxTableColumns(tx *sql.Tx, tableName string) (map[string]sqliteTableColumn, error) {
+	rows, err := tx.Query(`PRAGMA table_info(` + tableName + `)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns := map[string]sqliteTableColumn{}
+	for rows.Next() {
+		var cid int64
+		var name string
+		var columnType string
+		var notNull int64
+		var defaultValue sql.NullString
+		var primaryKey int64
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return nil, err
+		}
+		columns[name] = sqliteTableColumn{Name: name, NotNull: notNull != 0}
+	}
+	return columns, rows.Err()
 }
 
 func (db *DB) sqliteTableColumns(tableName string) (map[string]sqliteTableColumn, error) {
@@ -1691,4 +2864,23 @@ func (db *DB) sqliteTableColumns(tableName string) (map[string]sqliteTableColumn
 		columns[name] = sqliteTableColumn{Name: name, NotNull: notNull != 0}
 	}
 	return columns, rows.Err()
+}
+
+func (db *DB) sqliteTableExists(tableName string) (bool, error) {
+	var exists int64
+	err := db.QueryRow(`
+		SELECT COUNT(*)
+		FROM sqlite_master
+		WHERE type = 'table'
+		  AND name = ?
+	`, tableName).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists > 0, nil
+}
+
+func sqliteColumnExists(columns map[string]sqliteTableColumn, name string) bool {
+	_, ok := columns[name]
+	return ok
 }

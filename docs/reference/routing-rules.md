@@ -2,9 +2,9 @@
 
 Routes belong to listeners and are evaluated only for traffic received by that listener.
 
-## Exact Fields And Defaults
+## Route Fields And Defaults
 
-A route requires at least one of:
+A non-default route requires at least one of:
 
 - host pattern,
 - path prefix.
@@ -16,18 +16,30 @@ A route requires at least one of:
 | `host_pattern` | Exact host or wildcard subdomain. |
 | `path_prefix` | Must start with `/` when set. |
 | `action` | `forward` or `redirect`; defaults to forward when unspecified. |
-| `load_balancing` | Defaults to round-robin for forward backend pools. |
+| `target_load_balancing` | Defaults to round-robin for forward target pools. |
+| `is_default` | Marks the listener default route. One default route is allowed per listener. |
 | `redirect_status_code` | Defaults to `302` when unset. |
 | `redirect_preserve_path_suffix` | Defaults enabled. |
 | `redirect_preserve_query` | Defaults enabled. |
 
-Forward route pool fields:
+## Target Fields
+
+Forward routes require at least one enabled target.
 
 | Field | Rule |
 | --- | --- |
-| `backend_assignments` | At least one assignment for forward routes. Backend IDs must be unique per route. |
-| `weight` | `1` to `1000`; defaults to `100`. |
-| `fallback_backend_id` | Optional route fallback when no assigned backend is eligible. |
+| `target_type` | `proxy` or `static`. |
+| `url` | Required for proxy targets. Must be an HTTP or HTTPS origin. |
+| `transport` | `direct` or `agent` for proxy targets. |
+| `agent_selector.match_labels` | Required for agent targets. All labels must match the same enabled agent. |
+| `priority_group` | Lowest available group is selected; higher groups are failover. |
+| `weight` | `1` to `1000000`; defaults to `100`. |
+| `agent_load_balancing` | Agent selection policy for agent targets. |
+| `upstream_response_header_timeout_millis` | Defaults to `60000`. |
+
+Static targets use `static_status_code`, `static_response_headers`, and either inline body text or a generic response template.
+
+Agent labels are configured in the Agent editor. Labels under `p2pstream.io/` are system-owned. Use `p2pstream.io/agent-id=<agent public ID>` for exact-agent targeting. Empty selector values are allowed and match only agents with the same empty label value.
 
 ## Validation Rules
 
@@ -40,31 +52,25 @@ Wildcard patterns do not match the apex `example.com`.
 
 Redirect routes require target mode, target, and status code `301`, `302`, `307`, or `308`.
 
-| Mode | Valid target |
-| --- | --- |
-| Same host path | Root-relative path such as `/new`. |
-| External origin keep path | HTTP or HTTPS origin such as `https://new.example.com`. |
-| Absolute URL | Full HTTP or HTTPS URL. |
-
 ## Runtime Effects
 
-Routes are sorted by priority ascending, then route ID ascending. If no enabled route matches, the listener default backend handles the request.
+Routes are sorted by priority ascending, then route ID ascending. If no enabled non-default route matches, the listener default route handles the request.
 
-At request time, disabled assignments, disabled backends, unhealthy backends, and invalid backend configs are skipped. If nothing remains, the route fallback is tried. If no fallback is usable, the response is `503`.
+At request time, disabled targets, unhealthy targets, invalid target configs, and unavailable agent selector matches are skipped. p2pstream selects from the lowest available priority group. If no target is usable, the response is `503`.
 
-When backend health checks are enabled, connection and timeout failures mark the selected backend or backend-agent assignment temporarily unhealthy for later requests. The original request is not replayed to another backend.
+When target health checks are enabled, connection and timeout failures mark the selected target or target-agent path temporarily unhealthy for later requests. The original request is not replayed to another target.
 
-After a route and backend are selected, cache rules may serve eligible proxy-forward `GET` or `HEAD` requests. Redirect routes and static backends are not cached.
+After a route and target are selected, cache rules may serve eligible proxy `GET` or `HEAD` requests. Redirect routes and static targets are not cached.
 
-## Examples
+## Example
 
 Specific route before broad fallback:
 
-| Priority | Host | Path | Backend |
+| Priority | Host | Path | Target |
 | --- | --- | --- | --- |
-| `10` | `app.example.com` | `/api` | `api` |
-| `20` | `app.example.com` | `/` | `app` |
-| `1000` | empty | `/` | `default` |
+| `10` | `app.example.com` | `/api` | `api-direct` |
+| `20` | `app.example.com` | `/` | `app-agent` |
+| default | empty | `/` | `welcome-static` |
 
 ## Related Tasks
 

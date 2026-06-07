@@ -4,7 +4,7 @@ export type WafTriggerMetric =
   | "minimumRequestRate"
   | "trafficSpikeMultiplier"
   | "proxyActiveRequests"
-  | "backendActiveRequests"
+  | "routeTargetActiveRequests"
   | "agentActiveRequests"
   | "serverCpuPercent"
   | "agentCpuPercent";
@@ -26,7 +26,7 @@ export type WafTriggerPayload = {
   minimumRequestRate: bigint;
   trafficSpikeMultiplier: number;
   proxyActiveRequests: bigint;
-  backendActiveRequests: bigint;
+  routeTargetActiveRequests: bigint;
   agentActiveRequests: bigint;
   serverCpuPercent: number;
   agentCpuPercent: number;
@@ -42,7 +42,7 @@ const METRIC_DEFAULTS: Record<WafTriggerMetric, number> = {
   minimumRequestRate: 50,
   trafficSpikeMultiplier: 4,
   proxyActiveRequests: 100,
-  backendActiveRequests: 100,
+  routeTargetActiveRequests: 100,
   agentActiveRequests: 50,
   serverCpuPercent: 85,
   agentCpuPercent: 85,
@@ -55,7 +55,7 @@ export function defaultWafTriggerForm(): WafTriggerForm {
       minimumRequestRate: enabledMetric(METRIC_DEFAULTS.minimumRequestRate),
       trafficSpikeMultiplier: enabledMetric(METRIC_DEFAULTS.trafficSpikeMultiplier),
       proxyActiveRequests: enabledMetric(METRIC_DEFAULTS.proxyActiveRequests),
-      backendActiveRequests: enabledMetric(METRIC_DEFAULTS.backendActiveRequests),
+      routeTargetActiveRequests: enabledMetric(METRIC_DEFAULTS.routeTargetActiveRequests),
       agentActiveRequests: enabledMetric(METRIC_DEFAULTS.agentActiveRequests),
       serverCpuPercent: enabledMetric(METRIC_DEFAULTS.serverCpuPercent),
       agentCpuPercent: enabledMetric(METRIC_DEFAULTS.agentCpuPercent),
@@ -73,7 +73,7 @@ export function wafTriggerFormFromProto(triggers?: Partial<PublicWafTriggerConfi
       minimumRequestRate: metricFromValue(triggers.minimumRequestRate, METRIC_DEFAULTS.minimumRequestRate),
       trafficSpikeMultiplier: metricFromValue(triggers.trafficSpikeMultiplier, METRIC_DEFAULTS.trafficSpikeMultiplier),
       proxyActiveRequests: metricFromValue(triggers.proxyActiveRequests, METRIC_DEFAULTS.proxyActiveRequests),
-      backendActiveRequests: metricFromValue(triggers.backendActiveRequests, METRIC_DEFAULTS.backendActiveRequests),
+      routeTargetActiveRequests: metricFromValue(triggers.routeTargetActiveRequests, METRIC_DEFAULTS.routeTargetActiveRequests),
       agentActiveRequests: metricFromValue(triggers.agentActiveRequests, METRIC_DEFAULTS.agentActiveRequests),
       serverCpuPercent: metricFromValue(triggers.serverCpuPercent, METRIC_DEFAULTS.serverCpuPercent),
       agentCpuPercent: metricFromValue(triggers.agentCpuPercent, METRIC_DEFAULTS.agentCpuPercent),
@@ -89,7 +89,7 @@ export function wafTriggerPayloadFromForm(form: WafTriggerForm): WafTriggerPaylo
     minimumRequestRate: metricBigInt(form.metrics.minimumRequestRate),
     trafficSpikeMultiplier: metricNumber(form.metrics.trafficSpikeMultiplier),
     proxyActiveRequests: metricBigInt(form.metrics.proxyActiveRequests),
-    backendActiveRequests: metricBigInt(form.metrics.backendActiveRequests),
+    routeTargetActiveRequests: metricBigInt(form.metrics.routeTargetActiveRequests),
     agentActiveRequests: metricBigInt(form.metrics.agentActiveRequests),
     serverCpuPercent: metricNumber(form.metrics.serverCpuPercent),
     agentCpuPercent: metricNumber(form.metrics.agentCpuPercent),
@@ -113,7 +113,7 @@ function cloneWafTriggerForm(form: WafTriggerForm): WafTriggerForm {
       minimumRequestRate: { ...form.metrics.minimumRequestRate },
       trafficSpikeMultiplier: { ...form.metrics.trafficSpikeMultiplier },
       proxyActiveRequests: { ...form.metrics.proxyActiveRequests },
-      backendActiveRequests: { ...form.metrics.backendActiveRequests },
+      routeTargetActiveRequests: { ...form.metrics.routeTargetActiveRequests },
       agentActiveRequests: { ...form.metrics.agentActiveRequests },
       serverCpuPercent: { ...form.metrics.serverCpuPercent },
       agentCpuPercent: { ...form.metrics.agentCpuPercent },

@@ -53,11 +53,12 @@ func TestDockerSmoke(t *testing.T) {
 	cookie := setupAndLogin(ctx, t, client)
 
 	cfg := getPublicProxyConfig(ctx, t, client, cookie)
-	defaultBackend := requireBackend(t, cfg, "default")
-	ensureDefaultListeners(ctx, t, client, cookie, cfg, defaultBackend.Id)
+	ensureDefaultListeners(ctx, t, client, cookie, cfg)
 	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "Welcome to p2pstream proxy", "seeded static welcome listener")
 
-	defaultBackend = upsertProxyBackend(ctx, t, client, cookie, defaultBackend, upstreamURL)
+	cfg = getPublicProxyConfig(ctx, t, client, cookie)
+	defaultListener := requireListener(t, cfg, "public-http")
+	upsertDefaultRouteTarget(ctx, t, client, cookie, cfg, defaultListener.GetId(), "default", proxyTarget("default-direct", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT, "", 60000))
 
 	waitAgentConnected(ctx, t, client, cookie)
 	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "smoke upstream ok", "proxy-forward default listener")
@@ -69,8 +70,10 @@ func TestDockerSmoke(t *testing.T) {
 
 	cfg = getPublicProxyConfig(ctx, t, client, cookie)
 	dockerAgent := requireAgent(t, cfg, "docker-agent")
-	agentBackend := upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id, 60000)
-	_ = upsertAgentListener(ctx, t, client, cookie, agentBackend.Id)
+	dockerAgent = updateAgentLabels(ctx, t, client, cookie, dockerAgent, map[string]string{"smoke": "true", "site": "docker"})
+	agentSelector := map[string]string{"smoke": "true", "site": "docker"}
+	agentListener := upsertListener(ctx, t, client, cookie, cfg, "docker-agent", "", 8089, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true)
+	upsertDefaultRouteTarget(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), agentListener.GetId(), "docker-agent", proxyTargetWithSelector("docker-agent-target", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT, agentSelector, 60000))
 	waitHTTPBody(t, httpClient(), publicAgentURL, http.StatusOK, "smoke upstream ok", "agent-routed listener")
 	t.Run("agent pool forwarding", func(t *testing.T) {
 		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent GET")
@@ -79,7 +82,7 @@ func TestDockerSmoke(t *testing.T) {
 		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"), mustURLHost(t, upstreamURL), mustURLHost(t, publicAgentURL))
 		smokeWebSocketEcho(t, smokeURL(publicAgentURL, "/ws"))
 
-		agentBackend = upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id, 1000)
+		upsertDefaultRouteTarget(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), agentListener.GetId(), "docker-agent", proxyTargetWithSelector("docker-agent-target", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT, agentSelector, 1000))
 		waitHTTPStatus(t, httpClient(), smokeURL(publicAgentURL, "/slow-headers"), func(resp *http.Response, body string) error {
 			if resp.StatusCode != http.StatusGatewayTimeout {
 				return fmt.Errorf("expected status 504, got %d with body %q", resp.StatusCode, body)
@@ -87,13 +90,13 @@ func TestDockerSmoke(t *testing.T) {
 			return nil
 		}, "agent response-header timeout")
 
-		agentBackend = upsertAgentBackend(ctx, t, client, cookie, upstreamURL, dockerAgent.Id, 60000)
+		upsertDefaultRouteTarget(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), agentListener.GetId(), "docker-agent", proxyTargetWithSelector("docker-agent-target", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT, agentSelector, 60000))
 		smokeCloseEarly(t, smokeURL(publicAgentURL, "/close-early"))
 		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent listener after close-early")
 	})
 
-	staticBackend := upsertStaticBackend(ctx, t, client, cookie)
-	staticListener := upsertStaticListener(ctx, t, client, cookie, staticBackend.Id)
+	staticListener := upsertListener(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), "docker-static", "", 8088, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true)
+	upsertDefaultRouteTarget(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), staticListener.GetId(), "docker-static", staticTarget("docker-static-target", http.StatusOK, "ok"))
 	waitHTTPBody(t, httpClient(), publicStaticURL, http.StatusOK, "ok", "static listener")
 
 	disablePublicListener(ctx, t, client, cookie, staticListener.Id)
@@ -110,61 +113,6 @@ func TestDockerSmoke(t *testing.T) {
 	}, "HTTPS fallback listener")
 
 	waitDashboardHasProxyRequests(ctx, t, client, cookie)
-}
-
-func upsertAgentBackend(
-	ctx context.Context,
-	t *testing.T,
-	client p2pstreamv1connect.AgentManagementServiceClient,
-	cookie string,
-	targetOrigin string,
-	agentID int64,
-	responseHeaderTimeoutMillis int64,
-) *p2pstreamv1.PublicBackend {
-	t.Helper()
-
-	assignment := &p2pstreamv1.PublicBackendAgent{
-		AgentId: agentID,
-		Weight:  100,
-		Enabled: true,
-	}
-	cfg := getPublicProxyConfig(ctx, t, client, cookie)
-	if existing := findBackend(cfg, "docker-agent-backend"); existing != nil {
-		req := connect.NewRequest(&p2pstreamv1.UpdatePublicBackendRequest{
-			Id:                                  existing.GetId(),
-			Name:                                "docker-agent-backend",
-			TargetOrigin:                        targetOrigin,
-			Enabled:                             true,
-			BackendType:                         p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
-			ForwardMode:                         p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
-			LoadBalancing:                       p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN,
-			AgentAssignments:                    []*p2pstreamv1.PublicBackendAgent{assignment},
-			UpstreamResponseHeaderTimeoutMillis: responseHeaderTimeoutMillis,
-		})
-		req.Header().Set("Cookie", cookie)
-		resp, err := client.UpdatePublicBackend(ctx, req)
-		if err != nil {
-			t.Fatalf("update agent backend: %v", err)
-		}
-		return resp.Msg.GetBackend()
-	}
-
-	req := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:                                "docker-agent-backend",
-		TargetOrigin:                        targetOrigin,
-		Enabled:                             true,
-		BackendType:                         p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
-		ForwardMode:                         p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
-		LoadBalancing:                       p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_ROUND_ROBIN,
-		AgentAssignments:                    []*p2pstreamv1.PublicBackendAgent{assignment},
-		UpstreamResponseHeaderTimeoutMillis: responseHeaderTimeoutMillis,
-	})
-	req.Header().Set("Cookie", cookie)
-	resp, err := client.CreatePublicBackend(ctx, req)
-	if err != nil {
-		t.Fatalf("create agent backend: %v", err)
-	}
-	return resp.Msg.GetBackend()
 }
 
 func waitManagement(ctx context.Context, t *testing.T, client p2pstreamv1connect.AgentManagementServiceClient) {
@@ -233,155 +181,61 @@ func getPublicProxyConfig(
 	return resp.Msg
 }
 
-func upsertProxyBackend(
-	ctx context.Context,
-	t *testing.T,
-	client p2pstreamv1connect.AgentManagementServiceClient,
-	cookie string,
-	backend *p2pstreamv1.PublicBackend,
-	targetOrigin string,
-) *p2pstreamv1.PublicBackend {
-	t.Helper()
-
-	req := connect.NewRequest(&p2pstreamv1.UpdatePublicBackendRequest{
-		Id:           backend.GetId(),
-		Name:         backend.GetName(),
-		TargetOrigin: targetOrigin,
-		Enabled:      true,
-		BackendType:  p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
-	})
-	req.Header().Set("Cookie", cookie)
-	resp, err := client.UpdatePublicBackend(ctx, req)
-	if err != nil {
-		t.Fatalf("update default proxy backend: %v", err)
-	}
-	return resp.Msg.GetBackend()
-}
-
-func upsertStaticBackend(
-	ctx context.Context,
-	t *testing.T,
-	client p2pstreamv1connect.AgentManagementServiceClient,
-	cookie string,
-) *p2pstreamv1.PublicBackend {
-	t.Helper()
-
-	cfg := getPublicProxyConfig(ctx, t, client, cookie)
-	if existing := findBackend(cfg, "docker-static"); existing != nil {
-		req := connect.NewRequest(&p2pstreamv1.UpdatePublicBackendRequest{
-			Id:               existing.GetId(),
-			Name:             "docker-static",
-			Enabled:          true,
-			BackendType:      p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC,
-			StaticStatusCode: http.StatusOK,
-			StaticResponseHeaders: []*p2pstreamv1.PublicHeader{
-				{Name: "Content-Type", Value: "text/plain"},
-			},
-			StaticResponseBody: "ok",
-		})
-		req.Header().Set("Cookie", cookie)
-		resp, err := client.UpdatePublicBackend(ctx, req)
-		if err != nil {
-			t.Fatalf("update static backend: %v", err)
-		}
-		return resp.Msg.GetBackend()
-	}
-
-	req := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:             "docker-static",
-		Enabled:          true,
-		BackendType:      p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC,
-		StaticStatusCode: http.StatusOK,
-		StaticResponseHeaders: []*p2pstreamv1.PublicHeader{
-			{Name: "Content-Type", Value: "text/plain"},
-		},
-		StaticResponseBody: "ok",
-	})
-	req.Header().Set("Cookie", cookie)
-	resp, err := client.CreatePublicBackend(ctx, req)
-	if err != nil {
-		t.Fatalf("create static backend: %v", err)
-	}
-	return resp.Msg.GetBackend()
-}
-
 func ensureDefaultListeners(
 	ctx context.Context,
 	t *testing.T,
 	client p2pstreamv1connect.AgentManagementServiceClient,
 	cookie string,
 	cfg *p2pstreamv1.GetPublicProxyConfigResponse,
-	defaultBackendID int64,
 ) {
 	t.Helper()
 
 	httpListener := requireListener(t, cfg, "public-http")
-	if httpListener.GetPort() != 8080 || !httpListener.GetEnabled() || httpListener.GetDefaultBackendId() != defaultBackendID {
-		updateListener(ctx, t, client, cookie, httpListener.GetId(), "public-http", "", 8080, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true, defaultBackendID)
+	if httpListener.GetPort() != 8080 ||
+		!httpListener.GetEnabled() ||
+		httpListener.GetProtocol() != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP ||
+		httpListener.GetBindAddress() != "" {
+		updateListener(ctx, t, client, cookie, httpListener.GetId(), "public-http", "", 8080, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true)
 	}
 
 	httpsListener := requireListener(t, cfg, "public-https")
-	if httpsListener.GetPort() != 443 || !httpsListener.GetEnabled() || httpsListener.GetDefaultBackendId() != defaultBackendID {
-		updateListener(ctx, t, client, cookie, httpsListener.GetId(), "public-https", "", 443, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS, true, defaultBackendID)
+	if httpsListener.GetPort() != 443 ||
+		!httpsListener.GetEnabled() ||
+		httpsListener.GetProtocol() != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS ||
+		httpsListener.GetBindAddress() != "" {
+		updateListener(ctx, t, client, cookie, httpsListener.GetId(), "public-https", "", 443, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS, true)
 	}
 }
 
-func upsertStaticListener(
+func upsertListener(
 	ctx context.Context,
 	t *testing.T,
 	client p2pstreamv1connect.AgentManagementServiceClient,
 	cookie string,
-	backendID int64,
+	cfg *p2pstreamv1.GetPublicProxyConfigResponse,
+	name string,
+	bindAddress string,
+	port int64,
+	protocol p2pstreamv1.PublicListenerProtocol,
+	enabled bool,
 ) *p2pstreamv1.PublicListener {
 	t.Helper()
 
-	cfg := getPublicProxyConfig(ctx, t, client, cookie)
-	if existing := findListener(cfg, "docker-static"); existing != nil {
-		return updateListener(ctx, t, client, cookie, existing.GetId(), "docker-static", "", 8088, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true, backendID)
+	if existing := findListener(cfg, name); existing != nil {
+		return updateListener(ctx, t, client, cookie, existing.GetId(), name, bindAddress, port, protocol, enabled)
 	}
 
 	req := connect.NewRequest(&p2pstreamv1.CreatePublicListenerRequest{
-		Name:             "docker-static",
-		BindAddress:      "",
-		Port:             8088,
-		Protocol:         p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP,
-		Enabled:          true,
-		DefaultBackendId: backendID,
+		Name:        name,
+		BindAddress: bindAddress,
+		Port:        port,
+		Protocol:    protocol,
+		Enabled:     enabled,
 	})
 	req.Header().Set("Cookie", cookie)
 	resp, err := client.CreatePublicListener(ctx, req)
 	if err != nil {
-		t.Fatalf("create static listener: %v", err)
-	}
-	return resp.Msg.GetListener()
-}
-
-func upsertAgentListener(
-	ctx context.Context,
-	t *testing.T,
-	client p2pstreamv1connect.AgentManagementServiceClient,
-	cookie string,
-	backendID int64,
-) *p2pstreamv1.PublicListener {
-	t.Helper()
-
-	cfg := getPublicProxyConfig(ctx, t, client, cookie)
-	if existing := findListener(cfg, "docker-agent"); existing != nil {
-		return updateListener(ctx, t, client, cookie, existing.GetId(), "docker-agent", "", 8089, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true, backendID)
-	}
-
-	req := connect.NewRequest(&p2pstreamv1.CreatePublicListenerRequest{
-		Name:             "docker-agent",
-		BindAddress:      "",
-		Port:             8089,
-		Protocol:         p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP,
-		Enabled:          true,
-		DefaultBackendId: backendID,
-	})
-	req.Header().Set("Cookie", cookie)
-	resp, err := client.CreatePublicListener(ctx, req)
-	if err != nil {
-		t.Fatalf("create agent listener: %v", err)
+		t.Fatalf("create listener %q: %v", name, err)
 	}
 	return resp.Msg.GetListener()
 }
@@ -397,18 +251,16 @@ func updateListener(
 	port int64,
 	protocol p2pstreamv1.PublicListenerProtocol,
 	enabled bool,
-	defaultBackendID int64,
 ) *p2pstreamv1.PublicListener {
 	t.Helper()
 
 	req := connect.NewRequest(&p2pstreamv1.UpdatePublicListenerRequest{
-		Id:               id,
-		Name:             name,
-		BindAddress:      bindAddress,
-		Port:             port,
-		Protocol:         protocol,
-		Enabled:          enabled,
-		DefaultBackendId: defaultBackendID,
+		Id:          id,
+		Name:        name,
+		BindAddress: bindAddress,
+		Port:        port,
+		Protocol:    protocol,
+		Enabled:     enabled,
 	})
 	req.Header().Set("Cookie", cookie)
 	resp, err := client.UpdatePublicListener(ctx, req)
@@ -416,6 +268,147 @@ func updateListener(
 		t.Fatalf("update listener %q: %v", name, err)
 	}
 	return resp.Msg.GetListener()
+}
+
+func upsertDefaultRouteTarget(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	cfg *p2pstreamv1.GetPublicProxyConfigResponse,
+	listenerID int64,
+	name string,
+	target *p2pstreamv1.PublicRouteTarget,
+) *p2pstreamv1.PublicRoute {
+	t.Helper()
+
+	target.RouteId = 0
+	target.Position = 0
+	route := findDefaultRoute(cfg, listenerID)
+	if route == nil {
+		req := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
+			ListenerId:                 listenerID,
+			Priority:                   1000,
+			PathPrefix:                 "/",
+			TargetLoadBalancing:        p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN,
+			IsDefault:                  true,
+			Targets:                    []*p2pstreamv1.PublicRouteTarget{target},
+			Enabled:                    true,
+			Action:                     p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD,
+			RedirectStatusCode:         http.StatusFound,
+			RedirectPreservePathSuffix: true,
+			RedirectPreserveQuery:      true,
+		})
+		req.Header().Set("Cookie", cookie)
+		resp, err := client.CreatePublicRoute(ctx, req)
+		if err != nil {
+			t.Fatalf("create default route %q: %v", name, err)
+		}
+		return resp.Msg.GetRoute()
+	}
+
+	req := connect.NewRequest(&p2pstreamv1.UpdatePublicRouteRequest{
+		Id:                         route.GetId(),
+		ListenerId:                 listenerID,
+		Priority:                   route.GetPriority(),
+		HostPattern:                route.GetHostPattern(),
+		PathPrefix:                 route.GetPathPrefix(),
+		TargetLoadBalancing:        p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN,
+		IsDefault:                  true,
+		Targets:                    []*p2pstreamv1.PublicRouteTarget{target},
+		Enabled:                    true,
+		Action:                     p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD,
+		RedirectStatusCode:         http.StatusFound,
+		RedirectPreservePathSuffix: true,
+		RedirectPreserveQuery:      true,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.UpdatePublicRoute(ctx, req)
+	if err != nil {
+		t.Fatalf("update default route %q: %v", name, err)
+	}
+	return resp.Msg.GetRoute()
+}
+
+func proxyTarget(name string, targetURL string, transport p2pstreamv1.PublicRouteTargetTransport, agentPublicID string, responseHeaderTimeoutMillis int64) *p2pstreamv1.PublicRouteTarget {
+	selectorLabels := map[string]string{}
+	if transport == p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT {
+		selectorLabels = map[string]string{"p2pstream.io/agent-id": agentPublicID}
+	}
+	return proxyTargetWithSelector(name, targetURL, transport, selectorLabels, responseHeaderTimeoutMillis)
+}
+
+func proxyTargetWithSelector(name string, targetURL string, transport p2pstreamv1.PublicRouteTargetTransport, selectorLabels map[string]string, responseHeaderTimeoutMillis int64) *p2pstreamv1.PublicRouteTarget {
+	selector := &p2pstreamv1.PublicAgentSelector{}
+	if transport == p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT {
+		selector.MatchLabels = selectorLabels
+	}
+	return &p2pstreamv1.PublicRouteTarget{
+		Name:                                name,
+		Enabled:                             true,
+		TargetType:                          p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_PROXY,
+		Url:                                 targetURL,
+		Transport:                           transport,
+		AgentSelector:                       selector,
+		AgentLoadBalancing:                  p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN,
+		Weight:                              100,
+		UpstreamResponseHeaderTimeoutMillis: responseHeaderTimeoutMillis,
+		HealthCheck: &p2pstreamv1.PublicRouteTargetHealthCheck{
+			Method:             http.MethodGet,
+			Path:               "/health",
+			IntervalMillis:     10000,
+			TimeoutMillis:      2000,
+			HealthyThreshold:   2,
+			UnhealthyThreshold: 2,
+			ExpectedStatusMin:  200,
+			ExpectedStatusMax:  399,
+		},
+	}
+}
+
+func updateAgentLabels(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	agent *p2pstreamv1.Agent,
+	labels map[string]string,
+) *p2pstreamv1.Agent {
+	t.Helper()
+
+	req := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
+		Id:      agent.GetId(),
+		Name:    agent.GetName(),
+		Enabled: agent.GetEnabled(),
+		Labels:  labels,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.UpdateAgent(ctx, req)
+	if err != nil {
+		t.Fatalf("update agent labels for %q: %v", agent.GetPublicId(), err)
+	}
+	for key, want := range labels {
+		if got := resp.Msg.GetAgent().GetLabels()[key]; got != want {
+			t.Fatalf("agent label %s = %q, want %q", key, got, want)
+		}
+	}
+	return resp.Msg.GetAgent()
+}
+
+func staticTarget(name string, statusCode int, body string) *p2pstreamv1.PublicRouteTarget {
+	return &p2pstreamv1.PublicRouteTarget{
+		Name:       name,
+		Enabled:    true,
+		TargetType: p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC,
+		Transport:  p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT,
+		Weight:     100,
+		StaticResponseHeaders: []*p2pstreamv1.PublicHeader{
+			{Name: "Content-Type", Value: "text/plain"},
+		},
+		StaticStatusCode:       int64(statusCode),
+		StaticResponseBody:     body,
+		StaticResponseBodyMode: p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+	}
 }
 
 func disablePublicListener(
@@ -897,15 +890,6 @@ func managementHTTPClient(t *testing.T) *http.Client {
 	return &http.Client{Timeout: 10 * time.Second, Transport: transport}
 }
 
-func requireBackend(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *p2pstreamv1.PublicBackend {
-	t.Helper()
-	backend := findBackend(cfg, name)
-	if backend == nil {
-		t.Fatalf("backend %q not found in %+v", name, cfg.GetBackends())
-	}
-	return backend
-}
-
 func requireAgent(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, publicID string) *p2pstreamv1.Agent {
 	t.Helper()
 	for _, agent := range cfg.GetAgents() {
@@ -914,15 +898,6 @@ func requireAgent(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, p
 		}
 	}
 	t.Fatalf("agent %q not found in %+v", publicID, cfg.GetAgents())
-	return nil
-}
-
-func findBackend(cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *p2pstreamv1.PublicBackend {
-	for _, backend := range cfg.GetBackends() {
-		if backend.GetName() == name {
-			return backend
-		}
-	}
 	return nil
 }
 
@@ -939,6 +914,15 @@ func findListener(cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *p
 	for _, listener := range cfg.GetListeners() {
 		if listener.GetName() == name {
 			return listener
+		}
+	}
+	return nil
+}
+
+func findDefaultRoute(cfg *p2pstreamv1.GetPublicProxyConfigResponse, listenerID int64) *p2pstreamv1.PublicRoute {
+	for _, route := range cfg.GetRoutes() {
+		if route.GetListenerId() == listenerID && route.GetIsDefault() {
+			return route
 		}
 	}
 	return nil

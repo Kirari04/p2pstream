@@ -18,10 +18,10 @@ Policy match timing depends on the feature using the matcher:
 | --- | --- |
 | WAF | Before rate limits, traffic shapers, route resolution, and forwarding. |
 | Rate limits | After WAF, before traffic shaping and route resolution. |
-| Traffic shapers | After WAF and rate limits, before route/backend forwarding. |
-| Cache | After route/backend selection, before upstream forwarding. |
+| Traffic shapers | After WAF and rate limits, before route/target forwarding. |
+| Cache | After route/target selection, before upstream forwarding. |
 
-Cache `route_ids` and `backend_ids` are separate post-routing filters. They are not CEL variables.
+Cache `route_ids` and `target_ids` are separate post-routing filters. They are not CEL variables.
 
 ## API Shape
 
@@ -182,14 +182,14 @@ method in ["GET", "POST"] && host_match(host, "*.example.com") && path_prefix(pa
 CEL policy matches cannot inspect:
 
 - route data,
-- backend data,
-- backend health,
+- target data,
+- target health,
 - load-balancer state,
 - response data,
 - cache result,
 - request body.
 
-For cache rules, route and backend scoping must use the rule's `route_ids` and `backend_ids` filters instead of CEL.
+For cache rules, route and target scoping must use the rule's `route_ids` and `target_ids` filters instead of CEL.
 
 ## Troubleshooting
 
@@ -201,7 +201,7 @@ For cache rules, route and backend scoping must use the rule's `route_ids` and `
 | Regex is rejected | Compile the regex separately and escape backslashes correctly inside the CEL string. |
 | Path prefix is rejected | Prefix values for `path_prefix` and builder path-prefix conditions must start with `/`. |
 | CIDR is rejected or never matches | Use a valid CIDR prefix and confirm p2pstream sees the expected client IP. |
-| Route or backend data is missing | CEL only sees request data. Use feature-specific route/backend filters where available. |
+| Route or target data is missing | CEL only sees request data. Use feature-specific route/target filters where available. |
 
 ## Related Tasks
 

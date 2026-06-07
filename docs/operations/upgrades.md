@@ -53,6 +53,10 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
 
    After the Yamux tunnel transport change, server and agent versions must match. Old WebSocket agents are incompatible with Yamux-tunnel servers, and Yamux agents are incompatible with old WebSocket-only servers.
 
+7. For installations created before the route-target model, public backend configuration is migrated into route targets automatically. Old public backend CRUD/API surfaces are removed, and existing cache entries are discarded because cache keys are target-aware.
+
+8. The route-target-only observability migration resets retained proxy request events and proxy rollups so legacy backend IDs are removed. Agent stats history is not reset.
+
 ## Verification
 
 After upgrade:

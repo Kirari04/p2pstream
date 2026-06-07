@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  PublicBackendForwardMode,
-  PublicBackendType,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicCacheQueryMode,
   PublicCacheScope,
   PublicCacheTtlMode,
@@ -11,58 +11,59 @@ import {
   TrafficTraceStage,
   type Agent,
   type GetPublicProxyConfigResponse,
-  type PublicBackend,
-  type PublicBackendAgent,
   type PublicCacheRule,
   type PublicRateLimitRule,
   type PublicTrafficShaperRule,
   type PublicRoute,
+  type PublicRouteTarget,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   CACHE_KEY,
   TrafficRequestPathCache,
+  agentsMatchingTargetSelector,
   agentKey,
-  backendKey,
+  targetKey,
   buildTrafficFlowRequestPath,
   createTrafficFlowConfigIndex,
+  listenerDefaultRouteKey,
   listenerKey,
   redirectKey,
   routeKey,
   requestUsesCacheNode,
   targetIndexForTraceRequest,
 } from "@/lib/trafficFlowLayout";
-import { DEFAULT_ROUTE_KEY, RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY } from "@/lib/trafficFlowLayout";
+import { RATE_LIMIT_KEY, TRAFFIC_SHAPER_KEY } from "@/lib/trafficFlowLayout";
 import { newTraceRequest } from "@/lib/trafficTraceStore";
 import type { TraceRequest } from "@/types/trafficTrace";
 
 describe("trafficFlowLayout", () => {
-  test("direct backend request path includes upstream", () => {
+  test("direct target request path includes upstream", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
     expect(buildTrafficFlowRequestPath(request, emptyIndex())).toEqual([
       "ingress",
       listenerKey(1n),
-      DEFAULT_ROUTE_KEY,
-      backendKey(2n),
+      listenerDefaultRouteKey(1n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
   });
 
-  test("agent backend request path includes selected agent", () => {
+  test("agent target request path includes selected agent", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.AGENT_POOL,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.AGENT,
       agentId: 7n,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
@@ -71,19 +72,19 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       agentKey(7n),
       "upstream",
       "response",
     ]);
   });
 
-  test("static backend request path includes static response", () => {
+  test("static target request path includes static response", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.STATIC,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.STATIC,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
@@ -113,9 +114,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       trafficShaperRuleId: 10n,
       stage: TrafficTraceStage.TRAFFIC_SHAPER_SELECTED,
     });
@@ -125,8 +126,8 @@ describe("trafficFlowLayout", () => {
       listenerKey(1n),
       RATE_LIMIT_KEY,
       TRAFFIC_SHAPER_KEY,
-      DEFAULT_ROUTE_KEY,
-      backendKey(2n),
+      listenerDefaultRouteKey(1n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
@@ -155,9 +156,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "hit",
       stage: TrafficTraceStage.CACHE_HIT,
@@ -167,7 +168,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       CACHE_KEY,
       "response",
     ]);
@@ -177,9 +178,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "miss",
       stage: TrafficTraceStage.CACHE_MISS,
@@ -189,7 +190,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
@@ -200,9 +201,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.AGENT_POOL,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.AGENT,
       agentId: 7n,
       cacheRuleId: 4n,
       cacheStatus: "bypass",
@@ -213,7 +214,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       agentKey(7n),
       "upstream",
       "response",
@@ -221,15 +222,15 @@ describe("trafficFlowLayout", () => {
     expect(buildTrafficFlowRequestPath(request, emptyIndex())).not.toContain(CACHE_KEY);
   });
 
-  test("static backend does not include cache", () => {
+  test("static target does not include cache", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       cacheRules: [cacheRule({ id: 4n, enabled: true })],
     }));
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.STATIC,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.STATIC,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
@@ -254,9 +255,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "stored",
       stage: TrafficTraceStage.CACHE_STORED,
@@ -267,7 +268,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       "upstream",
       "response",
     ]);
@@ -279,9 +280,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       routeId: 3n,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       cacheRuleId: 4n,
       cacheStatus: "miss",
       stage: TrafficTraceStage.CACHE_LOOKUP,
@@ -292,7 +293,7 @@ describe("trafficFlowLayout", () => {
       "ingress",
       listenerKey(1n),
       routeKey(3n),
-      backendKey(2n),
+      targetKey(2n),
       CACHE_KEY,
     ]);
     expect(targetIndexForTraceRequest(request, path)).toBe(path.indexOf(CACHE_KEY));
@@ -305,9 +306,9 @@ describe("trafficFlowLayout", () => {
     const request = traceRequest({
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       stage: TrafficTraceStage.RESPONSE_SENT,
     });
 
@@ -321,9 +322,9 @@ describe("trafficFlowLayout", () => {
       requestId: "cached",
       listenerId: 1n,
       defaultRoute: true,
-      backendId: 2n,
-      backendType: PublicBackendType.PROXY_FORWARD,
-      forwardMode: PublicBackendForwardMode.DIRECT,
+      routeTargetId: 2n,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
       stage: TrafficTraceStage.BACKEND_SELECTED,
     });
     const first = cache.get(request, emptyIndex());
@@ -336,24 +337,54 @@ describe("trafficFlowLayout", () => {
     expect(changed.path.at(-1)).toBe("response");
   });
 
-  test("config indexes group routes, agents, and backend assignments", () => {
+  test("config indexes group routes, agents, and route targets", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       routes: [route({ id: 3n, listenerId: 1n }), route({ id: 4n, listenerId: 1n, priority: 1n })],
-      backends: [backend({ id: 2n })],
+      routeTargets: [routeTarget({ id: 2n, routeId: 3n })],
       agents: [agent({ id: 7n })],
-      backendAgents: [backendAgent({ backendId: 2n, agentId: 7n })],
       rateLimitRules: [rateLimitRule({ id: 9n, enabled: true })],
       trafficShaperRules: [trafficShaperRule({ id: 10n, enabled: true })],
     }));
 
     expect(index.routesByListenerId.get("1")?.map((item) => item.id)).toEqual([4n, 3n]);
-    expect(index.backendById.get("2")?.id).toBe(2n);
+    expect(index.routeTargetById.get("2")?.id).toBe(2n);
     expect(index.agentById.get("7")?.id).toBe(7n);
-    expect(index.backendAgentsByBackendId.get("2")?.[0]?.agentId).toBe(7n);
+    expect(index.routeTargetsByRouteId.get("3")?.[0]?.id).toBe(2n);
     expect(index.enabledRateLimitTargets[0]?.kind).toBe("rate-limit");
     expect(index.hasEnabledRateLimitRules).toBe(true);
     expect(index.enabledTrafficShaperTargets[0]?.kind).toBe("traffic-shaper");
     expect(index.hasEnabledTrafficShaperRules).toBe(true);
+  });
+
+  test("default route path keys are listener scoped", () => {
+    const first = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ROUTE_RESOLVED,
+    });
+    const second = traceRequest({
+      listenerId: 2n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ROUTE_RESOLVED,
+    });
+
+    expect(buildTrafficFlowRequestPath(first, emptyIndex())).toContain(listenerDefaultRouteKey(1n));
+    expect(buildTrafficFlowRequestPath(second, emptyIndex())).toContain(listenerDefaultRouteKey(2n));
+    expect(listenerDefaultRouteKey(1n)).not.toBe(listenerDefaultRouteKey(2n));
+  });
+
+  test("agent selector matches enabled agents only", () => {
+    const target = routeTarget({
+      agentSelector: {
+        $typeName: "p2pstream.v1.PublicAgentSelector",
+        matchLabels: { site: "loopback" },
+      },
+    });
+    const enabled = agent({ id: 1n, enabled: true, labels: { site: "loopback" } });
+    const disabled = agent({ id: 2n, enabled: false, labels: { site: "loopback" } });
+    const other = agent({ id: 3n, enabled: true, labels: { site: "other" } });
+
+    expect(agentsMatchingTargetSelector(target, [enabled, disabled, other]).map((item) => item.id)).toEqual([1n]);
   });
 });
 
@@ -372,10 +403,9 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
   return {
     $typeName: "p2pstream.v1.GetPublicProxyConfigResponse",
     listeners: [],
-    backends: [],
-    backendAgents: [],
     agents: [],
     routes: [],
+    routeTargets: [],
     rateLimitRules: [],
     trafficShaperRules: [],
     cacheRules: [],
@@ -394,7 +424,7 @@ function cacheRule(overrides: Partial<PublicCacheRule>): PublicCacheRule {
     enabled: true,
     match: undefined,
     routeIds: [],
-    backendIds: [],
+    targetIds: [],
     scope: PublicCacheScope.SELECTED_BACKEND,
     ttlMode: PublicCacheTtlMode.FIXED,
     ttlMillis: 3_600_000n,
@@ -419,7 +449,6 @@ function route(overrides: Partial<PublicRoute>): PublicRoute {
     priority: 100n,
     hostPattern: "",
     pathPrefix: "",
-    backendId: 0n,
     enabled: true,
     action: PublicRouteAction.FORWARD,
     redirectTargetMode: 0,
@@ -427,31 +456,41 @@ function route(overrides: Partial<PublicRoute>): PublicRoute {
     redirectStatusCode: 302n,
     redirectPreservePathSuffix: true,
     redirectPreserveQuery: true,
+    targetLoadBalancing: 0,
+    isDefault: false,
+    targets: [],
     ...overrides,
   } as PublicRoute;
 }
 
-function backend(overrides: Partial<PublicBackend>): PublicBackend {
+function routeTarget(overrides: Partial<PublicRouteTarget>): PublicRouteTarget {
   return {
-    $typeName: "p2pstream.v1.PublicBackend",
+    $typeName: "p2pstream.v1.PublicRouteTarget",
     id: 0n,
+    routeId: 0n,
     name: "",
-    targetOrigin: "",
+    position: 0n,
+    priorityGroup: 0n,
+    weight: 100n,
     enabled: true,
-    createdAtUnixMillis: 0n,
-    updatedAtUnixMillis: 0n,
-    backendType: PublicBackendType.PROXY_FORWARD,
-    forwardMode: PublicBackendForwardMode.DIRECT,
-    loadBalancing: 0,
+    targetType: 1,
+    url: "",
+    transport: 1,
+    agentSelector: undefined,
+    agentLoadBalancing: 0,
     tlsSkipVerify: false,
+    upstreamResponseHeaderTimeoutMillis: 60000n,
+    upstreamRequestHeaders: [],
+    upstreamBasicAuth: undefined,
+    healthCheck: undefined,
     staticStatusCode: 200n,
     staticResponseHeaders: [],
     staticResponseBody: "",
-    agentAssignments: [],
-    upstreamRequestHeaders: [],
-    upstreamBasicAuth: undefined,
+    staticResponseBodyMode: 0,
+    staticResponseTemplateId: 0n,
+    health: undefined,
     ...overrides,
-  } as PublicBackend;
+  } as PublicRouteTarget;
 }
 
 function agent(overrides: Partial<Agent>): Agent {
@@ -468,20 +507,9 @@ function agent(overrides: Partial<Agent>): Agent {
     lastConnectedAtUnixMillis: 0n,
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
+    labels: {},
     ...overrides,
   } as Agent;
-}
-
-function backendAgent(overrides: Partial<PublicBackendAgent>): PublicBackendAgent {
-  return {
-    $typeName: "p2pstream.v1.PublicBackendAgent",
-    backendId: 0n,
-    agentId: 0n,
-    position: 0n,
-    weight: 100n,
-    enabled: true,
-    ...overrides,
-  } as PublicBackendAgent;
 }
 
 function rateLimitRule(overrides: Partial<PublicRateLimitRule>): PublicRateLimitRule {

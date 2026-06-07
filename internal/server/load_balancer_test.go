@@ -8,7 +8,7 @@ import (
 
 func TestLoadBalancerRoundRobin(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	backend := publicBackendConfig{ID: 10, LoadBalancing: publicBackendLoadBalancingRoundRobin}
+	backend := publicRouteTargetHealthConfig{ID: 10, LoadBalancing: publicRouteTargetLoadBalancingRoundRobin}
 	candidates := testCandidates(1, 2, 3)
 
 	got := []int64{
@@ -27,7 +27,7 @@ func TestLoadBalancerRoundRobin(t *testing.T) {
 
 func TestLoadBalancerWeightedRoundRobin(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	backend := publicBackendConfig{ID: 11, LoadBalancing: publicBackendLoadBalancingWeightedRoundRobin}
+	backend := publicRouteTargetHealthConfig{ID: 11, LoadBalancing: publicRouteTargetLoadBalancingWeightedRoundRobin}
 	candidates := []backendAgentCandidate{
 		testCandidate(1, 0, 3),
 		testCandidate(2, 1, 1),
@@ -44,8 +44,8 @@ func TestLoadBalancerWeightedRoundRobin(t *testing.T) {
 
 func TestLoadBalancerRandomAndWeightedRandom(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(7)))
-	randomBackend := publicBackendConfig{ID: 12, LoadBalancing: publicBackendLoadBalancingRandom}
-	weightedBackend := publicBackendConfig{ID: 13, LoadBalancing: publicBackendLoadBalancingWeightedRandom}
+	randomBackend := publicRouteTargetHealthConfig{ID: 12, LoadBalancing: publicRouteTargetLoadBalancingRandom}
+	weightedBackend := publicRouteTargetHealthConfig{ID: 13, LoadBalancing: publicRouteTargetLoadBalancingWeightedRandom}
 	candidates := []backendAgentCandidate{
 		testCandidate(1, 0, 1),
 		testCandidate(2, 1, 1000),
@@ -70,7 +70,7 @@ func TestLoadBalancerRandomAndWeightedRandom(t *testing.T) {
 
 func TestLoadBalancerLeastActive(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	backend := publicBackendConfig{ID: 14, LoadBalancing: publicBackendLoadBalancingLeastActiveRequests}
+	backend := publicRouteTargetHealthConfig{ID: 14, LoadBalancing: publicRouteTargetLoadBalancingLeastActiveRequests}
 	candidates := testCandidates(1, 2, 3)
 	candidates[0].Conn.ActiveRequests.Store(4)
 	candidates[1].Conn.ActiveRequests.Store(1)
@@ -84,7 +84,7 @@ func TestLoadBalancerLeastActive(t *testing.T) {
 
 func TestLoadBalancerWeightedLeastActive(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	backend := publicBackendConfig{ID: 15, LoadBalancing: publicBackendLoadBalancingWeightedLeastActiveRequests}
+	backend := publicRouteTargetHealthConfig{ID: 15, LoadBalancing: publicRouteTargetLoadBalancingWeightedLeastActiveRequests}
 	candidates := []backendAgentCandidate{
 		testCandidate(1, 0, 1),
 		testCandidate(2, 1, 10),
@@ -100,7 +100,7 @@ func TestLoadBalancerWeightedLeastActive(t *testing.T) {
 
 func TestLoadBalancerConcurrentSelection(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	backend := publicBackendConfig{ID: 16, LoadBalancing: publicBackendLoadBalancingWeightedRoundRobin}
+	backend := publicRouteTargetHealthConfig{ID: 16, LoadBalancing: publicRouteTargetLoadBalancingWeightedRoundRobin}
 	candidates := testCandidates(1, 2, 3)
 
 	var wg sync.WaitGroup
@@ -121,16 +121,16 @@ func TestLoadBalancerConcurrentSelection(t *testing.T) {
 
 func TestRouteLoadBalancerRoundRobin(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	route := publicRouteConfig{ID: 20, LoadBalancing: publicBackendLoadBalancingRoundRobin}
-	candidates := testRouteCandidates(1, 2, 3)
+	route := publicRouteConfig{ID: 20, TargetLoadBalancing: publicRouteTargetLoadBalancingRoundRobin}
+	candidates := testRouteTargetCandidates(1, 2, 3)
 
 	got := []int64{}
 	for range 4 {
-		pick, ok := registry.selectRouteBackend(route, candidates)
+		pick, ok := registry.selectRouteTarget(route, candidates)
 		if !ok {
-			t.Fatal("route selector returned no backend")
+			t.Fatal("route selector returned no target")
 		}
-		got = append(got, pick.BackendID)
+		got = append(got, pick.TargetID)
 	}
 	want := []int64{1, 2, 3, 1}
 	for i := range want {
@@ -142,20 +142,20 @@ func TestRouteLoadBalancerRoundRobin(t *testing.T) {
 
 func TestRouteLoadBalancerWeightedAlgorithms(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(7)))
-	roundRobinRoute := publicRouteConfig{ID: 21, LoadBalancing: publicBackendLoadBalancingWeightedRoundRobin}
-	randomRoute := publicRouteConfig{ID: 22, LoadBalancing: publicBackendLoadBalancingWeightedRandom}
-	candidates := []routeBackendCandidate{
-		testRouteCandidate(1, 0, 3, 0),
-		testRouteCandidate(2, 1, 1, 0),
+	roundRobinRoute := publicRouteConfig{ID: 21, TargetLoadBalancing: publicRouteTargetLoadBalancingWeightedRoundRobin}
+	randomRoute := publicRouteConfig{ID: 22, TargetLoadBalancing: publicRouteTargetLoadBalancingWeightedRandom}
+	candidates := []routeTargetCandidate{
+		testRouteTargetCandidate(1, 0, 3, 0),
+		testRouteTargetCandidate(2, 1, 1, 0),
 	}
 
 	counts := map[int64]int{}
 	for range 8 {
-		pick, ok := registry.selectRouteBackend(roundRobinRoute, candidates)
+		pick, ok := registry.selectRouteTarget(roundRobinRoute, candidates)
 		if !ok {
-			t.Fatal("weighted route selector returned no backend")
+			t.Fatal("weighted route selector returned no target")
 		}
-		counts[pick.BackendID]++
+		counts[pick.TargetID]++
 	}
 	if counts[1] != 6 || counts[2] != 2 {
 		t.Fatalf("route weighted round robin counts = %+v, want 6/2", counts)
@@ -163,49 +163,90 @@ func TestRouteLoadBalancerWeightedAlgorithms(t *testing.T) {
 
 	counts = map[int64]int{}
 	for range 50 {
-		pick, ok := registry.selectRouteBackend(randomRoute, candidates)
+		pick, ok := registry.selectRouteTarget(randomRoute, candidates)
 		if !ok {
 			t.Fatal("weighted random route selector returned no backend")
 		}
-		counts[pick.BackendID]++
+		counts[pick.TargetID]++
 	}
 	if counts[1] <= counts[2] {
-		t.Fatalf("route weighted random counts = %+v, expected high-weight backend to dominate", counts)
+		t.Fatalf("route weighted random counts = %+v, expected high-weight target to dominate", counts)
 	}
 }
 
 func TestRouteLoadBalancerLeastActive(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	route := publicRouteConfig{ID: 23, LoadBalancing: publicBackendLoadBalancingLeastActiveRequests}
-	candidates := []routeBackendCandidate{
-		testRouteCandidate(1, 0, 1, 4),
-		testRouteCandidate(2, 1, 1, 1),
-		testRouteCandidate(3, 2, 1, 7),
+	route := publicRouteConfig{ID: 23, TargetLoadBalancing: publicRouteTargetLoadBalancingLeastActiveRequests}
+	candidates := []routeTargetCandidate{
+		testRouteTargetCandidate(1, 0, 1, 4),
+		testRouteTargetCandidate(2, 1, 1, 1),
+		testRouteTargetCandidate(3, 2, 1, 7),
 	}
 
-	pick, ok := registry.selectRouteBackend(route, candidates)
+	pick, ok := registry.selectRouteTarget(route, candidates)
 	if !ok {
-		t.Fatal("least-active route selector returned no backend")
+		t.Fatal("least-active route selector returned no target")
 	}
-	if pick.BackendID != 2 {
-		t.Fatalf("route least active selected %d, want 2", pick.BackendID)
+	if pick.TargetID != 2 {
+		t.Fatalf("route least active selected %d, want 2", pick.TargetID)
 	}
 }
 
 func TestRouteAndAgentLoadBalancerStateIsolation(t *testing.T) {
 	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
-	agentBackend := publicBackendConfig{ID: 30, LoadBalancing: publicBackendLoadBalancingRoundRobin}
-	route := publicRouteConfig{ID: 30, LoadBalancing: publicBackendLoadBalancingRoundRobin}
+	agentBackend := publicRouteTargetHealthConfig{ID: 30, LoadBalancing: publicRouteTargetLoadBalancingRoundRobin}
+	route := publicRouteConfig{ID: 30, TargetLoadBalancing: publicRouteTargetLoadBalancingRoundRobin}
 
 	if got := registry.selectAgent(agentBackend, testCandidates(10, 11)).AgentID; got != 10 {
 		t.Fatalf("agent first pick = %d, want 10", got)
 	}
-	routePick, ok := registry.selectRouteBackend(route, testRouteCandidates(20, 21))
+	routePick, ok := registry.selectRouteTarget(route, testRouteTargetCandidates(20, 21))
 	if !ok {
-		t.Fatal("route selector returned no backend")
+		t.Fatal("route selector returned no target")
 	}
-	if routePick.BackendID != 20 {
-		t.Fatalf("route first pick = %d, want 20", routePick.BackendID)
+	if routePick.TargetID != 20 {
+		t.Fatalf("route first pick = %d, want 20", routePick.TargetID)
+	}
+}
+
+func TestLoadBalancerReconcilePrunesStaleState(t *testing.T) {
+	registry := newLoadBalancerRegistryWithRand(rand.New(rand.NewSource(1)))
+	registry.states[1] = &backendSelectorState{smooth: map[int64]int64{10: 1}}
+	registry.states[99] = &backendSelectorState{smooth: map[int64]int64{90: 1}}
+	registry.targetAgentStates[1] = &backendSelectorState{smooth: map[int64]int64{10: 1}}
+	registry.targetAgentStates[99] = &backendSelectorState{smooth: map[int64]int64{90: 1}}
+	registry.routeStates[2] = &backendSelectorState{smooth: map[int64]int64{20: 1}}
+	registry.routeStates[88] = &backendSelectorState{smooth: map[int64]int64{80: 1}}
+
+	registry.reconcile(&publicProxySnapshot{
+		RouteTargets: map[int64]publicRouteTargetConfig{1: {ID: 1}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {{ID: 2}},
+		},
+	})
+
+	if _, ok := registry.states[1]; !ok {
+		t.Fatal("current target state was pruned")
+	}
+	if _, ok := registry.states[99]; ok {
+		t.Fatal("stale target state was not pruned")
+	}
+	if _, ok := registry.targetAgentStates[1]; !ok {
+		t.Fatal("current target-agent state was pruned")
+	}
+	if _, ok := registry.targetAgentStates[99]; ok {
+		t.Fatal("stale target-agent state was not pruned")
+	}
+	if _, ok := registry.routeStates[2]; !ok {
+		t.Fatal("current route state was pruned")
+	}
+	if _, ok := registry.routeStates[88]; ok {
+		t.Fatal("stale route state was not pruned")
+	}
+
+	registry.reconcile(nil)
+	if len(registry.states) != 0 || len(registry.targetAgentStates) != 0 || len(registry.routeStates) != 0 {
+		t.Fatalf("nil snapshot did not clear all state maps: states=%d targetAgentStates=%d routeStates=%d", len(registry.states), len(registry.targetAgentStates), len(registry.routeStates))
 	}
 }
 
@@ -217,18 +258,18 @@ func testCandidates(ids ...int64) []backendAgentCandidate {
 	return resp
 }
 
-func testRouteCandidates(ids ...int64) []routeBackendCandidate {
-	resp := make([]routeBackendCandidate, 0, len(ids))
+func testRouteTargetCandidates(ids ...int64) []routeTargetCandidate {
+	resp := make([]routeTargetCandidate, 0, len(ids))
 	for idx, id := range ids {
-		resp = append(resp, testRouteCandidate(id, int64(idx), 1, 0))
+		resp = append(resp, testRouteTargetCandidate(id, int64(idx), 1, 0))
 	}
 	return resp
 }
 
-func testRouteCandidate(id int64, position int64, weight int64, active int64) routeBackendCandidate {
-	return routeBackendCandidate{
-		Backend:        publicBackendConfig{ID: id, Enabled: true},
-		BackendID:      id,
+func testRouteTargetCandidate(id int64, position int64, weight int64, active int64) routeTargetCandidate {
+	return routeTargetCandidate{
+		Target:         publicRouteTargetConfig{ID: id, Enabled: true},
+		TargetID:       id,
 		Position:       position,
 		Weight:         weight,
 		ActiveRequests: active,

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Diagnose management, agent, listener, TLS, route, backend, WAF, rate-limit, cache, and trace problems from the same operational checklist.
+Diagnose management, agent, listener, TLS, route, target, WAF, rate-limit, cache, and trace problems from the same operational checklist.
 
 ## Use This When
 
@@ -9,7 +9,7 @@ Use this when a request fails, management does not load, an agent will not conne
 ## Prerequisites
 
 :::tip Start with logs
-Logs show startup errors, TLS failures, agent connection problems, and backend errors faster than any other check.
+Logs show startup errors, TLS failures, agent connection problems, and target forwarding errors faster than any other check.
 :::
 
 Start with logs:
@@ -101,33 +101,33 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Host pattern | Use exact host or `*.example.com`. |
 | Path prefix | Prefix must start with `/`. |
 | Priority | Lower numbers win. Put specific routes first. |
-| Default backend | If no route matches, the listener default backend handles the request. |
+| Default route | If no explicit route matches, the listener default route handles the request. |
 
-## Backend Returns Bad Gateway
+## Target Returns Bad Gateway
 
 | Cause | Fix |
 | --- | --- |
-| Direct backend origin unreachable | Run `curl -I http://<origin-host>:<port>` from inside the p2pstream container: `docker compose exec p2pstream curl -I http://app:8080`. |
-| Backend origin unreachable via agent | SSH to the agent host and run `curl -I http://<origin-host>:<port>` to confirm the agent can reach the service from its network. |
-| Agent offline | Reconnect or enable an assigned agent. |
+| Direct target origin unreachable | Run `curl -I http://<origin-host>:<port>` from inside the p2pstream container: `docker compose exec p2pstream curl -I http://app:8080`. |
+| Agent target origin unreachable | SSH to a label-matched agent host and run `curl -I http://<origin-host>:<port>` to confirm the agent can reach the service from its network. |
+| Agent offline | Reconnect or enable a label-matched agent. |
 | Origin TLS error | Fix the origin certificate; use `tls_skip_verify` only as a temporary workaround for internal self-signed certs. |
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
-| Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. |
+| Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the target or selected target-agent path from routing. |
 
-Client cancellations reported as `context canceled` do not create passive health cooldowns. Real upstream timeouts, agent disconnects, and transport failures can still create cooldowns when backend health checks are enabled.
+Client cancellations reported as `context canceled` do not create passive health cooldowns. Real upstream timeouts, agent disconnects, and transport failures can still create cooldowns when target health checks are enabled.
 
-When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_backend_available`.
+When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_target_available`.
 
-## Backend Returns Gateway Timeout
+## Target Returns Gateway Timeout
 
 | Cause | Fix |
 | --- | --- |
-| Origin is slow to send response headers | Increase the backend response-header timeout. The default is `60000` ms. |
-| Agent-pool backend waits on a private app | SSH to the agent host and test `curl -I http://<origin>` with a long timeout (`--max-time 65`) to confirm the service responds. Raise the backend timeout if it does. |
+| Origin is slow to send response headers | Increase the target response-header timeout. The default is `60000` ms. |
+| Agent target waits on a private app | SSH to a label-matched agent host and test `curl -I http://<origin>` with a long timeout (`--max-time 65`) to confirm the service responds. Raise the target timeout if it does. |
 | Health check timeout confusion | Health-check timeout is separate from the response-header timeout and does not affect request serving. |
 | Old agent binary | Upgrade agents and servers together; old WebSocket agents are incompatible with the Yamux tunnel transport. |
 
-The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
+The target response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
 
 ## Agent Tunnel Disconnects
 
@@ -151,7 +151,7 @@ The backend response-header timeout limits only the wait for first upstream head
 
 | Cause | Fix |
 | --- | --- |
-| No matching cache rule | Check host, path prefix, suffix, method, route/backend filters, and priority. |
+| No matching cache rule | Check host, path prefix, suffix, method, route/target filters, and priority. |
 | Browser sends cookies | Enable `Cache requests with Cookie headers` only on precise public asset rules. |
 | Authorization header present | Authorization requests always bypass cache. |
 | Origin sends `Set-Cookie` | p2pstream will not store the response. |
