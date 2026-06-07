@@ -16,7 +16,7 @@ A visual reference for the current p2pstream management console. These images ar
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, selected route and backend, cache status, headers, and response metadata">
+    <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, selected route and target, cache status, headers, and response metadata">
     <figcaption>Trace request details</figcaption>
   </figure>
 </div>
@@ -25,27 +25,27 @@ A visual reference for the current p2pstream management console. These images ar
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy listeners section showing HTTP and HTTPS listeners with protocol, bind address, port, runtime state, and default backend">
+    <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy listeners section showing HTTP and HTTPS listeners with protocol, bind address, port, runtime state, and route count">
     <figcaption>Listeners list</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream listener editor showing protocol, bind address, port, default backend, and enabled state">
+    <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream listener editor showing protocol, bind address, port, and enabled state">
     <figcaption>Listener editor</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing backend cards and route cards with status, health, priority, listener match, and backend assignments">
-    <figcaption>Backends and routes</figcaption>
+    <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing route cards with status, health, priority, listener match, and route targets">
+    <figcaption>Routes and targets</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream backend editor showing forward mode, target origin, load balancing, timeout, health checks, and enabled state">
-    <figcaption>Backend editor</figcaption>
+    <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream route target editor showing target type, URL, transport, load balancing, timeout, health checks, and enabled state">
+    <figcaption>Target editor</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing listener, host pattern, path prefix, action, backend assignments, fallback backend, and priority">
+    <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing listener, host pattern, path prefix, action, route targets, fallback priority groups, and priority">
     <figcaption>Route editor</figcaption>
   </figure>
 </div>
@@ -64,8 +64,8 @@ A visual reference for the current p2pstream management console. These images ar
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/backend_agent_healthcheck_logs.png" alt="p2pstream backend health panel showing assigned agents, health state, active requests, and health-check log entries">
-    <figcaption>Backend agent health</figcaption>
+    <img src="../assets/new/backend_agent_healthcheck_logs.png" alt="p2pstream target health panel showing matching agents, health state, active requests, and health-check log entries">
+    <figcaption>Target agent health</figcaption>
   </figure>
 </div>
 
@@ -93,7 +93,7 @@ A visual reference for the current p2pstream management console. These images ar
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and backend filters, TTL, query handling, vary headers, status codes, and object limits">
+    <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and target filters, TTL, query handling, vary headers, status codes, and object limits">
     <figcaption>Cache rule editor</figcaption>
   </figure>
 

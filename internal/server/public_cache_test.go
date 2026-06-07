@@ -115,7 +115,7 @@ func TestPublicCacheCookieIgnoredInKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse upstream URL: %v", err)
 	}
-	resolution.Backend.ParsedOrigin = origin
+	resolution.Target.ParsedURL = origin
 
 	firstReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
 	firstReq.Header.Set("Cookie", "sid=a")
@@ -124,7 +124,7 @@ func TestPublicCacheCookieIgnoredInKey(t *testing.T) {
 		t.Fatalf("first cache status = %q/%q, want miss", firstDecision.Status, firstDecision.BypassReason)
 	}
 	firstRec := httptest.NewRecorder()
-	app.proxyDirectRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
+	app.proxyDirectTargetRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
 	if firstRec.Code != http.StatusOK {
 		t.Fatalf("first response status = %d, want 200", firstRec.Code)
 	}
@@ -287,7 +287,7 @@ func TestPublicCacheSetCookieResponseNotStoredWithCookieRequestsAllowed(t *testi
 	if err != nil {
 		t.Fatalf("parse upstream URL: %v", err)
 	}
-	resolution.Backend.ParsedOrigin = origin
+	resolution.Target.ParsedURL = origin
 
 	firstReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
 	firstReq.Header.Set("Cookie", "sid=a")
@@ -296,7 +296,7 @@ func TestPublicCacheSetCookieResponseNotStoredWithCookieRequestsAllowed(t *testi
 		t.Fatalf("first cache status = %q/%q, want miss", firstDecision.Status, firstDecision.BypassReason)
 	}
 	firstRec := httptest.NewRecorder()
-	app.proxyDirectRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
+	app.proxyDirectTargetRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
 	if firstRec.Code != http.StatusOK {
 		t.Fatalf("first response status = %d, want 200", firstRec.Code)
 	}
@@ -445,7 +445,7 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse upstream URL: %v", err)
 	}
-	resolution.Backend.ParsedOrigin = origin
+	resolution.Target.ParsedURL = origin
 
 	firstReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt?v=1", nil)
 	firstDecision := app.checkPublicCache(firstReq, resolution)
@@ -453,7 +453,7 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 		t.Fatalf("first cache status = %q, want miss", firstDecision.Status)
 	}
 	firstRec := httptest.NewRecorder()
-	app.proxyDirectRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
+	app.proxyDirectTargetRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
 	if firstRec.Code != http.StatusOK || firstRec.Body.String() != "asset-v1" {
 		t.Fatalf("first response = status %d body %q", firstRec.Code, firstRec.Body.String())
 	}
@@ -521,20 +521,19 @@ func TestPublicCacheAgentBackendMissStoresThenHit(t *testing.T) {
 	}
 	t.Cleanup(func() { app.AgentHub.disconnect(agent) })
 
-	resolution.Backend.ParsedOrigin = origin
-	resolution.Backend.ForwardMode = publicBackendForwardModeAgentPool
-	resolution.Backend.AgentAssignments = []publicBackendAgentConfig{{
-		BackendID: resolution.Backend.ID,
-		AgentID:   agentID,
-		Weight:    100,
-		Enabled:   true,
-	}}
+	resolution.Target.ParsedURL = origin
+	resolution.Target.Transport = publicRouteTargetTransportAgent
+	resolution.Target.AgentSelector = publicAgentSelectorConfig{MatchLabels: map[string]string{agentIDSystemLabelKey: agentRow.PublicID}}
+	resolution.Agent = agent
+	resolution.AgentID = sql.NullInt64{Int64: agentID, Valid: true}
+	resolution.Route.Targets = []publicRouteTargetConfig{resolution.Target}
 	app.proxyMu.Lock()
 	snap := app.publicSnapshot
-	snap.Backends = map[int64]publicBackendConfig{resolution.Backend.ID: resolution.Backend}
-	snap.Agents = map[int64]publicAgentConfig{agentID: {ID: agentID, PublicID: agent.PublicID, Enabled: true}}
+	snap.RouteTargets = map[int64]publicRouteTargetConfig{resolution.Target.ID: resolution.Target}
+	snap.Agents = map[int64]publicAgentConfig{
+		agentID: {ID: agentID, PublicID: agent.PublicID, Enabled: true, Labels: map[string]string{agentIDSystemLabelKey: agentRow.PublicID}},
+	}
 	app.proxyMu.Unlock()
-	app.BackendHealth.reconcile(app, snap, false)
 
 	firstReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/agent.txt?v=1", nil)
 	firstDecision := app.checkPublicCache(firstReq, resolution)
@@ -542,7 +541,7 @@ func TestPublicCacheAgentBackendMissStoresThenHit(t *testing.T) {
 		t.Fatalf("first cache status = %q, want miss", firstDecision.Status)
 	}
 	firstRec := httptest.NewRecorder()
-	app.proxyAgentRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
+	app.proxyAgentTargetRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
 	if firstRec.Code != http.StatusOK || firstRec.Body.String() != "agent-asset-v1" {
 		t.Fatalf("first agent response = status %d body %q, want 200 agent-asset-v1", firstRec.Code, firstRec.Body.String())
 	}
@@ -687,7 +686,8 @@ func TestPublicCacheHeadServedFromCachedGet(t *testing.T) {
 		Path:                "/assets/app.txt",
 		QueryKey:            "",
 		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
-		BackendID:           sql.NullInt64{Int64: resolution.Backend.ID, Valid: true},
+		BackendID:           sql.NullInt64{},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
 		Method:              http.MethodGet,
 		VaryHeadersJson:     "[]",
 		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
@@ -736,6 +736,7 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		MatchJson:            string(matchJSON),
 		RouteIdsJson:         "[]",
 		BackendIdsJson:       "[]",
+		TargetIdsJson:        "[]",
 		Scope:                publicCacheScopeSelectedBackend,
 		TtlMode:              publicCacheTTLModeFixed,
 		TtlMillis:            defaultPublicCacheTTLMillis,
@@ -756,25 +757,32 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 	}
 
 	resolution := publicRouteResolution{
-		ListenerID: sql.NullInt64{Int64: 1, Valid: true},
-		RouteID:    sql.NullInt64{Int64: 10, Valid: true},
-		BackendID:  sql.NullInt64{Int64: 20, Valid: true},
-		Listener:   publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP},
-		Route:      publicRouteConfig{ID: 10},
-		Backend: publicBackendConfig{
-			ID:                            20,
-			Name:                          "assets-backend",
+		ListenerID:    sql.NullInt64{Int64: 1, Valid: true},
+		RouteID:       sql.NullInt64{Int64: 10, Valid: true},
+		RouteTargetID: sql.NullInt64{Int64: 30, Valid: true},
+		Listener:      publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP},
+		Route: publicRouteConfig{
+			ID:                  10,
+			TargetLoadBalancing: publicBackendLoadBalancingRoundRobin,
+		},
+		Target: publicRouteTargetConfig{
+			ID:                            30,
+			RouteID:                       10,
+			Name:                          "assets-target",
 			Enabled:                       true,
-			BackendType:                   publicBackendTypeProxyForward,
-			ForwardMode:                   publicBackendForwardModeDirect,
+			TargetType:                    publicRouteTargetTypeProxy,
+			Transport:                     publicRouteTargetTransportDirect,
+			AgentLoadBalancing:            publicBackendLoadBalancingRoundRobin,
 			UpstreamResponseHeaderTimeout: time.Second,
 		},
 		CacheRuleID: rule.ID,
 	}
+	resolution.Route.Targets = []publicRouteTargetConfig{resolution.Target}
 	app.proxyMu.Lock()
 	app.publicSnapshot = &publicProxySnapshot{
 		CacheSettings: defaultPublicCacheSettings(),
 		CacheRules:    []publicCacheRuleConfig{rule},
+		RouteTargets:  map[int64]publicRouteTargetConfig{resolution.Target.ID: resolution.Target},
 	}
 	app.proxyMu.Unlock()
 	app.PublicCache.reconcile(defaultPublicCacheSettings())

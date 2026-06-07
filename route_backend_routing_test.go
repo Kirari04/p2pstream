@@ -86,7 +86,7 @@ func TestRouteBackendPoolFallbackAndNoFallback(t *testing.T) {
 	}
 	resp, body := httpGet(t, baseURL+"/unavailable")
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusServiceUnavailable || !strings.Contains(body, "No backend is available") {
+	if resp.StatusCode != http.StatusServiceUnavailable || !strings.Contains(body, "No target is available") {
 		t.Fatalf("no fallback response status=%d body=%q", resp.StatusCode, body)
 	}
 }
@@ -166,6 +166,7 @@ func createRouteBackendPoolRow(t *testing.T, database *db.DB, listenerID int64, 
 		BackendID:                  backendID,
 		LoadBalancing:              "round_robin",
 		FallbackBackendID:          fallbackID,
+		TargetLoadBalancing:        "round_robin",
 		Action:                     "forward",
 		RedirectStatusCode:         http.StatusFound,
 		RedirectPreservePathSuffix: 1,
@@ -176,17 +177,47 @@ func createRouteBackendPoolRow(t *testing.T, database *db.DB, listenerID int64, 
 		t.Fatalf("create route row: %v", err)
 	}
 	for index, backendID := range backendIDs {
-		if _, err := database.CreatePublicRouteBackend(context.Background(), db.CreatePublicRouteBackendParams{
-			RouteID:   route.ID,
-			BackendID: backendID,
-			Position:  int64(index),
-			Weight:    100,
-			Enabled:   1,
-		}); err != nil {
-			t.Fatalf("create route backend row: %v", err)
-		}
+		createRouteTargetFromBackendRow(t, database, route.ID, int64(index), 0, backendID)
+	}
+	if fallbackBackendID > 0 {
+		createRouteTargetFromBackendRow(t, database, route.ID, int64(len(backendIDs)), 1, fallbackBackendID)
 	}
 	return route
+}
+
+func createRouteTargetFromBackendRow(t *testing.T, database *db.DB, routeID int64, position int64, priorityGroup int64, backendID int64) {
+	t.Helper()
+	backend, err := database.GetPublicBackend(context.Background(), backendID)
+	if err != nil {
+		t.Fatalf("load backend row %d: %v", backendID, err)
+	}
+	if _, err := database.CreatePublicRouteTarget(context.Background(), db.CreatePublicRouteTargetParams{
+		RouteID:                             routeID,
+		Name:                                backend.Name,
+		Position:                            position,
+		PriorityGroup:                       priorityGroup,
+		Weight:                              100,
+		Enabled:                             backend.Enabled,
+		TargetType:                          "proxy",
+		Url:                                 backend.TargetOrigin,
+		Transport:                           "direct",
+		AgentSelectorJson:                   "{}",
+		AgentLoadBalancing:                  "round_robin",
+		TlsSkipVerify:                       backend.TlsSkipVerify,
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckMethod:                   "GET",
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    http.StatusOK,
+		StaticResponseBodyMode:              "inline",
+	}); err != nil {
+		t.Fatalf("create route target row: %v", err)
+	}
 }
 
 func httpGetBody(t *testing.T, url string) string {

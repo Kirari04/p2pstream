@@ -3,6 +3,8 @@ import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicTrafficShaperBudgetScope,
   PublicWafActivationMode,
   PublicWafRuleAction,
@@ -28,6 +30,10 @@ export type TraceRequest = {
   backendName: string;
   backendType: PublicBackendType;
   forwardMode: PublicBackendForwardMode;
+  routeTargetId: bigint;
+  routeTargetName: string;
+  routeTargetType: PublicRouteTargetType;
+  routeTargetTransport: PublicRouteTargetTransport;
   targetOrigin: string;
   agentId: bigint;
   agentName: string;

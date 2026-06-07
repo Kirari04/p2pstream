@@ -463,6 +463,27 @@ func (a *App) recordProxyRequestEventWithCache(
 	requestBytes uint64,
 	responseBytes uint64,
 ) {
+	a.recordProxyRequestEventWithRouteTargetCache(ctx, statusCode, duration, errorKind, listenerID, backendID, routeID, sql.NullInt64{}, wafRuleID, wafAction, agentID, cacheRuleID, cacheStatus, cacheBytes, requestBytes, responseBytes)
+}
+
+func (a *App) recordProxyRequestEventWithRouteTargetCache(
+	ctx context.Context,
+	statusCode int,
+	duration time.Duration,
+	errorKind string,
+	listenerID sql.NullInt64,
+	backendID sql.NullInt64,
+	routeID sql.NullInt64,
+	routeTargetID sql.NullInt64,
+	wafRuleID sql.NullInt64,
+	wafAction string,
+	agentID sql.NullInt64,
+	cacheRuleID sql.NullInt64,
+	cacheStatus string,
+	cacheBytes uint64,
+	requestBytes uint64,
+	responseBytes uint64,
+) {
 	if a.DB == nil {
 		return
 	}
@@ -482,6 +503,7 @@ func (a *App) recordProxyRequestEventWithCache(
 		ListenerID:    listenerID,
 		BackendID:     backendID,
 		RouteID:       routeID,
+		RouteTargetID: routeTargetID,
 		WafRuleID:     wafRuleID,
 		WafAction:     wafAction,
 		AgentID:       agentID,

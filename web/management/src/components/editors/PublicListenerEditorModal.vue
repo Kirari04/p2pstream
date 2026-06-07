@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, reactive, ref, watch } from "vue";
+import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -29,10 +29,8 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
 const isOpen = ref(false);
 const listeners = computed(() => props.config?.listeners ?? []);
-const backends = computed(() => props.config?.backends ?? []);
 const listenerSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
-  if (!backends.value.length) return "Create a backend before creating a listener.";
   return "";
 });
 
@@ -43,7 +41,6 @@ const listenerForm = reactive({
   port: 80,
   protocol: PublicListenerProtocol.HTTP,
   enabled: true,
-  defaultBackendId: "",
 });
 
 function resetForm() {
@@ -53,7 +50,6 @@ function resetForm() {
   listenerForm.port = 80;
   listenerForm.protocol = PublicListenerProtocol.HTTP;
   listenerForm.enabled = true;
-  listenerForm.defaultBackendId = backends.value[0]?.id.toString() ?? "";
 }
 
 function openCreate() {
@@ -71,7 +67,6 @@ function openEdit(listenerId: bigint | string) {
   listenerForm.port = Number(listener.port);
   listenerForm.protocol = listener.protocol;
   listenerForm.enabled = listener.enabled;
-  listenerForm.defaultBackendId = listener.defaultBackendId.toString();
   isOpen.value = true;
 }
 
@@ -92,7 +87,6 @@ async function submitListener() {
       port: BigInt(listenerForm.port),
       protocol: listenerForm.protocol,
       enabled: listenerForm.enabled,
-      defaultBackendId: BigInt(listenerForm.defaultBackendId || "0"),
     };
     if (listenerForm.id) {
       await managementClient.updatePublicListener({ id: BigInt(listenerForm.id), ...payload });
@@ -105,12 +99,6 @@ async function submitListener() {
     emit("saved");
   }
 }
-
-watch(backends, () => {
-  if (!listenerForm.defaultBackendId && backends.value[0]) {
-    listenerForm.defaultBackendId = backends.value[0].id.toString();
-  }
-}, { immediate: true });
 
 defineExpose({ openCreate, openEdit, close });
 </script>
@@ -139,12 +127,6 @@ defineExpose({ openCreate, openEdit, close });
           <option :value="PublicListenerProtocol.HTTPS">HTTPS</option>
         </select>
         <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Choose HTTPS to enable TLS termination.</p>
-      </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
-        Default backend
-        <select v-model="listenerForm.defaultBackendId" class="vercel-input text-sm normal-case tracking-normal" required>
-          <option v-for="backend in backends" :key="backend.id.toString()" :value="backend.id.toString()">{{ backend.name }}</option>
-        </select>
       </label>
       <label class="flex items-center gap-2 text-sm text-[#d4d4d8] sm:col-span-2 mt-2">
         <input v-model="listenerForm.enabled" type="checkbox" />

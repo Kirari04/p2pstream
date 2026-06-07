@@ -125,9 +125,9 @@ func TestRotateAgentTokenDisconnectsActiveAgent(t *testing.T) {
 	if err := app.AgentHub.connect(conn); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
-	_ = app.agentProxyTransport(conn, publicBackendConfig{
+	_ = app.agentTargetTransport(conn, publicRouteTargetConfig{
 		ID:                            700,
-		TargetOrigin:                  "http://upstream.test:9000",
+		URL:                           "http://upstream.test:9000",
 		UpstreamResponseHeaderTimeout: time.Second,
 	})
 	if got := app.AgentTransports.len(); got != 1 {

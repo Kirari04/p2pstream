@@ -20,33 +20,33 @@ The server runs the management UI/API, public proxy runtime, SQLite storage, pub
 | Public listeners | Bind configured HTTP/HTTPS ports and receive public user traffic. |
 | WAF | Applies ordered block, captcha, and waiting-room rules before rate limits and routing. |
 | Router | Selects a route by listener, host, path prefix, and priority. |
-| Backend executor | Forwards directly, returns static responses, redirects, or sends requests to an agent. |
+| Target executor | Forwards directly, returns static responses, redirects, or sends requests to a label-selected agent. |
 | SQLite | Stores users, sessions, agents, public proxy config, TLS metadata, and observability events. |
 
 ## When It Matters
 
-Understand the architecture when choosing between direct backends and agents, deciding which ports to expose, planning backups, or troubleshooting where a request stopped.
+Understand the architecture when choosing between direct targets and agent targets, deciding which ports to expose, planning backups, or troubleshooting where a request stopped.
 
 ## Runtime Behavior
 
-Direct backend flow:
+Direct target flow:
 
 1. A client connects to a public listener.
 2. ACME HTTP challenges and reserved WAF endpoints are handled before normal policy evaluation.
 3. WAF rules may block, require captcha, or place the visitor in a waiting room.
 4. Rate limit rules run before route resolution.
 5. A traffic shaper may wrap upload/download body streams.
-6. The router selects a route or the listener default backend.
-7. Cache rules can serve eligible proxy-forward assets after route/backend selection.
+6. The router selects a route target, or a listener default route target if no explicit route matches.
+7. Cache rules can serve eligible proxy assets after route/target selection.
 8. The server forwards directly to the upstream origin or returns a redirect/static response.
-9. Observability records status, duration, policy IDs, listener/backend/route IDs, agent ID, and byte counts.
+9. Observability records status, duration, policy IDs, listener/route/target IDs, agent ID, and byte counts.
 
-Agent backend flow:
+Agent target flow:
 
 1. An agent connects outbound to management over management TLS and upgrades `GET /agent/tunnel` with `Upgrade: p2pstream-yamux`.
 2. The agent authenticates with its generated agent ID and token.
-3. A backend is configured in agent-pool mode with enabled agent assignments.
-4. For matching requests, the server selects an agent using the backend load-balancing policy.
+3. A route target is configured with agent transport and a label selector.
+4. For matching requests, the server selects a label-matched connected agent using the target's agent load-balancing policy.
 5. The server opens one Yamux stream for the upstream TCP connection.
 6. The server-owned HTTP transport runs over that stream; the agent only dials the origin and relays bytes.
 
@@ -54,7 +54,7 @@ Agent backend flow:
 
 - Exposing management `8081` as if it were a public app listener.
 - Expecting Docker to publish a new listener port that was only created in the UI.
-- Forgetting that agent-pool target origins are resolved from the agent host.
+- Forgetting that agent target origins are resolved from the selected agent host.
 - Running old WebSocket agents against a Yamux-tunnel server; agent and server versions must match after this breaking transport change.
 - Deleting `/data` and losing SQLite, TLS material, ACME state, and the management CA.
 

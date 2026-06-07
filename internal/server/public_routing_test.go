@@ -35,14 +35,15 @@ func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://app.example.:443/assets/app.js", nil)
 	req.Host = "app.example.:443"
 	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
-	route := publicRouteConfig{ID: 10, Enabled: true, HostPattern: "app.example", BackendID: 20}
+	target := publicRouteTargetConfig{ID: 20, RouteID: 10, Enabled: true, TargetType: publicRouteTargetTypeStatic}
+	route := publicRouteConfig{ID: 10, Enabled: true, HostPattern: "app.example", Targets: []publicRouteTargetConfig{target}}
 	app := NewApp(nil, nil)
 	app.publicSnapshot = &publicProxySnapshot{
-		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, DefaultBackendID: 20}},
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
 		},
-		Backends: map[int64]publicBackendConfig{20: {ID: 20, Enabled: true, BackendType: publicBackendTypeStatic}},
+		RouteTargets: map[int64]publicRouteTargetConfig{20: target},
 	}
 
 	resolution, err := app.resolvePublicRoute(1, req)
@@ -59,6 +60,53 @@ func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
 	}
 	if !match.matches(listener, req) {
 		t.Fatal("policy host did not match canonical dotted host")
+	}
+}
+
+func TestAgentSelectorMatchesAllLabelsAndExactAgent(t *testing.T) {
+	tests := []struct {
+		name     string
+		selector publicAgentSelectorConfig
+		labels   map[string]string
+		want     bool
+	}{
+		{
+			name:     "all user labels match",
+			selector: publicAgentSelectorConfig{MatchLabels: map[string]string{"site": "home", "role": "app"}},
+			labels:   map[string]string{"site": "home", "role": "app", "zone": "dmz"},
+			want:     true,
+		},
+		{
+			name:     "missing one user label",
+			selector: publicAgentSelectorConfig{MatchLabels: map[string]string{"site": "home", "role": "app"}},
+			labels:   map[string]string{"site": "home"},
+			want:     false,
+		},
+		{
+			name:     "system exact-agent label matches",
+			selector: publicAgentSelectorConfig{MatchLabels: map[string]string{"p2pstream.io/agent-id": "agent-abc"}},
+			labels:   map[string]string{"p2pstream.io/agent-id": "agent-abc"},
+			want:     true,
+		},
+		{
+			name:     "empty value matches only empty value",
+			selector: publicAgentSelectorConfig{MatchLabels: map[string]string{"role": ""}},
+			labels:   map[string]string{"role": ""},
+			want:     true,
+		},
+		{
+			name:     "empty selector never matches",
+			selector: publicAgentSelectorConfig{MatchLabels: map[string]string{}},
+			labels:   map[string]string{"site": "home"},
+			want:     false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := agentSelectorMatchesLabels(tc.selector, tc.labels); got != tc.want {
+				t.Fatalf("agentSelectorMatchesLabels = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 

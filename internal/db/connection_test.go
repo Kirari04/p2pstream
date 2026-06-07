@@ -581,10 +581,11 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list migrated routes: %v", err)
 	}
-	if len(routes) != 1 {
-		t.Fatalf("got %d routes, want 1", len(routes))
+	if len(routes) != 2 {
+		t.Fatalf("got %d routes, want explicit route plus generated default route", len(routes))
 	}
 	route := routes[0]
+	defaultRoute := routes[1]
 	if !route.BackendID.Valid || route.BackendID.Int64 != 1 {
 		t.Fatalf("migrated backend id = %+v, want 1", route.BackendID)
 	}
@@ -601,11 +602,38 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list route backends after migration: %v", err)
 	}
-	if len(routeBackends) != 1 || routeBackends[0].RouteID != route.ID || routeBackends[0].BackendID != 1 || routeBackends[0].Weight != 100 || routeBackends[0].Enabled != 1 {
+	if len(routeBackends) != 2 ||
+		routeBackends[0].RouteID != route.ID ||
+		routeBackends[0].BackendID != 1 ||
+		routeBackends[0].Weight != 100 ||
+		routeBackends[0].Enabled != 1 ||
+		routeBackends[1].RouteID != defaultRoute.ID ||
+		routeBackends[1].BackendID != 1 ||
+		routeBackends[1].Weight != 100 ||
+		routeBackends[1].Enabled != 1 {
 		t.Fatalf("unexpected migrated route backend assignments: %+v", routeBackends)
 	}
 	if route.LoadBalancing != "round_robin" || route.FallbackBackendID.Valid {
 		t.Fatalf("unexpected migrated route pool fields: %+v", route)
+	}
+	if route.TargetLoadBalancing != "round_robin" || route.IsDefault != 0 {
+		t.Fatalf("unexpected migrated target fields: %+v", route)
+	}
+	if defaultRoute.IsDefault != 1 || !defaultRoute.BackendID.Valid || defaultRoute.BackendID.Int64 != 1 {
+		t.Fatalf("unexpected generated default route: %+v", defaultRoute)
+	}
+	targets, err := database.ListPublicRouteTargets(context.Background())
+	if err != nil {
+		t.Fatalf("list migrated route targets: %v", err)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("got %d route targets, want explicit and default targets: %+v", len(targets), targets)
+	}
+	if targets[0].RouteID != route.ID || targets[0].Url != "https://example.com" || targets[0].Transport != "direct" || targets[0].TargetType != "proxy" {
+		t.Fatalf("unexpected migrated explicit target: %+v", targets[0])
+	}
+	if targets[1].RouteID != defaultRoute.ID || targets[1].Url != "https://example.com" || targets[1].Transport != "direct" || targets[1].TargetType != "proxy" {
+		t.Fatalf("unexpected generated default target: %+v", targets[1])
 	}
 	backendColumns := tableColumns(t, database, "public_backends")
 	for _, column := range []string{

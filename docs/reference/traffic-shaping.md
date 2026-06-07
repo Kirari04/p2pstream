@@ -19,7 +19,7 @@ Traffic shaper rules limit upload and/or download throughput for matching reques
 
 Traffic shapers use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, backend data, backend health, and load-balancer state are not available inside shaper match CEL. Traffic shapers still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside shaper match CEL. Traffic shapers still run before route resolution.
 
 Key parts still identify the per-key budget. They can use remote IP, host, method, path, protocol, header, cookie, and query parameter values.
 
@@ -32,7 +32,7 @@ Byte rates and exempt bytes must be non-negative. Use realistic rates so operati
 
 ## Runtime Effects
 
-Traffic shapers run after WAF and rate-limit checks and before route/backend forwarding. Shaping wraps streaming request and response bodies, so very small responses may finish before the limit is noticeable.
+Traffic shapers run after WAF and rate-limit checks and before route/target forwarding. Shaping wraps streaming request and response bodies, so very small responses may finish before the limit is noticeable.
 
 `per_key` shares buckets for matching requests with the same key. `per_request` creates fresh buckets for each request. Editing a rule resets its in-memory buckets.
 

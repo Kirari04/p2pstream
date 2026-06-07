@@ -5,18 +5,18 @@ import {
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
   PublicRouteAction,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicWafActivationMode,
   PublicWafRuleAction,
   type Agent,
   type GetPublicProxyConfigResponse,
-  type PublicBackend,
-  type PublicBackendAgent,
   type PublicCacheRule,
-  type PublicRouteBackend,
   type PublicRateLimitRule,
   type PublicTrafficShaperRule,
   type PublicWafRule,
   type PublicRoute,
+  type PublicRouteTarget,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceStage as TraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
@@ -31,10 +31,9 @@ export const TRAFFIC_SHAPER_KEY = "traffic-shaper";
 export type TrafficFlowConfigIndex = {
   routesByListenerId: Map<string, PublicRoute[]>;
   routeById: Map<string, PublicRoute>;
-  backendById: Map<string, PublicBackend>;
+  routeTargetById: Map<string, PublicRouteTarget>;
+  routeTargetsByRouteId: Map<string, PublicRouteTarget[]>;
   agentById: Map<string, Agent>;
-  backendAgentsByBackendId: Map<string, PublicBackendAgent[]>;
-  routeBackendsByRouteId: Map<string, PublicRouteBackend[]>;
   enabledRateLimitTargets: TrafficFlowEditTarget[];
   hasEnabledRateLimitRules: boolean;
   enabledWafTargets: TrafficFlowEditTarget[];
@@ -86,10 +85,9 @@ export class TrafficRequestPathCache {
 export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigResponse | null): TrafficFlowConfigIndex {
   const routesByListenerId = new Map<string, PublicRoute[]>();
   const routeById = new Map<string, PublicRoute>();
-  const backendById = new Map<string, PublicBackend>();
+  const routeTargetById = new Map<string, PublicRouteTarget>();
+  const routeTargetsByRouteId = new Map<string, PublicRouteTarget[]>();
   const agentById = new Map<string, Agent>();
-  const backendAgentsByBackendId = new Map<string, PublicBackendAgent[]>();
-  const routeBackendsByRouteId = new Map<string, PublicRouteBackend[]>();
   const enabledRateLimitTargets = [...(config?.rateLimitRules ?? [])]
     .filter((rule) => rule.enabled)
     .sort(compareRateLimitRules)
@@ -117,38 +115,26 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
   for (const routes of routesByListenerId.values()) {
     routes.sort(compareRoutes);
   }
-  for (const backend of config?.backends ?? []) {
-    backendById.set(backend.id.toString(), backend);
-  }
   for (const agent of config?.agents ?? []) {
     agentById.set(agent.id.toString(), agent);
   }
-  for (const assignment of config?.backendAgents ?? []) {
-    const key = assignment.backendId.toString();
-    const assignments = backendAgentsByBackendId.get(key) ?? [];
-    assignments.push(assignment);
-    backendAgentsByBackendId.set(key, assignments);
+  for (const target of config?.routeTargets ?? []) {
+    routeTargetById.set(target.id.toString(), target);
+    const key = target.routeId.toString();
+    const targets = routeTargetsByRouteId.get(key) ?? [];
+    targets.push(target);
+    routeTargetsByRouteId.set(key, targets);
   }
-  for (const assignments of backendAgentsByBackendId.values()) {
-    assignments.sort(compareBackendAgents);
-  }
-  for (const assignment of config?.routeBackends ?? []) {
-    const key = assignment.routeId.toString();
-    const assignments = routeBackendsByRouteId.get(key) ?? [];
-    assignments.push(assignment);
-    routeBackendsByRouteId.set(key, assignments);
-  }
-  for (const assignments of routeBackendsByRouteId.values()) {
-    assignments.sort(compareRouteBackends);
+  for (const targets of routeTargetsByRouteId.values()) {
+    targets.sort(compareRouteTargets);
   }
 
   return {
     routesByListenerId,
     routeById,
-    backendById,
+    routeTargetById,
+    routeTargetsByRouteId,
     agentById,
-    backendAgentsByBackendId,
-    routeBackendsByRouteId,
     enabledRateLimitTargets,
     hasEnabledRateLimitRules: enabledRateLimitTargets.length > 0,
     enabledWafTargets,
@@ -160,13 +146,9 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
   };
 }
 
-export function routeBackendAssignments(route: PublicRoute, index: TrafficFlowConfigIndex | null): PublicRouteBackend[] {
-  if (route.backendAssignments.length) return route.backendAssignments;
-  const assignments = index?.routeBackendsByRouteId.get(route.id.toString()) ?? [];
-  if (assignments.length) return assignments;
-  return route.backendId > 0n
-    ? [{ $typeName: "p2pstream.v1.PublicRouteBackend", routeId: route.id, backendId: route.backendId, position: 0n, weight: 100n, enabled: true }]
-    : [];
+export function routeTargetAssignments(route: PublicRoute, index: TrafficFlowConfigIndex | null): PublicRouteTarget[] {
+  if (route.targets.length) return [...route.targets].sort(compareRouteTargets);
+  return index?.routeTargetsByRouteId.get(route.id.toString()) ?? [];
 }
 
 export function buildTrafficFlowRequestPath(request: TraceRequest, index: TrafficFlowConfigIndex | null): string[] {
@@ -211,12 +193,13 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
     return dedupeConsecutive(path);
   }
 
-  if (request.backendId > 0n) {
-    path.push(backendKey(request.backendId));
+  const selectedTargetId = request.routeTargetId || request.backendId;
+  if (selectedTargetId > 0n) {
+    path.push(backendKey(selectedTargetId));
 
-    if (request.backendType === PublicBackendType.STATIC) {
+    if (requestTargetType(request) === PublicRouteTargetType.STATIC) {
       path.push("static-response");
-    } else if (request.backendType === PublicBackendType.PROXY_FORWARD) {
+    } else {
       if (requestTraversesCacheNode(request)) {
         path.push(CACHE_KEY);
         if (request.stage === TraceStage.CACHE_LOOKUP) {
@@ -230,7 +213,7 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
       if (request.agentId > 0n) {
         path.push(agentKey(request.agentId));
         path.push("upstream");
-      } else if (request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
+      } else if (requestTargetTransport(request) !== PublicRouteTargetTransport.AGENT) {
         path.push("upstream");
       }
     }
@@ -258,6 +241,9 @@ export function trafficRequestPathSignature(request: TraceRequest): string {
     request.listenerId,
     request.routeId,
     request.defaultRoute,
+    request.routeTargetId,
+    request.routeTargetType,
+    request.routeTargetTransport,
     request.backendId,
     request.backendType,
     request.forwardMode,
@@ -294,6 +280,20 @@ function requestTraversesCacheNode(request: TraceRequest): boolean {
   return request.stage === TraceStage.CACHE_LOOKUP ||
     request.stage === TraceStage.CACHE_HIT ||
     request.cacheStatus.toLowerCase() === "hit";
+}
+
+function requestTargetType(request: TraceRequest): PublicRouteTargetType {
+  if (request.routeTargetType) return request.routeTargetType;
+  if (request.backendType === PublicBackendType.STATIC) return PublicRouteTargetType.STATIC;
+  if (request.backendType === PublicBackendType.PROXY_FORWARD) return PublicRouteTargetType.PROXY;
+  return PublicRouteTargetType.UNSPECIFIED;
+}
+
+function requestTargetTransport(request: TraceRequest): PublicRouteTargetTransport {
+  if (request.routeTargetTransport) return request.routeTargetTransport;
+  if (request.forwardMode === PublicBackendForwardMode.AGENT_POOL) return PublicRouteTargetTransport.AGENT;
+  if (request.forwardMode === PublicBackendForwardMode.DIRECT) return PublicRouteTargetTransport.DIRECT;
+  return PublicRouteTargetTransport.UNSPECIFIED;
 }
 
 export function routeConfigForRequest(request: TraceRequest, index: TrafficFlowConfigIndex | null): PublicRoute | undefined {
@@ -341,7 +341,7 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
       if (request.defaultRoute && request.listenerId > 0n) return DEFAULT_ROUTE_KEY;
       return request.listenerId > 0n ? listenerKey(request.listenerId) : "ingress";
     case TraceStage.BACKEND_SELECTED:
-      return request.backendId > 0n ? backendKey(request.backendId) : "response";
+      return request.routeTargetId > 0n ? backendKey(request.routeTargetId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TraceStage.AGENT_SELECTED:
       return request.agentId > 0n ? agentKey(request.agentId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TraceStage.TRAFFIC_SHAPER_SELECTED:
@@ -357,15 +357,15 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
       return CACHE_KEY;
     case TraceStage.CACHE_MISS:
     case TraceStage.CACHE_BYPASS:
-      return request.backendId > 0n ? backendKey(request.backendId) : "response";
+      return request.routeTargetId > 0n ? backendKey(request.routeTargetId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TraceStage.CACHE_STORED:
       return "response";
     case TraceStage.UPSTREAM_STARTED:
-      if (request.backendType === PublicBackendType.STATIC) return "static-response";
-      if (request.agentId > 0n || request.forwardMode !== PublicBackendForwardMode.AGENT_POOL) return "upstream";
-      return request.backendId > 0n ? backendKey(request.backendId) : "response";
+      if (requestTargetType(request) === PublicRouteTargetType.STATIC) return "static-response";
+      if (request.agentId > 0n || requestTargetTransport(request) !== PublicRouteTargetTransport.AGENT) return "upstream";
+      return request.routeTargetId > 0n ? backendKey(request.routeTargetId) : request.backendId > 0n ? backendKey(request.backendId) : "response";
     case TraceStage.UPSTREAM_RESPONDED:
-      return request.backendType === PublicBackendType.STATIC ? "static-response" : "upstream";
+      return requestTargetType(request) === PublicRouteTargetType.STATIC ? "static-response" : "upstream";
     case TraceStage.RATE_LIMITED:
       return "response";
     case TraceStage.RESPONSE_SENT:
@@ -451,16 +451,11 @@ function compareRoutes(a: PublicRoute, b: PublicRoute): number {
   return a.id < b.id ? -1 : 1;
 }
 
-function compareBackendAgents(a: PublicBackendAgent, b: PublicBackendAgent): number {
+function compareRouteTargets(a: PublicRouteTarget, b: PublicRouteTarget): number {
+  if (a.priorityGroup !== b.priorityGroup) return a.priorityGroup < b.priorityGroup ? -1 : 1;
   if (a.position !== b.position) return a.position < b.position ? -1 : 1;
-  if (a.agentId === b.agentId) return 0;
-  return a.agentId < b.agentId ? -1 : 1;
-}
-
-function compareRouteBackends(a: PublicRouteBackend, b: PublicRouteBackend): number {
-  if (a.position !== b.position) return a.position < b.position ? -1 : 1;
-  if (a.backendId === b.backendId) return 0;
-  return a.backendId < b.backendId ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
 }
 
 function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {

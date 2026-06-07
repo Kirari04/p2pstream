@@ -13,31 +13,20 @@ import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
-import PublicBackendHealthTraceModal from "@/components/PublicBackendHealthTraceModal.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import {
-  backendAgentSummary,
-  backendAgentAvailabilitySummary,
-  backendHealthLabel,
-  backendHealthSeverity,
-  backendName,
-  backendSummary,
-  backendTypeLabel,
   bindLabel,
-  forwardModeLabel,
   listenerName,
   listenerRuntimeState,
   listenerStateLabel,
-  loadBalancingLabel,
   protocolLabel,
   proxyStateLabel,
   routeAction,
   routeDestinationLabel,
   routeTargetSummary,
   severityForState,
-  upstreamHeaderCount,
 } from "@/lib/publicProxyLabels";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
@@ -45,10 +34,7 @@ import SecondaryButton from "@/volt/SecondaryButton.vue";
 import Tag from "@/volt/Tag.vue";
 import {
   ProxyState,
-  PublicBackendForwardMode,
-  PublicBackendType,
   PublicRouteAction,
-  type PublicBackend,
   type PublicListener,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -69,23 +55,18 @@ const proxyIsRunning = computed(() => proxyState.value === ProxyState.RUNNING ||
 const proxyError = computed(() => status.value?.proxy?.lastError || status.value?.proxyLastError || "");
 const proxySeverity = computed(() => severityForState(proxyState.value));
 const listeners = computed(() => config.value?.listeners ?? []);
-const backends = computed(() => config.value?.backends ?? []);
-const agents = computed(() => config.value?.agents ?? []);
-const backendAgents = computed(() => config.value?.backendAgents ?? []);
+const routeTargets = computed(() => config.value?.routeTargets ?? []);
 const routes = computed(() => config.value?.routes ?? []);
-const routeBackends = computed(() => config.value?.routeBackends ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const runningListeners = computed(() => listeners.value.filter((listener) => listenerStatus(listener)?.running).length);
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
 
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
-const selectedHealthBackend = ref<PublicBackend | null>(null);
-const isHealthTraceOpen = ref(false);
 const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
 
 const summaryCards = computed(() => [
   { label: "Listeners", value: listeners.value.length.toString(), detail: `${runningListeners.value.toString()} running` },
-  { label: "Backends", value: backends.value.length.toString(), detail: "forward and static targets" },
+  { label: "Targets", value: routeTargets.value.length.toString(), detail: "proxy and static destinations" },
   { label: "Routes", value: routes.value.length.toString(), detail: "listener match rules" },
   { label: "Proxy", value: proxyStateLabel(proxyState.value, status.value?.proxyRunning), detail: proxyIsRunning.value ? "accepting traffic" : "not running" },
 ]);
@@ -113,23 +94,6 @@ function editListener(listener: PublicListener) {
   editorHost.value?.openListener(listener.id);
 }
 
-function openAddBackendModal() {
-  editorHost.value?.openCreateBackend();
-}
-
-function editBackend(backend: PublicBackend) {
-  editorHost.value?.openBackend(backend.id);
-}
-
-function cloneBackend(backend: PublicBackend) {
-  editorHost.value?.openCloneBackend(backend.id);
-}
-
-function openHealthTraces(backend: PublicBackend) {
-  selectedHealthBackend.value = backend;
-  isHealthTraceOpen.value = true;
-}
-
 function openAddRouteModal() {
   editorHost.value?.openCreateRoute();
 }
@@ -140,13 +104,6 @@ function editRoute(routeId: bigint) {
 
 function cloneRoute(routeId: bigint) {
   editorHost.value?.openCloneRoute(routeId);
-}
-
-async function deleteBackend(id: bigint) {
-  if (!await confirm("Delete Backend", "This backend and all its agent assignments will be permanently removed.")) return;
-  await run(async () => {
-    await managementClient.deletePublicBackend({ id });
-  });
 }
 
 async function deleteListener(id: bigint) {
@@ -177,7 +134,7 @@ async function setListenerRunning(listener: PublicListener, running: boolean) {
 }
 
 async function deleteRoute(id: bigint) {
-  if (!await confirm("Delete Route", "This route will be permanently removed. Traffic matching it will fall through to other routes or the default backend.")) return;
+  if (!await confirm("Delete Route", "This route and its targets will be permanently removed. Traffic matching it will fall through to other routes or the default route.")) return;
   await run(async () => {
     await managementClient.deletePublicRoute({ id });
   });
@@ -245,7 +202,7 @@ async function deleteRoute(id: bigint) {
               <th class="px-5 py-3">Name</th>
               <th class="px-5 py-3">Bind</th>
               <th class="px-5 py-3">Protocol</th>
-              <th class="px-5 py-3">Backend</th>
+              <th class="px-5 py-3">Routes</th>
               <th class="px-5 py-3">State</th>
               <th class="px-5 py-3 text-right">Actions</th>
             </tr>
@@ -255,7 +212,9 @@ async function deleteRoute(id: bigint) {
               <td class="px-5 py-4 font-medium text-white">{{ listener.name }}</td>
               <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ bindLabel(listener) }}</td>
               <td class="px-5 py-4">{{ protocolLabel(listener.protocol) }}</td>
-              <td class="px-5 py-4 text-[#d4d4d8]">{{ backendName(listener.defaultBackendId, backends) }}</td>
+              <td class="px-5 py-4 text-[#d4d4d8]">
+                {{ routes.filter((route) => route.listenerId === listener.id).length.toString() }}
+              </td>
               <td class="px-5 py-4">
                 <div class="flex flex-col gap-1">
                   <Tag
@@ -326,83 +285,8 @@ async function deleteRoute(id: bigint) {
     <section class="vercel-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Backends</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Upstream targets where matched traffic is forwarded.</p>
-        </div>
-        <SecondaryButton size="small" label="Add Backend" @click="openAddBackendModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
-      </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="backend in backends" :key="backend.id.toString()" class="flex items-center justify-between gap-3 px-5 py-4">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ backend.name }}</p>
-              <Tag :value="backendTypeLabel(backend.backendType)" severity="info" />
-              <Tag
-                v-if="backend.backendType === PublicBackendType.PROXY_FORWARD"
-                :value="forwardModeLabel(backend.forwardMode)"
-                severity="info"
-              />
-              <Tag
-                v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && backend.upstreamBasicAuth?.enabled"
-                value="Basic auth"
-                severity="info"
-              />
-              <Tag
-                v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && upstreamHeaderCount(backend) > 0"
-                :value="`${upstreamHeaderCount(backend).toString()} upstream headers`"
-                severity="info"
-              />
-              <button
-                v-if="backend.backendType === PublicBackendType.PROXY_FORWARD"
-                type="button"
-                class="rounded-md transition hover:brightness-125"
-                title="Open health check traces"
-                @click="openHealthTraces(backend)"
-              >
-                <Tag
-                  :value="backendHealthLabel(backend)"
-                  :severity="backendHealthSeverity(backend)"
-                />
-              </button>
-              <Tag v-if="!backend.enabled" value="Disabled" severity="warn" />
-            </div>
-            <p class="truncate text-xs text-[#888] mt-1">{{ backendSummary(backend) }}</p>
-            <p
-              v-if="backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode === PublicBackendForwardMode.AGENT_POOL"
-              class="truncate text-xs text-[#666] mt-1"
-            >
-              {{ loadBalancingLabel(backend.loadBalancing) }} / {{ backendAgentAvailabilitySummary(backend, backendAgents) }} / {{ backendAgentSummary(backend, backendAgents, agents) }}
-            </p>
-          </div>
-          <div class="flex gap-2">
-            <SecondaryButton size="small" aria-label="Edit backend" title="Edit backend" @click="editBackend(backend)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <SecondaryButton size="small" aria-label="Clone backend" title="Clone backend" @click="cloneBackend(backend)">
-              <template #icon><WindowMaximizeIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete backend" title="Delete backend" @click="deleteBackend(backend.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
-          </div>
-        </div>
-        <EmptyState
-          v-if="!backends.length"
-          title="No backends configured"
-          description="Backends define static responses or upstream origins for matching routes."
-          action-label="Add Backend"
-          @action="openAddBackendModal"
-        />
-      </div>
-    </section>
-
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
-        <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Routes</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Rules that match incoming requests to backends.</p>
+          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Rules that match incoming requests to route targets.</p>
         </div>
         <SecondaryButton size="small" label="Add Route" @click="openAddRouteModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
@@ -412,7 +296,7 @@ async function deleteRoute(id: bigint) {
         <div v-for="route in routes" :key="route.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route, backends, routeBackends) }}</p>
+              <p class="truncate text-sm font-medium text-white">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
               <span
                 v-if="routeAction(route) === PublicRouteAction.REDIRECT"
                 class="shrink-0 rounded border border-[#0f766e] px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-[#5eead4]"
@@ -424,7 +308,7 @@ async function deleteRoute(id: bigint) {
               {{ route.priority.toString() }} / {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
             </p>
             <p class="truncate font-mono text-xs text-[#71717a]">
-              {{ routeTargetSummary(route, backends, routeBackends) }}
+              {{ routeTargetSummary(route) }}
             </p>
           </div>
           <div class="flex gap-2">
@@ -450,12 +334,6 @@ async function deleteRoute(id: bigint) {
     </section>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
-    <PublicBackendHealthTraceModal
-      v-model="isHealthTraceOpen"
-      :backend="selectedHealthBackend"
-      :backend-agents="backendAgents"
-      :agents="agents"
-    />
     <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
   </div>
 </template>

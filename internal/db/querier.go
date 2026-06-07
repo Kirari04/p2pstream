@@ -34,6 +34,9 @@ type Querier interface {
 	CreatePublicResponseTemplate(ctx context.Context, arg CreatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
 	CreatePublicRouteBackend(ctx context.Context, arg CreatePublicRouteBackendParams) (PublicRouteBackend, error)
+	CreatePublicRouteTarget(ctx context.Context, arg CreatePublicRouteTargetParams) (PublicRouteTarget, error)
+	CreatePublicRouteTargetResponseHeader(ctx context.Context, arg CreatePublicRouteTargetResponseHeaderParams) (PublicRouteTargetResponseHeader, error)
+	CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg CreatePublicRouteTargetUpstreamHeaderParams) (PublicRouteTargetUpstreamHeader, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
@@ -42,6 +45,8 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	DeleteAgent(ctx context.Context, id int64) error
+	DeleteAgentLabel(ctx context.Context, arg DeleteAgentLabelParams) error
+	DeleteAgentLabelsByAgent(ctx context.Context, agentID int64) error
 	DeleteAgentStatRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteAgentStatsBefore(ctx context.Context, reportedAt time.Time) error
 	DeleteDisconnectedConnectionsBefore(ctx context.Context, disconnectedAt sql.NullTime) error
@@ -64,11 +69,16 @@ type Querier interface {
 	DeletePublicResponseTemplate(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
 	DeletePublicRouteBackends(ctx context.Context, routeID int64) error
+	DeletePublicRouteTarget(ctx context.Context, id int64) error
+	DeletePublicRouteTargetResponseHeaders(ctx context.Context, targetID int64) error
+	DeletePublicRouteTargetUpstreamHeaders(ctx context.Context, targetID int64) error
+	DeletePublicRouteTargets(ctx context.Context, routeID int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
 	DeletePublicWafCaptchaProvider(ctx context.Context, id int64) error
 	DeletePublicWafRule(ctx context.Context, id int64) error
+	DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
 	GetActiveManagementAccessTokenByHash(ctx context.Context, tokenHash string) (ManagementAccessToken, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
@@ -94,6 +104,7 @@ type Querier interface {
 	GetPublicResponseTemplate(ctx context.Context, id int64) (PublicResponseTemplate, error)
 	GetPublicResponseTemplateByName(ctx context.Context, name string) (PublicResponseTemplate, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
+	GetPublicRouteTarget(ctx context.Context, id int64) (PublicRouteTarget, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
 	GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error)
@@ -107,6 +118,8 @@ type Querier interface {
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
 	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error)
+	ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error)
+	ListAgentLabelsByAgent(ctx context.Context, agentID int64) ([]PublicAgentLabel, error)
 	ListAgentStatRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListAgentStatRollupMinutesSinceRow, error)
 	ListAgents(ctx context.Context) ([]Agent, error)
 	ListConnectionsSince(ctx context.Context, arg ListConnectionsSinceParams) ([]ListConnectionsSinceRow, error)
@@ -133,6 +146,12 @@ type Querier interface {
 	ListPublicResponseTemplates(ctx context.Context) ([]PublicResponseTemplate, error)
 	ListPublicRouteBackends(ctx context.Context) ([]PublicRouteBackend, error)
 	ListPublicRouteBackendsByRoute(ctx context.Context, routeID int64) ([]PublicRouteBackend, error)
+	ListPublicRouteTargetResponseHeaders(ctx context.Context) ([]PublicRouteTargetResponseHeader, error)
+	ListPublicRouteTargetResponseHeadersByTarget(ctx context.Context, targetID int64) ([]PublicRouteTargetResponseHeader, error)
+	ListPublicRouteTargetUpstreamHeaders(ctx context.Context) ([]PublicRouteTargetUpstreamHeader, error)
+	ListPublicRouteTargetUpstreamHeadersByTarget(ctx context.Context, targetID int64) ([]PublicRouteTargetUpstreamHeader, error)
+	ListPublicRouteTargets(ctx context.Context) ([]PublicRouteTarget, error)
+	ListPublicRouteTargetsByRoute(ctx context.Context, routeID int64) ([]PublicRouteTarget, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
@@ -179,6 +198,7 @@ type Querier interface {
 	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
+	UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicRouteTargetParams) (PublicRouteTarget, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateStatus(ctx context.Context, arg UpdatePublicTlsCertificateStatusParams) (PublicTlsCertificate, error)
@@ -187,6 +207,7 @@ type Querier interface {
 	UpdatePublicWafCaptchaProvider(ctx context.Context, arg UpdatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error)
 	UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRuleParams) (PublicWafRule, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error)
+	UpsertAgentLabel(ctx context.Context, arg UpsertAgentLabelParams) (PublicAgentLabel, error)
 	UpsertAgentStatRollupMinute(ctx context.Context, arg UpsertAgentStatRollupMinuteParams) error
 	UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapAgentParams) (Agent, error)
 	UpsertProxyRequestRollupMinute(ctx context.Context, arg UpsertProxyRequestRollupMinuteParams) error

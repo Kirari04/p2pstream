@@ -4,7 +4,7 @@ Expose a service from a private network by installing an agent that connects out
 
 ## Use This When
 
-Use an agent-pool backend when the upstream service is reachable from a home lab or remote host, but not from the public p2pstream server.
+Use an agent target when the upstream service is reachable from a home lab or remote host, but not from the public p2pstream server.
 
 Example:
 
@@ -58,7 +58,15 @@ Example:
    sudo journalctl -u p2pstream-agent -f
    ```
 
-4. Open **Proxy** and create an agent-pool backend:
+4. Edit the agent and add a label in the Agent editor, for example:
+
+   | Key | Value |
+   | --- | --- |
+   | `site` | `home-lab` |
+
+   Labels under `p2pstream.io/` are system-owned and read-only. The exact-agent selector label is `p2pstream.io/agent-id=<agent public ID>`. Empty label values are allowed, but should be used only when you intentionally want to match an empty value.
+
+5. Open **Proxy**, create or edit a forward route, and add an agent proxy target:
 
    :::warning Origin resolution
    The origin URL is resolved from the **agent host**, not from the p2pstream server. Set it to whatever the agent host can reach — `localhost`, a LAN hostname, or an internal IP are all valid here.
@@ -67,23 +75,24 @@ Example:
    | Field | Value |
    | --- | --- |
    | Name | `homeassistant` |
-   | Type | Proxy forward |
-   | Forward mode | Agent pool |
-   | Target origin | `http://homeassistant.local:8123` |
-   | Load balancing | Round-robin |
-   | Agent assignment | `home-lab`, weight `100`, enabled |
+   | Type | Proxy |
+   | Transport | Agent |
+   | URL | `http://homeassistant.local:8123` |
+   | Agent selector | `site=home-lab` |
+   | Agent load balancing | Round-robin |
+   | Priority group | `0` |
+   | Weight | `100` |
    | Enabled | On |
 
-5. In **Proxy**, route public traffic to the backend:
+6. Configure the route match:
 
    | Field | Value |
    | --- | --- |
    | Listener | `public-https` |
    | Host pattern | `ha.example.com` |
    | Path prefix | `/` |
-   | Backend | `homeassistant` |
 
-6. Open **TLS** and add an ACME certificate for `ha.example.com`.
+7. Open **TLS** and add an ACME certificate for `ha.example.com`.
 
 ## Verification
 
@@ -93,21 +102,21 @@ Run:
 curl -I https://ha.example.com
 ```
 
-The **Agents** page should show the agent connected, and **Traffic** tracing should show the selected agent when the route uses the agent-pool backend.
+The **Agents** page should show the agent connected, and **Traffic** tracing should show the selected route target and agent.
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
 | Agent offline | Confirm `MANAGEMENT_URL`, CA material, token, and outbound firewall access. |
-| Backend fails | Test `http://homeassistant.local:8123` from the agent host. |
-| Health check unhealthy | Health checks run from each assigned connected agent. |
+| Target fails | Test `http://homeassistant.local:8123` from the agent host. |
+| Health check unhealthy | Health checks run from each matching connected agent. |
 | Need to remove the agent | Use the uninstall command from **Agents** or [Systemd uninstall](../operations/systemd#uninstall-agent). |
 
-If the agent is offline, requests to this backend fail until an enabled assigned agent reconnects.
+Agent selectors require at least one label, and all selector labels must match the same agent. If no label-matched agent is connected, requests to this target fail until an enabled matching agent reconnects.
 
 ## Next Steps
 
-- [Build a multi-agent backend pool](./agent-pool)
+- [Build a multi-agent target](./agent-pool)
 - [Agents](../concepts/agents)
 - [Systemd operations](../operations/systemd)

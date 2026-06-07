@@ -402,7 +402,7 @@ func (w *publicWAF) updateAutomaticActivationLocked(runtime *publicWafRuleRuntim
 	if rule.Triggers.ProxyActiveRequests > 0 && w.proxyActiveRequests.Load() >= rule.Triggers.ProxyActiveRequests {
 		pressure = true
 	}
-	if rule.Triggers.BackendActiveRequests > 0 && app.maxPublicBackendActiveRequests(snap) >= rule.Triggers.BackendActiveRequests {
+	if rule.Triggers.BackendActiveRequests > 0 && app.maxPublicRouteTargetActiveRequests(snap) >= rule.Triggers.BackendActiveRequests {
 		pressure = true
 	}
 	if rule.Triggers.AgentActiveRequests > 0 && app.maxAgentActiveRequests() >= rule.Triggers.AgentActiveRequests {
@@ -484,12 +484,12 @@ func (w *publicWAF) serverCPUPercentLocked(now time.Time) float64 {
 	return percent
 }
 
-func (a *App) maxPublicBackendActiveRequests(snap *publicProxySnapshot) int64 {
+func (a *App) maxPublicRouteTargetActiveRequests(snap *publicProxySnapshot) int64 {
 	if a == nil || a.BackendHealth == nil || snap == nil {
 		return 0
 	}
 	var maxActive int64
-	for id := range snap.Backends {
+	for id := range snap.RouteTargets {
 		if active := a.BackendHealth.activeRequests(id); active > maxActive {
 			maxActive = active
 		}

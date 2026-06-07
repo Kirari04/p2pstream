@@ -207,6 +207,7 @@ function agent(id: bigint, publicId: string): Agent {
     lastConnectedAtUnixMillis: 0n,
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
+    labels: {},
   };
 }
 

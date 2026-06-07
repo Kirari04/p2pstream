@@ -50,7 +50,7 @@ Token bucket is the default and works well for most API use cases. Use sliding w
 
 Rules use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, backend data, backend health, and load-balancer state are not available inside rate-limit match CEL. Rate limits still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside rate-limit match CEL. Rate limits still run before route resolution.
 
 Key sources:
 
@@ -75,7 +75,7 @@ Key sources:
 
 ## Runtime Effects
 
-When a request exceeds the selected rule's budget, p2pstream returns the configured response and does not run traffic shaping, route resolution, backend selection, or cache lookup for that request.
+When a request exceeds the selected rule's budget, p2pstream returns the configured response and does not run traffic shaping, route resolution, target selection, or cache lookup for that request.
 
 When response body source is **Template**, p2pstream resolves the selected generic template body into the rule before serving the denial response. The rule's configured status, content type, generated rate-limit headers, and custom response headers still apply.
 

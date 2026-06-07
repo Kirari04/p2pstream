@@ -445,22 +445,26 @@ func TestPublicProxyConfigResponseUsesCachedRowsUntilRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load public config: %v", err)
 	}
-	if publicConfigHasBackend(first, "direct-only") {
-		t.Fatal("unexpected direct-only backend before insert")
+	if publicConfigHasTarget(first, "direct-only") {
+		t.Fatal("unexpected direct-only target before insert")
 	}
 
+	var routeID int64
+	if err := app.DB.QueryRowContext(ctx, `SELECT id FROM public_routes ORDER BY id LIMIT 1`).Scan(&routeID); err != nil {
+		t.Fatalf("select route: %v", err)
+	}
 	if _, err := app.DB.ExecContext(ctx, `
-		INSERT INTO public_backends (name, target_origin, backend_type, enabled)
-		VALUES ('direct-only', 'http://direct-only.local', 'proxy_forward', 1)
-	`); err != nil {
-		t.Fatalf("insert direct backend: %v", err)
+		INSERT INTO public_route_targets (route_id, name, position, target_type, url, transport, enabled)
+		VALUES (?, 'direct-only', 99, 'proxy', 'http://direct-only.local', 'direct', 1)
+	`, routeID); err != nil {
+		t.Fatalf("insert direct target: %v", err)
 	}
 
 	cached, err := app.publicProxyConfigResponse(ctx)
 	if err != nil {
 		t.Fatalf("load cached public config: %v", err)
 	}
-	if publicConfigHasBackend(cached, "direct-only") {
+	if publicConfigHasTarget(cached, "direct-only") {
 		t.Fatal("cached public config unexpectedly reflected direct DB change")
 	}
 
@@ -471,8 +475,8 @@ func TestPublicProxyConfigResponseUsesCachedRowsUntilRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load refreshed public config: %v", err)
 	}
-	if !publicConfigHasBackend(refreshed, "direct-only") {
-		t.Fatal("refreshed public config did not include direct-only backend")
+	if !publicConfigHasTarget(refreshed, "direct-only") {
+		t.Fatal("refreshed public config did not include direct-only target")
 	}
 }
 
@@ -1011,9 +1015,9 @@ func insertPublicRouteRow(t *testing.T, app *App, listenerID int64, backendID in
 	return id
 }
 
-func publicConfigHasBackend(resp *p2pstreamv1.GetPublicProxyConfigResponse, name string) bool {
-	for _, backend := range resp.Backends {
-		if backend.Name == name {
+func publicConfigHasTarget(resp *p2pstreamv1.GetPublicProxyConfigResponse, name string) bool {
+	for _, target := range resp.RouteTargets {
+		if target.Name == name {
 			return true
 		}
 	}

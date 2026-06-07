@@ -151,6 +151,7 @@ function dashboardResponse(overrides: Partial<GetDashboardResponse> = {}): GetDa
     generatedAtUnixMillis: 0n,
     topListeners: [],
     topBackends: [],
+    topRouteTargets: [],
     topRoutes: [],
     topAgents: [],
     topErrorKinds: [],

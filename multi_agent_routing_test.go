@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -93,6 +94,7 @@ func TestDirectPublicBackendHonorsTLSSkipVerify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
 	}
+	createProxyRouteTargetForListener(t, database, listener.ID, "/", "direct-tls", targetSrv.URL, "direct", "", true, true)
 	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
@@ -139,6 +141,7 @@ func TestAgentPoolBackendReturns503WhenAssignedAgentOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
 	}
+	createProxyRouteTargetForListener(t, database, listener.ID, "/", "offline-backend", backend.TargetOrigin, "agent", agent.PublicID, false, true)
 
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
@@ -189,15 +192,8 @@ func TestAgentPoolBackendsRouteOnlyToAssignedAgents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
 	}
-	if _, err := database.CreatePublicRoute(context.Background(), db.CreatePublicRouteParams{
-		ListenerID: listener.ID,
-		Priority:   1,
-		PathPrefix: "/b",
-		BackendID:  sql.NullInt64{Int64: backendB.ID, Valid: true},
-		Enabled:    1,
-	}); err != nil {
-		t.Fatalf("create backend-b route: %v", err)
-	}
+	createProxyRouteTargetForListener(t, database, listener.ID, "/", "backend-a", backendA.TargetOrigin, "agent", agentA.GetPublicId(), false, true)
+	createProxyRouteTargetForListener(t, database, listener.ID, "/b", "backend-b", backendB.TargetOrigin, "agent", agentB.GetPublicId(), false, false)
 
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
@@ -279,6 +275,64 @@ func createAgentPoolBackend(t *testing.T, database *db.DB, name string, targetOr
 		t.Fatalf("assign backend %s to agent %d: %v", name, agentID, err)
 	}
 	return backend
+}
+
+func createProxyRouteTargetForListener(t *testing.T, database *db.DB, listenerID int64, pathPrefix string, name string, targetOrigin string, transport string, agentPublicID string, tlsSkipVerify bool, isDefault bool) db.PublicRouteTarget {
+	t.Helper()
+	selector := "{}"
+	if transport == "agent" {
+		payload, err := json.Marshal(map[string]map[string]string{
+			"match_labels": {"p2pstream.io/agent-id": agentPublicID},
+		})
+		if err != nil {
+			t.Fatalf("marshal agent selector: %v", err)
+		}
+		selector = string(payload)
+	}
+	route, err := database.CreatePublicRoute(context.Background(), db.CreatePublicRouteParams{
+		ListenerID:                 listenerID,
+		Priority:                   10,
+		PathPrefix:                 pathPrefix,
+		TargetLoadBalancing:        "round_robin",
+		IsDefault:                  boolIntForTest(isDefault),
+		Action:                     "forward",
+		RedirectStatusCode:         http.StatusFound,
+		RedirectPreservePathSuffix: 1,
+		RedirectPreserveQuery:      1,
+		Enabled:                    1,
+	})
+	if err != nil {
+		t.Fatalf("create route target route %s: %v", name, err)
+	}
+	target, err := database.CreatePublicRouteTarget(context.Background(), db.CreatePublicRouteTargetParams{
+		RouteID:                             route.ID,
+		Name:                                name,
+		Position:                            0,
+		PriorityGroup:                       0,
+		Weight:                              100,
+		Enabled:                             1,
+		TargetType:                          "proxy",
+		Url:                                 targetOrigin,
+		Transport:                           transport,
+		AgentSelectorJson:                   selector,
+		AgentLoadBalancing:                  "round_robin",
+		TlsSkipVerify:                       boolIntForTest(tlsSkipVerify),
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckMethod:                   http.MethodGet,
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    http.StatusOK,
+		StaticResponseBodyMode:              "inline",
+	})
+	if err != nil {
+		t.Fatalf("create route target %s: %v", name, err)
+	}
+	return target
 }
 
 func assertAgentRequest(t *testing.T, url string) {

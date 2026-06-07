@@ -49,7 +49,7 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
 
 5. Create matching routes. Wildcard TLS only provides the certificate.
 
-   | Host pattern | Path prefix | Backend |
+   | Host pattern | Path prefix | Target |
    | --- | --- | --- |
    | `app.example.com` | `/` | `app` |
    | `media.example.com` | `/` | `media` |

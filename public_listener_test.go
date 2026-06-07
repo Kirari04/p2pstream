@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -39,33 +40,32 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	cookie := createAdminSession(t, client)
 
 	cfg := getPublicProxyConfig(t, client, cookie)
-	if len(cfg.Backends) != 1 {
-		t.Fatalf("expected one seeded backend, got %d", len(cfg.Backends))
+	if len(cfg.GetRouteTargets()) != 2 {
+		t.Fatalf("expected two seeded route targets, got %d", len(cfg.GetRouteTargets()))
 	}
-	backend := cfg.Backends[0]
-	if backend.Name != "default" || backend.TargetOrigin != "" || !backend.Enabled {
-		t.Fatalf("unexpected seeded backend: %+v", cfg.Backends[0])
-	}
-	if backend.GetBackendType() != p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC ||
-		backend.GetTlsSkipVerify() ||
-		backend.GetStaticStatusCode() != http.StatusOK ||
-		!strings.Contains(backend.GetStaticResponseBody(), "Welcome to p2pstream proxy") {
-		t.Fatalf("unexpected seeded backend type/options: %+v", backend)
-	}
-	staticHeaders := map[string]string{}
-	for _, header := range backend.GetStaticResponseHeaders() {
-		staticHeaders[header.GetName()] = header.GetValue()
-	}
-	if staticHeaders["Content-Type"] != "text/html; charset=utf-8" ||
-		staticHeaders["X-Content-Type-Options"] != "nosniff" ||
-		staticHeaders["Cache-Control"] != "no-store" {
-		t.Fatalf("unexpected seeded static headers: %+v", backend.GetStaticResponseHeaders())
+	for _, target := range cfg.GetRouteTargets() {
+		if target.GetName() != "default" || !target.GetEnabled() {
+			t.Fatalf("unexpected seeded target: %+v", target)
+		}
+		if target.GetTargetType() != p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC ||
+			target.GetStaticStatusCode() != http.StatusOK ||
+			!strings.Contains(target.GetStaticResponseBody(), "Welcome to p2pstream proxy") {
+			t.Fatalf("unexpected seeded target type/options: %+v", target)
+		}
+		staticHeaders := map[string]string{}
+		for _, header := range target.GetStaticResponseHeaders() {
+			staticHeaders[header.GetName()] = header.GetValue()
+		}
+		if staticHeaders["Content-Type"] != "text/html; charset=utf-8" ||
+			staticHeaders["X-Content-Type-Options"] != "nosniff" ||
+			staticHeaders["Cache-Control"] != "no-store" {
+			t.Fatalf("unexpected seeded static headers: %+v", target.GetStaticResponseHeaders())
+		}
 	}
 
 	httpListener := publicListenerByName(t, cfg, "public-http")
 	if httpListener.Port != 80 ||
 		httpListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP ||
-		httpListener.GetDefaultBackendId() != backend.GetId() ||
 		!httpListener.Enabled {
 		t.Fatalf("unexpected seeded HTTP listener: %+v", httpListener)
 	}
@@ -73,15 +73,14 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	httpsListener := publicListenerByName(t, cfg, "public-https")
 	if httpsListener.Port != 443 ||
 		httpsListener.Protocol != p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTPS ||
-		httpsListener.GetDefaultBackendId() != backend.GetId() ||
 		!httpsListener.Enabled {
 		t.Fatalf("unexpected seeded HTTPS listener: %+v", httpsListener)
 	}
 	if len(cfg.Routes) != 2 {
 		t.Fatalf("expected two seeded routes, got %d", len(cfg.Routes))
 	}
-	assertSeededWelcomeRoute(t, cfg, httpListener.GetId(), backend.GetId())
-	assertSeededWelcomeRoute(t, cfg, httpsListener.GetId(), backend.GetId())
+	assertSeededWelcomeRoute(t, cfg, httpListener.GetId())
+	assertSeededWelcomeRoute(t, cfg, httpsListener.GetId())
 
 	if len(cfg.TlsCertificates) != 1 {
 		t.Fatalf("expected one seeded TLS certificate, got %d", len(cfg.TlsCertificates))
@@ -102,10 +101,14 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	}
 
 	cfgAgain := getPublicProxyConfig(t, client, cookie)
-	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.Backends) != 1 || len(cfgAgain.Routes) != 2 || len(cfgAgain.TlsCertificates) != 1 {
-		t.Fatalf("expected idempotent seed, got %d listeners, %d backends, %d routes, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.Backends), len(cfgAgain.Routes), len(cfgAgain.TlsCertificates))
+	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.GetRouteTargets()) != 2 || len(cfgAgain.Routes) != 2 || len(cfgAgain.TlsCertificates) != 1 {
+		t.Fatalf("expected idempotent seed, got %d listeners, %d targets, %d routes, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.GetRouteTargets()), len(cfgAgain.Routes), len(cfgAgain.TlsCertificates))
 	}
 
+	httpListenerRow, err := database.GetPublicListener(context.Background(), httpListener.GetId())
+	if err != nil {
+		t.Fatalf("load seeded HTTP listener row: %v", err)
+	}
 	if _, err := database.UpdatePublicListener(context.Background(), db.UpdatePublicListenerParams{
 		ID:               httpListener.GetId(),
 		Name:             httpListener.GetName(),
@@ -113,7 +116,7 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 		Port:             0,
 		Protocol:         "http",
 		Enabled:          1,
-		DefaultBackendID: backend.GetId(),
+		DefaultBackendID: httpListenerRow.DefaultBackendID,
 	}); err != nil {
 		t.Fatalf("move seeded HTTP listener to test port: %v", err)
 	}
@@ -187,6 +190,68 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed static listener: %v", err)
 	}
+	route, err := database.CreatePublicRoute(context.Background(), db.CreatePublicRouteParams{
+		ListenerID:                 listener.ID,
+		Priority:                   1000,
+		HostPattern:                "",
+		PathPrefix:                 "/",
+		BackendID:                  sql.NullInt64{Int64: backend.ID, Valid: true},
+		LoadBalancing:              "round_robin",
+		FallbackBackendID:          sql.NullInt64{},
+		TargetLoadBalancing:        "round_robin",
+		IsDefault:                  1,
+		Action:                     "forward",
+		RedirectStatusCode:         http.StatusFound,
+		RedirectPreservePathSuffix: 1,
+		RedirectPreserveQuery:      1,
+		Enabled:                    1,
+	})
+	if err != nil {
+		t.Fatalf("seed static route: %v", err)
+	}
+	target, err := database.CreatePublicRouteTarget(context.Background(), db.CreatePublicRouteTargetParams{
+		RouteID:                             route.ID,
+		Name:                                "static-default",
+		Position:                            0,
+		PriorityGroup:                       0,
+		Weight:                              100,
+		Enabled:                             1,
+		TargetType:                          "static",
+		Transport:                           "direct",
+		AgentSelectorJson:                   "{}",
+		AgentLoadBalancing:                  "round_robin",
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckMethod:                   http.MethodGet,
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    http.StatusAccepted,
+		StaticResponseBody:                  "static body",
+		StaticResponseBodyMode:              "inline",
+	})
+	if err != nil {
+		t.Fatalf("seed static target: %v", err)
+	}
+	for idx, header := range []struct {
+		name  string
+		value string
+	}{
+		{"Content-Type", "text/plain"},
+		{"X-Static", "yes"},
+	} {
+		if _, err := database.CreatePublicRouteTargetResponseHeader(context.Background(), db.CreatePublicRouteTargetResponseHeaderParams{
+			TargetID: target.ID,
+			Position: int64(idx),
+			Name:     header.name,
+			Value:    header.value,
+		}); err != nil {
+			t.Fatalf("seed static target header: %v", err)
+		}
+	}
 
 	app := server.NewApp(testManagementConfig(config.Config{}), database)
 	status, err := app.StartProxyListener(context.Background())
@@ -234,66 +299,85 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 	}
 }
 
-func TestPublicBackendStaticConfigValidationAndReadback(t *testing.T) {
+func TestPublicRouteTargetStaticConfigValidationAndReadback(t *testing.T) {
 	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
+	cfg := getPublicProxyConfig(t, client, cookie)
+	listener := publicListenerByName(t, cfg, "public-http")
 
-	invalidStatusReq := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:             "bad-status",
-		BackendType:      p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC,
-		StaticStatusCode: 99,
-		Enabled:          true,
+	invalidStatusReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
+		ListenerId: listener.GetId(),
+		Priority:   20,
+		PathPrefix: "/bad-status",
+		Enabled:    true,
+		Targets: []*p2pstreamv1.PublicRouteTarget{{
+			Name:             "bad-status",
+			TargetType:       p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC,
+			StaticStatusCode: 99,
+			Enabled:          true,
+		}},
 	})
 	invalidStatusReq.Header().Set("Cookie", cookie)
-	if _, err := client.CreatePublicBackend(context.Background(), invalidStatusReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := client.CreatePublicRoute(context.Background(), invalidStatusReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected invalid status error, got %v", err)
 	}
 
-	invalidHeaderReq := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:             "bad-header",
-		BackendType:      p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC,
-		StaticStatusCode: http.StatusOK,
-		StaticResponseHeaders: []*p2pstreamv1.PublicHeader{
-			{Name: "Content-Length", Value: "3"},
-		},
-		Enabled: true,
+	invalidHeaderReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
+		ListenerId: listener.GetId(),
+		Priority:   30,
+		PathPrefix: "/bad-header",
+		Enabled:    true,
+		Targets: []*p2pstreamv1.PublicRouteTarget{{
+			Name:             "bad-header",
+			TargetType:       p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC,
+			StaticStatusCode: http.StatusOK,
+			StaticResponseHeaders: []*p2pstreamv1.PublicHeader{
+				{Name: "Content-Length", Value: "3"},
+			},
+			Enabled: true,
+		}},
 	})
 	invalidHeaderReq.Header().Set("Cookie", cookie)
-	if _, err := client.CreatePublicBackend(context.Background(), invalidHeaderReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := client.CreatePublicRoute(context.Background(), invalidHeaderReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected invalid header error, got %v", err)
 	}
 
-	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:             "static-api",
-		BackendType:      p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC,
-		StaticStatusCode: http.StatusCreated,
-		StaticResponseHeaders: []*p2pstreamv1.PublicHeader{
-			{Name: "X-First", Value: "1"},
-			{Name: "X-First", Value: "2"},
-		},
-		StaticResponseBody: "created",
-		Enabled:            true,
+	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
+		ListenerId: listener.GetId(),
+		Priority:   40,
+		PathPrefix: "/static-api",
+		Enabled:    true,
+		Targets: []*p2pstreamv1.PublicRouteTarget{{
+			Name:             "static-api",
+			TargetType:       p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC,
+			StaticStatusCode: http.StatusCreated,
+			StaticResponseHeaders: []*p2pstreamv1.PublicHeader{
+				{Name: "X-First", Value: "1"},
+				{Name: "X-First", Value: "2"},
+			},
+			StaticResponseBody: "created",
+			Enabled:            true,
+		}},
 	})
 	createReq.Header().Set("Cookie", cookie)
-	createResp, err := client.CreatePublicBackend(context.Background(), createReq)
+	createResp, err := client.CreatePublicRoute(context.Background(), createReq)
 	if err != nil {
-		t.Fatalf("create static backend: %v", err)
+		t.Fatalf("create static route target: %v", err)
 	}
-	created := createResp.Msg.GetBackend()
-	if created.GetBackendType() != p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC ||
-		created.GetTargetOrigin() != "" ||
-		created.GetTlsSkipVerify() ||
+	created := createResp.Msg.GetRoute().GetTargets()[0]
+	if created.GetTargetType() != p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC ||
+		created.GetUrl() != "" ||
 		created.GetStaticStatusCode() != http.StatusCreated ||
 		len(created.GetStaticResponseHeaders()) != 2 ||
 		created.GetStaticResponseBody() != "created" {
-		t.Fatalf("unexpected created static backend: %+v", created)
+		t.Fatalf("unexpected created static target: %+v", created)
 	}
 
-	cfg := getPublicProxyConfig(t, client, cookie)
-	readBack := publicBackendByName(t, cfg, "static-api")
-	if readBack.GetBackendType() != p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_STATIC || len(readBack.GetStaticResponseHeaders()) != 2 {
-		t.Fatalf("unexpected static backend readback: %+v", readBack)
+	cfg = getPublicProxyConfig(t, client, cookie)
+	readBack := publicRouteTargetByName(t, cfg, "static-api")
+	if readBack.GetTargetType() != p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC || len(readBack.GetStaticResponseHeaders()) != 2 {
+		t.Fatalf("unexpected static target readback: %+v", readBack)
 	}
 }
 
@@ -378,6 +462,48 @@ func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("seed https listener: %v", err)
+	}
+	route, err := database.CreatePublicRoute(context.Background(), db.CreatePublicRouteParams{
+		ListenerID:                 listener.ID,
+		Priority:                   1000,
+		PathPrefix:                 "/",
+		BackendID:                  sql.NullInt64{Int64: backend.ID, Valid: true},
+		LoadBalancing:              "round_robin",
+		TargetLoadBalancing:        "round_robin",
+		IsDefault:                  1,
+		Action:                     "forward",
+		RedirectStatusCode:         http.StatusFound,
+		RedirectPreservePathSuffix: 1,
+		RedirectPreserveQuery:      1,
+		Enabled:                    1,
+	})
+	if err != nil {
+		t.Fatalf("seed https route: %v", err)
+	}
+	if _, err := database.CreatePublicRouteTarget(context.Background(), db.CreatePublicRouteTargetParams{
+		RouteID:                             route.ID,
+		Name:                                "https-default",
+		Position:                            0,
+		PriorityGroup:                       0,
+		Weight:                              100,
+		Enabled:                             1,
+		TargetType:                          "static",
+		Transport:                           "direct",
+		AgentSelectorJson:                   "{}",
+		AgentLoadBalancing:                  "round_robin",
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckMethod:                   http.MethodGet,
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    http.StatusNoContent,
+		StaticResponseBodyMode:              "inline",
+	}); err != nil {
+		t.Fatalf("seed https target: %v", err)
 	}
 
 	app := server.NewApp(testManagementConfig(config.Config{}), database)
@@ -649,14 +775,14 @@ func getPublicProxyConfig(
 	return resp.Msg
 }
 
-func publicBackendByName(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *p2pstreamv1.PublicBackend {
+func publicRouteTargetByName(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *p2pstreamv1.PublicRouteTarget {
 	t.Helper()
-	for _, backend := range cfg.Backends {
-		if backend.GetName() == name {
-			return backend
+	for _, target := range cfg.GetRouteTargets() {
+		if target.GetName() == name {
+			return target
 		}
 	}
-	t.Fatalf("backend %q not found in %+v", name, cfg.Backends)
+	t.Fatalf("route target %q not found in %+v", name, cfg.GetRouteTargets())
 	return nil
 }
 
@@ -671,7 +797,7 @@ func publicListenerByName(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigRes
 	return nil
 }
 
-func assertSeededWelcomeRoute(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, listenerID int64, backendID int64) {
+func assertSeededWelcomeRoute(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, listenerID int64) {
 	t.Helper()
 	for _, route := range cfg.Routes {
 		if route.GetListenerId() != listenerID {
@@ -680,9 +806,11 @@ func assertSeededWelcomeRoute(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfi
 		if route.GetPriority() != 1000 ||
 			route.GetHostPattern() != "" ||
 			route.GetPathPrefix() != "/" ||
-			route.GetBackendId() != backendID ||
+			!route.GetIsDefault() ||
 			route.GetAction() != p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD ||
-			!route.GetEnabled() {
+			!route.GetEnabled() ||
+			len(route.GetTargets()) != 1 ||
+			route.GetTargets()[0].GetTargetType() != p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC {
 			t.Fatalf("unexpected seeded route for listener %d: %+v", listenerID, route)
 		}
 		return

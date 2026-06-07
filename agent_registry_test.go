@@ -52,28 +52,6 @@ func TestCreateAgentGeneratesOpaquePublicID(t *testing.T) {
 		t.Fatalf("update changed public id to %q, want %q", updateResp.Msg.GetAgent().GetPublicId(), agent.GetPublicId())
 	}
 
-	sameIDReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
-		Id:       agent.GetId(),
-		PublicId: agent.GetPublicId(),
-		Name:     "Edge Paris Same ID",
-		Enabled:  true,
-	})
-	sameIDReq.Header().Set("Cookie", cookie)
-	if _, err := client.UpdateAgent(context.Background(), sameIDReq); err != nil {
-		t.Fatalf("update agent with same public id: %v", err)
-	}
-
-	changedIDReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
-		Id:       agent.GetId(),
-		PublicId: "agent-aaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Name:     "Edge Paris Changed ID",
-		Enabled:  true,
-	})
-	changedIDReq.Header().Set("Cookie", cookie)
-	if _, err := client.UpdateAgent(context.Background(), changedIDReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("expected changed public id to be rejected, got %v", err)
-	}
-
 	rotateReq := connect.NewRequest(&p2pstreamv1.RotateAgentTokenRequest{Id: agent.GetId()})
 	rotateReq.Header().Set("Cookie", cookie)
 	rotateResp, err := client.RotateAgentToken(context.Background(), rotateReq)
@@ -85,23 +63,72 @@ func TestCreateAgentGeneratesOpaquePublicID(t *testing.T) {
 	}
 }
 
-func TestCreateAgentRejectsClientPublicID(t *testing.T) {
+func TestCreateAgentRejectsReservedUserLabel(t *testing.T) {
 	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 
 	req := connect.NewRequest(&p2pstreamv1.CreateAgentRequest{
-		PublicId: "manual-agent",
-		Name:     "Manual Agent",
-		Enabled:  true,
+		Name:    "Manual Agent",
+		Enabled: true,
+		Labels:  map[string]string{"p2pstream.io/agent-id": "manual-agent"},
 	})
 	req.Header().Set("Cookie", cookie)
 	if _, err := client.CreateAgent(context.Background(), req); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("expected supplied agent id to be rejected, got %v", err)
+		t.Fatalf("expected reserved label to be rejected, got %v", err)
 	}
 }
 
-func TestAgentPoolBackendAPIValidationAndReadback(t *testing.T) {
+func TestAgentLabelsCreateUpdateAndPreserveSystemLabel(t *testing.T) {
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+	cookie := createAdminSession(t, client)
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreateAgentRequest{
+		Name:    "Labelled Agent",
+		Enabled: true,
+		Labels:  map[string]string{"site": "home", "role": ""},
+	})
+	createReq.Header().Set("Cookie", cookie)
+	createResp, err := client.CreateAgent(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("create labelled agent: %v", err)
+	}
+	agent := createResp.Msg.GetAgent()
+	if got := agent.GetLabels()["site"]; got != "home" {
+		t.Fatalf("site label = %q, want home", got)
+	}
+	if got, ok := agent.GetLabels()["role"]; !ok || got != "" {
+		t.Fatalf("empty role label = %q present=%v, want present empty", got, ok)
+	}
+	if got := agent.GetLabels()["p2pstream.io/agent-id"]; got != agent.GetPublicId() {
+		t.Fatalf("system label = %q, want public id %q", got, agent.GetPublicId())
+	}
+
+	updateReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
+		Id:      agent.GetId(),
+		Name:    "Labelled Agent Updated",
+		Enabled: true,
+		Labels:  map[string]string{"site": "office"},
+	})
+	updateReq.Header().Set("Cookie", cookie)
+	updateResp, err := client.UpdateAgent(context.Background(), updateReq)
+	if err != nil {
+		t.Fatalf("update labelled agent: %v", err)
+	}
+	updated := updateResp.Msg.GetAgent()
+	if got := updated.GetLabels()["site"]; got != "office" {
+		t.Fatalf("updated site label = %q, want office", got)
+	}
+	if _, ok := updated.GetLabels()["role"]; ok {
+		t.Fatalf("role label was not removed: %+v", updated.GetLabels())
+	}
+	if got := updated.GetLabels()["p2pstream.io/agent-id"]; got != agent.GetPublicId() {
+		t.Fatalf("system label after update = %q, want public id %q", got, agent.GetPublicId())
+	}
+}
+
+func TestAgentSelectorRouteTargetAPIValidationAndReadback(t *testing.T) {
 	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
@@ -109,61 +136,111 @@ func TestAgentPoolBackendAPIValidationAndReadback(t *testing.T) {
 	if token == "" {
 		t.Fatal("expected create agent to return one-time token")
 	}
-
-	invalidReq := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:         "invalid-agent-pool",
-		TargetOrigin: "http://example.com",
-		Enabled:      true,
-		BackendType:  p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
-		ForwardMode:  p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
+	labelReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
+		Id:      agent.GetId(),
+		Name:    agent.GetName(),
+		Enabled: true,
+		Labels:  map[string]string{"region": "api", "role": "edge"},
 	})
-	invalidReq.Header().Set("Cookie", cookie)
-	if _, err := client.CreatePublicBackend(context.Background(), invalidReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("expected invalid agent pool error, got %v", err)
-	}
-
-	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicBackendRequest{
-		Name:          "api-agent-backend",
-		TargetOrigin:  "http://example.com",
-		Enabled:       true,
-		BackendType:   p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_PROXY_FORWARD,
-		ForwardMode:   p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL,
-		LoadBalancing: p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN,
-		AgentAssignments: []*p2pstreamv1.PublicBackendAgent{
-			{AgentId: agent.GetId(), Weight: 7, Enabled: true},
-		},
-	})
-	createReq.Header().Set("Cookie", cookie)
-	createResp, err := client.CreatePublicBackend(context.Background(), createReq)
-	if err != nil {
-		t.Fatalf("create agent backend: %v", err)
-	}
-	created := createResp.Msg.GetBackend()
-	if created.GetForwardMode() != p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_AGENT_POOL ||
-		created.GetLoadBalancing() != p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN ||
-		len(created.GetAgentAssignments()) != 1 ||
-		created.GetAgentAssignments()[0].GetWeight() != 7 {
-		t.Fatalf("unexpected created backend: %+v", created)
+	labelReq.Header().Set("Cookie", cookie)
+	if _, err := client.UpdateAgent(context.Background(), labelReq); err != nil {
+		t.Fatalf("label agent: %v", err)
 	}
 
 	cfg := getPublicProxyConfig(t, client, cookie)
+	listener := publicListenerByName(t, cfg, "public-http")
+
+	invalidReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
+		ListenerId: listener.GetId(),
+		Priority:   10,
+		PathPrefix: "/invalid-agent-target",
+		Enabled:    true,
+		Targets: []*p2pstreamv1.PublicRouteTarget{{
+			Name:       "invalid-agent-target",
+			TargetType: p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_PROXY,
+			Url:        "http://example.com",
+			Transport:  p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT,
+			Enabled:    true,
+		}},
+	})
+	invalidReq.Header().Set("Cookie", cookie)
+	if _, err := client.CreatePublicRoute(context.Background(), invalidReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid agent target error, got %v", err)
+	}
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
+		ListenerId:          listener.GetId(),
+		Priority:            20,
+		PathPrefix:          "/api-agent-target",
+		Enabled:             true,
+		TargetLoadBalancing: p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN,
+		Targets: []*p2pstreamv1.PublicRouteTarget{{
+			Name:       "api-agent-target",
+			TargetType: p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_PROXY,
+			Url:        "http://example.com",
+			Transport:  p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT,
+			AgentSelector: &p2pstreamv1.PublicAgentSelector{MatchLabels: map[string]string{
+				"region": "api",
+				"role":   "edge",
+			}},
+			AgentLoadBalancing: p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN,
+			Weight:             7,
+			Enabled:            true,
+		}},
+	})
+	createReq.Header().Set("Cookie", cookie)
+	createResp, err := client.CreatePublicRoute(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("create agent target route: %v", err)
+	}
+	created := createResp.Msg.GetRoute()
+	if created.GetTargetLoadBalancing() != p2pstreamv1.PublicBackendLoadBalancing_PUBLIC_BACKEND_LOAD_BALANCING_WEIGHTED_ROUND_ROBIN ||
+		len(created.GetTargets()) != 1 ||
+		created.GetTargets()[0].GetWeight() != 7 ||
+		created.GetTargets()[0].GetTransport() != p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT {
+		t.Fatalf("unexpected created route target: %+v", created)
+	}
+
+	cfg = getPublicProxyConfig(t, client, cookie)
 	if len(cfg.GetAgents()) != 1 || cfg.GetAgents()[0].GetPublicId() != agent.GetPublicId() {
 		t.Fatalf("expected agent in config readback, got %+v", cfg.GetAgents())
 	}
-	readBack := publicBackendByName(t, cfg, "api-agent-backend")
-	if len(readBack.GetAgentAssignments()) != 1 || readBack.GetAgentAssignments()[0].GetAgentId() != agent.GetId() {
-		t.Fatalf("expected backend assignment readback, got %+v", readBack.GetAgentAssignments())
+	readBack := publicRouteTargetByName(t, cfg, "api-agent-target")
+	if readBack.GetAgentSelector().GetMatchLabels()["region"] != "api" ||
+		readBack.GetAgentSelector().GetMatchLabels()["role"] != "edge" {
+		t.Fatalf("expected target selector readback, got %+v", readBack.GetAgentSelector())
+	}
+
+	exactReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
+		ListenerId: listener.GetId(),
+		Priority:   30,
+		PathPrefix: "/exact-agent-target",
+		Enabled:    true,
+		Targets: []*p2pstreamv1.PublicRouteTarget{{
+			Name:       "exact-agent-target",
+			TargetType: p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_PROXY,
+			Url:        "http://example.com",
+			Transport:  p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT,
+			AgentSelector: &p2pstreamv1.PublicAgentSelector{MatchLabels: map[string]string{
+				"p2pstream.io/agent-id": agent.GetPublicId(),
+			}},
+			Enabled: true,
+		}},
+	})
+	exactReq.Header().Set("Cookie", cookie)
+	if _, err := client.CreatePublicRoute(context.Background(), exactReq); err != nil {
+		t.Fatalf("create exact-agent target route: %v", err)
 	}
 
 	disableReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
-		Id:       agent.GetId(),
-		PublicId: agent.GetPublicId(),
-		Name:     agent.GetName(),
-		Enabled:  false,
+		Id:      agent.GetId(),
+		Name:    agent.GetName(),
+		Enabled: false,
+		Labels:  map[string]string{"region": "api", "role": "edge"},
 	})
 	disableReq.Header().Set("Cookie", cookie)
-	if _, err := client.UpdateAgent(context.Background(), disableReq); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("expected disabling last assigned agent to fail, got %v", err)
+	if _, err := client.UpdateAgent(context.Background(), disableReq); err != nil {
+		t.Fatalf("disable labelled agent: %v", err)
 	}
 
 	rotateReq := connect.NewRequest(&p2pstreamv1.RotateAgentTokenRequest{Id: agent.GetId()})

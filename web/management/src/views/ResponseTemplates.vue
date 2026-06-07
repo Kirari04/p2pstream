@@ -80,7 +80,7 @@ function usageCount(template: PublicResponseTemplate): number {
   if (!config) return 0;
   const id = template.id;
   let count = 0;
-  count += config.backends.filter((backend) => backend.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE && backend.staticResponseTemplateId === id).length;
+  count += config.routeTargets.filter((target) => target.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE && target.staticResponseTemplateId === id).length;
   count += config.rateLimitRules.filter((rule) => rule.responseBodyMode === PublicResponseBodyMode.TEMPLATE && rule.responseBodyTemplateId === id).length;
   count += config.wafRules.filter((rule) => (
     (rule.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE && rule.blockResponseTemplateId === id) ||

@@ -18,7 +18,7 @@ The **Overview** page summarizes retained proxy request events over `5m`, `1h`, 
 OBSERVABILITY_RETENTION_DAYS=30
 ```
 
-Proxy request events include status code, duration, error kind, listener ID, backend ID, route ID, WAF rule/action, cache rule/status/bytes, agent ID, request bytes, and response bytes.
+Proxy request events include status code, duration, error kind, listener ID, route ID, route target ID, WAF rule/action, cache rule/status/bytes, agent ID, request bytes, and response bytes. Historical rows from older versions may still contain legacy backend IDs.
 
 Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 
@@ -27,7 +27,7 @@ Traffic tracing levels (all levels record every matching request — no sampling
 | Level | Includes |
 | --- | --- |
 | Basic | High-level request stages. |
-| Detailed | Host, query, WAF decision, origin, backend type, and error kind. |
+| Detailed | Host, query, WAF decision, origin, target type, and error kind. |
 | Headers | Request and response headers, redacted where known. |
 | Debug | More detailed event attributes. |
 
@@ -51,8 +51,8 @@ Use Headers and Debug temporarily because they can expose operational details an
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, backend, cache, agent, upstream, and response">
-  <figcaption>Traffic Flow renders sampled request paths across listeners, policy checks, route and backend selection, cache decisions, agents, upstreams, and responses.</figcaption>
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, target, cache, agent, upstream, and response">
+  <figcaption>Traffic Flow renders sampled request paths across listeners, policy checks, route and target selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
-The request details modal complements the flow diagram when one stage needs deeper inspection. Use it to check timing, selected rule and backend IDs, cache status, response metadata, and the trace attributes available at the selected tracing level.
+The request details modal complements the flow diagram when one stage needs deeper inspection. Use it to check timing, selected rule and target IDs, cache status, response metadata, and the trace attributes available at the selected tracing level.

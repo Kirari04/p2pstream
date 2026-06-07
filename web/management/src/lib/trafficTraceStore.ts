@@ -3,6 +3,8 @@ import {
   PublicBackendForwardMode,
   PublicBackendType,
   PublicRateLimitAlgorithm,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicTrafficShaperBudgetScope,
   PublicWafActivationMode,
   PublicWafRuleAction,
@@ -232,6 +234,10 @@ export class TrafficTraceStore {
     request.backendName = event.backendName || request.backendName;
     request.backendType = event.backendType || request.backendType;
     request.forwardMode = event.forwardMode || request.forwardMode;
+    request.routeTargetId = event.routeTargetId || request.routeTargetId;
+    request.routeTargetName = event.routeTargetName || request.routeTargetName;
+    request.routeTargetType = event.routeTargetType || request.routeTargetType;
+    request.routeTargetTransport = event.routeTargetTransport || request.routeTargetTransport;
     request.targetOrigin = event.targetOrigin || request.targetOrigin;
     request.agentId = event.agentId || request.agentId;
     request.agentName = event.agentName || request.agentName;
@@ -345,6 +351,10 @@ export function newTraceRequest(requestId: string, now = Date.now()): TraceReque
     backendName: "",
     backendType: PublicBackendType.UNSPECIFIED,
     forwardMode: PublicBackendForwardMode.UNSPECIFIED,
+    routeTargetId: 0n,
+    routeTargetName: "",
+    routeTargetType: PublicRouteTargetType.UNSPECIFIED,
+    routeTargetTransport: PublicRouteTargetTransport.UNSPECIFIED,
     targetOrigin: "",
     agentId: 0n,
     agentName: "",
@@ -455,7 +465,9 @@ export function traceFlowLabel(request: TraceRequest): string {
   if (request.routeLabel || request.defaultRoute) {
     parts.push(request.routeLabel || "Default route");
   }
-  if (request.backendName) {
+  if (request.routeTargetName) {
+    parts.push(request.routeTargetName);
+  } else if (request.backendName) {
     parts.push(request.backendName);
   }
   if (request.agentName || request.agentPublicId) {

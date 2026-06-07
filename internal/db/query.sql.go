@@ -126,7 +126,7 @@ func (q *Queries) BackfillProxyRequestRollupMinutesRange(ctx context.Context, ar
 
 const backfillProxyRequestTupleRollupMinutesRange = `-- name: BackfillProxyRequestTupleRollupMinutesRange :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 )
@@ -134,6 +134,7 @@ SELECT
     CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
     CAST(COALESCE(listener_id, 0) AS INTEGER) AS listener_id,
     CAST(COALESCE(backend_id, 0) AS INTEGER) AS backend_id,
+    CAST(COALESCE(route_target_id, 0) AS INTEGER) AS route_target_id,
     CAST(COALESCE(route_id, 0) AS INTEGER) AS route_id,
     CAST(COALESCE(agent_id, 0) AS INTEGER) AS agent_id,
     error_kind,
@@ -149,8 +150,8 @@ SELECT
 FROM proxy_request_events
 WHERE id > ?1
   AND id <= ?2
-GROUP BY bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+GROUP BY bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class
+ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -670,6 +671,7 @@ INSERT INTO public_cache_rules (
     match_json,
     route_ids_json,
     backend_ids_json,
+    target_ids_json,
     scope,
     ttl_mode,
     ttl_millis,
@@ -680,10 +682,10 @@ INSERT INTO public_cache_rules (
     max_object_bytes,
     add_cache_status_header,
     allow_cookie_requests
-) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+ ) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
           add_cache_status_header, allow_cookie_requests, created_at, updated_at
 `
@@ -695,6 +697,7 @@ type CreatePublicCacheRuleParams struct {
 	MatchJson            string `json:"match_json"`
 	RouteIdsJson         string `json:"route_ids_json"`
 	BackendIdsJson       string `json:"backend_ids_json"`
+	TargetIdsJson        string `json:"target_ids_json"`
 	Scope                string `json:"scope"`
 	TtlMode              string `json:"ttl_mode"`
 	TtlMillis            int64  `json:"ttl_millis"`
@@ -715,6 +718,7 @@ func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCac
 		arg.MatchJson,
 		arg.RouteIdsJson,
 		arg.BackendIdsJson,
+		arg.TargetIdsJson,
 		arg.Scope,
 		arg.TtlMode,
 		arg.TtlMillis,
@@ -735,6 +739,7 @@ func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCac
 		&i.MatchJson,
 		&i.RouteIdsJson,
 		&i.BackendIdsJson,
+		&i.TargetIdsJson,
 		&i.Scope,
 		&i.TtlMode,
 		&i.TtlMillis,
@@ -925,6 +930,8 @@ INSERT INTO public_routes (
     backend_id,
     load_balancing,
     fallback_backend_id,
+    target_load_balancing,
+    is_default,
     action,
     redirect_target_mode,
     redirect_target,
@@ -933,8 +940,8 @@ INSERT INTO public_routes (
     redirect_preserve_query,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type CreatePublicRouteParams struct {
@@ -945,6 +952,8 @@ type CreatePublicRouteParams struct {
 	BackendID                  sql.NullInt64 `json:"backend_id"`
 	LoadBalancing              string        `json:"load_balancing"`
 	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
+	TargetLoadBalancing        string        `json:"target_load_balancing"`
+	IsDefault                  int64         `json:"is_default"`
 	Action                     string        `json:"action"`
 	RedirectTargetMode         string        `json:"redirect_target_mode"`
 	RedirectTarget             string        `json:"redirect_target"`
@@ -963,6 +972,8 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		arg.BackendID,
 		arg.LoadBalancing,
 		arg.FallbackBackendID,
+		arg.TargetLoadBalancing,
+		arg.IsDefault,
 		arg.Action,
 		arg.RedirectTargetMode,
 		arg.RedirectTarget,
@@ -981,6 +992,8 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.BackendID,
 		&i.LoadBalancing,
 		&i.FallbackBackendID,
+		&i.TargetLoadBalancing,
+		&i.IsDefault,
 		&i.Action,
 		&i.RedirectTargetMode,
 		&i.RedirectTarget,
@@ -1023,6 +1036,198 @@ func (q *Queries) CreatePublicRouteBackend(ctx context.Context, arg CreatePublic
 		&i.Position,
 		&i.Weight,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicRouteTarget = `-- name: CreatePublicRouteTarget :one
+INSERT INTO public_route_targets (
+    route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+    agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+    upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+    health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+    health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+    health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+    static_response_body, static_response_body_mode, static_response_template_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+          agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+          upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+          health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+          health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+          health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+          static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+`
+
+type CreatePublicRouteTargetParams struct {
+	RouteID                             int64         `json:"route_id"`
+	Name                                string        `json:"name"`
+	Position                            int64         `json:"position"`
+	PriorityGroup                       int64         `json:"priority_group"`
+	Weight                              int64         `json:"weight"`
+	Enabled                             int64         `json:"enabled"`
+	TargetType                          string        `json:"target_type"`
+	Url                                 string        `json:"url"`
+	Transport                           string        `json:"transport"`
+	AgentSelectorJson                   string        `json:"agent_selector_json"`
+	AgentLoadBalancing                  string        `json:"agent_load_balancing"`
+	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
+	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
+	HealthCheckMethod                   string        `json:"health_check_method"`
+	HealthCheckPath                     string        `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
+	StaticStatusCode                    int64         `json:"static_status_code"`
+	StaticResponseBody                  string        `json:"static_response_body"`
+	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
+	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
+}
+
+func (q *Queries) CreatePublicRouteTarget(ctx context.Context, arg CreatePublicRouteTargetParams) (PublicRouteTarget, error) {
+	row := q.db.QueryRowContext(ctx, createPublicRouteTarget,
+		arg.RouteID,
+		arg.Name,
+		arg.Position,
+		arg.PriorityGroup,
+		arg.Weight,
+		arg.Enabled,
+		arg.TargetType,
+		arg.Url,
+		arg.Transport,
+		arg.AgentSelectorJson,
+		arg.AgentLoadBalancing,
+		arg.TlsSkipVerify,
+		arg.UpstreamBasicAuthEnabled,
+		arg.UpstreamBasicAuthUsername,
+		arg.UpstreamBasicAuthPassword,
+		arg.UpstreamResponseHeaderTimeoutMillis,
+		arg.HealthCheckEnabled,
+		arg.HealthCheckMethod,
+		arg.HealthCheckPath,
+		arg.HealthCheckIntervalMillis,
+		arg.HealthCheckTimeoutMillis,
+		arg.HealthCheckHealthyThreshold,
+		arg.HealthCheckUnhealthyThreshold,
+		arg.HealthCheckExpectedStatusMin,
+		arg.HealthCheckExpectedStatusMax,
+		arg.StaticStatusCode,
+		arg.StaticResponseBody,
+		arg.StaticResponseBodyMode,
+		arg.StaticResponseTemplateID,
+	)
+	var i PublicRouteTarget
+	err := row.Scan(
+		&i.ID,
+		&i.RouteID,
+		&i.Name,
+		&i.Position,
+		&i.PriorityGroup,
+		&i.Weight,
+		&i.Enabled,
+		&i.TargetType,
+		&i.Url,
+		&i.Transport,
+		&i.AgentSelectorJson,
+		&i.AgentLoadBalancing,
+		&i.TlsSkipVerify,
+		&i.UpstreamBasicAuthEnabled,
+		&i.UpstreamBasicAuthUsername,
+		&i.UpstreamBasicAuthPassword,
+		&i.UpstreamResponseHeaderTimeoutMillis,
+		&i.HealthCheckEnabled,
+		&i.HealthCheckMethod,
+		&i.HealthCheckPath,
+		&i.HealthCheckIntervalMillis,
+		&i.HealthCheckTimeoutMillis,
+		&i.HealthCheckHealthyThreshold,
+		&i.HealthCheckUnhealthyThreshold,
+		&i.HealthCheckExpectedStatusMin,
+		&i.HealthCheckExpectedStatusMax,
+		&i.StaticStatusCode,
+		&i.StaticResponseBody,
+		&i.StaticResponseBodyMode,
+		&i.StaticResponseTemplateID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicRouteTargetResponseHeader = `-- name: CreatePublicRouteTargetResponseHeader :one
+INSERT INTO public_route_target_response_headers (target_id, position, name, value)
+VALUES (?, ?, ?, ?)
+RETURNING id, target_id, position, name, value, created_at, updated_at
+`
+
+type CreatePublicRouteTargetResponseHeaderParams struct {
+	TargetID int64  `json:"target_id"`
+	Position int64  `json:"position"`
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+}
+
+func (q *Queries) CreatePublicRouteTargetResponseHeader(ctx context.Context, arg CreatePublicRouteTargetResponseHeaderParams) (PublicRouteTargetResponseHeader, error) {
+	row := q.db.QueryRowContext(ctx, createPublicRouteTargetResponseHeader,
+		arg.TargetID,
+		arg.Position,
+		arg.Name,
+		arg.Value,
+	)
+	var i PublicRouteTargetResponseHeader
+	err := row.Scan(
+		&i.ID,
+		&i.TargetID,
+		&i.Position,
+		&i.Name,
+		&i.Value,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicRouteTargetUpstreamHeader = `-- name: CreatePublicRouteTargetUpstreamHeader :one
+INSERT INTO public_route_target_upstream_headers (target_id, position, name, value, sensitive)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, target_id, position, name, value, sensitive, created_at, updated_at
+`
+
+type CreatePublicRouteTargetUpstreamHeaderParams struct {
+	TargetID  int64  `json:"target_id"`
+	Position  int64  `json:"position"`
+	Name      string `json:"name"`
+	Value     string `json:"value"`
+	Sensitive int64  `json:"sensitive"`
+}
+
+func (q *Queries) CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg CreatePublicRouteTargetUpstreamHeaderParams) (PublicRouteTargetUpstreamHeader, error) {
+	row := q.db.QueryRowContext(ctx, createPublicRouteTargetUpstreamHeader,
+		arg.TargetID,
+		arg.Position,
+		arg.Name,
+		arg.Value,
+		arg.Sensitive,
+	)
+	var i PublicRouteTargetUpstreamHeader
+	err := row.Scan(
+		&i.ID,
+		&i.TargetID,
+		&i.Position,
+		&i.Name,
+		&i.Value,
+		&i.Sensitive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1490,6 +1695,32 @@ func (q *Queries) DeleteAgent(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteAgentLabel = `-- name: DeleteAgentLabel :exec
+DELETE FROM public_agent_labels
+WHERE agent_id = ?
+  AND key = ?
+`
+
+type DeleteAgentLabelParams struct {
+	AgentID int64  `json:"agent_id"`
+	Key     string `json:"key"`
+}
+
+func (q *Queries) DeleteAgentLabel(ctx context.Context, arg DeleteAgentLabelParams) error {
+	_, err := q.db.ExecContext(ctx, deleteAgentLabel, arg.AgentID, arg.Key)
+	return err
+}
+
+const deleteAgentLabelsByAgent = `-- name: DeleteAgentLabelsByAgent :exec
+DELETE FROM public_agent_labels
+WHERE agent_id = ?
+`
+
+func (q *Queries) DeleteAgentLabelsByAgent(ctx context.Context, agentID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteAgentLabelsByAgent, agentID)
+	return err
+}
+
 const deleteAgentStatRollupsBefore = `-- name: DeleteAgentStatRollupsBefore :exec
 DELETE FROM agent_stat_rollup_minutes
 WHERE bucket_unix_millis < ?
@@ -1772,6 +2003,46 @@ func (q *Queries) DeletePublicRouteBackends(ctx context.Context, routeID int64) 
 	return err
 }
 
+const deletePublicRouteTarget = `-- name: DeletePublicRouteTarget :exec
+DELETE FROM public_route_targets
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicRouteTarget(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRouteTarget, id)
+	return err
+}
+
+const deletePublicRouteTargetResponseHeaders = `-- name: DeletePublicRouteTargetResponseHeaders :exec
+DELETE FROM public_route_target_response_headers
+WHERE target_id = ?
+`
+
+func (q *Queries) DeletePublicRouteTargetResponseHeaders(ctx context.Context, targetID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRouteTargetResponseHeaders, targetID)
+	return err
+}
+
+const deletePublicRouteTargetUpstreamHeaders = `-- name: DeletePublicRouteTargetUpstreamHeaders :exec
+DELETE FROM public_route_target_upstream_headers
+WHERE target_id = ?
+`
+
+func (q *Queries) DeletePublicRouteTargetUpstreamHeaders(ctx context.Context, targetID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRouteTargetUpstreamHeaders, targetID)
+	return err
+}
+
+const deletePublicRouteTargets = `-- name: DeletePublicRouteTargets :exec
+DELETE FROM public_route_targets
+WHERE route_id = ?
+`
+
+func (q *Queries) DeletePublicRouteTargets(ctx context.Context, routeID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRouteTargets, routeID)
+	return err
+}
+
 const deletePublicTlsCertificate = `-- name: DeletePublicTlsCertificate :exec
 DELETE FROM public_tls_certificates
 WHERE id = ?
@@ -1819,6 +2090,17 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicWafRule(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicWafRule, id)
+	return err
+}
+
+const deleteUserAgentLabelsByAgent = `-- name: DeleteUserAgentLabelsByAgent :exec
+DELETE FROM public_agent_labels
+WHERE agent_id = ?
+  AND source = 'user'
+`
+
+func (q *Queries) DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteUserAgentLabelsByAgent, agentID)
 	return err
 }
 
@@ -2446,7 +2728,7 @@ func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend
 }
 
 const getPublicCacheEntry = `-- name: GetPublicCacheEntry :one
-SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
        vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
        last_accessed_at, hit_count
 FROM public_cache_entries
@@ -2466,6 +2748,7 @@ func (q *Queries) GetPublicCacheEntry(ctx context.Context, keyDigest string) (Pu
 		&i.QueryKey,
 		&i.RouteID,
 		&i.BackendID,
+		&i.RouteTargetID,
 		&i.Method,
 		&i.VaryHeadersJson,
 		&i.ResponseHeadersJson,
@@ -2481,7 +2764,7 @@ func (q *Queries) GetPublicCacheEntry(ctx context.Context, keyDigest string) (Pu
 }
 
 const getPublicCacheRule = `-- name: GetPublicCacheRule :one
-SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
        add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
@@ -2499,6 +2782,7 @@ func (q *Queries) GetPublicCacheRule(ctx context.Context, id int64) (PublicCache
 		&i.MatchJson,
 		&i.RouteIdsJson,
 		&i.BackendIdsJson,
+		&i.TargetIdsJson,
 		&i.Scope,
 		&i.TtlMode,
 		&i.TtlMillis,
@@ -2638,7 +2922,7 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 }
 
 const getPublicRoute = `-- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?
 `
@@ -2655,6 +2939,8 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.BackendID,
 		&i.LoadBalancing,
 		&i.FallbackBackendID,
+		&i.TargetLoadBalancing,
+		&i.IsDefault,
 		&i.Action,
 		&i.RedirectTargetMode,
 		&i.RedirectTarget,
@@ -2662,6 +2948,58 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicRouteTarget = `-- name: GetPublicRouteTarget :one
+SELECT id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+       agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+       upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+       health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+       health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+       health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+       static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+FROM public_route_targets
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicRouteTarget(ctx context.Context, id int64) (PublicRouteTarget, error) {
+	row := q.db.QueryRowContext(ctx, getPublicRouteTarget, id)
+	var i PublicRouteTarget
+	err := row.Scan(
+		&i.ID,
+		&i.RouteID,
+		&i.Name,
+		&i.Position,
+		&i.PriorityGroup,
+		&i.Weight,
+		&i.Enabled,
+		&i.TargetType,
+		&i.Url,
+		&i.Transport,
+		&i.AgentSelectorJson,
+		&i.AgentLoadBalancing,
+		&i.TlsSkipVerify,
+		&i.UpstreamBasicAuthEnabled,
+		&i.UpstreamBasicAuthUsername,
+		&i.UpstreamBasicAuthPassword,
+		&i.UpstreamResponseHeaderTimeoutMillis,
+		&i.HealthCheckEnabled,
+		&i.HealthCheckMethod,
+		&i.HealthCheckPath,
+		&i.HealthCheckIntervalMillis,
+		&i.HealthCheckTimeoutMillis,
+		&i.HealthCheckHealthyThreshold,
+		&i.HealthCheckUnhealthyThreshold,
+		&i.HealthCheckExpectedStatusMin,
+		&i.HealthCheckExpectedStatusMax,
+		&i.StaticStatusCode,
+		&i.StaticResponseBody,
+		&i.StaticResponseBodyMode,
+		&i.StaticResponseTemplateID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -2985,9 +3323,9 @@ func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -2998,6 +3336,7 @@ type InsertProxyRequestEventParams struct {
 	ListenerID    sql.NullInt64 `json:"listener_id"`
 	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
+	RouteTargetID sql.NullInt64 `json:"route_target_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
 	WafAction     string        `json:"waf_action"`
 	AgentID       sql.NullInt64 `json:"agent_id"`
@@ -3016,6 +3355,7 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.ListenerID,
 		arg.BackendID,
 		arg.RouteID,
+		arg.RouteTargetID,
 		arg.WafRuleID,
 		arg.WafAction,
 		arg.AgentID,
@@ -3030,9 +3370,9 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 
 const insertProxyRequestEventAt = `-- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id
 `
@@ -3045,6 +3385,7 @@ type InsertProxyRequestEventAtParams struct {
 	ListenerID    sql.NullInt64 `json:"listener_id"`
 	BackendID     sql.NullInt64 `json:"backend_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
+	RouteTargetID sql.NullInt64 `json:"route_target_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
 	WafAction     string        `json:"waf_action"`
 	AgentID       sql.NullInt64 `json:"agent_id"`
@@ -3064,6 +3405,7 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 		arg.ListenerID,
 		arg.BackendID,
 		arg.RouteID,
+		arg.RouteTargetID,
 		arg.WafRuleID,
 		arg.WafAction,
 		arg.AgentID,
@@ -3076,6 +3418,79 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const listAgentLabels = `-- name: ListAgentLabels :many
+SELECT agent_id, key, value, source, created_at, updated_at
+FROM public_agent_labels
+ORDER BY agent_id ASC, key ASC
+`
+
+func (q *Queries) ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error) {
+	rows, err := q.db.QueryContext(ctx, listAgentLabels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicAgentLabel
+	for rows.Next() {
+		var i PublicAgentLabel
+		if err := rows.Scan(
+			&i.AgentID,
+			&i.Key,
+			&i.Value,
+			&i.Source,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAgentLabelsByAgent = `-- name: ListAgentLabelsByAgent :many
+SELECT agent_id, key, value, source, created_at, updated_at
+FROM public_agent_labels
+WHERE agent_id = ?
+ORDER BY key ASC
+`
+
+func (q *Queries) ListAgentLabelsByAgent(ctx context.Context, agentID int64) ([]PublicAgentLabel, error) {
+	rows, err := q.db.QueryContext(ctx, listAgentLabelsByAgent, agentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicAgentLabel
+	for rows.Next() {
+		var i PublicAgentLabel
+		if err := rows.Scan(
+			&i.AgentID,
+			&i.Key,
+			&i.Value,
+			&i.Source,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAgentStatRollupMinutesSince = `-- name: ListAgentStatRollupMinutesSince :many
@@ -3437,6 +3852,7 @@ SELECT
     listener_id,
     backend_id,
     route_id,
+    route_target_id,
     agent_id,
     error_kind,
     status_class,
@@ -3458,6 +3874,7 @@ type ListProxyRequestTupleRollupMinutesSinceRow struct {
 	ListenerID       int64  `json:"listener_id"`
 	BackendID        int64  `json:"backend_id"`
 	RouteID          int64  `json:"route_id"`
+	RouteTargetID    int64  `json:"route_target_id"`
 	AgentID          int64  `json:"agent_id"`
 	ErrorKind        string `json:"error_kind"`
 	StatusClass      int64  `json:"status_class"`
@@ -3485,6 +3902,7 @@ func (q *Queries) ListProxyRequestTupleRollupMinutesSince(ctx context.Context, b
 			&i.ListenerID,
 			&i.BackendID,
 			&i.RouteID,
+			&i.RouteTargetID,
 			&i.AgentID,
 			&i.ErrorKind,
 			&i.StatusClass,
@@ -4099,7 +4517,7 @@ func (q *Queries) ListPublicCacheEntriesForCleanup(ctx context.Context, limit in
 }
 
 const listPublicCacheEntryCandidates = `-- name: ListPublicCacheEntryCandidates :many
-SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
        vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
        last_accessed_at, hit_count
 FROM public_cache_entries
@@ -4110,6 +4528,7 @@ WHERE rule_id = ?
   AND query_key = ?
   AND COALESCE(route_id, 0) = ?
   AND COALESCE(backend_id, 0) = ?
+  AND COALESCE(route_target_id, 0) = ?
   AND expires_at > ?
 ORDER BY stored_at DESC
 LIMIT 20
@@ -4123,6 +4542,7 @@ type ListPublicCacheEntryCandidatesParams struct {
 	QueryKey         string        `json:"query_key"`
 	RouteID          sql.NullInt64 `json:"route_id"`
 	BackendID        sql.NullInt64 `json:"backend_id"`
+	RouteTargetID    sql.NullInt64 `json:"route_target_id"`
 	ExpiresAt        time.Time     `json:"expires_at"`
 }
 
@@ -4135,6 +4555,7 @@ func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPu
 		arg.QueryKey,
 		arg.RouteID,
 		arg.BackendID,
+		arg.RouteTargetID,
 		arg.ExpiresAt,
 	)
 	if err != nil {
@@ -4154,6 +4575,7 @@ func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPu
 			&i.QueryKey,
 			&i.RouteID,
 			&i.BackendID,
+			&i.RouteTargetID,
 			&i.Method,
 			&i.VaryHeadersJson,
 			&i.ResponseHeadersJson,
@@ -4179,7 +4601,7 @@ func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPu
 }
 
 const listPublicCacheRules = `-- name: ListPublicCacheRules :many
-SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
        add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
@@ -4203,6 +4625,7 @@ func (q *Queries) ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, 
 			&i.MatchJson,
 			&i.RouteIdsJson,
 			&i.BackendIdsJson,
+			&i.TargetIdsJson,
 			&i.Scope,
 			&i.TtlMode,
 			&i.TtlMillis,
@@ -4429,8 +4852,297 @@ func (q *Queries) ListPublicRouteBackendsByRoute(ctx context.Context, routeID in
 	return items, nil
 }
 
+const listPublicRouteTargetResponseHeaders = `-- name: ListPublicRouteTargetResponseHeaders :many
+SELECT id, target_id, position, name, value, created_at, updated_at
+FROM public_route_target_response_headers
+ORDER BY target_id ASC, position ASC, id ASC
+`
+
+func (q *Queries) ListPublicRouteTargetResponseHeaders(ctx context.Context) ([]PublicRouteTargetResponseHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteTargetResponseHeaders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteTargetResponseHeader
+	for rows.Next() {
+		var i PublicRouteTargetResponseHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicRouteTargetResponseHeadersByTarget = `-- name: ListPublicRouteTargetResponseHeadersByTarget :many
+SELECT id, target_id, position, name, value, created_at, updated_at
+FROM public_route_target_response_headers
+WHERE target_id = ?
+ORDER BY position ASC, id ASC
+`
+
+func (q *Queries) ListPublicRouteTargetResponseHeadersByTarget(ctx context.Context, targetID int64) ([]PublicRouteTargetResponseHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteTargetResponseHeadersByTarget, targetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteTargetResponseHeader
+	for rows.Next() {
+		var i PublicRouteTargetResponseHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicRouteTargetUpstreamHeaders = `-- name: ListPublicRouteTargetUpstreamHeaders :many
+SELECT id, target_id, position, name, value, sensitive, created_at, updated_at
+FROM public_route_target_upstream_headers
+ORDER BY target_id ASC, position ASC, id ASC
+`
+
+func (q *Queries) ListPublicRouteTargetUpstreamHeaders(ctx context.Context) ([]PublicRouteTargetUpstreamHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteTargetUpstreamHeaders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteTargetUpstreamHeader
+	for rows.Next() {
+		var i PublicRouteTargetUpstreamHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.Sensitive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicRouteTargetUpstreamHeadersByTarget = `-- name: ListPublicRouteTargetUpstreamHeadersByTarget :many
+SELECT id, target_id, position, name, value, sensitive, created_at, updated_at
+FROM public_route_target_upstream_headers
+WHERE target_id = ?
+ORDER BY position ASC, id ASC
+`
+
+func (q *Queries) ListPublicRouteTargetUpstreamHeadersByTarget(ctx context.Context, targetID int64) ([]PublicRouteTargetUpstreamHeader, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteTargetUpstreamHeadersByTarget, targetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteTargetUpstreamHeader
+	for rows.Next() {
+		var i PublicRouteTargetUpstreamHeader
+		if err := rows.Scan(
+			&i.ID,
+			&i.TargetID,
+			&i.Position,
+			&i.Name,
+			&i.Value,
+			&i.Sensitive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicRouteTargets = `-- name: ListPublicRouteTargets :many
+SELECT id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+       agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+       upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+       health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+       health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+       health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+       static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+FROM public_route_targets
+ORDER BY route_id ASC, priority_group ASC, position ASC, id ASC
+`
+
+func (q *Queries) ListPublicRouteTargets(ctx context.Context) ([]PublicRouteTarget, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteTargets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteTarget
+	for rows.Next() {
+		var i PublicRouteTarget
+		if err := rows.Scan(
+			&i.ID,
+			&i.RouteID,
+			&i.Name,
+			&i.Position,
+			&i.PriorityGroup,
+			&i.Weight,
+			&i.Enabled,
+			&i.TargetType,
+			&i.Url,
+			&i.Transport,
+			&i.AgentSelectorJson,
+			&i.AgentLoadBalancing,
+			&i.TlsSkipVerify,
+			&i.UpstreamBasicAuthEnabled,
+			&i.UpstreamBasicAuthUsername,
+			&i.UpstreamBasicAuthPassword,
+			&i.UpstreamResponseHeaderTimeoutMillis,
+			&i.HealthCheckEnabled,
+			&i.HealthCheckMethod,
+			&i.HealthCheckPath,
+			&i.HealthCheckIntervalMillis,
+			&i.HealthCheckTimeoutMillis,
+			&i.HealthCheckHealthyThreshold,
+			&i.HealthCheckUnhealthyThreshold,
+			&i.HealthCheckExpectedStatusMin,
+			&i.HealthCheckExpectedStatusMax,
+			&i.StaticStatusCode,
+			&i.StaticResponseBody,
+			&i.StaticResponseBodyMode,
+			&i.StaticResponseTemplateID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicRouteTargetsByRoute = `-- name: ListPublicRouteTargetsByRoute :many
+SELECT id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+       agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+       upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+       health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+       health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+       health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+       static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+FROM public_route_targets
+WHERE route_id = ?
+ORDER BY priority_group ASC, position ASC, id ASC
+`
+
+func (q *Queries) ListPublicRouteTargetsByRoute(ctx context.Context, routeID int64) ([]PublicRouteTarget, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRouteTargetsByRoute, routeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRouteTarget
+	for rows.Next() {
+		var i PublicRouteTarget
+		if err := rows.Scan(
+			&i.ID,
+			&i.RouteID,
+			&i.Name,
+			&i.Position,
+			&i.PriorityGroup,
+			&i.Weight,
+			&i.Enabled,
+			&i.TargetType,
+			&i.Url,
+			&i.Transport,
+			&i.AgentSelectorJson,
+			&i.AgentLoadBalancing,
+			&i.TlsSkipVerify,
+			&i.UpstreamBasicAuthEnabled,
+			&i.UpstreamBasicAuthUsername,
+			&i.UpstreamBasicAuthPassword,
+			&i.UpstreamResponseHeaderTimeoutMillis,
+			&i.HealthCheckEnabled,
+			&i.HealthCheckMethod,
+			&i.HealthCheckPath,
+			&i.HealthCheckIntervalMillis,
+			&i.HealthCheckTimeoutMillis,
+			&i.HealthCheckHealthyThreshold,
+			&i.HealthCheckUnhealthyThreshold,
+			&i.HealthCheckExpectedStatusMin,
+			&i.HealthCheckExpectedStatusMax,
+			&i.StaticStatusCode,
+			&i.StaticResponseBody,
+			&i.StaticResponseBodyMode,
+			&i.StaticResponseTemplateID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicRoutes = `-- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC
 `
@@ -4453,6 +5165,8 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 			&i.BackendID,
 			&i.LoadBalancing,
 			&i.FallbackBackendID,
+			&i.TargetLoadBalancing,
+			&i.IsDefault,
 			&i.Action,
 			&i.RedirectTargetMode,
 			&i.RedirectTarget,
@@ -6159,6 +6873,7 @@ SET name = ?,
     match_json = ?,
     route_ids_json = ?,
     backend_ids_json = ?,
+    target_ids_json = ?,
     scope = ?,
     ttl_mode = ?,
     ttl_millis = ?,
@@ -6171,7 +6886,7 @@ SET name = ?,
     allow_cookie_requests = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
           add_cache_status_header, allow_cookie_requests, created_at, updated_at
 `
@@ -6183,6 +6898,7 @@ type UpdatePublicCacheRuleParams struct {
 	MatchJson            string `json:"match_json"`
 	RouteIdsJson         string `json:"route_ids_json"`
 	BackendIdsJson       string `json:"backend_ids_json"`
+	TargetIdsJson        string `json:"target_ids_json"`
 	Scope                string `json:"scope"`
 	TtlMode              string `json:"ttl_mode"`
 	TtlMillis            int64  `json:"ttl_millis"`
@@ -6204,6 +6920,7 @@ func (q *Queries) UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCac
 		arg.MatchJson,
 		arg.RouteIdsJson,
 		arg.BackendIdsJson,
+		arg.TargetIdsJson,
 		arg.Scope,
 		arg.TtlMode,
 		arg.TtlMillis,
@@ -6225,6 +6942,7 @@ func (q *Queries) UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCac
 		&i.MatchJson,
 		&i.RouteIdsJson,
 		&i.BackendIdsJson,
+		&i.TargetIdsJson,
 		&i.Scope,
 		&i.TtlMode,
 		&i.TtlMillis,
@@ -6470,6 +7188,8 @@ SET listener_id = ?,
     backend_id = ?,
     load_balancing = ?,
     fallback_backend_id = ?,
+    target_load_balancing = ?,
+    is_default = ?,
     action = ?,
     redirect_target_mode = ?,
     redirect_target = ?,
@@ -6479,7 +7199,7 @@ SET listener_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type UpdatePublicRouteParams struct {
@@ -6490,6 +7210,8 @@ type UpdatePublicRouteParams struct {
 	BackendID                  sql.NullInt64 `json:"backend_id"`
 	LoadBalancing              string        `json:"load_balancing"`
 	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
+	TargetLoadBalancing        string        `json:"target_load_balancing"`
+	IsDefault                  int64         `json:"is_default"`
 	Action                     string        `json:"action"`
 	RedirectTargetMode         string        `json:"redirect_target_mode"`
 	RedirectTarget             string        `json:"redirect_target"`
@@ -6509,6 +7231,8 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		arg.BackendID,
 		arg.LoadBalancing,
 		arg.FallbackBackendID,
+		arg.TargetLoadBalancing,
+		arg.IsDefault,
 		arg.Action,
 		arg.RedirectTargetMode,
 		arg.RedirectTarget,
@@ -6528,6 +7252,8 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.BackendID,
 		&i.LoadBalancing,
 		&i.FallbackBackendID,
+		&i.TargetLoadBalancing,
+		&i.IsDefault,
 		&i.Action,
 		&i.RedirectTargetMode,
 		&i.RedirectTarget,
@@ -6535,6 +7261,152 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicRouteTarget = `-- name: UpdatePublicRouteTarget :one
+UPDATE public_route_targets
+SET route_id = ?,
+    name = ?,
+    position = ?,
+    priority_group = ?,
+    weight = ?,
+    enabled = ?,
+    target_type = ?,
+    url = ?,
+    transport = ?,
+    agent_selector_json = ?,
+    agent_load_balancing = ?,
+    tls_skip_verify = ?,
+    upstream_basic_auth_enabled = ?,
+    upstream_basic_auth_username = ?,
+    upstream_basic_auth_password = ?,
+    upstream_response_header_timeout_millis = ?,
+    health_check_enabled = ?,
+    health_check_method = ?,
+    health_check_path = ?,
+    health_check_interval_millis = ?,
+    health_check_timeout_millis = ?,
+    health_check_healthy_threshold = ?,
+    health_check_unhealthy_threshold = ?,
+    health_check_expected_status_min = ?,
+    health_check_expected_status_max = ?,
+    static_status_code = ?,
+    static_response_body = ?,
+    static_response_body_mode = ?,
+    static_response_template_id = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+          agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+          upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+          health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+          health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+          health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+          static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+`
+
+type UpdatePublicRouteTargetParams struct {
+	RouteID                             int64         `json:"route_id"`
+	Name                                string        `json:"name"`
+	Position                            int64         `json:"position"`
+	PriorityGroup                       int64         `json:"priority_group"`
+	Weight                              int64         `json:"weight"`
+	Enabled                             int64         `json:"enabled"`
+	TargetType                          string        `json:"target_type"`
+	Url                                 string        `json:"url"`
+	Transport                           string        `json:"transport"`
+	AgentSelectorJson                   string        `json:"agent_selector_json"`
+	AgentLoadBalancing                  string        `json:"agent_load_balancing"`
+	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
+	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
+	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
+	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
+	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
+	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
+	HealthCheckMethod                   string        `json:"health_check_method"`
+	HealthCheckPath                     string        `json:"health_check_path"`
+	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
+	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
+	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
+	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
+	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
+	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
+	StaticStatusCode                    int64         `json:"static_status_code"`
+	StaticResponseBody                  string        `json:"static_response_body"`
+	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
+	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
+	ID                                  int64         `json:"id"`
+}
+
+func (q *Queries) UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicRouteTargetParams) (PublicRouteTarget, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicRouteTarget,
+		arg.RouteID,
+		arg.Name,
+		arg.Position,
+		arg.PriorityGroup,
+		arg.Weight,
+		arg.Enabled,
+		arg.TargetType,
+		arg.Url,
+		arg.Transport,
+		arg.AgentSelectorJson,
+		arg.AgentLoadBalancing,
+		arg.TlsSkipVerify,
+		arg.UpstreamBasicAuthEnabled,
+		arg.UpstreamBasicAuthUsername,
+		arg.UpstreamBasicAuthPassword,
+		arg.UpstreamResponseHeaderTimeoutMillis,
+		arg.HealthCheckEnabled,
+		arg.HealthCheckMethod,
+		arg.HealthCheckPath,
+		arg.HealthCheckIntervalMillis,
+		arg.HealthCheckTimeoutMillis,
+		arg.HealthCheckHealthyThreshold,
+		arg.HealthCheckUnhealthyThreshold,
+		arg.HealthCheckExpectedStatusMin,
+		arg.HealthCheckExpectedStatusMax,
+		arg.StaticStatusCode,
+		arg.StaticResponseBody,
+		arg.StaticResponseBodyMode,
+		arg.StaticResponseTemplateID,
+		arg.ID,
+	)
+	var i PublicRouteTarget
+	err := row.Scan(
+		&i.ID,
+		&i.RouteID,
+		&i.Name,
+		&i.Position,
+		&i.PriorityGroup,
+		&i.Weight,
+		&i.Enabled,
+		&i.TargetType,
+		&i.Url,
+		&i.Transport,
+		&i.AgentSelectorJson,
+		&i.AgentLoadBalancing,
+		&i.TlsSkipVerify,
+		&i.UpstreamBasicAuthEnabled,
+		&i.UpstreamBasicAuthUsername,
+		&i.UpstreamBasicAuthPassword,
+		&i.UpstreamResponseHeaderTimeoutMillis,
+		&i.HealthCheckEnabled,
+		&i.HealthCheckMethod,
+		&i.HealthCheckPath,
+		&i.HealthCheckIntervalMillis,
+		&i.HealthCheckTimeoutMillis,
+		&i.HealthCheckHealthyThreshold,
+		&i.HealthCheckUnhealthyThreshold,
+		&i.HealthCheckExpectedStatusMin,
+		&i.HealthCheckExpectedStatusMax,
+		&i.StaticStatusCode,
+		&i.StaticResponseBody,
+		&i.StaticResponseBodyMode,
+		&i.StaticResponseTemplateID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -7087,6 +7959,42 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 	return i, err
 }
 
+const upsertAgentLabel = `-- name: UpsertAgentLabel :one
+INSERT INTO public_agent_labels (agent_id, key, value, source)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(agent_id, key) DO UPDATE SET
+    value = excluded.value,
+    source = excluded.source,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING agent_id, key, value, source, created_at, updated_at
+`
+
+type UpsertAgentLabelParams struct {
+	AgentID int64  `json:"agent_id"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Source  string `json:"source"`
+}
+
+func (q *Queries) UpsertAgentLabel(ctx context.Context, arg UpsertAgentLabelParams) (PublicAgentLabel, error) {
+	row := q.db.QueryRowContext(ctx, upsertAgentLabel,
+		arg.AgentID,
+		arg.Key,
+		arg.Value,
+		arg.Source,
+	)
+	var i PublicAgentLabel
+	err := row.Scan(
+		&i.AgentID,
+		&i.Key,
+		&i.Value,
+		&i.Source,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const upsertAgentStatRollupMinute = `-- name: UpsertAgentStatRollupMinute :exec
 INSERT INTO agent_stat_rollup_minutes (
     bucket_unix_millis, samples, req_success, req_client_error, req_server_error, req_internal_error,
@@ -7260,13 +8168,13 @@ func (q *Queries) UpsertProxyRequestRollupMinute(ctx context.Context, arg Upsert
 
 const upsertProxyRequestTupleRollupMinute = `-- name: UpsertProxyRequestTupleRollupMinute :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -7282,6 +8190,7 @@ type UpsertProxyRequestTupleRollupMinuteParams struct {
 	BucketUnixMillis int64  `json:"bucket_unix_millis"`
 	ListenerID       int64  `json:"listener_id"`
 	BackendID        int64  `json:"backend_id"`
+	RouteTargetID    int64  `json:"route_target_id"`
 	RouteID          int64  `json:"route_id"`
 	AgentID          int64  `json:"agent_id"`
 	ErrorKind        string `json:"error_kind"`
@@ -7301,6 +8210,7 @@ func (q *Queries) UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg U
 		arg.BucketUnixMillis,
 		arg.ListenerID,
 		arg.BackendID,
+		arg.RouteTargetID,
 		arg.RouteID,
 		arg.AgentID,
 		arg.ErrorKind,
@@ -7319,11 +8229,11 @@ func (q *Queries) UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg U
 
 const upsertPublicCacheEntry = `-- name: UpsertPublicCacheEntry :one
 INSERT INTO public_cache_entries (
-    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
     vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
     last_accessed_at, hit_count
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
 )
 ON CONFLICT(key_digest) DO UPDATE SET
     rule_id = excluded.rule_id,
@@ -7334,6 +8244,7 @@ ON CONFLICT(key_digest) DO UPDATE SET
     query_key = excluded.query_key,
     route_id = excluded.route_id,
     backend_id = excluded.backend_id,
+    route_target_id = excluded.route_target_id,
     method = excluded.method,
     vary_headers_json = excluded.vary_headers_json,
     response_headers_json = excluded.response_headers_json,
@@ -7344,7 +8255,7 @@ ON CONFLICT(key_digest) DO UPDATE SET
     expires_at = excluded.expires_at,
     last_accessed_at = CURRENT_TIMESTAMP,
     hit_count = 0
-RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
           vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
           last_accessed_at, hit_count
 `
@@ -7359,6 +8270,7 @@ type UpsertPublicCacheEntryParams struct {
 	QueryKey            string        `json:"query_key"`
 	RouteID             sql.NullInt64 `json:"route_id"`
 	BackendID           sql.NullInt64 `json:"backend_id"`
+	RouteTargetID       sql.NullInt64 `json:"route_target_id"`
 	Method              string        `json:"method"`
 	VaryHeadersJson     string        `json:"vary_headers_json"`
 	ResponseHeadersJson string        `json:"response_headers_json"`
@@ -7379,6 +8291,7 @@ func (q *Queries) UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCa
 		arg.QueryKey,
 		arg.RouteID,
 		arg.BackendID,
+		arg.RouteTargetID,
 		arg.Method,
 		arg.VaryHeadersJson,
 		arg.ResponseHeadersJson,
@@ -7398,6 +8311,7 @@ func (q *Queries) UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCa
 		&i.QueryKey,
 		&i.RouteID,
 		&i.BackendID,
+		&i.RouteTargetID,
 		&i.Method,
 		&i.VaryHeadersJson,
 		&i.ResponseHeadersJson,

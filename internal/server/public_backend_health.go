@@ -123,13 +123,14 @@ func (m *publicBackendHealthMonitor) reconcile(app *App, snap *publicProxySnapsh
 		}
 		return
 	}
+	healthBackends := publicHealthBackendConfigsFromSnapshot(snap)
 	for id, state := range m.states {
-		if _, ok := snap.Backends[id]; !ok {
+		if _, ok := healthBackends[id]; !ok {
 			state.stopLocked()
 			delete(m.states, id)
 		}
 	}
-	for _, backend := range snap.Backends {
+	for _, backend := range healthBackends {
 		state := m.states[backend.ID]
 		if state == nil {
 			state = newPublicBackendHealthState(backend)
@@ -185,6 +186,85 @@ func (m *publicBackendHealthMonitor) reconcile(app *App, snap *publicProxySnapsh
 		if !backend.HealthCheck.Enabled {
 			state.clearHealthStateLocked()
 		}
+	}
+}
+
+func publicHealthBackendConfigsFromSnapshot(snap *publicProxySnapshot) map[int64]publicBackendConfig {
+	resp := make(map[int64]publicBackendConfig)
+	if snap == nil {
+		return resp
+	}
+	for _, target := range snap.RouteTargets {
+		if target.TargetType != publicRouteTargetTypeProxy {
+			continue
+		}
+		resp[target.ID] = publicBackendConfigFromRouteTarget(target, snap.Agents)
+	}
+	if len(resp) > 0 {
+		return resp
+	}
+	for id, backend := range snap.Backends {
+		resp[id] = backend
+	}
+	return resp
+}
+
+func publicBackendConfigFromRouteTarget(target publicRouteTargetConfig, agents map[int64]publicAgentConfig) publicBackendConfig {
+	forwardMode := publicBackendForwardModeDirect
+	assignments := []publicBackendAgentConfig(nil)
+	if target.Transport == publicRouteTargetTransportAgent {
+		forwardMode = publicBackendForwardModeAgentPool
+		for agentID, agent := range agents {
+			if !agent.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agent.Labels) {
+				continue
+			}
+			assignments = append(assignments, publicBackendAgentConfig{
+				BackendID: target.ID,
+				AgentID:   agentID,
+				Position:  agentID,
+				Weight:    100,
+				Enabled:   true,
+			})
+		}
+		sort.Slice(assignments, func(i, j int) bool { return assignments[i].AgentID < assignments[j].AgentID })
+	}
+	return publicBackendConfig{
+		ID:                            target.ID,
+		Name:                          target.Name,
+		TargetOrigin:                  target.URL,
+		BackendType:                   publicBackendTypeProxyForward,
+		ForwardMode:                   forwardMode,
+		LoadBalancing:                 target.AgentLoadBalancing,
+		TLSSkipVerify:                 target.TLSSkipVerify,
+		UpstreamRequestHeaders:        target.UpstreamRequestHeaders,
+		UpstreamBasicAuth:             target.UpstreamBasicAuth,
+		UpstreamResponseHeaderTimeout: target.UpstreamResponseHeaderTimeout,
+		Enabled:                       target.Enabled,
+		ParsedOrigin:                  target.ParsedURL,
+		AgentAssignments:              assignments,
+		HealthCheck:                   target.HealthCheck,
+	}
+}
+
+func publicRouteTargetConfigFromHealthBackend(backend publicBackendConfig) publicRouteTargetConfig {
+	transport := publicRouteTargetTransportDirect
+	if backend.ForwardMode == publicBackendForwardModeAgentPool {
+		transport = publicRouteTargetTransportAgent
+	}
+	return publicRouteTargetConfig{
+		ID:                            backend.ID,
+		Name:                          backend.Name,
+		Enabled:                       backend.Enabled,
+		TargetType:                    publicRouteTargetTypeProxy,
+		URL:                           backend.TargetOrigin,
+		Transport:                     transport,
+		AgentLoadBalancing:            backend.LoadBalancing,
+		TLSSkipVerify:                 backend.TLSSkipVerify,
+		UpstreamRequestHeaders:        backend.UpstreamRequestHeaders,
+		UpstreamBasicAuth:             backend.UpstreamBasicAuth,
+		UpstreamResponseHeaderTimeout: backend.UpstreamResponseHeaderTimeout,
+		HealthCheck:                   backend.HealthCheck,
+		ParsedURL:                     backend.ParsedOrigin,
 	}
 }
 
@@ -429,7 +509,7 @@ func (a *App) runPublicBackendHealthCheckViaAgent(parent context.Context, backen
 
 	healthBackend := backend
 	healthBackend.UpstreamResponseHeaderTimeout = timeout
-	client := &http.Client{Transport: a.agentProxyTransport(agent, healthBackend)}
+	client := &http.Client{Transport: a.agentTargetTransport(agent, publicRouteTargetConfigFromHealthBackend(healthBackend))}
 	resp, err := client.Do(req)
 	if err != nil {
 		var dialErr agentDialError

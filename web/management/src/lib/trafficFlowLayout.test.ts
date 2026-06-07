@@ -11,12 +11,11 @@ import {
   TrafficTraceStage,
   type Agent,
   type GetPublicProxyConfigResponse,
-  type PublicBackend,
-  type PublicBackendAgent,
   type PublicCacheRule,
   type PublicRateLimitRule,
   type PublicTrafficShaperRule,
   type PublicRoute,
+  type PublicRouteTarget,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   CACHE_KEY,
@@ -336,20 +335,19 @@ describe("trafficFlowLayout", () => {
     expect(changed.path.at(-1)).toBe("response");
   });
 
-  test("config indexes group routes, agents, and backend assignments", () => {
+  test("config indexes group routes, agents, and route targets", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       routes: [route({ id: 3n, listenerId: 1n }), route({ id: 4n, listenerId: 1n, priority: 1n })],
-      backends: [backend({ id: 2n })],
+      routeTargets: [routeTarget({ id: 2n, routeId: 3n })],
       agents: [agent({ id: 7n })],
-      backendAgents: [backendAgent({ backendId: 2n, agentId: 7n })],
       rateLimitRules: [rateLimitRule({ id: 9n, enabled: true })],
       trafficShaperRules: [trafficShaperRule({ id: 10n, enabled: true })],
     }));
 
     expect(index.routesByListenerId.get("1")?.map((item) => item.id)).toEqual([4n, 3n]);
-    expect(index.backendById.get("2")?.id).toBe(2n);
+    expect(index.routeTargetById.get("2")?.id).toBe(2n);
     expect(index.agentById.get("7")?.id).toBe(7n);
-    expect(index.backendAgentsByBackendId.get("2")?.[0]?.agentId).toBe(7n);
+    expect(index.routeTargetsByRouteId.get("3")?.[0]?.id).toBe(2n);
     expect(index.enabledRateLimitTargets[0]?.kind).toBe("rate-limit");
     expect(index.hasEnabledRateLimitRules).toBe(true);
     expect(index.enabledTrafficShaperTargets[0]?.kind).toBe("traffic-shaper");
@@ -372,10 +370,9 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
   return {
     $typeName: "p2pstream.v1.GetPublicProxyConfigResponse",
     listeners: [],
-    backends: [],
-    backendAgents: [],
     agents: [],
     routes: [],
+    routeTargets: [],
     rateLimitRules: [],
     trafficShaperRules: [],
     cacheRules: [],
@@ -394,7 +391,7 @@ function cacheRule(overrides: Partial<PublicCacheRule>): PublicCacheRule {
     enabled: true,
     match: undefined,
     routeIds: [],
-    backendIds: [],
+    targetIds: [],
     scope: PublicCacheScope.SELECTED_BACKEND,
     ttlMode: PublicCacheTtlMode.FIXED,
     ttlMillis: 3_600_000n,
@@ -419,7 +416,6 @@ function route(overrides: Partial<PublicRoute>): PublicRoute {
     priority: 100n,
     hostPattern: "",
     pathPrefix: "",
-    backendId: 0n,
     enabled: true,
     action: PublicRouteAction.FORWARD,
     redirectTargetMode: 0,
@@ -427,31 +423,41 @@ function route(overrides: Partial<PublicRoute>): PublicRoute {
     redirectStatusCode: 302n,
     redirectPreservePathSuffix: true,
     redirectPreserveQuery: true,
+    targetLoadBalancing: 0,
+    isDefault: false,
+    targets: [],
     ...overrides,
   } as PublicRoute;
 }
 
-function backend(overrides: Partial<PublicBackend>): PublicBackend {
+function routeTarget(overrides: Partial<PublicRouteTarget>): PublicRouteTarget {
   return {
-    $typeName: "p2pstream.v1.PublicBackend",
+    $typeName: "p2pstream.v1.PublicRouteTarget",
     id: 0n,
+    routeId: 0n,
     name: "",
-    targetOrigin: "",
+    position: 0n,
+    priorityGroup: 0n,
+    weight: 100n,
     enabled: true,
-    createdAtUnixMillis: 0n,
-    updatedAtUnixMillis: 0n,
-    backendType: PublicBackendType.PROXY_FORWARD,
-    forwardMode: PublicBackendForwardMode.DIRECT,
-    loadBalancing: 0,
+    targetType: 1,
+    url: "",
+    transport: 1,
+    agentSelector: undefined,
+    agentLoadBalancing: 0,
     tlsSkipVerify: false,
+    upstreamResponseHeaderTimeoutMillis: 60000n,
+    upstreamRequestHeaders: [],
+    upstreamBasicAuth: undefined,
+    healthCheck: undefined,
     staticStatusCode: 200n,
     staticResponseHeaders: [],
     staticResponseBody: "",
-    agentAssignments: [],
-    upstreamRequestHeaders: [],
-    upstreamBasicAuth: undefined,
+    staticResponseBodyMode: 0,
+    staticResponseTemplateId: 0n,
+    health: undefined,
     ...overrides,
-  } as PublicBackend;
+  } as PublicRouteTarget;
 }
 
 function agent(overrides: Partial<Agent>): Agent {
@@ -468,20 +474,9 @@ function agent(overrides: Partial<Agent>): Agent {
     lastConnectedAtUnixMillis: 0n,
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
+    labels: {},
     ...overrides,
   } as Agent;
-}
-
-function backendAgent(overrides: Partial<PublicBackendAgent>): PublicBackendAgent {
-  return {
-    $typeName: "p2pstream.v1.PublicBackendAgent",
-    backendId: 0n,
-    agentId: 0n,
-    position: 0n,
-    weight: 100n,
-    enabled: true,
-    ...overrides,
-  } as PublicBackendAgent;
 }
 
 function rateLimitRule(overrides: Partial<PublicRateLimitRule>): PublicRateLimitRule {

@@ -16,14 +16,14 @@ import (
 type agentTransportKind string
 
 const (
-	agentTransportKindPublicBackend agentTransportKind = "public_backend"
-	agentTransportKindEnvironment   agentTransportKind = "environment"
+	agentTransportKindRouteTarget agentTransportKind = "route_target"
+	agentTransportKindEnvironment agentTransportKind = "environment"
 )
 
 type agentTransportKey struct {
 	Kind                        agentTransportKind
 	AgentID                     int64
-	BackendID                   int64
+	RouteTargetID               int64
 	EnvironmentID               int64
 	TargetOrigin                string
 	ManagementURL               string
@@ -72,18 +72,18 @@ func agentDialRequestID(ctx context.Context) string {
 	return requestID
 }
 
-func (p *agentTransportPool) publicBackendTransport(app *App, agent *AgentConn, backend publicBackendConfig) http.RoundTripper {
-	timeout := normalizeUpstreamResponseHeaderTimeout(backend.UpstreamResponseHeaderTimeout)
+func (p *agentTransportPool) publicRouteTargetTransport(app *App, agent *AgentConn, target publicRouteTargetConfig) http.RoundTripper {
+	timeout := normalizeUpstreamResponseHeaderTimeout(target.UpstreamResponseHeaderTimeout)
 	key := agentTransportKey{
-		Kind:                        agentTransportKindPublicBackend,
+		Kind:                        agentTransportKindRouteTarget,
 		AgentID:                     agent.AgentID,
-		BackendID:                   backend.ID,
-		TargetOrigin:                backend.TargetOrigin,
-		TLSSkipVerify:               backend.TLSSkipVerify,
+		RouteTargetID:               target.ID,
+		TargetOrigin:                target.URL,
+		TLSSkipVerify:               target.TLSSkipVerify,
 		ResponseHeaderTimeoutMillis: int64(timeout / time.Millisecond),
 	}
 	var tlsConfig *tls.Config
-	if backend.TLSSkipVerify {
+	if target.TLSSkipVerify {
 		tlsConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return p.getOrCreate(app, agent, key, tlsConfig, timeout)
@@ -160,9 +160,9 @@ func (p *agentTransportPool) closeAgent(agentID int64) {
 	})
 }
 
-func (p *agentTransportPool) closeBackend(backendID int64) {
+func (p *agentTransportPool) closeRouteTarget(targetID int64) {
 	p.closeWhere(func(key agentTransportKey) bool {
-		return key.Kind == agentTransportKindPublicBackend && key.BackendID == backendID
+		return key.Kind == agentTransportKindRouteTarget && key.RouteTargetID == targetID
 	})
 }
 

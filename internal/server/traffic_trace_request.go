@@ -263,6 +263,17 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 	} else if resolution.BackendID.Valid {
 		event.BackendId = resolution.BackendID.Int64
 	}
+	if resolution.Target.ID != 0 {
+		event.RouteTargetId = resolution.Target.ID
+		event.RouteTargetName = resolution.Target.Name
+		event.RouteTargetType = protoPublicRouteTargetTypeFromString(resolution.Target.TargetType)
+		event.RouteTargetTransport = protoPublicRouteTargetTransportFromString(resolution.Target.Transport)
+		if resolution.Target.URL != "" {
+			event.TargetOrigin = resolution.Target.URL
+		}
+	} else if resolution.RouteTargetID.Valid {
+		event.RouteTargetId = resolution.RouteTargetID.Int64
+	}
 	if resolution.AgentID.Valid && event.AgentId == 0 {
 		event.AgentId = resolution.AgentID.Int64
 	}

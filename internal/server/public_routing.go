@@ -11,7 +11,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -24,6 +23,8 @@ import (
 )
 
 var errNoRouteBackendAvailable = errors.New("no route backend available")
+var errNoRouteTargetAvailable = errors.New("no route target available")
+var errNoPublicRouteAvailable = errors.New("no public route available")
 
 type publicBackendConfig struct {
 	ID                            int64
@@ -52,6 +53,7 @@ type publicAgentConfig struct {
 	PublicID string
 	Name     string
 	Enabled  bool
+	Labels   map[string]string
 }
 
 type publicBackendAgentConfig struct {
@@ -91,6 +93,36 @@ type publicBackendHealthCheckConfig struct {
 	ExpectedStatusMax  int64
 }
 
+type publicAgentSelectorConfig struct {
+	MatchLabels map[string]string
+}
+
+type publicRouteTargetConfig struct {
+	ID                            int64
+	RouteID                       int64
+	Name                          string
+	Position                      int64
+	PriorityGroup                 int64
+	Weight                        int64
+	Enabled                       bool
+	TargetType                    string
+	URL                           string
+	Transport                     string
+	AgentSelector                 publicAgentSelectorConfig
+	AgentLoadBalancing            string
+	TLSSkipVerify                 bool
+	UpstreamResponseHeaderTimeout time.Duration
+	UpstreamRequestHeaders        []publicRequestHeader
+	UpstreamBasicAuth             publicBackendBasicAuthConfig
+	HealthCheck                   publicBackendHealthCheckConfig
+	StaticStatusCode              int
+	StaticResponseHeaders         []publicResponseHeader
+	StaticResponseBody            string
+	StaticResponseBodyMode        string
+	StaticResponseTemplateID      int64
+	ParsedURL                     *url.URL
+}
+
 type publicListenerConfig struct {
 	ID               int64
 	Name             string
@@ -107,6 +139,9 @@ type publicRouteConfig struct {
 	Priority                   int64
 	HostPattern                string
 	PathPrefix                 string
+	TargetLoadBalancing        string
+	IsDefault                  bool
+	Targets                    []publicRouteTargetConfig
 	BackendID                  int64
 	LoadBalancing              string
 	FallbackBackendID          int64
@@ -142,6 +177,7 @@ type publicTLSCertificateConfig struct {
 
 type publicProxySnapshot struct {
 	Backends            map[int64]publicBackendConfig
+	RouteTargets        map[int64]publicRouteTargetConfig
 	Agents              map[int64]publicAgentConfig
 	Listeners           map[int64]publicListenerConfig
 	RoutesByListener    map[int64][]publicRouteConfig
@@ -158,12 +194,15 @@ type publicProxySnapshot struct {
 
 type publicRouteResolution struct {
 	Backend                             publicBackendConfig
+	Target                              publicRouteTargetConfig
+	Agent                               *AgentConn
 	Listener                            publicListenerConfig
 	Route                               publicRouteConfig
 	Action                              string
 	DefaultRoute                        bool
 	ListenerID                          sql.NullInt64
 	BackendID                           sql.NullInt64
+	RouteTargetID                       sql.NullInt64
 	RouteID                             sql.NullInt64
 	AgentID                             sql.NullInt64
 	RateLimitRuleID                     int64
@@ -211,321 +250,7 @@ func (o proxyRequestObservability) responseBytesValue() uint64 {
 
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		requestStartedAt := time.Now()
-		var requestBytes atomic.Uint64
-		if r.Body != nil && r.Body != http.NoBody {
-			r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
-		}
-		recorder := &proxyResponseRecorder{ResponseWriter: w}
-		responseWriter := http.ResponseWriter(recorder)
-		observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
-		trace := a.newTrafficRequestTrace(r, recorder)
-		if trace != nil {
-			trace.emitReceived(listenerID)
-		}
-
-		if a.PublicACME != nil && a.PublicACME.ServeHTTPChallenge(responseWriter, r) {
-			statusCode := recorder.statusCode
-			if statusCode == 0 {
-				statusCode = http.StatusOK
-			}
-			a.recordProxyRequestEventWithIDs(
-				context.Background(),
-				statusCode,
-				time.Since(requestStartedAt),
-				"",
-				sql.NullInt64{Int64: listenerID, Valid: true},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				observability.requestBytesValue(),
-				observability.responseBytesValue(),
-			)
-			return
-		}
-
-		if decision, handled := a.servePublicWAFReserved(responseWriter, r, listenerID); handled {
-			statusCode := recorder.statusCode
-			if statusCode == 0 {
-				statusCode = decision.StatusCode
-			}
-			if statusCode == 0 {
-				statusCode = http.StatusOK
-			}
-			if trace != nil && decision.Action != "" {
-				resolution := traceResolutionFromWafDecision(decision, listenerID)
-				trace.emit(
-					wafTraceStage(decision),
-					&resolution,
-					nil,
-					statusCode,
-					decision.ErrorKind,
-					responseWriter.Header(),
-					wafDebugAttributes(decision),
-				)
-			}
-			a.recordProxyRequestEventWithPolicyIDs(
-				context.Background(),
-				statusCode,
-				time.Since(requestStartedAt),
-				decision.ErrorKind,
-				sql.NullInt64{Int64: listenerID, Valid: true},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				sql.NullInt64{Int64: decision.Rule.ID, Valid: decision.Rule.ID != 0},
-				decision.Action,
-				sql.NullInt64{},
-				observability.requestBytesValue(),
-				observability.responseBytesValue(),
-			)
-			return
-		}
-
-		if a.PublicWAF != nil {
-			done := a.PublicWAF.beginProxyRequest()
-			defer done()
-		}
-
-		if decision, allowed := a.checkPublicWAF(listenerID, r); !allowed {
-			writePublicWafResponse(responseWriter, r, decision)
-			statusCode := recorder.statusCode
-			if statusCode == 0 {
-				statusCode = decision.StatusCode
-			}
-			if statusCode == 0 {
-				statusCode = http.StatusForbidden
-			}
-			if trace != nil {
-				resolution := traceResolutionFromWafDecision(decision, listenerID)
-				trace.emit(
-					wafTraceStage(decision),
-					&resolution,
-					nil,
-					statusCode,
-					decision.ErrorKind,
-					responseWriter.Header(),
-					wafDebugAttributes(decision),
-				)
-			}
-			a.recordProxyRequestEventWithPolicyIDs(
-				context.Background(),
-				statusCode,
-				time.Since(requestStartedAt),
-				decision.ErrorKind,
-				sql.NullInt64{Int64: listenerID, Valid: true},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				sql.NullInt64{Int64: decision.Rule.ID, Valid: decision.Rule.ID != 0},
-				decision.Action,
-				sql.NullInt64{},
-				observability.requestBytesValue(),
-				observability.responseBytesValue(),
-			)
-			return
-		}
-
-		if decision, allowed := a.checkPublicRateLimits(listenerID, r); !allowed {
-			writeRateLimitResponse(responseWriter, decision)
-			if trace != nil {
-				resolution := publicRouteResolution{
-					Listener:           decision.Listener,
-					ListenerID:         sql.NullInt64{Int64: listenerID, Valid: true},
-					RateLimitRuleID:    decision.Rule.ID,
-					RateLimitRuleName:  decision.Rule.Name,
-					RateLimitAlgorithm: decision.Rule.Algorithm,
-				}
-				trace.emit(
-					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RATE_LIMITED,
-					&resolution,
-					nil,
-					decision.StatusCode,
-					"rate_limited",
-					responseWriter.Header(),
-					map[string]string{
-						"handler":              "rate_limit",
-						"rate_limit_rule_id":   strconv.FormatInt(decision.Rule.ID, 10),
-						"rate_limit_rule_name": decision.Rule.Name,
-						"rate_limit_algorithm": decision.Rule.Algorithm,
-					},
-				)
-			}
-			a.recordProxyRequestEventWithIDs(
-				context.Background(),
-				decision.StatusCode,
-				time.Since(requestStartedAt),
-				"",
-				sql.NullInt64{Int64: listenerID, Valid: true},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				observability.requestBytesValue(),
-				observability.responseBytesValue(),
-			)
-			return
-		}
-
-		var trafficShaperDecision publicTrafficShaperDecision
-		trafficShaperSelected := false
-		if decision, ok := a.selectPublicTrafficShaper(listenerID, r); ok {
-			trafficShaperDecision = decision
-			trafficShaperSelected = true
-			if trace != nil {
-				resolution := publicRouteResolution{
-					Listener:   decision.Listener,
-					ListenerID: sql.NullInt64{Int64: listenerID, Valid: true},
-				}
-				applyTrafficShaperResolutionFields(&resolution, decision)
-				trace.emit(
-					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_TRAFFIC_SHAPER_SELECTED,
-					&resolution,
-					nil,
-					0,
-					"",
-					nil,
-					map[string]string{
-						"handler":                        "traffic_shaper",
-						"traffic_shaper_rule_id":         strconv.FormatInt(decision.Rule.ID, 10),
-						"traffic_shaper_rule_name":       decision.Rule.Name,
-						"traffic_shaper_budget_scope":    decision.Rule.BudgetScope,
-						"traffic_shaper_upload_bps":      strconv.FormatInt(decision.Rule.UploadBytesPerSecond, 10),
-						"traffic_shaper_download_bps":    strconv.FormatInt(decision.Rule.DownloadBytesPerSecond, 10),
-						"traffic_shaper_request_exempt":  strconv.FormatInt(decision.Rule.RequestExemptBytes, 10),
-						"traffic_shaper_response_exempt": strconv.FormatInt(decision.Rule.ResponseExemptBytes, 10),
-					},
-				)
-			}
-		}
-
-		resolution, err := a.resolvePublicRoute(listenerID, r)
-		if err != nil {
-			statusCode := http.StatusBadGateway
-			errorKind := "route_resolution_failed"
-			if errors.Is(err, errNoRouteBackendAvailable) {
-				statusCode = http.StatusServiceUnavailable
-				errorKind = "no_route_backend_available"
-				writeNoRouteBackendAvailable(responseWriter)
-			} else {
-				http.Error(responseWriter, err.Error(), statusCode)
-			}
-			a.recordProxyRequestEventWithIDs(
-				context.Background(),
-				statusCode,
-				time.Since(requestStartedAt),
-				errorKind,
-				sql.NullInt64{Int64: listenerID, Valid: true},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				sql.NullInt64{},
-				observability.requestBytesValue(),
-				observability.responseBytesValue(),
-			)
-			if trace != nil {
-				failureResolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: listenerID, Valid: true}}
-				if trafficShaperSelected {
-					applyTrafficShaperResolutionFields(&failureResolution, trafficShaperDecision)
-				}
-				trace.emit(
-					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
-					&failureResolution,
-					nil,
-					statusCode,
-					errorKind,
-					responseWriter.Header(),
-					nil,
-				)
-			}
-			return
-		}
-		if trafficShaperSelected {
-			applyTrafficShaperResolutionFields(&resolution, trafficShaperDecision)
-		}
-		if trace != nil {
-			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ROUTE_RESOLVED, &resolution, nil, 0, "", nil, nil)
-		}
-		if resolution.Action == publicRouteActionRedirect {
-			a.redirectRouteResponse(responseWriter, r, resolution, trace, observability)
-			return
-		}
-		if trace != nil {
-			attributes := map[string]string(nil)
-			if resolution.RouteLoadBalancing != "" {
-				attributes = map[string]string{
-					"route_load_balancer": resolution.RouteLoadBalancing,
-					"route_fallback":      strconv.FormatBool(resolution.RouteFallbackSelected),
-				}
-			}
-			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_BACKEND_SELECTED, &resolution, nil, 0, "", nil, attributes)
-		}
-		var cacheDecision *publicCacheDecision
-		if resolution.Backend.BackendType == publicBackendTypeProxyForward {
-			decision := a.checkPublicCache(r, resolution)
-			applyCacheResolutionFields(&resolution, decision)
-			if trace != nil {
-				trace.emit(
-					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_LOOKUP,
-					&resolution,
-					nil,
-					0,
-					"",
-					nil,
-					publicCacheTraceAttributes(decision),
-				)
-			}
-			switch decision.Status {
-			case publicCacheStatusHit:
-				if trace != nil {
-					trace.emit(
-						p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_HIT,
-						&resolution,
-						nil,
-						int(decision.Entry.StatusCode),
-						"",
-						nil,
-						publicCacheTraceAttributes(decision),
-					)
-				}
-				a.servePublicCacheHit(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), decision, observability)
-				return
-			case publicCacheStatusMiss:
-				cacheDecision = &decision
-				if trace != nil {
-					trace.emit(
-						p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_MISS,
-						&resolution,
-						nil,
-						0,
-						"",
-						nil,
-						publicCacheTraceAttributes(decision),
-					)
-				}
-			default:
-				if trace != nil {
-					trace.emit(
-						p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_BYPASS,
-						&resolution,
-						nil,
-						0,
-						"",
-						nil,
-						publicCacheTraceAttributes(decision),
-					)
-				}
-			}
-		}
-		if resolution.BackendID.Valid {
-			done := a.beginPublicBackendRequest(resolution.BackendID.Int64)
-			defer done()
-		}
-		if resolution.Backend.BackendType == publicBackendTypeStatic {
-			a.staticBackendResponse(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), observability)
-			return
-		}
-		if resolution.Backend.ForwardMode == publicBackendForwardModeAgentPool {
-			a.proxyAgentRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), cacheDecision, observability)
-			return
-		}
-		a.proxyDirectRequest(responseWriter, r, resolution, trace, trafficShaperDecisionIfSelected(trafficShaperDecision, trafficShaperSelected), cacheDecision, observability)
+		newPublicProxyContext(a, listenerID, w, r).run()
 	}
 }
 
@@ -536,7 +261,7 @@ func trafficShaperDecisionIfSelected(decision publicTrafficShaperDecision, selec
 	return &decision
 }
 
-func writeNoRouteBackendAvailable(w http.ResponseWriter) {
+func writeNoRouteTargetAvailable(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	_, _ = io.WriteString(w, `<!doctype html>
@@ -545,11 +270,15 @@ func writeNoRouteBackendAvailable(w http.ResponseWriter) {
 <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#080a0d;color:#f4f7fa;font-family:Trebuchet MS,Verdana,sans-serif;padding:32px">
 <main style="max-width:680px;border:1px solid #29313a;background:#11161c;padding:40px">
 <p style="margin:0 0 12px;color:#34d399;text-transform:uppercase;font-size:12px;letter-spacing:0">p2pstream route unavailable</p>
-<h1 style="margin:0 0 16px;font-size:42px;line-height:1">No backend is available</h1>
-<p style="margin:0;color:#9aa8b5;line-height:1.6">The matched route has no enabled or healthy backend available, and its fallback backend could not be used.</p>
+<h1 style="margin:0 0 16px;font-size:42px;line-height:1">No target is available</h1>
+<p style="margin:0;color:#9aa8b5;line-height:1.6">The matched route has no enabled, healthy, or connected target available.</p>
 </main>
 </body>
 </html>`)
+}
+
+func writeNoRouteBackendAvailable(w http.ResponseWriter) {
+	writeNoRouteTargetAvailable(w)
 }
 
 func applyTrafficShaperResolutionFields(resolution *publicRouteResolution, decision publicTrafficShaperDecision) {
@@ -612,9 +341,9 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 	}()
 }
 
-func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
+func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
-	statusCode := resolution.Backend.StaticStatusCode
+	statusCode := resolution.Target.StaticStatusCode
 	if statusCode == 0 {
 		statusCode = int(defaultStaticStatusCode)
 	}
@@ -627,21 +356,27 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 			}
 			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), map[string]string{"handler": "static"})
 		}
-		a.recordProxyRequestEventWithIDs(
+		a.recordProxyRequestEventWithRouteTargetCache(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
 			errorKind,
 			resolution.ListenerID,
-			resolution.BackendID,
-			resolution.RouteID,
 			sql.NullInt64{},
+			resolution.RouteID,
+			resolution.RouteTargetID,
+			sql.NullInt64{},
+			"",
+			sql.NullInt64{},
+			sql.NullInt64{},
+			"",
+			0,
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
 		)
 	}()
 
-	for _, header := range resolution.Backend.StaticResponseHeaders {
+	for _, header := range resolution.Target.StaticResponseHeaders {
 		w.Header().Add(header.Name, header.Value)
 	}
 	w.WriteHeader(statusCode)
@@ -659,7 +394,7 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 	if !shouldWriteStaticResponseBody(r.Method, statusCode) {
 		return
 	}
-	body := io.NopCloser(strings.NewReader(resolution.Backend.StaticResponseBody))
+	body := io.NopCloser(strings.NewReader(resolution.Target.StaticResponseBody))
 	if shaper != nil {
 		body = shaper.wrapDownloadBody(r.Context(), body)
 	}
@@ -667,130 +402,40 @@ func (a *App) staticBackendResponse(w http.ResponseWriter, r *http.Request, reso
 	_, _ = io.Copy(w, body)
 }
 
-func (a *App) proxyDirectRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
-	startedAt := time.Now()
-	statusCode := http.StatusOK
-	errorKind := ""
-	defer func() {
-		if trace != nil {
-			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
-			if errorKind != "" {
-				stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
-			}
-			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), map[string]string{"handler": "direct"})
-		}
-		a.recordProxyRequestEventWithCache(
-			context.Background(),
-			statusCode,
-			time.Since(startedAt),
-			errorKind,
-			resolution.ListenerID,
-			resolution.BackendID,
-			resolution.RouteID,
-			sql.NullInt64{},
-			"",
-			sql.NullInt64{},
-			cacheRuleID(cacheDecision),
-			cacheStatus(cacheDecision),
-			cacheBytes(cacheDecision),
-			observability.requestBytesValue(),
-			observability.responseBytesValue(),
-		)
-	}()
-
-	targetOrigin := resolution.Backend.ParsedOrigin
-	if targetOrigin == nil {
-		statusCode = http.StatusBadGateway
-		errorKind = "backend_unavailable"
-		http.Error(w, "Selected backend is unavailable", http.StatusBadGateway)
-		return
-	}
-	if trace != nil {
-		trace.emit(
-			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED,
-			&resolution,
-			nil,
-			0,
-			"",
-			nil,
-			map[string]string{"handler": "direct", "upstream": redactSensitiveTraceURL(targetOrigin.String())},
-		)
-	}
-
-	proxy := &httputil.ReverseProxy{
-		Rewrite: func(proxyReq *httputil.ProxyRequest) {
-			applyUpstreamRequestConfig(proxyReq.Out, resolution.Backend)
-			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In)
-			if shaper != nil {
-				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
-			}
-		},
-		ModifyResponse: func(resp *http.Response) error {
-			statusCode = resp.StatusCode
-			if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
-				resp.Header.Set("X-p2pstream-Cache", "MISS")
-			}
-			if cacheDecision != nil && cacheDecision.Cacheable {
-				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
-			}
-			if shaper != nil {
-				resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
-			}
-			if trace != nil {
-				trace.emit(
-					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
-					&resolution,
-					nil,
-					resp.StatusCode,
-					"",
-					resp.Header,
-					map[string]string{"handler": "direct"},
-				)
-			}
-			return nil
-		},
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			log.Error().Err(err).Str("backend", resolution.Backend.Name).Msg("Direct proxy failed")
-			if r.Context().Err() == nil && !errors.Is(err, context.Canceled) {
-				a.markPublicBackendPassiveFailure(resolution.Backend.ID, err)
-			}
-			if isTimeoutError(err) {
-				statusCode = http.StatusGatewayTimeout
-				errorKind = "upstream_response_header_timeout"
-				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
-				return
-			}
-			statusCode = http.StatusBadGateway
-			errorKind = "direct_proxy_failed"
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
-		},
-		Transport: directProxyTransport(resolution.Backend.TLSSkipVerify, resolution.Backend.UpstreamResponseHeaderTimeout),
-	}
-	proxy.ServeHTTP(w, r)
+func (a *App) proxyDirectTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+	a.proxyRouteTargetRequest(w, r, resolution, nil, trace, shaper, cacheDecision, observability)
 }
 
-func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+func (a *App) proxyAgentTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+	a.proxyRouteTargetRequest(w, r, resolution, resolution.Agent, trace, shaper, cacheDecision, observability)
+}
+
+func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, agent *AgentConn, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
+	handler := "direct"
 	var selectedAgentID sql.NullInt64
-	var agent *AgentConn
+	if resolution.Target.Transport == publicRouteTargetTransportAgent {
+		handler = "agent_target"
+	}
 	defer func() {
 		if trace != nil {
 			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
 			if errorKind != "" {
 				stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
 			}
-			trace.emit(stage, &resolution, agent, statusCode, errorKind, w.Header(), map[string]string{"handler": "agent_pool"})
+			trace.emit(stage, &resolution, agent, statusCode, errorKind, w.Header(), map[string]string{"handler": handler})
 		}
-		a.recordProxyRequestEventWithCache(
+		a.recordProxyRequestEventWithRouteTargetCache(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
 			errorKind,
 			resolution.ListenerID,
-			resolution.BackendID,
+			sql.NullInt64{},
 			resolution.RouteID,
+			resolution.RouteTargetID,
 			sql.NullInt64{},
 			"",
 			selectedAgentID,
@@ -802,22 +447,30 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		)
 	}()
 
-	agent = a.selectBackendAgent(resolution.Backend)
-	if agent == nil {
-		statusCode = http.StatusServiceUnavailable
-		errorKind = "no_backend_agent"
-		http.Error(w, "No assigned backend agent connected", http.StatusServiceUnavailable)
+	targetOrigin := resolution.Target.ParsedURL
+	if targetOrigin == nil {
+		statusCode = http.StatusBadGateway
+		errorKind = "target_unavailable"
+		http.Error(w, "Selected target is unavailable", http.StatusBadGateway)
 		return
 	}
-	selectedAgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
-	resolution.AgentID = selectedAgentID
-	if trace != nil {
-		trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_AGENT_SELECTED, &resolution, agent, 0, "", nil, map[string]string{
-			"load_balancer": resolution.Backend.LoadBalancing,
-		})
+	if resolution.Target.Transport == publicRouteTargetTransportAgent {
+		if agent == nil {
+			statusCode = http.StatusServiceUnavailable
+			errorKind = "no_target_agent"
+			http.Error(w, "No matching route target agent connected", http.StatusServiceUnavailable)
+			return
+		}
+		selectedAgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
+		resolution.AgentID = selectedAgentID
+		if trace != nil {
+			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_AGENT_SELECTED, &resolution, agent, 0, "", nil, map[string]string{
+				"load_balancer": resolution.Target.AgentLoadBalancing,
+			})
+		}
+		agent.ActiveRequests.Add(1)
+		defer agent.ActiveRequests.Add(-1)
 	}
-	agent.ActiveRequests.Add(1)
-	defer agent.ActiveRequests.Add(-1)
 
 	id := uuid.Nil
 	if trace != nil {
@@ -834,22 +487,19 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 		}
 	}
 
-	targetOrigin := resolution.Backend.ParsedOrigin
-	if targetOrigin == nil {
-		statusCode = http.StatusBadGateway
-		errorKind = "backend_unavailable"
-		http.Error(w, "Selected backend is unavailable", http.StatusBadGateway)
-		return
+	if agent != nil {
+		log.Info().
+			Str("req_id", id.String()).
+			Str("method", r.Method).
+			Str("path", r.URL.Path).
+			Str("agent", agent.PublicID).
+			Msg("Proxying request through agent target")
 	}
-
-	log.Info().
-		Str("req_id", id.String()).
-		Str("method", r.Method).
-		Str("path", r.URL.Path).
-		Str("agent", agent.PublicID).
-		Msg("Proxying request through agent tunnel")
-
 	if trace != nil {
+		attributes := map[string]string{"handler": handler, "upstream": redactSensitiveTraceURL(targetOrigin.String())}
+		if agent != nil {
+			attributes["agent"] = agent.PublicID
+		}
 		trace.emit(
 			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED,
 			&resolution,
@@ -857,13 +507,18 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 			0,
 			"",
 			nil,
-			map[string]string{"handler": "agent_pool", "agent": agent.PublicID, "upstream": redactSensitiveTraceURL(targetOrigin.String())},
+			attributes,
 		)
 	}
 
+	transport := directProxyTransport(resolution.Target.TLSSkipVerify, resolution.Target.UpstreamResponseHeaderTimeout)
+	if agent != nil {
+		transport = a.agentTargetTransport(agent, resolution.Target)
+		r = r.WithContext(withAgentDialRequestID(r.Context(), id.String()))
+	}
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(proxyReq *httputil.ProxyRequest) {
-			applyUpstreamRequestConfig(proxyReq.Out, resolution.Backend)
+			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
 			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In)
 			if shaper != nil {
 				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
@@ -881,6 +536,10 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 				resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
 			}
 			if trace != nil {
+				attributes := map[string]string{"handler": handler}
+				if agent != nil {
+					attributes["agent"] = agent.PublicID
+				}
 				trace.emit(
 					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
 					&resolution,
@@ -888,21 +547,37 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 					resp.StatusCode,
 					"",
 					resp.Header,
-					map[string]string{"handler": "agent_pool", "agent": agent.PublicID},
+					attributes,
 				)
 			}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			if requestContextCanceled(r.Context(), err) {
-				log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent proxy cancelled by client")
+			if agent != nil && requestContextCanceled(r.Context(), err) {
+				log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent target proxy cancelled by client")
 				statusCode = http.StatusGatewayTimeout
 				errorKind = "client_cancelled"
 				return
 			}
-			log.Error().Err(err).Str("req_id", id.String()).Str("agent", agent.PublicID).Msg("Agent proxy failed")
-			if shouldMarkAgentPassiveFailure(r.Context(), err) {
-				a.markPublicBackendAgentPassiveFailure(resolution.Backend.ID, selectedAgentID.Int64, err)
+			if agent == nil {
+				log.Error().Err(err).Str("target", resolution.Target.Name).Msg("Direct target proxy failed")
+				if r.Context().Err() == nil && !errors.Is(err, context.Canceled) {
+					a.markPublicRouteTargetPassiveFailure(resolution.Target.ID, err)
+				}
+				if isTimeoutError(err) {
+					statusCode = http.StatusGatewayTimeout
+					errorKind = "upstream_response_header_timeout"
+					http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+					return
+				}
+				statusCode = http.StatusBadGateway
+				errorKind = "direct_proxy_failed"
+				http.Error(w, "Bad Gateway", http.StatusBadGateway)
+				return
+			}
+			log.Error().Err(err).Str("req_id", id.String()).Str("agent", agent.PublicID).Msg("Agent target proxy failed")
+			if selectedAgentID.Valid && shouldMarkAgentPassiveFailure(r.Context(), err) {
+				a.markPublicRouteTargetAgentPassiveFailure(resolution.Target.ID, selectedAgentID.Int64, err)
 			}
 			var dialErr agentDialError
 			switch {
@@ -916,7 +591,7 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 					Str("req_id", id.String()).
 					Str("agent", agent.PublicID).
 					Str("kind", dialErr.Kind).
-					Msg("Agent dial failed")
+					Msg("Agent target dial failed")
 				if dialErr.Kind == "dial_timeout" {
 					statusCode = http.StatusGatewayTimeout
 					errorKind = "agent_dial_timeout"
@@ -940,12 +615,9 @@ func (a *App) proxyAgentRequest(w http.ResponseWriter, r *http.Request, resoluti
 				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			}
 		},
-		Transport: a.agentProxyTransport(agent, resolution.Backend),
+		Transport: transport,
 	}
-
-	r = r.WithContext(withAgentDialRequestID(r.Context(), id.String()))
 	proxy.ServeHTTP(w, r)
-	log.Info().Str("req_id", id.String()).Int("status", statusCode).Msg("Finished proxying request")
 }
 
 type agentDialError struct {
@@ -960,11 +632,11 @@ func (e agentDialError) Error() string {
 	return e.Kind + ": " + e.Err
 }
 
-func (a *App) agentProxyTransport(agent *AgentConn, backend publicBackendConfig) http.RoundTripper {
+func (a *App) agentTargetTransport(agent *AgentConn, target publicRouteTargetConfig) http.RoundTripper {
 	if a.AgentTransports == nil {
-		return newAgentTransportPool().publicBackendTransport(a, agent, backend)
+		return newAgentTransportPool().publicRouteTargetTransport(a, agent, target)
 	}
-	return a.AgentTransports.publicBackendTransport(a, agent, backend)
+	return a.AgentTransports.publicRouteTargetTransport(a, agent, target)
 }
 
 func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string, address string, requestID string) (net.Conn, error) {
@@ -1107,47 +779,62 @@ func redactAgentDialAddress(address string) string {
 	return net.JoinHostPort("<host>", port)
 }
 
-func (a *App) selectBackendAgent(backend publicBackendConfig) *AgentConn {
-	candidates := make([]backendAgentCandidate, 0, len(backend.AgentAssignments))
+func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
+	candidates := a.eligibleTargetAgentCandidates(target)
+	if len(candidates) == 0 {
+		return nil
+	}
+	if a.LoadBalancers == nil {
+		return candidates[0].Conn
+	}
+	return a.LoadBalancers.selectTargetAgent(target, candidates)
+}
+
+func (a *App) eligibleTargetAgentCandidates(target publicRouteTargetConfig) []backendAgentCandidate {
+	if a == nil || a.AgentHub == nil {
+		return nil
+	}
 	a.proxyMu.Lock()
 	snap := a.publicSnapshot
 	a.proxyMu.Unlock()
-	for _, assignment := range backend.AgentAssignments {
-		candidate, ok := a.eligibleBackendAgentCandidate(snap, backend, assignment)
-		if !ok {
+	if snap == nil {
+		return nil
+	}
+	candidates := make([]backendAgentCandidate, 0, len(snap.Agents))
+	for agentID, agentConfig := range snap.Agents {
+		if !agentConfig.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agentConfig.Labels) {
 			continue
 		}
-		candidates = append(candidates, candidate)
+		conn := a.AgentHub.connectedByID(agentID)
+		if conn == nil {
+			continue
+		}
+		if a.BackendHealth != nil && !a.BackendHealth.agentAvailable(target.ID, agentID) {
+			continue
+		}
+		candidates = append(candidates, backendAgentCandidate{
+			Conn:     conn,
+			AgentID:  agentID,
+			Position: agentID,
+			Weight:   100,
+		})
 	}
-	return a.LoadBalancers.selectAgent(backend, candidates)
+	return candidates
 }
 
-func (a *App) eligibleBackendAgentCandidate(snap *publicProxySnapshot, backend publicBackendConfig, assignment publicBackendAgentConfig) (backendAgentCandidate, bool) {
-	if a == nil || !assignment.Enabled {
-		return backendAgentCandidate{}, false
+func agentSelectorMatchesLabels(selector publicAgentSelectorConfig, labels map[string]string) bool {
+	if len(selector.MatchLabels) == 0 {
+		return false
 	}
-	if snap != nil {
-		agentConfig, ok := snap.Agents[assignment.AgentID]
-		if !ok || !agentConfig.Enabled {
-			return backendAgentCandidate{}, false
+	for key, want := range selector.MatchLabels {
+		if labels == nil {
+			return false
+		}
+		if got, ok := labels[key]; !ok || got != want {
+			return false
 		}
 	}
-	if a.AgentHub == nil {
-		return backendAgentCandidate{}, false
-	}
-	conn := a.AgentHub.connectedByID(assignment.AgentID)
-	if conn == nil {
-		return backendAgentCandidate{}, false
-	}
-	if a.BackendHealth != nil && !a.BackendHealth.agentAvailable(backend.ID, assignment.AgentID) {
-		return backendAgentCandidate{}, false
-	}
-	return backendAgentCandidate{
-		Conn:     conn,
-		AgentID:  assignment.AgentID,
-		Position: assignment.Position,
-		Weight:   assignment.Weight,
-	}, true
+	return true
 }
 
 func requestContextCanceled(ctx context.Context, err error) bool {
@@ -1167,102 +854,110 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 	return !requestContextCanceled(requestCtx, err)
 }
 
-func (a *App) selectRouteBackend(snap publicProxySnapshot, route publicRouteConfig) (publicBackendConfig, bool, bool) {
-	assignments := route.BackendAssignments
-	if len(assignments) == 0 && route.BackendID > 0 {
-		assignments = []publicRouteBackendConfig{{
-			RouteID:   route.ID,
-			BackendID: route.BackendID,
-			Position:  0,
-			Weight:    100,
-			Enabled:   true,
-		}}
+func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+	candidates := make([]routeTargetCandidate, 0, len(route.Targets))
+	lowestPriorityGroupSet := false
+	lowestPriorityGroup := int64(0)
+	for _, target := range route.Targets {
+		if !a.targetEligibleForRoute(snap, target) {
+			continue
+		}
+		if !lowestPriorityGroupSet || target.PriorityGroup < lowestPriorityGroup {
+			lowestPriorityGroup = target.PriorityGroup
+			lowestPriorityGroupSet = true
+		}
 	}
-	candidates := make([]routeBackendCandidate, 0, len(assignments))
-	for _, assignment := range assignments {
-		if !assignment.Enabled {
+	if !lowestPriorityGroupSet {
+		return publicRouteTargetConfig{}, nil, false
+	}
+	for _, target := range route.Targets {
+		if target.PriorityGroup != lowestPriorityGroup || !a.targetEligibleForRoute(snap, target) {
 			continue
 		}
-		backend, ok := snap.Backends[assignment.BackendID]
-		if !ok || !a.backendEligibleForRoute(snap, backend) {
-			continue
-		}
-		activeRequests := int64(0)
-		if a.BackendHealth != nil {
-			activeRequests = a.BackendHealth.activeRequests(backend.ID)
-		}
-		candidates = append(candidates, routeBackendCandidate{
-			Backend:        backend,
-			BackendID:      backend.ID,
-			Position:       assignment.Position,
-			Weight:         assignment.Weight,
-			ActiveRequests: activeRequests,
+		candidates = append(candidates, routeTargetCandidate{
+			Target:         target,
+			TargetID:       target.ID,
+			Position:       target.Position,
+			Weight:         target.Weight,
+			ActiveRequests: 0,
 		})
 	}
-	if len(candidates) > 0 {
-		if a.LoadBalancers == nil {
-			return candidates[0].Backend, true, false
-		}
-		selected, ok := a.LoadBalancers.selectRouteBackend(route, candidates)
+	if len(candidates) == 0 {
+		return publicRouteTargetConfig{}, nil, false
+	}
+	selected := candidates[0]
+	if a.LoadBalancers != nil {
+		var ok bool
+		selected, ok = a.LoadBalancers.selectRouteTarget(route, candidates)
 		if !ok {
-			return publicBackendConfig{}, false, false
+			return publicRouteTargetConfig{}, nil, false
 		}
-		return selected.Backend, true, false
 	}
-	if route.FallbackBackendID <= 0 {
-		return publicBackendConfig{}, false, false
+	if selected.Target.Transport != publicRouteTargetTransportAgent {
+		return selected.Target, nil, true
 	}
-	backend, ok := snap.Backends[route.FallbackBackendID]
-	if !ok || !a.backendEligibleForRoute(snap, backend) {
-		return publicBackendConfig{}, false, false
+	agent := a.selectTargetAgent(selected.Target)
+	if agent == nil {
+		return publicRouteTargetConfig{}, nil, false
 	}
-	return backend, true, true
+	return selected.Target, agent, true
 }
 
-func (a *App) backendEligibleForRoute(snap publicProxySnapshot, backend publicBackendConfig) bool {
-	if !backend.Enabled {
+func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
+	if !target.Enabled {
 		return false
 	}
-	if backend.BackendType == publicBackendTypeProxyForward && backend.ParsedOrigin == nil {
+	if target.TargetType == publicRouteTargetTypeStatic {
+		return true
+	}
+	if target.TargetType != publicRouteTargetTypeProxy || target.ParsedURL == nil {
 		return false
 	}
-	if a.BackendHealth != nil && !a.BackendHealth.available(backend) {
+	if a.BackendHealth != nil && !a.BackendHealth.available(publicBackendConfigFromRouteTarget(target, snap.Agents)) {
 		return false
 	}
-	if backend.ForwardMode == publicBackendForwardModeAgentPool {
-		return a.backendHasEligibleAgent(snap, backend)
+	if target.Transport == publicRouteTargetTransportAgent {
+		return a.targetHasEligibleAgent(snap, target)
 	}
 	return true
 }
 
-func (a *App) backendHasEligibleAgent(snap publicProxySnapshot, backend publicBackendConfig) bool {
-	for _, assignment := range backend.AgentAssignments {
-		if _, ok := a.eligibleBackendAgentCandidate(&snap, backend, assignment); ok {
-			return true
+func (a *App) targetHasEligibleAgent(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
+	if a == nil || a.AgentHub == nil {
+		return false
+	}
+	for agentID, agentConfig := range snap.Agents {
+		if !agentConfig.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agentConfig.Labels) {
+			continue
+		}
+		if a.AgentHub.connectedByID(agentID) != nil {
+			if a.BackendHealth == nil || a.BackendHealth.agentAvailable(target.ID, agentID) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func (a *App) beginPublicBackendRequest(backendID int64) func() {
+func (a *App) beginPublicRouteTargetRequest(targetID int64) func() {
 	if a.BackendHealth == nil {
 		return func() {}
 	}
-	return a.BackendHealth.beginRequest(backendID)
+	return a.BackendHealth.beginRequest(targetID)
 }
 
-func (a *App) markPublicBackendPassiveFailure(backendID int64, err error) {
+func (a *App) markPublicRouteTargetPassiveFailure(targetID int64, err error) {
 	if a.BackendHealth == nil {
 		return
 	}
-	a.BackendHealth.markPassiveFailure(backendID, err)
+	a.BackendHealth.markPassiveFailure(targetID, err)
 }
 
-func (a *App) markPublicBackendAgentPassiveFailure(backendID int64, agentID int64, err error) {
+func (a *App) markPublicRouteTargetAgentPassiveFailure(targetID int64, agentID int64, err error) {
 	if a.BackendHealth == nil {
 		return
 	}
-	a.BackendHealth.markAgentPassiveFailure(backendID, agentID, err)
+	a.BackendHealth.markAgentPassiveFailure(targetID, agentID, err)
 }
 
 func applyUpstreamRequestConfig(req *http.Request, backend publicBackendConfig) {
@@ -1277,6 +972,21 @@ func applyUpstreamRequestConfig(req *http.Request, backend publicBackendConfig) 
 	}
 	if backend.UpstreamBasicAuth.Enabled {
 		req.SetBasicAuth(backend.UpstreamBasicAuth.Username, backend.UpstreamBasicAuth.Password)
+	}
+}
+
+func applyUpstreamTargetRequestConfig(req *http.Request, target publicRouteTargetConfig) {
+	if target.ParsedURL != nil {
+		req.URL.Scheme = target.ParsedURL.Scheme
+		req.URL.Host = target.ParsedURL.Host
+		req.Host = target.ParsedURL.Host
+	}
+	req.RequestURI = ""
+	for _, header := range target.UpstreamRequestHeaders {
+		req.Header.Set(header.Name, header.Value)
+	}
+	if target.UpstreamBasicAuth.Enabled {
+		req.SetBasicAuth(target.UpstreamBasicAuth.Username, target.UpstreamBasicAuth.Password)
 	}
 }
 
@@ -1350,14 +1060,16 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		return publicRouteResolution{}, errors.New("listener not found")
 	}
 
-	backendID := listener.DefaultBackendID
-	var routeID sql.NullInt64
 	var matchedRoute publicRouteConfig
-	action := publicRouteActionForward
-	defaultRoute := true
-	routeFallbackSelected := false
+	var defaultRoute publicRouteConfig
 	for _, route := range snap.RoutesByListener[listenerID] {
 		if !route.Enabled {
+			continue
+		}
+		if route.IsDefault {
+			if defaultRoute.ID == 0 {
+				defaultRoute = route
+			}
 			continue
 		}
 		if route.HostPattern != "" && !hostMatchesPattern(host, route.HostPattern) {
@@ -1366,54 +1078,51 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		if route.PathPrefix != "" && !pathPrefixMatches(r.URL.Path, route.PathPrefix) {
 			continue
 		}
-		routeID = sql.NullInt64{Int64: route.ID, Valid: true}
 		matchedRoute = route
-		action = normalizePublicRouteAction(route.Action)
-		defaultRoute = false
-		if action == publicRouteActionRedirect {
-			return publicRouteResolution{
-				Listener:     listener,
-				Route:        matchedRoute,
-				Action:       publicRouteActionRedirect,
-				DefaultRoute: defaultRoute,
-				ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
-				RouteID:      routeID,
-			}, nil
-		}
-		selected, ok, fallbackSelected := a.selectRouteBackend(*snap, route)
-		if !ok {
-			return publicRouteResolution{}, errNoRouteBackendAvailable
-		}
-		backendID = selected.ID
-		routeFallbackSelected = fallbackSelected
 		break
 	}
+	isDefaultRoute := false
+	if matchedRoute.ID == 0 {
+		if defaultRoute.ID == 0 {
+			return publicRouteResolution{}, errNoPublicRouteAvailable
+		}
+		matchedRoute = defaultRoute
+		isDefaultRoute = true
+	}
 
-	backend, ok := snap.Backends[backendID]
+	routeID := sql.NullInt64{Int64: matchedRoute.ID, Valid: true}
+	action := normalizePublicRouteAction(matchedRoute.Action)
+	if action == publicRouteActionRedirect {
+		return publicRouteResolution{
+			Listener:     listener,
+			Route:        matchedRoute,
+			Action:       publicRouteActionRedirect,
+			DefaultRoute: isDefaultRoute,
+			ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
+			RouteID:      routeID,
+		}, nil
+	}
+	target, agent, ok := a.selectRouteTarget(*snap, matchedRoute)
 	if !ok {
-		return publicRouteResolution{}, errors.New("selected backend is unavailable")
-	}
-	if !a.backendEligibleForRoute(*snap, backend) {
-		return publicRouteResolution{}, errNoRouteBackendAvailable
+		return publicRouteResolution{}, errNoRouteTargetAvailable
 	}
 
-	return publicRouteResolution{
-		Backend:      backend,
-		Listener:     listener,
-		Route:        matchedRoute,
-		Action:       publicRouteActionForward,
-		DefaultRoute: defaultRoute,
-		ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
-		BackendID:    sql.NullInt64{Int64: backendID, Valid: true},
-		RouteID:      routeID,
-		RouteLoadBalancing: func() string {
-			if routeID.Valid {
-				return matchedRoute.LoadBalancing
-			}
-			return ""
-		}(),
-		RouteFallbackSelected: routeFallbackSelected,
-	}, nil
+	resolution := publicRouteResolution{
+		Target:             target,
+		Agent:              agent,
+		Listener:           listener,
+		Route:              matchedRoute,
+		Action:             publicRouteActionForward,
+		DefaultRoute:       isDefaultRoute,
+		ListenerID:         sql.NullInt64{Int64: listenerID, Valid: true},
+		RouteID:            routeID,
+		RouteTargetID:      sql.NullInt64{Int64: target.ID, Valid: target.ID != 0},
+		RouteLoadBalancing: matchedRoute.TargetLoadBalancing,
+	}
+	if agent != nil {
+		resolution.AgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
+	}
+	return resolution, nil
 }
 
 func normalizeRequestHost(host string) string {

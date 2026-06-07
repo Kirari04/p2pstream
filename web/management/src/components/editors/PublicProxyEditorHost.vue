@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
-import PublicBackendEditorModal from "@/components/editors/PublicBackendEditorModal.vue";
 import PublicListenerEditorModal from "@/components/editors/PublicListenerEditorModal.vue";
 import PublicCacheRuleEditorModal from "@/components/editors/PublicCacheRuleEditorModal.vue";
 import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
@@ -23,7 +22,6 @@ const emit = defineEmits<{
 }>();
 
 const listenerEditor = ref<InstanceType<typeof PublicListenerEditorModal> | null>(null);
-const backendEditor = ref<InstanceType<typeof PublicBackendEditorModal> | null>(null);
 const routeEditor = ref<InstanceType<typeof PublicRouteEditorModal> | null>(null);
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
@@ -74,11 +72,11 @@ function openCloneRoute(routeId: bigint | string) {
 }
 
 function openBackend(backendId: bigint | string) {
-  backendEditor.value?.openEdit(backendId);
+  void backendId;
 }
 
 function openCloneBackend(backendId: bigint | string) {
-  backendEditor.value?.openClone(backendId);
+  void backendId;
 }
 
 function openAgent(agentId: bigint | string) {
@@ -114,7 +112,6 @@ function openCreateRoute() {
 }
 
 function openCreateBackend() {
-  backendEditor.value?.openCreate();
 }
 
 function openCreateAgent() {
@@ -168,7 +165,6 @@ defineExpose({
 
 <template>
   <PublicListenerEditorModal ref="listenerEditor" :config="config" @saved="emit('saved')" />
-  <PublicBackendEditorModal ref="backendEditor" :config="config" @saved="emit('saved')" />
   <PublicRouteEditorModal ref="routeEditor" :config="config" @saved="emit('saved')" />
   <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" @saved="emit('saved')" />
   <PublicTrafficShaperRuleEditorModal ref="trafficShaperEditor" :config="config" @saved="emit('saved')" />

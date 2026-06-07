@@ -16,7 +16,7 @@ Block response bodies can be inline or selected from a central generic response 
 
 ## When It Matters
 
-Use WAF rules for broad HTTP load reduction, login pressure, bot checks, temporary queueing, or protecting a backend during short demand spikes.
+Use WAF rules for broad HTTP load reduction, login pressure, bot checks, temporary queueing, or protecting a target during short demand spikes.
 
 ## Runtime Behavior
 
@@ -30,7 +30,7 @@ Waiting room state is in memory. Queue and admission state are also stored in si
 
 Custom waiting-room pages must include <code v-pre>{{ .queue_position }}</code> and <code v-pre>{{ .retry_after_seconds }}</code> so visitors can see queue state and poll timing.
 
-Automatic waiting-room activation can use request rate, traffic spike, proxy active requests, backend active requests, agent active requests, server CPU, and agent CPU pressure signals.
+Automatic waiting-room activation can use request rate, traffic spike, proxy active requests, target active requests, agent active requests, server CPU, and agent CPU pressure signals.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/edit_waf_modal.png" alt="p2pstream WAF rule editor showing request match, block, captcha, waiting-room, activation, and template controls">

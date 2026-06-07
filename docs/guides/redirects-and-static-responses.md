@@ -43,7 +43,7 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | Redirect target | `/new` |
    | Status | `302` |
 
-3. To serve a static maintenance response, open **Proxy -> Backends** and create:
+3. To serve a static maintenance response, open the matching route in **Proxy** and add a static target:
 
    | Field | Value |
    | --- | --- |
@@ -54,21 +54,21 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | Response body | `Maintenance in progress` |
    | Header | `Retry-After: 300` |
 
-   For reusable HTML maintenance pages, first open **Templates**, create a **Generic body** template, then set the static backend body source to **Template** and select it. Keep response headers, especially `Content-Type`, on the static backend.
+   For reusable HTML maintenance pages, first open **Templates**, create a **Generic body** template, then set the static target body source to **Template** and select it. Keep response headers, especially `Content-Type`, on the static target.
 
    <figure class="doc-screenshot">
      <img src="../assets/new/edit_template_modal.png" alt="p2pstream generic response template editor showing template name, kind, content type, body, and preview">
-     <figcaption>Generic response templates centralize reusable bodies for static backends, rate-limit responses, and WAF block responses while each caller keeps control of status and headers.</figcaption>
+     <figcaption>Generic response templates centralize reusable bodies for static targets, rate-limit responses, and WAF block responses while each caller keeps control of status and headers.</figcaption>
    </figure>
 
-4. Add a route to that static backend with a lower priority number than the normal app route:
+4. Give that route a lower priority number than the normal app route:
 
    | Field | Value |
    | --- | --- |
    | Priority | `1` |
    | Host pattern | `app.example.com` |
    | Path prefix | `/` |
-   | Backend | `maintenance` |
+   | Target | `maintenance` |
 
 ## Verification
 
@@ -88,7 +88,7 @@ Redirect routes should return `301`, `302`, `307`, or `308`. Static routes shoul
 | Redirect target rejected | Same-host targets must be root-relative paths; external-origin targets must be HTTP/HTTPS origins. |
 | Wrong route wins | Lower priority numbers run first. |
 | Static route affects all traffic | Narrow host/path match or disable the route after maintenance. |
-| Template option rejected | Static backends can only use generic body templates. |
+| Template option rejected | Static targets can only use generic body templates. |
 
 ## Next Steps
 

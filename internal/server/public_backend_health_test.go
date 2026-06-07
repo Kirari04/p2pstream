@@ -330,10 +330,11 @@ func TestDirectHealthTraceRetentionCapsPerTarget(t *testing.T) {
 
 func TestAgentPoolHealthCheckUnhealthySkipsOnlyThatAgent(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
+	target := testRouteTargetFromBackend(backend)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 
 	for range 10 {
-		selected := app.selectBackendAgent(backend)
+		selected := app.selectTargetAgent(target)
 		if selected == nil {
 			t.Fatal("expected an eligible agent")
 		}
@@ -349,10 +350,6 @@ func TestAgentPoolHealthCheckUnhealthySkipsOnlyThatAgent(t *testing.T) {
 func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 21, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
-	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   make(map[int64]publicAgentConfig),
-	}
 	for i := int64(1); i <= 5; i++ {
 		backend.AgentAssignments = append(backend.AgentAssignments, publicBackendAgentConfig{
 			BackendID: backend.ID,
@@ -361,7 +358,15 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 			Weight:    100,
 			Enabled:   true,
 		})
-		snap.Agents[i] = publicAgentConfig{ID: i, PublicID: "agent-" + strconv.FormatInt(i, 10), Enabled: true}
+	}
+	target := testRouteTargetFromBackend(backend)
+	snap := &publicProxySnapshot{
+		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
+		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
+		Agents:       make(map[int64]publicAgentConfig),
+	}
+	for i := int64(1); i <= 5; i++ {
+		snap.Agents[i] = publicAgentConfig{ID: i, PublicID: "agent-" + strconv.FormatInt(i, 10), Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	}
 	snap.Backends[backend.ID] = backend
 	app.proxyMu.Lock()
@@ -378,7 +383,7 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
 
 	for range 25 {
-		selected := app.selectBackendAgent(backend)
+		selected := app.selectTargetAgent(target)
 		if selected == nil {
 			t.Fatal("expected an eligible agent")
 		}
@@ -390,6 +395,7 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 
 func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
+	target := testRouteTargetFromBackend(backend)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 2, nil)
 
@@ -397,49 +403,61 @@ func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testin
 		t.Fatal("backend should be unavailable when all connected assigned agents are unhealthy")
 	}
 	route := publicRouteConfig{
-		ID:        50,
-		Enabled:   true,
-		Action:    publicRouteActionForward,
-		BackendID: backend.ID,
-		BackendAssignments: []publicRouteBackendConfig{{
-			RouteID:   50,
-			BackendID: backend.ID,
-			Position:  0,
-			Weight:    100,
-			Enabled:   true,
-		}},
+		ID:      50,
+		Enabled: true,
+		Action:  publicRouteActionForward,
+		Targets: []publicRouteTargetConfig{target},
 	}
 	snap := publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
+		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
+		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
 		Agents: map[int64]publicAgentConfig{
-			1: {ID: 1, PublicID: "agent-a", Enabled: true},
-			2: {ID: 2, PublicID: "agent-b", Enabled: true},
+			1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
+			2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 		},
 	}
-	if _, ok, _ := app.selectRouteBackend(snap, route); ok {
-		t.Fatal("route backend should be unavailable when all agents are unhealthy")
+	if _, _, ok := app.selectRouteTarget(snap, route); ok {
+		t.Fatal("route target should be unavailable when all agents are unhealthy")
 	}
 }
 
 func TestDefaultBackendRequiresEligibleAgent(t *testing.T) {
 	app := NewApp(nil, nil)
-	backend := testHealthBackend(t, 70, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
-	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
+	targetURL, err := parsePublicTargetOrigin("http://127.0.0.1:8888")
+	if err != nil {
+		t.Fatalf("parse target URL: %v", err)
+	}
+	target := publicRouteTargetConfig{
+		ID:            70,
+		RouteID:       700,
+		Enabled:       true,
+		TargetType:    publicRouteTargetTypeProxy,
+		URL:           targetURL.String(),
+		Transport:     publicRouteTargetTransportAgent,
+		ParsedURL:     targetURL,
+		AgentSelector: publicAgentSelectorConfig{MatchLabels: map[string]string{agentIDSystemLabelKey: "agent-a"}},
+	}
+	route := publicRouteConfig{
+		ID:        700,
+		Enabled:   true,
+		IsDefault: true,
+		Action:    publicRouteActionForward,
+		Targets:   []publicRouteTargetConfig{target},
+	}
 	snap := &publicProxySnapshot{
-		Backends:  map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:    map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
-		Listeners: map[int64]publicListenerConfig{10: {ID: 10, Enabled: true, DefaultBackendID: backend.ID}},
+		RouteTargets:     map[int64]publicRouteTargetConfig{target.ID: target},
+		Agents:           map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{agentIDSystemLabelKey: "agent-a"}}},
+		Listeners:        map[int64]publicListenerConfig{10: {ID: 10, Enabled: true}},
+		RoutesByListener: map[int64][]publicRouteConfig{10: {route}},
 	}
 	app.proxyMu.Lock()
 	app.publicSnapshot = snap
 	app.proxyMu.Unlock()
-	app.BackendHealth.reconcile(app, snap, false)
-	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
-	_, err := app.resolvePublicRoute(10, req)
-	if !errors.Is(err, errNoRouteBackendAvailable) {
-		t.Fatalf("resolve default backend error = %v, want %v", err, errNoRouteBackendAvailable)
+	_, err = app.resolvePublicRoute(10, req)
+	if !errors.Is(err, errNoRouteTargetAvailable) {
+		t.Fatalf("resolve default target error = %v, want %v", err, errNoRouteTargetAvailable)
 	}
 }
 
@@ -448,33 +466,33 @@ func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 	primary := testHealthBackend(t, 80, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
 	primary.AgentAssignments = []publicBackendAgentConfig{{BackendID: primary.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
 	fallback := testHealthBackend(t, 81, publicBackendForwardModeDirect, "http://127.0.0.1:9999")
+	primaryTarget := testRouteTargetFromBackend(primary)
+	fallbackTarget := testRouteTargetFromBackend(fallback)
+	primaryTarget.PriorityGroup = 0
+	fallbackTarget.PriorityGroup = 1
 	route := publicRouteConfig{
-		ID:                90,
-		Enabled:           true,
-		Action:            publicRouteActionForward,
-		BackendID:         primary.ID,
-		FallbackBackendID: fallback.ID,
-		BackendAssignments: []publicRouteBackendConfig{{
-			RouteID:   90,
-			BackendID: primary.ID,
-			Position:  0,
-			Weight:    100,
-			Enabled:   true,
-		}},
+		ID:      90,
+		Enabled: true,
+		Action:  publicRouteActionForward,
+		Targets: []publicRouteTargetConfig{primaryTarget, fallbackTarget},
 	}
 	snap := publicProxySnapshot{
 		Backends: map[int64]publicBackendConfig{
 			primary.ID:  primary,
 			fallback.ID: fallback,
 		},
-		Agents: map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
+		RouteTargets: map[int64]publicRouteTargetConfig{
+			primaryTarget.ID:  primaryTarget,
+			fallbackTarget.ID: fallbackTarget,
+		},
+		Agents: map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}}},
 	}
 	app.BackendHealth.reconcile(app, &snap, false)
 	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
 
-	selected, ok, fallbackSelected := app.selectRouteBackend(snap, route)
-	if !ok || !fallbackSelected || selected.ID != fallback.ID {
-		t.Fatalf("route backend selection = backend=%d ok=%v fallback=%v, want fallback %d", selected.ID, ok, fallbackSelected, fallback.ID)
+	selected, _, ok := app.selectRouteTarget(snap, route)
+	if !ok || selected.ID != fallbackTarget.ID {
+		t.Fatalf("route target selection = target=%d ok=%v, want fallback %d", selected.ID, ok, fallbackTarget.ID)
 	}
 }
 
@@ -723,34 +741,32 @@ func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testi
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 6, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
 	backend.HealthCheck.Enabled = false
-	snap := publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}
+	target := testRouteTargetFromBackend(backend)
+	snap := publicProxySnapshot{
+		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
+		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
+	}
 	app.BackendHealth.reconcile(app, &snap, false)
 	app.BackendHealth.markPassiveFailure(backend.ID, nil)
 
 	route := publicRouteConfig{
-		ID:        60,
-		Enabled:   true,
-		Action:    publicRouteActionForward,
-		BackendID: backend.ID,
-		BackendAssignments: []publicRouteBackendConfig{{
-			RouteID:   60,
-			BackendID: backend.ID,
-			Position:  0,
-			Weight:    100,
-			Enabled:   true,
-		}},
+		ID:      60,
+		Enabled: true,
+		Action:  publicRouteActionForward,
+		Targets: []publicRouteTargetConfig{target},
 	}
-	selected, ok, fallback := app.selectRouteBackend(snap, route)
-	if !ok || fallback || selected.ID != backend.ID {
-		t.Fatalf("route backend selection = backend=%d ok=%v fallback=%v, want backend %d", selected.ID, ok, fallback, backend.ID)
+	selected, _, ok := app.selectRouteTarget(snap, route)
+	if !ok || selected.ID != target.ID {
+		t.Fatalf("route target selection = target=%d ok=%v, want target %d", selected.ID, ok, target.ID)
 	}
 }
 
 func TestAgentPoolRouteKeepsAgentEligibleAfterPassiveFailureWhenHealthDisabled(t *testing.T) {
 	app, backend := testAgentPoolAppWithHealth(t, false)
+	target := testRouteTargetFromBackend(backend)
 	app.BackendHealth.markAgentPassiveFailure(backend.ID, 1, nil)
 
-	selected := app.selectBackendAgent(backend)
+	selected := app.selectTargetAgent(target)
 	if selected == nil {
 		t.Fatal("expected an eligible agent")
 	}
@@ -807,11 +823,13 @@ func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicB
 		{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true},
 		{BackendID: backend.ID, AgentID: 2, Position: 1, Weight: 100, Enabled: true},
 	}
+	target := testRouteTargetFromBackend(backend)
 	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
+		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
+		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
 		Agents: map[int64]publicAgentConfig{
-			1: {ID: 1, PublicID: "agent-a", Enabled: true},
-			2: {ID: 2, PublicID: "agent-b", Enabled: true},
+			1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
+			2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 		},
 	}
 	app.proxyMu.Lock()
@@ -826,6 +844,14 @@ func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicB
 	}
 	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
 	return app, backend
+}
+
+func testRouteTargetFromBackend(backend publicBackendConfig) publicRouteTargetConfig {
+	target := publicRouteTargetConfigFromHealthBackend(backend)
+	if target.Transport == publicRouteTargetTransportAgent {
+		target.AgentSelector = publicAgentSelectorConfig{MatchLabels: map[string]string{"pool": "health-test"}}
+	}
+	return target
 }
 
 func waitForHealthStatus(t *testing.T, monitor *publicBackendHealthMonitor, backendID int64, want p2pstreamv1.PublicBackendHealthStatus) {

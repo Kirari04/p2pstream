@@ -99,7 +99,7 @@ docker compose ps
 docker compose logs -f p2pstream
 ```
 
-Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should show proxy state, listeners, backends, routes, TLS counts, and recent traffic once requests arrive.
+Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should show proxy state, listeners, routes, targets, TLS counts, and recent traffic once requests arrive.
 
 ## Troubleshooting
 

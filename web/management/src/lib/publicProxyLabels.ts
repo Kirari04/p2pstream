@@ -18,6 +18,8 @@ import {
   PublicRateLimitKeySource,
   PublicRouteAction,
   PublicRouteRedirectTargetMode,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicTlsCertificateSource,
   PublicTlsCertificateStatus,
   PublicTrafficShaperBudgetScope,
@@ -36,7 +38,7 @@ import {
   type PublicPolicyMatchRule,
   type PublicRateLimitRule,
   type PublicRoute,
-  type PublicRouteBackend,
+  type PublicRouteTarget,
   type PublicTlsCertificate,
   type PublicTlsDnsCredential,
   type PublicTrafficShaperRule,
@@ -107,31 +109,45 @@ export function routeAction(route: PublicRoute): PublicRouteAction {
   return route.action === PublicRouteAction.REDIRECT ? PublicRouteAction.REDIRECT : PublicRouteAction.FORWARD;
 }
 
-export function routeAssignments(route: PublicRoute, routeBackends: readonly PublicRouteBackend[]): Array<PublicRouteBackend | { backendId: bigint; enabled: boolean; weight: bigint }> {
-  if (route.backendAssignments.length) return route.backendAssignments;
-  const assignments = routeBackends.filter((assignment) => assignment.routeId === route.id);
-  if (assignments.length) return assignments;
-  return route.backendId > 0n ? [{ backendId: route.backendId, enabled: true, weight: 100n }] : [];
+export function routeAssignments(route: PublicRoute, _routeBackends: readonly unknown[] = []): PublicRouteTarget[] {
+  return [...route.targets].sort((a, b) => {
+    if (a.priorityGroup !== b.priorityGroup) return a.priorityGroup < b.priorityGroup ? -1 : 1;
+    if (a.position !== b.position) return a.position < b.position ? -1 : 1;
+    if (a.id === b.id) return 0;
+    return a.id < b.id ? -1 : 1;
+  });
 }
 
-export function routeDestinationLabel(route: PublicRoute, backends: readonly PublicBackend[], routeBackends: readonly PublicRouteBackend[]): string {
+export function routeDestinationLabel(route: PublicRoute, _backends: readonly PublicBackend[] = [], routeBackends: readonly unknown[] = []): string {
   if (routeAction(route) === PublicRouteAction.REDIRECT) {
     return `Redirect ${route.redirectStatusCode || 302}`;
   }
   const assignments = routeAssignments(route, routeBackends);
-  if (assignments.length > 1) return `${assignments.length.toString()} backends`;
-  return backendName(assignments[0]?.backendId ?? route.backendId, backends);
+  if (assignments.length > 1) return `${assignments.length.toString()} targets`;
+  return routeTargetName(assignments[0]);
 }
 
-export function routeTargetSummary(route: PublicRoute, backends: readonly PublicBackend[], routeBackends: readonly PublicRouteBackend[]): string {
+export function routeTargetSummary(route: PublicRoute, _backends: readonly PublicBackend[] = [], routeBackends: readonly unknown[] = []): string {
   if (routeAction(route) !== PublicRouteAction.REDIRECT) {
     const assignments = routeAssignments(route, routeBackends);
-    const names = assignments.map((assignment) => backendName(assignment.backendId, backends)).join(", ");
-    const fallback = route.fallbackBackendId > 0n ? ` / fallback ${backendName(route.fallbackBackendId, backends)}` : "";
-    return `${loadBalancingLabel(route.loadBalancing)} / ${names || backendName(route.backendId, backends)}${fallback}`;
+    const names = assignments.map(routeTargetName).join(", ");
+    return `${loadBalancingLabel(route.targetLoadBalancing)} / ${names || "No targets"}`;
   }
   const target = route.redirectTarget || redirectModeLabel(route.redirectTargetMode);
   return `${redirectModeLabel(route.redirectTargetMode)} -> ${target}`;
+}
+
+export function routeTargetName(target?: PublicRouteTarget): string {
+  if (!target) return "No target";
+  return target.name || (target.id > 0n ? `#${target.id.toString()}` : "Target");
+}
+
+export function routeTargetTypeLabel(type: PublicRouteTargetType): string {
+  return type === PublicRouteTargetType.STATIC ? "Static" : "Proxy";
+}
+
+export function routeTargetTransportLabel(transport: PublicRouteTargetTransport): string {
+  return transport === PublicRouteTargetTransport.AGENT ? "Agent-selected" : "Direct";
 }
 
 export function redirectModeLabel(mode: PublicRouteRedirectTargetMode): string {
@@ -487,7 +503,7 @@ export function cacheRuleMatchSummary(rule: PublicCacheRule): string {
   const matchSummary = policyMatchRuleSummary(rule.matchRule);
   if (matchSummary !== "Any request") parts.push(matchSummary);
   if (rule.routeIds.length) parts.push(`${rule.routeIds.length.toString()} route${rule.routeIds.length === 1 ? "" : "s"}`);
-  if (rule.backendIds.length) parts.push(`${rule.backendIds.length.toString()} backend${rule.backendIds.length === 1 ? "" : "s"}`);
+  if (rule.targetIds.length) parts.push(`${rule.targetIds.length.toString()} target${rule.targetIds.length === 1 ? "" : "s"}`);
   return parts.length ? parts.join(" / ") : "Any request";
 }
 

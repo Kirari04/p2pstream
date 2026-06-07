@@ -1,6 +1,6 @@
 # Rate Limit a Route
 
-Reject repeated requests before they reach route resolution and the upstream backend.
+Reject repeated requests before they reach route resolution and the upstream target.
 
 ## Use This When
 
@@ -70,7 +70,7 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
 
 ## Verification
 
-Send repeated matching requests and watch **Overview -> Problem Signals** or **Traffic** tracing. A limited request should return `429` and should not reach route/backend selection.
+Send repeated matching requests and watch **Overview -> Problem Signals** or **Traffic** tracing. A limited request should return `429` and should not reach route/target selection.
 
 ## Troubleshooting
 

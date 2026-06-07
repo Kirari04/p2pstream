@@ -20,10 +20,9 @@ func TestRegisteredAgentTunnelAuthAndDuplicates(t *testing.T) {
 	agentB, tokenB := createRegisteredAgent(t, client, cookie, "tunnel-agent-b", "Tunnel Agent B")
 	disabled, disabledToken := createRegisteredAgent(t, client, cookie, "tunnel-agent-disabled", "Tunnel Agent Disabled")
 	disableReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
-		Id:       disabled.GetId(),
-		PublicId: disabled.GetPublicId(),
-		Name:     disabled.GetName(),
-		Enabled:  false,
+		Id:      disabled.GetId(),
+		Name:    disabled.GetName(),
+		Enabled: false,
 	})
 	disableReq.Header().Set("Cookie", cookie)
 	if _, err := client.UpdateAgent(context.Background(), disableReq); err != nil {

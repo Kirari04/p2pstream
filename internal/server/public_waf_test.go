@@ -646,21 +646,28 @@ func TestPublicProxyCaptchaPassStillHitsRateLimit(t *testing.T) {
 		ResponseContentType: "text/plain; charset=utf-8",
 	}
 	rateLimitRule.Fingerprint = publicRateLimitRuleFingerprint(rateLimitRule)
+	target := publicRouteTargetConfig{
+		ID:                 1,
+		RouteID:            1,
+		Name:               "static",
+		Enabled:            true,
+		TargetType:         publicRouteTargetTypeStatic,
+		StaticStatusCode:   http.StatusOK,
+		StaticResponseBody: "ok\n",
+	}
+	route := publicRouteConfig{
+		ID:        1,
+		Enabled:   true,
+		IsDefault: true,
+		Action:    publicRouteActionForward,
+		Targets:   []publicRouteTargetConfig{target},
+	}
 	snap := &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{
-			1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true, DefaultBackendID: 1},
+			1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true},
 		},
-		Backends: map[int64]publicBackendConfig{
-			1: {
-				ID:                 1,
-				Name:               "static",
-				BackendType:        publicBackendTypeStatic,
-				StaticStatusCode:   http.StatusOK,
-				StaticResponseBody: "ok\n",
-				Enabled:            true,
-			},
-		},
-		RoutesByListener: map[int64][]publicRouteConfig{1: nil},
+		RouteTargets:     map[int64]publicRouteTargetConfig{1: target},
+		RoutesByListener: map[int64][]publicRouteConfig{1: {route}},
 		WafRules:         []publicWafRuleConfig{wafRule},
 		WafCaptchaProviders: map[int64]publicWafCaptchaProviderConfig{
 			1: {
@@ -931,6 +938,38 @@ func TestPublicWafAutomaticActivationUsesPressureSignals(t *testing.T) {
 	decision, allowed := app.PublicWAF.evaluate(snap, snap.Listeners[1], req, time.Unix(100, 0), app)
 	if allowed {
 		t.Fatal("automatic WAF rule was not activated by proxy active pressure")
+	}
+	if !decision.AutomaticActive || decision.Action != publicWafActionBlock {
+		t.Fatalf("decision = %#v, want automatic block", decision)
+	}
+}
+
+func TestPublicWafAutomaticActivationUsesRouteTargetPressure(t *testing.T) {
+	app := &App{PublicWAF: newPublicWAF(), BackendHealth: newPublicBackendHealthMonitor()}
+	rule := testWafRule(1, publicWafActionBlock)
+	rule.ActivationMode = publicWafActivationAutomatic
+	rule.Triggers.MinimumRequestRate = 0
+	rule.Triggers.TrafficSpikeMultiplier = 0
+	rule.Triggers.ProxyActiveRequests = 0
+	rule.Triggers.BackendActiveRequests = 1
+	rule.Triggers.AgentActiveRequests = 0
+	rule.Triggers.ServerCPUPercent = 0
+	rule.Triggers.AgentCPUPercent = 0
+	rule.Triggers.MinimumActiveMillis = 0
+	rule.Triggers.QuietPeriodMillis = 0
+	rule.Fingerprint = publicWafRuleFingerprint(rule)
+	snap := testWafSnapshot(rule, nil)
+	snap.RouteTargets = map[int64]publicRouteTargetConfig{
+		55: {ID: 55, Enabled: true, TargetType: publicRouteTargetTypeProxy},
+	}
+	app.PublicWAF.reconcile(snap)
+	done := app.beginPublicRouteTargetRequest(55)
+	defer done()
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	decision, allowed := app.PublicWAF.evaluate(snap, snap.Listeners[1], req, time.Unix(100, 0), app)
+	if allowed {
+		t.Fatal("automatic WAF rule was not activated by route target active pressure")
 	}
 	if !decision.AutomaticActive || decision.Action != publicWafActionBlock {
 		t.Fatalf("decision = %#v, want automatic block", decision)

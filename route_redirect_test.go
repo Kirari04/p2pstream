@@ -36,8 +36,8 @@ func TestPublicRouteRedirectValidationAndConfig(t *testing.T) {
 	if route.GetAction() != p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_REDIRECT {
 		t.Fatalf("route action = %s, want REDIRECT", route.GetAction())
 	}
-	if route.GetBackendId() != 0 {
-		t.Fatalf("redirect route backend id = %d, want 0", route.GetBackendId())
+	if len(route.GetTargets()) != 0 {
+		t.Fatalf("redirect route targets = %+v, want none", route.GetTargets())
 	}
 	if route.GetRedirectStatusCode() != http.StatusMovedPermanently {
 		t.Fatalf("redirect status = %d, want 301", route.GetRedirectStatusCode())

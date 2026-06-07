@@ -258,6 +258,10 @@ function traceEvent(overrides: Partial<TrafficTraceEvent>): TrafficTraceEvent {
     cacheRuleName: "",
     cacheStatus: "",
     cacheKeyDigest: "",
+    routeTargetId: 0n,
+    routeTargetName: "",
+    routeTargetType: 0,
+    routeTargetTransport: 0,
     ...overrides,
   };
 }

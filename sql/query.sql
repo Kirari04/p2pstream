@@ -46,16 +46,16 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id;
 
@@ -90,13 +90,13 @@ ON CONFLICT(bucket_unix_millis) DO UPDATE SET
 
 -- name: UpsertProxyRequestTupleRollupMinute :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -523,6 +523,7 @@ SELECT
     listener_id,
     backend_id,
     route_id,
+    route_target_id,
     agent_id,
     error_kind,
     status_class,
@@ -661,6 +662,40 @@ WHERE id = ?;
 -- name: DeleteAgent :exec
 DELETE FROM agents
 WHERE id = ?;
+
+-- name: ListAgentLabels :many
+SELECT agent_id, key, value, source, created_at, updated_at
+FROM public_agent_labels
+ORDER BY agent_id ASC, key ASC;
+
+-- name: ListAgentLabelsByAgent :many
+SELECT agent_id, key, value, source, created_at, updated_at
+FROM public_agent_labels
+WHERE agent_id = ?
+ORDER BY key ASC;
+
+-- name: UpsertAgentLabel :one
+INSERT INTO public_agent_labels (agent_id, key, value, source)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(agent_id, key) DO UPDATE SET
+    value = excluded.value,
+    source = excluded.source,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING agent_id, key, value, source, created_at, updated_at;
+
+-- name: DeleteAgentLabelsByAgent :exec
+DELETE FROM public_agent_labels
+WHERE agent_id = ?;
+
+-- name: DeleteUserAgentLabelsByAgent :exec
+DELETE FROM public_agent_labels
+WHERE agent_id = ?
+  AND source = 'user';
+
+-- name: DeleteAgentLabel :exec
+DELETE FROM public_agent_labels
+WHERE agent_id = ?
+  AND key = ?;
 
 -- name: CountEnabledAgentPoolBackendsWhereAgentIsLast :one
 SELECT COUNT(*)
@@ -820,7 +855,7 @@ ON CONFLICT(bucket_unix_millis) DO UPDATE SET
 
 -- name: BackfillProxyRequestTupleRollupMinutesRange :exec
 INSERT INTO proxy_request_tuple_rollup_minutes (
-    bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class,
+    bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class,
     requests, success, client_error, server_error, internal_error, duration_ms_sum,
     request_bytes, response_bytes
 )
@@ -828,6 +863,7 @@ SELECT
     CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
     CAST(COALESCE(listener_id, 0) AS INTEGER) AS listener_id,
     CAST(COALESCE(backend_id, 0) AS INTEGER) AS backend_id,
+    CAST(COALESCE(route_target_id, 0) AS INTEGER) AS route_target_id,
     CAST(COALESCE(route_id, 0) AS INTEGER) AS route_id,
     CAST(COALESCE(agent_id, 0) AS INTEGER) AS agent_id,
     error_kind,
@@ -843,8 +879,8 @@ SELECT
 FROM proxy_request_events
 WHERE id > sqlc.arg(from_id)
   AND id <= sqlc.arg(through_id)
-GROUP BY bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class
-ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
+GROUP BY bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class
+ON CONFLICT(bucket_unix_millis, listener_id, backend_id, route_target_id, route_id, agent_id, error_kind, status_class) DO UPDATE SET
     requests = proxy_request_tuple_rollup_minutes.requests + excluded.requests,
     success = proxy_request_tuple_rollup_minutes.success + excluded.success,
     client_error = proxy_request_tuple_rollup_minutes.client_error + excluded.client_error,
@@ -1300,6 +1336,149 @@ RETURNING route_id, backend_id, position, weight, enabled, created_at, updated_a
 DELETE FROM public_route_backends
 WHERE route_id = ?;
 
+-- name: ListPublicRouteTargets :many
+SELECT id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+       agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+       upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+       health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+       health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+       health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+       static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+FROM public_route_targets
+ORDER BY route_id ASC, priority_group ASC, position ASC, id ASC;
+
+-- name: ListPublicRouteTargetsByRoute :many
+SELECT id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+       agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+       upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+       health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+       health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+       health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+       static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+FROM public_route_targets
+WHERE route_id = ?
+ORDER BY priority_group ASC, position ASC, id ASC;
+
+-- name: GetPublicRouteTarget :one
+SELECT id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+       agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+       upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+       health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+       health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+       health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+       static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at
+FROM public_route_targets
+WHERE id = ?;
+
+-- name: CreatePublicRouteTarget :one
+INSERT INTO public_route_targets (
+    route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+    agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+    upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+    health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+    health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+    health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+    static_response_body, static_response_body_mode, static_response_template_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+          agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+          upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+          health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+          health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+          health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+          static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at;
+
+-- name: UpdatePublicRouteTarget :one
+UPDATE public_route_targets
+SET route_id = ?,
+    name = ?,
+    position = ?,
+    priority_group = ?,
+    weight = ?,
+    enabled = ?,
+    target_type = ?,
+    url = ?,
+    transport = ?,
+    agent_selector_json = ?,
+    agent_load_balancing = ?,
+    tls_skip_verify = ?,
+    upstream_basic_auth_enabled = ?,
+    upstream_basic_auth_username = ?,
+    upstream_basic_auth_password = ?,
+    upstream_response_header_timeout_millis = ?,
+    health_check_enabled = ?,
+    health_check_method = ?,
+    health_check_path = ?,
+    health_check_interval_millis = ?,
+    health_check_timeout_millis = ?,
+    health_check_healthy_threshold = ?,
+    health_check_unhealthy_threshold = ?,
+    health_check_expected_status_min = ?,
+    health_check_expected_status_max = ?,
+    static_status_code = ?,
+    static_response_body = ?,
+    static_response_body_mode = ?,
+    static_response_template_id = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, route_id, name, position, priority_group, weight, enabled, target_type, url, transport,
+          agent_selector_json, agent_load_balancing, tls_skip_verify, upstream_basic_auth_enabled,
+          upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis,
+          health_check_enabled, health_check_method, health_check_path, health_check_interval_millis,
+          health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold,
+          health_check_expected_status_min, health_check_expected_status_max, static_status_code,
+          static_response_body, static_response_body_mode, static_response_template_id, created_at, updated_at;
+
+-- name: DeletePublicRouteTarget :exec
+DELETE FROM public_route_targets
+WHERE id = ?;
+
+-- name: DeletePublicRouteTargets :exec
+DELETE FROM public_route_targets
+WHERE route_id = ?;
+
+-- name: ListPublicRouteTargetUpstreamHeaders :many
+SELECT id, target_id, position, name, value, sensitive, created_at, updated_at
+FROM public_route_target_upstream_headers
+ORDER BY target_id ASC, position ASC, id ASC;
+
+-- name: ListPublicRouteTargetUpstreamHeadersByTarget :many
+SELECT id, target_id, position, name, value, sensitive, created_at, updated_at
+FROM public_route_target_upstream_headers
+WHERE target_id = ?
+ORDER BY position ASC, id ASC;
+
+-- name: CreatePublicRouteTargetUpstreamHeader :one
+INSERT INTO public_route_target_upstream_headers (target_id, position, name, value, sensitive)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, target_id, position, name, value, sensitive, created_at, updated_at;
+
+-- name: DeletePublicRouteTargetUpstreamHeaders :exec
+DELETE FROM public_route_target_upstream_headers
+WHERE target_id = ?;
+
+-- name: ListPublicRouteTargetResponseHeaders :many
+SELECT id, target_id, position, name, value, created_at, updated_at
+FROM public_route_target_response_headers
+ORDER BY target_id ASC, position ASC, id ASC;
+
+-- name: ListPublicRouteTargetResponseHeadersByTarget :many
+SELECT id, target_id, position, name, value, created_at, updated_at
+FROM public_route_target_response_headers
+WHERE target_id = ?
+ORDER BY position ASC, id ASC;
+
+-- name: CreatePublicRouteTargetResponseHeader :one
+INSERT INTO public_route_target_response_headers (target_id, position, name, value)
+VALUES (?, ?, ?, ?)
+RETURNING id, target_id, position, name, value, created_at, updated_at;
+
+-- name: DeletePublicRouteTargetResponseHeaders :exec
+DELETE FROM public_route_target_response_headers
+WHERE target_id = ?;
+
 -- name: CountPublicBackendEnabledReferences :one
 SELECT
   (
@@ -1359,6 +1538,8 @@ INSERT INTO public_routes (
     backend_id,
     load_balancing,
     fallback_backend_id,
+    target_load_balancing,
+    is_default,
     action,
     redirect_target_mode,
     redirect_target,
@@ -1367,16 +1548,16 @@ INSERT INTO public_routes (
     redirect_preserve_query,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
 
 -- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC;
 
 -- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?;
 
@@ -1389,6 +1570,8 @@ SET listener_id = ?,
     backend_id = ?,
     load_balancing = ?,
     fallback_backend_id = ?,
+    target_load_balancing = ?,
+    is_default = ?,
     action = ?,
     redirect_target_mode = ?,
     redirect_target = ?,
@@ -1398,7 +1581,7 @@ SET listener_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
+RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at;
 
 -- name: DeletePublicRoute :exec
 DELETE FROM public_routes
@@ -1818,14 +2001,14 @@ ON CONFLICT(id) DO UPDATE SET
 RETURNING id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at;
 
 -- name: ListPublicCacheRules :many
-SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
        add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
 ORDER BY priority ASC, id ASC;
 
 -- name: GetPublicCacheRule :one
-SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
        add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
@@ -1839,6 +2022,7 @@ INSERT INTO public_cache_rules (
     match_json,
     route_ids_json,
     backend_ids_json,
+    target_ids_json,
     scope,
     ttl_mode,
     ttl_millis,
@@ -1849,10 +2033,10 @@ INSERT INTO public_cache_rules (
     max_object_bytes,
     add_cache_status_header,
     allow_cookie_requests
-) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+ ) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
           add_cache_status_header, allow_cookie_requests, created_at, updated_at;
 
@@ -1864,6 +2048,7 @@ SET name = ?,
     match_json = ?,
     route_ids_json = ?,
     backend_ids_json = ?,
+    target_ids_json = ?,
     scope = ?,
     ttl_mode = ?,
     ttl_millis = ?,
@@ -1876,7 +2061,7 @@ SET name = ?,
     allow_cookie_requests = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, scope, ttl_mode, ttl_millis,
+RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
           add_cache_status_header, allow_cookie_requests, created_at, updated_at;
 
@@ -1885,14 +2070,14 @@ DELETE FROM public_cache_rules
 WHERE id = ?;
 
 -- name: GetPublicCacheEntry :one
-SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
        vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
        last_accessed_at, hit_count
 FROM public_cache_entries
 WHERE key_digest = ?;
 
 -- name: ListPublicCacheEntryCandidates :many
-SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
        vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
        last_accessed_at, hit_count
 FROM public_cache_entries
@@ -1903,17 +2088,18 @@ WHERE rule_id = ?
   AND query_key = ?
   AND COALESCE(route_id, 0) = ?
   AND COALESCE(backend_id, 0) = ?
+  AND COALESCE(route_target_id, 0) = ?
   AND expires_at > ?
 ORDER BY stored_at DESC
 LIMIT 20;
 
 -- name: UpsertPublicCacheEntry :one
 INSERT INTO public_cache_entries (
-    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
     vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
     last_accessed_at, hit_count
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
 )
 ON CONFLICT(key_digest) DO UPDATE SET
     rule_id = excluded.rule_id,
@@ -1924,6 +2110,7 @@ ON CONFLICT(key_digest) DO UPDATE SET
     query_key = excluded.query_key,
     route_id = excluded.route_id,
     backend_id = excluded.backend_id,
+    route_target_id = excluded.route_target_id,
     method = excluded.method,
     vary_headers_json = excluded.vary_headers_json,
     response_headers_json = excluded.response_headers_json,
@@ -1934,7 +2121,7 @@ ON CONFLICT(key_digest) DO UPDATE SET
     expires_at = excluded.expires_at,
     last_accessed_at = CURRENT_TIMESTAMP,
     hit_count = 0
-RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, method,
+RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
           vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
           last_accessed_at, hit_count;
 

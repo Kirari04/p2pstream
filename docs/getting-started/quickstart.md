@@ -58,19 +58,18 @@ The management server uses HTTPS by default. In auto mode, p2pstream creates a l
 
 ## Verification
 
-The first browser visit should show **Setup Admin**. After setup, **Overview** should load and the **Proxy** page should show the seeded `public-http` and `public-https` listeners plus the `default` static backend.
+The first browser visit should show **Setup Admin**. After setup, **Overview** should load and the **Proxy** page should show the seeded `public-http` and `public-https` listeners plus default routes with static welcome targets.
 
 On a new database, p2pstream seeds:
 
 | Object | Default |
 | --- | --- |
-| Backend | `default` static welcome page |
 | HTTP listener | `public-http` on `:80` |
 | HTTPS listener | `public-https` on `:443` |
-| Routes | catch-all `/` routes to the `default` backend |
+| Routes | default catch-all routes with static welcome targets |
 | HTTPS fallback certificate | self-signed mapping for `p2pstream.local` |
 
-The seeded backend serves a local `Welcome to p2pstream proxy` page. Replace it or add more specific routes before publishing real traffic.
+The seeded static targets serve a local `Welcome to p2pstream proxy` page. Replace them or add more specific routes before publishing real traffic.
 
 ## Troubleshooting
 
