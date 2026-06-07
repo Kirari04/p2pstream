@@ -200,12 +200,6 @@ func publicHealthBackendConfigsFromSnapshot(snap *publicProxySnapshot) map[int64
 		}
 		resp[target.ID] = publicBackendConfigFromRouteTarget(target, snap.Agents)
 	}
-	if len(resp) > 0 {
-		return resp
-	}
-	for id, backend := range snap.Backends {
-		resp[id] = backend
-	}
 	return resp
 }
 

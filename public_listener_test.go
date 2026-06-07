@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"database/sql"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -105,18 +104,13 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 		t.Fatalf("expected idempotent seed, got %d listeners, %d targets, %d routes, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.GetRouteTargets()), len(cfgAgain.Routes), len(cfgAgain.TlsCertificates))
 	}
 
-	httpListenerRow, err := database.GetPublicListener(context.Background(), httpListener.GetId())
-	if err != nil {
-		t.Fatalf("load seeded HTTP listener row: %v", err)
-	}
 	if _, err := database.UpdatePublicListener(context.Background(), db.UpdatePublicListenerParams{
-		ID:               httpListener.GetId(),
-		Name:             httpListener.GetName(),
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: httpListenerRow.DefaultBackendID,
+		ID:          httpListener.GetId(),
+		Name:        httpListener.GetName(),
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	}); err != nil {
 		t.Fatalf("move seeded HTTP listener to test port: %v", err)
 	}
@@ -153,39 +147,12 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 
 func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 	database := newTestDB(t)
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:               "static-default",
-		BackendType:        "static",
-		StaticStatusCode:   http.StatusAccepted,
-		StaticResponseBody: "static body",
-		Enabled:            1,
-	})
-	if err != nil {
-		t.Fatalf("seed static backend: %v", err)
-	}
-	if _, err := database.CreatePublicBackendHeader(context.Background(), db.CreatePublicBackendHeaderParams{
-		BackendID: backend.ID,
-		Position:  0,
-		Name:      "Content-Type",
-		Value:     "text/plain",
-	}); err != nil {
-		t.Fatalf("seed static content-type header: %v", err)
-	}
-	if _, err := database.CreatePublicBackendHeader(context.Background(), db.CreatePublicBackendHeaderParams{
-		BackendID: backend.ID,
-		Position:  1,
-		Name:      "X-Static",
-		Value:     "yes",
-	}); err != nil {
-		t.Fatalf("seed static custom header: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "static-http",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "static-http",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("seed static listener: %v", err)
@@ -195,9 +162,6 @@ func TestStaticPublicBackendRespondsWithoutAgent(t *testing.T) {
 		Priority:                   1000,
 		HostPattern:                "",
 		PathPrefix:                 "/",
-		BackendID:                  sql.NullInt64{Int64: backend.ID, Valid: true},
-		LoadBalancing:              "round_robin",
-		FallbackBackendID:          sql.NullInt64{},
 		TargetLoadBalancing:        "round_robin",
 		IsDefault:                  1,
 		Action:                     "forward",
@@ -442,23 +406,12 @@ func TestPublicListenerDisablePersistsAndReenableRestarts(t *testing.T) {
 
 func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 	database := newTestDB(t)
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:               "https-default",
-		BackendType:        "static",
-		StaticStatusCode:   http.StatusNoContent,
-		StaticResponseBody: "",
-		Enabled:            1,
-	})
-	if err != nil {
-		t.Fatalf("seed backend: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "test-https",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "https",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "test-https",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "https",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("seed https listener: %v", err)
@@ -467,8 +420,6 @@ func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 		ListenerID:                 listener.ID,
 		Priority:                   1000,
 		PathPrefix:                 "/",
-		BackendID:                  sql.NullInt64{Int64: backend.ID, Valid: true},
-		LoadBalancing:              "round_robin",
 		TargetLoadBalancing:        "round_robin",
 		IsDefault:                  1,
 		Action:                     "forward",
@@ -549,23 +500,12 @@ func TestHTTPSPublicListenerUsesFallbackSelfSignedCertificate(t *testing.T) {
 
 func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
 	database := newTestDB(t)
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:             "upload-default",
-		TargetOrigin:     "https://example.com",
-		BackendType:      "proxy_forward",
-		StaticStatusCode: http.StatusOK,
-		Enabled:          1,
-	})
-	if err != nil {
-		t.Fatalf("seed backend: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "upload-https",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "https",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "upload-https",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "https",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("seed https listener: %v", err)
@@ -636,21 +576,12 @@ func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
 
 func TestPublicTLSCertificateGeneratedSelfSignedMaterial(t *testing.T) {
 	database := newTestDB(t)
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:         "default",
-		TargetOrigin: "http://127.0.0.1:8080",
-		Enabled:      1,
-	})
-	if err != nil {
-		t.Fatalf("seed backend: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "generated-https",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "https",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "generated-https",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "https",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("seed https listener: %v", err)

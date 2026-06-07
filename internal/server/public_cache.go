@@ -83,7 +83,6 @@ type publicCacheRuleConfig struct {
 	Enabled              bool
 	Match                publicPolicyMatchConfig
 	RouteIDs             []int64
-	BackendIDs           []int64
 	TargetIDs            []int64
 	Scope                string
 	TTLMode              string
@@ -106,7 +105,6 @@ type publicCacheRuleMutationInput struct {
 	Enabled              int64
 	MatchJSON            string
 	RouteIDsJSON         string
-	BackendIDsJSON       string
 	TargetIDsJSON        string
 	Scope                string
 	TTLMode              string
@@ -128,7 +126,6 @@ type publicCacheDecision struct {
 	Host           string
 	Path           string
 	RouteID        sql.NullInt64
-	BackendID      sql.NullInt64
 	RouteTargetID  sql.NullInt64
 	Entry          *db.PublicCacheEntry
 	BypassReason   string
@@ -391,7 +388,6 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		return decision
 	}
 	if rule.Scope == publicCacheScopeRoute {
-		decision.BackendID = sql.NullInt64{}
 		decision.RouteTargetID = sql.NullInt64{}
 	}
 	decision.Cacheable = true
@@ -411,7 +407,6 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		Path:             decision.Path,
 		QueryKey:         queryKey,
 		RouteID:          sql.NullInt64{Int64: nullInt64Value(decision.RouteID), Valid: true},
-		BackendID:        sql.NullInt64{Int64: nullInt64Value(decision.BackendID), Valid: true},
 		RouteTargetID:    sql.NullInt64{Int64: nullInt64Value(decision.RouteTargetID), Valid: true},
 		ExpiresAt:        time.Now(),
 	})
@@ -454,10 +449,6 @@ func publicCacheBaseDecision(r *http.Request, resolution publicRouteResolution) 
 	if !routeID.Valid && resolution.Route.ID != 0 {
 		routeID = sql.NullInt64{Int64: resolution.Route.ID, Valid: true}
 	}
-	backendID := resolution.BackendID
-	if !backendID.Valid && resolution.Backend.ID != 0 {
-		backendID = sql.NullInt64{Int64: resolution.Backend.ID, Valid: true}
-	}
 	routeTargetID := resolution.RouteTargetID
 	if !routeTargetID.Valid && resolution.Target.ID != 0 {
 		routeTargetID = sql.NullInt64{Int64: resolution.Target.ID, Valid: true}
@@ -466,7 +457,6 @@ func publicCacheBaseDecision(r *http.Request, resolution publicRouteResolution) 
 		Host:          normalizeRequestHost(r.Host),
 		Path:          path,
 		RouteID:       routeID,
-		BackendID:     backendID,
 		RouteTargetID: routeTargetID,
 		CookieRequest: r.Header.Get("Cookie") != "",
 	}
@@ -531,15 +521,6 @@ func (rule publicCacheRuleConfig) matches(listener publicListenerConfig, r *http
 			return false
 		}
 	}
-	if len(rule.BackendIDs) > 0 {
-		backendID := resolution.Backend.ID
-		if backendID == 0 && resolution.BackendID.Valid {
-			backendID = resolution.BackendID.Int64
-		}
-		if !int64InSlice(backendID, rule.BackendIDs) {
-			return false
-		}
-	}
 	if len(rule.TargetIDs) > 0 {
 		targetID := resolution.Target.ID
 		if targetID == 0 && resolution.RouteTargetID.Valid {
@@ -599,7 +580,6 @@ func filteredQuery(values url.Values, params []string, allow bool) string {
 
 func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rule publicCacheRuleConfig, queryKey string, varyHeaders []string) string {
 	routeID := int64(0)
-	backendID := int64(0)
 	routeTargetID := int64(0)
 	if resolution.Route.ID != 0 {
 		routeID = resolution.Route.ID
@@ -607,11 +587,6 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 		routeID = resolution.RouteID.Int64
 	}
 	if rule.Scope == publicCacheScopeSelectedBackend {
-		if resolution.Backend.ID != 0 {
-			backendID = resolution.Backend.ID
-		} else if resolution.BackendID.Valid {
-			backendID = resolution.BackendID.Int64
-		}
 		if resolution.Target.ID != 0 {
 			routeTargetID = resolution.Target.ID
 		} else if resolution.RouteTargetID.Valid {
@@ -619,14 +594,13 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 		}
 	}
 	parts := []string{
-		"v1",
+		"v2",
 		resolution.Listener.Protocol,
 		normalizeRequestHost(r.Host),
 		r.URL.EscapedPath(),
 		queryKey,
 		rule.Scope,
 		strconv.FormatInt(routeID, 10),
-		strconv.FormatInt(backendID, 10),
 		strconv.FormatInt(routeTargetID, 10),
 	}
 	for _, header := range normalizePublicCacheHeaderList(varyHeaders) {
@@ -652,7 +626,7 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			time.Since(startedAt),
 			errorKind,
 			resolution.ListenerID,
-			resolution.BackendID,
+			sql.NullInt64{},
 			resolution.RouteID,
 			resolution.RouteTargetID,
 			sql.NullInt64{},
@@ -861,13 +835,8 @@ func (r *publicCacheStoreReadCloser) commit() {
 	if !routeID.Valid && r.resolution.Route.ID != 0 {
 		routeID = sql.NullInt64{Int64: r.resolution.Route.ID, Valid: true}
 	}
-	backendID := sql.NullInt64{}
 	routeTargetID := sql.NullInt64{}
 	if r.rule.Scope == publicCacheScopeSelectedBackend {
-		backendID = r.resolution.BackendID
-		if !backendID.Valid && r.resolution.Backend.ID != 0 {
-			backendID = sql.NullInt64{Int64: r.resolution.Backend.ID, Valid: true}
-		}
 		routeTargetID = r.resolution.RouteTargetID
 		if !routeTargetID.Valid && r.resolution.Target.ID != 0 {
 			routeTargetID = sql.NullInt64{Int64: r.resolution.Target.ID, Valid: true}
@@ -882,7 +851,6 @@ func (r *publicCacheStoreReadCloser) commit() {
 		Path:                r.requestPath,
 		QueryKey:            r.queryKey,
 		RouteID:             routeID,
-		BackendID:           backendID,
 		RouteTargetID:       routeTargetID,
 		Method:              http.MethodGet,
 		VaryHeadersJson:     r.varyJSON,
@@ -1249,10 +1217,6 @@ func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, 
 	if err != nil {
 		return publicCacheRuleConfig{}, err
 	}
-	backendIDs, err := publicCacheInt64ListFromJSON(row.BackendIdsJson)
-	if err != nil {
-		return publicCacheRuleConfig{}, err
-	}
 	targetIDs, err := publicCacheInt64ListFromJSON(row.TargetIdsJson)
 	if err != nil {
 		return publicCacheRuleConfig{}, err
@@ -1270,7 +1234,6 @@ func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, 
 		Enabled:              row.Enabled != 0,
 		Match:                match,
 		RouteIDs:             routeIDs,
-		BackendIDs:           backendIDs,
 		TargetIDs:            targetIDs,
 		Scope:                normalizePublicCacheScope(row.Scope),
 		TTLMode:              normalizePublicCacheTTLMode(row.TtlMode),
@@ -1418,7 +1381,6 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 		Enabled:              boolInt(enabled),
 		MatchJSON:            string(matchJSON),
 		RouteIDsJSON:         string(routeIDsJSON),
-		BackendIDsJSON:       "[]",
 		TargetIDsJSON:        string(targetIDsJSON),
 		Scope:                scopeString,
 		TTLMode:              ttlModeString,
@@ -1646,7 +1608,6 @@ func cacheCreateParams(input publicCacheRuleMutationInput) db.CreatePublicCacheR
 		Enabled:              input.Enabled,
 		MatchJson:            input.MatchJSON,
 		RouteIdsJson:         input.RouteIDsJSON,
-		BackendIdsJson:       input.BackendIDsJSON,
 		TargetIdsJson:        input.TargetIDsJSON,
 		Scope:                input.Scope,
 		TtlMode:              input.TTLMode,
@@ -1669,7 +1630,6 @@ func cacheUpdateParams(id int64, input publicCacheRuleMutationInput) db.UpdatePu
 		Enabled:              input.Enabled,
 		MatchJson:            input.MatchJSON,
 		RouteIdsJson:         input.RouteIDsJSON,
-		BackendIdsJson:       input.BackendIDsJSON,
 		TargetIdsJson:        input.TargetIDsJSON,
 		Scope:                input.Scope,
 		TtlMode:              input.TTLMode,

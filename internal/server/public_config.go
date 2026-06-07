@@ -185,15 +185,10 @@ const (
 var publicNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 type publicConfigRows struct {
-	Backends                   []db.PublicBackend
-	BackendHeaders             []db.PublicBackendHeader
-	BackendUpstreamHeaders     []db.PublicBackendUpstreamHeader
-	BackendAgents              []db.PublicBackendAgent
 	Agents                     []db.Agent
 	AgentLabels                []db.PublicAgentLabel
 	Listeners                  []db.PublicListener
 	Routes                     []db.PublicRoute
-	RouteBackends              []db.PublicRouteBackend
 	RouteTargets               []db.PublicRouteTarget
 	RouteTargetUpstreamHeaders []db.PublicRouteTargetUpstreamHeader
 	RouteTargetResponseHeaders []db.PublicRouteTargetResponseHeader
@@ -225,13 +220,6 @@ type publicBackendUpstreamHeaderInput struct {
 	Name      string
 	Value     string
 	Sensitive int64
-}
-
-type publicRouteBackendInput struct {
-	BackendID int64
-	Position  int64
-	Weight    int64
-	Enabled   int64
 }
 
 type publicRouteTargetMutationInput struct {
@@ -313,21 +301,16 @@ func (a *App) CreatePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	defaultBackendID, err := a.publicListenerCompatibilityDefaultBackendID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	params, err := a.validatePublicListenerInput(ctx, req.Msg.Name, req.Msg.BindAddress, req.Msg.Port, req.Msg.Protocol, req.Msg.Enabled, defaultBackendID, false)
+	params, err := a.validatePublicListenerInput(req.Msg.Name, req.Msg.BindAddress, req.Msg.Port, req.Msg.Protocol, req.Msg.Enabled, false)
 	if err != nil {
 		return nil, err
 	}
 	listener, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
-		Name:             params.Name,
-		BindAddress:      params.BindAddress,
-		Port:             params.Port,
-		Protocol:         params.Protocol,
-		Enabled:          params.Enabled,
-		DefaultBackendID: params.DefaultBackendID,
+		Name:        params.Name,
+		BindAddress: params.BindAddress,
+		Port:        params.Port,
+		Protocol:    params.Protocol,
+		Enabled:     params.Enabled,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -350,11 +333,7 @@ func (a *App) UpdatePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	existing, err := a.DB.GetPublicListener(ctx, req.Msg.Id)
-	if err != nil {
-		return nil, publicDBError(err)
-	}
-	params, err := a.validatePublicListenerInput(ctx, req.Msg.Name, req.Msg.BindAddress, req.Msg.Port, req.Msg.Protocol, req.Msg.Enabled, existing.DefaultBackendID, false)
+	params, err := a.validatePublicListenerInput(req.Msg.Name, req.Msg.BindAddress, req.Msg.Port, req.Msg.Protocol, req.Msg.Enabled, false)
 	if err != nil {
 		return nil, err
 	}
@@ -372,17 +351,6 @@ func (a *App) UpdatePublicListener(
 		Status:   status,
 		Proxy:    a.proxyStatus(),
 	}), nil
-}
-
-func (a *App) publicListenerCompatibilityDefaultBackendID(ctx context.Context) (int64, error) {
-	backends, err := a.DB.ListPublicBackends(ctx)
-	if err != nil {
-		return 0, publicDBError(err)
-	}
-	if len(backends) == 0 {
-		return 0, connect.NewError(connect.CodeFailedPrecondition, errors.New("at least one internal default backend is required before creating a listener"))
-	}
-	return backends[0].ID, nil
 }
 
 func (a *App) DeletePublicListener(
@@ -421,7 +389,7 @@ func (a *App) EnablePublicListener(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if _, err := a.validatePublicListenerInput(ctx, listener.Name, listener.BindAddress, listener.Port, protoProtocolFromString(listener.Protocol), true, listener.DefaultBackendID, true); err != nil {
+	if _, err := a.validatePublicListenerInput(listener.Name, listener.BindAddress, listener.Port, protoProtocolFromString(listener.Protocol), true, true); err != nil {
 		return nil, err
 	}
 	listener, err = a.DB.SetPublicListenerEnabled(ctx, db.SetPublicListenerEnabledParams{ID: req.Msg.Id, Enabled: 1})
@@ -575,76 +543,6 @@ func (a *App) UpdatePublicRoute(
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, a.BackendHealth)}), nil
 }
 
-func (a *App) createPublicRouteWithBackends(
-	ctx context.Context,
-	params db.UpdatePublicRouteParams,
-	backends []publicRouteBackendInput,
-) (db.PublicRoute, []db.PublicRouteBackend, error) {
-	tx, err := a.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	defer tx.Rollback()
-
-	qtx := a.DB.WithTx(tx)
-	route, err := qtx.CreatePublicRoute(ctx, db.CreatePublicRouteParams{
-		ListenerID:                 params.ListenerID,
-		Priority:                   params.Priority,
-		HostPattern:                params.HostPattern,
-		PathPrefix:                 params.PathPrefix,
-		BackendID:                  params.BackendID,
-		LoadBalancing:              params.LoadBalancing,
-		FallbackBackendID:          params.FallbackBackendID,
-		Action:                     params.Action,
-		RedirectTargetMode:         params.RedirectTargetMode,
-		RedirectTarget:             params.RedirectTarget,
-		RedirectStatusCode:         params.RedirectStatusCode,
-		RedirectPreservePathSuffix: params.RedirectPreservePathSuffix,
-		RedirectPreserveQuery:      params.RedirectPreserveQuery,
-		Enabled:                    params.Enabled,
-	})
-	if err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	storedBackends, err := insertPublicRouteBackends(ctx, qtx, route.ID, backends)
-	if err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	return route, storedBackends, nil
-}
-
-func (a *App) updatePublicRouteWithBackends(
-	ctx context.Context,
-	params db.UpdatePublicRouteParams,
-	backends []publicRouteBackendInput,
-) (db.PublicRoute, []db.PublicRouteBackend, error) {
-	tx, err := a.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	defer tx.Rollback()
-
-	qtx := a.DB.WithTx(tx)
-	route, err := qtx.UpdatePublicRoute(ctx, params)
-	if err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	if err := qtx.DeletePublicRouteBackends(ctx, params.ID); err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	storedBackends, err := insertPublicRouteBackends(ctx, qtx, params.ID, backends)
-	if err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	return route, storedBackends, nil
-}
-
 func (a *App) createPublicRouteWithTargets(
 	ctx context.Context,
 	params db.UpdatePublicRouteParams,
@@ -662,9 +560,6 @@ func (a *App) createPublicRouteWithTargets(
 		Priority:                   params.Priority,
 		HostPattern:                params.HostPattern,
 		PathPrefix:                 params.PathPrefix,
-		BackendID:                  params.BackendID,
-		LoadBalancing:              params.LoadBalancing,
-		FallbackBackendID:          params.FallbackBackendID,
 		TargetLoadBalancing:        params.TargetLoadBalancing,
 		IsDefault:                  params.IsDefault,
 		Action:                     params.Action,
@@ -756,29 +651,6 @@ func insertPublicRouteTargets(
 		storedTargets = append(storedTargets, stored)
 	}
 	return storedTargets, nil
-}
-
-func insertPublicRouteBackends(
-	ctx context.Context,
-	queries *db.Queries,
-	routeID int64,
-	backends []publicRouteBackendInput,
-) ([]db.PublicRouteBackend, error) {
-	storedBackends := make([]db.PublicRouteBackend, 0, len(backends))
-	for idx, backend := range backends {
-		stored, err := queries.CreatePublicRouteBackend(ctx, db.CreatePublicRouteBackendParams{
-			RouteID:   routeID,
-			BackendID: backend.BackendID,
-			Position:  int64(idx),
-			Weight:    backend.Weight,
-			Enabled:   backend.Enabled,
-		})
-		if err != nil {
-			return nil, err
-		}
-		storedBackends = append(storedBackends, stored)
-	}
-	return storedBackends, nil
 }
 
 func (a *App) DeletePublicRoute(
@@ -1244,22 +1116,6 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	backends, err := a.DB.ListPublicBackends(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	backendHeaders, err := a.DB.ListPublicBackendHeaders(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	backendUpstreamHeaders, err := a.DB.ListPublicBackendUpstreamHeaders(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	backendAgents, err := a.DB.ListPublicBackendAgents(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
 	agents, err := a.DB.ListAgents(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
@@ -1273,10 +1129,6 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
 	routes, err := a.DB.ListPublicRoutes(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	routeBackends, err := a.DB.ListPublicRouteBackends(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
@@ -1329,15 +1181,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
 	return publicConfigRows{
-		Backends:                   backends,
-		BackendHeaders:             backendHeaders,
-		BackendUpstreamHeaders:     backendUpstreamHeaders,
-		BackendAgents:              backendAgents,
 		Agents:                     agents,
 		AgentLabels:                agentLabels,
 		Listeners:                  listeners,
 		Routes:                     routes,
-		RouteBackends:              routeBackends,
 		RouteTargets:               routeTargets,
 		RouteTargetUpstreamHeaders: routeTargetUpstreamHeaders,
 		RouteTargetResponseHeaders: routeTargetResponseHeaders,
@@ -1359,15 +1206,11 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	backends, err := a.DB.CountPublicBackends(ctx)
-	if err != nil {
-		return connect.NewError(connect.CodeInternal, err)
-	}
 	listeners, err := a.DB.CountPublicListeners(ctx)
 	if err != nil {
 		return connect.NewError(connect.CodeInternal, err)
 	}
-	if backends > 0 || listeners > 0 {
+	if listeners > 0 {
 		return nil
 	}
 
@@ -1375,70 +1218,24 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 	if !ok || defaultWelcomeTemplate.ID <= 0 {
 		return connect.NewError(connect.CodeInternal, errors.New("default welcome response template was not seeded"))
 	}
-	backend, err := a.DB.CreatePublicBackend(ctx, db.CreatePublicBackendParams{
-		Name:                                "default",
-		TargetOrigin:                        "",
-		BackendType:                         publicBackendTypeStatic,
-		ForwardMode:                         publicBackendForwardModeDirect,
-		LoadBalancing:                       publicBackendLoadBalancingRoundRobin,
-		TlsSkipVerify:                       0,
-		StaticStatusCode:                    defaultStaticStatusCode,
-		StaticResponseBody:                  defaultWelcomeBody,
-		StaticResponseBodyMode:              publicResponseBodyModeTemplate,
-		StaticResponseTemplateID:            sql.NullInt64{Int64: defaultWelcomeTemplate.ID, Valid: true},
-		UpstreamBasicAuthEnabled:            0,
-		UpstreamBasicAuthUsername:           "",
-		UpstreamBasicAuthPassword:           "",
-		UpstreamResponseHeaderTimeoutMillis: defaultBackendUpstreamResponseHeaderTimeoutMillis,
-		HealthCheckEnabled:                  0,
-		HealthCheckMethod:                   defaultBackendHealthCheckMethod,
-		HealthCheckPath:                     defaultBackendHealthCheckPath,
-		HealthCheckIntervalMillis:           defaultBackendHealthCheckIntervalMillis,
-		HealthCheckTimeoutMillis:            defaultBackendHealthCheckTimeoutMillis,
-		HealthCheckHealthyThreshold:         defaultBackendHealthCheckHealthyThreshold,
-		HealthCheckUnhealthyThreshold:       defaultBackendHealthCheckUnhealthyThreshold,
-		HealthCheckExpectedStatusMin:        defaultBackendHealthCheckExpectedStatusMin,
-		HealthCheckExpectedStatusMax:        defaultBackendHealthCheckExpectedStatusMax,
-		Enabled:                             1,
-	})
-	if err != nil {
-		return publicDBError(err)
-	}
-
-	for idx, header := range []publicBackendHeaderInput{
-		{Name: "Content-Type", Value: defaultWelcomeContentType},
-		{Name: "X-Content-Type-Options", Value: "nosniff"},
-		{Name: "Cache-Control", Value: defaultWelcomeCacheControl},
-	} {
-		if _, err := a.DB.CreatePublicBackendHeader(ctx, db.CreatePublicBackendHeaderParams{
-			BackendID: backend.ID,
-			Position:  int64(idx),
-			Name:      header.Name,
-			Value:     header.Value,
-		}); err != nil {
-			return publicDBError(err)
-		}
-	}
 
 	httpListener, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
-		Name:             "public-http",
-		BindAddress:      "",
-		Port:             defaultPublicHTTPPort,
-		Protocol:         publicListenerProtocolHTTP,
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "public-http",
+		BindAddress: "",
+		Port:        defaultPublicHTTPPort,
+		Protocol:    publicListenerProtocolHTTP,
+		Enabled:     1,
 	})
 	if err != nil {
 		return publicDBError(err)
 	}
 
 	httpsListener, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
-		Name:             "public-https",
-		BindAddress:      "",
-		Port:             443,
-		Protocol:         publicListenerProtocolHTTPS,
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "public-https",
+		BindAddress: "",
+		Port:        443,
+		Protocol:    publicListenerProtocolHTTPS,
+		Enabled:     1,
 	})
 	if err != nil {
 		return publicDBError(err)
@@ -1450,9 +1247,6 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 			Priority:                   defaultPublicRoutePriority,
 			HostPattern:                "",
 			PathPrefix:                 "/",
-			BackendID:                  sql.NullInt64{Int64: backend.ID, Valid: true},
-			LoadBalancing:              publicBackendLoadBalancingRoundRobin,
-			FallbackBackendID:          sql.NullInt64{},
 			TargetLoadBalancing:        publicBackendLoadBalancingRoundRobin,
 			IsDefault:                  1,
 			Action:                     publicRouteActionForward,
@@ -1514,15 +1308,6 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 				return publicDBError(err)
 			}
 		}
-		if _, err := a.DB.CreatePublicRouteBackend(ctx, db.CreatePublicRouteBackendParams{
-			RouteID:   route.ID,
-			BackendID: backend.ID,
-			Position:  0,
-			Weight:    100,
-			Enabled:   1,
-		}); err != nil {
-			return publicDBError(err)
-		}
 	}
 
 	certPEM, keyPEM, err := generateManagedSelfSignedCertificatePEM()
@@ -1543,7 +1328,6 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
 	snap := &publicProxySnapshot{
-		Backends:            make(map[int64]publicBackendConfig),
 		RouteTargets:        make(map[int64]publicRouteTargetConfig),
 		Agents:              make(map[int64]publicAgentConfig),
 		Listeners:           make(map[int64]publicListenerConfig),
@@ -1555,55 +1339,10 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		ResponseTemplates:   publicResponseTemplatesToConfig(rows.ResponseTemplates),
 	}
 
-	headersByBackend := publicBackendHeadersByBackend(rows.BackendHeaders)
-	upstreamHeadersByBackend := publicBackendUpstreamHeadersByBackend(rows.BackendUpstreamHeaders)
-	agentsByBackend := publicBackendAgentsByBackend(rows.BackendAgents)
 	routeTargetsByRoute := make(map[int64][]publicRouteTargetConfig)
 	targetUpstreamHeadersByTarget := publicRouteTargetUpstreamHeadersByTarget(rows.RouteTargetUpstreamHeaders)
 	targetResponseHeadersByTarget := publicRouteTargetResponseHeadersByTarget(rows.RouteTargetResponseHeaders)
 	agentLabelsByAgent := publicAgentLabelsByAgent(rows.AgentLabels)
-	for _, backend := range rows.Backends {
-		backendType := normalizePublicBackendType(backend.BackendType)
-		forwardMode := normalizePublicBackendForwardMode(backend.ForwardMode)
-		loadBalancing := normalizePublicBackendLoadBalancing(backend.LoadBalancing)
-		var parsed *url.URL
-		if backendType == publicBackendTypeProxyForward {
-			var err error
-			parsed, err = parsePublicTargetOrigin(backend.TargetOrigin)
-			if err != nil {
-				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("backend %q has invalid target origin: %w", backend.Name, err))
-			}
-		}
-		staticResponseBody, err := effectiveGenericResponseBody(backend.StaticResponseBodyMode, backend.StaticResponseTemplateID, backend.StaticResponseBody, snap.ResponseTemplates)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("backend %q has invalid static response template: %w", backend.Name, err))
-		}
-		snap.Backends[backend.ID] = publicBackendConfig{
-			ID:                       backend.ID,
-			Name:                     backend.Name,
-			TargetOrigin:             backend.TargetOrigin,
-			BackendType:              backendType,
-			ForwardMode:              forwardMode,
-			LoadBalancing:            loadBalancing,
-			TLSSkipVerify:            backend.TlsSkipVerify != 0,
-			StaticStatusCode:         int(backend.StaticStatusCode),
-			StaticResponseHeaders:    publicBackendHeaderRowsToConfig(headersByBackend[backend.ID]),
-			StaticResponseBody:       staticResponseBody,
-			StaticResponseBodyMode:   normalizePublicResponseBodyMode(backend.StaticResponseBodyMode),
-			StaticResponseTemplateID: nullInt64Value(backend.StaticResponseTemplateID),
-			UpstreamRequestHeaders:   publicBackendUpstreamHeaderRowsToConfig(upstreamHeadersByBackend[backend.ID]),
-			UpstreamBasicAuth: publicBackendBasicAuthConfig{
-				Enabled:  backend.UpstreamBasicAuthEnabled != 0,
-				Username: backend.UpstreamBasicAuthUsername,
-				Password: backend.UpstreamBasicAuthPassword,
-			},
-			UpstreamResponseHeaderTimeout: time.Duration(normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(backend.UpstreamResponseHeaderTimeoutMillis)) * time.Millisecond,
-			Enabled:                       backend.Enabled != 0,
-			ParsedOrigin:                  parsed,
-			AgentAssignments:              publicBackendAgentRowsToConfig(agentsByBackend[backend.ID]),
-			HealthCheck:                   publicBackendHealthCheckRowToConfig(backend),
-		}
-	}
 	for _, agent := range rows.Agents {
 		snap.Agents[agent.ID] = publicAgentConfig{
 			ID:       agent.ID,
@@ -1666,13 +1405,12 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 	}
 	for _, listener := range rows.Listeners {
 		snap.Listeners[listener.ID] = publicListenerConfig{
-			ID:               listener.ID,
-			Name:             listener.Name,
-			BindAddress:      listener.BindAddress,
-			Port:             listener.Port,
-			Protocol:         listener.Protocol,
-			Enabled:          listener.Enabled != 0,
-			DefaultBackendID: listener.DefaultBackendID,
+			ID:          listener.ID,
+			Name:        listener.Name,
+			BindAddress: listener.BindAddress,
+			Port:        listener.Port,
+			Protocol:    listener.Protocol,
+			Enabled:     listener.Enabled != 0,
 		}
 	}
 	for routeID, targets := range routeTargetsByRoute {
@@ -1688,14 +1426,6 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		routeTargetsByRoute[routeID] = targets
 	}
 	for _, route := range rows.Routes {
-		backendID := int64(0)
-		if route.BackendID.Valid {
-			backendID = route.BackendID.Int64
-		}
-		fallbackBackendID := int64(0)
-		if route.FallbackBackendID.Valid {
-			fallbackBackendID = route.FallbackBackendID.Int64
-		}
 		snap.RoutesByListener[route.ListenerID] = append(snap.RoutesByListener[route.ListenerID], publicRouteConfig{
 			ID:                         route.ID,
 			ListenerID:                 route.ListenerID,
@@ -1705,9 +1435,6 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			TargetLoadBalancing:        normalizePublicBackendLoadBalancing(route.TargetLoadBalancing),
 			IsDefault:                  route.IsDefault != 0,
 			Targets:                    routeTargetsByRoute[route.ID],
-			BackendID:                  backendID,
-			LoadBalancing:              normalizePublicBackendLoadBalancing(route.LoadBalancing),
-			FallbackBackendID:          fallbackBackendID,
 			Action:                     normalizePublicRouteAction(route.Action),
 			RedirectTargetMode:         normalizePublicRouteRedirectTargetMode(route.RedirectTargetMode),
 			RedirectTarget:             route.RedirectTarget,
@@ -1926,59 +1653,6 @@ func normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(timeoutMillis int
 	return timeoutMillis
 }
 
-func (a *App) validatePublicRouteBackendAssignments(
-	ctx context.Context,
-	legacyBackendID int64,
-	assignments []*p2pstreamv1.PublicRouteBackend,
-) ([]publicRouteBackendInput, error) {
-	if len(assignments) == 0 && legacyBackendID > 0 {
-		assignments = []*p2pstreamv1.PublicRouteBackend{{
-			BackendId: legacyBackendID,
-			Position:  0,
-			Weight:    100,
-			Enabled:   true,
-		}}
-	}
-	if len(assignments) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("forwarding route requires at least one backend assignment"))
-	}
-	seenBackends := make(map[int64]struct{}, len(assignments))
-	resp := make([]publicRouteBackendInput, 0, len(assignments))
-	for idx, assignment := range assignments {
-		if assignment == nil {
-			continue
-		}
-		backendID := assignment.BackendId
-		if backendID <= 0 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route backend assignment requires a backend id"))
-		}
-		if _, ok := seenBackends[backendID]; ok {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route backend assignments must not include the same backend twice"))
-		}
-		seenBackends[backendID] = struct{}{}
-		if _, err := a.DB.GetPublicBackend(ctx, backendID); err != nil {
-			return nil, publicDBError(err)
-		}
-		weight := assignment.Weight
-		if weight == 0 {
-			weight = 100
-		}
-		if weight < 1 || weight > 1000 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route backend assignment weight must be between 1 and 1000"))
-		}
-		resp = append(resp, publicRouteBackendInput{
-			BackendID: backendID,
-			Position:  int64(idx),
-			Weight:    weight,
-			Enabled:   boolInt(assignment.Enabled),
-		})
-	}
-	if len(resp) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("forwarding route requires at least one backend assignment"))
-	}
-	return resp, nil
-}
-
 func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstreamv1.PublicRouteTarget) ([]publicRouteTargetMutationInput, error) {
 	if len(targets) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("forwarding route requires at least one target"))
@@ -2056,11 +1730,11 @@ func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstre
 			} else {
 				params.AgentSelectorJson = "{}"
 			}
-			upstreamHeaders, err = a.validatePublicBackendUpstreamHeaders(ctx, 0, target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled)
+			upstreamHeaders, err = validatePublicBackendUpstreamHeaders(target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled)
 			if err != nil {
 				return nil, err
 			}
-			authEnabled, authUsername, authPassword, err := a.validatePublicBackendBasicAuth(ctx, 0, target.UpstreamBasicAuth)
+			authEnabled, authUsername, authPassword, err := validatePublicBackendBasicAuth(target.UpstreamBasicAuth)
 			if err != nil {
 				return nil, err
 			}
@@ -2143,13 +1817,11 @@ func validatePublicAgentSelector(selector *p2pstreamv1.PublicAgentSelector) (str
 }
 
 func (a *App) validatePublicListenerInput(
-	ctx context.Context,
 	name string,
 	bindAddress string,
 	port int64,
 	protocol p2pstreamv1.PublicListenerProtocol,
 	enabled bool,
-	defaultBackendID int64,
 	allowPortZero bool,
 ) (db.UpdatePublicListenerParams, error) {
 	name, err := normalizePublicName(name)
@@ -2169,20 +1841,12 @@ func (a *App) validatePublicListenerInput(
 	if err != nil {
 		return db.UpdatePublicListenerParams{}, err
 	}
-	backend, err := a.DB.GetPublicBackend(ctx, defaultBackendID)
-	if err != nil {
-		return db.UpdatePublicListenerParams{}, publicDBError(err)
-	}
-	if enabled && backend.Enabled == 0 {
-		return db.UpdatePublicListenerParams{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("enabled listener requires an enabled default backend"))
-	}
 	return db.UpdatePublicListenerParams{
-		Name:             name,
-		BindAddress:      bindAddress,
-		Port:             port,
-		Protocol:         protocolString,
-		Enabled:          boolInt(enabled),
-		DefaultBackendID: defaultBackendID,
+		Name:        name,
+		BindAddress: bindAddress,
+		Port:        port,
+		Protocol:    protocolString,
+		Enabled:     boolInt(enabled),
 	}, nil
 }
 
@@ -2262,9 +1926,6 @@ func (a *App) validatePublicRouteInput(
 		Priority:                   priority,
 		HostPattern:                hostPattern,
 		PathPrefix:                 pathPrefix,
-		BackendID:                  sql.NullInt64{},
-		LoadBalancing:              targetLoadBalancingString,
-		FallbackBackendID:          sql.NullInt64{},
 		TargetLoadBalancing:        targetLoadBalancingString,
 		IsDefault:                  boolInt(isDefault),
 		Action:                     actionString,
@@ -2686,23 +2347,10 @@ func validatePublicStaticHeaders(headers []*p2pstreamv1.PublicHeader) ([]publicB
 	return resp, nil
 }
 
-func (a *App) validatePublicBackendUpstreamHeaders(
-	ctx context.Context,
-	backendID int64,
+func validatePublicBackendUpstreamHeaders(
 	headers []*p2pstreamv1.PublicBackendUpstreamHeader,
 	basicAuthEnabled bool,
 ) ([]publicBackendUpstreamHeaderInput, error) {
-	existingHeaders := map[int64]db.PublicBackendUpstreamHeader{}
-	if backendID > 0 {
-		rows, err := a.DB.ListPublicBackendUpstreamHeadersByBackend(ctx, backendID)
-		if err != nil {
-			return nil, publicDBError(err)
-		}
-		for _, row := range rows {
-			existingHeaders[row.ID] = row
-		}
-	}
-
 	resp := make([]publicBackendUpstreamHeaderInput, 0, len(headers))
 	seen := make(map[string]struct{}, len(headers))
 	for _, header := range headers {
@@ -2731,11 +2379,7 @@ func (a *App) validatePublicBackendUpstreamHeaders(
 		sensitive := header.Sensitive || isForcedSensitiveUpstreamHeader(name)
 		value := header.Value
 		if sensitive && !header.ValueSet {
-			existing, ok := existingHeaders[header.Id]
-			if !ok || existing.BackendID != backendID || existing.Sensitive == 0 {
-				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sensitive upstream request header %q requires a value", name))
-			}
-			value = existing.Value
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sensitive upstream request header %q requires a value", name))
 		}
 		if err := validateUpstreamHeaderValue(name, value); err != nil {
 			return nil, err
@@ -2750,11 +2394,7 @@ func (a *App) validatePublicBackendUpstreamHeaders(
 	return resp, nil
 }
 
-func (a *App) validatePublicBackendBasicAuth(
-	ctx context.Context,
-	backendID int64,
-	auth *p2pstreamv1.PublicBackendBasicAuth,
-) (int64, string, string, error) {
+func validatePublicBackendBasicAuth(auth *p2pstreamv1.PublicBackendBasicAuth) (int64, string, string, error) {
 	if auth == nil || !auth.Enabled {
 		return 0, "", "", nil
 	}
@@ -2770,20 +2410,7 @@ func (a *App) validatePublicBackendBasicAuth(
 	}
 
 	password := auth.Password
-	if auth.PasswordSet {
-		if password == "" {
-			return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password is required"))
-		}
-	} else if backendID > 0 {
-		existing, err := a.DB.GetPublicBackend(ctx, backendID)
-		if err != nil {
-			return 0, "", "", publicDBError(err)
-		}
-		if existing.UpstreamBasicAuthEnabled == 0 || existing.UpstreamBasicAuthPassword == "" {
-			return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password is required"))
-		}
-		password = existing.UpstreamBasicAuthPassword
-	} else {
+	if !auth.PasswordSet || password == "" {
 		return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password is required"))
 	}
 	if strings.ContainsAny(password, "\r\n") || !utf8.ValidString(password) {
@@ -3410,135 +3037,6 @@ func publicDBError(err error) error {
 	return connect.NewError(connect.CodeInternal, err)
 }
 
-func publicBackendToProto(backend db.PublicBackend, headers []db.PublicBackendHeader, upstreamHeaders []db.PublicBackendUpstreamHeader, agents []db.PublicBackendAgent, agentEnabled map[int64]bool, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicBackend {
-	var healthSnapshot *publicBackendHealthSnapshot
-	if monitor != nil {
-		healthSnapshot = monitor.snapshot(publicBackendHealthDBAdapter{id: backend.ID, enabled: backend.Enabled != 0})
-	}
-	return &p2pstreamv1.PublicBackend{
-		Id:                                  backend.ID,
-		Name:                                backend.Name,
-		TargetOrigin:                        backend.TargetOrigin,
-		Enabled:                             backend.Enabled != 0,
-		CreatedAtUnixMillis:                 backend.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis:                 backend.UpdatedAt.UnixMilli(),
-		BackendType:                         protoBackendTypeFromString(backend.BackendType),
-		ForwardMode:                         protoForwardModeFromString(backend.ForwardMode),
-		LoadBalancing:                       protoLoadBalancingFromString(backend.LoadBalancing),
-		TlsSkipVerify:                       backend.TlsSkipVerify != 0,
-		StaticStatusCode:                    backend.StaticStatusCode,
-		StaticResponseHeaders:               publicBackendHeaderRowsToProto(headers),
-		StaticResponseBody:                  backend.StaticResponseBody,
-		StaticResponseBodyMode:              protoPublicResponseBodyMode(backend.StaticResponseBodyMode),
-		StaticResponseTemplateId:            nullInt64Value(backend.StaticResponseTemplateID),
-		AgentAssignments:                    publicBackendAgentsToProto(agents, agentEnabled, monitor),
-		UpstreamRequestHeaders:              publicBackendUpstreamHeaderRowsToProto(upstreamHeaders),
-		UpstreamBasicAuth:                   publicBackendBasicAuthToProto(backend),
-		HealthCheck:                         publicBackendHealthCheckToProto(backend, healthSnapshot),
-		UpstreamResponseHeaderTimeoutMillis: normalizePublicBackendUpstreamResponseHeaderTimeoutMillis(backend.UpstreamResponseHeaderTimeoutMillis),
-	}
-}
-
-func publicBackendHealthCheckToProto(backend db.PublicBackend, status *publicBackendHealthSnapshot) *p2pstreamv1.PublicBackendHealthCheck {
-	resp := &p2pstreamv1.PublicBackendHealthCheck{
-		Enabled:            backend.HealthCheckEnabled != 0,
-		Method:             backend.HealthCheckMethod,
-		Path:               backend.HealthCheckPath,
-		IntervalMillis:     backend.HealthCheckIntervalMillis,
-		TimeoutMillis:      backend.HealthCheckTimeoutMillis,
-		HealthyThreshold:   backend.HealthCheckHealthyThreshold,
-		UnhealthyThreshold: backend.HealthCheckUnhealthyThreshold,
-		ExpectedStatusMin:  backend.HealthCheckExpectedStatusMin,
-		ExpectedStatusMax:  backend.HealthCheckExpectedStatusMax,
-		Status:             p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN,
-	}
-	if backend.Enabled == 0 {
-		resp.Status = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED
-	}
-	if status != nil {
-		resp.Status = status.Status
-		resp.LastCheckedAtUnixMillis = status.LastCheckedAtUnixMillis
-		resp.LastError = status.LastError
-		resp.PassiveUnhealthyUntilUnixMillis = status.PassiveUnhealthyUntilUnixMillis
-	}
-	if !resp.Enabled && backend.Enabled != 0 && status == nil {
-		resp.Status = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN
-	}
-	return resp
-}
-
-func publicBackendsToProto(backends []db.PublicBackend, headers []db.PublicBackendHeader, upstreamHeaders []db.PublicBackendUpstreamHeader, agents []db.PublicBackendAgent, allAgents []db.Agent, monitor *publicBackendHealthMonitor) []*p2pstreamv1.PublicBackend {
-	headersByBackend := publicBackendHeadersByBackend(headers)
-	upstreamHeadersByBackend := publicBackendUpstreamHeadersByBackend(upstreamHeaders)
-	agentsByBackend := publicBackendAgentsByBackend(agents)
-	agentEnabled := publicAgentEnabledByID(allAgents)
-	resp := make([]*p2pstreamv1.PublicBackend, 0, len(backends))
-	for _, backend := range backends {
-		resp = append(resp, publicBackendToProto(backend, headersByBackend[backend.ID], upstreamHeadersByBackend[backend.ID], agentsByBackend[backend.ID], agentEnabled, monitor))
-	}
-	return resp
-}
-
-func publicBackendHeadersByBackend(headers []db.PublicBackendHeader) map[int64][]db.PublicBackendHeader {
-	resp := make(map[int64][]db.PublicBackendHeader)
-	for _, header := range headers {
-		resp[header.BackendID] = append(resp[header.BackendID], header)
-	}
-	return resp
-}
-
-func publicBackendHeaderRowsToProto(headers []db.PublicBackendHeader) []*p2pstreamv1.PublicHeader {
-	resp := make([]*p2pstreamv1.PublicHeader, 0, len(headers))
-	for _, header := range headers {
-		resp = append(resp, &p2pstreamv1.PublicHeader{Name: header.Name, Value: header.Value})
-	}
-	return resp
-}
-
-func publicBackendHeaderRowsToConfig(headers []db.PublicBackendHeader) []publicResponseHeader {
-	resp := make([]publicResponseHeader, 0, len(headers))
-	for _, header := range headers {
-		resp = append(resp, publicResponseHeader{Name: header.Name, Value: header.Value})
-	}
-	return resp
-}
-
-func publicBackendUpstreamHeadersByBackend(headers []db.PublicBackendUpstreamHeader) map[int64][]db.PublicBackendUpstreamHeader {
-	resp := make(map[int64][]db.PublicBackendUpstreamHeader)
-	for _, header := range headers {
-		resp[header.BackendID] = append(resp[header.BackendID], header)
-	}
-	return resp
-}
-
-func publicBackendUpstreamHeaderRowsToProto(headers []db.PublicBackendUpstreamHeader) []*p2pstreamv1.PublicBackendUpstreamHeader {
-	resp := make([]*p2pstreamv1.PublicBackendUpstreamHeader, 0, len(headers))
-	for _, header := range headers {
-		value := header.Value
-		if header.Sensitive != 0 {
-			value = ""
-		}
-		resp = append(resp, &p2pstreamv1.PublicBackendUpstreamHeader{
-			Id:        header.ID,
-			BackendId: header.BackendID,
-			Name:      header.Name,
-			Value:     value,
-			Sensitive: header.Sensitive != 0,
-			ValueSet:  true,
-			Position:  header.Position,
-		})
-	}
-	return resp
-}
-
-func publicBackendUpstreamHeaderRowsToConfig(headers []db.PublicBackendUpstreamHeader) []publicRequestHeader {
-	resp := make([]publicRequestHeader, 0, len(headers))
-	for _, header := range headers {
-		resp = append(resp, publicRequestHeader{Name: header.Name, Value: header.Value, Sensitive: header.Sensitive != 0})
-	}
-	return resp
-}
-
 func publicRouteTargetUpstreamHeadersToConfig(headers []db.PublicRouteTargetUpstreamHeader) []publicRequestHeader {
 	resp := make([]publicRequestHeader, 0, len(headers))
 	for _, header := range headers {
@@ -3553,40 +3051,6 @@ func publicRouteTargetResponseHeadersToConfig(headers []db.PublicRouteTargetResp
 		resp = append(resp, publicResponseHeader{Name: header.Name, Value: header.Value})
 	}
 	return resp
-}
-
-func publicBackendBasicAuthToProto(backend db.PublicBackend) *p2pstreamv1.PublicBackendBasicAuth {
-	if backend.UpstreamBasicAuthEnabled == 0 {
-		return &p2pstreamv1.PublicBackendBasicAuth{}
-	}
-	return &p2pstreamv1.PublicBackendBasicAuth{
-		Enabled:     true,
-		Username:    backend.UpstreamBasicAuthUsername,
-		Password:    "",
-		PasswordSet: backend.UpstreamBasicAuthPassword != "",
-	}
-}
-
-func publicBackendAgentsByBackend(agents []db.PublicBackendAgent) map[int64][]db.PublicBackendAgent {
-	resp := make(map[int64][]db.PublicBackendAgent)
-	for _, agent := range agents {
-		resp[agent.BackendID] = append(resp[agent.BackendID], agent)
-	}
-	return resp
-}
-
-func publicBackendHealthCheckRowToConfig(backend db.PublicBackend) publicBackendHealthCheckConfig {
-	return publicBackendHealthCheckConfig{
-		Enabled:            backend.HealthCheckEnabled != 0,
-		Method:             backend.HealthCheckMethod,
-		Path:               backend.HealthCheckPath,
-		Interval:           time.Duration(backend.HealthCheckIntervalMillis) * time.Millisecond,
-		Timeout:            time.Duration(backend.HealthCheckTimeoutMillis) * time.Millisecond,
-		HealthyThreshold:   backend.HealthCheckHealthyThreshold,
-		UnhealthyThreshold: backend.HealthCheckUnhealthyThreshold,
-		ExpectedStatusMin:  backend.HealthCheckExpectedStatusMin,
-		ExpectedStatusMax:  backend.HealthCheckExpectedStatusMax,
-	}
 }
 
 func publicRouteTargetHealthCheckRowToConfig(target db.PublicRouteTarget) publicBackendHealthCheckConfig {
@@ -3618,73 +3082,6 @@ func publicAgentEnabledByID(agents []db.Agent) map[int64]bool {
 	resp := make(map[int64]bool, len(agents))
 	for _, agent := range agents {
 		resp[agent.ID] = agent.Enabled != 0
-	}
-	return resp
-}
-
-func publicBackendAgentsToProto(agents []db.PublicBackendAgent, agentEnabled map[int64]bool, monitor *publicBackendHealthMonitor) []*p2pstreamv1.PublicBackendAgent {
-	resp := make([]*p2pstreamv1.PublicBackendAgent, 0, len(agents))
-	for _, agent := range agents {
-		enabled := agent.Enabled != 0
-		configEnabled, ok := agentEnabled[agent.AgentID]
-		if agentEnabled == nil {
-			configEnabled = true
-		} else if !ok {
-			configEnabled = false
-		}
-		resp = append(resp, &p2pstreamv1.PublicBackendAgent{
-			BackendId: agent.BackendID,
-			AgentId:   agent.AgentID,
-			Position:  agent.Position,
-			Weight:    agent.Weight,
-			Enabled:   enabled,
-			Health:    publicBackendAgentHealthToProto(agent.BackendID, agent.AgentID, enabled, configEnabled, monitor),
-		})
-	}
-	return resp
-}
-
-func publicBackendAgentHealthToProto(backendID int64, agentID int64, assignmentEnabled bool, agentEnabled bool, monitor *publicBackendHealthMonitor) *p2pstreamv1.PublicBackendAgentHealth {
-	var snapshot *publicBackendAgentHealthSnapshot
-	if monitor != nil {
-		snapshot = monitor.agentSnapshot(backendID, agentID, assignmentEnabled, agentEnabled)
-	}
-	if snapshot == nil {
-		status := p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN
-		if !assignmentEnabled || !agentEnabled {
-			status = p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_DISABLED
-		}
-		snapshot = &publicBackendAgentHealthSnapshot{Status: status}
-	}
-	return &p2pstreamv1.PublicBackendAgentHealth{
-		Status:                          snapshot.Status,
-		Connected:                       snapshot.Connected,
-		Available:                       snapshot.Available,
-		LastCheckedAtUnixMillis:         snapshot.LastCheckedAtUnixMillis,
-		LastError:                       snapshot.LastError,
-		PassiveUnhealthyUntilUnixMillis: snapshot.PassiveUnhealthyUntilUnixMillis,
-		ActiveRequests:                  snapshot.ActiveRequests,
-	}
-}
-
-func publicRouteBackendsByRoute(backends []db.PublicRouteBackend) map[int64][]db.PublicRouteBackend {
-	resp := make(map[int64][]db.PublicRouteBackend)
-	for _, backend := range backends {
-		resp[backend.RouteID] = append(resp[backend.RouteID], backend)
-	}
-	return resp
-}
-
-func publicRouteBackendsToProto(backends []db.PublicRouteBackend) []*p2pstreamv1.PublicRouteBackend {
-	resp := make([]*p2pstreamv1.PublicRouteBackend, 0, len(backends))
-	for _, backend := range backends {
-		resp = append(resp, &p2pstreamv1.PublicRouteBackend{
-			RouteId:   backend.RouteID,
-			BackendId: backend.BackendID,
-			Position:  backend.Position,
-			Weight:    backend.Weight,
-			Enabled:   backend.Enabled != 0,
-		})
 	}
 	return resp
 }
@@ -3914,34 +3311,6 @@ func publicAgentSelectorConfigFromJSON(payload string) (publicAgentSelectorConfi
 		return publicAgentSelectorConfig{}, err
 	}
 	return publicAgentSelectorConfig{MatchLabels: cloneStringMap(decoded.MatchLabels)}, nil
-}
-
-func publicRouteBackendRowsToConfig(backends []db.PublicRouteBackend) []publicRouteBackendConfig {
-	resp := make([]publicRouteBackendConfig, 0, len(backends))
-	for _, backend := range backends {
-		resp = append(resp, publicRouteBackendConfig{
-			RouteID:   backend.RouteID,
-			BackendID: backend.BackendID,
-			Position:  backend.Position,
-			Weight:    backend.Weight,
-			Enabled:   backend.Enabled != 0,
-		})
-	}
-	return resp
-}
-
-func publicBackendAgentRowsToConfig(agents []db.PublicBackendAgent) []publicBackendAgentConfig {
-	resp := make([]publicBackendAgentConfig, 0, len(agents))
-	for _, agent := range agents {
-		resp = append(resp, publicBackendAgentConfig{
-			BackendID: agent.BackendID,
-			AgentID:   agent.AgentID,
-			Position:  agent.Position,
-			Weight:    agent.Weight,
-			Enabled:   agent.Enabled != 0,
-		})
-	}
-	return resp
 }
 
 func (a *App) publicAgentsToProto(ctx context.Context, agents []db.Agent, useDBFallback bool) []*p2pstreamv1.Agent {

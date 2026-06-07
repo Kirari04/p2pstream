@@ -113,8 +113,8 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 	trafficSince := now.Add(-dashboardTrafficBucketWindow)
 
 	var topListeners []*p2pstreamv1.DashboardProxyDimensionSummary
-	var topBackends []*p2pstreamv1.DashboardProxyDimensionSummary
 	var topRoutes []*p2pstreamv1.DashboardProxyDimensionSummary
+	var topRouteTargets []*p2pstreamv1.DashboardProxyDimensionSummary
 	var topAgents []*p2pstreamv1.DashboardProxyDimensionSummary
 	var topErrorKinds []*p2pstreamv1.DashboardProxyDimensionSummary
 	var statusClasses []*p2pstreamv1.DashboardProxyDimensionSummary
@@ -127,11 +127,11 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		topBackendRows, err := a.DB.ListTopProxyBackendsRollupsSince(ctx, topSinceUnixMillis)
+		topRouteRows, err := a.DB.ListTopProxyRoutesRollupsSince(ctx, topSinceUnixMillis)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		topRouteRows, err := a.DB.ListTopProxyRoutesRollupsSince(ctx, topSinceUnixMillis)
+		topRouteTargetRows, err := a.DB.ListTopProxyRouteTargetsRollupsSince(ctx, topSinceUnixMillis)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -155,8 +155,8 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		topListeners = dashboardRollupListenerSummaries(topListenerRows)
-		topBackends = dashboardRollupBackendSummaries(topBackendRows)
 		topRoutes = dashboardRollupRouteSummaries(topRouteRows)
+		topRouteTargets = dashboardRollupRouteTargetSummaries(topRouteTargetRows)
 		topAgents = dashboardRollupAgentSummaries(topAgentRows)
 		topErrorKinds = dashboardRollupErrorKindSummaries(topErrorRows)
 		statusClasses = dashboardRollupStatusClassSummaries(statusClassRows)
@@ -166,11 +166,11 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		topBackendRows, err := a.DB.ListTopProxyBackendsSince(ctx, topSince)
+		topRouteRows, err := a.DB.ListTopProxyRoutesSince(ctx, topSince)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		topRouteRows, err := a.DB.ListTopProxyRoutesSince(ctx, topSince)
+		topRouteTargetRows, err := a.DB.ListTopProxyRouteTargetsSince(ctx, topSince)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
@@ -194,8 +194,8 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		topListeners = dashboardListenerSummaries(topListenerRows)
-		topBackends = dashboardBackendSummaries(topBackendRows)
 		topRoutes = dashboardRouteSummaries(topRouteRows)
+		topRouteTargets = dashboardRouteTargetSummaries(topRouteTargetRows)
 		topAgents = dashboardAgentSummaries(topAgentRows)
 		topErrorKinds = dashboardErrorKindSummaries(topErrorRows)
 		statusClasses = dashboardStatusClassSummaries(statusClassRows)
@@ -209,8 +209,8 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 		RetentionDays:          int64(a.observabilityRetentionDays()),
 		GeneratedAtUnixMillis:  now.UnixMilli(),
 		TopListeners:           topListeners,
-		TopBackends:            topBackends,
 		TopRoutes:              topRoutes,
+		TopRouteTargets:        topRouteTargets,
 		TopAgents:              topAgents,
 		TopErrorKinds:          topErrorKinds,
 		StatusClasses:          statusClasses,
@@ -537,11 +537,11 @@ func dashboardListenerSummaries(rows []db.ListTopProxyListenersSinceRow) []*p2ps
 	return items
 }
 
-func dashboardBackendSummaries(rows []db.ListTopProxyBackendsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+func dashboardRouteSummaries(rows []db.ListTopProxyRoutesSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
 	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_BACKEND,
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE,
 			row.ID,
 			row.Label,
 			row.Requests,
@@ -557,11 +557,11 @@ func dashboardBackendSummaries(rows []db.ListTopProxyBackendsSinceRow) []*p2pstr
 	return items
 }
 
-func dashboardRouteSummaries(rows []db.ListTopProxyRoutesSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+func dashboardRouteTargetSummaries(rows []db.ListTopProxyRouteTargetsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
 	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE,
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE_TARGET,
 			row.ID,
 			row.Label,
 			row.Requests,
@@ -657,11 +657,11 @@ func dashboardRollupListenerSummaries(rows []db.ListTopProxyListenersRollupsSinc
 	return items
 }
 
-func dashboardRollupBackendSummaries(rows []db.ListTopProxyBackendsRollupsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+func dashboardRollupRouteSummaries(rows []db.ListTopProxyRoutesRollupsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
 	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_BACKEND,
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE,
 			row.ID,
 			row.Label,
 			row.Requests,
@@ -677,11 +677,11 @@ func dashboardRollupBackendSummaries(rows []db.ListTopProxyBackendsRollupsSinceR
 	return items
 }
 
-func dashboardRollupRouteSummaries(rows []db.ListTopProxyRoutesRollupsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
+func dashboardRollupRouteTargetSummaries(rows []db.ListTopProxyRouteTargetsRollupsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
 	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE,
+			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE_TARGET,
 			row.ID,
 			row.Label,
 			row.Requests,

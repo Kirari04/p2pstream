@@ -148,71 +148,6 @@ CREATE TABLE IF NOT EXISTS public_response_templates (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS public_backends (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    target_origin TEXT NOT NULL,
-    backend_type TEXT NOT NULL DEFAULT 'proxy_forward',
-    forward_mode TEXT NOT NULL DEFAULT 'direct',
-    load_balancing TEXT NOT NULL DEFAULT 'round_robin',
-    tls_skip_verify INTEGER NOT NULL DEFAULT 0,
-    static_status_code INTEGER NOT NULL DEFAULT 200,
-    static_response_body TEXT NOT NULL DEFAULT '',
-    static_response_body_mode TEXT NOT NULL DEFAULT 'inline',
-    static_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
-    upstream_basic_auth_enabled INTEGER NOT NULL DEFAULT 0,
-    upstream_basic_auth_username TEXT NOT NULL DEFAULT '',
-    upstream_basic_auth_password TEXT NOT NULL DEFAULT '',
-    upstream_response_header_timeout_millis INTEGER NOT NULL DEFAULT 60000,
-    health_check_enabled INTEGER NOT NULL DEFAULT 0,
-    health_check_method TEXT NOT NULL DEFAULT 'GET',
-    health_check_path TEXT NOT NULL DEFAULT '/',
-    health_check_interval_millis INTEGER NOT NULL DEFAULT 10000,
-    health_check_timeout_millis INTEGER NOT NULL DEFAULT 2000,
-    health_check_healthy_threshold INTEGER NOT NULL DEFAULT 2,
-    health_check_unhealthy_threshold INTEGER NOT NULL DEFAULT 2,
-    health_check_expected_status_min INTEGER NOT NULL DEFAULT 200,
-    health_check_expected_status_max INTEGER NOT NULL DEFAULT 399,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS public_backend_headers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    value TEXT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(backend_id, position)
-);
-
-CREATE TABLE IF NOT EXISTS public_backend_upstream_headers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    value TEXT NOT NULL,
-    sensitive INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(backend_id, position)
-);
-
-CREATE TABLE IF NOT EXISTS public_backend_agents (
-    backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-    agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    weight INTEGER NOT NULL DEFAULT 100,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (backend_id, agent_id),
-    UNIQUE(backend_id, position)
-);
-
 CREATE TABLE IF NOT EXISTS public_agent_labels (
     agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     key TEXT NOT NULL,
@@ -230,7 +165,6 @@ CREATE TABLE IF NOT EXISTS public_listeners (
     port INTEGER NOT NULL,
     protocol TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
-    default_backend_id INTEGER NOT NULL REFERENCES public_backends(id),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(bind_address, port)
@@ -242,9 +176,6 @@ CREATE TABLE IF NOT EXISTS public_routes (
     priority INTEGER NOT NULL,
     host_pattern TEXT NOT NULL DEFAULT '',
     path_prefix TEXT NOT NULL DEFAULT '',
-    backend_id INTEGER REFERENCES public_backends(id),
-    load_balancing TEXT NOT NULL DEFAULT 'round_robin',
-    fallback_backend_id INTEGER REFERENCES public_backends(id),
     target_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
     is_default INTEGER NOT NULL DEFAULT 0,
     action TEXT NOT NULL DEFAULT 'forward',
@@ -256,18 +187,6 @@ CREATE TABLE IF NOT EXISTS public_routes (
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS public_route_backends (
-    route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
-    backend_id INTEGER NOT NULL REFERENCES public_backends(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    weight INTEGER NOT NULL DEFAULT 100,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (route_id, backend_id),
-    UNIQUE(route_id, position)
 );
 
 CREATE TABLE IF NOT EXISTS public_route_targets (
@@ -478,7 +397,6 @@ CREATE TABLE IF NOT EXISTS public_cache_rules (
     enabled INTEGER NOT NULL DEFAULT 1,
     match_json TEXT NOT NULL DEFAULT '{}',
     route_ids_json TEXT NOT NULL DEFAULT '[]',
-    backend_ids_json TEXT NOT NULL DEFAULT '[]',
     target_ids_json TEXT NOT NULL DEFAULT '[]',
     scope TEXT NOT NULL DEFAULT 'selected_backend',
     ttl_mode TEXT NOT NULL DEFAULT 'fixed',
@@ -503,7 +421,6 @@ CREATE TABLE IF NOT EXISTS public_cache_entries (
     path TEXT NOT NULL,
     query_key TEXT NOT NULL,
     route_id INTEGER,
-    backend_id INTEGER,
     route_target_id INTEGER,
     method TEXT NOT NULL DEFAULT 'GET',
     vary_headers_json TEXT NOT NULL DEFAULT '[]',
@@ -598,26 +515,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener
 ON public_routes (listener_id)
 WHERE is_default = 1;
 
-CREATE INDEX IF NOT EXISTS idx_public_backend_headers_backend_position
-ON public_backend_headers (backend_id, position);
-
-CREATE INDEX IF NOT EXISTS idx_public_backend_upstream_headers_backend_position
-ON public_backend_upstream_headers (backend_id, position);
-
-CREATE INDEX IF NOT EXISTS idx_public_backend_agents_backend_position
-ON public_backend_agents (backend_id, position);
-
-CREATE INDEX IF NOT EXISTS idx_public_backend_agents_agent_id
-ON public_backend_agents (agent_id);
-
 CREATE INDEX IF NOT EXISTS idx_public_agent_labels_key_value
 ON public_agent_labels (key, value);
-
-CREATE INDEX IF NOT EXISTS idx_public_route_backends_route_position
-ON public_route_backends (route_id, position);
-
-CREATE INDEX IF NOT EXISTS idx_public_route_backends_backend_id
-ON public_route_backends (backend_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_route_targets_route_position
 ON public_route_targets (route_id, position);
@@ -630,9 +529,6 @@ ON public_route_target_upstream_headers (target_id, position);
 
 CREATE INDEX IF NOT EXISTS idx_public_route_target_response_headers_target_position
 ON public_route_target_response_headers (target_id, position);
-
-CREATE INDEX IF NOT EXISTS idx_public_backends_static_response_template_id
-ON public_backends (static_response_template_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_tls_certificates_listener_id
 ON public_tls_certificates (listener_id);

@@ -227,71 +227,6 @@ func (q *Queries) CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql
 	return err
 }
 
-const countEnabledAgentPoolBackendsWhereAgentIsLast = `-- name: CountEnabledAgentPoolBackendsWhereAgentIsLast :one
-SELECT COUNT(*)
-FROM public_backend_agents pba
-JOIN public_backends pb ON pb.id = pba.backend_id
-WHERE pba.agent_id = ?
-  AND pba.enabled = 1
-  AND pb.enabled = 1
-  AND pb.backend_type = 'proxy_forward'
-  AND pb.forward_mode = 'agent_pool'
-  AND NOT EXISTS (
-    SELECT 1
-    FROM public_backend_agents other
-    JOIN agents a ON a.id = other.agent_id
-    WHERE other.backend_id = pba.backend_id
-      AND other.agent_id != pba.agent_id
-      AND other.enabled = 1
-      AND a.enabled = 1
-  )
-`
-
-func (q *Queries) CountEnabledAgentPoolBackendsWhereAgentIsLast(ctx context.Context, agentID int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countEnabledAgentPoolBackendsWhereAgentIsLast, agentID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countPublicBackendEnabledReferences = `-- name: CountPublicBackendEnabledReferences :one
-SELECT
-  (
-    SELECT COUNT(*)
-    FROM public_listeners
-    WHERE default_backend_id = ?1 AND enabled = 1
-  ) + (
-    SELECT COUNT(*)
-    FROM public_routes
-    WHERE (backend_id = ?1 OR fallback_backend_id = ?1) AND enabled = 1
-  ) + (
-    SELECT COUNT(*)
-    FROM public_route_backends prb
-    JOIN public_routes pr ON pr.id = prb.route_id
-    WHERE prb.backend_id = ?1
-      AND prb.enabled = 1
-      AND pr.enabled = 1
-  ) AS references_count
-`
-
-func (q *Queries) CountPublicBackendEnabledReferences(ctx context.Context, backendID int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countPublicBackendEnabledReferences, backendID)
-	var references_count int64
-	err := row.Scan(&references_count)
-	return references_count, err
-}
-
-const countPublicBackends = `-- name: CountPublicBackends :one
-SELECT COUNT(*) FROM public_backends
-`
-
-func (q *Queries) CountPublicBackends(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countPublicBackends)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const countPublicListeners = `-- name: CountPublicListeners :one
 SELECT COUNT(*) FROM public_listeners
 `
@@ -440,229 +375,6 @@ func (q *Queries) CreateManagementAccessToken(ctx context.Context, arg CreateMan
 	return i, err
 }
 
-const createPublicBackend = `-- name: CreatePublicBackend :one
-INSERT INTO public_backends (
-    name,
-    target_origin,
-    backend_type,
-    forward_mode,
-    load_balancing,
-    tls_skip_verify,
-    static_status_code,
-    static_response_body,
-    static_response_body_mode,
-    static_response_template_id,
-    upstream_basic_auth_enabled,
-    upstream_basic_auth_username,
-    upstream_basic_auth_password,
-    upstream_response_header_timeout_millis,
-    health_check_enabled,
-    health_check_method,
-    health_check_path,
-    health_check_interval_millis,
-    health_check_timeout_millis,
-    health_check_healthy_threshold,
-    health_check_unhealthy_threshold,
-    health_check_expected_status_min,
-    health_check_expected_status_max,
-    enabled
-) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-)
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
-`
-
-type CreatePublicBackendParams struct {
-	Name                                string        `json:"name"`
-	TargetOrigin                        string        `json:"target_origin"`
-	BackendType                         string        `json:"backend_type"`
-	ForwardMode                         string        `json:"forward_mode"`
-	LoadBalancing                       string        `json:"load_balancing"`
-	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
-	StaticStatusCode                    int64         `json:"static_status_code"`
-	StaticResponseBody                  string        `json:"static_response_body"`
-	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
-	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
-	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
-	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
-	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
-	HealthCheckMethod                   string        `json:"health_check_method"`
-	HealthCheckPath                     string        `json:"health_check_path"`
-	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
-	Enabled                             int64         `json:"enabled"`
-}
-
-func (q *Queries) CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error) {
-	row := q.db.QueryRowContext(ctx, createPublicBackend,
-		arg.Name,
-		arg.TargetOrigin,
-		arg.BackendType,
-		arg.ForwardMode,
-		arg.LoadBalancing,
-		arg.TlsSkipVerify,
-		arg.StaticStatusCode,
-		arg.StaticResponseBody,
-		arg.StaticResponseBodyMode,
-		arg.StaticResponseTemplateID,
-		arg.UpstreamBasicAuthEnabled,
-		arg.UpstreamBasicAuthUsername,
-		arg.UpstreamBasicAuthPassword,
-		arg.UpstreamResponseHeaderTimeoutMillis,
-		arg.HealthCheckEnabled,
-		arg.HealthCheckMethod,
-		arg.HealthCheckPath,
-		arg.HealthCheckIntervalMillis,
-		arg.HealthCheckTimeoutMillis,
-		arg.HealthCheckHealthyThreshold,
-		arg.HealthCheckUnhealthyThreshold,
-		arg.HealthCheckExpectedStatusMin,
-		arg.HealthCheckExpectedStatusMax,
-		arg.Enabled,
-	)
-	var i PublicBackend
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.TargetOrigin,
-		&i.BackendType,
-		&i.ForwardMode,
-		&i.LoadBalancing,
-		&i.TlsSkipVerify,
-		&i.StaticStatusCode,
-		&i.StaticResponseBody,
-		&i.StaticResponseBodyMode,
-		&i.StaticResponseTemplateID,
-		&i.UpstreamBasicAuthEnabled,
-		&i.UpstreamBasicAuthUsername,
-		&i.UpstreamBasicAuthPassword,
-		&i.UpstreamResponseHeaderTimeoutMillis,
-		&i.HealthCheckEnabled,
-		&i.HealthCheckMethod,
-		&i.HealthCheckPath,
-		&i.HealthCheckIntervalMillis,
-		&i.HealthCheckTimeoutMillis,
-		&i.HealthCheckHealthyThreshold,
-		&i.HealthCheckUnhealthyThreshold,
-		&i.HealthCheckExpectedStatusMin,
-		&i.HealthCheckExpectedStatusMax,
-		&i.Enabled,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createPublicBackendAgent = `-- name: CreatePublicBackendAgent :one
-INSERT INTO public_backend_agents (backend_id, agent_id, position, weight, enabled)
-VALUES (?, ?, ?, ?, ?)
-RETURNING backend_id, agent_id, position, weight, enabled, created_at, updated_at
-`
-
-type CreatePublicBackendAgentParams struct {
-	BackendID int64 `json:"backend_id"`
-	AgentID   int64 `json:"agent_id"`
-	Position  int64 `json:"position"`
-	Weight    int64 `json:"weight"`
-	Enabled   int64 `json:"enabled"`
-}
-
-func (q *Queries) CreatePublicBackendAgent(ctx context.Context, arg CreatePublicBackendAgentParams) (PublicBackendAgent, error) {
-	row := q.db.QueryRowContext(ctx, createPublicBackendAgent,
-		arg.BackendID,
-		arg.AgentID,
-		arg.Position,
-		arg.Weight,
-		arg.Enabled,
-	)
-	var i PublicBackendAgent
-	err := row.Scan(
-		&i.BackendID,
-		&i.AgentID,
-		&i.Position,
-		&i.Weight,
-		&i.Enabled,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createPublicBackendHeader = `-- name: CreatePublicBackendHeader :one
-INSERT INTO public_backend_headers (backend_id, position, name, value)
-VALUES (?, ?, ?, ?)
-RETURNING id, backend_id, position, name, value, created_at, updated_at
-`
-
-type CreatePublicBackendHeaderParams struct {
-	BackendID int64  `json:"backend_id"`
-	Position  int64  `json:"position"`
-	Name      string `json:"name"`
-	Value     string `json:"value"`
-}
-
-func (q *Queries) CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error) {
-	row := q.db.QueryRowContext(ctx, createPublicBackendHeader,
-		arg.BackendID,
-		arg.Position,
-		arg.Name,
-		arg.Value,
-	)
-	var i PublicBackendHeader
-	err := row.Scan(
-		&i.ID,
-		&i.BackendID,
-		&i.Position,
-		&i.Name,
-		&i.Value,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createPublicBackendUpstreamHeader = `-- name: CreatePublicBackendUpstreamHeader :one
-INSERT INTO public_backend_upstream_headers (backend_id, position, name, value, sensitive)
-VALUES (?, ?, ?, ?, ?)
-RETURNING id, backend_id, position, name, value, sensitive, created_at, updated_at
-`
-
-type CreatePublicBackendUpstreamHeaderParams struct {
-	BackendID int64  `json:"backend_id"`
-	Position  int64  `json:"position"`
-	Name      string `json:"name"`
-	Value     string `json:"value"`
-	Sensitive int64  `json:"sensitive"`
-}
-
-func (q *Queries) CreatePublicBackendUpstreamHeader(ctx context.Context, arg CreatePublicBackendUpstreamHeaderParams) (PublicBackendUpstreamHeader, error) {
-	row := q.db.QueryRowContext(ctx, createPublicBackendUpstreamHeader,
-		arg.BackendID,
-		arg.Position,
-		arg.Name,
-		arg.Value,
-		arg.Sensitive,
-	)
-	var i PublicBackendUpstreamHeader
-	err := row.Scan(
-		&i.ID,
-		&i.BackendID,
-		&i.Position,
-		&i.Name,
-		&i.Value,
-		&i.Sensitive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const createPublicCacheRule = `-- name: CreatePublicCacheRule :one
 INSERT INTO public_cache_rules (
     name,
@@ -670,7 +382,6 @@ INSERT INTO public_cache_rules (
     enabled,
     match_json,
     route_ids_json,
-    backend_ids_json,
     target_ids_json,
     scope,
     ttl_mode,
@@ -683,9 +394,9 @@ INSERT INTO public_cache_rules (
     add_cache_status_header,
     allow_cookie_requests
  ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
+RETURNING id, name, priority, enabled, match_json, route_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
           add_cache_status_header, allow_cookie_requests, created_at, updated_at
 `
@@ -696,7 +407,6 @@ type CreatePublicCacheRuleParams struct {
 	Enabled              int64  `json:"enabled"`
 	MatchJson            string `json:"match_json"`
 	RouteIdsJson         string `json:"route_ids_json"`
-	BackendIdsJson       string `json:"backend_ids_json"`
 	TargetIdsJson        string `json:"target_ids_json"`
 	Scope                string `json:"scope"`
 	TtlMode              string `json:"ttl_mode"`
@@ -717,7 +427,6 @@ func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCac
 		arg.Enabled,
 		arg.MatchJson,
 		arg.RouteIdsJson,
-		arg.BackendIdsJson,
 		arg.TargetIdsJson,
 		arg.Scope,
 		arg.TtlMode,
@@ -738,7 +447,6 @@ func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCac
 		&i.Enabled,
 		&i.MatchJson,
 		&i.RouteIdsJson,
-		&i.BackendIdsJson,
 		&i.TargetIdsJson,
 		&i.Scope,
 		&i.TtlMode,
@@ -757,18 +465,17 @@ func (q *Queries) CreatePublicCacheRule(ctx context.Context, arg CreatePublicCac
 }
 
 const createPublicListener = `-- name: CreatePublicListener :one
-INSERT INTO public_listeners (name, bind_address, port, protocol, enabled, default_backend_id)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+INSERT INTO public_listeners (name, bind_address, port, protocol, enabled)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, bind_address, port, protocol, enabled, created_at, updated_at
 `
 
 type CreatePublicListenerParams struct {
-	Name             string `json:"name"`
-	BindAddress      string `json:"bind_address"`
-	Port             int64  `json:"port"`
-	Protocol         string `json:"protocol"`
-	Enabled          int64  `json:"enabled"`
-	DefaultBackendID int64  `json:"default_backend_id"`
+	Name        string `json:"name"`
+	BindAddress string `json:"bind_address"`
+	Port        int64  `json:"port"`
+	Protocol    string `json:"protocol"`
+	Enabled     int64  `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error) {
@@ -778,7 +485,6 @@ func (q *Queries) CreatePublicListener(ctx context.Context, arg CreatePublicList
 		arg.Port,
 		arg.Protocol,
 		arg.Enabled,
-		arg.DefaultBackendID,
 	)
 	var i PublicListener
 	err := row.Scan(
@@ -788,7 +494,6 @@ func (q *Queries) CreatePublicListener(ctx context.Context, arg CreatePublicList
 		&i.Port,
 		&i.Protocol,
 		&i.Enabled,
-		&i.DefaultBackendID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -927,9 +632,6 @@ INSERT INTO public_routes (
     priority,
     host_pattern,
     path_prefix,
-    backend_id,
-    load_balancing,
-    fallback_backend_id,
     target_load_balancing,
     is_default,
     action,
@@ -940,27 +642,24 @@ INSERT INTO public_routes (
     redirect_preserve_query,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type CreatePublicRouteParams struct {
-	ListenerID                 int64         `json:"listener_id"`
-	Priority                   int64         `json:"priority"`
-	HostPattern                string        `json:"host_pattern"`
-	PathPrefix                 string        `json:"path_prefix"`
-	BackendID                  sql.NullInt64 `json:"backend_id"`
-	LoadBalancing              string        `json:"load_balancing"`
-	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
-	TargetLoadBalancing        string        `json:"target_load_balancing"`
-	IsDefault                  int64         `json:"is_default"`
-	Action                     string        `json:"action"`
-	RedirectTargetMode         string        `json:"redirect_target_mode"`
-	RedirectTarget             string        `json:"redirect_target"`
-	RedirectStatusCode         int64         `json:"redirect_status_code"`
-	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
-	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
-	Enabled                    int64         `json:"enabled"`
+	ListenerID                 int64  `json:"listener_id"`
+	Priority                   int64  `json:"priority"`
+	HostPattern                string `json:"host_pattern"`
+	PathPrefix                 string `json:"path_prefix"`
+	TargetLoadBalancing        string `json:"target_load_balancing"`
+	IsDefault                  int64  `json:"is_default"`
+	Action                     string `json:"action"`
+	RedirectTargetMode         string `json:"redirect_target_mode"`
+	RedirectTarget             string `json:"redirect_target"`
+	RedirectStatusCode         int64  `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64  `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64  `json:"redirect_preserve_query"`
+	Enabled                    int64  `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error) {
@@ -969,9 +668,6 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		arg.Priority,
 		arg.HostPattern,
 		arg.PathPrefix,
-		arg.BackendID,
-		arg.LoadBalancing,
-		arg.FallbackBackendID,
 		arg.TargetLoadBalancing,
 		arg.IsDefault,
 		arg.Action,
@@ -989,9 +685,6 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.Priority,
 		&i.HostPattern,
 		&i.PathPrefix,
-		&i.BackendID,
-		&i.LoadBalancing,
-		&i.FallbackBackendID,
 		&i.TargetLoadBalancing,
 		&i.IsDefault,
 		&i.Action,
@@ -1000,41 +693,6 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.RedirectStatusCode,
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
-		&i.Enabled,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createPublicRouteBackend = `-- name: CreatePublicRouteBackend :one
-INSERT INTO public_route_backends (route_id, backend_id, position, weight, enabled)
-VALUES (?, ?, ?, ?, ?)
-RETURNING route_id, backend_id, position, weight, enabled, created_at, updated_at
-`
-
-type CreatePublicRouteBackendParams struct {
-	RouteID   int64 `json:"route_id"`
-	BackendID int64 `json:"backend_id"`
-	Position  int64 `json:"position"`
-	Weight    int64 `json:"weight"`
-	Enabled   int64 `json:"enabled"`
-}
-
-func (q *Queries) CreatePublicRouteBackend(ctx context.Context, arg CreatePublicRouteBackendParams) (PublicRouteBackend, error) {
-	row := q.db.QueryRowContext(ctx, createPublicRouteBackend,
-		arg.RouteID,
-		arg.BackendID,
-		arg.Position,
-		arg.Weight,
-		arg.Enabled,
-	)
-	var i PublicRouteBackend
-	err := row.Scan(
-		&i.RouteID,
-		&i.BackendID,
-		&i.Position,
-		&i.Weight,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1893,46 +1551,6 @@ func (q *Queries) DeleteProxyRequestTupleRollupsBefore(ctx context.Context, buck
 	return err
 }
 
-const deletePublicBackend = `-- name: DeletePublicBackend :exec
-DELETE FROM public_backends
-WHERE id = ?
-`
-
-func (q *Queries) DeletePublicBackend(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deletePublicBackend, id)
-	return err
-}
-
-const deletePublicBackendAgents = `-- name: DeletePublicBackendAgents :exec
-DELETE FROM public_backend_agents
-WHERE backend_id = ?
-`
-
-func (q *Queries) DeletePublicBackendAgents(ctx context.Context, backendID int64) error {
-	_, err := q.db.ExecContext(ctx, deletePublicBackendAgents, backendID)
-	return err
-}
-
-const deletePublicBackendHeaders = `-- name: DeletePublicBackendHeaders :exec
-DELETE FROM public_backend_headers
-WHERE backend_id = ?
-`
-
-func (q *Queries) DeletePublicBackendHeaders(ctx context.Context, backendID int64) error {
-	_, err := q.db.ExecContext(ctx, deletePublicBackendHeaders, backendID)
-	return err
-}
-
-const deletePublicBackendUpstreamHeaders = `-- name: DeletePublicBackendUpstreamHeaders :exec
-DELETE FROM public_backend_upstream_headers
-WHERE backend_id = ?
-`
-
-func (q *Queries) DeletePublicBackendUpstreamHeaders(ctx context.Context, backendID int64) error {
-	_, err := q.db.ExecContext(ctx, deletePublicBackendUpstreamHeaders, backendID)
-	return err
-}
-
 const deletePublicCacheEntry = `-- name: DeletePublicCacheEntry :exec
 DELETE FROM public_cache_entries
 WHERE key_digest = ?
@@ -1990,16 +1608,6 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicRoute(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicRoute, id)
-	return err
-}
-
-const deletePublicRouteBackends = `-- name: DeletePublicRouteBackends :exec
-DELETE FROM public_route_backends
-WHERE route_id = ?
-`
-
-func (q *Queries) DeletePublicRouteBackends(ctx context.Context, routeID int64) error {
-	_, err := q.db.ExecContext(ctx, deletePublicRouteBackends, routeID)
 	return err
 }
 
@@ -2686,49 +2294,8 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 	return i, err
 }
 
-const getPublicBackend = `-- name: GetPublicBackend :one
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
-FROM public_backends
-WHERE id = ?
-`
-
-func (q *Queries) GetPublicBackend(ctx context.Context, id int64) (PublicBackend, error) {
-	row := q.db.QueryRowContext(ctx, getPublicBackend, id)
-	var i PublicBackend
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.TargetOrigin,
-		&i.BackendType,
-		&i.ForwardMode,
-		&i.LoadBalancing,
-		&i.TlsSkipVerify,
-		&i.StaticStatusCode,
-		&i.StaticResponseBody,
-		&i.StaticResponseBodyMode,
-		&i.StaticResponseTemplateID,
-		&i.UpstreamBasicAuthEnabled,
-		&i.UpstreamBasicAuthUsername,
-		&i.UpstreamBasicAuthPassword,
-		&i.UpstreamResponseHeaderTimeoutMillis,
-		&i.HealthCheckEnabled,
-		&i.HealthCheckMethod,
-		&i.HealthCheckPath,
-		&i.HealthCheckIntervalMillis,
-		&i.HealthCheckTimeoutMillis,
-		&i.HealthCheckHealthyThreshold,
-		&i.HealthCheckUnhealthyThreshold,
-		&i.HealthCheckExpectedStatusMin,
-		&i.HealthCheckExpectedStatusMax,
-		&i.Enabled,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getPublicCacheEntry = `-- name: GetPublicCacheEntry :one
-SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, route_target_id, method,
        vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
        last_accessed_at, hit_count
 FROM public_cache_entries
@@ -2747,7 +2314,6 @@ func (q *Queries) GetPublicCacheEntry(ctx context.Context, keyDigest string) (Pu
 		&i.Path,
 		&i.QueryKey,
 		&i.RouteID,
-		&i.BackendID,
 		&i.RouteTargetID,
 		&i.Method,
 		&i.VaryHeadersJson,
@@ -2764,7 +2330,7 @@ func (q *Queries) GetPublicCacheEntry(ctx context.Context, keyDigest string) (Pu
 }
 
 const getPublicCacheRule = `-- name: GetPublicCacheRule :one
-SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
+SELECT id, name, priority, enabled, match_json, route_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
        add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
@@ -2781,7 +2347,6 @@ func (q *Queries) GetPublicCacheRule(ctx context.Context, id int64) (PublicCache
 		&i.Enabled,
 		&i.MatchJson,
 		&i.RouteIdsJson,
-		&i.BackendIdsJson,
 		&i.TargetIdsJson,
 		&i.Scope,
 		&i.TtlMode,
@@ -2823,7 +2388,7 @@ func (q *Queries) GetPublicCacheSettings(ctx context.Context) (PublicCacheSettin
 }
 
 const getPublicListener = `-- name: GetPublicListener :one
-SELECT id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+SELECT id, name, bind_address, port, protocol, enabled, created_at, updated_at
 FROM public_listeners
 WHERE id = ?
 `
@@ -2838,7 +2403,6 @@ func (q *Queries) GetPublicListener(ctx context.Context, id int64) (PublicListen
 		&i.Port,
 		&i.Protocol,
 		&i.Enabled,
-		&i.DefaultBackendID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -2922,7 +2486,7 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 }
 
 const getPublicRoute = `-- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?
 `
@@ -2936,9 +2500,6 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.Priority,
 		&i.HostPattern,
 		&i.PathPrefix,
-		&i.BackendID,
-		&i.LoadBalancing,
-		&i.FallbackBackendID,
 		&i.TargetLoadBalancing,
 		&i.IsDefault,
 		&i.Action,
@@ -4196,290 +3757,6 @@ func (q *Queries) ListProxyTrafficBucketsSince(ctx context.Context, arg ListProx
 	return items, nil
 }
 
-const listPublicBackendAgents = `-- name: ListPublicBackendAgents :many
-SELECT backend_id, agent_id, position, weight, enabled, created_at, updated_at
-FROM public_backend_agents
-ORDER BY backend_id ASC, position ASC, agent_id ASC
-`
-
-func (q *Queries) ListPublicBackendAgents(ctx context.Context) ([]PublicBackendAgent, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicBackendAgents)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicBackendAgent
-	for rows.Next() {
-		var i PublicBackendAgent
-		if err := rows.Scan(
-			&i.BackendID,
-			&i.AgentID,
-			&i.Position,
-			&i.Weight,
-			&i.Enabled,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicBackendAgentsByBackend = `-- name: ListPublicBackendAgentsByBackend :many
-SELECT backend_id, agent_id, position, weight, enabled, created_at, updated_at
-FROM public_backend_agents
-WHERE backend_id = ?
-ORDER BY position ASC, agent_id ASC
-`
-
-func (q *Queries) ListPublicBackendAgentsByBackend(ctx context.Context, backendID int64) ([]PublicBackendAgent, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicBackendAgentsByBackend, backendID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicBackendAgent
-	for rows.Next() {
-		var i PublicBackendAgent
-		if err := rows.Scan(
-			&i.BackendID,
-			&i.AgentID,
-			&i.Position,
-			&i.Weight,
-			&i.Enabled,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicBackendHeaders = `-- name: ListPublicBackendHeaders :many
-SELECT id, backend_id, position, name, value, created_at, updated_at
-FROM public_backend_headers
-ORDER BY backend_id ASC, position ASC, id ASC
-`
-
-func (q *Queries) ListPublicBackendHeaders(ctx context.Context) ([]PublicBackendHeader, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicBackendHeaders)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicBackendHeader
-	for rows.Next() {
-		var i PublicBackendHeader
-		if err := rows.Scan(
-			&i.ID,
-			&i.BackendID,
-			&i.Position,
-			&i.Name,
-			&i.Value,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicBackendHeadersByBackend = `-- name: ListPublicBackendHeadersByBackend :many
-SELECT id, backend_id, position, name, value, created_at, updated_at
-FROM public_backend_headers
-WHERE backend_id = ?
-ORDER BY position ASC, id ASC
-`
-
-func (q *Queries) ListPublicBackendHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendHeader, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicBackendHeadersByBackend, backendID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicBackendHeader
-	for rows.Next() {
-		var i PublicBackendHeader
-		if err := rows.Scan(
-			&i.ID,
-			&i.BackendID,
-			&i.Position,
-			&i.Name,
-			&i.Value,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicBackendUpstreamHeaders = `-- name: ListPublicBackendUpstreamHeaders :many
-SELECT id, backend_id, position, name, value, sensitive, created_at, updated_at
-FROM public_backend_upstream_headers
-ORDER BY backend_id ASC, position ASC, id ASC
-`
-
-func (q *Queries) ListPublicBackendUpstreamHeaders(ctx context.Context) ([]PublicBackendUpstreamHeader, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicBackendUpstreamHeaders)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicBackendUpstreamHeader
-	for rows.Next() {
-		var i PublicBackendUpstreamHeader
-		if err := rows.Scan(
-			&i.ID,
-			&i.BackendID,
-			&i.Position,
-			&i.Name,
-			&i.Value,
-			&i.Sensitive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicBackendUpstreamHeadersByBackend = `-- name: ListPublicBackendUpstreamHeadersByBackend :many
-SELECT id, backend_id, position, name, value, sensitive, created_at, updated_at
-FROM public_backend_upstream_headers
-WHERE backend_id = ?
-ORDER BY position ASC, id ASC
-`
-
-func (q *Queries) ListPublicBackendUpstreamHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendUpstreamHeader, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicBackendUpstreamHeadersByBackend, backendID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicBackendUpstreamHeader
-	for rows.Next() {
-		var i PublicBackendUpstreamHeader
-		if err := rows.Scan(
-			&i.ID,
-			&i.BackendID,
-			&i.Position,
-			&i.Name,
-			&i.Value,
-			&i.Sensitive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicBackends = `-- name: ListPublicBackends :many
-SELECT id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
-FROM public_backends
-ORDER BY name ASC, id ASC
-`
-
-func (q *Queries) ListPublicBackends(ctx context.Context) ([]PublicBackend, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicBackends)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicBackend
-	for rows.Next() {
-		var i PublicBackend
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.TargetOrigin,
-			&i.BackendType,
-			&i.ForwardMode,
-			&i.LoadBalancing,
-			&i.TlsSkipVerify,
-			&i.StaticStatusCode,
-			&i.StaticResponseBody,
-			&i.StaticResponseBodyMode,
-			&i.StaticResponseTemplateID,
-			&i.UpstreamBasicAuthEnabled,
-			&i.UpstreamBasicAuthUsername,
-			&i.UpstreamBasicAuthPassword,
-			&i.UpstreamResponseHeaderTimeoutMillis,
-			&i.HealthCheckEnabled,
-			&i.HealthCheckMethod,
-			&i.HealthCheckPath,
-			&i.HealthCheckIntervalMillis,
-			&i.HealthCheckTimeoutMillis,
-			&i.HealthCheckHealthyThreshold,
-			&i.HealthCheckUnhealthyThreshold,
-			&i.HealthCheckExpectedStatusMin,
-			&i.HealthCheckExpectedStatusMax,
-			&i.Enabled,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listPublicCacheEntriesForCleanup = `-- name: ListPublicCacheEntriesForCleanup :many
 SELECT key_digest, body_path, size_bytes
 FROM public_cache_entries
@@ -4517,7 +3794,7 @@ func (q *Queries) ListPublicCacheEntriesForCleanup(ctx context.Context, limit in
 }
 
 const listPublicCacheEntryCandidates = `-- name: ListPublicCacheEntryCandidates :many
-SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
+SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, route_target_id, method,
        vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
        last_accessed_at, hit_count
 FROM public_cache_entries
@@ -4527,7 +3804,6 @@ WHERE rule_id = ?
   AND path = ?
   AND query_key = ?
   AND COALESCE(route_id, 0) = ?
-  AND COALESCE(backend_id, 0) = ?
   AND COALESCE(route_target_id, 0) = ?
   AND expires_at > ?
 ORDER BY stored_at DESC
@@ -4541,7 +3817,6 @@ type ListPublicCacheEntryCandidatesParams struct {
 	Path             string        `json:"path"`
 	QueryKey         string        `json:"query_key"`
 	RouteID          sql.NullInt64 `json:"route_id"`
-	BackendID        sql.NullInt64 `json:"backend_id"`
 	RouteTargetID    sql.NullInt64 `json:"route_target_id"`
 	ExpiresAt        time.Time     `json:"expires_at"`
 }
@@ -4554,7 +3829,6 @@ func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPu
 		arg.Path,
 		arg.QueryKey,
 		arg.RouteID,
-		arg.BackendID,
 		arg.RouteTargetID,
 		arg.ExpiresAt,
 	)
@@ -4574,7 +3848,6 @@ func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPu
 			&i.Path,
 			&i.QueryKey,
 			&i.RouteID,
-			&i.BackendID,
 			&i.RouteTargetID,
 			&i.Method,
 			&i.VaryHeadersJson,
@@ -4601,7 +3874,7 @@ func (q *Queries) ListPublicCacheEntryCandidates(ctx context.Context, arg ListPu
 }
 
 const listPublicCacheRules = `-- name: ListPublicCacheRules :many
-SELECT id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
+SELECT id, name, priority, enabled, match_json, route_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
        query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
        add_cache_status_header, allow_cookie_requests, created_at, updated_at
 FROM public_cache_rules
@@ -4624,7 +3897,6 @@ func (q *Queries) ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, 
 			&i.Enabled,
 			&i.MatchJson,
 			&i.RouteIdsJson,
-			&i.BackendIdsJson,
 			&i.TargetIdsJson,
 			&i.Scope,
 			&i.TtlMode,
@@ -4653,7 +3925,7 @@ func (q *Queries) ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, 
 }
 
 const listPublicListeners = `-- name: ListPublicListeners :many
-SELECT id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+SELECT id, name, bind_address, port, protocol, enabled, created_at, updated_at
 FROM public_listeners
 ORDER BY port ASC, bind_address ASC, id ASC
 `
@@ -4674,7 +3946,6 @@ func (q *Queries) ListPublicListeners(ctx context.Context) ([]PublicListener, er
 			&i.Port,
 			&i.Protocol,
 			&i.Enabled,
-			&i.DefaultBackendID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -4761,81 +4032,6 @@ func (q *Queries) ListPublicResponseTemplates(ctx context.Context) ([]PublicResp
 			&i.Description,
 			&i.ContentType,
 			&i.Body,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicRouteBackends = `-- name: ListPublicRouteBackends :many
-SELECT route_id, backend_id, position, weight, enabled, created_at, updated_at
-FROM public_route_backends
-ORDER BY route_id ASC, position ASC, backend_id ASC
-`
-
-func (q *Queries) ListPublicRouteBackends(ctx context.Context) ([]PublicRouteBackend, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicRouteBackends)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicRouteBackend
-	for rows.Next() {
-		var i PublicRouteBackend
-		if err := rows.Scan(
-			&i.RouteID,
-			&i.BackendID,
-			&i.Position,
-			&i.Weight,
-			&i.Enabled,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPublicRouteBackendsByRoute = `-- name: ListPublicRouteBackendsByRoute :many
-SELECT route_id, backend_id, position, weight, enabled, created_at, updated_at
-FROM public_route_backends
-WHERE route_id = ?
-ORDER BY position ASC, backend_id ASC
-`
-
-func (q *Queries) ListPublicRouteBackendsByRoute(ctx context.Context, routeID int64) ([]PublicRouteBackend, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicRouteBackendsByRoute, routeID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PublicRouteBackend
-	for rows.Next() {
-		var i PublicRouteBackend
-		if err := rows.Scan(
-			&i.RouteID,
-			&i.BackendID,
-			&i.Position,
-			&i.Weight,
-			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -5142,7 +4338,7 @@ func (q *Queries) ListPublicRouteTargetsByRoute(ctx context.Context, routeID int
 }
 
 const listPublicRoutes = `-- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC
 `
@@ -5162,9 +4358,6 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 			&i.Priority,
 			&i.HostPattern,
 			&i.PathPrefix,
-			&i.BackendID,
-			&i.LoadBalancing,
-			&i.FallbackBackendID,
 			&i.TargetLoadBalancing,
 			&i.IsDefault,
 			&i.Action,
@@ -5622,140 +4815,6 @@ func (q *Queries) ListTopProxyAgentsSince(ctx context.Context, occurredAt time.T
 	return items, nil
 }
 
-const listTopProxyBackendsRollupsSince = `-- name: ListTopProxyBackendsRollupsSince :many
-SELECT
-    r.backend_id AS id,
-    COALESCE(pb.name, CASE WHEN r.backend_id = 0 THEN 'unknown backend' ELSE 'backend #' || r.backend_id END) AS label,
-    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
-    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
-    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
-    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
-    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
-    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
-    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
-    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_tuple_rollup_minutes r
-LEFT JOIN public_backends pb ON pb.id = r.backend_id
-WHERE r.bucket_unix_millis >= ?
-GROUP BY r.backend_id, pb.name
-ORDER BY requests DESC, id ASC
-LIMIT 5
-`
-
-type ListTopProxyBackendsRollupsSinceRow struct {
-	ID            int64  `json:"id"`
-	Label         string `json:"label"`
-	Requests      int64  `json:"requests"`
-	Success       int64  `json:"success"`
-	ClientError   int64  `json:"client_error"`
-	ServerError   int64  `json:"server_error"`
-	InternalError int64  `json:"internal_error"`
-	AvgDurationMs int64  `json:"avg_duration_ms"`
-	RequestBytes  int64  `json:"request_bytes"`
-	ResponseBytes int64  `json:"response_bytes"`
-}
-
-func (q *Queries) ListTopProxyBackendsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyBackendsRollupsSinceRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTopProxyBackendsRollupsSince, bucketUnixMillis)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListTopProxyBackendsRollupsSinceRow
-	for rows.Next() {
-		var i ListTopProxyBackendsRollupsSinceRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Label,
-			&i.Requests,
-			&i.Success,
-			&i.ClientError,
-			&i.ServerError,
-			&i.InternalError,
-			&i.AvgDurationMs,
-			&i.RequestBytes,
-			&i.ResponseBytes,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listTopProxyBackendsSince = `-- name: ListTopProxyBackendsSince :many
-SELECT
-    CAST(COALESCE(pre.backend_id, 0) AS INTEGER) AS id,
-    COALESCE(pb.name, CASE WHEN pre.backend_id IS NULL THEN 'unknown backend' ELSE 'backend #' || pre.backend_id END) AS label,
-    COUNT(*) AS requests,
-    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
-    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
-    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
-    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
-    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
-    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
-    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
-FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
-LEFT JOIN public_backends pb ON pb.id = pre.backend_id
-WHERE pre.occurred_at >= ?
-GROUP BY pre.backend_id, pb.name
-ORDER BY requests DESC, id ASC
-LIMIT 5
-`
-
-type ListTopProxyBackendsSinceRow struct {
-	ID            int64  `json:"id"`
-	Label         string `json:"label"`
-	Requests      int64  `json:"requests"`
-	Success       int64  `json:"success"`
-	ClientError   int64  `json:"client_error"`
-	ServerError   int64  `json:"server_error"`
-	InternalError int64  `json:"internal_error"`
-	AvgDurationMs int64  `json:"avg_duration_ms"`
-	RequestBytes  int64  `json:"request_bytes"`
-	ResponseBytes int64  `json:"response_bytes"`
-}
-
-func (q *Queries) ListTopProxyBackendsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyBackendsSinceRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTopProxyBackendsSince, occurredAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListTopProxyBackendsSinceRow
-	for rows.Next() {
-		var i ListTopProxyBackendsSinceRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Label,
-			&i.Requests,
-			&i.Success,
-			&i.ClientError,
-			&i.ServerError,
-			&i.InternalError,
-			&i.AvgDurationMs,
-			&i.RequestBytes,
-			&i.ResponseBytes,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listTopProxyErrorKindsRollupsSince = `-- name: ListTopProxyErrorKindsRollupsSince :many
 SELECT
     CAST(0 AS INTEGER) AS id,
@@ -5999,6 +5058,140 @@ func (q *Queries) ListTopProxyListenersSince(ctx context.Context, occurredAt tim
 	var items []ListTopProxyListenersSinceRow
 	for rows.Next() {
 		var i ListTopProxyListenersSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopProxyRouteTargetsRollupsSince = `-- name: ListTopProxyRouteTargetsRollupsSince :many
+SELECT
+    r.route_target_id AS id,
+    COALESCE(prt.name, CASE WHEN r.route_target_id = 0 THEN 'unknown target' ELSE 'target #' || r.route_target_id END) AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN public_route_targets prt ON prt.id = r.route_target_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.route_target_id, prt.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyRouteTargetsRollupsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyRouteTargetsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRouteTargetsRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyRouteTargetsRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyRouteTargetsRollupsSinceRow
+	for rows.Next() {
+		var i ListTopProxyRouteTargetsRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Requests,
+			&i.Success,
+			&i.ClientError,
+			&i.ServerError,
+			&i.InternalError,
+			&i.AvgDurationMs,
+			&i.RequestBytes,
+			&i.ResponseBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTopProxyRouteTargetsSince = `-- name: ListTopProxyRouteTargetsSince :many
+SELECT
+    CAST(COALESCE(pre.route_target_id, 0) AS INTEGER) AS id,
+    COALESCE(prt.name, CASE WHEN pre.route_target_id IS NULL THEN 'unknown target' ELSE 'target #' || pre.route_target_id END) AS label,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 200 AND pre.status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 400 AND pre.status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN pre.error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(AVG(pre.duration_ms), 0) AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(pre.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(pre.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
+LEFT JOIN public_route_targets prt ON prt.id = pre.route_target_id
+WHERE pre.occurred_at >= ?
+GROUP BY pre.route_target_id, prt.name
+ORDER BY requests DESC, id ASC
+LIMIT 5
+`
+
+type ListTopProxyRouteTargetsSinceRow struct {
+	ID            int64  `json:"id"`
+	Label         string `json:"label"`
+	Requests      int64  `json:"requests"`
+	Success       int64  `json:"success"`
+	ClientError   int64  `json:"client_error"`
+	ServerError   int64  `json:"server_error"`
+	InternalError int64  `json:"internal_error"`
+	AvgDurationMs int64  `json:"avg_duration_ms"`
+	RequestBytes  int64  `json:"request_bytes"`
+	ResponseBytes int64  `json:"response_bytes"`
+}
+
+func (q *Queries) ListTopProxyRouteTargetsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRouteTargetsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopProxyRouteTargetsSince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTopProxyRouteTargetsSinceRow
+	for rows.Next() {
+		var i ListTopProxyRouteTargetsSinceRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Label,
@@ -6388,7 +5581,7 @@ const setPublicListenerEnabled = `-- name: SetPublicListenerEnabled :one
 UPDATE public_listeners
 SET enabled = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+RETURNING id, name, bind_address, port, protocol, enabled, created_at, updated_at
 `
 
 type SetPublicListenerEnabledParams struct {
@@ -6406,7 +5599,6 @@ func (q *Queries) SetPublicListenerEnabled(ctx context.Context, arg SetPublicLis
 		&i.Port,
 		&i.Protocol,
 		&i.Enabled,
-		&i.DefaultBackendID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -6745,126 +5937,6 @@ func (q *Queries) UpdateEnvironmentObservedCertificate(ctx context.Context, arg 
 	return i, err
 }
 
-const updatePublicBackend = `-- name: UpdatePublicBackend :one
-UPDATE public_backends
-SET name = ?,
-    target_origin = ?,
-    backend_type = ?,
-    forward_mode = ?,
-    load_balancing = ?,
-    tls_skip_verify = ?,
-    static_status_code = ?,
-    static_response_body = ?,
-    static_response_body_mode = ?,
-    static_response_template_id = ?,
-    upstream_basic_auth_enabled = ?,
-    upstream_basic_auth_username = ?,
-    upstream_basic_auth_password = ?,
-    upstream_response_header_timeout_millis = ?,
-    health_check_enabled = ?,
-    health_check_method = ?,
-    health_check_path = ?,
-    health_check_interval_millis = ?,
-    health_check_timeout_millis = ?,
-    health_check_healthy_threshold = ?,
-    health_check_unhealthy_threshold = ?,
-    health_check_expected_status_min = ?,
-    health_check_expected_status_max = ?,
-    enabled = ?,
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = ?
-RETURNING id, name, target_origin, backend_type, forward_mode, load_balancing, tls_skip_verify, static_status_code, static_response_body, static_response_body_mode, static_response_template_id, upstream_basic_auth_enabled, upstream_basic_auth_username, upstream_basic_auth_password, upstream_response_header_timeout_millis, health_check_enabled, health_check_method, health_check_path, health_check_interval_millis, health_check_timeout_millis, health_check_healthy_threshold, health_check_unhealthy_threshold, health_check_expected_status_min, health_check_expected_status_max, enabled, created_at, updated_at
-`
-
-type UpdatePublicBackendParams struct {
-	Name                                string        `json:"name"`
-	TargetOrigin                        string        `json:"target_origin"`
-	BackendType                         string        `json:"backend_type"`
-	ForwardMode                         string        `json:"forward_mode"`
-	LoadBalancing                       string        `json:"load_balancing"`
-	TlsSkipVerify                       int64         `json:"tls_skip_verify"`
-	StaticStatusCode                    int64         `json:"static_status_code"`
-	StaticResponseBody                  string        `json:"static_response_body"`
-	StaticResponseBodyMode              string        `json:"static_response_body_mode"`
-	StaticResponseTemplateID            sql.NullInt64 `json:"static_response_template_id"`
-	UpstreamBasicAuthEnabled            int64         `json:"upstream_basic_auth_enabled"`
-	UpstreamBasicAuthUsername           string        `json:"upstream_basic_auth_username"`
-	UpstreamBasicAuthPassword           string        `json:"upstream_basic_auth_password"`
-	UpstreamResponseHeaderTimeoutMillis int64         `json:"upstream_response_header_timeout_millis"`
-	HealthCheckEnabled                  int64         `json:"health_check_enabled"`
-	HealthCheckMethod                   string        `json:"health_check_method"`
-	HealthCheckPath                     string        `json:"health_check_path"`
-	HealthCheckIntervalMillis           int64         `json:"health_check_interval_millis"`
-	HealthCheckTimeoutMillis            int64         `json:"health_check_timeout_millis"`
-	HealthCheckHealthyThreshold         int64         `json:"health_check_healthy_threshold"`
-	HealthCheckUnhealthyThreshold       int64         `json:"health_check_unhealthy_threshold"`
-	HealthCheckExpectedStatusMin        int64         `json:"health_check_expected_status_min"`
-	HealthCheckExpectedStatusMax        int64         `json:"health_check_expected_status_max"`
-	Enabled                             int64         `json:"enabled"`
-	ID                                  int64         `json:"id"`
-}
-
-func (q *Queries) UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error) {
-	row := q.db.QueryRowContext(ctx, updatePublicBackend,
-		arg.Name,
-		arg.TargetOrigin,
-		arg.BackendType,
-		arg.ForwardMode,
-		arg.LoadBalancing,
-		arg.TlsSkipVerify,
-		arg.StaticStatusCode,
-		arg.StaticResponseBody,
-		arg.StaticResponseBodyMode,
-		arg.StaticResponseTemplateID,
-		arg.UpstreamBasicAuthEnabled,
-		arg.UpstreamBasicAuthUsername,
-		arg.UpstreamBasicAuthPassword,
-		arg.UpstreamResponseHeaderTimeoutMillis,
-		arg.HealthCheckEnabled,
-		arg.HealthCheckMethod,
-		arg.HealthCheckPath,
-		arg.HealthCheckIntervalMillis,
-		arg.HealthCheckTimeoutMillis,
-		arg.HealthCheckHealthyThreshold,
-		arg.HealthCheckUnhealthyThreshold,
-		arg.HealthCheckExpectedStatusMin,
-		arg.HealthCheckExpectedStatusMax,
-		arg.Enabled,
-		arg.ID,
-	)
-	var i PublicBackend
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.TargetOrigin,
-		&i.BackendType,
-		&i.ForwardMode,
-		&i.LoadBalancing,
-		&i.TlsSkipVerify,
-		&i.StaticStatusCode,
-		&i.StaticResponseBody,
-		&i.StaticResponseBodyMode,
-		&i.StaticResponseTemplateID,
-		&i.UpstreamBasicAuthEnabled,
-		&i.UpstreamBasicAuthUsername,
-		&i.UpstreamBasicAuthPassword,
-		&i.UpstreamResponseHeaderTimeoutMillis,
-		&i.HealthCheckEnabled,
-		&i.HealthCheckMethod,
-		&i.HealthCheckPath,
-		&i.HealthCheckIntervalMillis,
-		&i.HealthCheckTimeoutMillis,
-		&i.HealthCheckHealthyThreshold,
-		&i.HealthCheckUnhealthyThreshold,
-		&i.HealthCheckExpectedStatusMin,
-		&i.HealthCheckExpectedStatusMax,
-		&i.Enabled,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const updatePublicCacheRule = `-- name: UpdatePublicCacheRule :one
 UPDATE public_cache_rules
 SET name = ?,
@@ -6872,7 +5944,6 @@ SET name = ?,
     enabled = ?,
     match_json = ?,
     route_ids_json = ?,
-    backend_ids_json = ?,
     target_ids_json = ?,
     scope = ?,
     ttl_mode = ?,
@@ -6886,7 +5957,7 @@ SET name = ?,
     allow_cookie_requests = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, match_json, route_ids_json, backend_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
+RETURNING id, name, priority, enabled, match_json, route_ids_json, target_ids_json, scope, ttl_mode, ttl_millis,
           query_mode, query_params_json, vary_headers_json, cache_status_codes_json, max_object_bytes,
           add_cache_status_header, allow_cookie_requests, created_at, updated_at
 `
@@ -6897,7 +5968,6 @@ type UpdatePublicCacheRuleParams struct {
 	Enabled              int64  `json:"enabled"`
 	MatchJson            string `json:"match_json"`
 	RouteIdsJson         string `json:"route_ids_json"`
-	BackendIdsJson       string `json:"backend_ids_json"`
 	TargetIdsJson        string `json:"target_ids_json"`
 	Scope                string `json:"scope"`
 	TtlMode              string `json:"ttl_mode"`
@@ -6919,7 +5989,6 @@ func (q *Queries) UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCac
 		arg.Enabled,
 		arg.MatchJson,
 		arg.RouteIdsJson,
-		arg.BackendIdsJson,
 		arg.TargetIdsJson,
 		arg.Scope,
 		arg.TtlMode,
@@ -6941,7 +6010,6 @@ func (q *Queries) UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCac
 		&i.Enabled,
 		&i.MatchJson,
 		&i.RouteIdsJson,
-		&i.BackendIdsJson,
 		&i.TargetIdsJson,
 		&i.Scope,
 		&i.TtlMode,
@@ -7011,19 +6079,18 @@ func (q *Queries) UpdatePublicCacheSettings(ctx context.Context, arg UpdatePubli
 
 const updatePublicListener = `-- name: UpdatePublicListener :one
 UPDATE public_listeners
-SET name = ?, bind_address = ?, port = ?, protocol = ?, enabled = ?, default_backend_id = ?, updated_at = CURRENT_TIMESTAMP
+SET name = ?, bind_address = ?, port = ?, protocol = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, bind_address, port, protocol, enabled, default_backend_id, created_at, updated_at
+RETURNING id, name, bind_address, port, protocol, enabled, created_at, updated_at
 `
 
 type UpdatePublicListenerParams struct {
-	Name             string `json:"name"`
-	BindAddress      string `json:"bind_address"`
-	Port             int64  `json:"port"`
-	Protocol         string `json:"protocol"`
-	Enabled          int64  `json:"enabled"`
-	DefaultBackendID int64  `json:"default_backend_id"`
-	ID               int64  `json:"id"`
+	Name        string `json:"name"`
+	BindAddress string `json:"bind_address"`
+	Port        int64  `json:"port"`
+	Protocol    string `json:"protocol"`
+	Enabled     int64  `json:"enabled"`
+	ID          int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error) {
@@ -7033,7 +6100,6 @@ func (q *Queries) UpdatePublicListener(ctx context.Context, arg UpdatePublicList
 		arg.Port,
 		arg.Protocol,
 		arg.Enabled,
-		arg.DefaultBackendID,
 		arg.ID,
 	)
 	var i PublicListener
@@ -7044,7 +6110,6 @@ func (q *Queries) UpdatePublicListener(ctx context.Context, arg UpdatePublicList
 		&i.Port,
 		&i.Protocol,
 		&i.Enabled,
-		&i.DefaultBackendID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -7185,9 +6250,6 @@ SET listener_id = ?,
     priority = ?,
     host_pattern = ?,
     path_prefix = ?,
-    backend_id = ?,
-    load_balancing = ?,
-    fallback_backend_id = ?,
     target_load_balancing = ?,
     is_default = ?,
     action = ?,
@@ -7199,27 +6261,24 @@ SET listener_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, backend_id, load_balancing, fallback_backend_id, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
 `
 
 type UpdatePublicRouteParams struct {
-	ListenerID                 int64         `json:"listener_id"`
-	Priority                   int64         `json:"priority"`
-	HostPattern                string        `json:"host_pattern"`
-	PathPrefix                 string        `json:"path_prefix"`
-	BackendID                  sql.NullInt64 `json:"backend_id"`
-	LoadBalancing              string        `json:"load_balancing"`
-	FallbackBackendID          sql.NullInt64 `json:"fallback_backend_id"`
-	TargetLoadBalancing        string        `json:"target_load_balancing"`
-	IsDefault                  int64         `json:"is_default"`
-	Action                     string        `json:"action"`
-	RedirectTargetMode         string        `json:"redirect_target_mode"`
-	RedirectTarget             string        `json:"redirect_target"`
-	RedirectStatusCode         int64         `json:"redirect_status_code"`
-	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
-	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
-	Enabled                    int64         `json:"enabled"`
-	ID                         int64         `json:"id"`
+	ListenerID                 int64  `json:"listener_id"`
+	Priority                   int64  `json:"priority"`
+	HostPattern                string `json:"host_pattern"`
+	PathPrefix                 string `json:"path_prefix"`
+	TargetLoadBalancing        string `json:"target_load_balancing"`
+	IsDefault                  int64  `json:"is_default"`
+	Action                     string `json:"action"`
+	RedirectTargetMode         string `json:"redirect_target_mode"`
+	RedirectTarget             string `json:"redirect_target"`
+	RedirectStatusCode         int64  `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64  `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64  `json:"redirect_preserve_query"`
+	Enabled                    int64  `json:"enabled"`
+	ID                         int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error) {
@@ -7228,9 +6287,6 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		arg.Priority,
 		arg.HostPattern,
 		arg.PathPrefix,
-		arg.BackendID,
-		arg.LoadBalancing,
-		arg.FallbackBackendID,
 		arg.TargetLoadBalancing,
 		arg.IsDefault,
 		arg.Action,
@@ -7249,9 +6305,6 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.Priority,
 		&i.HostPattern,
 		&i.PathPrefix,
-		&i.BackendID,
-		&i.LoadBalancing,
-		&i.FallbackBackendID,
 		&i.TargetLoadBalancing,
 		&i.IsDefault,
 		&i.Action,
@@ -8229,11 +7282,11 @@ func (q *Queries) UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg U
 
 const upsertPublicCacheEntry = `-- name: UpsertPublicCacheEntry :one
 INSERT INTO public_cache_entries (
-    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
+    key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, route_target_id, method,
     vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
     last_accessed_at, hit_count
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
 )
 ON CONFLICT(key_digest) DO UPDATE SET
     rule_id = excluded.rule_id,
@@ -8243,7 +7296,6 @@ ON CONFLICT(key_digest) DO UPDATE SET
     path = excluded.path,
     query_key = excluded.query_key,
     route_id = excluded.route_id,
-    backend_id = excluded.backend_id,
     route_target_id = excluded.route_target_id,
     method = excluded.method,
     vary_headers_json = excluded.vary_headers_json,
@@ -8255,7 +7307,7 @@ ON CONFLICT(key_digest) DO UPDATE SET
     expires_at = excluded.expires_at,
     last_accessed_at = CURRENT_TIMESTAMP,
     hit_count = 0
-RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, backend_id, route_target_id, method,
+RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, route_target_id, method,
           vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
           last_accessed_at, hit_count
 `
@@ -8269,7 +7321,6 @@ type UpsertPublicCacheEntryParams struct {
 	Path                string        `json:"path"`
 	QueryKey            string        `json:"query_key"`
 	RouteID             sql.NullInt64 `json:"route_id"`
-	BackendID           sql.NullInt64 `json:"backend_id"`
 	RouteTargetID       sql.NullInt64 `json:"route_target_id"`
 	Method              string        `json:"method"`
 	VaryHeadersJson     string        `json:"vary_headers_json"`
@@ -8290,7 +7341,6 @@ func (q *Queries) UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCa
 		arg.Path,
 		arg.QueryKey,
 		arg.RouteID,
-		arg.BackendID,
 		arg.RouteTargetID,
 		arg.Method,
 		arg.VaryHeadersJson,
@@ -8310,7 +7360,6 @@ func (q *Queries) UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCa
 		&i.Path,
 		&i.QueryKey,
 		&i.RouteID,
-		&i.BackendID,
 		&i.RouteTargetID,
 		&i.Method,
 		&i.VaryHeadersJson,

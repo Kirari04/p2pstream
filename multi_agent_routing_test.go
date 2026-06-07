@@ -71,25 +71,12 @@ func TestDirectPublicBackendHonorsTLSSkipVerify(t *testing.T) {
 	defer targetSrv.Close()
 
 	database := newTestDB(t)
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:          "direct-tls",
-		TargetOrigin:  targetSrv.URL,
-		BackendType:   "proxy_forward",
-		ForwardMode:   "direct",
-		LoadBalancing: "round_robin",
-		TlsSkipVerify: 1,
-		Enabled:       1,
-	})
-	if err != nil {
-		t.Fatalf("create backend: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "direct-tls-listener",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "direct-tls-listener",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
@@ -129,19 +116,18 @@ func TestAgentPoolBackendReturns503WhenAssignedAgentOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get bootstrap agent: %v", err)
 	}
-	backend := createAgentPoolBackend(t, database, "offline-backend", "http://127.0.0.1:1", agent.ID, 100)
+	ensureAgentSystemLabelForTest(t, database, agent.ID, agent.PublicID)
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "offline-listener",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "offline-listener",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
 	}
-	createProxyRouteTargetForListener(t, database, listener.ID, "/", "offline-backend", backend.TargetOrigin, "agent", agent.PublicID, false, true)
+	createProxyRouteTargetForListener(t, database, listener.ID, "/", "offline-backend", "http://127.0.0.1:1", "agent", agent.PublicID, false, true)
 
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
@@ -178,22 +164,21 @@ func TestAgentPoolBackendsRouteOnlyToAssignedAgents(t *testing.T) {
 
 	agentA, tokenA := createRegisteredAgent(t, client, cookie, "agent-a", "Agent A")
 	agentB, tokenB := createRegisteredAgent(t, client, cookie, "agent-b", "Agent B")
+	ensureAgentSystemLabelForTest(t, database, agentA.GetId(), agentA.GetPublicId())
+	ensureAgentSystemLabelForTest(t, database, agentB.GetId(), agentB.GetPublicId())
 
-	backendA := createAgentPoolBackend(t, database, "backend-a", targetSrv.URL, agentA.Id, 100)
-	backendB := createAgentPoolBackend(t, database, "backend-b", targetSrv.URL, agentB.Id, 100)
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "multi-listener",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: backendA.ID,
+		Name:        "multi-listener",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("create listener: %v", err)
 	}
-	createProxyRouteTargetForListener(t, database, listener.ID, "/", "backend-a", backendA.TargetOrigin, "agent", agentA.GetPublicId(), false, true)
-	createProxyRouteTargetForListener(t, database, listener.ID, "/b", "backend-b", backendB.TargetOrigin, "agent", agentB.GetPublicId(), false, false)
+	createProxyRouteTargetForListener(t, database, listener.ID, "/", "backend-a", targetSrv.URL, "agent", agentA.GetPublicId(), false, true)
+	createProxyRouteTargetForListener(t, database, listener.ID, "/b", "backend-b", targetSrv.URL, "agent", agentB.GetPublicId(), false, false)
 
 	status, err := app.StartProxyListener(context.Background())
 	if err != nil {
@@ -252,29 +237,16 @@ func createRegisteredAgent(
 	return resp.Msg.GetAgent(), resp.Msg.GetToken()
 }
 
-func createAgentPoolBackend(t *testing.T, database *db.DB, name string, targetOrigin string, agentID int64, weight int64) db.PublicBackend {
+func ensureAgentSystemLabelForTest(t *testing.T, database *db.DB, agentID int64, publicID string) {
 	t.Helper()
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:          name,
-		TargetOrigin:  targetOrigin,
-		BackendType:   "proxy_forward",
-		ForwardMode:   "agent_pool",
-		LoadBalancing: "weighted_round_robin",
-		Enabled:       1,
-	})
-	if err != nil {
-		t.Fatalf("create backend %s: %v", name, err)
-	}
-	if _, err := database.CreatePublicBackendAgent(context.Background(), db.CreatePublicBackendAgentParams{
-		BackendID: backend.ID,
-		AgentID:   agentID,
-		Position:  0,
-		Weight:    weight,
-		Enabled:   1,
+	if _, err := database.UpsertAgentLabel(context.Background(), db.UpsertAgentLabelParams{
+		AgentID: agentID,
+		Key:     "p2pstream.io/agent-id",
+		Value:   publicID,
+		Source:  "system",
 	}); err != nil {
-		t.Fatalf("assign backend %s to agent %d: %v", name, agentID, err)
+		t.Fatalf("upsert system label for agent %d: %v", agentID, err)
 	}
-	return backend
 }
 
 func createProxyRouteTargetForListener(t *testing.T, database *db.DB, listenerID int64, pathPrefix string, name string, targetOrigin string, transport string, agentPublicID string, tlsSkipVerify bool, isDefault bool) db.PublicRouteTarget {

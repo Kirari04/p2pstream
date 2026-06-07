@@ -3,7 +3,6 @@ package main_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -409,24 +408,12 @@ func upstreamConfigEchoServer(t *testing.T, body string) *httptest.Server {
 
 func seedProxyRouteTargetListener(t *testing.T, database *db.DB, name string, targetOrigin string, transport string, agentPublicID string) db.PublicListener {
 	t.Helper()
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:          name + "-legacy",
-		TargetOrigin:  targetOrigin,
-		BackendType:   "proxy_forward",
-		ForwardMode:   "direct",
-		LoadBalancing: "round_robin",
-		Enabled:       1,
-	})
-	if err != nil {
-		t.Fatalf("create legacy backend %s: %v", name, err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             name,
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        name,
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("create listener %s: %v", name, err)
@@ -443,9 +430,6 @@ func createProxyRouteTarget(t *testing.T, database *db.DB, listenerID int64, pri
 		ListenerID:                 listenerID,
 		Priority:                   priority,
 		PathPrefix:                 pathPrefix,
-		BackendID:                  sql.NullInt64{},
-		LoadBalancing:              "round_robin",
-		FallbackBackendID:          sql.NullInt64{},
 		TargetLoadBalancing:        "round_robin",
 		IsDefault:                  routeTargetBoolIntForTest(isDefault),
 		Action:                     "forward",

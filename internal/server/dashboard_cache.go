@@ -250,7 +250,7 @@ func (a *App) buildDashboardCacheSnapshot(ctx context.Context, now time.Time) (*
 		AgentUptimeSummaries:   agentUptimeSummaries,
 		RecentAgentConnections: recentAgentConnections,
 	}
-	resp.TopListeners, resp.TopBackends, resp.TopRoutes, resp.TopAgents, resp.TopErrorKinds, resp.StatusClasses = dashboardRollupTopDimensions(tupleRows, topSinceUnixMillis, labels)
+	resp.TopListeners, resp.TopRouteTargets, resp.TopRoutes, resp.TopAgents, resp.TopErrorKinds, resp.StatusClasses = dashboardRollupTopDimensions(tupleRows, topSinceUnixMillis, labels)
 	return resp, nil
 }
 
@@ -492,7 +492,7 @@ func dashboardRollupTopDimensions(
 	[]*p2pstreamv1.DashboardProxyDimensionSummary,
 ) {
 	listeners := make(map[int64]*dashboardDimensionAggregate)
-	backends := make(map[int64]*dashboardDimensionAggregate)
+	routeTargets := make(map[int64]*dashboardDimensionAggregate)
 	routes := make(map[int64]*dashboardDimensionAggregate)
 	agents := make(map[int64]*dashboardDimensionAggregate)
 	errorsByKind := make(map[string]*dashboardDimensionAggregate)
@@ -503,7 +503,7 @@ func dashboardRollupTopDimensions(
 			continue
 		}
 		addIDDimension(listeners, row.ListenerID, labels.listener(row.ListenerID), row)
-		addIDDimension(backends, row.BackendID, labels.backend(row.BackendID), row)
+		addIDDimension(routeTargets, row.RouteTargetID, labels.routeTarget(row.RouteTargetID), row)
 		addIDDimension(routes, row.RouteID, labels.route(row.RouteID), row)
 		if row.AgentID != 0 {
 			addIDDimension(agents, row.AgentID, labels.agent(row.AgentID), row)
@@ -517,7 +517,7 @@ func dashboardRollupTopDimensions(
 	}
 
 	return idDimensionSummaries(p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_LISTENER, listeners, 5, true),
-		idDimensionSummaries(p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_BACKEND, backends, 5, true),
+		idDimensionSummaries(p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE_TARGET, routeTargets, 5, true),
 		idDimensionSummaries(p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE, routes, 5, true),
 		idDimensionSummaries(p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_AGENT, agents, 5, true),
 		stringDimensionSummaries(p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ERROR_KIND, errorsByKind, 5),
@@ -610,24 +610,24 @@ func dimensionAggregateSummaries(dimension p2pstreamv1.DashboardProxyDimension, 
 }
 
 type dashboardLabelMaps struct {
-	listeners map[int64]string
-	backends  map[int64]string
-	routes    map[int64]string
-	agents    map[int64]string
+	listeners    map[int64]string
+	routeTargets map[int64]string
+	routes       map[int64]string
+	agents       map[int64]string
 }
 
 func dashboardLabelsFromPublicRows(rows publicConfigRows) dashboardLabelMaps {
 	labels := dashboardLabelMaps{
-		listeners: make(map[int64]string, len(rows.Listeners)),
-		backends:  make(map[int64]string, len(rows.Backends)),
-		routes:    make(map[int64]string, len(rows.Routes)),
-		agents:    make(map[int64]string, len(rows.Agents)),
+		listeners:    make(map[int64]string, len(rows.Listeners)),
+		routeTargets: make(map[int64]string, len(rows.RouteTargets)),
+		routes:       make(map[int64]string, len(rows.Routes)),
+		agents:       make(map[int64]string, len(rows.Agents)),
 	}
 	for _, listener := range rows.Listeners {
 		labels.listeners[listener.ID] = listener.Name
 	}
-	for _, backend := range rows.Backends {
-		labels.backends[backend.ID] = backend.Name
+	for _, target := range rows.RouteTargets {
+		labels.routeTargets[target.ID] = target.Name
 	}
 	for _, route := range rows.Routes {
 		labels.routes[route.ID] = dashboardRouteLabel(route)
@@ -648,14 +648,14 @@ func (m dashboardLabelMaps) listener(id int64) string {
 	return fmt.Sprintf("listener #%d", id)
 }
 
-func (m dashboardLabelMaps) backend(id int64) string {
+func (m dashboardLabelMaps) routeTarget(id int64) string {
 	if id == 0 {
-		return "unknown backend"
+		return "unknown target"
 	}
-	if label, ok := m.backends[id]; ok && label != "" {
+	if label, ok := m.routeTargets[id]; ok && label != "" {
 		return label
 	}
-	return fmt.Sprintf("backend #%d", id)
+	return fmt.Sprintf("target #%d", id)
 }
 
 func (m dashboardLabelMaps) route(id int64) string {

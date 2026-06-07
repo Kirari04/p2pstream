@@ -339,29 +339,6 @@ message ProxyStatus {
   repeated PublicListenerStatus listeners = 5;
 }
 
-message PublicBackend {
-  int64 id = 1;
-  string name = 2;
-  string target_origin = 3;
-  bool enabled = 4;
-  int64 created_at_unix_millis = 5;
-  int64 updated_at_unix_millis = 6;
-  PublicBackendType backend_type = 7;
-  bool tls_skip_verify = 8;
-  int64 static_status_code = 9;
-  repeated PublicHeader static_response_headers = 10;
-  string static_response_body = 11;
-  PublicBackendForwardMode forward_mode = 12;
-  PublicBackendLoadBalancing load_balancing = 13;
-  repeated PublicBackendAgent agent_assignments = 14;
-  repeated PublicBackendUpstreamHeader upstream_request_headers = 15;
-  PublicBackendBasicAuth upstream_basic_auth = 16;
-  PublicBackendHealthCheck health_check = 17;
-  int64 upstream_response_header_timeout_millis = 18;
-  PublicResponseBodyMode static_response_body_mode = 19;
-  int64 static_response_template_id = 20;
-}
-
 message PublicHeader {
   string name = 1;
   string value = 2;
@@ -423,15 +400,6 @@ message Agent {
   int64 last_disconnected_at_unix_millis = 10;
   AgentStatsSnapshot latest_stats = 11;
   map<string, string> labels = 12;
-}
-
-message PublicBackendAgent {
-  int64 backend_id = 1;
-  int64 agent_id = 2;
-  int64 position = 3;
-  int64 weight = 4;
-  bool enabled = 5;
-  PublicBackendAgentHealth health = 6;
 }
 
 message PublicBackendHealthTrace {
@@ -1638,6 +1606,7 @@ enum DashboardProxyDimension {
   DASHBOARD_PROXY_DIMENSION_AGENT = 4;
   DASHBOARD_PROXY_DIMENSION_ERROR_KIND = 5;
   DASHBOARD_PROXY_DIMENSION_STATUS_CLASS = 6;
+  DASHBOARD_PROXY_DIMENSION_ROUTE_TARGET = 7;
 }
 
 message DashboardProxyDimensionSummary {
@@ -1719,13 +1688,15 @@ message AgentConnectionSession {
 }
 
 message GetDashboardResponse {
+  reserved 7;
+  reserved "top_backends";
+
   GetStatusResponse status = 1;
   repeated DashboardWindowSummary windows = 2;
   AgentConnectionSummary agent_connections = 3;
   int64 retention_days = 4;
   int64 generated_at_unix_millis = 5;
   repeated DashboardProxyDimensionSummary top_listeners = 6;
-  repeated DashboardProxyDimensionSummary top_backends = 7;
   repeated DashboardProxyDimensionSummary top_routes = 8;
   repeated DashboardProxyDimensionSummary top_agents = 9;
   repeated DashboardProxyDimensionSummary top_error_kinds = 10;

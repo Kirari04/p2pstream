@@ -43,10 +43,10 @@ func TestE2E_GetDashboardSummaries(t *testing.T) {
 	insertAgentStatAt(t, database, now.Add(-2*time.Hour), 200, 12, 30, 3, 4, 5, 5000, 6000)
 
 	seedDashboardDimensionFixtures(t, database)
-	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusOK, 100, "", validInt64(1), validInt64(1), validInt64(1), validInt64(1), 10, 100)
-	insertProxyEventWithIDsAt(t, database, now.Add(-30*time.Minute), http.StatusNotFound, 200, "", validInt64(1), validInt64(1), sql.NullInt64{}, sql.NullInt64{}, 20, 200)
-	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Hour), http.StatusBadGateway, 1300, "", validInt64(2), validInt64(2), sql.NullInt64{}, sql.NullInt64{}, 30, 300)
-	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusGatewayTimeout, 1400, "agent_timeout", validInt64(2), validInt64(2), sql.NullInt64{}, sql.NullInt64{}, 40, 400)
+	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusOK, 100, "", validInt64(1), sql.NullInt64{}, validInt64(1), validInt64(1), validInt64(1), 10, 100)
+	insertProxyEventWithIDsAt(t, database, now.Add(-30*time.Minute), http.StatusNotFound, 200, "", validInt64(1), sql.NullInt64{}, validInt64(1), validInt64(1), sql.NullInt64{}, 20, 200)
+	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Hour), http.StatusBadGateway, 1300, "", validInt64(2), sql.NullInt64{}, validInt64(2), validInt64(2), sql.NullInt64{}, 30, 300)
+	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusGatewayTimeout, 1400, "agent_timeout", validInt64(2), sql.NullInt64{}, validInt64(2), validInt64(2), sql.NullInt64{}, 40, 400)
 	forceDashboardRawFallback(t, database)
 
 	req := connect.NewRequest(&p2pstreamv1.GetDashboardRequest{})
@@ -114,10 +114,10 @@ func TestE2E_GetDashboardSummaries(t *testing.T) {
 	if len(resp.Msg.TopListeners) < 2 || resp.Msg.TopListeners[0].Label != "listener-one" || resp.Msg.TopListeners[0].Requests != 2 {
 		t.Fatalf("unexpected top listeners: %+v", resp.Msg.TopListeners)
 	}
-	if len(resp.Msg.TopBackends) < 2 || resp.Msg.TopBackends[0].Label != "backend-one" || resp.Msg.TopBackends[0].Requests != 2 {
-		t.Fatalf("unexpected top backends: %+v", resp.Msg.TopBackends)
+	if len(resp.Msg.TopRouteTargets) < 2 || resp.Msg.TopRouteTargets[0].Label != "target-one" || resp.Msg.TopRouteTargets[0].Requests != 2 {
+		t.Fatalf("unexpected top route targets: %+v", resp.Msg.TopRouteTargets)
 	}
-	if len(resp.Msg.TopRoutes) < 2 || resp.Msg.TopRoutes[0].Label != "Default route" || resp.Msg.TopRoutes[0].Requests != 2 {
+	if len(resp.Msg.TopRoutes) < 2 || resp.Msg.TopRoutes[0].Label != "example.com /api" || resp.Msg.TopRoutes[0].Requests != 2 {
 		t.Fatalf("unexpected top routes: %+v", resp.Msg.TopRoutes)
 	}
 	if len(resp.Msg.TopAgents) != 1 || resp.Msg.TopAgents[0].Label != "agent-one" || resp.Msg.TopAgents[0].Requests != 1 {
@@ -352,26 +352,27 @@ func seedDashboardDimensionFixtures(t *testing.T, database *db.DB) {
 	}
 	if _, err := database.ExecContext(
 		context.Background(),
-		`INSERT INTO public_backends (id, name, target_origin, backend_type, enabled) VALUES
-			(1, 'backend-one', 'http://backend-one.local', 'proxy_forward', 1),
-			(2, 'backend-two', 'http://backend-two.local', 'proxy_forward', 1)`,
-	); err != nil {
-		t.Fatalf("insert dashboard backend fixtures: %v", err)
-	}
-	if _, err := database.ExecContext(
-		context.Background(),
-		`INSERT INTO public_listeners (id, name, bind_address, port, protocol, enabled, default_backend_id) VALUES
-			(1, 'listener-one', '127.0.0.1', 18080, 'http', 1, 1),
-			(2, 'listener-two', '127.0.0.1', 18081, 'http', 1, 2)`,
+		`INSERT INTO public_listeners (id, name, bind_address, port, protocol, enabled) VALUES
+			(1, 'listener-one', '127.0.0.1', 18080, 'http', 1),
+			(2, 'listener-two', '127.0.0.1', 18081, 'http', 1)`,
 	); err != nil {
 		t.Fatalf("insert dashboard listener fixtures: %v", err)
 	}
 	if _, err := database.ExecContext(
 		context.Background(),
-		`INSERT INTO public_routes (id, listener_id, priority, host_pattern, path_prefix, backend_id, action, enabled) VALUES
-			(1, 1, 10, 'example.com', '/api', 1, 'forward', 1)`,
+		`INSERT INTO public_routes (id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, action, enabled, is_default) VALUES
+			(1, 1, 10, 'example.com', '/api', 'round_robin', 'forward', 1, 0),
+			(2, 2, 1000, '', '/', 'round_robin', 'forward', 1, 1)`,
 	); err != nil {
 		t.Fatalf("insert dashboard route fixtures: %v", err)
+	}
+	if _, err := database.ExecContext(
+		context.Background(),
+		`INSERT INTO public_route_targets (id, route_id, name, position, target_type, url, transport, enabled) VALUES
+			(1, 1, 'target-one', 0, 'proxy', 'http://target-one.local', 'direct', 1),
+			(2, 2, 'target-two', 0, 'proxy', 'http://target-two.local', 'direct', 1)`,
+	); err != nil {
+		t.Fatalf("insert dashboard target fixtures: %v", err)
 	}
 }
 
@@ -384,6 +385,7 @@ func insertProxyEventWithIDsAt(
 	errorKind string,
 	listenerID sql.NullInt64,
 	backendID sql.NullInt64,
+	routeTargetID sql.NullInt64,
 	routeID sql.NullInt64,
 	agentID sql.NullInt64,
 	requestBytes int64,
@@ -393,15 +395,16 @@ func insertProxyEventWithIDsAt(
 	if _, err := database.ExecContext(
 		context.Background(),
 		`INSERT INTO proxy_request_events (
-			occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_id,
+			occurred_at, status_code, duration_ms, error_kind, listener_id, backend_id, route_target_id, route_id,
 			agent_id, request_bytes, response_bytes
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		occurredAt,
 		statusCode,
 		durationMs,
 		errorKind,
 		listenerID,
 		backendID,
+		routeTargetID,
 		routeID,
 		agentID,
 		requestBytes,

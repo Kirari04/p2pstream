@@ -124,13 +124,12 @@ type publicRouteTargetConfig struct {
 }
 
 type publicListenerConfig struct {
-	ID               int64
-	Name             string
-	BindAddress      string
-	Port             int64
-	Protocol         string
-	Enabled          bool
-	DefaultBackendID int64
+	ID          int64
+	Name        string
+	BindAddress string
+	Port        int64
+	Protocol    string
+	Enabled     bool
 }
 
 type publicRouteConfig struct {
@@ -142,10 +141,6 @@ type publicRouteConfig struct {
 	TargetLoadBalancing        string
 	IsDefault                  bool
 	Targets                    []publicRouteTargetConfig
-	BackendID                  int64
-	LoadBalancing              string
-	FallbackBackendID          int64
-	BackendAssignments         []publicRouteBackendConfig
 	Action                     string
 	RedirectTargetMode         string
 	RedirectTarget             string
@@ -153,14 +148,6 @@ type publicRouteConfig struct {
 	RedirectPreservePathSuffix bool
 	RedirectPreserveQuery      bool
 	Enabled                    bool
-}
-
-type publicRouteBackendConfig struct {
-	RouteID   int64
-	BackendID int64
-	Position  int64
-	Weight    int64
-	Enabled   bool
 }
 
 type publicTLSCertificateConfig struct {
@@ -176,7 +163,6 @@ type publicTLSCertificateConfig struct {
 }
 
 type publicProxySnapshot struct {
-	Backends            map[int64]publicBackendConfig
 	RouteTargets        map[int64]publicRouteTargetConfig
 	Agents              map[int64]publicAgentConfig
 	Listeners           map[int64]publicListenerConfig
@@ -193,7 +179,6 @@ type publicProxySnapshot struct {
 }
 
 type publicRouteResolution struct {
-	Backend                             publicBackendConfig
 	Target                              publicRouteTargetConfig
 	Agent                               *AgentConn
 	Listener                            publicListenerConfig
@@ -201,7 +186,6 @@ type publicRouteResolution struct {
 	Action                              string
 	DefaultRoute                        bool
 	ListenerID                          sql.NullInt64
-	BackendID                           sql.NullInt64
 	RouteTargetID                       sql.NullInt64
 	RouteID                             sql.NullInt64
 	AgentID                             sql.NullInt64

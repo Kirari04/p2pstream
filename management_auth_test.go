@@ -2,7 +2,6 @@ package main_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -51,21 +50,12 @@ func newTestDB(t *testing.T) *db.DB {
 func seedTestHTTPPublicListener(t *testing.T, database *db.DB, targetOrigin string) db.PublicListener {
 	t.Helper()
 
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:         "test-default",
-		TargetOrigin: targetOrigin,
-		Enabled:      1,
-	})
-	if err != nil {
-		t.Fatalf("seed test backend: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "test-http",
-		BindAddress:      "127.0.0.1",
-		Port:             0,
-		Protocol:         "http",
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:        "test-http",
+		BindAddress: "127.0.0.1",
+		Port:        0,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
 		t.Fatalf("seed test listener: %v", err)
@@ -74,9 +64,6 @@ func seedTestHTTPPublicListener(t *testing.T, database *db.DB, targetOrigin stri
 		ListenerID:                 listener.ID,
 		Priority:                   1000,
 		PathPrefix:                 "/",
-		BackendID:                  sql.NullInt64{Int64: backend.ID, Valid: true},
-		LoadBalancing:              "round_robin",
-		FallbackBackendID:          sql.NullInt64{},
 		TargetLoadBalancing:        "round_robin",
 		IsDefault:                  1,
 		Action:                     "forward",

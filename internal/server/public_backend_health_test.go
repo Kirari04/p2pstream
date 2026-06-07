@@ -47,7 +47,7 @@ func TestDirectBackendHealthStillChecksFromServer(t *testing.T) {
 	backend := testHealthBackend(t, 1, publicBackendForwardModeDirect, srv.URL)
 
 	monitor := newPublicBackendHealthMonitor()
-	snap := &publicProxySnapshot{Backends: map[int64]publicBackendConfig{1: backend}}
+	snap := testHealthSnapshot(backend)
 	monitor.reconcile(nil, snap, true)
 	t.Cleanup(func() { monitor.reconcile(nil, nil, false) })
 
@@ -97,10 +97,8 @@ func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 	defer app.AgentHub.disconnect(agent)
 	defer fake.close()
 
-	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{7: {ID: 7, PublicID: "agent-7", Enabled: true}},
-	}
+	snap := testHealthSnapshot(backend)
+	snap.Agents[7] = publicAgentConfig{ID: 7, PublicID: "agent-7", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	app.BackendHealth.reconcile(app, snap, true)
 	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
 
@@ -129,7 +127,7 @@ func TestDirectHealthTraceRecordsSuccessAndFailure(t *testing.T) {
 	defer srv.Close()
 	backend := testHealthBackend(t, 101, publicBackendForwardModeDirect, srv.URL+"?token=secret")
 	monitor := newPublicBackendHealthMonitor()
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
 	monitor.recordDirectExplicitCheck(backend.ID, runPublicBackendHealthCheck(context.Background(), backend))
 	traces, retained := monitor.listHealthTraces(backend.ID, 0, 100, false)
@@ -180,7 +178,7 @@ func TestListHealthTracesReturnsDeepClonedTrace(t *testing.T) {
 
 	backend := testHealthBackend(t, 105, publicBackendForwardModeDirect, "http://127.0.0.1:8888")
 	monitor := newPublicBackendHealthMonitor()
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
 	attempt := newPublicBackendHealthCheckAttempt(backend)
 	attempt.StatusCode = http.StatusOK
@@ -239,10 +237,9 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 	}
 	defer app.AgentHub.disconnect(agent)
 	defer fake.close()
-	app.BackendHealth.reconcile(app, &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{7: {ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true}},
-	}, false)
+	snap := testHealthSnapshot(backend)
+	snap.Agents[7] = publicAgentConfig{ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
+	app.BackendHealth.reconcile(app, snap, false)
 
 	attempt := app.runPublicBackendHealthCheckViaAgent(context.Background(), backend, agent)
 	app.BackendHealth.recordAgentExplicitCheck(backend.ID, 7, attempt)
@@ -265,10 +262,9 @@ func TestHealthTraceRecordsSkippedDisconnectedAgent(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 103, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
 	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 9, Position: 0, Weight: 100, Enabled: true}}
-	app.BackendHealth.reconcile(app, &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{9: {ID: 9, PublicID: "agent-9", Enabled: true}},
-	}, false)
+	snap := testHealthSnapshot(backend)
+	snap.Agents[9] = publicAgentConfig{ID: 9, PublicID: "agent-9", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
+	app.BackendHealth.reconcile(app, snap, false)
 
 	app.BackendHealth.recordAgentDisconnected(backend.ID, 9)
 	app.BackendHealth.recordAgentActiveCheckSkipped(backend.ID, 9, backend, "agent_disconnected", errAgentDisconnected)
@@ -312,7 +308,7 @@ func TestPassiveAndConnectivityHealthTraces(t *testing.T) {
 func TestDirectHealthTraceRetentionCapsPerTarget(t *testing.T) {
 	backend := testHealthBackend(t, 104, publicBackendForwardModeDirect, "http://127.0.0.1:8888")
 	monitor := newPublicBackendHealthMonitor()
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 	for range publicBackendHealthTraceLimitPerTarget + 5 {
 		attempt := newPublicBackendHealthCheckAttempt(backend)
 		attempt.StatusCode = http.StatusOK
@@ -360,15 +356,12 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 		})
 	}
 	target := testRouteTargetFromBackend(backend)
-	snap := &publicProxySnapshot{
-		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
-		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
-		Agents:       make(map[int64]publicAgentConfig),
-	}
+	snap := testHealthSnapshot(backend)
+	snap.RouteTargets[target.ID] = target
+	snap.Agents = make(map[int64]publicAgentConfig)
 	for i := int64(1); i <= 5; i++ {
 		snap.Agents[i] = publicAgentConfig{ID: i, PublicID: "agent-" + strconv.FormatInt(i, 10), Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	}
-	snap.Backends[backend.ID] = backend
 	app.proxyMu.Lock()
 	app.publicSnapshot = snap
 	app.proxyMu.Unlock()
@@ -409,7 +402,6 @@ func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testin
 		Targets: []publicRouteTargetConfig{target},
 	}
 	snap := publicProxySnapshot{
-		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
 		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
 		Agents: map[int64]publicAgentConfig{
 			1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
@@ -477,10 +469,6 @@ func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 		Targets: []publicRouteTargetConfig{primaryTarget, fallbackTarget},
 	}
 	snap := publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{
-			primary.ID:  primary,
-			fallback.ID: fallback,
-		},
 		RouteTargets: map[int64]publicRouteTargetConfig{
 			primaryTarget.ID:  primaryTarget,
 			fallbackTarget.ID: fallbackTarget,
@@ -515,10 +503,8 @@ func TestAgentReconnectClearsPassiveCooldownToUnknown(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 22, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
 	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
-	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
-	}
+	snap := testHealthSnapshot(backend)
+	snap.Agents[1] = publicAgentConfig{ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	app.BackendHealth.reconcile(app, snap, false)
 	agent := testAgentConn(1, "agent-a")
 	if err := app.AgentHub.connect(agent); err != nil {
@@ -545,14 +531,12 @@ func TestAgentReconnectClearsPassiveCooldownToUnknown(t *testing.T) {
 	}
 }
 
-func TestPublicBackendAgentProtoIncludesHealth(t *testing.T) {
+func TestPublicRouteTargetProtoIncludesHealth(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 23, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
 	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 1, Position: 0, Weight: 100, Enabled: true}}
-	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{1: {ID: 1, PublicID: "agent-a", Enabled: true}},
-	}
+	snap := testHealthSnapshot(backend)
+	snap.Agents[1] = publicAgentConfig{ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	app.BackendHealth.reconcile(app, snap, false)
 	agent := testAgentConn(1, "agent-a")
 	agent.ActiveRequests.Store(3)
@@ -561,20 +545,20 @@ func TestPublicBackendAgentProtoIncludesHealth(t *testing.T) {
 	}
 	t.Cleanup(func() { app.AgentHub.disconnect(agent) })
 	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
-
-	assignments := publicBackendAgentsToProto([]db.PublicBackendAgent{{
-		BackendID: backend.ID,
-		AgentID:   1,
-		Position:  0,
-		Weight:    100,
-		Enabled:   1,
-	}}, map[int64]bool{1: true}, app.BackendHealth)
-	if len(assignments) != 1 || assignments[0].Health == nil {
-		t.Fatalf("agent assignments = %+v, want health", assignments)
+	var done []func()
+	for range 3 {
+		done = append(done, app.BackendHealth.beginRequest(backend.ID))
 	}
-	health := assignments[0].Health
+	t.Cleanup(func() {
+		for _, finish := range done {
+			finish()
+		}
+	})
+
+	target := db.PublicRouteTarget{ID: backend.ID, Enabled: 1, TargetType: publicRouteTargetTypeProxy, Transport: publicRouteTargetTransportAgent}
+	health := publicRouteTargetHealthToProto(target, app.BackendHealth)
 	if !health.Connected || !health.Available || health.Status != p2pstreamv1.PublicBackendHealthStatus_PUBLIC_BACKEND_HEALTH_STATUS_UNKNOWN || health.ActiveRequests != 3 {
-		t.Fatalf("agent health = %+v, want connected available UNKNOWN with active requests", health)
+		t.Fatalf("target health = %+v, want connected available UNKNOWN with active requests", health)
 	}
 }
 
@@ -594,10 +578,8 @@ func TestAgentHealthCheckDisconnectedAgentIsUnknownNotUnhealthy(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthBackend(t, 40, publicBackendForwardModeAgentPool, "http://127.0.0.1:8888")
 	backend.AgentAssignments = []publicBackendAgentConfig{{BackendID: backend.ID, AgentID: 99, Position: 0, Weight: 100, Enabled: true}}
-	snap := &publicProxySnapshot{
-		Backends: map[int64]publicBackendConfig{backend.ID: backend},
-		Agents:   map[int64]publicAgentConfig{99: {ID: 99, PublicID: "agent-missing", Enabled: true}},
-	}
+	snap := testHealthSnapshot(backend)
+	snap.Agents[99] = publicAgentConfig{ID: 99, PublicID: "agent-missing", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	app.BackendHealth.reconcile(app, snap, true)
 	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
 
@@ -614,7 +596,7 @@ func TestPassiveFailureIgnoredWhenHealthCheckDisabledDirect(t *testing.T) {
 	monitor := newPublicBackendHealthMonitor()
 	backend := testHealthBackend(t, 2, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
 	backend.HealthCheck.Enabled = false
-	snap := &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}
+	snap := testHealthSnapshot(backend)
 	monitor.reconcile(nil, snap, false)
 
 	monitor.markPassiveFailure(backend.ID, nil)
@@ -630,7 +612,7 @@ func TestPassiveFailureIgnoredWhenHealthCheckDisabledDirect(t *testing.T) {
 func TestPassiveFailureAppliesWhenHealthCheckEnabledDirect(t *testing.T) {
 	monitor := newPublicBackendHealthMonitor()
 	backend := testHealthBackend(t, 3, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
-	snap := &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}
+	snap := testHealthSnapshot(backend)
 	monitor.reconcile(nil, snap, false)
 
 	monitor.markPassiveFailure(backend.ID, nil)
@@ -646,7 +628,7 @@ func TestPassiveFailureAppliesWhenHealthCheckEnabledDirect(t *testing.T) {
 func TestDisablingHealthChecksClearsPassiveState(t *testing.T) {
 	monitor := newPublicBackendHealthMonitor()
 	backend := testHealthBackend(t, 4, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 	monitor.markPassiveFailure(backend.ID, nil)
 	if monitor.available(backend) {
 		t.Fatal("backend should be unavailable while health checks are enabled")
@@ -654,7 +636,7 @@ func TestDisablingHealthChecksClearsPassiveState(t *testing.T) {
 
 	disabled := backend
 	disabled.HealthCheck.Enabled = false
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{disabled.ID: disabled}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(disabled), false)
 	if !monitor.available(disabled) {
 		t.Fatal("backend should become available after disabling health checks")
 	}
@@ -667,7 +649,7 @@ func TestDisablingHealthChecksClearsPassiveState(t *testing.T) {
 func TestPassiveCooldownExpiryStillRecoversWhenHealthEnabled(t *testing.T) {
 	monitor := newPublicBackendHealthMonitor()
 	backend := testHealthBackend(t, 5, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 	monitor.markPassiveFailure(backend.ID, nil)
 	if monitor.available(backend) {
 		t.Fatal("backend should be unavailable during passive cooldown")
@@ -685,7 +667,7 @@ func TestCancelledActiveHealthCheckIsSkippedWithoutUnhealthyStreak(t *testing.T)
 	monitor := newPublicBackendHealthMonitor()
 	backend := testHealthBackend(t, 55, publicBackendForwardModeDirect, "http://127.0.0.1:8080")
 	backend.HealthCheck.UnhealthyThreshold = 1
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -721,7 +703,7 @@ func TestActiveHealthCheckTimeoutIncrementsUnhealthyStreak(t *testing.T) {
 	backend := testHealthBackend(t, 56, publicBackendForwardModeDirect, upstream.URL)
 	backend.HealthCheck.Timeout = time.Millisecond
 	backend.HealthCheck.UnhealthyThreshold = 1
-	monitor.reconcile(nil, &publicProxySnapshot{Backends: map[int64]publicBackendConfig{backend.ID: backend}}, false)
+	monitor.reconcile(nil, testHealthSnapshot(backend), false)
 
 	attempt := runPublicBackendHealthCheck(context.Background(), backend)
 	if attempt.Skipped || attempt.ErrorKind != "health_check_timeout" {
@@ -743,7 +725,6 @@ func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testi
 	backend.HealthCheck.Enabled = false
 	target := testRouteTargetFromBackend(backend)
 	snap := publicProxySnapshot{
-		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
 		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
 	}
 	app.BackendHealth.reconcile(app, &snap, false)
@@ -824,13 +805,11 @@ func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicB
 		{BackendID: backend.ID, AgentID: 2, Position: 1, Weight: 100, Enabled: true},
 	}
 	target := testRouteTargetFromBackend(backend)
-	snap := &publicProxySnapshot{
-		Backends:     map[int64]publicBackendConfig{backend.ID: backend},
-		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
-		Agents: map[int64]publicAgentConfig{
-			1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
-			2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
-		},
+	snap := testHealthSnapshot(backend)
+	snap.RouteTargets[target.ID] = target
+	snap.Agents = map[int64]publicAgentConfig{
+		1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
+		2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 	}
 	app.proxyMu.Lock()
 	app.publicSnapshot = snap
@@ -844,6 +823,27 @@ func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicB
 	}
 	t.Cleanup(func() { app.BackendHealth.reconcile(app, nil, false) })
 	return app, backend
+}
+
+func testHealthSnapshot(backends ...publicBackendConfig) *publicProxySnapshot {
+	snap := &publicProxySnapshot{
+		RouteTargets: map[int64]publicRouteTargetConfig{},
+		Agents:       map[int64]publicAgentConfig{},
+	}
+	for _, backend := range backends {
+		target := testRouteTargetFromBackend(backend)
+		snap.RouteTargets[target.ID] = target
+		for _, assignment := range backend.AgentAssignments {
+			publicID := "agent-" + strconv.FormatInt(assignment.AgentID, 10)
+			snap.Agents[assignment.AgentID] = publicAgentConfig{
+				ID:       assignment.AgentID,
+				PublicID: publicID,
+				Enabled:  assignment.Enabled,
+				Labels:   map[string]string{"pool": "health-test", agentIDSystemLabelKey: publicID},
+			}
+		}
+	}
+	return snap
 }
 
 func testRouteTargetFromBackend(backend publicBackendConfig) publicRouteTargetConfig {

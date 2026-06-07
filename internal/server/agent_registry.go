@@ -234,13 +234,6 @@ func (a *App) ensureBootstrapAgent(ctx context.Context) {
 }
 
 func (a *App) ensureAgentCanBeDisabled(ctx context.Context, agentID int64) error {
-	count, err := a.DB.CountEnabledAgentPoolBackendsWhereAgentIsLast(ctx, agentID)
-	if err != nil {
-		return connect.NewError(connect.CodeInternal, err)
-	}
-	if count > 0 {
-		return connect.NewError(connect.CodeFailedPrecondition, errors.New("agent is the last enabled assignment for an enabled backend"))
-	}
 	return nil
 }
 

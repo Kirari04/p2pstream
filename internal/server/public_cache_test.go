@@ -162,7 +162,7 @@ func TestPublicCacheKeyCanonicalizesDottedHostWithPort(t *testing.T) {
 	resolution := publicRouteResolution{
 		Listener: publicListenerConfig{Protocol: publicListenerProtocolHTTPS},
 		Route:    publicRouteConfig{ID: 10},
-		Backend:  publicBackendConfig{ID: 20},
+		Target:   publicRouteTargetConfig{ID: 20},
 	}
 	rule := publicCacheRuleConfig{Scope: publicCacheScopeSelectedBackend}
 	plain := httptest.NewRequest(http.MethodGet, "https://example.com/assets/app.js?v=1", nil)
@@ -187,7 +187,7 @@ func TestPublicCacheRulePathSuffixMatching(t *testing.T) {
 			(path.endsWith(".css") || path.endsWith(".woff2"))`),
 	}
 	listener := publicListenerConfig{Protocol: publicListenerProtocolHTTPS}
-	resolution := publicRouteResolution{Route: publicRouteConfig{ID: 10}, Backend: publicBackendConfig{ID: 20}}
+	resolution := publicRouteResolution{Route: publicRouteConfig{ID: 10}, Target: publicRouteTargetConfig{ID: 20}}
 
 	if !rule.matches(listener, httptest.NewRequest(http.MethodGet, "https://assets.example.test/assets/app.css", nil), resolution) {
 		t.Fatal("expected CSS asset to match cache rule")
@@ -686,7 +686,6 @@ func TestPublicCacheHeadServedFromCachedGet(t *testing.T) {
 		Path:                "/assets/app.txt",
 		QueryKey:            "",
 		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
-		BackendID:           sql.NullInt64{},
 		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
 		Method:              http.MethodGet,
 		VaryHeadersJson:     "[]",
@@ -735,7 +734,6 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		Enabled:              1,
 		MatchJson:            string(matchJSON),
 		RouteIdsJson:         "[]",
-		BackendIdsJson:       "[]",
 		TargetIdsJson:        "[]",
 		Scope:                publicCacheScopeSelectedBackend,
 		TtlMode:              publicCacheTTLModeFixed,

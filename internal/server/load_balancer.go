@@ -57,15 +57,9 @@ func (r *loadBalancerRegistry) reconcile(snap *publicProxySnapshot) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if snap == nil {
-		r.states = make(map[int64]*backendSelectorState)
 		r.targetAgentStates = make(map[int64]*backendSelectorState)
 		r.routeStates = make(map[int64]*backendSelectorState)
 		return
-	}
-	for backendID := range r.states {
-		if _, ok := snap.Backends[backendID]; !ok {
-			delete(r.states, backendID)
-		}
 	}
 	for targetID := range r.targetAgentStates {
 		if _, ok := snap.RouteTargets[targetID]; !ok {

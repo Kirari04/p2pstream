@@ -254,15 +254,6 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 	}
 	event.DefaultRoute = resolution.DefaultRoute
 	event.RouteLabel = traceRouteLabel(resolution)
-	if resolution.Backend.ID != 0 {
-		event.BackendId = resolution.Backend.ID
-		event.BackendName = resolution.Backend.Name
-		event.TargetOrigin = resolution.Backend.TargetOrigin
-		event.BackendType = protoBackendTypeFromString(resolution.Backend.BackendType)
-		event.ForwardMode = protoForwardModeFromString(resolution.Backend.ForwardMode)
-	} else if resolution.BackendID.Valid {
-		event.BackendId = resolution.BackendID.Int64
-	}
 	if resolution.Target.ID != 0 {
 		event.RouteTargetId = resolution.Target.ID
 		event.RouteTargetName = resolution.Target.Name

@@ -27,8 +27,6 @@ import {
   PublicWafCaptchaProviderType,
   PublicWafRuleAction,
   type Agent,
-  type PublicBackend,
-  type PublicBackendAgent,
   type PublicBackendHealthTrace,
   type PublicCacheRule,
   type PublicListener,
@@ -75,11 +73,6 @@ export function listenerStateLabel(listener: PublicListener, status?: PublicList
   return proxyStateLabel(listenerRuntimeState(listener, status));
 }
 
-export function backendName(id: bigint, backends: readonly PublicBackend[]): string {
-  if (id === 0n) return "None";
-  return backends.find((backend) => backend.id === id)?.name ?? `#${id.toString()}`;
-}
-
 export function agentName(id: bigint, agents: readonly Agent[]): string {
   const agent = agents.find((item) => item.id === id);
   return agent ? `${agent.name} (${agent.publicId})` : `#${id.toString()}`;
@@ -118,7 +111,7 @@ export function routeAssignments(route: PublicRoute, _routeBackends: readonly un
   });
 }
 
-export function routeDestinationLabel(route: PublicRoute, _backends: readonly PublicBackend[] = [], routeBackends: readonly unknown[] = []): string {
+export function routeDestinationLabel(route: PublicRoute, _backends: readonly unknown[] = [], routeBackends: readonly unknown[] = []): string {
   if (routeAction(route) === PublicRouteAction.REDIRECT) {
     return `Redirect ${route.redirectStatusCode || 302}`;
   }
@@ -127,7 +120,7 @@ export function routeDestinationLabel(route: PublicRoute, _backends: readonly Pu
   return routeTargetName(assignments[0]);
 }
 
-export function routeTargetSummary(route: PublicRoute, _backends: readonly PublicBackend[] = [], routeBackends: readonly unknown[] = []): string {
+export function routeTargetSummary(route: PublicRoute, _backends: readonly unknown[] = [], routeBackends: readonly unknown[] = []): string {
   if (routeAction(route) !== PublicRouteAction.REDIRECT) {
     const assignments = routeAssignments(route, routeBackends);
     const names = assignments.map(routeTargetName).join(", ");
@@ -171,42 +164,6 @@ export function loadBalancingLabel(algorithm: PublicBackendLoadBalancing): strin
     case PublicBackendLoadBalancing.LEAST_ACTIVE_REQUESTS: return "Least active";
     case PublicBackendLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS: return "Weighted least active";
     default: return "Round-robin";
-  }
-}
-
-export function backendHealthLabel(backend: PublicBackend): string {
-  if (backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode === PublicBackendForwardMode.AGENT_POOL) {
-    return backendAgentAvailabilitySummary(backend, []);
-  }
-  if (!backend.healthCheck?.enabled) return "Health unknown";
-  switch (backend.healthCheck.status) {
-    case PublicBackendHealthStatus.HEALTHY:
-      return "Healthy";
-    case PublicBackendHealthStatus.UNHEALTHY:
-      return "Unhealthy";
-    case PublicBackendHealthStatus.DISABLED:
-      return "Health disabled";
-    default:
-      return "Health unknown";
-  }
-}
-
-export function backendHealthSeverity(backend: PublicBackend): "success" | "warn" | "danger" | "info" {
-  if (backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode === PublicBackendForwardMode.AGENT_POOL) {
-    const { available, total } = backendAgentAvailability(backend, []);
-    if (total === 0) return "warn";
-    if (available === 0) return "danger";
-    return available === total ? "success" : "warn";
-  }
-  switch (backend.healthCheck?.status) {
-    case PublicBackendHealthStatus.HEALTHY:
-      return "success";
-    case PublicBackendHealthStatus.UNHEALTHY:
-      return "danger";
-    case PublicBackendHealthStatus.DISABLED:
-      return "warn";
-    default:
-      return "info";
   }
 }
 
@@ -561,66 +518,6 @@ export function trafficShaperKeySummary(rule: PublicTrafficShaperRule): string {
     const label = rateLimitKeySourceLabel(part.source);
     return part.name ? `${label}:${part.name}` : label;
   }).join(" + ");
-}
-
-export function backendSummary(backend: PublicBackend): string {
-  if (backend.backendType === PublicBackendType.STATIC) {
-    const body = backend.staticResponseBody.trim();
-    const suffix = body ? ` - ${body.slice(0, 72)}` : "";
-    return `${backend.staticStatusCode.toString()}${suffix}`;
-  }
-  return backend.targetOrigin;
-}
-
-export function assignmentsForBackend(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[]): PublicBackendAgent[] {
-  if (backend.agentAssignments.length) return backend.agentAssignments;
-  return backendAgents.filter((assignment) => assignment.backendId === backend.id);
-}
-
-export function backendAgentSummary(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[], agents: readonly Agent[]): string {
-  if (backend.backendType !== PublicBackendType.PROXY_FORWARD || backend.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
-    return "";
-  }
-  const assignments = assignmentsForBackend(backend, backendAgents).filter((assignment) => assignment.enabled);
-  if (!assignments.length) return "No enabled agents";
-  return assignments.map((assignment) => `${agentName(assignment.agentId, agents)} ${backendAgentHealthLabel(assignment)} x${assignment.weight.toString()}`).join(", ");
-}
-
-export function backendAgentAvailability(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[]): { available: number; total: number } {
-  if (backend.backendType !== PublicBackendType.PROXY_FORWARD || backend.forwardMode !== PublicBackendForwardMode.AGENT_POOL) {
-    return { available: 0, total: 0 };
-  }
-  const assignments = assignmentsForBackend(backend, backendAgents).filter((assignment) => assignment.enabled);
-  return {
-    available: assignments.filter((assignment) => assignment.health?.available).length,
-    total: assignments.length,
-  };
-}
-
-export function backendAgentAvailabilitySummary(backend: PublicBackend, backendAgents: readonly PublicBackendAgent[]): string {
-  const { available, total } = backendAgentAvailability(backend, backendAgents);
-  if (total === 0) return "No enabled agents";
-  return `${available.toString()}/${total.toString()} ${total === 1 ? "agent" : "agents"} available`;
-}
-
-export function backendAgentHealthLabel(assignment: PublicBackendAgent): string {
-  if (!assignment.enabled) return "disabled";
-  switch (assignment.health?.status) {
-    case PublicBackendHealthStatus.HEALTHY:
-      return "healthy";
-    case PublicBackendHealthStatus.UNHEALTHY:
-      return "unhealthy";
-    case PublicBackendHealthStatus.DISCONNECTED:
-      return "disconnected";
-    case PublicBackendHealthStatus.DISABLED:
-      return "disabled";
-    default:
-      return "unknown";
-  }
-}
-
-export function upstreamHeaderCount(backend: PublicBackend): number {
-  return backend.upstreamRequestHeaders.length;
 }
 
 export function isDefaultSelfSignedCertificate(cert: PublicTlsCertificate): boolean {
