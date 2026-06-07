@@ -347,6 +347,9 @@ func validateAgentUserLabels(labels map[string]string) (map[string]string, error
 		if strings.HasPrefix(key, reservedAgentLabelPrefix) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("agent labels under p2pstream.io/ are system-owned"))
 		}
+		if _, exists := resp[key]; exists {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("duplicate agent label key after normalization"))
+		}
 		resp[key] = value
 	}
 	return resp, nil

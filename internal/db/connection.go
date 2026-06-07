@@ -1960,44 +1960,45 @@ func (db *DB) backfillPublicRouteTargets() error {
 	defer tx.Rollback()
 
 	if sqliteColumnExists(listenerColumns, "default_backend_id") {
-		routeBackendColumn := "NULL"
-		routeLoadBalancingColumn := "'round_robin'"
-		routeFallbackColumn := "NULL"
+		insertColumns := []string{
+			"listener_id",
+			"priority",
+			"host_pattern",
+			"path_prefix",
+		}
+		selectColumns := []string{
+			"l.id",
+			"9223372036854775807",
+			"''",
+			"''",
+		}
 		if sqliteColumnExists(routeColumns, "backend_id") {
-			routeBackendColumn = "l.default_backend_id"
+			insertColumns = append(insertColumns, "backend_id")
+			selectColumns = append(selectColumns, "l.default_backend_id")
 		}
 		if sqliteColumnExists(routeColumns, "load_balancing") {
-			routeLoadBalancingColumn = "COALESCE(pb.load_balancing, 'round_robin')"
+			insertColumns = append(insertColumns, "load_balancing")
+			selectColumns = append(selectColumns, "COALESCE(pb.load_balancing, 'round_robin')")
 		}
 		if sqliteColumnExists(routeColumns, "fallback_backend_id") {
-			routeFallbackColumn = "NULL"
+			insertColumns = append(insertColumns, "fallback_backend_id")
+			selectColumns = append(selectColumns, "NULL")
 		}
+		insertColumns = append(insertColumns,
+			"target_load_balancing",
+			"is_default",
+			"action",
+			"enabled",
+		)
+		selectColumns = append(selectColumns,
+			"'round_robin'",
+			"1",
+			"'forward'",
+			"l.enabled",
+		)
 		insertDefaultRouteSQL := fmt.Sprintf(`
-			INSERT OR IGNORE INTO public_routes (
-				listener_id,
-				priority,
-				host_pattern,
-				path_prefix,
-				backend_id,
-				load_balancing,
-				fallback_backend_id,
-				target_load_balancing,
-				is_default,
-				action,
-				enabled
-			)
-			SELECT
-				l.id,
-				9223372036854775807,
-				'',
-				'',
-				%s,
-				%s,
-				%s,
-				'round_robin',
-				1,
-				'forward',
-				l.enabled
+			INSERT OR IGNORE INTO public_routes (%s)
+			SELECT %s
 			FROM public_listeners l
 			LEFT JOIN public_backends pb ON pb.id = l.default_backend_id
 			WHERE l.default_backend_id IS NOT NULL
@@ -2007,7 +2008,7 @@ func (db *DB) backfillPublicRouteTargets() error {
 				WHERE r.listener_id = l.id
 				  AND r.is_default = 1
 			  )
-		`, routeBackendColumn, routeLoadBalancingColumn, routeFallbackColumn)
+		`, strings.Join(insertColumns, ", "), strings.Join(selectColumns, ", "))
 		if _, err := tx.Exec(insertDefaultRouteSQL); err != nil {
 			return err
 		}
@@ -2025,6 +2026,14 @@ func (db *DB) backfillPublicRouteTargets() error {
 	}
 
 	routeSources := []string{}
+	if sqliteColumnExists(listenerColumns, "default_backend_id") {
+		routeSources = append(routeSources, `
+			SELECT r.id AS route_id, l.default_backend_id AS backend_id, 0 AS position, 100 AS weight, 1 AS enabled, 0 AS priority_group
+			FROM public_listeners l
+			JOIN public_routes r ON r.listener_id = l.id AND r.is_default = 1
+			WHERE l.default_backend_id IS NOT NULL
+		`)
+	}
 	if hasRouteBackends {
 		routeSources = append(routeSources, `
 			SELECT route_id, backend_id, position, weight, enabled, 0 AS priority_group

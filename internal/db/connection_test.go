@@ -864,6 +864,106 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	}
 }
 
+func TestMigrationPreservesDefaultBackendWhenRoutesAlreadyRebuilt(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-default-rebuilt-routes.db")
+	raw, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open raw legacy db: %v", err)
+	}
+	legacySchema := `
+	CREATE TABLE public_backends (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		target_origin TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE public_listeners (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		bind_address TEXT NOT NULL DEFAULT '',
+		port INTEGER NOT NULL,
+		protocol TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		default_backend_id INTEGER NOT NULL REFERENCES public_backends(id),
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(bind_address, port)
+	);
+	CREATE TABLE public_routes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+		priority INTEGER NOT NULL,
+		host_pattern TEXT NOT NULL DEFAULT '',
+		path_prefix TEXT NOT NULL DEFAULT '',
+		target_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+		is_default INTEGER NOT NULL DEFAULT 0,
+		action TEXT NOT NULL DEFAULT 'forward',
+		redirect_target_mode TEXT NOT NULL DEFAULT '',
+		redirect_target TEXT NOT NULL DEFAULT '',
+		redirect_status_code INTEGER NOT NULL DEFAULT 302,
+		redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
+		redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	INSERT INTO public_backends (name, target_origin) VALUES ('legacy-default', 'https://default.example.com');
+	INSERT INTO public_listeners (name, port, protocol, default_backend_id) VALUES ('legacy-listener', 8080, 'http', 1);
+	`
+	if _, err := raw.ExecContext(context.Background(), legacySchema); err != nil {
+		t.Fatalf("create partially migrated legacy schema: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close raw legacy db: %v", err)
+	}
+
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated legacy db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	routes, err := database.ListPublicRoutes(context.Background())
+	if err != nil {
+		t.Fatalf("list migrated routes: %v", err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("got %d routes, want generated default route: %+v", len(routes), routes)
+	}
+	if routes[0].IsDefault != 1 {
+		t.Fatalf("generated route is_default = %d, want 1: %+v", routes[0].IsDefault, routes[0])
+	}
+	targets, err := database.ListPublicRouteTargets(context.Background())
+	if err != nil {
+		t.Fatalf("list migrated route targets: %v", err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("got %d targets, want generated default target: %+v", len(targets), targets)
+	}
+	if targets[0].RouteID != routes[0].ID {
+		t.Fatalf("target route_id = %d, want generated route %d", targets[0].RouteID, routes[0].ID)
+	}
+	if targets[0].Url != "https://default.example.com" || targets[0].Transport != "direct" || targets[0].TargetType != "proxy" {
+		t.Fatalf("unexpected generated default target: %+v", targets[0])
+	}
+	if containsString(tableColumns(t, database, "public_listeners"), "default_backend_id") {
+		t.Fatal("public_listeners still has default_backend_id after migration")
+	}
+	for _, column := range []string{"backend_id", "fallback_backend_id", "load_balancing"} {
+		if containsString(tableColumns(t, database, "public_routes"), column) {
+			t.Fatalf("public_routes still has legacy column %s after migration", column)
+		}
+	}
+	for _, table := range []string{"public_backends", "public_backend_agents", "public_backend_headers", "public_backend_upstream_headers", "public_route_backends"} {
+		if tableExists(t, database, table) {
+			t.Fatalf("legacy table %s still exists after route-target migration", table)
+		}
+	}
+	assertForeignKeyCheck(t, database)
+}
+
 func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-test.db"))
 	if err != nil {

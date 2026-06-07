@@ -141,6 +141,22 @@ func TestCreateAgentStoresSystemAndUserLabels(t *testing.T) {
 	}
 }
 
+func TestCreateAgentRejectsDuplicateNormalizedLabelKeys(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	header := createTestAdminSession(t, app)
+
+	req := connect.NewRequest(&p2pstreamv1.CreateAgentRequest{
+		Name:    "Duplicate Labels",
+		Enabled: true,
+		Labels:  map[string]string{" site": "home", "site": "edge"},
+	})
+	req.Header().Set("Cookie", header.Get("Cookie"))
+	if _, err := app.CreateAgent(context.Background(), req); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("CreateAgent error = %v, want invalid argument", err)
+	}
+}
+
 func TestUpdateAgentReplacesUserLabelsAndPreservesSystemLabel(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(nil, database)
