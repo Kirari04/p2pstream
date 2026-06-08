@@ -44,7 +44,7 @@ jobs:
           bun-version: 1.2.18
 
       - name: Set up Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Install docs dependencies
         run: cd docs && bun install --frozen-lockfile
@@ -53,7 +53,7 @@ jobs:
         run: cd docs && bun run docs:build
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
 
@@ -68,4 +68,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
