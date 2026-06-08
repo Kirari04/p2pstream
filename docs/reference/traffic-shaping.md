@@ -26,6 +26,11 @@ Key parts still identify the per-key budget. They can use remote IP, host, metho
 Byte rates and exempt bytes must be non-negative. Use realistic rates so operational debugging remains clear.
 
 <figure class="doc-screenshot">
+  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shaper rules">
+  <figcaption>The Traffic Policy page lists traffic shapers next to cache rules so admins can review streaming limits and cache behavior from the same post-routing policy area.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
   <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper rule editor showing match builder, budget scope, key parts, byte-per-second limits, burst bytes, and exempt byte settings">
   <figcaption>The shaper editor configures the selected stream limits and the key used to share or isolate those limits across matching requests.</figcaption>
 </figure>

@@ -66,6 +66,11 @@ Example:
 
    Labels under `p2pstream.io/` are system-owned and read-only. The exact-agent selector label is `p2pstream.io/agent-id=<agent public ID>`. Empty label values are allowed, but should be used only when you intentionally want to match an empty value.
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream agent editor showing user labels and read-only system labels">
+     <figcaption>Agent labels are the bridge between connected workers and agent route targets. User labels are editable; system labels are read-only and can be copied for exact-agent targeting.</figcaption>
+   </figure>
+
 5. Open **Proxy**, create or edit a forward route, and add an agent proxy target:
 
    :::warning Origin resolution
@@ -83,6 +88,11 @@ Example:
    | Priority group | `0` |
    | Weight | `100` |
    | Enabled | On |
+
+   <figure class="doc-screenshot">
+     <img src="../assets/new/proxy_agent_route_target_modal.png" alt="p2pstream route editor showing an agent proxy target with label selector fields">
+     <figcaption>The agent target editor selects agents by label and keeps the origin URL relative to the selected agent host, not the p2pstream server.</figcaption>
+   </figure>
 
 6. Configure the route match:
 

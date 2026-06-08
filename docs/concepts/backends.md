@@ -18,6 +18,16 @@ Proxy targets have a transport:
 | Direct | The p2pstream server connects to the upstream origin. |
 | Agent | The server selects a connected agent by label selector, then uses that agent to dial the upstream TCP origin. |
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing routes with direct, agent, static, redirect, and fallback targets">
+  <figcaption>The Proxy routes view shows route matches, priorities, target health, and whether traffic is forwarded, redirected, or answered with a static response.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream route target editor showing target type, transport, URL, health check, load balancing, and timeout controls">
+  <figcaption>The target editor contains the destination details for a forward route, including transport, upstream URL, health checks, failover group, weight, and timeout behavior.</figcaption>
+</figure>
+
 ## Runtime Behavior
 
 Route matching picks the first enabled matching route by priority, then ID. If no explicit route matches, the listener's enabled default route is used.

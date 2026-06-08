@@ -24,7 +24,17 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
 
 2. Install each agent with its generated setup command and wait until each shows connected.
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connected, offline, and disabled fixture agents">
+     <figcaption>The Agents page is the pool inventory. Check connection state, uptime, active requests, labels, and recent sessions before routing traffic to an agent-selected target.</figcaption>
+   </figure>
+
 3. Edit each agent and add user labels. Labels under `p2pstream.io/` are reserved for p2pstream and are shown read-only, but labels such as `site=home-lab`, `region=eu`, or `capacity=large` are operator-owned. Empty label values are allowed, but they should be intentional because they only match empty selector values.
+
+   <figure class="doc-screenshot">
+     <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream agent editor showing editable user labels and reserved system labels">
+     <figcaption>Use shared labels for pools and the reserved exact-agent label only when a route must pin traffic to one specific registered agent.</figcaption>
+   </figure>
 
 4. Create or edit a forward route and add an agent proxy target:
 
@@ -39,6 +49,11 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
    | Priority group | `0` |
    | Weight | `100` |
    | Enabled | On |
+
+   <figure class="doc-screenshot">
+     <img src="../assets/new/proxy_agent_route_target_modal.png" alt="p2pstream route target editor showing an agent selector and agent load-balancing policy">
+     <figcaption>The agent target selector matches all configured labels against the same enabled connected agent, then applies the selected agent load-balancing policy.</figcaption>
+   </figure>
 
 5. Add another target with a higher priority group for failover, if needed:
 
@@ -66,6 +81,11 @@ Old WebSocket agents are incompatible with Yamux-tunnel servers. Upgrade agents 
 ## Verification
 
 Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Traffic** tracing to confirm traffic moves across the expected agents. Use **Agents** to check each agent's labels, current uptime, offline duration, connection and disconnect counts, and recent sessions.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a traced request through route target and agent selection">
+  <figcaption>Traffic tracing shows the route target and agent selected for a request, which is the fastest way to verify that the pool selector and failover groups behave as intended.</figcaption>
+</figure>
 
 ## Troubleshooting
 
