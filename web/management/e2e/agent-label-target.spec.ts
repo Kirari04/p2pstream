@@ -1,15 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
-import { connectRPC, connectRPCResponse } from "./helpers/connect";
+import { expect, test } from "@playwright/test";
+import { authenticate } from "./helpers/auth";
+import { connectRPC } from "./helpers/connect";
 
-const setupToken = "playwright-setup-token";
-const username = "admin";
-const password = "playwright-password";
-const managementPort = process.env.PLAYWRIGHT_MANAGEMENT_PORT ?? "19081";
 const agentPublicID = "playwright-agent";
-
-type GetSetupStateResponse = {
-  setupRequired?: boolean;
-};
 
 type GetPublicProxyConfigResponse = {
   agents: Array<{
@@ -106,41 +99,3 @@ test("configures agent labels and an agent-selected route target", async ({ page
     role: "app",
   });
 });
-
-async function authenticate(page: Page, appBaseURL: string) {
-  const managementBaseURL = `https://localhost:${managementPort}`;
-  const setupState = await connectRPC<GetSetupStateResponse>(
-    page.request,
-    managementBaseURL,
-    "GetSetupState",
-    {},
-  );
-  if (setupState.setupRequired) {
-    await connectRPC(page.request, managementBaseURL, "SetupAdmin", {
-      username,
-      password,
-      setupToken,
-    });
-  }
-  const loginResponse = await connectRPCResponse(page.request, managementBaseURL, "Login", {
-    username,
-    password,
-  });
-  const sessionCookie = sessionCookieFromHeader(loginResponse.headers()["set-cookie"] ?? "");
-  await page.context().addCookies([{
-    name: "p2pstream_session",
-    value: sessionCookie,
-    url: appBaseURL,
-    httpOnly: true,
-    secure: appBaseURL.startsWith("https:"),
-    sameSite: "Lax",
-  }]);
-  await page.goto("/");
-  await expect(page.locator('select[title^="Selected environment:"]')).toBeVisible();
-}
-
-function sessionCookieFromHeader(header: string): string {
-  const match = /(?:^|,\s*)p2pstream_session=([^;]+)/.exec(header);
-  expect(match, `missing session cookie in ${header}`).not.toBeNull();
-  return decodeURIComponent(match?.[1] ?? "");
-}

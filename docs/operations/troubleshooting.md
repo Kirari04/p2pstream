@@ -27,6 +27,16 @@ sudo journalctl -u p2pstream-agent -f
 
 When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the request, and then turn tracing off.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a traced request through listener, policy, route, cache, agent, upstream, and response stages">
+  <figcaption>Use the Traffic flow view while reproducing a request to see which stage handled, rejected, cached, or failed the request.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, route target, cache status, headers, and response metadata">
+  <figcaption>The trace details modal is the fastest way to inspect route matching, selected target, cache outcome, agent selection, upstream timing, and response status for a single request.</figcaption>
+</figure>
+
 ## Management UI Will Not Open
 
 | Check | Fix |
@@ -64,6 +74,11 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Firewall/NAT | Agent host must reach management HTTPS/TLS and `/agent/tunnel`. |
 | Insecure URL | HTTP requires `AGENT_ALLOW_INSECURE_MANAGEMENT=true`, intended for development only. |
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connected, offline, and disabled agents with runtime and connection history">
+  <figcaption>The Agents page shows whether an agent is connected, offline, disabled, recently disconnected, or missing recent connection history.</figcaption>
+</figure>
+
 ## Public Listener Fails To Bind
 
 | Cause | Fix |
@@ -81,6 +96,11 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | ACME certificate not ready | Check certificate status and last error. |
 | Request SNI mismatch | Test with the real hostname, not the IP address. |
 | Listener not restarted | Stop/start the listener or wait for automatic restart after certificate issuance. |
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing certificate mappings, ACME state, DNS credentials, and certificate metadata">
+  <figcaption>The TLS page shows whether the requested hostname has a matching certificate mapping, whether ACME is ready, and which listener owns the mapping.</figcaption>
+</figure>
 
 ## ACME Fails
 

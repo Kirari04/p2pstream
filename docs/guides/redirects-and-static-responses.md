@@ -33,6 +33,11 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    https://old.example.com/docs?a=1 -> https://new.example.com/docs?a=1
    ```
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/proxy_redirect_route_modal.png" alt="p2pstream route editor showing an external redirect route with status and query preservation">
+     <figcaption>The redirect route editor keeps redirect mode, target, status code, path suffix preservation, and query handling with the route match that triggers it.</figcaption>
+   </figure>
+
 2. To redirect a path on the same host, use same-host path mode:
 
    | Field | Value |
@@ -55,6 +60,11 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | Header | `Retry-After: 300` |
 
    For reusable HTML maintenance pages, first open **Templates**, create a **Generic body** template, then set the static target body source to **Template** and select it. Keep response headers, especially `Content-Type`, on the static target.
+
+   <figure class="doc-screenshot">
+     <img src="../assets/new/proxy_static_response_target_modal.png" alt="p2pstream route target editor showing a static response backed by a response template">
+     <figcaption>The static response target returns directly from p2pstream. Use it for deliberate local responses such as maintenance pages, probes, or temporary sink routes.</figcaption>
+   </figure>
 
    <figure class="doc-screenshot">
      <img src="../assets/new/edit_template_modal.png" alt="p2pstream generic response template editor showing template name, kind, content type, body, and preview">

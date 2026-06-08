@@ -6,6 +6,16 @@ A visual reference for the current p2pstream management console. These images ar
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream first-run setup screen for creating the initial administrator account">
+    <figcaption>First login setup</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/login_page.png" alt="p2pstream login page with username and password fields">
+    <figcaption>Login page</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/dashboard_overview.png" alt="p2pstream Overview dashboard showing proxy status, request totals, success rate, traffic trend, hotspots, and problem signals">
     <figcaption>Overview dashboard</figcaption>
   </figure>
@@ -48,6 +58,26 @@ A visual reference for the current p2pstream management console. These images ar
     <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing listener, host pattern, path prefix, action, route targets, fallback priority groups, and priority">
     <figcaption>Route editor</figcaption>
   </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/proxy_direct_route_modal.png" alt="p2pstream route editor showing a direct upstream target for app traffic">
+    <figcaption>Direct route target</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/proxy_agent_route_target_modal.png" alt="p2pstream route editor showing an agent-selected target with label selectors">
+    <figcaption>Agent route target</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/proxy_redirect_route_modal.png" alt="p2pstream route editor showing an external redirect target with status and query preservation">
+    <figcaption>Redirect route</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/proxy_static_response_target_modal.png" alt="p2pstream route editor showing a static response target with template-backed response body">
+    <figcaption>Static response target</figcaption>
+  </figure>
 </div>
 
 ## Agents
@@ -64,8 +94,8 @@ A visual reference for the current p2pstream management console. These images ar
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/backend_agent_healthcheck_logs.png" alt="p2pstream target health panel showing matching agents, health state, active requests, and health-check log entries">
-    <figcaption>Target agent health</figcaption>
+    <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream agent editor showing user labels and read-only system labels for route target selection">
+    <figcaption>Agent labels editor</figcaption>
   </figure>
 </div>
 
@@ -75,6 +105,11 @@ A visual reference for the current p2pstream management console. These images ar
   <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy page showing WAF rules and rate limits with priority, match summaries, actions, algorithms, and enabled state">
     <figcaption>WAF and rate limits</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider editor showing provider type, site key, saved secret, and enabled state">
+    <figcaption>Captcha provider editor</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
@@ -90,6 +125,11 @@ A visual reference for the current p2pstream management console. These images ar
   <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shapers with priorities, match summaries, byte rates, and cache controls">
     <figcaption>Cache and shapers</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/cache_settings_section.png" alt="p2pstream cache settings section showing disk, memory, hot-object, entry, and cleanup controls">
+    <figcaption>Cache settings</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
@@ -134,6 +174,16 @@ A visual reference for the current p2pstream management console. These images ar
     <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream TLS certificate mapping modal showing HTTP challenge, Let's Encrypt CA, hostname pattern, listener, email, and enabled state">
     <figcaption>ACME HTTP challenge editor</figcaption>
   </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/tls_dns_credential_modal.png" alt="p2pstream DNS credential editor showing Cloudflare zone ID, API token, provider, and enabled state">
+    <figcaption>DNS credential editor</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream TLS certificate mapping modal showing DNS-01 challenge with a Cloudflare DNS credential">
+    <figcaption>ACME DNS challenge editor</figcaption>
+  </figure>
 </div>
 
 ## Settings And Environments
@@ -147,6 +197,11 @@ A visual reference for the current p2pstream management console. These images ar
   <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/environment_settings_page.png" alt="p2pstream Settings Environments page showing local and remote environments, transport type, status, certificate trust state, and actions">
     <figcaption>Environment settings</figcaption>
+  </figure>
+
+  <figure class="doc-screenshot screenshot-tile">
+    <img src="../assets/new/settings_environment_editor_modal.png" alt="p2pstream environment editor showing management URL, transport, access token, enabled state, and timeout">
+    <figcaption>Environment editor</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">

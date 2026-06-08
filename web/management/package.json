@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run --bun vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vue-tsc --noEmit && bun run --bun vite build",
+    "docs:screenshots": "playwright test -c playwright.docs-screenshots.config.ts",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
     "typecheck": "vue-tsc --noEmit"

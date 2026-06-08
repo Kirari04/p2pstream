@@ -15,6 +15,11 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
 
 1. Open **Traffic Policy -> Traffic Shapers** and create a rule.
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shapers">
+     <figcaption>The Cache and Traffic Shapers sections sit together because both act after early deny policies and before or during route target forwarding.</figcaption>
+   </figure>
+
 2. Match the traffic. Example for a downloads path:
 
    | Field | Value |

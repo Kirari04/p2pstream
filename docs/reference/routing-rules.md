@@ -52,6 +52,31 @@ Wildcard patterns do not match the apex `example.com`.
 
 Redirect routes require target mode, target, and status code `301`, `302`, `307`, or `308`.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing listener, host pattern, path prefix, action, targets, and priority">
+  <figcaption>The route editor defines the listener-scoped match, action, priority, and forward target pool or redirect settings.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_direct_route_modal.png" alt="p2pstream route editor showing a direct upstream target">
+  <figcaption>Direct proxy targets are used when the p2pstream server itself can reach the upstream origin.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_agent_route_target_modal.png" alt="p2pstream route editor showing an agent-selected proxy target">
+  <figcaption>Agent proxy targets select a connected agent by labels and dial the origin from that agent's network.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_redirect_route_modal.png" alt="p2pstream route editor showing redirect action settings">
+  <figcaption>Redirect routes return a local redirect response without selecting a route target.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_static_response_target_modal.png" alt="p2pstream route target editor showing a static response target">
+  <figcaption>Static response targets return a local status, headers, and body from p2pstream without forwarding upstream.</figcaption>
+</figure>
+
 ## Runtime Effects
 
 Routes are sorted by priority ascending, then route ID ascending. If no enabled non-default route matches, the listener default route handles the request.

@@ -47,6 +47,11 @@ If no configured certificate matches a public hostname, the HTTPS listener can s
   <figcaption>The TLS page shows certificate mappings per HTTPS listener, their issuance status, renewal metadata, and DNS credentials used for DNS-01 validation.</figcaption>
 </figure>
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream TLS certificate mapping modal showing DNS-01 challenge with a Cloudflare credential">
+  <figcaption>DNS-01 mappings attach wildcard-capable ACME validation to a saved DNS credential, which is separate from the HTTPS listener that serves the resulting certificate.</figcaption>
+</figure>
+
 ## Common Mistakes
 
 - Setting `MANAGEMENT_PUBLIC_URL` to a URL agents cannot reach.

@@ -52,6 +52,11 @@ Cache rule matches inspect only request data through CEL `match_rule` rules. Emp
 Route data, target data, target health, and load-balancer state are not available inside cache match CEL. Cache-specific `route_ids` and `target_ids` remain separate filters evaluated after route/target selection.
 
 <figure class="doc-screenshot">
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream cache settings section showing disk, memory, entry, object, and cleanup limits">
+  <figcaption>Global cache settings control storage budgets and cleanup cadence; cache rules decide whether a given public response is eligible for that storage.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
   <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing CEL match builder, route filters, target filters, TTL mode, query mode, vary headers, cache status codes, and max object bytes">
   <figcaption>The cache rule editor keeps match criteria separate from post-routing filters and storage controls, which helps avoid accidentally caching dynamic or user-specific responses.</figcaption>
 </figure>

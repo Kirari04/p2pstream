@@ -67,3 +67,8 @@ AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
   <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connection state, uptime, active requests, runtime metrics, token actions, and recent sessions">
   <figcaption>The Agents page shows connection state, uptime, active requests, runtime metrics, token rotation, enable/disable actions, and recent sessions.</figcaption>
 </figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream agent editor showing user labels and read-only system labels">
+  <figcaption>The agent editor separates user labels used by route targets from reserved system labels such as the exact-agent selector.</figcaption>
+</figure>

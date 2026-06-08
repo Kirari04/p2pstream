@@ -72,6 +72,21 @@ Method: DNS-01
 DNS credential: cloudflare-example
 ```
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream TLS certificate mapping modal showing HTTP-01 ACME settings">
+  <figcaption>The HTTP-01 and TLS-ALPN-01 mapping form selects the listener, hostname pattern, ACME CA, validation method, account email, and enabled state.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_dns_credential_modal.png" alt="p2pstream DNS credential editor showing a Cloudflare credential used for ACME DNS-01">
+  <figcaption>DNS credentials are stored separately from certificate mappings so multiple DNS-01 mappings can reuse the same Cloudflare zone credential without exposing the secret in the UI.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream TLS certificate mapping modal showing DNS-01 challenge with Cloudflare">
+  <figcaption>The DNS-01 mapping form uses the saved Cloudflare credential and is the required ACME path for wildcard hostnames.</figcaption>
+</figure>
+
 ## Related Tasks
 
 - [ACME HTTP/TLS-ALPN](../guides/acme-http-tls-alpn)

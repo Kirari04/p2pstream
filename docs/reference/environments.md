@@ -40,6 +40,11 @@ Use direct transport when the control-plane server can reach the target manageme
 The URL is normalized without a trailing slash. HTTP URLs are not accepted for environments.
 
 <figure class="doc-screenshot">
+  <img src="../assets/new/settings_environment_editor_modal.png" alt="p2pstream environment editor showing management URL, transport, access token, enabled state, and timeout">
+  <figcaption>The environment editor stores the remote management URL, transport, access token, enabled state, and request timeout before certificate discovery and trust.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
   <img src="../assets/new/environment_settings_page.png" alt="p2pstream Settings Environments page showing local and remote environments, transport type, status, certificate trust state, and actions">
   <figcaption>The Environments page shows the local instance and registered remotes, including transport type, connectivity, certificate trust state, and the actions needed before a remote can be selected.</figcaption>
 </figure>

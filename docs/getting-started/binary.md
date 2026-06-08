@@ -77,6 +77,21 @@ https://proxy.example.com:8081
 
 Then confirm **Overview** loads and **Proxy** shows any configured listeners. If you run systemd, verify:
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen shown on a fresh binary installation before the first user exists">
+  <figcaption>A fresh binary install starts with the same setup screen as Compose when the database has no users.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/login_page.png" alt="p2pstream login page shown after initial admin setup">
+  <figcaption>After setup, return to the management URL and sign in with the admin account you created.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/dashboard_overview.png" alt="p2pstream Overview dashboard shown after signing in to the management console">
+  <figcaption>The Overview page confirms the binary server is running, selected, and reporting proxy state before you install the systemd unit.</figcaption>
+</figure>
+
 ```bash
 sudo systemctl status p2pstream
 sudo journalctl -u p2pstream -f

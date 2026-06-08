@@ -65,6 +65,11 @@ Automatic activation defaults:
 Captcha providers are created under **Traffic Policy -> WAF** and support Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and not sent back to the UI after creation. Captcha rules require an enabled provider.
 
 <figure class="doc-screenshot">
+  <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider editor showing provider type, site key, secret key saved state, and enabled state">
+  <figcaption>The captcha provider editor stores the provider credentials used by captcha WAF rules. Saved secret keys are represented by state, not echoed back in full.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
   <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF section showing WAF rules, actions, activation modes, captcha providers, and rate limits">
   <figcaption>The Traffic Policy page keeps WAF rules near rate limits so admins can see which early policy layer will act before route resolution.</figcaption>
 </figure>

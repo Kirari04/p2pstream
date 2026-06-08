@@ -35,6 +35,11 @@ The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
 
 <figure class="doc-screenshot">
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream cache settings section showing disk, memory, hot object, entry, and cleanup limits">
+  <figcaption>The cache settings section controls global storage budgets and cleanup behavior, while individual cache rules decide which public responses may be stored.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
   <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and target filters, TTL, query handling, vary headers, status codes, and object limits">
   <figcaption>The cache editor exposes both request matching and cache-safety controls, including route/target filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
 </figure>

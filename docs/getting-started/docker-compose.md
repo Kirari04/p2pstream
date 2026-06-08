@@ -101,6 +101,11 @@ docker compose logs -f p2pstream
 
 Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should show proxy state, listeners, routes, targets, TLS counts, and recent traffic once requests arrive.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy listeners section showing seeded HTTP and HTTPS listeners">
+  <figcaption>The seeded listeners are the runtime objects behind the Compose port mappings. If you add another listener, publish that container port in Compose before expecting external traffic.</figcaption>
+</figure>
+
 ## Troubleshooting
 
 | Symptom | Check |
