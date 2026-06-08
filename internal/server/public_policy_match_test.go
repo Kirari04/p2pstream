@@ -328,24 +328,24 @@ func TestPublicPolicyMatchSharedEvaluatorAcrossPolicies(t *testing.T) {
 	}
 }
 
-func TestPublicCacheRouteAndBackendFiltersRemainOutsideCEL(t *testing.T) {
+func TestPublicCacheRouteAndTargetFiltersRemainOutsideCEL(t *testing.T) {
 	rule := publicCacheRuleConfig{
-		Enabled:    true,
-		Match:      mustPublicPolicyMatchCEL(t, `path_prefix(path, "/assets")`),
-		RouteIDs:   []int64{10},
-		BackendIDs: []int64{20},
+		Enabled:   true,
+		Match:     mustPublicPolicyMatchCEL(t, `path_prefix(path, "/assets")`),
+		RouteIDs:  []int64{10},
+		TargetIDs: []int64{20},
 	}
 	listener := publicListenerConfig{Protocol: publicListenerProtocolHTTP}
 	req := httptest.NewRequest(http.MethodGet, "http://example.test/assets/app.js", nil)
-	matching := publicRouteResolution{Route: publicRouteConfig{ID: 10}, Backend: publicBackendConfig{ID: 20}}
+	matching := publicRouteResolution{Route: publicRouteConfig{ID: 10}, Target: publicRouteTargetConfig{ID: 20}}
 	if !rule.matches(listener, req, matching) {
-		t.Fatal("cache rule should match when CEL and route/backend filters match")
+		t.Fatal("cache rule should match when CEL and route/target filters match")
 	}
-	if rule.matches(listener, req, publicRouteResolution{Route: publicRouteConfig{ID: 11}, Backend: publicBackendConfig{ID: 20}}) {
+	if rule.matches(listener, req, publicRouteResolution{Route: publicRouteConfig{ID: 11}, Target: publicRouteTargetConfig{ID: 20}}) {
 		t.Fatal("cache route filter was ignored")
 	}
-	if rule.matches(listener, req, publicRouteResolution{Route: publicRouteConfig{ID: 10}, Backend: publicBackendConfig{ID: 21}}) {
-		t.Fatal("cache backend filter was ignored")
+	if rule.matches(listener, req, publicRouteResolution{Route: publicRouteConfig{ID: 10}, Target: publicRouteTargetConfig{ID: 21}}) {
+		t.Fatal("cache target filter was ignored")
 	}
 }
 

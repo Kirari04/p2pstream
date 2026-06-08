@@ -252,7 +252,7 @@ async function deleteTrafficShaperRule(id: bigint) {
         <EmptyState
           v-if="!rateLimitRules.length"
           title="No rate-limit rules configured"
-          description="Rate limits protect your backends from excessive traffic by throttling requests per client or route."
+          description="Rate limits protect your route targets from excessive traffic by throttling requests per client or route."
           action-label="Add Rule"
           @action="openAddRateLimitRuleModal"
         />
@@ -318,7 +318,7 @@ async function deleteTrafficShaperRule(id: bigint) {
         <EmptyState
           v-if="!wafRules.length && !wafCaptchaProviders.length"
           title="No WAF policy configured"
-          description="WAF rules can block, challenge, or queue selected traffic before rate limits, shapers, routes, and backends."
+          description="WAF rules can block, challenge, or queue selected traffic before rate limits, shapers, routes, and targets."
           action-label="Add Rule"
           @action="openAddWafRuleModal"
         />

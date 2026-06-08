@@ -14,6 +14,7 @@ import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
+import { AGENT_ID_SYSTEM_LABEL_KEY, userAgentLabelPairs } from "@/lib/agentLabels";
 import {
   FALLBACK_RELEASE_REPOSITORY,
   cliSnippet as buildCliSnippet,
@@ -23,6 +24,13 @@ import {
   linuxUninstallSnippet,
   normalizeManagementUrl as normalizeSetupManagementUrl,
 } from "@/lib/agentSetupSnippets";
+import {
+  agentUptimeSummaryById,
+  fleetUptimePercent,
+  formatLongDuration,
+  formatPercent,
+  recentDisconnectCount,
+} from "@/lib/dashboardStats";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import Button from "@/volt/Button.vue";
 import DangerButton from "@/volt/DangerButton.vue";
@@ -31,6 +39,8 @@ import SecondaryButton from "@/volt/SecondaryButton.vue";
 import Tag from "@/volt/Tag.vue";
 import type {
   Agent,
+  AgentConnectionSession,
+  AgentUptimeSummary,
   GetDashboardResponse,
   GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -51,6 +61,18 @@ const agents = computed(() => publicProxyConfig?.value?.agents ?? []);
 const oneHourWindow = computed(() => dashboard?.value?.windows.find((w) => w.label === "1h"));
 const dayWindow = computed(() => dashboard?.value?.windows.find((w) => w.label === "24h"));
 const managementSecurity = computed(() => dashboard?.value?.managementSecurity ?? null);
+const uptimeSummaries = computed(() => dashboard?.value?.agentUptimeSummaries ?? []);
+const uptimeByAgentId = computed(() => agentUptimeSummaryById(uptimeSummaries.value));
+const recentAgentConnections = computed(() => dashboard?.value?.recentAgentConnections ?? []);
+const enabledAgents = computed(() => agents.value.filter((agent) => agent.enabled).length);
+const connectedAgentCount = computed(() => uptimeSummaries.value.length
+  ? uptimeSummaries.value.filter((summary) => summary.connected).length
+  : agents.value.filter((agent) => agent.connected).length);
+const activeAgentRequests = computed(() => agents.value.reduce((sum, agent) => sum + Number(agent.activeRequests || 0n), 0));
+const fleetUptime = computed(() => fleetUptimePercent(uptimeSummaries.value));
+const longestCurrentUptimeMillis = computed(() => Math.max(0, ...uptimeSummaries.value.map((summary) => Number(summary.currentUptimeMillis || 0n))));
+const recentDisconnects = computed(() => recentDisconnectCount(recentAgentConnections.value, dashboard?.value?.generatedAtUnixMillis ?? BigInt(Date.now())));
+const retentionDaysLabel = computed(() => `${(dashboard?.value?.retentionDays ?? 30n).toString()}d`);
 
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rotateAgentToConfirm = ref<Agent | null>(null);
@@ -134,12 +156,72 @@ function formatDate(value: bigint | undefined): string {
   return new Date(Number(value)).toLocaleString();
 }
 
+function uptimeForAgent(agent: Agent): AgentUptimeSummary | null {
+  return uptimeByAgentId.value.get(agent.id.toString()) ?? null;
+}
+
+function agentConnected(agent: Agent): boolean {
+  return uptimeForAgent(agent)?.connected ?? agent.connected;
+}
+
+function currentAgentDuration(agent: Agent): string {
+  const uptime = uptimeForAgent(agent);
+  if (!uptime) return "-";
+  return uptime.connected
+    ? formatLongDuration(uptime.currentUptimeMillis)
+    : formatLongDuration(uptime.currentDowntimeMillis);
+}
+
+function currentAgentDurationKind(agent: Agent): string {
+  return agentConnected(agent) ? "Uptime" : "Offline";
+}
+
+function agentUptimePercentLabel(agent: Agent): string {
+  return formatPercent(uptimeForAgent(agent)?.uptimePercent);
+}
+
+function agentConnectionCounts(agent: Agent): string {
+  const uptime = uptimeForAgent(agent);
+  if (!uptime) return "-";
+  return `${uptime.connectionCount.toString()} / ${uptime.disconnectCount.toString()}`;
+}
+
+function agentLastConnected(agent: Agent): bigint | undefined {
+  const value = uptimeForAgent(agent)?.lastConnectedAtUnixMillis ?? agent.lastConnectedAtUnixMillis;
+  return value === 0n ? undefined : value;
+}
+
+function agentLastDisconnected(agent: Agent): bigint | undefined {
+  const value = uptimeForAgent(agent)?.lastDisconnectedAtUnixMillis ?? agent.lastDisconnectedAtUnixMillis;
+  return value === 0n ? undefined : value;
+}
+
+function sessionAgentLabel(session: AgentConnectionSession): string {
+  if (session.agentName) return session.agentName;
+  if (session.agentPublicId) return session.agentPublicId;
+  return session.agentId > 0n ? `agent #${session.agentId.toString()}` : "Unknown agent";
+}
+
+function sessionAgentDetail(session: AgentConnectionSession): string {
+  if (session.agentName && session.agentPublicId) return session.agentPublicId;
+  return session.agentId > 0n ? `agent #${session.agentId.toString()}` : "";
+}
+
 function openAddAgentModal() {
   agentEditor.value?.openCreate();
 }
 
 function editAgent(agent: Agent) {
   agentEditor.value?.openEdit(agent.id);
+}
+
+function agentUserLabels(agent: Agent) {
+  return userAgentLabelPairs(agent.labels);
+}
+
+function exactAgentSelector(agent: Agent): string {
+  const value = agent.labels[AGENT_ID_SYSTEM_LABEL_KEY] || agent.publicId;
+  return `${AGENT_ID_SYSTEM_LABEL_KEY}=${value}`;
 }
 
 function openUninstallModal(agent: Agent) {
@@ -195,7 +277,7 @@ async function confirmRotateAgentToken() {
 }
 
 async function deleteAgent(agent: Agent) {
-  if (!await confirm("Delete Agent", "This agent and its backend assignments will be permanently removed.")) return;
+  if (!await confirm("Delete Agent", "This agent and its agent-selected target matches will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deleteAgent({ id: agent.id });
   });
@@ -337,6 +419,29 @@ async function copyUninstallSnippet() {
       </DisabledHint>
     </div>
 
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="vercel-card p-5">
+        <p class="vercel-card-title">Connected Agents</p>
+        <span class="vercel-card-value">{{ connectedAgentCount }}/{{ enabledAgents }}</span>
+        <p class="mt-2 text-xs text-[#888]">connected / enabled</p>
+      </div>
+      <div class="vercel-card p-5">
+        <p class="vercel-card-title">Fleet Uptime</p>
+        <span class="vercel-card-value">{{ formatPercent(fleetUptime) }}</span>
+        <p class="mt-2 text-xs text-[#888]">{{ retentionDaysLabel }} retention</p>
+      </div>
+      <div class="vercel-card p-5">
+        <p class="vercel-card-title">Longest Current Uptime</p>
+        <span class="vercel-card-value">{{ formatLongDuration(longestCurrentUptimeMillis) }}</span>
+        <p class="mt-2 text-xs text-[#888]">connected sessions</p>
+      </div>
+      <div class="vercel-card p-5">
+        <p class="vercel-card-title">Recent Disconnects</p>
+        <span class="vercel-card-value">{{ recentDisconnects }}</span>
+        <p class="mt-2 text-xs text-[#888]">last 24h</p>
+      </div>
+    </div>
+
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       <div class="vercel-card p-6">
         <p class="vercel-card-title">Memory Usage (Sys)</p>
@@ -348,7 +453,7 @@ async function copyUninstallSnippet() {
       </div>
       <div class="vercel-card p-6">
         <p class="vercel-card-title">Active Requests</p>
-        <span class="vercel-card-value">{{ status.latestAgentStats?.activeRequests ?? 0 }}</span>
+        <span class="vercel-card-value">{{ activeAgentRequests }}</span>
       </div>
       <div class="vercel-card p-6">
         <p class="vercel-card-title">Avg Memory (1h)</p>
@@ -369,14 +474,16 @@ async function copyUninstallSnippet() {
         <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Registered Agents</h4>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[980px] text-sm">
+        <table class="w-full min-w-[1180px] text-sm">
           <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
             <tr>
               <th class="px-5 py-3">Agent</th>
               <th class="px-5 py-3">State</th>
-              <th class="px-5 py-3">Active</th>
+              <th class="px-5 py-3">Current</th>
+              <th class="px-5 py-3">Uptime</th>
               <th class="px-5 py-3">Last Connected</th>
-              <th class="px-5 py-3">Latest Stats</th>
+              <th class="px-5 py-3">Last Disconnected</th>
+              <th class="px-5 py-3">Active Requests</th>
               <th class="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -385,18 +492,39 @@ async function copyUninstallSnippet() {
               <td class="px-5 py-4">
                 <p class="font-medium text-white">{{ agent.name }}</p>
                 <p class="font-mono text-xs text-[#888]">{{ agent.publicId }}</p>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <span
+                    v-for="label in agentUserLabels(agent)"
+                    :key="label.id"
+                    class="rounded border border-[#333] bg-[#101010] px-2 py-0.5 font-mono text-[11px] text-[#d4d4d8]"
+                  >
+                    {{ label.key }}={{ label.value }}
+                  </span>
+                  <span v-if="!agentUserLabels(agent).length" class="text-xs text-[#666]">No user labels</span>
+                </div>
+                <code class="mt-1 block break-all font-mono text-[11px] text-[#666]">{{ exactAgentSelector(agent) }}</code>
               </td>
               <td class="px-5 py-4">
                 <div class="flex items-center gap-2">
-                  <Tag :value="agent.connected ? 'Connected' : 'Offline'" :severity="agent.connected ? 'success' : 'warn'" />
+                  <Tag :value="agentConnected(agent) ? 'Connected' : 'Offline'" :severity="agentConnected(agent) ? 'success' : 'warn'" />
                   <Tag v-if="!agent.enabled" value="Disabled" severity="warn" />
                 </div>
               </td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ agent.activeRequests.toString() }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(agent.lastConnectedAtUnixMillis) }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">
-                {{ bigIntLabel(agent.latestStats?.memorySysMb) }} MB /
-                {{ bigIntLabel(agent.latestStats?.numGoroutine) }} goroutines
+              <td class="px-5 py-4">
+                <p class="font-mono text-xs text-[#d4d4d8]">{{ currentAgentDuration(agent) }}</p>
+                <p class="mt-1 text-xs text-[#666]">{{ currentAgentDurationKind(agent) }}</p>
+              </td>
+              <td class="px-5 py-4">
+                <p class="font-mono text-xs text-[#d4d4d8]">{{ agentUptimePercentLabel(agent) }}</p>
+                <p class="mt-1 text-xs text-[#666]">connections {{ agentConnectionCounts(agent) }}</p>
+              </td>
+              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(agentLastConnected(agent)) }}</td>
+              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(agentLastDisconnected(agent)) }}</td>
+              <td class="px-5 py-4">
+                <p class="font-mono text-xs text-[#d4d4d8]">{{ agent.activeRequests.toString() }}</p>
+                <p v-if="agent.latestStats" class="mt-1 font-mono text-xs text-[#666]">
+                  {{ bigIntLabel(agent.latestStats.memorySysMb) }} MB / {{ bigIntLabel(agent.latestStats.numGoroutine) }} goroutines
+                </p>
               </td>
               <td class="px-5 py-4">
                 <div class="flex justify-end gap-2">
@@ -436,7 +564,7 @@ async function copyUninstallSnippet() {
               </td>
             </tr>
             <tr v-if="!agents.length">
-              <td colspan="6">
+              <td colspan="8">
                 <EmptyState
                   title="No agents registered"
                   description="Agents forward traffic to services behind NAT or firewalls by connecting outbound to this proxy."
@@ -450,27 +578,46 @@ async function copyUninstallSnippet() {
       </div>
     </section>
 
-    <div class="vercel-card p-8">
-      <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest mb-6">Connection History</h4>
-      <div class="grid gap-6 sm:grid-cols-2">
-        <div class="flex flex-col">
-          <span class="text-xs text-[#666] mb-1">Last Connected</span>
-          <span class="text-sm font-mono">{{ formatDate(dashboard.agentConnections?.lastConnectedAtUnixMillis) }}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-[#666] mb-1">Last Disconnected</span>
-          <span class="text-sm font-mono">{{ formatDate(dashboard.agentConnections?.lastDisconnectedAtUnixMillis) }}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-[#666] mb-1">Total Connections</span>
-          <span class="text-sm font-mono">{{ bigIntLabel(dashboard.agentConnections?.totalConnections) }}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-[#666] mb-1">Active Since</span>
-          <span class="text-sm font-mono">{{ formatDate(dashboard.agentConnections?.activeConnectedAtUnixMillis) }}</span>
-        </div>
+    <section class="vercel-card overflow-hidden">
+      <div class="border-b border-[#333] px-5 py-4">
+        <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Recent Connection Sessions</h4>
       </div>
-    </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[860px] text-sm">
+          <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
+            <tr>
+              <th class="px-5 py-3">Agent</th>
+              <th class="px-5 py-3">Started</th>
+              <th class="px-5 py-3">Ended</th>
+              <th class="px-5 py-3">Duration</th>
+              <th class="px-5 py-3">State</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="session in recentAgentConnections" :key="session.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
+              <td class="px-5 py-4">
+                <p class="font-medium text-white">{{ sessionAgentLabel(session) }}</p>
+                <p v-if="sessionAgentDetail(session)" class="font-mono text-xs text-[#888]">{{ sessionAgentDetail(session) }}</p>
+              </td>
+              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(session.connectedAtUnixMillis) }}</td>
+              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ session.active ? "-" : formatDate(session.disconnectedAtUnixMillis) }}</td>
+              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatLongDuration(session.durationMillis) }}</td>
+              <td class="px-5 py-4">
+                <Tag :value="session.active ? 'Active' : 'Closed'" :severity="session.active ? 'success' : 'secondary'" />
+              </td>
+            </tr>
+            <tr v-if="!recentAgentConnections.length">
+              <td colspan="5">
+                <EmptyState
+                  title="No connection sessions"
+                  description="Agent connection sessions will appear after registered agents connect to management."
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <AgentEditorModal
       ref="agentEditor"

@@ -1,12 +1,12 @@
 # Response Templates Reference
 
-Response templates are centrally managed response bodies that can be reused by static backends, rate-limit responses, and WAF responses while keeping inline bodies available for one-off cases.
+Response templates are centrally managed response bodies that can be reused by static route targets, rate-limit responses, and WAF responses while keeping inline bodies available for one-off cases.
 
 ## Template Kinds
 
 | Kind | Use | Runtime behavior |
 | --- | --- | --- |
-| Generic body | Static backend bodies, rate-limit response bodies, and WAF block bodies. | The body is reused exactly as stored. Placeholders are not rendered. |
+| Generic body | Static target bodies, rate-limit response bodies, and WAF block bodies. | The body is reused exactly as stored. Placeholders are not rendered. |
 | WAF captcha page | Full HTML page for captcha WAF rules. | Rendered with `html/template` and sample-validated on save. |
 | WAF waiting room page | Full HTML page for waiting-room WAF rules. | Rendered with `html/template` and sample-validated on save. |
 
@@ -20,9 +20,9 @@ Open **Templates** in the management UI.
 2. Select the template kind.
 3. Set a name, description, content type, and body.
 4. Use the HTML editor for page templates. It includes HTML autocomplete, Emmet expansion with `Tab`, placeholder autocomplete, and a live preview with sample values.
-5. Save the template, then select it from the relevant backend, rate-limit rule, or WAF rule editor.
+5. Save the template, then select it from the relevant static target, rate-limit rule, or WAF rule editor.
 
-Template names follow the same public resource name rules as listeners, routes, backends, and rules: 1 to 64 characters, starting with an alphanumeric character, using only letters, numbers, dots, dashes, and underscores.
+Template names follow the same public resource name rules as listeners, routes, targets, and rules: 1 to 64 characters, starting with an alphanumeric character, using only letters, numbers, dots, dashes, and underscores.
 
 Template kind is immutable after creation. To change a generic body into a WAF page template, create a new template of the target kind and move references to it.
 
@@ -76,7 +76,7 @@ On create or update, p2pstream:
 
 Reference validation is kind-aware:
 
-- Static backends, rate-limit rules, and WAF block responses can only select `generic_body` templates.
+- Static targets, rate-limit rules, and WAF block responses can only select `generic_body` templates.
 - Captcha WAF rules can only select `waf_captcha_page` templates for captcha pages.
 - Waiting-room WAF rules can only select `waf_waiting_room_page` templates for waiting-room pages.
 - Captcha page templates cannot be selected for non-captcha WAF rules.

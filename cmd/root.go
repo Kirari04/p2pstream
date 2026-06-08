@@ -10,7 +10,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "p2pstream",
 	Short: "p2pstream is a high-performance reverse proxy toolkit",
-	Long:  `A fast and flexible reverse proxy that tunnels incoming traffic through a WebSocket connection to an internal agent.`,
+	Long:  `A fast and flexible reverse proxy that tunnels incoming traffic through authenticated Yamux agent tunnels.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},

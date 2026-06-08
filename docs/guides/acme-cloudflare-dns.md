@@ -33,6 +33,11 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
 
    The API token is stored server-side and later shown as set, not echoed back in full.
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/tls_dns_credential_modal.png" alt="p2pstream DNS credential editor showing Cloudflare zone ID and saved secret state">
+     <figcaption>The DNS credential editor stores the Cloudflare zone ID and API token server-side so DNS-01 certificate mappings can create ACME validation records.</figcaption>
+   </figure>
+
 3. Open **TLS** and create the certificate mapping:
 
    | Field | Value |
@@ -45,11 +50,16 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
    | DNS credential | `cloudflare-example` |
    | Enabled | On |
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream TLS certificate mapping modal showing DNS-01 challenge with a Cloudflare credential">
+     <figcaption>The DNS-01 mapping selects the wildcard hostname pattern, HTTPS listener, ACME CA, and Cloudflare credential used for validation.</figcaption>
+   </figure>
+
 4. After staging issuance works, switch the CA to Let's Encrypt production and renew.
 
 5. Create matching routes. Wildcard TLS only provides the certificate.
 
-   | Host pattern | Path prefix | Backend |
+   | Host pattern | Path prefix | Target |
    | --- | --- | --- |
    | `app.example.com` | `/` | `app` |
    | `media.example.com` | `/` | `media` |

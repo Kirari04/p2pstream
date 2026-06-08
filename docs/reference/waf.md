@@ -1,6 +1,6 @@
 # WAF Reference
 
-WAF rules are global public proxy rules evaluated before rate limits, traffic shapers, route resolution, and backend forwarding.
+WAF rules are global public proxy rules evaluated before rate limits, traffic shapers, route resolution, and target forwarding.
 
 ## Exact Fields And Defaults
 
@@ -53,7 +53,7 @@ Automatic activation defaults:
 | Minimum request rate | `50` rps |
 | Traffic spike multiplier | `4` |
 | Proxy active requests | `100` |
-| Backend active requests | `100` |
+| Target active requests | `100` |
 | Agent active requests | `50` |
 | Server CPU | `85%` |
 | Agent CPU | `85%` |
@@ -63,6 +63,11 @@ Automatic activation defaults:
 ## Validation Rules
 
 Captcha providers are created under **Traffic Policy -> WAF** and support Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and not sent back to the UI after creation. Captcha rules require an enabled provider.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider editor showing provider type, site key, secret key saved state, and enabled state">
+  <figcaption>The captcha provider editor stores the provider credentials used by captcha WAF rules. Saved secret keys are represented by state, not echoed back in full.</figcaption>
+</figure>
 
 <figure class="doc-screenshot">
   <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF section showing WAF rules, actions, activation modes, captcha providers, and rate limits">
@@ -77,7 +82,7 @@ Waiting-room page templates can only be selected for waiting-room WAF rules. The
 
 WAF rules use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, backend data, backend health, and load-balancer state are not available inside WAF match CEL. WAF rules still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside WAF match CEL. WAF rules still run before route resolution.
 
 WAF key parts reuse rate-limit key sources: remote IP, host, method, path, protocol, header, cookie, and query parameter.
 
@@ -98,7 +103,7 @@ Waiting-room state is in memory. Admission and queue identity are stored in sign
 
 Custom WAF page templates are rendered with `html/template`. Normal placeholder values are escaped. The captcha element placeholder is trusted server-generated HTML so the provider widget and form can render.
 
-Captcha and waiting-room passes only satisfy the matching WAF rule. The request still continues through rate limits, traffic shaping, route resolution, and backend forwarding.
+Captcha and waiting-room passes only satisfy the matching WAF rule. The request still continues through rate limits, traffic shaping, route resolution, and target forwarding.
 
 The original request body is never replayed after a captcha challenge or waiting-room admission.
 
@@ -122,7 +127,7 @@ Action: Waiting room
 Activation mode: Automatic
 Host pattern: app.example.com
 Minimum request rate: 50 rps
-Backend active requests: 100
+Target active requests: 100
 ```
 
 ## Related Tasks

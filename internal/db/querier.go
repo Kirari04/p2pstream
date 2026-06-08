@@ -15,24 +15,20 @@ type Querier interface {
 	BackfillProxyRequestRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestRollupMinutesRangeParams) error
 	BackfillProxyRequestTupleRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestTupleRollupMinutesRangeParams) error
 	ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error)
-	CountEnabledAgentPoolBackendsWhereAgentIsLast(ctx context.Context, agentID int64) (int64, error)
-	CountPublicBackendEnabledReferences(ctx context.Context, backendID int64) (int64, error)
-	CountPublicBackends(ctx context.Context) (int64, error)
+	CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error
 	CountPublicListeners(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
 	CreateManagementAccessToken(ctx context.Context, arg CreateManagementAccessTokenParams) (ManagementAccessToken, error)
-	CreatePublicBackend(ctx context.Context, arg CreatePublicBackendParams) (PublicBackend, error)
-	CreatePublicBackendAgent(ctx context.Context, arg CreatePublicBackendAgentParams) (PublicBackendAgent, error)
-	CreatePublicBackendHeader(ctx context.Context, arg CreatePublicBackendHeaderParams) (PublicBackendHeader, error)
-	CreatePublicBackendUpstreamHeader(ctx context.Context, arg CreatePublicBackendUpstreamHeaderParams) (PublicBackendUpstreamHeader, error)
 	CreatePublicCacheRule(ctx context.Context, arg CreatePublicCacheRuleParams) (PublicCacheRule, error)
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	CreatePublicResponseTemplate(ctx context.Context, arg CreatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
-	CreatePublicRouteBackend(ctx context.Context, arg CreatePublicRouteBackendParams) (PublicRouteBackend, error)
+	CreatePublicRouteTarget(ctx context.Context, arg CreatePublicRouteTargetParams) (PublicRouteTarget, error)
+	CreatePublicRouteTargetResponseHeader(ctx context.Context, arg CreatePublicRouteTargetResponseHeaderParams) (PublicRouteTargetResponseHeader, error)
+	CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg CreatePublicRouteTargetUpstreamHeaderParams) (PublicRouteTargetUpstreamHeader, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
@@ -41,6 +37,8 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	DeleteAgent(ctx context.Context, id int64) error
+	DeleteAgentLabel(ctx context.Context, arg DeleteAgentLabelParams) error
+	DeleteAgentLabelsByAgent(ctx context.Context, agentID int64) error
 	DeleteAgentStatRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteAgentStatsBefore(ctx context.Context, reportedAt time.Time) error
 	DeleteDisconnectedConnectionsBefore(ctx context.Context, disconnectedAt sql.NullTime) error
@@ -52,22 +50,22 @@ type Querier interface {
 	DeleteProxyRequestEventsBefore(ctx context.Context, occurredAt time.Time) error
 	DeleteProxyRequestRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteProxyRequestTupleRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
-	DeletePublicBackend(ctx context.Context, id int64) error
-	DeletePublicBackendAgents(ctx context.Context, backendID int64) error
-	DeletePublicBackendHeaders(ctx context.Context, backendID int64) error
-	DeletePublicBackendUpstreamHeaders(ctx context.Context, backendID int64) error
 	DeletePublicCacheEntry(ctx context.Context, keyDigest string) error
 	DeletePublicCacheRule(ctx context.Context, id int64) error
 	DeletePublicListener(ctx context.Context, id int64) error
 	DeletePublicRateLimitRule(ctx context.Context, id int64) error
 	DeletePublicResponseTemplate(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
-	DeletePublicRouteBackends(ctx context.Context, routeID int64) error
+	DeletePublicRouteTarget(ctx context.Context, id int64) error
+	DeletePublicRouteTargetResponseHeaders(ctx context.Context, targetID int64) error
+	DeletePublicRouteTargetUpstreamHeaders(ctx context.Context, targetID int64) error
+	DeletePublicRouteTargets(ctx context.Context, routeID int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
 	DeletePublicWafCaptchaProvider(ctx context.Context, id int64) error
 	DeletePublicWafRule(ctx context.Context, id int64) error
+	DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
 	GetActiveManagementAccessTokenByHash(ctx context.Context, tokenHash string) (ManagementAccessToken, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
@@ -84,7 +82,6 @@ type Querier interface {
 	GetObservabilityRollupState(ctx context.Context) (ObservabilityRollupState, error)
 	GetProxyRequestRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRequestRollupSummarySinceRow, error)
 	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
-	GetPublicBackend(ctx context.Context, id int64) (PublicBackend, error)
 	GetPublicCacheEntry(ctx context.Context, keyDigest string) (PublicCacheEntry, error)
 	GetPublicCacheRule(ctx context.Context, id int64) (PublicCacheRule, error)
 	GetPublicCacheSettings(ctx context.Context) (PublicCacheSetting, error)
@@ -93,6 +90,7 @@ type Querier interface {
 	GetPublicResponseTemplate(ctx context.Context, id int64) (PublicResponseTemplate, error)
 	GetPublicResponseTemplateByName(ctx context.Context, name string) (PublicResponseTemplate, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
+	GetPublicRouteTarget(ctx context.Context, id int64) (PublicRouteTarget, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
 	GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error)
@@ -106,47 +104,52 @@ type Querier interface {
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
 	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error)
+	ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error)
+	ListAgentLabelsByAgent(ctx context.Context, agentID int64) ([]PublicAgentLabel, error)
+	ListAgentStatRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListAgentStatRollupMinutesSinceRow, error)
 	ListAgents(ctx context.Context) ([]Agent, error)
+	ListConnectionsSince(ctx context.Context, arg ListConnectionsSinceParams) ([]ListConnectionsSinceRow, error)
 	ListEnvironments(ctx context.Context) ([]Environment, error)
 	ListManagementAccessTokens(ctx context.Context) ([]ManagementAccessToken, error)
+	ListProxyRequestRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRequestRollupMinutesSinceRow, error)
+	ListProxyRequestTupleRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRequestTupleRollupMinutesSinceRow, error)
 	ListProxyStatusClassesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusClassesRollupsSinceRow, error)
 	ListProxyStatusClassesSince(ctx context.Context, occurredAt time.Time) ([]ListProxyStatusClassesSinceRow, error)
 	ListProxyTrafficBucketRollupsSince(ctx context.Context, arg ListProxyTrafficBucketRollupsSinceParams) ([]ListProxyTrafficBucketRollupsSinceRow, error)
 	ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error)
-	ListPublicBackendAgents(ctx context.Context) ([]PublicBackendAgent, error)
-	ListPublicBackendAgentsByBackend(ctx context.Context, backendID int64) ([]PublicBackendAgent, error)
-	ListPublicBackendHeaders(ctx context.Context) ([]PublicBackendHeader, error)
-	ListPublicBackendHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendHeader, error)
-	ListPublicBackendUpstreamHeaders(ctx context.Context) ([]PublicBackendUpstreamHeader, error)
-	ListPublicBackendUpstreamHeadersByBackend(ctx context.Context, backendID int64) ([]PublicBackendUpstreamHeader, error)
-	ListPublicBackends(ctx context.Context) ([]PublicBackend, error)
 	ListPublicCacheEntriesForCleanup(ctx context.Context, limit int64) ([]ListPublicCacheEntriesForCleanupRow, error)
 	ListPublicCacheEntryCandidates(ctx context.Context, arg ListPublicCacheEntryCandidatesParams) ([]PublicCacheEntry, error)
 	ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, error)
 	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
 	ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error)
 	ListPublicResponseTemplates(ctx context.Context) ([]PublicResponseTemplate, error)
-	ListPublicRouteBackends(ctx context.Context) ([]PublicRouteBackend, error)
-	ListPublicRouteBackendsByRoute(ctx context.Context, routeID int64) ([]PublicRouteBackend, error)
+	ListPublicRouteTargetResponseHeaders(ctx context.Context) ([]PublicRouteTargetResponseHeader, error)
+	ListPublicRouteTargetResponseHeadersByTarget(ctx context.Context, targetID int64) ([]PublicRouteTargetResponseHeader, error)
+	ListPublicRouteTargetUpstreamHeaders(ctx context.Context) ([]PublicRouteTargetUpstreamHeader, error)
+	ListPublicRouteTargetUpstreamHeadersByTarget(ctx context.Context, targetID int64) ([]PublicRouteTargetUpstreamHeader, error)
+	ListPublicRouteTargets(ctx context.Context) ([]PublicRouteTarget, error)
+	ListPublicRouteTargetsByRoute(ctx context.Context, routeID int64) ([]PublicRouteTarget, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
 	ListPublicWafCaptchaProviders(ctx context.Context) ([]PublicWafCaptchaProvider, error)
 	ListPublicWafRules(ctx context.Context) ([]PublicWafRule, error)
+	ListRecentConnections(ctx context.Context, limit int64) ([]ListRecentConnectionsRow, error)
 	ListTopProxyAgentsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyAgentsRollupsSinceRow, error)
 	ListTopProxyAgentsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyAgentsSinceRow, error)
-	ListTopProxyBackendsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyBackendsRollupsSinceRow, error)
-	ListTopProxyBackendsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyBackendsSinceRow, error)
 	ListTopProxyErrorKindsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyErrorKindsRollupsSinceRow, error)
 	ListTopProxyErrorKindsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyErrorKindsSinceRow, error)
 	ListTopProxyListenersRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyListenersRollupsSinceRow, error)
 	ListTopProxyListenersSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyListenersSinceRow, error)
+	ListTopProxyRouteTargetsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRouteTargetsRollupsSinceRow, error)
+	ListTopProxyRouteTargetsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRouteTargetsSinceRow, error)
 	ListTopProxyRoutesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRoutesRollupsSinceRow, error)
 	ListTopProxyRoutesSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRoutesSinceRow, error)
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
 	MarkAgentRollupBackfilledThrough(ctx context.Context, agentBackfilledThroughID int64) error
+	MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Context, arg MarkAgentsWithOpenConnectionsDisconnectedAtParams) error
 	MarkProxyRollupBackfilledThrough(ctx context.Context, proxyBackfilledThroughID int64) error
 	PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error)
 	PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error)
@@ -165,13 +168,13 @@ type Querier interface {
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateEnvironmentCheckResult(ctx context.Context, arg UpdateEnvironmentCheckResultParams) (Environment, error)
 	UpdateEnvironmentObservedCertificate(ctx context.Context, arg UpdateEnvironmentObservedCertificateParams) (Environment, error)
-	UpdatePublicBackend(ctx context.Context, arg UpdatePublicBackendParams) (PublicBackend, error)
 	UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCacheRuleParams) (PublicCacheRule, error)
 	UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error)
 	UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error)
 	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
+	UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicRouteTargetParams) (PublicRouteTarget, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateStatus(ctx context.Context, arg UpdatePublicTlsCertificateStatusParams) (PublicTlsCertificate, error)
@@ -180,6 +183,7 @@ type Querier interface {
 	UpdatePublicWafCaptchaProvider(ctx context.Context, arg UpdatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error)
 	UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRuleParams) (PublicWafRule, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error)
+	UpsertAgentLabel(ctx context.Context, arg UpsertAgentLabelParams) (PublicAgentLabel, error)
 	UpsertAgentStatRollupMinute(ctx context.Context, arg UpsertAgentStatRollupMinuteParams) error
 	UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapAgentParams) (Agent, error)
 	UpsertProxyRequestRollupMinute(ctx context.Context, arg UpsertProxyRequestRollupMinuteParams) error

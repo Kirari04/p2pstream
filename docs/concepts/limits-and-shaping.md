@@ -4,14 +4,14 @@ WAF rules, rate limits, traffic shapers, and cache rules are global public proxy
 
 ## What It Is
 
-These controls protect, slow, or cache public traffic around route/backend selection.
+These controls protect, slow, or cache public traffic around route/target selection.
 
 | Layer | Runs | Typical use |
 | --- | --- | --- |
 | WAF | Before rate limits | Block, captcha, or queue traffic by HTTP match rules. |
 | Rate limits | Before traffic shaping | Reject repeated requests with `429`. |
-| Traffic shaping | Before route/backend forwarding | Slow upload and download streams without rejecting the request. |
-| Cache | After route/backend selection | Serve eligible public proxy-forward assets from proxy storage. |
+| Traffic shaping | Before route/target forwarding | Slow upload and download streams without rejecting the request. |
+| Cache | After route/target selection | Serve eligible public proxy assets from proxy storage. |
 
 ## When It Matters
 
@@ -28,17 +28,17 @@ Evaluation order:
 3. WAF rules
 4. Rate limits
 5. Traffic shapers
-6. Route and backend selection
+6. Route and target selection
 7. Cache rule evaluation and lookup
 8. Origin forwarding or cached response
 
 Policy matching uses request-only CEL `match_rule` expressions for method, protocol, host, path, remote IP/CIDR, headers, cookies, and query parameters. See [CEL Policy Matching](../reference/cel) for the shared matcher syntax, validation rules, and examples. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically. If no key parts are configured, remote IP is used.
 
-Cache `route_ids` and `backend_ids` remain separate filters evaluated after route/backend selection.
+Cache `route_ids` and `target_ids` remain separate filters evaluated after route/target selection.
 
 Traffic shaping uses byte-per-second token buckets. `per_key` shares a bucket for requests with the same key; `per_request` gives each request its own bucket.
 
-Cache rules store eligible public `GET`/`HEAD` responses for proxy-forward backends after route/backend selection. Cache hits still pass through WAF, rate limits, and traffic shaping first.
+Cache rules store eligible public `GET`/`HEAD` responses for proxy targets after route/target selection. Cache hits still pass through WAF, rate limits, and traffic shaping first.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy page showing WAF rules and rate limits with priorities, matches, actions, and enabled state">
@@ -47,7 +47,7 @@ Cache rules store eligible public `GET`/`HEAD` responses for proxy-forward backe
 
 <figure class="doc-screenshot">
   <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shapers with priorities, match summaries, rates, and cache controls">
-  <figcaption>The Cache and Traffic Shapers sections show the later controls that shape matched streams or serve eligible proxy-forward assets after backend selection.</figcaption>
+  <figcaption>The Cache and Traffic Shapers sections show the later controls that shape matched streams or serve eligible proxy assets after target selection.</figcaption>
 </figure>
 
 ## Common Mistakes

@@ -1,10 +1,10 @@
 # Trace Live Traffic
 
-Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, backends, cache, agents, origin connections, and responses.
+Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, targets, cache, agents, origin connections, and responses.
 
 ## Use This When
 
-Use tracing while diagnosing why a request did not match a route, hit a backend, use cache, pass WAF, or select the expected agent.
+Use tracing while diagnosing why a request did not match a route, hit a target, use cache, pass WAF, or select the expected agent.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ Use tracing while diagnosing why a request did not match a route, hit a backend,
    | Level | Use |
    | --- | --- |
    | Basic | Confirm requests are received and completed. |
-   | Detailed | Diagnose route, backend, cache, and agent selection. |
+   | Detailed | Diagnose route, target, cache, and agent selection. |
    | Headers | Inspect selected request/response headers. |
    | Debug | Temporary deep troubleshooting. |
 
@@ -39,23 +39,23 @@ Use tracing while diagnosing why a request did not match a route, hit a backend,
 
 <figure class="doc-screenshot">
   <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path through policy, routing, cache, agents, and upstreams">
-  <figcaption>With tracing enabled, the Traffic view shows how sampled requests move through policy, routing, backend selection, cache decisions, agents, upstreams, and responses.</figcaption>
+  <figcaption>With tracing enabled, the Traffic view shows how sampled requests move through policy, routing, target selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, selected backend, cache status, headers, and response metadata">
-  <figcaption>Select a traced request to inspect the exact stages, timings, policy outcomes, route and backend choices, cache decision, and response details behind the rendered path.</figcaption>
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, selected route target, cache status, headers, and response metadata">
+  <figcaption>Select a traced request to inspect the exact stages, timings, policy outcomes, route and target choices, cache decision, and response details behind the rendered path.</figcaption>
 </figure>
 
 ## Runtime Effects
 
 Traffic tracing is an admin-controlled live stream. It is meant for temporary diagnosis. Turn tracing off when finished, especially at Headers or Debug level.
 
-Common stages include received, WAF evaluated, rate limited, route resolved, backend selected, cache lookup, cache hit, cache miss, cache bypass, cache stored, agent selected, upstream started, upstream responded, response sent, and failed.
+Common stages include received, WAF evaluated, rate limited, route resolved, target selected, cache lookup, cache hit, cache miss, cache bypass, cache stored, agent selected, upstream started, upstream responded, response sent, and failed.
 
 ## Verification
 
-A matching request should appear in **Traffic Flow** shortly after you reproduce it. Cache is shown as a decision gateway after backend selection: hits exit to response, misses and bypasses continue to the direct upstream or selected agent.
+A matching request should appear in **Traffic Flow** shortly after you reproduce it. Cache is shown as a decision gateway after target selection: hits exit to response, misses and bypasses continue to the direct upstream or selected agent.
 
 ## Troubleshooting
 

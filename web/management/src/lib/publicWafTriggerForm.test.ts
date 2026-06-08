@@ -13,7 +13,7 @@ describe("publicWafTriggerForm", () => {
       minimumRequestRate: 0n,
       trafficSpikeMultiplier: 0,
       proxyActiveRequests: 0n,
-      backendActiveRequests: 0n,
+      routeTargetActiveRequests: 0n,
       agentActiveRequests: 0n,
       serverCpuPercent: 0,
       agentCpuPercent: 0,
@@ -24,7 +24,7 @@ describe("publicWafTriggerForm", () => {
     expect(form.metrics.minimumRequestRate).toEqual({ enabled: false, value: 0 });
     expect(form.metrics.trafficSpikeMultiplier).toEqual({ enabled: false, value: 0 });
     expect(form.metrics.proxyActiveRequests).toEqual({ enabled: false, value: 0 });
-    expect(form.metrics.backendActiveRequests).toEqual({ enabled: false, value: 0 });
+    expect(form.metrics.routeTargetActiveRequests).toEqual({ enabled: false, value: 0 });
     expect(form.metrics.agentActiveRequests).toEqual({ enabled: false, value: 0 });
     expect(form.metrics.serverCpuPercent).toEqual({ enabled: false, value: 0 });
     expect(form.metrics.agentCpuPercent).toEqual({ enabled: false, value: 0 });
@@ -37,7 +37,7 @@ describe("publicWafTriggerForm", () => {
     form = setWafTriggerMetricEnabled(form, "minimumRequestRate", false);
     form = setWafTriggerMetricEnabled(form, "trafficSpikeMultiplier", false);
     form = setWafTriggerMetricEnabled(form, "proxyActiveRequests", false);
-    form = setWafTriggerMetricEnabled(form, "backendActiveRequests", false);
+    form = setWafTriggerMetricEnabled(form, "routeTargetActiveRequests", false);
     form = setWafTriggerMetricEnabled(form, "agentActiveRequests", false);
     form = setWafTriggerMetricEnabled(form, "serverCpuPercent", false);
     form = setWafTriggerMetricEnabled(form, "agentCpuPercent", false);
@@ -47,7 +47,7 @@ describe("publicWafTriggerForm", () => {
     expect(payload.minimumRequestRate).toBe(0n);
     expect(payload.trafficSpikeMultiplier).toBe(0);
     expect(payload.proxyActiveRequests).toBe(0n);
-    expect(payload.backendActiveRequests).toBe(0n);
+    expect(payload.routeTargetActiveRequests).toBe(0n);
     expect(payload.agentActiveRequests).toBe(0n);
     expect(payload.serverCpuPercent).toBe(0);
     expect(payload.agentCpuPercent).toBe(0);
@@ -58,7 +58,7 @@ describe("publicWafTriggerForm", () => {
     form = setWafTriggerMetricEnabled(form, "minimumRequestRate", false);
     form = setWafTriggerMetricEnabled(form, "trafficSpikeMultiplier", false);
     form = setWafTriggerMetricEnabled(form, "proxyActiveRequests", false);
-    form = setWafTriggerMetricEnabled(form, "backendActiveRequests", false);
+    form = setWafTriggerMetricEnabled(form, "routeTargetActiveRequests", false);
     form = setWafTriggerMetricEnabled(form, "agentActiveRequests", false);
     form = setWafTriggerMetricEnabled(form, "agentCpuPercent", false);
     form.minimumActiveSeconds = 120;
@@ -69,7 +69,7 @@ describe("publicWafTriggerForm", () => {
     expect(payload.minimumRequestRate).toBe(0n);
     expect(payload.trafficSpikeMultiplier).toBe(0);
     expect(payload.proxyActiveRequests).toBe(0n);
-    expect(payload.backendActiveRequests).toBe(0n);
+    expect(payload.routeTargetActiveRequests).toBe(0n);
     expect(payload.agentActiveRequests).toBe(0n);
     expect(payload.serverCpuPercent).toBe(92);
     expect(payload.agentCpuPercent).toBe(0);
@@ -91,7 +91,7 @@ describe("publicWafTriggerForm", () => {
     expect(payload.minimumRequestRate).toBe(50n);
     expect(payload.trafficSpikeMultiplier).toBe(4);
     expect(payload.proxyActiveRequests).toBe(100n);
-    expect(payload.backendActiveRequests).toBe(100n);
+    expect(payload.routeTargetActiveRequests).toBe(100n);
     expect(payload.agentActiveRequests).toBe(50n);
     expect(payload.serverCpuPercent).toBe(85);
     expect(payload.agentCpuPercent).toBe(85);

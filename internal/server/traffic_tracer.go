@@ -316,8 +316,6 @@ func sanitizeTrafficTraceEvent(event *p2pstreamv1.TrafficTraceEvent, level p2pst
 		copyEvent.Host = ""
 		copyEvent.Query = ""
 		copyEvent.TargetOrigin = ""
-		copyEvent.BackendType = p2pstreamv1.PublicBackendType_PUBLIC_BACKEND_TYPE_UNSPECIFIED
-		copyEvent.ForwardMode = p2pstreamv1.PublicBackendForwardMode_PUBLIC_BACKEND_FORWARD_MODE_UNSPECIFIED
 		copyEvent.ErrorKind = ""
 	}
 	if level < p2pstreamv1.TrafficTraceLevel_TRAFFIC_TRACE_LEVEL_HEADERS {

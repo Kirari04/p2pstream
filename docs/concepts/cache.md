@@ -4,7 +4,7 @@ p2pstream can cache public proxy-forward responses on the proxy server for stati
 
 ## What It Is
 
-Cache rules are global traffic policy rules evaluated after WAF, rate limits, traffic shaping, and route/backend selection. Cache hits still pass through those earlier policy layers before p2pstream serves the cached object.
+Cache rules are global traffic policy rules evaluated after WAF, rate limits, traffic shaping, and route/target selection. Cache hits still pass through those earlier policy layers before p2pstream serves the cached object.
 
 The cache is designed for public static assets such as CSS, JavaScript, images, SVGs, and fonts. It is not a session or API response cache.
 
@@ -35,15 +35,20 @@ The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and backend filters, TTL, query handling, vary headers, status codes, and object limits">
-  <figcaption>The cache editor exposes both request matching and cache-safety controls, including route/backend filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream cache settings section showing disk, memory, hot object, entry, and cleanup limits">
+  <figcaption>The cache settings section controls global storage budgets and cleanup behavior, while individual cache rules decide which public responses may be stored.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and target filters, TTL, query handling, vary headers, status codes, and object limits">
+  <figcaption>The cache editor exposes both request matching and cache-safety controls, including route/target filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
 </figure>
 
 ## Common Mistakes
 
 - Enabling cookie-tolerant caching on dynamic pages instead of precise asset paths like `/_nuxt/`.
 - Expecting `Authorization` requests to use the cache.
-- Trying to cache static backends or redirect routes.
+- Trying to cache static targets or redirect routes.
 - Treating `Vary: Accept-Encoding` as a problem; it is the normal compressed-asset variant key.
 
 ## Related Links

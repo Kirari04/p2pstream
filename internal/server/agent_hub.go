@@ -1,104 +1,17 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"sync"
-	"time"
-
-	"github.com/google/uuid"
-	"p2pstream/msg"
 )
 
-var (
-	errAgentDisconnected = errors.New("agent disconnected")
-	errAgentTokenRotated = errors.New("agent token rotated")
-)
-
-const (
-	lateAgentResponseTTL        = 2 * time.Minute
-	lateAgentResponseMaxEntries = 4096
-)
-
-type pendingAgentRequest struct {
-	AgentID       int64
-	AgentPublicID string
-	ResponseCh    chan *msg.Request
-	ErrorCh       chan error
-	ctx           context.Context
-	cancel        context.CancelFunc
-	closeOnce     sync.Once
-}
+var errAgentDisconnected = errors.New("agent disconnected")
 
 type agentHub struct {
-	mu         sync.RWMutex
-	byID       map[int64]*AgentConn
-	byPublicID map[string]*AgentConn
-}
-
-type lateAgentResponseTracker struct {
-	mu      sync.Mutex
-	entries map[uuid.UUID]lateAgentResponse
-}
-
-type lateAgentResponse struct {
-	reason    string
-	expiresAt time.Time
-}
-
-func newLateAgentResponseTracker() *lateAgentResponseTracker {
-	return &lateAgentResponseTracker{
-		entries: make(map[uuid.UUID]lateAgentResponse),
-	}
-}
-
-func (t *lateAgentResponseTracker) record(id uuid.UUID, reason string) {
-	if t == nil || id == uuid.Nil {
-		return
-	}
-	if reason == "" {
-		reason = "completed"
-	}
-	now := time.Now()
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.cleanupLocked(now)
-	for len(t.entries) >= lateAgentResponseMaxEntries {
-		for existingID := range t.entries {
-			delete(t.entries, existingID)
-			break
-		}
-	}
-	t.entries[id] = lateAgentResponse{
-		reason:    reason,
-		expiresAt: now.Add(lateAgentResponseTTL),
-	}
-}
-
-func (t *lateAgentResponseTracker) lookup(id uuid.UUID) (string, bool) {
-	if t == nil || id == uuid.Nil {
-		return "", false
-	}
-	now := time.Now()
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	entry, ok := t.entries[id]
-	if !ok {
-		return "", false
-	}
-	if now.After(entry.expiresAt) {
-		delete(t.entries, id)
-		return "", false
-	}
-	return entry.reason, true
-}
-
-func (t *lateAgentResponseTracker) cleanupLocked(now time.Time) {
-	for id, entry := range t.entries {
-		if now.After(entry.expiresAt) {
-			delete(t.entries, id)
-		}
-	}
+	mu           sync.RWMutex
+	byID         map[int64]*AgentConn
+	byPublicID   map[string]*AgentConn
+	onDisconnect func(*AgentConn)
 }
 
 func newAgentHub() *agentHub {
@@ -124,8 +37,12 @@ func (h *agentHub) disconnect(conn *AgentConn) {
 		return
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.disconnectLocked(conn)
+	disconnected := h.disconnectLocked(conn)
+	onDisconnect := h.onDisconnect
+	h.mu.Unlock()
+	if disconnected && onDisconnect != nil {
+		onDisconnect(conn)
+	}
 }
 
 func (h *agentHub) disconnectByID(agentID int64) *AgentConn {
@@ -133,33 +50,42 @@ func (h *agentHub) disconnectByID(agentID int64) *AgentConn {
 		return nil
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	conn := h.byID[agentID]
 	if conn == nil {
+		h.mu.Unlock()
 		return nil
 	}
-	h.disconnectLocked(conn)
+	disconnected := h.disconnectLocked(conn)
+	onDisconnect := h.onDisconnect
+	h.mu.Unlock()
+	if disconnected && onDisconnect != nil {
+		onDisconnect(conn)
+	}
 	return conn
 }
 
-func (h *agentHub) disconnectLocked(conn *AgentConn) {
+func (h *agentHub) disconnectLocked(conn *AgentConn) bool {
 	if conn == nil {
-		return
+		return false
 	}
+	disconnected := false
 	if current := h.byPublicID[conn.PublicID]; current == conn {
 		delete(h.byPublicID, conn.PublicID)
+		disconnected = true
 	}
 	if current := h.byID[conn.AgentID]; current == conn {
 		delete(h.byID, conn.AgentID)
+		disconnected = true
 	}
 	if conn.Done == nil {
-		return
+		return disconnected
 	}
 	select {
 	case <-conn.Done:
 	default:
 		close(conn.Done)
 	}
+	return disconnected
 }
 
 func (h *agentHub) connectedByID(agentID int64) *AgentConn {
@@ -184,18 +110,7 @@ func (h *agentHub) connectedIDs() map[int64]*AgentConn {
 	return resp
 }
 
-func (a *App) failPendingRequestsForAgent(agentID int64, err error) {
-	a.PendingRequests.Range(func(key, value any) bool {
-		pending, ok := value.(*pendingAgentRequest)
-		if !ok || pending.AgentID != agentID {
-			return true
-		}
-		pending.fail(err)
-		return true
-	})
-}
-
-func (a *App) revokeAgentConnection(agentID int64, err error) bool {
+func (a *App) revokeAgentConnection(agentID int64) bool {
 	if a == nil {
 		return false
 	}
@@ -203,28 +118,8 @@ func (a *App) revokeAgentConnection(agentID int64, err error) bool {
 	if a.AgentHub != nil {
 		disconnected = a.AgentHub.disconnectByID(agentID) != nil
 	}
-	if disconnected && a.BackendHealth != nil {
-		a.BackendHealth.recordAgentDisconnectedForAll(agentID)
+	if disconnected && a.TargetHealth != nil {
+		a.TargetHealth.recordAgentDisconnectedForAll(agentID)
 	}
-	a.failPendingRequestsForAgent(agentID, err)
 	return disconnected
-}
-
-func (a *App) finishPendingAgentRequest(id uuid.UUID, reason string) {
-	a.PendingRequests.Delete(id)
-	if a.LateAgentResponses != nil {
-		a.LateAgentResponses.record(id, reason)
-	}
-}
-
-func (p *pendingAgentRequest) fail(err error) {
-	select {
-	case p.ErrorCh <- err:
-	default:
-	}
-	p.closeOnce.Do(func() {
-		if p.cancel != nil {
-			p.cancel()
-		}
-	})
 }

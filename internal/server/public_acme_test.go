@@ -376,24 +376,11 @@ func newServerTestDB(t *testing.T) *db.DB {
 
 func seedServerHTTPSListener(t *testing.T, database *db.DB) db.PublicListener {
 	t.Helper()
-	backend, err := database.CreatePublicBackend(context.Background(), db.CreatePublicBackendParams{
-		Name:             "default",
-		TargetOrigin:     "https://example.com",
-		BackendType:      publicBackendTypeProxyForward,
-		ForwardMode:      publicBackendForwardModeDirect,
-		LoadBalancing:    publicBackendLoadBalancingRoundRobin,
-		StaticStatusCode: defaultStaticStatusCode,
-		Enabled:          1,
-	})
-	if err != nil {
-		t.Fatalf("create backend: %v", err)
-	}
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{
-		Name:             "https",
-		Port:             443,
-		Protocol:         publicListenerProtocolHTTPS,
-		Enabled:          1,
-		DefaultBackendID: backend.ID,
+		Name:     "https",
+		Port:     443,
+		Protocol: publicListenerProtocolHTTPS,
+		Enabled:  1,
 	})
 	if err != nil {
 		t.Fatalf("create listener: %v", err)

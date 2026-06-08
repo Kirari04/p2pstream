@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Diagnose management, agent, listener, TLS, route, backend, WAF, rate-limit, cache, and trace problems from the same operational checklist.
+Diagnose management, agent, listener, TLS, route, target, WAF, rate-limit, cache, and trace problems from the same operational checklist.
 
 ## Use This When
 
@@ -9,7 +9,7 @@ Use this when a request fails, management does not load, an agent will not conne
 ## Prerequisites
 
 :::tip Start with logs
-Logs show startup errors, TLS failures, agent connection problems, and backend errors faster than any other check.
+Logs show startup errors, TLS failures, agent connection problems, and target forwarding errors faster than any other check.
 :::
 
 Start with logs:
@@ -27,6 +27,16 @@ sudo journalctl -u p2pstream-agent -f
 
 When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the request, and then turn tracing off.
 
+<figure class="doc-screenshot">
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a traced request through listener, policy, route, cache, agent, upstream, and response stages">
+  <figcaption>Use the Traffic flow view while reproducing a request to see which stage handled, rejected, cached, or failed the request.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, route target, cache status, headers, and response metadata">
+  <figcaption>The trace details modal is the fastest way to inspect route matching, selected target, cache outcome, agent selection, upstream timing, and response status for a single request.</figcaption>
+</figure>
+
 ## Management UI Will Not Open
 
 | Check | Fix |
@@ -35,7 +45,7 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Port published | Publish `8081:8081` or use the actual host port. |
 | Scheme | Use `https://host:8081` unless management TLS is explicitly off. |
 | Firewall | Allow the management port from your admin network. |
-| Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; APIs and agent WebSocket remain available. |
+| Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; APIs and the agent Yamux tunnel remain available. |
 
 ## Browser Certificate Warning
 
@@ -61,8 +71,13 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | CA trust | Use `MANAGEMENT_CA_FILE` or `MANAGEMENT_CA_PEM_BASE64` for auto TLS. |
 | Token | Rotate the token and update the agent env file. |
 | Agent ID | Use the generated `agent-...` public ID. |
-| Firewall/NAT | Agent host must reach management HTTPS/WSS. |
+| Firewall/NAT | Agent host must reach management HTTPS/TLS and `/agent/tunnel`. |
 | Insecure URL | HTTP requires `AGENT_ALLOW_INSECURE_MANAGEMENT=true`, intended for development only. |
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connected, offline, and disabled agents with runtime and connection history">
+  <figcaption>The Agents page shows whether an agent is connected, offline, disabled, recently disconnected, or missing recent connection history.</figcaption>
+</figure>
 
 ## Public Listener Fails To Bind
 
@@ -81,6 +96,11 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | ACME certificate not ready | Check certificate status and last error. |
 | Request SNI mismatch | Test with the real hostname, not the IP address. |
 | Listener not restarted | Stop/start the listener or wait for automatic restart after certificate issuance. |
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing certificate mappings, ACME state, DNS credentials, and certificate metadata">
+  <figcaption>The TLS page shows whether the requested hostname has a matching certificate mapping, whether ACME is ready, and which listener owns the mapping.</figcaption>
+</figure>
 
 ## ACME Fails
 
@@ -101,37 +121,57 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Host pattern | Use exact host or `*.example.com`. |
 | Path prefix | Prefix must start with `/`. |
 | Priority | Lower numbers win. Put specific routes first. |
-| Default backend | If no route matches, the listener default backend handles the request. |
+| Default route | If no explicit route matches, the listener default route handles the request. |
 
-## Backend Returns Bad Gateway
+## Target Returns Bad Gateway
 
 | Cause | Fix |
 | --- | --- |
-| Direct backend origin unreachable | Run `curl -I http://<origin-host>:<port>` from inside the p2pstream container: `docker compose exec p2pstream curl -I http://app:8080`. |
-| Backend origin unreachable via agent | SSH to the agent host and run `curl -I http://<origin-host>:<port>` to confirm the agent can reach the service from its network. |
-| Agent offline | Reconnect or enable an assigned agent. |
+| Direct target origin unreachable | Run `curl -I http://<origin-host>:<port>` from inside the p2pstream container: `docker compose exec p2pstream curl -I http://app:8080`. |
+| Agent target origin unreachable | SSH to a label-matched agent host and run `curl -I http://<origin-host>:<port>` to confirm the agent can reach the service from its network. |
+| Agent offline | Reconnect or enable a label-matched agent. |
 | Origin TLS error | Fix the origin certificate; use `tls_skip_verify` only as a temporary workaround for internal self-signed certs. |
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
-| Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the backend or selected agent assignment from routing. |
+| Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the target or selected target-agent path from routing. |
 
-When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_backend_available`.
+Client cancellations reported as `context canceled` do not create passive health cooldowns. Real upstream timeouts, agent disconnects, and transport failures can still create cooldowns when target health checks are enabled.
 
-## Backend Returns Gateway Timeout
+When health checks are disabled, transient upstream failures fail only the current request and should not cause `no_route_target_available`.
+
+## Target Returns Gateway Timeout
 
 | Cause | Fix |
 | --- | --- |
-| Origin is slow to send response headers | Increase the backend response-header timeout. The default is `60000` ms. |
-| Agent-pool backend waits on a private app | SSH to the agent host and test `curl -I http://<origin>` with a long timeout (`--max-time 65`) to confirm the service responds. Raise the backend timeout if it does. |
+| Origin is slow to send response headers | Increase the target response-header timeout. The default is `60000` ms. |
+| Agent target waits on a private app | SSH to a label-matched agent host and test `curl -I http://<origin>` with a long timeout (`--max-time 65`) to confirm the service responds. Raise the target timeout if it does. |
 | Health check timeout confusion | Health-check timeout is separate from the response-header timeout and does not affect request serving. |
-| Old agent binary | Upgrade agents so they honor per-backend timeout metadata; older agents keep their built-in `30000` ms timeout. |
+| Old agent binary | Upgrade agents and servers together; old WebSocket agents are incompatible with the Yamux tunnel transport. |
 
-The backend response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
+The target response-header timeout limits only the wait for first upstream headers. It does not cap the duration of streaming a response after headers are received.
+
+## Agent Tunnel Disconnects
+
+| Cause | Fix |
+| --- | --- |
+| Management reverse proxy blocks upgrades | Ensure the proxy allows HTTP/1.1 upgrade streaming for `p2pstream-yamux` on `/agent/tunnel`. |
+| Idle upgraded-connection timeout is too low | Set the management proxy idle timeout high enough for long-lived Yamux tunnel sessions. |
+| Keepalive failures | Check network reachability between the agent host and management URL; tunnel failures disconnect the agent so it can reconnect cleanly. |
+
+## Agent Uptime Looks Wrong
+
+| Cause | Fix |
+| --- | --- |
+| Retention window changed | Uptime percentages use retained management connection history, not all-time history. Check the dashboard retention window. |
+| Agent record is new | The observation window starts at the later of retention start or agent creation time. New agents do not include time before they existed. |
+| Server restarted after an unclean exit | Startup closes stale open connection rows and marks affected agents disconnected at that startup time. This prevents old sessions from looking active forever. |
+| Agent is offline | The Agents page shows current offline duration from the last recorded disconnect time. |
+| Missing historical rows | Uptime is based on local management `connections` data. Deleted or expired rows cannot be reconstructed from agent self-reporting. |
 
 ## Static Asset Is Not Cached
 
 | Cause | Fix |
 | --- | --- |
-| No matching cache rule | Check host, path prefix, suffix, method, route/backend filters, and priority. |
+| No matching cache rule | Check host, path prefix, suffix, method, route/target filters, and priority. |
 | Browser sends cookies | Enable `Cache requests with Cookie headers` only on precise public asset rules. |
 | Authorization header present | Authorization requests always bypass cache. |
 | Origin sends `Set-Cookie` | p2pstream will not store the response. |

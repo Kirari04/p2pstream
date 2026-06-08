@@ -1,4 +1,6 @@
 import type {
+  AgentConnectionSession,
+  AgentUptimeSummary,
   DashboardProxyDimensionSummary,
   DashboardTrafficBucket,
   DashboardWindowSummary,
@@ -115,6 +117,24 @@ export function formatDuration(value: bigint | number | null | undefined): strin
   return `${(millis / 60_000).toFixed(1)} min`;
 }
 
+export function formatLongDuration(value: bigint | number | null | undefined): string {
+  if (value === null || value === undefined) return "-";
+  const millis = toSafeNumber(value);
+  if (millis <= 0) return "-";
+  const seconds = Math.floor(millis / 1000);
+  if (seconds < 60) return `${seconds.toString()}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes.toString()}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours < 24) {
+    return remainingMinutes > 0 ? `${hours.toString()}h ${remainingMinutes.toString()}m` : `${hours.toString()}h`;
+  }
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return remainingHours > 0 ? `${days.toString()}d ${remainingHours.toString()}h` : `${days.toString()}d`;
+}
+
 export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "-";
   return `${(value * 100).toFixed(value > 0 && value < 0.1 ? 1 : 0)}%`;
@@ -166,6 +186,42 @@ export function filledTrafficBuckets(
     });
   }
   return filled;
+}
+
+export function agentUptimeSummaryById(summaries: AgentUptimeSummary[] | null | undefined): Map<string, AgentUptimeSummary> {
+  const byId = new Map<string, AgentUptimeSummary>();
+  for (const summary of summaries ?? []) {
+    byId.set(summary.agentId.toString(), summary);
+  }
+  return byId;
+}
+
+export function fleetUptimePercent(summaries: AgentUptimeSummary[] | null | undefined): number | null {
+  let uptime = 0;
+  let downtime = 0;
+  for (const summary of summaries ?? []) {
+    uptime += toSafeNumber(summary.uptimeMillis);
+    downtime += toSafeNumber(summary.downtimeMillis);
+  }
+  const total = uptime + downtime;
+  if (total <= 0) return null;
+  return uptime / total;
+}
+
+export function recentDisconnectCount(
+  sessions: AgentConnectionSession[] | null | undefined,
+  nowMillis: bigint | number = Date.now(),
+  windowMillis = 24 * 60 * 60 * 1000,
+): number {
+  const since = toSafeNumber(nowMillis) - Math.max(0, windowMillis);
+  let count = 0;
+  for (const session of sessions ?? []) {
+    if (session.active || session.disconnectedAtUnixMillis === 0n) continue;
+    if (toSafeNumber(session.disconnectedAtUnixMillis) >= since) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 function elapsedSeconds(window: DashboardWindowSummary, nowMillis: bigint | number): number {

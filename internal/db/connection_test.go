@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -83,10 +84,15 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 
-	for _, table := range []string{"agents", "public_backend_agents", "public_backend_upstream_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
+	for _, table := range []string{"agents", "public_agent_labels", "public_route_targets", "public_route_target_upstream_headers", "public_route_target_response_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
+		}
+	}
+	for _, table := range []string{"public_backends", "public_backend_agents", "public_backend_headers", "public_backend_upstream_headers", "public_route_backends"} {
+		if tableExists(t, database, table) {
+			t.Fatalf("legacy table %s exists in fresh schema", table)
 		}
 	}
 
@@ -96,12 +102,18 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 			t.Fatalf("proxy_request_events missing column %s in %v", column, proxyEventColumns)
 		}
 	}
+	if containsString(proxyEventColumns, "backend_id") {
+		t.Fatalf("proxy_request_events still has backend_id in %v", proxyEventColumns)
+	}
+	tupleColumns := tableColumns(t, database, "proxy_request_tuple_rollup_minutes")
+	if containsString(tupleColumns, "backend_id") {
+		t.Fatalf("proxy_request_tuple_rollup_minutes still has backend_id in %v", tupleColumns)
+	}
 	agentStatColumns := tableColumns(t, database, "agent_stats")
 	if !containsString(agentStatColumns, "cpu_percent") {
 		t.Fatalf("agent_stats missing cpu_percent in %v", agentStatColumns)
 	}
 	for _, index := range []string{
-		"idx_proxy_request_events_backend_id",
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
 		"idx_proxy_request_events_waf_rule_id",
@@ -134,6 +146,23 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	if !containsString(cacheRuleColumns, "allow_cookie_requests") {
 		t.Fatalf("public_cache_rules missing allow_cookie_requests in %v", cacheRuleColumns)
 	}
+	if containsString(cacheRuleColumns, "backend_ids_json") {
+		t.Fatalf("public_cache_rules still has backend_ids_json in %v", cacheRuleColumns)
+	}
+	cacheEntryColumns := tableColumns(t, database, "public_cache_entries")
+	if containsString(cacheEntryColumns, "backend_id") {
+		t.Fatalf("public_cache_entries still has backend_id in %v", cacheEntryColumns)
+	}
+	listenerColumns := tableColumns(t, database, "public_listeners")
+	if containsString(listenerColumns, "default_backend_id") {
+		t.Fatalf("public_listeners still has default_backend_id in %v", listenerColumns)
+	}
+	routeColumns := tableColumns(t, database, "public_routes")
+	for _, column := range []string{"backend_id", "fallback_backend_id", "load_balancing"} {
+		if containsString(routeColumns, column) {
+			t.Fatalf("public_routes still has %s in %v", column, routeColumns)
+		}
+	}
 	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_cache_rules (name) VALUES ('cache-default')`); err != nil {
 		t.Fatalf("insert cache rule defaults: %v", err)
 	}
@@ -145,12 +174,6 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		t.Fatalf("cache rule allow_cookie_requests default = %d, want 0", allowCookieRequests)
 	}
 
-	backendColumns := tableColumns(t, database, "public_backends")
-	for _, column := range []string{"forward_mode", "load_balancing", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password", "upstream_response_header_timeout_millis"} {
-		if !containsString(backendColumns, column) {
-			t.Fatalf("public_backends missing column %s in %v", column, backendColumns)
-		}
-	}
 	tlsColumns := tableColumns(t, database, "public_tls_certificates")
 	for _, column := range []string{"source", "acme_challenge_type", "acme_ca", "acme_email", "dns_credential_id", "status", "last_error", "issued_at", "expires_at", "next_renewal_at", "last_renewal_attempt_at"} {
 		if !containsString(tlsColumns, column) {
@@ -162,21 +185,69 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		t.Fatalf("expected public_tls_dns_credentials table: %v", err)
 	}
 	rows.Close()
-	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_backends (name, target_origin) VALUES ('legacy-default', 'http://example.com')`); err != nil {
-		t.Fatalf("insert default backend: %v", err)
-	}
-	backend, err := database.GetPublicBackend(context.Background(), 1)
+}
+
+func TestListConnectionsSinceReturnsOverlappingSessions(t *testing.T) {
+	ctx := context.Background()
+	database, err := Open(filepath.Join(t.TempDir(), "connections-overlap.db"))
 	if err != nil {
-		t.Fatalf("get default backend: %v", err)
+		t.Fatalf("open db: %v", err)
 	}
-	if backend.ForwardMode != "direct" || backend.LoadBalancing != "round_robin" {
-		t.Fatalf("backend defaults = mode %q lb %q, want direct round_robin", backend.ForwardMode, backend.LoadBalancing)
+	defer func() { _ = database.Close() }()
+
+	agent, err := database.CreateAgent(ctx, CreateAgentParams{
+		PublicID:  "agent-overlap",
+		Name:      "agent-overlap",
+		TokenHash: "hash",
+		Enabled:   1,
+	})
+	if err != nil {
+		t.Fatalf("create agent: %v", err)
 	}
-	if backend.UpstreamBasicAuthEnabled != 0 || backend.UpstreamBasicAuthUsername != "" || backend.UpstreamBasicAuthPassword != "" {
-		t.Fatalf("backend upstream auth defaults = enabled %d username %q password %q, want disabled empty", backend.UpstreamBasicAuthEnabled, backend.UpstreamBasicAuthUsername, backend.UpstreamBasicAuthPassword)
+
+	now := time.Unix(1_800_000_000, 0).UTC()
+	since := now.Add(-1 * time.Hour)
+	insertConnectionRow := func(id int64, connectedAt time.Time, disconnectedAt sql.NullTime) {
+		t.Helper()
+		if _, err := database.ExecContext(ctx, `
+			INSERT INTO connections (id, agent_id, connected_at, disconnected_at)
+			VALUES (?, ?, ?, ?)`,
+			id,
+			agent.ID,
+			connectedAt,
+			disconnectedAt,
+		); err != nil {
+			t.Fatalf("insert connection %d: %v", id, err)
+		}
 	}
-	if backend.UpstreamResponseHeaderTimeoutMillis != 60000 {
-		t.Fatalf("backend upstream response header timeout default = %d, want 60000", backend.UpstreamResponseHeaderTimeoutMillis)
+	insertConnectionRow(1, now.Add(-3*time.Hour), sql.NullTime{Time: now.Add(-2 * time.Hour), Valid: true})
+	insertConnectionRow(2, now.Add(-2*time.Hour), sql.NullTime{Time: now.Add(-30 * time.Minute), Valid: true})
+	insertConnectionRow(3, now.Add(-45*time.Minute), sql.NullTime{Time: now.Add(-15 * time.Minute), Valid: true})
+	insertConnectionRow(4, now.Add(-90*time.Minute), sql.NullTime{})
+
+	rows, err := database.ListConnectionsSince(ctx, ListConnectionsSinceParams{
+		ConnectedAt:    since,
+		DisconnectedAt: sql.NullTime{Time: since, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("list connections since: %v", err)
+	}
+
+	got := make([]int64, 0, len(rows))
+	for _, row := range rows {
+		got = append(got, row.ID)
+		if row.AgentPublicID != "agent-overlap" || row.AgentName != "agent-overlap" {
+			t.Fatalf("unexpected agent labels for row %d: public=%q name=%q", row.ID, row.AgentPublicID, row.AgentName)
+		}
+	}
+	want := []int64{2, 4, 3}
+	if len(got) != len(want) {
+		t.Fatalf("connection ids = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("connection ids = %v, want %v", got, want)
+		}
 	}
 }
 
@@ -356,8 +427,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
 		"agent_stats":          {"agent_id", "req_internal_error", "cpu_percent"},
-		"proxy_request_events": {"agent_id", "listener_id", "backend_id", "route_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes"},
-		"public_backends":      {"backend_type", "forward_mode", "load_balancing", "tls_skip_verify", "static_status_code", "static_response_body", "upstream_basic_auth_enabled", "upstream_basic_auth_username", "upstream_basic_auth_password"},
+		"proxy_request_events": {"agent_id", "listener_id", "route_id", "route_target_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes"},
 		"public_cache_rules":   {"allow_cookie_requests"},
 	} {
 		got := tableColumns(t, database, table)
@@ -376,9 +446,6 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	if !indexExists(t, database, "idx_connections_disconnected_at") {
 		t.Fatal("expected idx_connections_disconnected_at after migration")
 	}
-	if !indexExists(t, database, "idx_public_backend_upstream_headers_backend_position") {
-		t.Fatal("expected idx_public_backend_upstream_headers_backend_position after migration")
-	}
 	if !indexExists(t, database, "idx_public_waf_rules_priority") {
 		t.Fatal("expected idx_public_waf_rules_priority after migration")
 	}
@@ -386,7 +453,6 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 		t.Fatal("expected idx_public_waf_rules_captcha_provider_id after migration")
 	}
 	for _, index := range []string{
-		"idx_proxy_request_events_backend_id",
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
 		"idx_proxy_request_events_waf_rule_id",
@@ -402,6 +468,219 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 			t.Fatalf("expected migrated table %s: %v", table, err)
 		}
 	}
+	for _, table := range []string{"public_backends", "public_backend_agents", "public_backend_headers", "public_backend_upstream_headers", "public_route_backends"} {
+		if tableExists(t, database, table) {
+			t.Fatalf("legacy table %s still exists after migration", table)
+		}
+	}
+}
+
+func TestMigrationResetsProxyObservabilityAndRenamesWAFRouteTargetTrigger(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-observability.db")
+	raw, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open raw legacy db: %v", err)
+	}
+	legacySchema := `
+	CREATE TABLE agents (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL,
+		token_hash TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE agent_stats (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		reported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		memory_mb INTEGER NOT NULL,
+		goroutines INTEGER NOT NULL,
+		req_success INTEGER NOT NULL,
+		req_client_error INTEGER NOT NULL,
+		req_server_error INTEGER NOT NULL,
+		bytes_rx INTEGER NOT NULL,
+		bytes_tx INTEGER NOT NULL
+	);
+	CREATE TABLE proxy_request_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		status_code INTEGER NOT NULL,
+		duration_ms INTEGER NOT NULL,
+		error_kind TEXT NOT NULL DEFAULT '',
+		listener_id INTEGER,
+		route_id INTEGER,
+		route_target_id INTEGER,
+		backend_id INTEGER,
+		agent_id INTEGER,
+		request_bytes INTEGER NOT NULL DEFAULT 0,
+		response_bytes INTEGER NOT NULL DEFAULT 0
+	);
+	CREATE TABLE proxy_request_rollup_minutes (
+		bucket_unix_millis INTEGER PRIMARY KEY,
+		requests INTEGER NOT NULL DEFAULT 0,
+		success INTEGER NOT NULL DEFAULT 0,
+		client_error INTEGER NOT NULL DEFAULT 0,
+		server_error INTEGER NOT NULL DEFAULT 0,
+		internal_error INTEGER NOT NULL DEFAULT 0,
+		duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+		max_duration_ms INTEGER NOT NULL DEFAULT 0,
+		slow_requests INTEGER NOT NULL DEFAULT 0,
+		request_bytes INTEGER NOT NULL DEFAULT 0,
+		response_bytes INTEGER NOT NULL DEFAULT 0,
+		cache_hits INTEGER NOT NULL DEFAULT 0,
+		cache_misses INTEGER NOT NULL DEFAULT 0,
+		cache_bypasses INTEGER NOT NULL DEFAULT 0,
+		cache_stored INTEGER NOT NULL DEFAULT 0,
+		cache_store_failed INTEGER NOT NULL DEFAULT 0,
+		cache_hit_bytes INTEGER NOT NULL DEFAULT 0,
+		cache_stored_bytes INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE proxy_request_tuple_rollup_minutes (
+		bucket_unix_millis INTEGER NOT NULL,
+		listener_id INTEGER NOT NULL DEFAULT 0,
+		route_id INTEGER NOT NULL DEFAULT 0,
+		route_target_id INTEGER NOT NULL DEFAULT 0,
+		backend_id INTEGER NOT NULL DEFAULT 0,
+		agent_id INTEGER NOT NULL DEFAULT 0,
+		error_kind TEXT NOT NULL DEFAULT '',
+		status_class INTEGER NOT NULL DEFAULT 0,
+		requests INTEGER NOT NULL DEFAULT 0,
+		success INTEGER NOT NULL DEFAULT 0,
+		client_error INTEGER NOT NULL DEFAULT 0,
+		server_error INTEGER NOT NULL DEFAULT 0,
+		internal_error INTEGER NOT NULL DEFAULT 0,
+		duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+		request_bytes INTEGER NOT NULL DEFAULT 0,
+		response_bytes INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (bucket_unix_millis, listener_id, route_id, route_target_id, backend_id, agent_id, error_kind, status_class)
+	);
+	CREATE TABLE public_waf_captcha_providers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_type TEXT NOT NULL,
+		site_key TEXT NOT NULL,
+		secret_key TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE public_waf_rules (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		priority INTEGER NOT NULL DEFAULT 100,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		action TEXT NOT NULL DEFAULT 'block',
+		activation_mode TEXT NOT NULL DEFAULT 'always',
+		match_json TEXT NOT NULL DEFAULT '{}',
+		key_parts_json TEXT NOT NULL DEFAULT '[]',
+		captcha_provider_id INTEGER REFERENCES public_waf_captcha_providers(id),
+		captcha_pass_ttl_millis INTEGER NOT NULL DEFAULT 1800000,
+		waiting_room_max_admitted_sessions INTEGER NOT NULL DEFAULT 50,
+		waiting_room_admission_rate_per_second INTEGER NOT NULL DEFAULT 10,
+		waiting_room_admission_session_ttl_millis INTEGER NOT NULL DEFAULT 600000,
+		waiting_room_queue_poll_interval_millis INTEGER NOT NULL DEFAULT 5000,
+		waiting_room_queue_timeout_millis INTEGER NOT NULL DEFAULT 1800000,
+		waiting_room_page_title TEXT NOT NULL DEFAULT 'Waiting room',
+		waiting_room_page_body TEXT NOT NULL DEFAULT 'Traffic is high. You will be admitted automatically.',
+		trigger_request_window_millis INTEGER NOT NULL DEFAULT 10000,
+		trigger_minimum_request_rate INTEGER NOT NULL DEFAULT 50,
+		trigger_traffic_spike_multiplier REAL NOT NULL DEFAULT 4,
+		trigger_proxy_active_requests INTEGER NOT NULL DEFAULT 100,
+		trigger_backend_active_requests INTEGER NOT NULL DEFAULT 100,
+		trigger_agent_active_requests INTEGER NOT NULL DEFAULT 50,
+		trigger_server_cpu_percent REAL NOT NULL DEFAULT 85,
+		trigger_agent_cpu_percent REAL NOT NULL DEFAULT 85,
+		trigger_minimum_active_millis INTEGER NOT NULL DEFAULT 30000,
+		trigger_quiet_period_millis INTEGER NOT NULL DEFAULT 60000,
+		block_response_status_code INTEGER NOT NULL DEFAULT 403,
+		block_response_body TEXT NOT NULL DEFAULT 'Request blocked',
+		block_response_content_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
+		block_response_headers_json TEXT NOT NULL DEFAULT '[]',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	INSERT INTO agent_stats (memory_mb, goroutines, req_success, req_client_error, req_server_error, bytes_rx, bytes_tx)
+	VALUES (12, 3, 4, 5, 6, 700, 800);
+	INSERT INTO proxy_request_events (status_code, duration_ms, listener_id, route_id, route_target_id, backend_id, request_bytes, response_bytes)
+	VALUES (200, 42, 1, 2, 3, 4, 10, 20);
+	INSERT INTO proxy_request_rollup_minutes (bucket_unix_millis, requests, success)
+	VALUES (60000, 1, 1);
+	INSERT INTO proxy_request_tuple_rollup_minutes (bucket_unix_millis, listener_id, route_id, route_target_id, backend_id, agent_id, error_kind, status_class, requests, success)
+	VALUES (60000, 1, 2, 3, 4, 0, '', 2, 1, 1);
+	INSERT INTO public_waf_rules (name, trigger_backend_active_requests)
+	VALUES ('legacy-waf', 321);
+	`
+	if _, err := raw.ExecContext(context.Background(), legacySchema); err != nil {
+		t.Fatalf("create legacy observability schema: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close raw legacy db: %v", err)
+	}
+
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated legacy db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_events`) != 0 {
+		t.Fatal("expected proxy request events to be reset")
+	}
+	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_rollup_minutes`) != 0 {
+		t.Fatal("expected proxy request rollups to be reset")
+	}
+	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_tuple_rollup_minutes`) != 0 {
+		t.Fatal("expected proxy request tuple rollups to be reset")
+	}
+	if countRows(t, database, `SELECT COUNT(*) FROM agent_stats`) != 1 {
+		t.Fatal("expected agent stats to be preserved")
+	}
+	proxyEventColumns := tableColumns(t, database, "proxy_request_events")
+	if containsString(proxyEventColumns, "backend_id") {
+		t.Fatalf("proxy_request_events still has backend_id after reset: %v", proxyEventColumns)
+	}
+	tupleColumns := tableColumns(t, database, "proxy_request_tuple_rollup_minutes")
+	if containsString(tupleColumns, "backend_id") {
+		t.Fatalf("proxy_request_tuple_rollup_minutes still has backend_id after reset: %v", tupleColumns)
+	}
+	wafColumns := tableColumns(t, database, "public_waf_rules")
+	if containsString(wafColumns, "trigger_backend_active_requests") {
+		t.Fatalf("public_waf_rules still has trigger_backend_active_requests after migration: %v", wafColumns)
+	}
+	if !containsString(wafColumns, "trigger_route_target_active_requests") {
+		t.Fatalf("public_waf_rules missing trigger_route_target_active_requests after migration: %v", wafColumns)
+	}
+	var routeTargetActiveRequests int64
+	if err := database.QueryRowContext(context.Background(), `SELECT trigger_route_target_active_requests FROM public_waf_rules WHERE name = 'legacy-waf'`).Scan(&routeTargetActiveRequests); err != nil {
+		t.Fatalf("read migrated WAF trigger: %v", err)
+	}
+	if routeTargetActiveRequests != 321 {
+		t.Fatalf("migrated route target active request trigger = %d, want 321", routeTargetActiveRequests)
+	}
+	assertForeignKeyCheck(t, database)
+
+	if err := database.Close(); err != nil {
+		t.Fatalf("close migrated db before idempotency check: %v", err)
+	}
+	database, err = Open(dbPath)
+	if err != nil {
+		t.Fatalf("reopen migrated legacy db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_events`) != 0 ||
+		countRows(t, database, `SELECT COUNT(*) FROM proxy_request_rollup_minutes`) != 0 ||
+		countRows(t, database, `SELECT COUNT(*) FROM proxy_request_tuple_rollup_minutes`) != 0 {
+		t.Fatal("expected proxy observability reset migration to be idempotent")
+	}
+	if countRows(t, database, `SELECT COUNT(*) FROM agent_stats`) != 1 {
+		t.Fatal("expected agent stats to remain after idempotent migration")
+	}
+	assertForeignKeyCheck(t, database)
 }
 
 func TestMigrationUpgradesLegacyTLSCertificateSchema(t *testing.T) {
@@ -516,72 +795,280 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list migrated routes: %v", err)
 	}
-	if len(routes) != 1 {
-		t.Fatalf("got %d routes, want 1", len(routes))
+	if len(routes) != 2 {
+		t.Fatalf("got %d routes, want explicit route plus generated default route", len(routes))
 	}
-	route := routes[0]
-	if !route.BackendID.Valid || route.BackendID.Int64 != 1 {
-		t.Fatalf("migrated backend id = %+v, want 1", route.BackendID)
+	var route PublicRoute
+	var defaultRoute PublicRoute
+	for _, candidate := range routes {
+		if candidate.IsDefault != 0 {
+			defaultRoute = candidate
+		} else {
+			route = candidate
+		}
+	}
+	if route.ID == 0 || defaultRoute.ID == 0 {
+		t.Fatalf("expected one explicit route and one default route, got %+v", routes)
 	}
 	if route.Action != "forward" || route.RedirectStatusCode != 302 || route.RedirectPreservePathSuffix != 1 || route.RedirectPreserveQuery != 1 {
 		t.Fatalf("unexpected migrated redirect defaults: %+v", route)
 	}
-	if publicRoutesColumnNotNull(t, database, "backend_id") {
-		t.Fatal("public_routes.backend_id should be nullable after redirect migration")
+	routeColumns := tableColumns(t, database, "public_routes")
+	for _, column := range []string{"backend_id", "fallback_backend_id", "load_balancing"} {
+		if containsString(routeColumns, column) {
+			t.Fatalf("public_routes still has legacy column %s after migration: %v", column, routeColumns)
+		}
+	}
+	listenerColumns := tableColumns(t, database, "public_listeners")
+	if containsString(listenerColumns, "default_backend_id") {
+		t.Fatalf("public_listeners still has default_backend_id after migration: %v", listenerColumns)
 	}
 	if !indexExists(t, database, "idx_public_routes_listener_priority") {
 		t.Fatal("expected idx_public_routes_listener_priority after route migration")
 	}
-	routeBackends, err := database.ListPublicRouteBackends(context.Background())
+	if route.TargetLoadBalancing != "round_robin" || route.IsDefault != 0 {
+		t.Fatalf("unexpected migrated target fields: %+v", route)
+	}
+	if defaultRoute.IsDefault != 1 {
+		t.Fatalf("unexpected generated default route: %+v", defaultRoute)
+	}
+	targets, err := database.ListPublicRouteTargets(context.Background())
 	if err != nil {
-		t.Fatalf("list route backends after migration: %v", err)
+		t.Fatalf("list migrated route targets: %v", err)
 	}
-	if len(routeBackends) != 1 || routeBackends[0].RouteID != route.ID || routeBackends[0].BackendID != 1 || routeBackends[0].Weight != 100 || routeBackends[0].Enabled != 1 {
-		t.Fatalf("unexpected migrated route backend assignments: %+v", routeBackends)
+	if len(targets) != 2 {
+		t.Fatalf("got %d route targets, want explicit and default targets: %+v", len(targets), targets)
 	}
-	if route.LoadBalancing != "round_robin" || route.FallbackBackendID.Valid {
-		t.Fatalf("unexpected migrated route pool fields: %+v", route)
+	targetsByRoute := make(map[int64]PublicRouteTarget, len(targets))
+	for _, target := range targets {
+		targetsByRoute[target.RouteID] = target
 	}
-	backendColumns := tableColumns(t, database, "public_backends")
-	for _, column := range []string{
-		"health_check_enabled",
-		"health_check_method",
-		"health_check_path",
-		"health_check_interval_millis",
-		"health_check_timeout_millis",
-		"health_check_healthy_threshold",
-		"health_check_unhealthy_threshold",
-		"health_check_expected_status_min",
-		"health_check_expected_status_max",
-		"upstream_response_header_timeout_millis",
-	} {
-		if !containsString(backendColumns, column) {
-			t.Fatalf("public_backends missing migrated column %s; columns=%v", column, backendColumns)
+	explicitTarget, ok := targetsByRoute[route.ID]
+	if !ok {
+		t.Fatalf("missing explicit route target for route %d: %+v", route.ID, targets)
+	}
+	if explicitTarget.Url != "https://example.com" || explicitTarget.Transport != "direct" || explicitTarget.TargetType != "proxy" {
+		t.Fatalf("unexpected migrated explicit target: %+v", explicitTarget)
+	}
+	defaultTarget, ok := targetsByRoute[defaultRoute.ID]
+	if !ok {
+		t.Fatalf("missing default route target for route %d: %+v", defaultRoute.ID, targets)
+	}
+	if defaultTarget.Url != "https://example.com" || defaultTarget.Transport != "direct" || defaultTarget.TargetType != "proxy" {
+		t.Fatalf("unexpected generated default target: %+v", defaultTarget)
+	}
+	for _, table := range []string{"public_backends", "public_backend_agents", "public_backend_headers", "public_backend_upstream_headers", "public_route_backends"} {
+		if tableExists(t, database, table) {
+			t.Fatalf("legacy table %s still exists after route-target migration", table)
 		}
-	}
-	if !indexExists(t, database, "idx_public_route_backends_route_position") || !indexExists(t, database, "idx_public_route_backends_backend_id") {
-		t.Fatal("expected public_route_backends indexes after migration")
 	}
 }
 
-func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
+func TestMigrationPreservesDefaultBackendWhenRoutesAlreadyRebuilt(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-default-rebuilt-routes.db")
+	raw, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open raw legacy db: %v", err)
+	}
+	legacySchema := `
+	CREATE TABLE public_backends (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		target_origin TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE public_listeners (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		bind_address TEXT NOT NULL DEFAULT '',
+		port INTEGER NOT NULL,
+		protocol TEXT NOT NULL,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		default_backend_id INTEGER NOT NULL REFERENCES public_backends(id),
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(bind_address, port)
+	);
+	CREATE TABLE public_routes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+		priority INTEGER NOT NULL,
+		host_pattern TEXT NOT NULL DEFAULT '',
+		path_prefix TEXT NOT NULL DEFAULT '',
+		target_load_balancing TEXT NOT NULL DEFAULT 'round_robin',
+		is_default INTEGER NOT NULL DEFAULT 0,
+		action TEXT NOT NULL DEFAULT 'forward',
+		redirect_target_mode TEXT NOT NULL DEFAULT '',
+		redirect_target TEXT NOT NULL DEFAULT '',
+		redirect_status_code INTEGER NOT NULL DEFAULT 302,
+		redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
+		redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	INSERT INTO public_backends (name, target_origin) VALUES ('legacy-default', 'https://default.example.com');
+	INSERT INTO public_listeners (name, port, protocol, default_backend_id) VALUES ('legacy-listener', 8080, 'http', 1);
+	`
+	if _, err := raw.ExecContext(context.Background(), legacySchema); err != nil {
+		t.Fatalf("create partially migrated legacy schema: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close raw legacy db: %v", err)
+	}
+
+	database, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated legacy db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	routes, err := database.ListPublicRoutes(context.Background())
+	if err != nil {
+		t.Fatalf("list migrated routes: %v", err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("got %d routes, want generated default route: %+v", len(routes), routes)
+	}
+	if routes[0].IsDefault != 1 {
+		t.Fatalf("generated route is_default = %d, want 1: %+v", routes[0].IsDefault, routes[0])
+	}
+	targets, err := database.ListPublicRouteTargets(context.Background())
+	if err != nil {
+		t.Fatalf("list migrated route targets: %v", err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("got %d targets, want generated default target: %+v", len(targets), targets)
+	}
+	if targets[0].RouteID != routes[0].ID {
+		t.Fatalf("target route_id = %d, want generated route %d", targets[0].RouteID, routes[0].ID)
+	}
+	if targets[0].Url != "https://default.example.com" || targets[0].Transport != "direct" || targets[0].TargetType != "proxy" {
+		t.Fatalf("unexpected generated default target: %+v", targets[0])
+	}
+	if containsString(tableColumns(t, database, "public_listeners"), "default_backend_id") {
+		t.Fatal("public_listeners still has default_backend_id after migration")
+	}
+	for _, column := range []string{"backend_id", "fallback_backend_id", "load_balancing"} {
+		if containsString(tableColumns(t, database, "public_routes"), column) {
+			t.Fatalf("public_routes still has legacy column %s after migration", column)
+		}
+	}
+	for _, table := range []string{"public_backends", "public_backend_agents", "public_backend_headers", "public_backend_upstream_headers", "public_route_backends"} {
+		if tableExists(t, database, table) {
+			t.Fatalf("legacy table %s still exists after route-target migration", table)
+		}
+	}
+	assertForeignKeyCheck(t, database)
+}
+
+func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-test.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	defer func() { _ = database.Close() }()
 
-	backend, err := database.CreatePublicBackend(context.Background(), CreatePublicBackendParams{
-		Name:         "upstream-headers",
-		TargetOrigin: "http://example.com",
-		BackendType:  "proxy_forward",
-		Enabled:      1,
+	listener, err := database.CreatePublicListener(context.Background(), CreatePublicListenerParams{
+		Name:        "headers-listener",
+		BindAddress: "",
+		Port:        18080,
+		Protocol:    "http",
+		Enabled:     1,
 	})
 	if err != nil {
-		t.Fatalf("create backend: %v", err)
+		t.Fatalf("create listener: %v", err)
 	}
-	first, err := database.CreatePublicBackendUpstreamHeader(context.Background(), CreatePublicBackendUpstreamHeaderParams{
-		BackendID: backend.ID,
+	route, err := database.CreatePublicRoute(context.Background(), CreatePublicRouteParams{
+		ListenerID:                 listener.ID,
+		Priority:                   10,
+		HostPattern:                "",
+		PathPrefix:                 "/",
+		TargetLoadBalancing:        "round_robin",
+		IsDefault:                  1,
+		Action:                     "forward",
+		RedirectTargetMode:         "",
+		RedirectTarget:             "",
+		RedirectStatusCode:         302,
+		RedirectPreservePathSuffix: 1,
+		RedirectPreserveQuery:      1,
+		Enabled:                    1,
+	})
+	if err != nil {
+		t.Fatalf("create route: %v", err)
+	}
+	target, err := database.CreatePublicRouteTarget(context.Background(), CreatePublicRouteTargetParams{
+		RouteID:                             route.ID,
+		Name:                                "upstream-headers",
+		Position:                            0,
+		PriorityGroup:                       0,
+		Weight:                              100,
+		Enabled:                             1,
+		TargetType:                          "proxy",
+		Url:                                 "http://example.com",
+		Transport:                           "direct",
+		AgentSelectorJson:                   "{}",
+		AgentLoadBalancing:                  "round_robin",
+		TlsSkipVerify:                       0,
+		UpstreamBasicAuthEnabled:            0,
+		UpstreamBasicAuthUsername:           "",
+		UpstreamBasicAuthPassword:           "",
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckEnabled:                  0,
+		HealthCheckMethod:                   "GET",
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    200,
+		StaticResponseBody:                  "",
+		StaticResponseBodyMode:              "inline",
+		StaticResponseTemplateID:            sql.NullInt64{},
+	})
+	if err != nil {
+		t.Fatalf("create target: %v", err)
+	}
+	otherTarget, err := database.CreatePublicRouteTarget(context.Background(), CreatePublicRouteTargetParams{
+		RouteID:                             route.ID,
+		Name:                                "other-upstream-headers",
+		Position:                            1,
+		PriorityGroup:                       0,
+		Weight:                              100,
+		Enabled:                             1,
+		TargetType:                          "proxy",
+		Url:                                 "http://other.example.com",
+		Transport:                           "direct",
+		AgentSelectorJson:                   "{}",
+		AgentLoadBalancing:                  "round_robin",
+		TlsSkipVerify:                       0,
+		UpstreamBasicAuthEnabled:            0,
+		UpstreamBasicAuthUsername:           "",
+		UpstreamBasicAuthPassword:           "",
+		UpstreamResponseHeaderTimeoutMillis: 60000,
+		HealthCheckEnabled:                  0,
+		HealthCheckMethod:                   "GET",
+		HealthCheckPath:                     "/",
+		HealthCheckIntervalMillis:           10000,
+		HealthCheckTimeoutMillis:            2000,
+		HealthCheckHealthyThreshold:         2,
+		HealthCheckUnhealthyThreshold:       2,
+		HealthCheckExpectedStatusMin:        200,
+		HealthCheckExpectedStatusMax:        399,
+		StaticStatusCode:                    200,
+		StaticResponseBody:                  "",
+		StaticResponseBodyMode:              "inline",
+		StaticResponseTemplateID:            sql.NullInt64{},
+	})
+	if err != nil {
+		t.Fatalf("create other target: %v", err)
+	}
+	first, err := database.CreatePublicRouteTargetUpstreamHeader(context.Background(), CreatePublicRouteTargetUpstreamHeaderParams{
+		TargetID:  target.ID,
 		Position:  0,
 		Name:      "X-Upstream-One",
 		Value:     "one",
@@ -590,8 +1077,8 @@ func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create upstream header: %v", err)
 	}
-	second, err := database.CreatePublicBackendUpstreamHeader(context.Background(), CreatePublicBackendUpstreamHeaderParams{
-		BackendID: backend.ID,
+	second, err := database.CreatePublicRouteTargetUpstreamHeader(context.Background(), CreatePublicRouteTargetUpstreamHeaderParams{
+		TargetID:  target.ID,
 		Position:  1,
 		Name:      "Authorization",
 		Value:     "Bearer secret",
@@ -600,30 +1087,47 @@ func TestPublicBackendUpstreamHeadersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create sensitive upstream header: %v", err)
 	}
-
-	byBackend, err := database.ListPublicBackendUpstreamHeadersByBackend(context.Background(), backend.ID)
+	otherHeader, err := database.CreatePublicRouteTargetUpstreamHeader(context.Background(), CreatePublicRouteTargetUpstreamHeaderParams{
+		TargetID:  otherTarget.ID,
+		Position:  0,
+		Name:      "X-Other",
+		Value:     "other",
+		Sensitive: 0,
+	})
 	if err != nil {
-		t.Fatalf("list upstream headers by backend: %v", err)
+		t.Fatalf("create other upstream header: %v", err)
 	}
-	if len(byBackend) != 2 || byBackend[0].ID != first.ID || byBackend[1].ID != second.ID {
-		t.Fatalf("unexpected upstream headers by backend: %+v", byBackend)
+
+	byTarget, err := database.ListPublicRouteTargetUpstreamHeadersByTarget(context.Background(), target.ID)
+	if err != nil {
+		t.Fatalf("list upstream headers by target: %v", err)
 	}
-	all, err := database.ListPublicBackendUpstreamHeaders(context.Background())
+	if len(byTarget) != 2 || byTarget[0].ID != first.ID || byTarget[1].ID != second.ID {
+		t.Fatalf("unexpected upstream headers by target: %+v", byTarget)
+	}
+	all, err := database.ListPublicRouteTargetUpstreamHeaders(context.Background())
 	if err != nil {
 		t.Fatalf("list upstream headers: %v", err)
 	}
-	if len(all) != 2 || all[0].Name != "X-Upstream-One" || all[1].Sensitive != 1 {
+	if len(all) != 3 || all[0].Name != "X-Upstream-One" || all[1].Sensitive != 1 || all[2].ID != otherHeader.ID {
 		t.Fatalf("unexpected upstream headers: %+v", all)
 	}
-	if err := database.DeletePublicBackendUpstreamHeaders(context.Background(), backend.ID); err != nil {
+	if err := database.DeletePublicRouteTargetUpstreamHeaders(context.Background(), target.ID); err != nil {
 		t.Fatalf("delete upstream headers: %v", err)
 	}
-	empty, err := database.ListPublicBackendUpstreamHeadersByBackend(context.Background(), backend.ID)
+	empty, err := database.ListPublicRouteTargetUpstreamHeadersByTarget(context.Background(), target.ID)
 	if err != nil {
 		t.Fatalf("list deleted upstream headers: %v", err)
 	}
 	if len(empty) != 0 {
 		t.Fatalf("expected deleted upstream headers, got %+v", empty)
+	}
+	remaining, err := database.ListPublicRouteTargetUpstreamHeadersByTarget(context.Background(), otherTarget.ID)
+	if err != nil {
+		t.Fatalf("list other upstream headers: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0].ID != otherHeader.ID || remaining[0].Name != "X-Other" || remaining[0].Value != "other" {
+		t.Fatalf("other target upstream headers were not preserved: %+v", remaining)
 	}
 }
 
@@ -686,6 +1190,39 @@ func containsString(values []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func tableExists(t *testing.T, database *DB, table string) bool {
+	t.Helper()
+	var count int64
+	if err := database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&count); err != nil {
+		t.Fatalf("check table %s exists: %v", table, err)
+	}
+	return count > 0
+}
+
+func countRows(t *testing.T, database *DB, query string, args ...any) int64 {
+	t.Helper()
+	var count int64
+	if err := database.QueryRowContext(context.Background(), query, args...).Scan(&count); err != nil {
+		t.Fatalf("count rows with %q: %v", query, err)
+	}
+	return count
+}
+
+func assertForeignKeyCheck(t *testing.T, database *DB) {
+	t.Helper()
+	rows, err := database.QueryContext(context.Background(), `PRAGMA foreign_key_check`)
+	if err != nil {
+		t.Fatalf("foreign key check: %v", err)
+	}
+	defer rows.Close()
+	if rows.Next() {
+		t.Fatal("foreign key check returned violations")
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("read foreign key check rows: %v", err)
+	}
 }
 
 func indexExists(t *testing.T, database *DB, name string) bool {

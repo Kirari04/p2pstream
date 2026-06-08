@@ -23,7 +23,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Set `MANAGEMENT_PUBLIC_URL` to the real management URL used by browsers and agents.
    - Set a deployment secret as `MANAGEMENT_SETUP_TOKEN` before first setup, or capture the generated startup token from trusted logs.
    - Use `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true` when management is accessed over HTTPS.
-   - For API-only management, set `MANAGEMENT_UI_DISABLED=true`; the ConnectRPC API and agent WebSocket stay available.
+   - For API-only management, set `MANAGEMENT_UI_DISABLED=true`; the ConnectRPC API and agent Yamux tunnel stay available.
 
 2. Protect `/data`:
 
@@ -44,7 +44,7 @@ Use this before exposing management beyond a private network, after adding agent
 
    - Use ACME or trusted manual certificates for public hostnames.
    - Avoid relying on fallback self-signed public HTTPS certificates.
-   - Avoid backend `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
+   - Avoid target `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
    - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
 
 5. Scope WAF, rate-limit, shaper, and cache rules by host/path/method so broad policies do not catch unrelated traffic.

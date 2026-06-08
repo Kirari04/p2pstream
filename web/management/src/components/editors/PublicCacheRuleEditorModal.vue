@@ -13,17 +13,16 @@ import {
   policyMatchValidationReason,
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
-import { backendSummary, cacheScopeLabel, routeDestinationLabel } from "@/lib/publicProxyLabels";
+import { cacheScopeLabel, routeDestinationLabel, routeTargetName, routeTargetTypeLabel } from "@/lib/publicProxyLabels";
 import Button from "@/volt/Button.vue";
 import Modal from "@/volt/Modal.vue";
 import {
-  PublicBackendType,
   PublicCacheQueryMode,
   PublicCacheScope,
   PublicCacheTtlMode,
   type GetPublicProxyConfigResponse,
-  type PublicBackend,
   type PublicRoute,
+  type PublicRouteTarget,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
@@ -44,11 +43,10 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 const isOpen = ref(false);
 const rules = computed(() => props.config?.cacheRules ?? []);
 const routes = computed(() => props.config?.routes ?? []);
-const backends = computed(() => props.config?.backends ?? []);
-const routeBackends = computed(() => props.config?.routeBackends ?? []);
-const proxyBackends = computed(() => backends.value.filter((backend) => backend.backendType === PublicBackendType.PROXY_FORWARD));
+const routeTargets = computed(() => props.config?.routeTargets ?? []);
+const proxyTargets = computed(() => routeTargets.value.filter((target) => target.targetType !== 2));
 const routeFilterText = ref("");
-const backendFilterText = ref("");
+const targetFilterText = ref("");
 
 const maxCacheListItems = 64;
 const defaultVaryHeaders = ["Accept-Encoding"];
@@ -61,7 +59,7 @@ const form = reactive({
   priority: 100,
   match: defaultPolicyMatchForm() as PolicyMatchForm,
   routeIds: [] as string[],
-  backendIds: [] as string[],
+  targetIds: [] as string[],
   scope: PublicCacheScope.SELECTED_BACKEND,
   ttlMode: PublicCacheTtlMode.FIXED,
   ttlMinutes: 60,
@@ -80,7 +78,7 @@ const ttlModeOptions = [
   { label: "Origin TTL", value: PublicCacheTtlMode.ORIGIN },
 ];
 const scopeOptions = [
-  { label: "Selected backend", value: PublicCacheScope.SELECTED_BACKEND },
+  { label: "Selected target", value: PublicCacheScope.SELECTED_BACKEND },
   { label: "Route", value: PublicCacheScope.ROUTE },
 ];
 const queryModeOptions = [
@@ -96,22 +94,22 @@ const filteredRoutes = computed(() => {
   if (!needle) return routes.value;
   return routes.value.filter((route) => routeSearchText(route).includes(needle));
 });
-const filteredProxyBackends = computed(() => {
-  const needle = backendFilterText.value.trim().toLowerCase();
-  if (!needle) return proxyBackends.value;
-  return proxyBackends.value.filter((backend) => backendSearchText(backend).includes(needle));
+const filteredProxyTargets = computed(() => {
+  const needle = targetFilterText.value.trim().toLowerCase();
+  if (!needle) return proxyTargets.value;
+  return proxyTargets.value.filter((target) => targetSearchText(target).includes(needle));
 });
 const canSelectVisibleRoutes = computed(() =>
   form.routeIds.length < maxCacheListItems &&
   filteredRoutes.value.some((route) => !isRouteSelected(route.id)),
 );
-const canSelectVisibleBackends = computed(() =>
-  form.backendIds.length < maxCacheListItems &&
-  filteredProxyBackends.value.some((backend) => !isBackendSelected(backend.id)),
+const canSelectVisibleTargets = computed(() =>
+  form.targetIds.length < maxCacheListItems &&
+  filteredProxyTargets.value.some((target) => !isTargetSelected(target.id)),
 );
 const routeSelectionSummary = computed(() => form.routeIds.length ? `${form.routeIds.length.toString()} selected` : "All routes");
-const backendSelectionSummary = computed(() => form.backendIds.length ? `${form.backendIds.length.toString()} selected` : "All proxy backends");
-const targetSelectionSummary = computed(() => `${routeSelectionSummary.value} / ${backendSelectionSummary.value}`);
+const targetSelectionSummary = computed(() => form.targetIds.length ? `${form.targetIds.length.toString()} selected` : "All proxy targets");
+const filterSelectionSummary = computed(() => `${routeSelectionSummary.value} / ${targetSelectionSummary.value}`);
 const queryModeSummary = computed(() => queryModeOptions.find((option) => option.value === form.queryMode)?.label ?? "Full query");
 const normalizedQueryParams = computed(() => normalizeUniqueStrings(form.queryParams));
 const normalizedVaryHeaders = computed(() => normalizeVaryHeaders(form.varyHeaders));
@@ -119,8 +117,8 @@ const normalizedCacheStatusCodes = computed(() => normalizeStatusCodes(form.cach
 const routeSelectionValidationReason = computed(() =>
   form.routeIds.length > maxCacheListItems ? `Cache rules can filter at most ${maxCacheListItems.toString()} routes.` : "",
 );
-const backendSelectionValidationReason = computed(() =>
-  form.backendIds.length > maxCacheListItems ? `Cache rules can filter at most ${maxCacheListItems.toString()} backends.` : "",
+const targetSelectionValidationReason = computed(() =>
+  form.targetIds.length > maxCacheListItems ? `Cache rules can filter at most ${maxCacheListItems.toString()} targets.` : "",
 );
 const queryParamsValidationReason = computed(() => {
   if (!queryParamsEditorVisible.value) return "";
@@ -148,7 +146,7 @@ const submitDisabledReason = computed(() => {
   if (form.ttlMinutes < 1) return "TTL must be at least 1 minute.";
   if (form.maxObjectMiB < 1) return "Maximum object size must be at least 1 MiB.";
   if (routeSelectionValidationReason.value) return routeSelectionValidationReason.value;
-  if (backendSelectionValidationReason.value) return backendSelectionValidationReason.value;
+  if (targetSelectionValidationReason.value) return targetSelectionValidationReason.value;
   if (queryParamsValidationReason.value) return queryParamsValidationReason.value;
   if (varyHeadersValidationReason.value) return varyHeadersValidationReason.value;
   if (cacheStatusCodesValidationReason.value) return cacheStatusCodesValidationReason.value;
@@ -165,7 +163,7 @@ function resetForm() {
   form.priority = 100;
   form.match = defaultPolicyMatchForm();
   form.routeIds = [];
-  form.backendIds = [];
+  form.targetIds = [];
   form.scope = PublicCacheScope.SELECTED_BACKEND;
   form.ttlMode = PublicCacheTtlMode.FIXED;
   form.ttlMinutes = 60;
@@ -178,7 +176,7 @@ function resetForm() {
   form.allowCookieRequests = false;
   form.allowCookieRequestsAcknowledged = false;
   routeFilterText.value = "";
-  backendFilterText.value = "";
+  targetFilterText.value = "";
 }
 
 function openCreate() {
@@ -196,7 +194,7 @@ function openEdit(ruleId: bigint | string) {
   form.priority = Number(rule.priority);
   form.match = policyMatchFormFromProto(rule.matchRule);
   form.routeIds = rule.routeIds.map((value) => value.toString());
-  form.backendIds = rule.backendIds.map((value) => value.toString());
+  form.targetIds = rule.targetIds.map((value) => value.toString());
   form.scope = rule.scope || PublicCacheScope.SELECTED_BACKEND;
   form.ttlMode = rule.ttlMode || PublicCacheTtlMode.FIXED;
   form.ttlMinutes = Math.max(1, Math.round(Number(rule.ttlMillis || 3600000n) / 60000));
@@ -209,7 +207,7 @@ function openEdit(ruleId: bigint | string) {
   form.allowCookieRequests = rule.allowCookieRequests;
   form.allowCookieRequestsAcknowledged = rule.allowCookieRequests;
   routeFilterText.value = "";
-  backendFilterText.value = "";
+  targetFilterText.value = "";
   isOpen.value = true;
 }
 
@@ -246,27 +244,27 @@ function routeLabel(route: PublicRoute): string {
 }
 
 function routeDetail(route: PublicRoute): string {
-  return routeDestinationLabel(route, backends.value, routeBackends.value);
+  return routeDestinationLabel(route);
 }
 
 function routeSearchText(route: PublicRoute): string {
   return `${routeLabel(route)} ${routeDetail(route)}`.toLowerCase();
 }
 
-function backendDetail(backend: PublicBackend): string {
-  return backendSummary(backend) || "Proxy forward";
+function targetDetail(target: PublicRouteTarget): string {
+  return `${routeTargetTypeLabel(target.targetType)} / ${target.url || "static response"}`;
 }
 
-function backendSearchText(backend: PublicBackend): string {
-  return `#${backend.id.toString()} ${backend.name} ${backendDetail(backend)}`.toLowerCase();
+function targetSearchText(target: PublicRouteTarget): string {
+  return `#${target.id.toString()} ${routeTargetName(target)} ${targetDetail(target)}`.toLowerCase();
 }
 
 function isRouteSelected(id: bigint | string): boolean {
   return form.routeIds.includes(id.toString());
 }
 
-function isBackendSelected(id: bigint | string): boolean {
-  return form.backendIds.includes(id.toString());
+function isTargetSelected(id: bigint | string): boolean {
+  return form.targetIds.includes(id.toString());
 }
 
 function toggleSelection(values: string[], id: bigint | string) {
@@ -283,8 +281,8 @@ function toggleRoute(id: bigint | string) {
   toggleSelection(form.routeIds, id);
 }
 
-function toggleBackend(id: bigint | string) {
-  toggleSelection(form.backendIds, id);
+function toggleTarget(id: bigint | string) {
+  toggleSelection(form.targetIds, id);
 }
 
 function selectVisibleRoutes() {
@@ -296,21 +294,21 @@ function selectVisibleRoutes() {
   form.routeIds = [...selected];
 }
 
-function selectVisibleBackends() {
-  const selected = new Set(form.backendIds);
-  for (const backend of filteredProxyBackends.value) {
+function selectVisibleTargets() {
+  const selected = new Set(form.targetIds);
+  for (const target of filteredProxyTargets.value) {
     if (selected.size >= maxCacheListItems) break;
-    selected.add(backend.id.toString());
+    selected.add(target.id.toString());
   }
-  form.backendIds = [...selected];
+  form.targetIds = [...selected];
 }
 
 function clearRoutes() {
   form.routeIds = [];
 }
 
-function clearBackends() {
-  form.backendIds = [];
+function clearTargets() {
+  form.targetIds = [];
 }
 
 function addQueryParam() {
@@ -448,7 +446,7 @@ async function submitRule() {
       enabled: form.enabled,
       matchRule: policyMatchRulePayload(form.match),
       routeIds: normalizeIdStrings(form.routeIds).map((id) => BigInt(id)),
-      backendIds: normalizeIdStrings(form.backendIds).map((id) => BigInt(id)),
+      targetIds: normalizeIdStrings(form.targetIds).map((id) => BigInt(id)),
       scope: form.scope,
       ttlMode: form.ttlMode,
       ttlMillis: BigInt(Math.max(1, form.ttlMinutes) * 60000),
@@ -550,10 +548,10 @@ defineExpose({ openCreate, openEdit, close });
         <div class="cache-filter-header">
           <div>
             <h4 class="text-sm font-semibold text-white">Keys and filters</h4>
-            <p class="mt-1 text-xs leading-5 text-[#777]">Empty route or backend filters match every available target.</p>
+            <p class="mt-1 text-xs leading-5 text-[#777]">Empty route or target filters match every available target.</p>
           </div>
           <div class="cache-summary-chips" aria-label="Cache key summary">
-            <span class="cache-summary-chip">{{ targetSelectionSummary }}</span>
+            <span class="cache-summary-chip">{{ filterSelectionSummary }}</span>
             <span class="cache-summary-chip">{{ queryModeSummary }}</span>
             <span class="cache-summary-chip">{{ normalizedVaryHeaders.length.toString() }} vary</span>
             <span class="cache-summary-chip">{{ normalizedCacheStatusCodes.length.toString() }} status</span>
@@ -607,41 +605,41 @@ defineExpose({ openCreate, openEdit, close });
           <div class="target-panel">
             <div class="target-panel-head">
               <div class="min-w-0">
-                <p class="panel-eyebrow">Backends</p>
-                <h5 class="panel-heading">{{ backendSelectionSummary }}</h5>
+                <p class="panel-eyebrow">Targets</p>
+                <h5 class="panel-heading">{{ targetSelectionSummary }}</h5>
               </div>
-              <button type="button" class="panel-link-button" :disabled="!form.backendIds.length" @click="clearBackends">
+              <button type="button" class="panel-link-button" :disabled="!form.targetIds.length" @click="clearTargets">
                 Clear
               </button>
             </div>
             <div class="target-toolbar">
-              <input v-model="backendFilterText" class="vercel-input target-search" placeholder="Filter backends" />
-              <button type="button" class="panel-action-button" :disabled="!canSelectVisibleBackends" @click="selectVisibleBackends">
+              <input v-model="targetFilterText" class="vercel-input target-search" placeholder="Filter targets" />
+              <button type="button" class="panel-action-button" :disabled="!canSelectVisibleTargets" @click="selectVisibleTargets">
                 Select visible
               </button>
             </div>
-            <p v-if="backendSelectionValidationReason" class="field-error">{{ backendSelectionValidationReason }}</p>
-            <div class="target-list" role="listbox" aria-label="Backend filters">
+            <p v-if="targetSelectionValidationReason" class="field-error">{{ targetSelectionValidationReason }}</p>
+            <div class="target-list" role="listbox" aria-label="Target filters">
               <label
-                v-for="backend in filteredProxyBackends"
-                :key="backend.id.toString()"
+                v-for="target in filteredProxyTargets"
+                :key="target.id.toString()"
                 class="target-row"
-                :class="{ 'target-row-selected': isBackendSelected(backend.id) }"
+                :class="{ 'target-row-selected': isTargetSelected(target.id) }"
               >
                 <input
                   type="checkbox"
-                  :checked="isBackendSelected(backend.id)"
-                  :disabled="!isBackendSelected(backend.id) && form.backendIds.length >= maxCacheListItems"
-                  :aria-label="`Filter cache rule to backend ${backend.name}`"
-                  @change="toggleBackend(backend.id)"
+                  :checked="isTargetSelected(target.id)"
+                  :disabled="!isTargetSelected(target.id) && form.targetIds.length >= maxCacheListItems"
+                  :aria-label="`Filter cache rule to target ${routeTargetName(target)}`"
+                  @change="toggleTarget(target.id)"
                 />
                 <span class="target-row-body">
-                  <span class="target-row-title">{{ backend.name }}</span>
-                  <span class="target-row-detail">{{ backendDetail(backend) }}</span>
+                  <span class="target-row-title">{{ routeTargetName(target) }}</span>
+                  <span class="target-row-detail">{{ targetDetail(target) }}</span>
                 </span>
               </label>
-              <div v-if="!filteredProxyBackends.length" class="target-empty">
-                {{ proxyBackends.length ? "No backends match the filter." : "No proxy backends configured." }}
+              <div v-if="!filteredProxyTargets.length" class="target-empty">
+                {{ proxyTargets.length ? "No targets match the filter." : "No proxy targets configured." }}
               </div>
             </div>
           </div>

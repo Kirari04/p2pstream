@@ -4,9 +4,12 @@ x-runtime-build: &runtime-build
 
 services:
   upstream:
-    image: python:3.13-alpine
-    command: ["python", "-m", "http.server", "9000"]
-    working_dir: /tmp
+    image: p2pstream:docker-smoke-upstream
+    build:
+      context: .
+      target: smoke-upstream
+    environment:
+      SMOKE_UPSTREAM_ADDR: ":9000"
 
   server:
     image: p2pstream:docker-smoke-runtime

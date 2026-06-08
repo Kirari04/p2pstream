@@ -58,19 +58,28 @@ The management server uses HTTPS by default. In auto mode, p2pstream creates a l
 
 ## Verification
 
-The first browser visit should show **Setup Admin**. After setup, **Overview** should load and the **Proxy** page should show the seeded `public-http` and `public-https` listeners plus the `default` static backend.
+The first browser visit should show **Setup Admin**. After setup, **Overview** should load and the **Proxy** page should show the seeded `public-http` and `public-https` listeners plus default routes with static welcome targets.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen showing setup token, username, password, and confirm password fields">
+  <figcaption>The first-run setup screen appears only before the initial admin user exists. Use the setup token from the configured environment or server startup log.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing seeded default routes and route targets">
+  <figcaption>The seeded Proxy routes give a new install a known default runtime state. Replace the welcome targets with real routes before serving production traffic.</figcaption>
+</figure>
 
 On a new database, p2pstream seeds:
 
 | Object | Default |
 | --- | --- |
-| Backend | `default` static welcome page |
 | HTTP listener | `public-http` on `:80` |
 | HTTPS listener | `public-https` on `:443` |
-| Routes | catch-all `/` routes to the `default` backend |
+| Routes | default catch-all routes with static welcome targets |
 | HTTPS fallback certificate | self-signed mapping for `p2pstream.local` |
 
-The seeded backend serves a local `Welcome to p2pstream proxy` page. Replace it or add more specific routes before publishing real traffic.
+The seeded static targets serve a local `Welcome to p2pstream proxy` page. Replace them or add more specific routes before publishing real traffic.
 
 ## Troubleshooting
 

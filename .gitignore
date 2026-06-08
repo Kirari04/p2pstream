@@ -8,4 +8,7 @@ p2pstream-data/
 *-wal
 web/management/node_modules/
 web/management/dist/
+web/management/test-results/
+web/management/playwright-report/
+docs/.plans/
 SECURITY_AUDIT.md

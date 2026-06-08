@@ -28,8 +28,8 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
       return "Listener";
     case "route":
       return "Route";
-    case "backend":
-      return "Backend";
+    case "target":
+      return "Target";
     case "agent":
       return "Agent";
     case "rate-limit":

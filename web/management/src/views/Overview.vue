@@ -3,8 +3,8 @@ import { computed, inject, ref } from "vue";
 import type { ComputedRef } from "vue";
 import {
   ProxyState,
-  PublicBackendForwardMode,
-  PublicBackendType,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   type DashboardProxyDimensionSummary,
   type DashboardTrafficBucket,
   type GetDashboardResponse,
@@ -22,6 +22,7 @@ import {
   formatDuration,
   formatNumber,
   formatPercent,
+  fleetUptimePercent,
   requestsPerSecond,
   statusClassCounts,
   successRate,
@@ -29,7 +30,7 @@ import {
   type DashboardTrafficBucketView,
 } from "@/lib/dashboardStats";
 
-type HotspotTab = "listeners" | "backends" | "routes" | "agents";
+type HotspotTab = "listeners" | "targets" | "routes" | "agents";
 
 const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
 const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
@@ -50,7 +51,7 @@ const proxyIsRunning = computed(() => proxyState.value === ProxyState.RUNNING ||
 const proxyError = computed(() => status.value?.proxy?.lastError || status.value?.proxyLastError || "");
 const listeners = computed(() => config.value?.listeners ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
-const backends = computed(() => config.value?.backends ?? []);
+const routeTargets = computed(() => config.value?.routeTargets ?? []);
 const routes = computed(() => config.value?.routes ?? []);
 const agents = computed(() => config.value?.agents ?? []);
 const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
@@ -62,6 +63,7 @@ const runningListeners = computed(() => listenerStatuses.value.filter((listener)
 const enabledAgents = computed(() => agents.value.filter((agent) => agent.enabled).length);
 const connectedAgents = computed(() => agents.value.filter((agent) => agent.connected).length);
 const activeAgentRequests = computed(() => agents.value.reduce((sum, agent) => sum + Number(agent.activeRequests || 0n), 0));
+const fleetUptime = computed(() => fleetUptimePercent(dashboardValue.value?.agentUptimeSummaries));
 const statusCounts = computed(() => statusClassCounts(dashboardValue.value?.statusClasses));
 const trafficBuckets = computed(() => filledTrafficBuckets(dashboardValue.value?.trafficBuckets, generatedAt.value));
 const maxBucketRequests = computed(() => Math.max(1, ...trafficBuckets.value.map((bucket) => Number(bucket.requests))));
@@ -71,7 +73,7 @@ const cacheHasActivity = computed(() => cacheActivity.value > 0n);
 
 const hotspotTabs: Array<{ key: HotspotTab; label: string }> = [
   { key: "listeners", label: "Listeners" },
-  { key: "backends", label: "Backends" },
+  { key: "targets", label: "Targets" },
   { key: "routes", label: "Routes" },
   { key: "agents", label: "Agents" },
 ];
@@ -80,8 +82,8 @@ const hotspotRows = computed(() => {
   const current = dashboardValue.value;
   if (!current) return [];
   switch (activeHotspotTab.value) {
-    case "backends":
-      return current.topBackends;
+    case "targets":
+      return current.topRouteTargets;
     case "routes":
       return current.topRoutes;
     case "agents":
@@ -92,12 +94,12 @@ const hotspotRows = computed(() => {
 });
 
 const configSnapshot = computed(() => {
-  const directBackends = backends.value.filter((backend) => backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode !== PublicBackendForwardMode.AGENT_POOL).length;
-  const agentBackends = backends.value.filter((backend) => backend.backendType === PublicBackendType.PROXY_FORWARD && backend.forwardMode === PublicBackendForwardMode.AGENT_POOL).length;
-  const staticBackends = backends.value.filter((backend) => backend.backendType === PublicBackendType.STATIC).length;
+  const directTargets = routeTargets.value.filter((target) => target.targetType === PublicRouteTargetType.PROXY && target.transport !== PublicRouteTargetTransport.AGENT).length;
+  const agentTargets = routeTargets.value.filter((target) => target.targetType === PublicRouteTargetType.PROXY && target.transport === PublicRouteTargetTransport.AGENT).length;
+  const staticTargets = routeTargets.value.filter((target) => target.targetType === PublicRouteTargetType.STATIC).length;
   return [
     { label: "Listeners", value: `${enabledListeners.value}/${listeners.value.length}`, detail: `${runningListeners.value} running` },
-    { label: "Backends", value: formatNumber(BigInt(backends.value.length)), detail: `${directBackends} direct, ${agentBackends} agent, ${staticBackends} static` },
+    { label: "Targets", value: formatNumber(BigInt(routeTargets.value.length)), detail: `${directTargets} direct, ${agentTargets} agent, ${staticTargets} static` },
     { label: "Routes", value: `${routes.value.filter((route) => route.enabled).length}/${routes.value.length}`, detail: "enabled / total" },
     { label: "Rate limits", value: `${rateLimitRules.value.filter((rule) => rule.enabled).length}/${rateLimitRules.value.length}`, detail: "enabled / total" },
     { label: "Shapers", value: `${trafficShaperRules.value.filter((rule) => rule.enabled).length}/${trafficShaperRules.value.length}`, detail: "enabled / total" },
@@ -141,6 +143,12 @@ function selectedDownloadRate(): string {
 
 function selectedUploadRate(): string {
   return formatByteRate(bytesPerSecond(selectedWindow.value?.proxyRequestBytes, selectedWindow.value, generatedAt.value));
+}
+
+function agentsMetricSubline(): string {
+  const active = `${formatNumber(activeAgentRequests.value)} active requests`;
+  if (fleetUptime.value === null) return active;
+  return `${formatPercent(fleetUptime.value)} uptime / ${active}`;
 }
 
 function rowErrors(row: DashboardProxyDimensionSummary): bigint {
@@ -236,7 +244,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
       <div class="metric-card">
         <p class="metric-kicker">Agents</p>
         <div class="metric-value">{{ connectedAgents }}/{{ enabledAgents }}</div>
-        <p class="metric-subline">{{ formatNumber(activeAgentRequests) }} active requests</p>
+        <p class="metric-subline">{{ agentsMetricSubline() }}</p>
       </div>
     </section>
 

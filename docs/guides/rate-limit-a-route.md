@@ -1,6 +1,6 @@
 # Rate Limit a Route
 
-Reject repeated requests before they reach route resolution and the upstream backend.
+Reject repeated requests before they reach route resolution and the upstream target.
 
 ## Use This When
 
@@ -14,6 +14,11 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
 ## Steps
 
 1. Open **Traffic Policy -> Rate Limits** and create a rule.
+
+   <figure class="doc-screenshot">
+     <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy page showing WAF rules and rate limits">
+     <figcaption>The WAF and Rate Limits sections are grouped together because both evaluate before route resolution and can reject or challenge a request before it reaches an upstream.</figcaption>
+   </figure>
 
 2. Configure the match:
 
@@ -70,7 +75,7 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
 
 ## Verification
 
-Send repeated matching requests and watch **Overview -> Problem Signals** or **Traffic** tracing. A limited request should return `429` and should not reach route/backend selection.
+Send repeated matching requests and watch **Overview -> Problem Signals** or **Traffic** tracing. A limited request should return `429` and should not reach route/target selection.
 
 ## Troubleshooting
 

@@ -1,10 +1,10 @@
-# Publish a Service with a Direct Backend
+# Publish a Service with a Direct Target
 
 Expose an upstream service that is reachable from the p2pstream server as a public HTTPS hostname.
 
 ## Use This When
 
-Use a direct backend when the upstream target is reachable from the VPS or host running p2pstream.
+Use a direct proxy target when the upstream origin is reachable from the VPS or host running p2pstream.
 
 Example:
 
@@ -22,20 +22,7 @@ Example:
 
 ## Steps
 
-1. Open **Proxy** and use **Backends** to create or edit a backend:
-
-   | Field | Value |
-   | --- | --- |
-   | Name | `app` |
-   | Type | Proxy forward |
-   | Forward mode | Direct |
-   | Target origin | `https://app.internal:8443` |
-   | TLS skip verify | Off unless this is a controlled internal certificate exception |
-   | Enabled | On |
-
-   If the upstream needs custom headers, use upstream request headers. If it needs HTTP basic auth, use upstream basic auth instead of manually adding `Authorization`.
-
-2. In **Proxy**, use **Listeners** and keep or create an HTTPS listener:
+1. In **Proxy**, keep or create an HTTPS listener:
 
    | Field | Value |
    | --- | --- |
@@ -43,10 +30,9 @@ Example:
    | Protocol | HTTPS |
    | Bind address | empty |
    | Port | `443` |
-   | Default backend | `app` or another explicit fallback |
    | Enabled | On |
 
-3. In **Proxy**, use **Routes** to create a specific route:
+2. Create a route for the hostname:
 
    | Field | Value |
    | --- | --- |
@@ -55,8 +41,27 @@ Example:
    | Host pattern | `app.example.com` |
    | Path prefix | `/` |
    | Action | Forward |
-   | Backend | `app` |
    | Enabled | On |
+
+3. Add a proxy target to that route:
+
+   | Field | Value |
+   | --- | --- |
+   | Name | `app` |
+   | Type | Proxy |
+   | Transport | Direct |
+   | URL | `https://app.internal:8443` |
+   | Priority group | `0` |
+   | Weight | `100` |
+   | TLS skip verify | Off unless this is a controlled internal certificate exception |
+   | Enabled | On |
+
+   If the upstream needs custom headers, use target upstream request headers. If it needs HTTP basic auth, use target upstream basic auth instead of manually adding `Authorization`.
+
+   <figure class="doc-screenshot">
+     <img src="../assets/new/proxy_direct_route_modal.png" alt="p2pstream route editor showing a direct proxy target for an app route">
+     <figcaption>The direct target editor is where the server-owned upstream URL, load-balancing settings, timeout, health check, and origin TLS policy are reviewed before publishing the route.</figcaption>
+   </figure>
 
 4. Open **TLS** and add a certificate mapping for `app.example.com`.
 
@@ -66,6 +71,11 @@ Example:
    | TLS-ALPN-01 | Port `443` reaches p2pstream. |
    | DNS-01 | You need wildcard certificates or cannot expose validation ports. |
 
+   <figure class="doc-screenshot">
+     <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream TLS certificate mapping modal showing HTTP challenge, Let's Encrypt CA, hostname pattern, and listener selection">
+     <figcaption>The TLS mapping dialog binds the public hostname to the HTTPS listener and selects the ACME validation method and CA.</figcaption>
+   </figure>
+
 ## Verification
 
 Run:
@@ -74,34 +84,19 @@ Run:
 curl -I https://app.example.com
 ```
 
-Then check **Overview** for request counts and status classes. If you need request-stage details, open **Traffic**, enable tracing, repeat the request, and inspect the flow.
+Then check **Overview** for request counts and status classes. If you need request-stage details, open **Traffic**, enable tracing, repeat the request, and inspect the selected route target.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream backend editor showing a direct proxy-forward backend target origin and health check settings">
-  <figcaption>The backend editor defines the upstream target, forward mode, timeout, health-check behavior, and whether the backend can receive routed traffic.</figcaption>
-</figure>
-
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream listener editor showing an HTTPS listener with bind address, port, default backend, and enabled state">
-  <figcaption>The listener editor controls where public traffic enters p2pstream. The listener port must also be reachable through Docker, firewall, and host networking.</figcaption>
-</figure>
-
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing listener, host pattern, path prefix, action, backend pool, fallback backend, and priority">
-  <figcaption>The route editor connects a listener match to one or more backends. Specific host and path rules should use lower priority numbers than broad fallbacks.</figcaption>
-</figure>
-
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing backend cards and route cards with status, health, priority, and backend assignments">
-  <figcaption>After saving, the Proxy page shows the resulting backends and routes together so you can confirm enabled state, health, priority, and backend assignments.</figcaption>
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing route target and upstream response metadata">
+  <figcaption>The trace details modal confirms which route and target handled the request, whether cache was involved, and what response metadata came back from the upstream.</figcaption>
 </figure>
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
-| `502 Bad Gateway` | Test the target origin from the p2pstream server/container. |
-| `503 Service Unavailable` | Confirm the route backend is enabled and available; check health status if health checks are enabled. |
+| `502 Bad Gateway` | Test the target URL from the p2pstream server/container. |
+| `503 Service Unavailable` | Confirm the route has an enabled available target; check target health if health checks are enabled. |
 | Fallback/self-signed certificate | Add or fix the **TLS** certificate mapping for the requested hostname. |
 | Route does not match | Confirm listener, host pattern, path prefix, and priority. |
 

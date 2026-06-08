@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type {
+  AgentConnectionSession,
+  AgentUptimeSummary,
   DashboardProxyDimensionSummary,
   DashboardTrafficBucket,
   DashboardWindowSummary,
   GetDashboardResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
+  agentUptimeSummaryById,
   bytesPerSecond,
   cacheActivityRequests,
   cacheHitRate,
@@ -14,8 +17,11 @@ import {
   formatByteRate,
   formatBytes,
   formatDuration,
+  formatLongDuration,
   formatNumber,
   formatPercent,
+  fleetUptimePercent,
+  recentDisconnectCount,
   statusClassCounts,
   successRate,
   errorRate,
@@ -74,6 +80,36 @@ describe("dashboardStats", () => {
     expect(formatNumber(12345678901234567890n)).toBe("12,345,678,901,234,567,890");
   });
 
+  test("formats long durations for uptime displays", () => {
+    expect(formatLongDuration(42_000n)).toBe("42s");
+    expect(formatLongDuration(5n * 60n * 1000n)).toBe("5m");
+    expect(formatLongDuration(3n * 60n * 60n * 1000n + 5n * 60n * 1000n)).toBe("3h 5m");
+    expect(formatLongDuration(2n * 24n * 60n * 60n * 1000n + 3n * 60n * 60n * 1000n)).toBe("2d 3h");
+    expect(formatLongDuration(0n)).toBe("-");
+  });
+
+  test("indexes agent uptime summaries by id and computes fleet uptime", () => {
+    const summaries = [
+      agentUptimeSummary({ agentId: 10n, uptimeMillis: 90n, downtimeMillis: 10n }),
+      agentUptimeSummary({ agentId: 11n, uptimeMillis: 50n, downtimeMillis: 50n }),
+    ];
+
+    expect(agentUptimeSummaryById(summaries).get("10")?.agentId).toBe(10n);
+    expect(fleetUptimePercent(summaries)).toBe(0.7);
+    expect(fleetUptimePercent([])).toBeNull();
+  });
+
+  test("counts recent completed disconnects", () => {
+    const now = 1_800_000_000_000n;
+    const sessions = [
+      agentConnectionSession({ active: true, disconnectedAtUnixMillis: 0n }),
+      agentConnectionSession({ disconnectedAtUnixMillis: now - 10n * 60n * 1000n }),
+      agentConnectionSession({ disconnectedAtUnixMillis: now - 2n * 24n * 60n * 60n * 1000n }),
+    ];
+
+    expect(recentDisconnectCount(sessions, now)).toBe(1);
+  });
+
   test("derives byte rates from the actual selected window duration", () => {
     const window = windowSummary({ sinceUnixMillis: 1_000n });
 
@@ -114,12 +150,14 @@ function dashboardResponse(overrides: Partial<GetDashboardResponse> = {}): GetDa
     retentionDays: 0n,
     generatedAtUnixMillis: 0n,
     topListeners: [],
-    topBackends: [],
+    topRouteTargets: [],
     topRoutes: [],
     topAgents: [],
     topErrorKinds: [],
     statusClasses: [],
     trafficBuckets: [],
+    agentUptimeSummaries: [],
+    recentAgentConnections: [],
     ...overrides,
   };
 }
@@ -196,6 +234,46 @@ function bucket(overrides: Partial<DashboardTrafficBucket> = {}): DashboardTraff
     requestBytes: 0n,
     responseBytes: 0n,
     avgDurationMs: 0n,
+    ...overrides,
+  };
+}
+
+function agentUptimeSummary(overrides: Partial<AgentUptimeSummary> = {}): AgentUptimeSummary {
+  return {
+    $typeName: "p2pstream.v1.AgentUptimeSummary",
+    agentId: 0n,
+    agentPublicId: "",
+    agentName: "",
+    enabled: true,
+    connected: false,
+    currentConnectedAtUnixMillis: 0n,
+    currentUptimeMillis: 0n,
+    currentOfflineSinceUnixMillis: 0n,
+    currentDowntimeMillis: 0n,
+    uptimeMillis: 0n,
+    downtimeMillis: 0n,
+    uptimePercent: 0,
+    connectionCount: 0n,
+    disconnectCount: 0n,
+    observedSinceUnixMillis: 0n,
+    observedUntilUnixMillis: 0n,
+    lastConnectedAtUnixMillis: 0n,
+    lastDisconnectedAtUnixMillis: 0n,
+    ...overrides,
+  };
+}
+
+function agentConnectionSession(overrides: Partial<AgentConnectionSession> = {}): AgentConnectionSession {
+  return {
+    $typeName: "p2pstream.v1.AgentConnectionSession",
+    id: 0n,
+    agentId: 0n,
+    agentPublicId: "",
+    agentName: "",
+    connectedAtUnixMillis: 0n,
+    disconnectedAtUnixMillis: 0n,
+    durationMillis: 0n,
+    active: false,
     ...overrides,
   };
 }

@@ -169,11 +169,11 @@ const automaticTriggerGroups: AutomaticTriggerGroup[] = [
         body: "Activates when total active public proxy requests reaches this threshold.",
       },
       {
-        key: "backendActiveRequests",
-        label: "Backend active",
+        key: "routeTargetActiveRequests",
+        label: "Target active",
         unit: "requests",
         min: 1,
-        body: "Activates when any backend reaches this active request count.",
+        body: "Activates when any route target reaches this active request count.",
       },
       {
         key: "agentActiveRequests",
@@ -498,7 +498,7 @@ defineExpose({ openCreate, openEdit, close });
           <p class="text-xs font-semibold text-[#d4d4d8]">{{ selectedActivationTitle }}</p>
           <p class="text-xs leading-5 text-[#888]">{{ selectedActivationDescription }}</p>
           <p class="text-xs leading-5 text-[#666]">
-            WAF runs before rate limits, traffic shaping, routing, cache, and backend forwarding. Lower priority numbers are evaluated first.
+            WAF runs before rate limits, traffic shaping, routing, cache, and target forwarding. Lower priority numbers are evaluated first.
           </p>
         </div>
       </section>

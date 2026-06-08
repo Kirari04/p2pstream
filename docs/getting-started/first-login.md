@@ -28,7 +28,7 @@ docker compose restart p2pstream
 3. On **Setup Admin**, create the primary administrator account.
 4. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
 5. Use a password with at least 12 characters.
-6. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, backends, and routes.
+6. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, routes, and route targets.
 
 ## Runtime Rules
 
@@ -43,6 +43,16 @@ docker compose restart p2pstream
 ## Verification
 
 After login, the **Overview** dashboard should load with live proxy status, request totals, traffic trends, and the main navigation for **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen showing setup token, username, password, and confirm password fields">
+  <figcaption>The setup form creates the first administrator during the setup window. After the first user exists, the server switches to the normal login page.</figcaption>
+</figure>
+
+<figure class="doc-screenshot">
+  <img src="../assets/new/login_page.png" alt="p2pstream login page with username and password fields">
+  <figcaption>The login page is the expected state after setup. Use the admin account created during first-run setup.</figcaption>
+</figure>
 
 <figure class="doc-screenshot">
   <img src="../assets/new/dashboard_overview.png" alt="p2pstream Overview dashboard showing proxy status, request totals, traffic trend, hotspots, and configuration summary">

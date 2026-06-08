@@ -1,6 +1,6 @@
 # p2pstream
 
-p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, static and forwarded backends, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
+p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, route-owned proxy/static targets, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
 
 ## Quick Start With Docker Compose
 
@@ -84,7 +84,7 @@ P2PSTREAM_MANAGEMENT_PORT=8081
 
 If management is behind NAT or another reverse proxy, set `MANAGEMENT_PUBLIC_URL` to the external URL so browser links and generated agent setup snippets are correct.
 
-For API-only management, set `MANAGEMENT_UI_DISABLED=true`; agents and the management API keep working, but the browser UI is not served.
+For API-only management, set `MANAGEMENT_UI_DISABLED=true`; agents and the management API keep working, but the browser UI is not served. Agents use an authenticated Yamux tunnel over management TLS; if management is behind another reverse proxy, allow HTTP/1.1 upgrade streaming for `p2pstream-yamux` on `/agent/tunnel`.
 
 Management HTTPS is enabled by default. Without your own trusted certificate, p2pstream generates a local management CA and server certificate, so browsers may show a certificate warning until you trust that CA or place management behind trusted TLS.
 

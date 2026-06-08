@@ -37,6 +37,7 @@ var serverCmd = &cobra.Command{
 		defer database.Close()
 
 		app := server.NewApp(cfg, database)
+		defer app.CloseAgentTransports()
 
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()
@@ -77,14 +78,13 @@ var serverCmd = &cobra.Command{
 		if _, err := app.StartProxyListener(context.Background()); err != nil {
 			log.Error().Err(err).Msg("Proxy server failed to start")
 		}
+		app.StartDashboardCache(ctx)
 
 		// Start Management Listener
 		go func() {
 			scheme := "http"
-			wsScheme := "ws"
 			if managementTLS {
 				scheme = "https"
-				wsScheme = "wss"
 			}
 			displayAddr := managementDisplayAddress(mgmtAddr)
 			managementURL := scheme + "://" + displayAddr
@@ -92,7 +92,7 @@ var serverCmd = &cobra.Command{
 			log.Info().
 				Str("url", managementURL).
 				Str("bind", mgmtAddr).
-				Str("ws", wsScheme+"://"+displayAddr+"/ws").
+				Str("agent_tunnel", managementURL+"/agent/tunnel").
 				Msg("Management server listening")
 			var err error
 			if managementTLS {
