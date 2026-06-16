@@ -111,6 +111,9 @@ type ProxyRequestEvent struct {
 	StatusCode    int64         `json:"status_code"`
 	DurationMs    int64         `json:"duration_ms"`
 	ErrorKind     string        `json:"error_kind"`
+	Method        string        `json:"method"`
+	Host          string        `json:"host"`
+	PathPrefix    string        `json:"path_prefix"`
 	ListenerID    sql.NullInt64 `json:"listener_id"`
 	RouteID       sql.NullInt64 `json:"route_id"`
 	RouteTargetID sql.NullInt64 `json:"route_target_id"`
@@ -143,6 +146,21 @@ type ProxyRequestRollupMinute struct {
 	CacheStoreFailed int64     `json:"cache_store_failed"`
 	CacheHitBytes    int64     `json:"cache_hit_bytes"`
 	CacheStoredBytes int64     `json:"cache_stored_bytes"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type ProxyRequestStatusRollupMinute struct {
+	BucketUnixMillis int64     `json:"bucket_unix_millis"`
+	StatusCode       int64     `json:"status_code"`
+	Requests         int64     `json:"requests"`
+	Success          int64     `json:"success"`
+	ClientError      int64     `json:"client_error"`
+	ServerError      int64     `json:"server_error"`
+	InternalError    int64     `json:"internal_error"`
+	DurationMsSum    int64     `json:"duration_ms_sum"`
+	RequestBytes     int64     `json:"request_bytes"`
+	ResponseBytes    int64     `json:"response_bytes"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }

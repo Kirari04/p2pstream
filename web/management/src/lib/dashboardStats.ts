@@ -20,7 +20,7 @@ export type DashboardTrafficBucketView = {
   requestBytes: bigint;
   responseBytes: bigint;
   avgDurationMs: bigint;
-  errors: bigint;
+  nonSuccess: bigint;
   totalBytes: bigint;
 };
 
@@ -51,10 +51,32 @@ export function successRate(window: DashboardWindowSummary | null | undefined): 
   return ratio(window.proxySuccess, window.proxyRequests);
 }
 
-export function errorRate(window: DashboardWindowSummary | null | undefined): number {
+export function nonSuccessRequests(window: DashboardWindowSummary | null | undefined): bigint {
+  return (window?.proxyClientError ?? 0n) + (window?.proxyServerError ?? 0n);
+}
+
+export function proxyFailureRequests(window: DashboardWindowSummary | null | undefined): bigint {
+  return window?.proxyInternalError ?? 0n;
+}
+
+export function nonSuccessRate(window: DashboardWindowSummary | null | undefined): number {
   if (!window || window.proxyRequests === 0n) return 0;
-  const errors = window.proxyClientError + window.proxyServerError + window.proxyInternalError;
-  return ratio(errors, window.proxyRequests);
+  return ratio(nonSuccessRequests(window), window.proxyRequests);
+}
+
+export function statusTone(statusCode: bigint | number | null | undefined): "success" | "redirect" | "client-error" | "server-error" | "neutral" {
+  if (statusCode === null || statusCode === undefined) return "neutral";
+  const status = toSafeNumber(statusCode);
+  if (status >= 200 && status < 300) return "success";
+  if (status >= 300 && status < 400) return "redirect";
+  if (status >= 400 && status < 500) return "client-error";
+  if (status >= 500) return "server-error";
+  return "neutral";
+}
+
+export function formatPathPrefix(pathPrefix: string | null | undefined): string {
+  const value = pathPrefix?.trim() ?? "";
+  return value || "-";
 }
 
 export function cacheLookupRequests(window: DashboardWindowSummary | null | undefined): bigint {
@@ -181,7 +203,7 @@ export function filledTrafficBuckets(
       requestBytes,
       responseBytes,
       avgDurationMs: existing?.avgDurationMs ?? 0n,
-      errors: clientError + serverError + internalError,
+      nonSuccess: clientError + serverError,
       totalBytes: requestBytes + responseBytes,
     });
   }

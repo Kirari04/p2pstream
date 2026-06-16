@@ -84,7 +84,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 
-	for _, table := range []string{"agents", "public_agent_labels", "public_route_targets", "public_route_target_upstream_headers", "public_route_target_response_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
+	for _, table := range []string{"agents", "public_agent_labels", "public_route_targets", "public_route_target_upstream_headers", "public_route_target_response_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "proxy_request_status_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -97,7 +97,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 
 	proxyEventColumns := tableColumns(t, database, "proxy_request_events")
-	for _, column := range []string{"request_bytes", "response_bytes", "waf_rule_id", "waf_action", "cache_rule_id", "cache_status", "cache_bytes"} {
+	for _, column := range []string{"request_bytes", "response_bytes", "waf_rule_id", "waf_action", "cache_rule_id", "cache_status", "cache_bytes", "method", "host", "path_prefix"} {
 		if !containsString(proxyEventColumns, column) {
 			t.Fatalf("proxy_request_events missing column %s in %v", column, proxyEventColumns)
 		}
@@ -116,6 +116,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	for _, index := range []string{
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
+		"idx_proxy_request_events_recent_problem",
 		"idx_proxy_request_events_waf_rule_id",
 		"idx_proxy_request_events_cache_rule_id",
 		"idx_public_waf_rules_priority",
@@ -427,7 +428,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	for table, columns := range map[string][]string{
 		"connections":          {"agent_id"},
 		"agent_stats":          {"agent_id", "req_internal_error", "cpu_percent"},
-		"proxy_request_events": {"agent_id", "listener_id", "route_id", "route_target_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes"},
+		"proxy_request_events": {"agent_id", "listener_id", "route_id", "route_target_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes", "method", "host", "path_prefix"},
 		"public_cache_rules":   {"allow_cookie_requests"},
 	} {
 		got := tableColumns(t, database, table)
@@ -455,6 +456,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	for _, index := range []string{
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
+		"idx_proxy_request_events_recent_problem",
 		"idx_proxy_request_events_waf_rule_id",
 		"idx_proxy_request_events_cache_rule_id",
 	} {
@@ -462,7 +464,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 			t.Fatalf("expected %s after migration", index)
 		}
 	}
-	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
+	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "proxy_request_status_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected migrated table %s: %v", table, err)
@@ -637,6 +639,9 @@ func TestMigrationResetsProxyObservabilityAndRenamesWAFRouteTargetTrigger(t *tes
 	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_tuple_rollup_minutes`) != 0 {
 		t.Fatal("expected proxy request tuple rollups to be reset")
 	}
+	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_status_rollup_minutes`) != 0 {
+		t.Fatal("expected proxy request status rollups to be reset")
+	}
 	if countRows(t, database, `SELECT COUNT(*) FROM agent_stats`) != 1 {
 		t.Fatal("expected agent stats to be preserved")
 	}
@@ -674,7 +679,8 @@ func TestMigrationResetsProxyObservabilityAndRenamesWAFRouteTargetTrigger(t *tes
 	defer func() { _ = database.Close() }()
 	if countRows(t, database, `SELECT COUNT(*) FROM proxy_request_events`) != 0 ||
 		countRows(t, database, `SELECT COUNT(*) FROM proxy_request_rollup_minutes`) != 0 ||
-		countRows(t, database, `SELECT COUNT(*) FROM proxy_request_tuple_rollup_minutes`) != 0 {
+		countRows(t, database, `SELECT COUNT(*) FROM proxy_request_tuple_rollup_minutes`) != 0 ||
+		countRows(t, database, `SELECT COUNT(*) FROM proxy_request_status_rollup_minutes`) != 0 {
 		t.Fatal("expected proxy observability reset migration to be idempotent")
 	}
 	if countRows(t, database, `SELECT COUNT(*) FROM agent_stats`) != 1 {

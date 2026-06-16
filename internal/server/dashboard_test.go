@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -76,6 +77,132 @@ func TestGetDashboardIncludesCacheSummary(t *testing.T) {
 	}
 }
 
+func TestGetDashboardDiagnosticsRequiresAuth(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+
+	req := connect.NewRequest(&p2pstreamv1.GetDashboardDiagnosticsRequest{})
+	if _, err := app.GetDashboardDiagnostics(ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("GetDashboardDiagnostics error code = %s, want unauthenticated: %v", connect.CodeOf(err), err)
+	}
+}
+
+func TestGetDashboardDiagnosticsAggregatesStatusesFailuresAndSamples(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	header := createTestAdminSession(t, app)
+	seedDashboardRollupDimensionFixtures(t, app.DB)
+	insertDashboardRollupAgentFixture(t, app.DB, 10)
+
+	now := time.Now().UTC()
+	insertDiagnosticsProxyEvent(t, app, now.Add(-10*time.Minute), http.StatusOK, "", proxyRequestContext{Method: "GET", Host: "example.test", PathPrefix: "/ok"}, sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(10), 10, 100, 25)
+	insertDiagnosticsProxyEvent(t, app, now.Add(-9*time.Minute), http.StatusNotFound, "no_route", proxyRequestContext{Method: "GET", Host: "example.test", PathPrefix: "/api/users/..."}, sqlNullInt64(1), sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, 11, 101, 35)
+	insertDiagnosticsProxyEvent(t, app, now.Add(-8*time.Minute), http.StatusTooManyRequests, "", proxyRequestContext{Method: "POST", Host: "example.test", PathPrefix: "/api/rate"}, sqlNullInt64(1), sqlNullInt64(1), sql.NullInt64{}, sql.NullInt64{}, 12, 102, 45)
+	insertDiagnosticsProxyEvent(t, app, now.Add(-7*time.Minute), http.StatusBadGateway, "direct_proxy_failed", proxyRequestContext{Method: "GET", Host: "example.test", PathPrefix: "/api/proxy"}, sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(1), sql.NullInt64{}, 13, 103, 55)
+	insertDiagnosticsProxyEvent(t, app, now.Add(-6*time.Minute), http.StatusGatewayTimeout, "agent_dial_timeout", proxyRequestContext{}, sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(1), sqlNullInt64(10), 14, 104, 65)
+
+	req := connect.NewRequest(&p2pstreamv1.GetDashboardDiagnosticsRequest{
+		WindowLabel: "bogus",
+		SampleLimit: 500,
+	})
+	req.Header().Set("Cookie", header.Get("Cookie"))
+	resp, err := app.GetDashboardDiagnostics(ctx, req)
+	if err != nil {
+		t.Fatalf("get diagnostics: %v", err)
+	}
+
+	if resp.Msg.Label != "1h" {
+		t.Fatalf("diagnostics label = %q, want 1h", resp.Msg.Label)
+	}
+	outcome := resp.Msg.Outcome
+	if outcome == nil {
+		t.Fatal("missing diagnostics outcome")
+	}
+	if outcome.Requests != 5 || outcome.Success != 1 || outcome.ClientError != 2 || outcome.ServerError != 2 {
+		t.Fatalf("unexpected outcome status counts: %+v", outcome)
+	}
+	if outcome.NonSuccess != 4 || outcome.ProxyFailure != 3 {
+		t.Fatalf("non-success/proxy failure = %d/%d, want 4/3", outcome.NonSuccess, outcome.ProxyFailure)
+	}
+
+	statuses := diagnosticsStatusCounts(resp.Msg.StatusCodes)
+	for _, status := range []int64{200, 404, 429, 502, 504} {
+		if statuses[status] != 1 {
+			t.Fatalf("status %d count = %d, want 1 in %+v", status, statuses[status], resp.Msg.StatusCodes)
+		}
+	}
+	for _, status := range resp.Msg.StatusCodes {
+		if status.StatusCode == http.StatusNotFound && status.ProxyFailure != 1 {
+			t.Fatalf("404 proxy failures = %d, want 1", status.ProxyFailure)
+		}
+	}
+	if !dashboardDimensionHasLabel(resp.Msg.ErrorKinds, "no_route") || !dashboardDimensionHasLabel(resp.Msg.ErrorKinds, "direct_proxy_failed") {
+		t.Fatalf("diagnostics error kinds missing expected labels: %+v", resp.Msg.ErrorKinds)
+	}
+	if !dashboardDimensionHasLabel(resp.Msg.ProblemListeners, "listener-one") ||
+		!dashboardDimensionHasLabel(resp.Msg.ProblemRoutes, "example.com /api") ||
+		!dashboardDimensionHasLabel(resp.Msg.ProblemRouteTargets, "target-one") ||
+		!dashboardDimensionHasLabel(resp.Msg.ProblemAgents, "agent-10") {
+		t.Fatalf("diagnostics problem dimensions missing expected labels: listeners=%+v routes=%+v targets=%+v agents=%+v", resp.Msg.ProblemListeners, resp.Msg.ProblemRoutes, resp.Msg.ProblemRouteTargets, resp.Msg.ProblemAgents)
+	}
+
+	if len(resp.Msg.RecentSamples) != 4 {
+		t.Fatalf("recent sample count = %d, want 4", len(resp.Msg.RecentSamples))
+	}
+	var sawNoRoute, sawBlankContext bool
+	for _, sample := range resp.Msg.RecentSamples {
+		if sample.StatusCode < 400 && sample.ErrorKind == "" {
+			t.Fatalf("sample includes success without proxy failure: %+v", sample)
+		}
+		if sample.StatusCode == http.StatusNotFound && sample.ErrorKind == "no_route" {
+			sawNoRoute = true
+			if sample.Method != "GET" || sample.Host != "example.test" || sample.PathPrefix != "/api/users/..." {
+				t.Fatalf("no_route sample context = method %q host %q path %q", sample.Method, sample.Host, sample.PathPrefix)
+			}
+			if sample.ListenerLabel != "listener-one" {
+				t.Fatalf("no_route sample listener = %q, want listener-one", sample.ListenerLabel)
+			}
+		}
+		if sample.StatusCode == http.StatusGatewayTimeout {
+			sawBlankContext = sample.Method == "" && sample.Host == "" && sample.PathPrefix == ""
+		}
+	}
+	if !sawNoRoute || !sawBlankContext {
+		t.Fatalf("recent samples missing no_route or blank-context row: %+v", resp.Msg.RecentSamples)
+	}
+}
+
+func TestDashboardDiagnosticsSampleLimitClamp(t *testing.T) {
+	if got := dashboardDiagnosticsSampleLimit(0); got != diagnosticsDefaultSampleLimit {
+		t.Fatalf("default sample limit = %d, want %d", got, diagnosticsDefaultSampleLimit)
+	}
+	if got := dashboardDiagnosticsSampleLimit(500); got != diagnosticsMaxSampleLimit {
+		t.Fatalf("max sample limit = %d, want %d", got, diagnosticsMaxSampleLimit)
+	}
+	if got := dashboardDiagnosticsSampleLimit(12); got != 12 {
+		t.Fatalf("sample limit = %d, want 12", got)
+	}
+}
+
+func TestRedactedProxyPathPrefix(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{path: "", want: "/"},
+		{path: "/", want: "/"},
+		{path: "/api?token=secret", want: "/api"},
+		{path: "/api/users", want: "/api/users"},
+		{path: "/api/users/123/token", want: "/api/users/..."},
+		{path: "api/users/123", want: "/api/users/..."},
+	}
+	for _, tt := range tests {
+		if got := redactedProxyPathPrefix(tt.path); got != tt.want {
+			t.Fatalf("redactedProxyPathPrefix(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
 func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 	ctx := context.Background()
 	app := NewApp(nil, newServerTestDB(t))
@@ -127,6 +254,17 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 	}
 	if listenerID != 7 || routeID != 9 || agentID != 10 || errorKind != "agent_timeout" || statusClass != 5 {
 		t.Fatalf("unexpected tuple rollup dimensions: listener=%d route=%d agent=%d error=%q status_class=%d", listenerID, routeID, agentID, errorKind, statusClass)
+	}
+
+	var statusCode int64
+	if err := app.DB.QueryRowContext(ctx, `
+		SELECT status_code, requests, server_error, internal_error
+		FROM proxy_request_status_rollup_minutes
+	`).Scan(&statusCode, &requests, &serverError, &internalError); err != nil {
+		t.Fatalf("read proxy status rollup: %v", err)
+	}
+	if statusCode != http.StatusGatewayTimeout || requests != 1 || serverError != 1 || internalError != 1 {
+		t.Fatalf("unexpected status rollup: status=%d requests=%d server=%d internal=%d", statusCode, requests, serverError, internalError)
 	}
 }
 
@@ -259,6 +397,40 @@ func TestGetDashboardDoesNotRunObservabilityCleanup(t *testing.T) {
 	}
 	if oldRows != 1 {
 		t.Fatalf("old proxy rows after dashboard = %d, want 1", oldRows)
+	}
+}
+
+func TestCleanupObservabilityDeletesOldExactStatusRollups(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30}, newServerTestDB(t))
+	now := time.Now().UTC()
+	oldBucket := rollupBucketUnixMillis(now.AddDate(0, 0, -31))
+	recentBucket := rollupBucketUnixMillis(now.Add(-time.Hour))
+
+	if err := app.DB.UpsertProxyRequestStatusRollupMinute(ctx, db.UpsertProxyRequestStatusRollupMinuteParams{
+		BucketUnixMillis: oldBucket,
+		StatusCode:       http.StatusNotFound,
+		Requests:         1,
+		ClientError:      1,
+	}); err != nil {
+		t.Fatalf("insert old status rollup: %v", err)
+	}
+	if err := app.DB.UpsertProxyRequestStatusRollupMinute(ctx, db.UpsertProxyRequestStatusRollupMinuteParams{
+		BucketUnixMillis: recentBucket,
+		StatusCode:       http.StatusOK,
+		Requests:         1,
+		Success:          1,
+	}); err != nil {
+		t.Fatalf("insert recent status rollup: %v", err)
+	}
+
+	app.cleanupObservability(ctx, now)
+
+	if countRows(t, app.DB, `SELECT COUNT(*) FROM proxy_request_status_rollup_minutes WHERE bucket_unix_millis = ?`, oldBucket) != 0 {
+		t.Fatal("expected old status rollup to be cleaned up")
+	}
+	if countRows(t, app.DB, `SELECT COUNT(*) FROM proxy_request_status_rollup_minutes WHERE bucket_unix_millis = ?`, recentBucket) != 1 {
+		t.Fatal("expected recent status rollup to remain")
 	}
 }
 
@@ -722,6 +894,32 @@ func dashboardTestWindowsByLabel(windows []*p2pstreamv1.DashboardWindowSummary) 
 	return byLabel
 }
 
+func diagnosticsStatusCounts(rows []*p2pstreamv1.DashboardStatusCodeSummary) map[int64]int64 {
+	counts := make(map[int64]int64, len(rows))
+	for _, row := range rows {
+		counts[row.StatusCode] = row.Requests
+	}
+	return counts
+}
+
+func dashboardDimensionHasLabel(rows []*p2pstreamv1.DashboardProxyDimensionSummary, label string) bool {
+	for _, row := range rows {
+		if row.Label == label {
+			return true
+		}
+	}
+	return false
+}
+
+func countRows(t *testing.T, database *db.DB, query string, args ...any) int64 {
+	t.Helper()
+	var count int64
+	if err := database.QueryRowContext(context.Background(), query, args...).Scan(&count); err != nil {
+		t.Fatalf("count rows: %v", err)
+	}
+	return count
+}
+
 func sqlNullInt64(value int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: value, Valid: true}
 }
@@ -829,14 +1027,20 @@ func seedDashboardRollupDimensionFixtures(t *testing.T, database *db.DB) {
 
 func insertDashboardRollupAgentFixture(t *testing.T, database *db.DB, id int64) {
 	t.Helper()
+	publicID := fmt.Sprintf("agent-%d-public", id)
+	name := fmt.Sprintf("agent-%d", id)
+	if id == 1 {
+		publicID = "agent-one-public"
+		name = "agent-one"
+	}
 	if _, err := database.ExecContext(
 		context.Background(),
 		`INSERT INTO agents (id, public_id, name, token_hash, enabled)
 		VALUES (?, ?, ?, ?, 1)`,
 		id,
-		"agent-one-public",
-		"agent-one",
-		"hash-one",
+		publicID,
+		name,
+		"hash-"+publicID,
 	); err != nil {
 		t.Fatalf("insert dashboard agent fixture: %v", err)
 	}
@@ -972,6 +1176,41 @@ func insertRollupEventAt(
 		ResponseBytes: int64FromUint64(responseBytes),
 	}); err != nil {
 		t.Fatalf("insert rollup event: %v", err)
+	}
+}
+
+func insertDiagnosticsProxyEvent(
+	t *testing.T,
+	app *App,
+	occurredAt time.Time,
+	statusCode int,
+	errorKind string,
+	requestContext proxyRequestContext,
+	listenerID sql.NullInt64,
+	routeID sql.NullInt64,
+	routeTargetID sql.NullInt64,
+	agentID sql.NullInt64,
+	requestBytes uint64,
+	responseBytes uint64,
+	durationMs int64,
+) {
+	t.Helper()
+	if err := app.insertProxyRequestEventWithRollups(context.Background(), db.InsertProxyRequestEventAtParams{
+		OccurredAt:    occurredAt.UTC(),
+		StatusCode:    int64(statusCode),
+		DurationMs:    durationMs,
+		ErrorKind:     errorKind,
+		Method:        requestContext.Method,
+		Host:          requestContext.Host,
+		PathPrefix:    requestContext.PathPrefix,
+		ListenerID:    listenerID,
+		RouteID:       routeID,
+		RouteTargetID: routeTargetID,
+		AgentID:       agentID,
+		RequestBytes:  int64FromUint64(requestBytes),
+		ResponseBytes: int64FromUint64(responseBytes),
+	}); err != nil {
+		t.Fatalf("insert diagnostics proxy event: %v", err)
 	}
 }
 

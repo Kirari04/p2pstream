@@ -1654,6 +1654,66 @@ message GetDashboardResponse {
   repeated DashboardProxyDimensionSummary top_route_targets = 16;
 }
 
+message GetDashboardDiagnosticsRequest {
+  string window_label = 1;
+  int64 sample_limit = 2;
+}
+
+message DashboardDiagnosticsOutcomeSummary {
+  string label = 1;
+  int64 since_unix_millis = 2;
+  int64 requests = 3;
+  int64 success = 4;
+  int64 client_error = 5;
+  int64 server_error = 6;
+  int64 non_success = 7;
+  int64 proxy_failure = 8;
+  int64 avg_duration_ms = 9;
+  int64 max_duration_ms = 10;
+}
+
+message DashboardStatusCodeSummary {
+  int64 status_code = 1;
+  int64 requests = 2;
+  int64 success = 3;
+  int64 client_error = 4;
+  int64 server_error = 5;
+  int64 proxy_failure = 6;
+  int64 avg_duration_ms = 7;
+  uint64 request_bytes = 8;
+  uint64 response_bytes = 9;
+}
+
+message DashboardDiagnosticsSample {
+  int64 occurred_at_unix_millis = 1;
+  string method = 2;
+  string host = 3;
+  string path_prefix = 4;
+  int64 status_code = 5;
+  string error_kind = 6;
+  string listener_label = 7;
+  string route_label = 8;
+  string route_target_label = 9;
+  string agent_label = 10;
+  int64 duration_ms = 11;
+  uint64 request_bytes = 12;
+  uint64 response_bytes = 13;
+}
+
+message GetDashboardDiagnosticsResponse {
+  string label = 1;
+  int64 since_unix_millis = 2;
+  int64 generated_at_unix_millis = 3;
+  DashboardDiagnosticsOutcomeSummary outcome = 4;
+  repeated DashboardStatusCodeSummary status_codes = 5;
+  repeated DashboardProxyDimensionSummary error_kinds = 6;
+  repeated DashboardProxyDimensionSummary problem_listeners = 7;
+  repeated DashboardProxyDimensionSummary problem_routes = 8;
+  repeated DashboardProxyDimensionSummary problem_route_targets = 9;
+  repeated DashboardProxyDimensionSummary problem_agents = 10;
+  repeated DashboardDiagnosticsSample recent_samples = 11;
+}
+
 message TrafficTraceSettings {
   bool enabled = 1;
   TrafficTraceLevel level = 2;
@@ -1804,6 +1864,7 @@ service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
   rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
+  rpc GetDashboardDiagnostics(GetDashboardDiagnosticsRequest) returns (GetDashboardDiagnosticsResponse) {}
   rpc GetTrafficTraceSettings(GetTrafficTraceSettingsRequest) returns (GetTrafficTraceSettingsResponse) {}
   rpc SetTrafficTraceSettings(SetTrafficTraceSettingsRequest) returns (SetTrafficTraceSettingsResponse) {}
   rpc StreamTrafficTraceEvents(StreamTrafficTraceEventsRequest) returns (stream StreamTrafficTraceEventsResponse) {}

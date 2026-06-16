@@ -40,6 +40,7 @@ const error = ref<string | null>(null);
 
 const tabs = [
   { path: "/overview", label: "Overview" },
+  { path: "/diagnostics", label: "Diagnostics" },
   { path: "/traffic", label: "Traffic" },
   { path: "/proxy", label: "Proxy" },
   { path: "/agent", label: "Agents" },

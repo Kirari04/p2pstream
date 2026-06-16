@@ -21,10 +21,14 @@ import {
   formatNumber,
   formatPercent,
   fleetUptimePercent,
+  formatPathPrefix,
+  nonSuccessRate,
+  nonSuccessRequests,
+  proxyFailureRequests,
   recentDisconnectCount,
+  statusTone,
   statusClassCounts,
   successRate,
-  errorRate,
   windowByLabel,
 } from "@/lib/dashboardStats";
 import { DashboardProxyDimension } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -37,17 +41,31 @@ describe("dashboardStats", () => {
     expect(windowByLabel(dashboard, "24h")).toBeNull();
   });
 
-  test("computes success and error rates", () => {
+  test("computes success, non-success, and proxy failure metrics", () => {
     const window = windowSummary({
       proxyRequests: 10n,
       proxySuccess: 7n,
       proxyClientError: 2n,
       proxyServerError: 1n,
+      proxyInternalError: 4n,
     });
 
     expect(successRate(window)).toBe(0.7);
-    expect(errorRate(window)).toBe(0.3);
+    expect(nonSuccessRequests(window)).toBe(3n);
+    expect(proxyFailureRequests(window)).toBe(4n);
+    expect(nonSuccessRate(window)).toBe(0.3);
     expect(successRate(windowSummary({ proxyRequests: 0n }))).toBe(0);
+  });
+
+  test("maps status tones and formats path prefixes", () => {
+    expect(statusTone(200n)).toBe("success");
+    expect(statusTone(301n)).toBe("redirect");
+    expect(statusTone(404n)).toBe("client-error");
+    expect(statusTone(502n)).toBe("server-error");
+    expect(statusTone(102n)).toBe("neutral");
+    expect(formatPathPrefix("/api/users/...")).toBe("/api/users/...");
+    expect(formatPathPrefix("")).toBe("-");
+    expect(formatPathPrefix(undefined)).toBe("-");
   });
 
   test("computes cache hit rate from lookups and excludes bypasses", () => {
@@ -124,7 +142,7 @@ describe("dashboardStats", () => {
 
     expect(filled).toHaveLength(12);
     expect(filled[10]?.requests).toBe(3n);
-    expect(filled[10]?.errors).toBe(1n);
+    expect(filled[10]?.nonSuccess).toBe(1n);
     expect(filled[10]?.totalBytes).toBe(300n);
     expect(filled[0]?.requests).toBe(0n);
   });

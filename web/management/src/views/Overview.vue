@@ -15,7 +15,6 @@ import {
   cacheActivityRequests,
   cacheHitRate,
   cacheLookupRequests,
-  errorRate,
   filledTrafficBuckets,
   formatByteRate,
   formatBytes,
@@ -23,6 +22,8 @@ import {
   formatNumber,
   formatPercent,
   fleetUptimePercent,
+  nonSuccessRequests,
+  proxyFailureRequests,
   requestsPerSecond,
   statusClassCounts,
   successRate,
@@ -151,8 +152,8 @@ function agentsMetricSubline(): string {
   return `${formatPercent(fleetUptime.value)} uptime / ${active}`;
 }
 
-function rowErrors(row: DashboardProxyDimensionSummary): bigint {
-  return row.clientError + row.serverError + row.internalError;
+function rowNonSuccess(row: DashboardProxyDimensionSummary): bigint {
+  return row.clientError + row.serverError;
 }
 
 function rowSuccess(row: DashboardProxyDimensionSummary): string {
@@ -174,14 +175,14 @@ function bucketHeight(bucket: DashboardTrafficBucketView): string {
 }
 
 function bucketErrorHeight(bucket: DashboardTrafficBucketView): string {
-  if (bucket.requests === 0n || bucket.errors === 0n) return "0%";
-  return `${Math.max(12, Math.round((Number(bucket.errors) / Number(bucket.requests)) * 100)).toString()}%`;
+  if (bucket.requests === 0n || bucket.nonSuccess === 0n) return "0%";
+  return `${Math.max(12, Math.round((Number(bucket.nonSuccess) / Number(bucket.requests)) * 100)).toString()}%`;
 }
 
 function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView): string {
   const start = new Date(Number(bucket.bucketUnixMillis));
-  const errors = "errors" in bucket ? bucket.errors : bucket.clientError + bucket.serverError + bucket.internalError;
-  return `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: ${formatNumber(bucket.requests)} requests, ${formatNumber(errors)} errors, down ${formatBytes(bucket.responseBytes)}, up ${formatBytes(bucket.requestBytes)}`;
+  const nonSuccess = "nonSuccess" in bucket ? bucket.nonSuccess : bucket.clientError + bucket.serverError;
+  return `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: ${formatNumber(bucket.requests)} requests, ${formatNumber(nonSuccess)} non-success, down ${formatBytes(bucket.responseBytes)}, up ${formatBytes(bucket.requestBytes)}`;
 }
 </script>
 
@@ -226,7 +227,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
       <div class="metric-card">
         <p class="metric-kicker">Success</p>
         <div class="metric-value text-green-300">{{ formatPercent(successRate(selectedWindow)) }}</div>
-        <p class="metric-subline">{{ formatPercent(errorRate(selectedWindow)) }} errors</p>
+        <p class="metric-subline">{{ formatNumber(nonSuccessRequests(selectedWindow)) }} non-success / {{ formatNumber(proxyFailureRequests(selectedWindow)) }} proxy failures</p>
       </div>
 
       <div class="metric-card">
@@ -325,9 +326,12 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
             <h4>Problem Signals</h4>
             <p>Selected window plus last-hour error kinds.</p>
           </div>
-          <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
-            {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
-          </span>
+          <div class="panel-actions">
+            <router-link to="/diagnostics" class="diagnostics-link">View diagnostics</router-link>
+            <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
+              {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
+            </span>
+          </div>
         </div>
 
         <div class="status-class-grid">
@@ -346,7 +350,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
             <span>{{ errorKindLabel(error.label) }}</span>
             <strong>{{ formatNumber(error.requests) }}</strong>
           </div>
-          <div v-if="!proxyError && !dashboardValue.topErrorKinds.length" class="stable-empty compact">No proxy errors in the last hour.</div>
+          <div v-if="!proxyError && !dashboardValue.topErrorKinds.length" class="stable-empty compact">No proxy failures in the last hour.</div>
         </div>
       </div>
     </section>
@@ -379,7 +383,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
               <th>Name</th>
               <th>Requests</th>
               <th>Success</th>
-              <th>Errors</th>
+              <th>Non-success</th>
               <th>Avg latency</th>
               <th>Down</th>
               <th>Up</th>
@@ -390,7 +394,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
               <td class="name-cell">{{ row.label }}</td>
               <td>{{ formatNumber(row.requests) }}</td>
               <td>{{ rowSuccess(row) }}</td>
-              <td>{{ formatNumber(rowErrors(row)) }}</td>
+              <td>{{ formatNumber(rowNonSuccess(row)) }}</td>
               <td>{{ formatDuration(row.avgDurationMs) }}</td>
               <td>{{ formatBytes(row.responseBytes) }}</td>
               <td>{{ formatBytes(row.requestBytes) }}</td>
@@ -581,6 +585,31 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.panel-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 0.45rem;
+}
+
+.diagnostics-link {
+  display: inline-flex;
+  min-height: 1.55rem;
+  align-items: center;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #fff;
+  color: #000;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0 0.55rem;
+  white-space: nowrap;
+}
+
+.diagnostics-link:hover {
+  background: #d4d4d8;
 }
 
 .panel-heading h4,

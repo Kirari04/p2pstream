@@ -31,6 +31,7 @@ type publicProxyContext struct {
 	Recorder       *proxyResponseRecorder
 	Request        *http.Request
 	Observability  proxyRequestObservability
+	RequestContext proxyRequestContext
 	Trace          *trafficRequestTrace
 
 	Resolution             publicRouteResolution
@@ -76,6 +77,7 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 		Recorder:       recorder,
 		Request:        r,
 		Observability:  observability,
+		RequestContext: proxyRequestContextFromHTTP(r),
 		Trace:          trace,
 	}
 }
@@ -110,7 +112,7 @@ func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
-	ctx.App.recordProxyRequestEventWithIDs(
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
 		context.Background(),
 		statusCode,
 		time.Since(ctx.StartedAt),
@@ -120,6 +122,7 @@ func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -148,7 +151,7 @@ func serveWAFReservedStage(ctx *publicProxyContext) publicProxyStageResult {
 			wafDebugAttributes(decision),
 		)
 	}
-	ctx.App.recordProxyRequestEventWithPolicyIDs(
+	ctx.App.recordProxyRequestEventWithPolicyIDsAndContext(
 		context.Background(),
 		statusCode,
 		time.Since(ctx.StartedAt),
@@ -160,6 +163,7 @@ func serveWAFReservedStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -196,7 +200,7 @@ func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
 			wafDebugAttributes(decision),
 		)
 	}
-	ctx.App.recordProxyRequestEventWithPolicyIDs(
+	ctx.App.recordProxyRequestEventWithPolicyIDsAndContext(
 		context.Background(),
 		statusCode,
 		time.Since(ctx.StartedAt),
@@ -208,6 +212,7 @@ func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -241,7 +246,7 @@ func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
 			},
 		)
 	}
-	ctx.App.recordProxyRequestEventWithIDs(
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
 		context.Background(),
 		decision.StatusCode,
 		time.Since(ctx.StartedAt),
@@ -251,6 +256,7 @@ func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -306,7 +312,7 @@ func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
 		} else {
 			http.Error(ctx.ResponseWriter, err.Error(), statusCode)
 		}
-		ctx.App.recordProxyRequestEventWithIDs(
+		ctx.App.recordProxyRequestEventWithIDsAndContext(
 			context.Background(),
 			statusCode,
 			time.Since(ctx.StartedAt),
@@ -316,6 +322,7 @@ func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
 			sql.NullInt64{},
 			ctx.Observability.requestBytesValue(),
 			ctx.Observability.responseBytesValue(),
+			ctx.RequestContext,
 		)
 		if ctx.Trace != nil {
 			failureResolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
