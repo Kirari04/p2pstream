@@ -212,6 +212,9 @@ func (db *DB) migrate() error {
 			status_code INTEGER NOT NULL,
 		duration_ms INTEGER NOT NULL,
 		error_kind TEXT NOT NULL DEFAULT '',
+		method TEXT NOT NULL DEFAULT '',
+		host TEXT NOT NULL DEFAULT '',
+		path_prefix TEXT NOT NULL DEFAULT '',
 		listener_id INTEGER,
 		route_target_id INTEGER,
 		route_id INTEGER,
@@ -266,7 +269,23 @@ func (db *DB) migrate() error {
 			response_bytes INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
+		PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
+	);
+
+		CREATE TABLE IF NOT EXISTS proxy_request_status_rollup_minutes (
+			bucket_unix_millis INTEGER NOT NULL,
+			status_code INTEGER NOT NULL,
+			requests INTEGER NOT NULL DEFAULT 0,
+			success INTEGER NOT NULL DEFAULT 0,
+			client_error INTEGER NOT NULL DEFAULT 0,
+			server_error INTEGER NOT NULL DEFAULT 0,
+			internal_error INTEGER NOT NULL DEFAULT 0,
+			duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+			request_bytes INTEGER NOT NULL DEFAULT 0,
+			response_bytes INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (bucket_unix_millis, status_code)
 		);
 
 		CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
@@ -605,6 +624,9 @@ func (db *DB) migrate() error {
 		`ALTER TABLE proxy_request_events ADD COLUMN cache_rule_id INTEGER`,
 		`ALTER TABLE proxy_request_events ADD COLUMN cache_status TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE proxy_request_events ADD COLUMN cache_bytes INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE proxy_request_events ADD COLUMN method TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN host TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN path_prefix TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE public_routes ADD COLUMN target_load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
 		`ALTER TABLE public_routes ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE public_tls_certificates ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`,
@@ -653,6 +675,9 @@ func (db *DB) migrate() error {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id ON proxy_request_events (agent_id)`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != ''`); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_agent_stats_agent_id ON agent_stats (agent_id)`); err != nil {
@@ -1112,6 +1137,22 @@ func (db *DB) migrateObservabilityRollups() error {
 		PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
 	);
 
+	CREATE TABLE IF NOT EXISTS proxy_request_status_rollup_minutes (
+		bucket_unix_millis INTEGER NOT NULL,
+		status_code INTEGER NOT NULL,
+		requests INTEGER NOT NULL DEFAULT 0,
+		success INTEGER NOT NULL DEFAULT 0,
+		client_error INTEGER NOT NULL DEFAULT 0,
+		server_error INTEGER NOT NULL DEFAULT 0,
+		internal_error INTEGER NOT NULL DEFAULT 0,
+		duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+		request_bytes INTEGER NOT NULL DEFAULT 0,
+		response_bytes INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (bucket_unix_millis, status_code)
+	);
+
 	CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
 		bucket_unix_millis INTEGER PRIMARY KEY,
 		samples INTEGER NOT NULL DEFAULT 0,
@@ -1155,6 +1196,40 @@ func (db *DB) migrateObservabilityRollups() error {
 	if err != nil {
 		return err
 	}
+	var statusRollupRows, proxyBackfilledThroughID, proxyBackfillUpperID int64
+	if err := db.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM proxy_request_status_rollup_minutes),
+			proxy_backfilled_through_id,
+			proxy_backfill_upper_id
+		FROM observability_rollup_state
+		WHERE id = 1
+	`).Scan(&statusRollupRows, &proxyBackfilledThroughID, &proxyBackfillUpperID); err != nil {
+		return err
+	}
+	if statusRollupRows == 0 && proxyBackfilledThroughID >= proxyBackfillUpperID {
+		if _, err := db.Exec(`
+			INSERT INTO proxy_request_status_rollup_minutes (
+				bucket_unix_millis, status_code, requests, success, client_error, server_error,
+				internal_error, duration_ms_sum, request_bytes, response_bytes
+			)
+			SELECT
+				CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
+				status_code,
+				COUNT(*) AS requests,
+				CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+				CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+				CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+				CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+				CAST(COALESCE(SUM(duration_ms), 0) AS INTEGER) AS duration_ms_sum,
+				CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+				CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
+			FROM proxy_request_events
+			GROUP BY bucket_unix_millis, status_code
+		`); err != nil {
+			return err
+		}
+	}
 	return db.migrateProxyObservabilityTargetOnly()
 }
 
@@ -1184,6 +1259,7 @@ func (db *DB) migrateProxyObservabilityTargetOnly() error {
 		DELETE FROM proxy_request_events;
 		DELETE FROM proxy_request_rollup_minutes;
 		DELETE FROM proxy_request_tuple_rollup_minutes;
+		DELETE FROM proxy_request_status_rollup_minutes;
 		UPDATE observability_rollup_state
 		SET proxy_backfill_upper_id = 0,
 		    proxy_backfilled_through_id = 0,
@@ -1201,6 +1277,9 @@ func (db *DB) migrateProxyObservabilityTargetOnly() error {
 				status_code INTEGER NOT NULL,
 				duration_ms INTEGER NOT NULL,
 				error_kind TEXT NOT NULL DEFAULT '',
+				method TEXT NOT NULL DEFAULT '',
+				host TEXT NOT NULL DEFAULT '',
+				path_prefix TEXT NOT NULL DEFAULT '',
 				listener_id INTEGER,
 				route_target_id INTEGER,
 				route_id INTEGER,

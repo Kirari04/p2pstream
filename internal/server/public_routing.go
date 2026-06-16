@@ -306,7 +306,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			}
 			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), attributes)
 		}
-		a.recordProxyRequestEventWithIDs(
+		a.recordProxyRequestEventWithIDsAndContext(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
@@ -316,6 +316,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			sql.NullInt64{},
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
+			proxyRequestContextFromHTTP(r),
 		)
 	}()
 }
@@ -335,7 +336,7 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 			}
 			trace.emit(stage, &resolution, nil, statusCode, errorKind, w.Header(), map[string]string{"handler": "static"})
 		}
-		a.recordProxyRequestEventWithRouteTargetCache(
+		a.recordProxyRequestEventWithRouteTargetCacheAndContext(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
@@ -351,6 +352,7 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 			0,
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
+			proxyRequestContextFromHTTP(r),
 		)
 	}()
 
@@ -405,7 +407,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			}
 			trace.emit(stage, &resolution, agent, statusCode, errorKind, w.Header(), map[string]string{"handler": handler})
 		}
-		a.recordProxyRequestEventWithRouteTargetCache(
+		a.recordProxyRequestEventWithRouteTargetCacheAndContext(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
@@ -421,6 +423,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			cacheBytes(cacheDecision),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
+			proxyRequestContextFromHTTP(r),
 		)
 	}()
 

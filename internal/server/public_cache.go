@@ -620,7 +620,7 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			attrs["handler"] = "cache"
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT, &resolution, nil, statusCode, errorKind, w.Header(), attrs)
 		}
-		a.recordProxyRequestEventWithRouteTargetCache(
+		a.recordProxyRequestEventWithRouteTargetCacheAndContext(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
@@ -636,6 +636,7 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			uint64FromInt64(decision.Entry.SizeBytes),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
+			proxyRequestContextFromHTTP(r),
 		)
 	}()
 	if decision.Entry == nil {

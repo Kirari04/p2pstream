@@ -46,16 +46,16 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id;
 
@@ -105,6 +105,24 @@ ON CONFLICT(bucket_unix_millis, listener_id, route_target_id, route_id, agent_id
     duration_ms_sum = proxy_request_tuple_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
     request_bytes = proxy_request_tuple_rollup_minutes.request_bytes + excluded.request_bytes,
     response_bytes = proxy_request_tuple_rollup_minutes.response_bytes + excluded.response_bytes,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- name: UpsertProxyRequestStatusRollupMinute :exec
+INSERT INTO proxy_request_status_rollup_minutes (
+    bucket_unix_millis, status_code, requests, success, client_error, server_error,
+    internal_error, duration_ms_sum, request_bytes, response_bytes
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(bucket_unix_millis, status_code) DO UPDATE SET
+    requests = proxy_request_status_rollup_minutes.requests + excluded.requests,
+    success = proxy_request_status_rollup_minutes.success + excluded.success,
+    client_error = proxy_request_status_rollup_minutes.client_error + excluded.client_error,
+    server_error = proxy_request_status_rollup_minutes.server_error + excluded.server_error,
+    internal_error = proxy_request_status_rollup_minutes.internal_error + excluded.internal_error,
+    duration_ms_sum = proxy_request_status_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    request_bytes = proxy_request_status_rollup_minutes.request_bytes + excluded.request_bytes,
+    response_bytes = proxy_request_status_rollup_minutes.response_bytes + excluded.response_bytes,
     updated_at = CURRENT_TIMESTAMP;
 
 -- name: UpsertAgentStatRollupMinute :exec
@@ -477,6 +495,129 @@ WHERE r.bucket_unix_millis >= ?
 GROUP BY r.status_class
 ORDER BY id ASC;
 
+-- name: ListProxyStatusCodeRollupsSince :many
+SELECT
+    r.status_code,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_status_rollup_minutes r
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.status_code
+ORDER BY requests DESC, status_code ASC;
+
+-- name: ListProblemProxyListenersRollupsSince :many
+SELECT
+    r.listener_id AS id,
+    COALESCE(pl.name, CASE WHEN r.listener_id = 0 THEN 'unknown listener' ELSE 'listener #' || r.listener_id END) AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN public_listeners pl ON pl.id = r.listener_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.listener_id, pl.name
+HAVING SUM(r.client_error) > 0 OR SUM(r.server_error) > 0 OR SUM(r.internal_error) > 0
+ORDER BY internal_error DESC, server_error DESC, client_error DESC, requests DESC, id ASC
+LIMIT 10;
+
+-- name: ListProblemProxyRoutesRollupsSince :many
+SELECT
+    r.route_id AS id,
+    CASE
+        WHEN r.route_id = 0 THEN 'Default route'
+        WHEN pr.id IS NULL THEN 'route #' || r.route_id
+        WHEN pr.host_pattern != '' AND pr.path_prefix != '' THEN pr.host_pattern || ' ' || pr.path_prefix
+        WHEN pr.host_pattern != '' THEN pr.host_pattern
+        WHEN pr.path_prefix != '' THEN pr.path_prefix
+        ELSE 'route #' || pr.id
+    END AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN public_routes pr ON pr.id = r.route_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.route_id, pr.id, pr.host_pattern, pr.path_prefix
+HAVING SUM(r.client_error) > 0 OR SUM(r.server_error) > 0 OR SUM(r.internal_error) > 0
+ORDER BY internal_error DESC, server_error DESC, client_error DESC, requests DESC, id ASC
+LIMIT 10;
+
+-- name: ListProblemProxyRouteTargetsRollupsSince :many
+SELECT
+    r.route_target_id AS id,
+    COALESCE(prt.name, CASE WHEN r.route_target_id = 0 THEN 'unknown target' ELSE 'target #' || r.route_target_id END) AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN public_route_targets prt ON prt.id = r.route_target_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.route_target_id, prt.name
+HAVING SUM(r.client_error) > 0 OR SUM(r.server_error) > 0 OR SUM(r.internal_error) > 0
+ORDER BY internal_error DESC, server_error DESC, client_error DESC, requests DESC, id ASC
+LIMIT 10;
+
+-- name: ListProblemProxyAgentsRollupsSince :many
+SELECT
+    r.agent_id AS id,
+    COALESCE(a.name, 'agent #' || r.agent_id) AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+LEFT JOIN agents a ON a.id = r.agent_id
+WHERE r.bucket_unix_millis >= ?
+  AND r.agent_id != 0
+GROUP BY r.agent_id, a.name
+HAVING SUM(r.client_error) > 0 OR SUM(r.server_error) > 0 OR SUM(r.internal_error) > 0
+ORDER BY internal_error DESC, server_error DESC, client_error DESC, requests DESC, id ASC
+LIMIT 10;
+
+-- name: ListProblemProxyErrorKindsRollupsSince :many
+SELECT
+    CAST(0 AS INTEGER) AS id,
+    r.error_kind AS label,
+    CAST(COALESCE(SUM(r.requests), 0) AS INTEGER) AS requests,
+    CAST(COALESCE(SUM(r.success), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(r.client_error), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(r.server_error), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(r.internal_error), 0) AS INTEGER) AS internal_error,
+    CAST(CASE WHEN COALESCE(SUM(r.requests), 0) > 0 THEN COALESCE(SUM(r.duration_ms_sum), 0) / SUM(r.requests) ELSE 0 END AS INTEGER) AS avg_duration_ms,
+    CAST(COALESCE(SUM(r.request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(r.response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_tuple_rollup_minutes r
+WHERE r.bucket_unix_millis >= ?
+  AND r.error_kind != ''
+GROUP BY r.error_kind
+ORDER BY internal_error DESC, server_error DESC, client_error DESC, requests DESC, label ASC
+LIMIT 10;
+
 -- name: ListProxyTrafficBucketRollupsSince :many
 SELECT
     CAST((bucket_unix_millis / (CAST(sqlc.arg(bucket_seconds) AS INTEGER) * 1000)) * (CAST(sqlc.arg(bucket_seconds) AS INTEGER) * 1000) AS INTEGER) AS bucket_unix_millis,
@@ -537,6 +678,38 @@ SELECT
 FROM proxy_request_tuple_rollup_minutes
 WHERE bucket_unix_millis >= ?
 ORDER BY bucket_unix_millis ASC;
+
+-- name: ListRecentProxyProblemSamplesSince :many
+SELECT
+    pre.occurred_at,
+    pre.method,
+    pre.host,
+    pre.path_prefix,
+    pre.status_code,
+    pre.error_kind,
+    COALESCE(pl.name, CASE WHEN pre.listener_id IS NULL THEN '' ELSE 'listener #' || pre.listener_id END) AS listener_label,
+    CASE
+        WHEN pre.route_id IS NULL THEN ''
+        WHEN pr.id IS NULL THEN 'route #' || pre.route_id
+        WHEN pr.host_pattern != '' AND pr.path_prefix != '' THEN pr.host_pattern || ' ' || pr.path_prefix
+        WHEN pr.host_pattern != '' THEN pr.host_pattern
+        WHEN pr.path_prefix != '' THEN pr.path_prefix
+        ELSE 'route #' || pr.id
+    END AS route_label,
+    COALESCE(prt.name, CASE WHEN pre.route_target_id IS NULL THEN '' ELSE 'target #' || pre.route_target_id END) AS route_target_label,
+    COALESCE(a.name, CASE WHEN pre.agent_id IS NULL THEN '' ELSE 'agent #' || pre.agent_id END) AS agent_label,
+    pre.duration_ms,
+    pre.request_bytes,
+    pre.response_bytes
+FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
+LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
+LEFT JOIN public_routes pr ON pr.id = pre.route_id
+LEFT JOIN public_route_targets prt ON prt.id = pre.route_target_id
+LEFT JOIN agents a ON a.id = pre.agent_id
+WHERE pre.occurred_at >= sqlc.arg(since)
+  AND (pre.status_code >= 400 OR pre.error_kind != '')
+ORDER BY pre.occurred_at DESC, pre.id DESC
+LIMIT sqlc.arg(limit);
 
 -- name: ListAgentStatRollupMinutesSince :many
 SELECT
@@ -752,6 +925,10 @@ WHERE bucket_unix_millis < ?;
 DELETE FROM proxy_request_tuple_rollup_minutes
 WHERE bucket_unix_millis < ?;
 
+-- name: DeleteProxyRequestStatusRollupsBefore :exec
+DELETE FROM proxy_request_status_rollup_minutes
+WHERE bucket_unix_millis < ?;
+
 -- name: DeleteAgentStatRollupsBefore :exec
 DELETE FROM agent_stat_rollup_minutes
 WHERE bucket_unix_millis < ?;
@@ -868,6 +1045,37 @@ ON CONFLICT(bucket_unix_millis, listener_id, route_target_id, route_id, agent_id
     duration_ms_sum = proxy_request_tuple_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
     request_bytes = proxy_request_tuple_rollup_minutes.request_bytes + excluded.request_bytes,
     response_bytes = proxy_request_tuple_rollup_minutes.response_bytes + excluded.response_bytes,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- name: BackfillProxyRequestStatusRollupMinutesRange :exec
+INSERT INTO proxy_request_status_rollup_minutes (
+    bucket_unix_millis, status_code, requests, success, client_error, server_error,
+    internal_error, duration_ms_sum, request_bytes, response_bytes
+)
+SELECT
+    CAST((unixepoch(occurred_at) / 60) * 60 * 1000 AS INTEGER) AS bucket_unix_millis,
+    status_code,
+    COUNT(*) AS requests,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS INTEGER) AS success,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS client_error,
+    CAST(COALESCE(SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END), 0) AS INTEGER) AS server_error,
+    CAST(COALESCE(SUM(CASE WHEN error_kind != '' THEN 1 ELSE 0 END), 0) AS INTEGER) AS internal_error,
+    CAST(COALESCE(SUM(duration_ms), 0) AS INTEGER) AS duration_ms_sum,
+    CAST(COALESCE(SUM(request_bytes), 0) AS INTEGER) AS request_bytes,
+    CAST(COALESCE(SUM(response_bytes), 0) AS INTEGER) AS response_bytes
+FROM proxy_request_events
+WHERE id > sqlc.arg(from_id)
+  AND id <= sqlc.arg(through_id)
+GROUP BY bucket_unix_millis, status_code
+ON CONFLICT(bucket_unix_millis, status_code) DO UPDATE SET
+    requests = proxy_request_status_rollup_minutes.requests + excluded.requests,
+    success = proxy_request_status_rollup_minutes.success + excluded.success,
+    client_error = proxy_request_status_rollup_minutes.client_error + excluded.client_error,
+    server_error = proxy_request_status_rollup_minutes.server_error + excluded.server_error,
+    internal_error = proxy_request_status_rollup_minutes.internal_error + excluded.internal_error,
+    duration_ms_sum = proxy_request_status_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    request_bytes = proxy_request_status_rollup_minutes.request_bytes + excluded.request_bytes,
+    response_bytes = proxy_request_status_rollup_minutes.response_bytes + excluded.response_bytes,
     updated_at = CURRENT_TIMESTAMP;
 
 -- name: BackfillAgentStatRollupMinutesRange :exec
