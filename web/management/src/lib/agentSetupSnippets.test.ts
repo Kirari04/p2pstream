@@ -65,7 +65,16 @@ describe("agentSetupSnippets", () => {
     expect(snippet).toContain("AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna'");
     expect(snippet).toContain("AGENT_TOKEN='token'\\''value'");
     expect(snippet).toContain("P2PSTREAM_REPOSITORY='ExampleUser/p2pstream'");
+    expect(snippet).not.toContain("P2PSTREAM_VERSION");
     expect(snippet).not.toContain("\n");
+  });
+
+  test("adds pinned release version to Linux installer snippets only", () => {
+    const snippet = linuxInstallSnippet({ ...baseInput, version: "v1.2.3" });
+
+    expect(snippet).toContain("P2PSTREAM_VERSION='v1.2.3'");
+    expect(dockerComposeSnippet({ ...baseInput, version: "v1.2.3" })).not.toContain("P2PSTREAM_VERSION");
+    expect(cliSnippet({ ...baseInput, version: "v1.2.3" })).not.toContain("P2PSTREAM_VERSION");
   });
 
   test("builds Linux uninstall snippet with default repository", () => {

@@ -61,9 +61,10 @@ Set these as environment variables before running the Linux agent installer scri
 | Variable                 | Default                    | Description                                                                  |
 | ------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
 | `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo used by the installer.                                     |
-| `P2PSTREAM_VERSION`      | `latest`                   | Release tag such as `vX.Y.Z`, `latest`, or `nightly` for development builds. |
+| `P2PSTREAM_VERSION`      | `latest`                   | Release tag such as `vX.Y.Z`, or `latest`.                                   |
 | `P2PSTREAM_CONFIG_DIR`   | `/etc/p2pstream`           | Agent config directory created by installer.                                 |
 | `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path.                                                         |
+| `P2PSTREAM_SYSTEMD_DIR`  | `/etc/systemd/system`      | Systemd unit directory used by installer and uninstaller.                    |
 
 ## Validation Rules
 
@@ -75,6 +76,7 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_BIND_ADDRESS` defaults to all interfaces so agents and remote clients can connect. Set it to `127.0.0.1` only for local-only management or when a local reverse proxy fronts management.
 - Bootstrap agent ID, name, and token must all be set together.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
+- Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
 
 ## Runtime Effects
 

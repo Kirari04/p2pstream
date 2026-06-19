@@ -48,7 +48,10 @@ jobs:
         run: git diff --exit-code
 
       - name: Check installer syntax
-        run: bash -n scripts/install-agent.sh
+        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+
+      - name: Run installer lifecycle tests
+        run: scripts/test-agent-lifecycle.sh
 
       - name: Run Go tests
         run: go test ./...

@@ -92,13 +92,13 @@ sudo systemctl restart p2pstream-agent
 sudo journalctl -u p2pstream-agent -f
 ```
 
-After rotating an agent token, update `/etc/p2pstream/agent.env` and restart the agent.
+After rotating an agent token, run the generated Linux reinstall command on the existing agent host. The installer rewrites `/etc/p2pstream/agent.env`, refreshes installer-managed management CA material, and restarts `p2pstream-agent` so the new token and TLS settings are loaded.
 
 ## Uninstall Agent
 
 Use this only for agents installed with the generated Linux systemd installer. Docker Compose agents should be removed with your Compose workflow instead.
 
-The full-purge uninstall removes the agent service, `/etc/p2pstream`, `/usr/local/bin/p2pstream`, and the `p2pstream` service user and group. Do not run it on a host where those paths or that user are shared with a p2pstream server or another install you want to keep.
+The full-purge uninstall removes the agent service, service drop-ins, `/etc/p2pstream`, `/usr/local/bin/p2pstream`, and the `p2pstream` service user and group. Do not run it on a host where those paths or that user are shared with a p2pstream server or another install you want to keep.
 
 Generated command:
 
@@ -129,7 +129,7 @@ sudo systemctl status p2pstream-agent
 | Symptom | Check |
 | --- | --- |
 | Server cannot bind low ports | Run as root or use capabilities/high ports. |
-| Agent fails after token rotation | Update `/etc/p2pstream/agent.env` and restart. |
+| Agent fails after token rotation | Run the generated Linux reinstall command on the existing agent host. |
 | Uninstall refuses to run | Set `P2PSTREAM_UNINSTALL_CONFIRM=full-purge`; unsafe paths are intentionally rejected. |
 
 ## Next Steps

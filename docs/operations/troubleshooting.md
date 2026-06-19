@@ -69,7 +69,7 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | --- | --- |
 | `MANAGEMENT_URL` | It must point to management, usually `https://host:8081`. |
 | CA trust | Use `MANAGEMENT_CA_FILE` or `MANAGEMENT_CA_PEM_BASE64` for auto TLS. |
-| Token | Rotate the token and update the agent env file. |
+| Token | Rotate the token and run the generated Linux reinstall command on the agent host. |
 | Agent ID | Use the generated `agent-...` public ID. |
 | Firewall/NAT | Agent host must reach management HTTPS/TLS and `/agent/tunnel`. |
 | Insecure URL | HTTP requires `AGENT_ALLOW_INSECURE_MANAGEMENT=true`, intended for development only. |
