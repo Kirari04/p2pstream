@@ -1,37 +1,31 @@
-name: Release
+name: Staging
 
 on:
   push:
     branches:
-      - main
+      - staging
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Release tag to create, for example v0.1.0. Empty means auto-increment patch."
-        required: false
-        type: string
 
 permissions:
   contents: write
   packages: write
 
 concurrency:
-  group: release-main
+  group: staging
   cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  STAGING_TAG: staging
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main'
-    name: Verify and resolve version
+    name: Verify staging
     runs-on: ubuntu-latest
     outputs:
+      commit_sha: ${{ steps.version.outputs.commit_sha }}
       image: ${{ steps.image.outputs.image }}
       short_sha: ${{ steps.version.outputs.short_sha }}
-      tag: ${{ steps.version.outputs.tag }}
-      tag_exists: ${{ steps.version.outputs.tag_exists }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -76,51 +70,13 @@ jobs:
       - name: Build management UI
         run: cd web/management && bun run build
 
-      - name: Resolve release version
+      - name: Resolve staging metadata
         id: version
         shell: bash
         run: |
           set -Eeuo pipefail
-
-          git fetch --tags --force
-          version_input="${{ inputs.version }}"
-          head_sha="$(git rev-parse HEAD)"
-
-          if [[ -n "$version_input" ]]; then
-            if [[ ! "$version_input" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "Manual version must look like vX.Y.Z" >&2
-              exit 1
-            fi
-            tag="$version_input"
-          else
-            existing_tag="$(git tag --points-at HEAD --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1 || true)"
-            if [[ -n "$existing_tag" ]]; then
-              tag="$existing_tag"
-            else
-              latest_tag="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1 || true)"
-              if [[ -z "$latest_tag" ]]; then
-                tag="v0.1.0"
-              else
-                version="${latest_tag#v}"
-                IFS=. read -r major minor patch <<<"$version"
-                tag="v${major}.${minor}.$((patch + 1))"
-              fi
-            fi
-          fi
-
-          tag_exists=false
-          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
-            tag_exists=true
-            tag_sha="$(git rev-list -n 1 "$tag")"
-            if [[ "$tag_sha" != "$head_sha" ]]; then
-              echo "Tag ${tag} already exists on ${tag_sha}, not current commit ${head_sha}" >&2
-              exit 1
-            fi
-          fi
-
-          echo "tag=${tag}" >>"$GITHUB_OUTPUT"
-          echo "tag_exists=${tag_exists}" >>"$GITHUB_OUTPUT"
-          echo "short_sha=${GITHUB_SHA::7}" >>"$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          echo "short_sha=$(git rev-parse --short=7 HEAD)" >>"$GITHUB_OUTPUT"
 
       - name: Set image name
         id: image
@@ -128,8 +84,7 @@ jobs:
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >>"$GITHUB_OUTPUT"
 
   binary:
-    if: github.ref == 'refs/heads/main'
-    name: Build Linux ${{ matrix.arch }} binary
+    name: Build Linux ${{ matrix.arch }} staging binary
     needs: verify
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -143,6 +98,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify.outputs.commit_sha }}
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -158,30 +115,29 @@ jobs:
       - name: Build binary
         shell: bash
         env:
-          TAG: ${{ needs.verify.outputs.tag }}
           ARCH: ${{ matrix.arch }}
+          COMMIT_SHA: ${{ needs.verify.outputs.commit_sha }}
           SOURCE_REPOSITORY: ${{ github.repository }}
         run: |
           set -Eeuo pipefail
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${TAG} -X p2pstream/internal/buildinfo.Commit=${GITHUB_SHA} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o dist/p2pstream main.go
+          go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${STAGING_TAG} -X p2pstream/internal/buildinfo.Commit=${COMMIT_SHA} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o dist/p2pstream main.go
           chmod +x dist/p2pstream
-          VERSION="${TAG}" COMMIT="${GITHUB_SHA}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
+          VERSION="${STAGING_TAG}" COMMIT="${COMMIT_SHA}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
           mkdir -p dist/package
           cp dist/p2pstream dist/package/p2pstream
           cp -R dist/legal/. dist/package/
-          tar -C dist/package -czf "p2pstream_${TAG}_linux_${ARCH}.tar.gz" .
+          tar -C dist/package -czf "p2pstream_${STAGING_TAG}_linux_${ARCH}.tar.gz" .
 
       - name: Upload binary archive
         uses: actions/upload-artifact@v7
         with:
-          name: binary-linux-${{ matrix.arch }}
-          path: p2pstream_${{ needs.verify.outputs.tag }}_linux_${{ matrix.arch }}.tar.gz
+          name: staging-binary-linux-${{ matrix.arch }}
+          path: p2pstream_staging_linux_${{ matrix.arch }}.tar.gz
           if-no-files-found: error
 
   image:
-    if: github.ref == 'refs/heads/main'
-    name: Build Linux ${{ matrix.arch }} image
+    name: Build Linux ${{ matrix.arch }} staging image
     needs: verify
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -195,6 +151,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify.outputs.commit_sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -214,18 +172,17 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           push: true
           build-args: |
-            VERSION=${{ needs.verify.outputs.tag }}
-            COMMIT=${{ github.sha }}
+            VERSION=${{ env.STAGING_TAG }}
+            COMMIT=${{ needs.verify.outputs.commit_sha }}
             SOURCE_REPOSITORY=${{ github.repository }}
             VITE_RELEASE_REPOSITORY=${{ github.repository }}
-            VITE_RELEASE_REF=${{ needs.verify.outputs.tag }}
+            VITE_RELEASE_REF=${{ env.STAGING_TAG }}
           tags: |
-            ${{ needs.verify.outputs.image }}:${{ needs.verify.outputs.tag }}-linux-${{ matrix.arch }}
-            ${{ needs.verify.outputs.image }}:sha-${{ needs.verify.outputs.short_sha }}-linux-${{ matrix.arch }}
+            ${{ needs.verify.outputs.image }}:${{ env.STAGING_TAG }}-linux-${{ matrix.arch }}
+            ${{ needs.verify.outputs.image }}:${{ env.STAGING_TAG }}-sha-${{ needs.verify.outputs.short_sha }}-linux-${{ matrix.arch }}
 
   publish:
-    if: github.ref == 'refs/heads/main'
-    name: Publish release
+    name: Publish staging release
     needs:
       - verify
       - binary
@@ -236,22 +193,21 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ needs.verify.outputs.commit_sha }}
 
       - name: Download binary archives
         uses: actions/download-artifact@v8
         with:
-          pattern: binary-linux-*
+          pattern: staging-binary-linux-*
           path: dist/artifacts
 
-      - name: Prepare release assets
+      - name: Prepare staging assets
         shell: bash
-        env:
-          TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -Eeuo pipefail
           mkdir -p dist/assets
           find dist/artifacts -type f -name '*.tar.gz' -exec cp {} dist/assets/ \;
-          git archive --format=tar.gz --prefix="p2pstream-${TAG}/" -o "dist/assets/p2pstream_${TAG}_source.tar.gz" HEAD
+          git archive --format=tar.gz --prefix="p2pstream-${STAGING_TAG}/" -o "dist/assets/p2pstream_${STAGING_TAG}_source.tar.gz" HEAD
           (cd dist/assets && sha256sum *.tar.gz > checksums.txt)
 
       - name: Set up Docker Buildx
@@ -264,46 +220,41 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Publish multi-arch image tags
+      - name: Publish multi-arch staging tags
         shell: bash
         env:
           IMAGE: ${{ needs.verify.outputs.image }}
-          TAG: ${{ needs.verify.outputs.tag }}
           SHORT_SHA: ${{ needs.verify.outputs.short_sha }}
         run: |
           set -Eeuo pipefail
           docker buildx imagetools create \
-            -t "${IMAGE}:latest" \
-            -t "${IMAGE}:${TAG}" \
-            -t "${IMAGE}:sha-${SHORT_SHA}" \
-            "${IMAGE}:${TAG}-linux-amd64" \
-            "${IMAGE}:${TAG}-linux-arm64"
+            -t "${IMAGE}:${STAGING_TAG}" \
+            -t "${IMAGE}:${STAGING_TAG}-sha-${SHORT_SHA}" \
+            "${IMAGE}:${STAGING_TAG}-linux-amd64" \
+            "${IMAGE}:${STAGING_TAG}-linux-arm64"
 
-      - name: Create release tag
-        if: needs.verify.outputs.tag_exists == 'false'
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ needs.verify.outputs.tag }}" -m "Release ${{ needs.verify.outputs.tag }}"
-          git push origin "refs/tags/${{ needs.verify.outputs.tag }}"
-
-      - name: Publish GitHub release
+      - name: Publish mutable staging release
         shell: bash
         env:
+          COMMIT_SHA: ${{ needs.verify.outputs.commit_sha }}
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.verify.outputs.tag }}
           SHORT_SHA: ${{ needs.verify.outputs.short_sha }}
         run: |
           set -Eeuo pipefail
 
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
+          git tag -fa "${STAGING_TAG}" -m "Staging ${COMMIT_SHA}"
+          git push --force origin "refs/tags/${STAGING_TAG}"
+
           printf -v notes '%s\n\n%s' \
-            "Automated p2pstream release ${TAG} for commit ${SHORT_SHA}." \
-            "p2pstream is licensed under AGPL-3.0-or-later. Corresponding source is available in the p2pstream_${TAG}_source.tar.gz release asset and from the matching Git tag."
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "$TAG" --notes "$notes"
-            gh release upload "$TAG" dist/assets/* --clobber
+            "Mutable p2pstream staging build for commit ${SHORT_SHA}." \
+            "This prerelease is rebuilt from the staging branch and is intended for validation before merging staging to main."
+
+          if gh release view "${STAGING_TAG}" >/dev/null 2>&1; then
+            gh release edit "${STAGING_TAG}" --prerelease --title "${STAGING_TAG}" --notes "$notes"
+            gh release upload "${STAGING_TAG}" dist/assets/* --clobber
           else
-            gh release create "$TAG" dist/assets/* --title "$TAG" --notes "$notes"
+            gh release create "${STAGING_TAG}" dist/assets/* --prerelease --target "${COMMIT_SHA}" --title "${STAGING_TAG}" --notes "$notes"
           fi

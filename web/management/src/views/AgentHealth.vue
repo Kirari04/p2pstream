@@ -75,13 +75,15 @@ const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rotateAgentToConfirm = ref<Agent | null>(null);
 const issuedToken = ref("");
 const issuedAgent = ref<Agent | null>(null);
+const setupContext = ref<"create" | "rotate">("create");
 const setupManagementUrl = ref(defaultManagementUrl());
 const setupManagementCAFile = ref("");
 const setupAgentTLSCertFile = ref("/etc/p2pstream/agent.crt.pem");
 const setupAgentTLSKeyFile = ref("/etc/p2pstream/agent.key.pem");
 const setupAllowInsecureManagement = ref(false);
 const setupReleaseRepository = ref(defaultReleaseRepository());
-const setupDockerImage = ref(dockerImageForRepository(setupReleaseRepository.value));
+const setupReleaseVersion = ref(defaultReleaseVersion());
+const setupDockerImage = ref(defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value));
 const setupDockerImageTouched = ref(false);
 const setupTab = ref<"install" | "docker" | "cli">("install");
 const setupCopyLabel = ref("Copy");
@@ -90,16 +92,19 @@ const uninstallReleaseRepository = ref(defaultReleaseRepository());
 const uninstallCopyLabel = ref("Copy");
 let setupCopyReset: number | undefined;
 let uninstallCopyReset: number | undefined;
-const setupTabOptions: Array<{ value: "install" | "docker" | "cli"; label: string }> = [
-  { value: "install", label: "Linux install" },
-  { value: "docker", label: "Docker Compose" },
-  { value: "cli", label: "CLI" },
-];
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
 const managementUsesTLS = computed(() => normalizedManagementUrl.value.toLowerCase().startsWith("https://"));
 const agentClientCertificateRequired = computed(() => Boolean(managementSecurity.value?.agentClientCertificateRequired));
+const setupIsRotation = computed(() => setupContext.value === "rotate");
+const setupModalTitle = computed(() => setupIsRotation.value ? "Agent Reinstall" : "Agent Setup");
+const setupLinuxTabLabel = computed(() => setupIsRotation.value ? "Linux reinstall" : "Linux install");
+const setupTabOptions = computed<Array<{ value: "install" | "docker" | "cli"; label: string }>>(() => [
+  { value: "install", label: setupLinuxTabLabel.value },
+  { value: "docker", label: "Docker Compose" },
+  { value: "cli", label: "CLI" },
+]);
 const embeddedManagementCAPEMBase64 = computed(() => {
   const pem = managementSecurity.value?.managementCaPem ?? "";
   if (!pem || !managementUsesTLS.value) return "";
@@ -277,9 +282,9 @@ function buildSetupSnippet(): string {
   }
 }
 
-watch(setupReleaseRepository, (repository) => {
+watch([setupReleaseRepository, setupReleaseVersion], ([repository, version]) => {
   if (!setupDockerImageTouched.value) {
-    setupDockerImage.value = dockerImageForRepository(repository);
+    setupDockerImage.value = defaultDockerImage(repository, version);
   }
 });
 
@@ -432,7 +437,7 @@ async function confirmRotateAgentToken() {
   if (!agent) return;
   const ok = await run(async () => {
     const resp = await managementClient.rotateAgentToken({ id: agent.id });
-    openSetupModal(resp.agent ?? agent, resp.token);
+    openSetupModal(resp.agent ?? agent, resp.token, "rotate");
   });
   if (ok) {
     closeRotateAgentModal();
@@ -449,20 +454,23 @@ async function deleteAgent(agent: Agent) {
 function clearIssuedToken() {
   issuedToken.value = "";
   issuedAgent.value = null;
+  setupContext.value = "create";
   setupCopyLabel.value = "Copy";
 }
 
-function openSetupModal(agent: Agent | null, token: string) {
+function openSetupModal(agent: Agent | null, token: string, context: "create" | "rotate" = "create") {
   if (!agent || !token) return;
   issuedAgent.value = agent;
   issuedToken.value = token;
+  setupContext.value = context;
   setupManagementUrl.value = defaultManagementUrl();
   setupManagementCAFile.value = "";
   setupAgentTLSCertFile.value = "/etc/p2pstream/agent.crt.pem";
   setupAgentTLSKeyFile.value = "/etc/p2pstream/agent.key.pem";
   setupAllowInsecureManagement.value = false;
   setupReleaseRepository.value = defaultReleaseRepository();
-  setupDockerImage.value = dockerImageForRepository(setupReleaseRepository.value);
+  setupReleaseVersion.value = defaultReleaseVersion();
+  setupDockerImage.value = defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value);
   setupDockerImageTouched.value = false;
   setupTab.value = "install";
   setupCopyLabel.value = "Copy";
@@ -492,6 +500,29 @@ function defaultReleaseRepository(): string {
   return typeof configured === "string" && configured.trim() ? configured.trim() : FALLBACK_RELEASE_REPOSITORY;
 }
 
+function defaultReleaseVersion(): string {
+  const configured = import.meta.env.VITE_RELEASE_REF;
+  if (typeof configured !== "string") return "latest";
+  const version = configured.trim();
+  if (version === "staging" || /^v\d+\.\d+\.\d+$/.test(version)) {
+    return version;
+  }
+  return "latest";
+}
+
+function defaultDockerImage(repository: string, version: string): string {
+  try {
+    return dockerImageForRepository(repository, version);
+  } catch {
+    return dockerImageForRepository(repository);
+  }
+}
+
+function installerScriptRef(): string {
+  const version = setupReleaseVersion.value.trim();
+  return version === "latest" || version === "" ? "main" : version;
+}
+
 function linuxInstallerSnippet(): string {
   if (!issuedAgent.value) return "";
   return linuxInstallSnippet(setupSnippetInput());
@@ -517,6 +548,8 @@ function setupSnippetInput() {
     agentId: issuedAgent.value?.publicId ?? "",
     agentToken: issuedToken.value,
     repository: setupReleaseRepository.value,
+    version: setupReleaseVersion.value,
+    scriptRef: installerScriptRef(),
     dockerImage: setupDockerImage.value,
     tls: {
       enabled: managementUsesTLS.value,
@@ -765,7 +798,7 @@ async function copyUninstallSnippet() {
     <NModal
       :show="Boolean(issuedToken && issuedAgent)"
       preset="card"
-      title="Agent Setup"
+      :title="setupModalTitle"
       :style="modalCardStyle('48rem')"
       :bordered="false"
       @update:show="handleSetupModalUpdate"
@@ -787,6 +820,13 @@ async function copyUninstallSnippet() {
           <code class="block break-all rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3 font-mono text-xs text-[var(--app-text)]">{{ issuedToken }}</code>
         </label>
 
+        <div v-if="setupIsRotation" class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3 text-xs leading-5 text-[var(--app-text)]">
+          <p class="font-semibold uppercase tracking-wider">Existing Linux agent</p>
+          <p class="mt-1 text-[var(--app-text-muted)]">
+            Run the Linux reinstall command on the existing agent host. It rewrites the agent environment, refreshes embedded management CA material, and restarts p2pstream-agent.
+          </p>
+        </div>
+
         <div class="grid gap-3 md:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Management URL
@@ -795,6 +835,10 @@ async function copyUninstallSnippet() {
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             GitHub Repository
             <NInput v-model:value="setupReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+            Release Version
+            <NInput v-model:value="setupReleaseVersion" size="small" placeholder="latest, staging, or vX.Y.Z" required />
           </label>
           <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Docker Image
