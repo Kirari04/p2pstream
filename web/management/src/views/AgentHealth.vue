@@ -85,7 +85,8 @@ const setupAgentTLSCertFile = ref("/etc/p2pstream/agent.crt.pem");
 const setupAgentTLSKeyFile = ref("/etc/p2pstream/agent.key.pem");
 const setupAllowInsecureManagement = ref(false);
 const setupReleaseRepository = ref(defaultReleaseRepository());
-const setupDockerImage = ref(dockerImageForRepository(setupReleaseRepository.value));
+const setupReleaseVersion = ref(defaultReleaseVersion());
+const setupDockerImage = ref(defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value));
 const setupDockerImageTouched = ref(false);
 const setupTab = ref<"install" | "docker" | "cli">("install");
 const setupCopyLabel = ref("Copy");
@@ -144,9 +145,9 @@ function buildSetupSnippet(): string {
   }
 }
 
-watch(setupReleaseRepository, (repository) => {
+watch([setupReleaseRepository, setupReleaseVersion], ([repository, version]) => {
   if (!setupDockerImageTouched.value) {
-    setupDockerImage.value = dockerImageForRepository(repository);
+    setupDockerImage.value = defaultDockerImage(repository, version);
   }
 });
 
@@ -305,7 +306,8 @@ function openSetupModal(agent: Agent | null, token: string, context: "create" | 
   setupAgentTLSKeyFile.value = "/etc/p2pstream/agent.key.pem";
   setupAllowInsecureManagement.value = false;
   setupReleaseRepository.value = defaultReleaseRepository();
-  setupDockerImage.value = dockerImageForRepository(setupReleaseRepository.value);
+  setupReleaseVersion.value = defaultReleaseVersion();
+  setupDockerImage.value = defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value);
   setupDockerImageTouched.value = false;
   setupTab.value = "install";
   setupCopyLabel.value = "Copy";
@@ -335,11 +337,27 @@ function defaultReleaseRepository(): string {
   return typeof configured === "string" && configured.trim() ? configured.trim() : FALLBACK_RELEASE_REPOSITORY;
 }
 
-function stableReleaseVersion(): string {
+function defaultReleaseVersion(): string {
   const configured = import.meta.env.VITE_RELEASE_REF;
-  if (typeof configured !== "string") return "";
+  if (typeof configured !== "string") return "latest";
   const version = configured.trim();
-  return /^v\d+\.\d+\.\d+$/.test(version) ? version : "";
+  if (version === "staging" || /^v\d+\.\d+\.\d+$/.test(version)) {
+    return version;
+  }
+  return "latest";
+}
+
+function defaultDockerImage(repository: string, version: string): string {
+  try {
+    return dockerImageForRepository(repository, version);
+  } catch {
+    return dockerImageForRepository(repository);
+  }
+}
+
+function installerScriptRef(): string {
+  const version = setupReleaseVersion.value.trim();
+  return version === "latest" || version === "" ? "main" : version;
 }
 
 function linuxInstallerSnippet(): string {
@@ -367,7 +385,8 @@ function setupSnippetInput() {
     agentId: issuedAgent.value?.publicId ?? "",
     agentToken: issuedToken.value,
     repository: setupReleaseRepository.value,
-    version: stableReleaseVersion(),
+    version: setupReleaseVersion.value,
+    scriptRef: installerScriptRef(),
     dockerImage: setupDockerImage.value,
     tls: {
       enabled: managementUsesTLS.value,
@@ -735,6 +754,10 @@ async function copyUninstallSnippet() {
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             GitHub Repository
             <input v-model="setupReleaseRepository" class="vercel-input text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+          </label>
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            Release Version
+            <input v-model="setupReleaseVersion" class="vercel-input text-sm normal-case tracking-normal" placeholder="latest, staging, or vX.Y.Z" required />
           </label>
           <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Docker Image

@@ -61,7 +61,7 @@ Set these as environment variables before running the Linux agent installer scri
 | Variable                 | Default                    | Description                                                                  |
 | ------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
 | `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo used by the installer.                                     |
-| `P2PSTREAM_VERSION`      | `latest`                   | Release tag such as `vX.Y.Z`, or `latest`.                                   |
+| `P2PSTREAM_VERSION`      | `latest`                   | Installer binary channel: `latest`, `staging`, or a release tag such as `vX.Y.Z`. |
 | `P2PSTREAM_CONFIG_DIR`   | `/etc/p2pstream`           | Agent config directory created by installer.                                 |
 | `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path.                                                         |
 | `P2PSTREAM_SYSTEMD_DIR`  | `/etc/systemd/system`      | Systemd unit directory used by installer and uninstaller.                    |

@@ -149,7 +149,9 @@ setup_fixture() {
     'done' \
     'if [[ "$url" == *"api.github.com"* ]]; then printf "{\"tag_name\":\"v1.2.3\"}\n"; exit 0; fi' \
     '[[ -n "$output" ]] || { printf "missing -o\n" >&2; exit 1; }' \
+    'printf "curl %s\n" "$url" >>"${FAKE_COMMAND_LOG:?}"' \
     'case "$url" in' \
+    '  */staging/checksums.txt) printf "0000000000000000000000000000000000000000000000000000000000000000  p2pstream_staging_linux_amd64.tar.gz\n" >"$output" ;;' \
     '  *checksums.txt) printf "0000000000000000000000000000000000000000000000000000000000000000  p2pstream_v1.2.3_linux_amd64.tar.gz\n" >"$output" ;;' \
     '  *) printf "archive" >"$output" ;;' \
     'esac'
@@ -263,6 +265,19 @@ test_reinstall_without_ca_removes_stale_managed_ca() {
   assert_not_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_CA_FILE"
 }
 
+test_staging_version_downloads_staging_asset() {
+  setup_fixture
+  run_installer \
+    P2PSTREAM_VERSION="staging" \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="token-one"
+
+  assert_contains "$COMMAND_LOG" "https://github.com/ExampleUser/p2pstream/releases/download/staging/p2pstream_staging_linux_amd64.tar.gz"
+  assert_contains "$COMMAND_LOG" "https://github.com/ExampleUser/p2pstream/releases/download/staging/checksums.txt"
+  assert_exists "$INSTALL_PATH"
+}
+
 test_validation_failures() {
   setup_fixture
   if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ID="agent-one" >/dev/null 2>"${TEST_DIR}/missing-token.err"; then
@@ -279,6 +294,11 @@ test_validation_failures() {
     fail "HTTP management URL without opt-in should fail"
   fi
   assert_contains "${TEST_DIR}/http.err" "refusing insecure MANAGEMENT_URL"
+
+  if run_installer P2PSTREAM_VERSION="nightly" MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/version.err"; then
+    fail "unsupported P2PSTREAM_VERSION should fail"
+  fi
+  assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
 }
 
 test_uninstall_full_purge() {
@@ -336,6 +356,7 @@ run_test() {
 run_test "first install" test_first_install
 run_test "reinstall overwrites token and CA" test_reinstall_overwrites_token_and_ca
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
+run_test "staging version downloads staging asset" test_staging_version_downloads_staging_asset
 run_test "validation failures" test_validation_failures
 run_test "uninstall full purge" test_uninstall_full_purge
 run_test "uninstall dry-run and unsafe paths" test_uninstall_dry_run_and_unsafe_paths

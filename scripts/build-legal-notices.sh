@@ -20,7 +20,7 @@ if [[ -z "${repository_slug}" ]]; then
 fi
 
 source_ref="${VERSION_VALUE}"
-if [[ -z "${source_ref}" || "${source_ref}" == "dev" || "${source_ref}" == "nightly" ]]; then
+if [[ -z "${source_ref}" || "${source_ref}" == "dev" || "${source_ref}" == "nightly" || "${source_ref}" == "staging" ]]; then
   source_ref="${COMMIT_VALUE}"
 fi
 

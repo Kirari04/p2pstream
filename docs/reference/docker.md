@@ -16,11 +16,13 @@ Common tags:
 latest
 vX.Y.Z
 sha-abcdef0
+staging
+staging-sha-abcdef0
 nightly
 nightly-sha-abcdef0
 ```
 
-Stable releases publish `latest`, a version tag such as `vX.Y.Z`, and a commit tag such as `sha-abcdef0` from the `main` branch. The `nightly` tags are Docker-only development images built from the `dev` branch; use them for testing unreleased changes, not for repeatable production deployments.
+Stable releases publish `latest`, a version tag such as `vX.Y.Z`, and a commit tag such as `sha-abcdef0` from the `main` branch. The mutable `staging` tags are pre-release images built from the `staging` branch and are intended for validation before a stable release. The `nightly` tags are Docker-only development images built from the `dev` branch; use them for testing unreleased changes, not for repeatable production deployments.
 
 The runtime image:
 
@@ -52,6 +54,7 @@ ports:
 - The application does not read a `PORT` environment variable for public listeners.
 - Public listener ports are stored in SQLite and managed through **Proxy**.
 - Use a pinned release tag instead of `latest` when repeatability matters.
+- Treat `staging` as mutable. It follows the current `staging` branch and can change before the final release.
 - Treat `nightly` as unstable. It follows the current `dev` branch and can change without a release note.
 
 ## Runtime Effects
