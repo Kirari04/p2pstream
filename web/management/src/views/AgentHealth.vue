@@ -78,6 +78,7 @@ const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rotateAgentToConfirm = ref<Agent | null>(null);
 const issuedToken = ref("");
 const issuedAgent = ref<Agent | null>(null);
+const setupContext = ref<"create" | "rotate">("create");
 const setupManagementUrl = ref(defaultManagementUrl());
 const setupManagementCAFile = ref("");
 const setupAgentTLSCertFile = ref("/etc/p2pstream/agent.crt.pem");
@@ -98,6 +99,9 @@ const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
 const managementUsesTLS = computed(() => normalizedManagementUrl.value.toLowerCase().startsWith("https://"));
 const agentClientCertificateRequired = computed(() => Boolean(managementSecurity.value?.agentClientCertificateRequired));
+const setupIsRotation = computed(() => setupContext.value === "rotate");
+const setupModalTitle = computed(() => setupIsRotation.value ? "Agent Reinstall" : "Agent Setup");
+const setupLinuxTabLabel = computed(() => setupIsRotation.value ? "Linux reinstall" : "Linux install");
 const embeddedManagementCAPEMBase64 = computed(() => {
   const pem = managementSecurity.value?.managementCaPem ?? "";
   if (!pem || !managementUsesTLS.value) return "";
@@ -269,7 +273,7 @@ async function confirmRotateAgentToken() {
   if (!agent) return;
   const ok = await run(async () => {
     const resp = await managementClient.rotateAgentToken({ id: agent.id });
-    openSetupModal(resp.agent ?? agent, resp.token);
+    openSetupModal(resp.agent ?? agent, resp.token, "rotate");
   });
   if (ok) {
     closeRotateAgentModal();
@@ -286,13 +290,15 @@ async function deleteAgent(agent: Agent) {
 function clearIssuedToken() {
   issuedToken.value = "";
   issuedAgent.value = null;
+  setupContext.value = "create";
   setupCopyLabel.value = "Copy";
 }
 
-function openSetupModal(agent: Agent | null, token: string) {
+function openSetupModal(agent: Agent | null, token: string, context: "create" | "rotate" = "create") {
   if (!agent || !token) return;
   issuedAgent.value = agent;
   issuedToken.value = token;
+  setupContext.value = context;
   setupManagementUrl.value = defaultManagementUrl();
   setupManagementCAFile.value = "";
   setupAgentTLSCertFile.value = "/etc/p2pstream/agent.crt.pem";
@@ -329,6 +335,13 @@ function defaultReleaseRepository(): string {
   return typeof configured === "string" && configured.trim() ? configured.trim() : FALLBACK_RELEASE_REPOSITORY;
 }
 
+function stableReleaseVersion(): string {
+  const configured = import.meta.env.VITE_RELEASE_REF;
+  if (typeof configured !== "string") return "";
+  const version = configured.trim();
+  return /^v\d+\.\d+\.\d+$/.test(version) ? version : "";
+}
+
 function linuxInstallerSnippet(): string {
   if (!issuedAgent.value) return "";
   return linuxInstallSnippet(setupSnippetInput());
@@ -354,6 +367,7 @@ function setupSnippetInput() {
     agentId: issuedAgent.value?.publicId ?? "",
     agentToken: issuedToken.value,
     repository: setupReleaseRepository.value,
+    version: stableReleaseVersion(),
     dockerImage: setupDockerImage.value,
     tls: {
       enabled: managementUsesTLS.value,
@@ -688,7 +702,7 @@ async function copyUninstallSnippet() {
       </div>
     </Modal>
 
-    <Modal :model-value="Boolean(issuedToken && issuedAgent)" title="Agent Setup" max-width="48rem" @update:model-value="clearIssuedToken">
+    <Modal :model-value="Boolean(issuedToken && issuedAgent)" :title="setupModalTitle" max-width="48rem" @update:model-value="clearIssuedToken">
       <div v-if="issuedAgent" class="grid gap-5">
         <div class="grid gap-3 md:grid-cols-2">
           <div class="grid gap-1.5">
@@ -705,6 +719,13 @@ async function copyUninstallSnippet() {
           One-Time Token
           <code class="block break-all rounded-md border border-[#333] bg-[#0b0b0b] p-3 font-mono text-xs text-white">{{ issuedToken }}</code>
         </label>
+
+        <div v-if="setupIsRotation" class="rounded-md border border-[#29465f] bg-[#07111c] p-3 text-xs leading-5 text-[#9cccf5]">
+          <p class="font-semibold uppercase tracking-wider">Existing Linux agent</p>
+          <p class="mt-1 text-[#7ba8cf]">
+            Run the Linux reinstall command on the existing agent host. It rewrites the agent environment, refreshes embedded management CA material, and restarts p2pstream-agent.
+          </p>
+        </div>
 
         <div class="grid gap-3 md:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
@@ -767,7 +788,7 @@ async function copyUninstallSnippet() {
             :class="setupTab === 'install' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
             @click="setupTab = 'install'"
           >
-            Linux install
+            {{ setupLinuxTabLabel }}
           </button>
           <button
             type="button"

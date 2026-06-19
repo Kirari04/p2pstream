@@ -49,7 +49,7 @@ Example:
      bash
    ```
 
-   The installer creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`.
+   The installer creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`, then restarts the agent service. You can run the generated Linux command again after token rotation to reinstall the existing agent with the new token.
 
 3. Check the agent service:
 

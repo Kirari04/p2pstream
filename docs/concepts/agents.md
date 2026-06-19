@@ -40,7 +40,7 @@ By default, agents reject insecure HTTP management URLs and verify HTTPS certifi
 | `MANAGEMENT_CA_FILE` | Path to a PEM CA bundle on the agent host. |
 | `MANAGEMENT_CA_PEM_BASE64` | Base64-encoded PEM CA bundle, useful for generated snippets. |
 
-The Agent Setup dialog can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. The Linux installer downloads the release binary, verifies the checksum, writes `/etc/p2pstream/agent.env`, and enables `p2pstream-agent.service`.
+The Agent Setup dialog can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. The Linux installer downloads the release binary, verifies the checksum, writes `/etc/p2pstream/agent.env`, enables `p2pstream-agent.service`, and restarts it. After token rotation, run the generated Linux reinstall command on the existing agent host so the new token and TLS material are loaded by a fresh process.
 
 If management requires agent client certificates, configure:
 
@@ -51,7 +51,7 @@ AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 
 ## Common Mistakes
 
-- Reusing an old token after rotating it in management.
+- Reusing an old token after rotating it in management instead of running the generated reinstall command on the agent host.
 - Setting `MANAGEMENT_URL` to a public listener instead of management.
 - Putting management behind a reverse proxy that blocks HTTP/1.1 upgrade streaming for `p2pstream-yamux` or closes idle upgraded connections too aggressively.
 - Forgetting CA material when management uses the auto-generated local CA.

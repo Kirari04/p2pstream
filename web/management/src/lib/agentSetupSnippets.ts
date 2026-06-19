@@ -12,6 +12,7 @@ export type AgentSetupSnippetInput = {
   agentId: string;
   agentToken: string;
   repository?: string;
+  version?: string;
   dockerImage?: string;
   tls?: AgentSetupTLSConfig;
 };
@@ -49,6 +50,10 @@ export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
     `AGENT_TOKEN=${shellQuote(input.agentToken)}`,
     `P2PSTREAM_REPOSITORY=${shellQuote(repository)}`,
   ];
+  const version = singleLine(input.version ?? "").trim();
+  if (version) {
+    parts.push(`P2PSTREAM_VERSION=${shellQuote(version)}`);
+  }
   return `curl -fsSL https://raw.githubusercontent.com/${repository}/main/scripts/install-agent.sh | sudo env ${parts.join(" ")} bash`;
 }
 
