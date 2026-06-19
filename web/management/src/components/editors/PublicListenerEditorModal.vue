@@ -30,6 +30,9 @@ const isOpen = ref(false);
 const listeners = computed(() => props.config?.listeners ?? []);
 const listenerSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
+  const port = listenerForm.port;
+  if (port === null || !Number.isInteger(port)) return "Enter a listener port.";
+  if (port < 1 || port > 65535) return "Listener port must be between 1 and 65535.";
   return "";
 });
 
@@ -37,7 +40,7 @@ const listenerForm = reactive({
   id: "",
   name: "",
   bindAddress: "",
-  port: 80,
+  port: 80 as number | null,
   protocol: PublicListenerProtocol.HTTP,
   enabled: true,
 });
@@ -84,10 +87,14 @@ async function run(action: () => Promise<void>): Promise<boolean> {
 
 async function submitListener() {
   const ok = await run(async () => {
+    const port = listenerForm.port;
+    if (port === null || !Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error("Listener port must be between 1 and 65535.");
+    }
     const payload = {
       name: listenerForm.name,
       bindAddress: listenerForm.bindAddress,
-      port: BigInt(listenerForm.port),
+      port: BigInt(port),
       protocol: listenerForm.protocol,
       enabled: listenerForm.enabled,
     };

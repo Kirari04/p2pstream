@@ -43,7 +43,7 @@ function statusClass(status: bigint, stage: TrafficTraceStage): string {
   if (code >= 500) return "text-red-400";
   if (code >= 400) return "text-amber-400";
   if (code >= 200) return "text-green-400";
-  return "text-[var(--app-text-muted)]";
+  return "text-(--app-text-muted)";
 }
 
 function stageLabel(stage: TrafficTraceStage): string {
@@ -206,14 +206,14 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Rate limit</span>
           <strong>
             {{ request.rateLimitRuleName || `#${request.rateLimitRuleId.toString()}` }}
-            <span class="text-[var(--app-text-muted)]">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
+            <span class="text-(--app-text-muted)">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
           </strong>
         </div>
         <div v-if="request.wafRuleId" class="trace-field sm:col-span-2">
           <span>WAF</span>
           <strong>
             {{ request.wafRuleName || `#${request.wafRuleId.toString()}` }}
-            <span class="text-[var(--app-text-muted)]">
+            <span class="text-(--app-text-muted)">
               / {{ wafActionLabel(request.wafAction) }}
               / {{ wafActivationLabel(request.wafActivationMode) }}
               <template v-if="request.wafChallengeKind"> / {{ request.wafChallengeKind }}</template>
@@ -224,7 +224,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Traffic shaper</span>
           <strong>
             {{ request.trafficShaperRuleName || `#${request.trafficShaperRuleId.toString()}` }}
-            <span class="text-[var(--app-text-muted)]">
+            <span class="text-(--app-text-muted)">
               / {{ trafficShaperScopeLabel(request.trafficShaperBudgetScope) }}
               / up {{ formatRate(request.trafficShaperUploadBytesPerSecond) }}
               / down {{ formatRate(request.trafficShaperDownloadBytesPerSecond) }}
@@ -309,9 +309,9 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
         <h4>Lifecycle</h4>
         <div class="divide-y divide-[var(--app-border-subtle)]">
           <div v-for="event in request.events" :key="event.sequence.toString()" class="grid gap-2 py-2 text-xs sm:grid-cols-[10rem_1fr_6rem]">
-            <span class="text-[var(--app-text-muted)]">{{ formatDate(event.occurredAtUnixMillis) }}</span>
+            <span class="text-(--app-text-muted)">{{ formatDate(event.occurredAtUnixMillis) }}</span>
             <span class="font-medium text-[var(--app-text)]">{{ stageLabel(event.stage) }}</span>
-            <span class="text-right font-mono text-[var(--app-text-muted)]">{{ formatDuration(event.durationMs) }}</span>
+            <span class="text-right font-mono text-(--app-text-muted)">{{ formatDuration(event.durationMs) }}</span>
           </div>
         </div>
       </section>

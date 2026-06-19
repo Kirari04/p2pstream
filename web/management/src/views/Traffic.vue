@@ -279,7 +279,15 @@ function traceRowKey(request: TraceRequestView): string {
 function traceRowProps(request: TraceRequestView) {
   return {
     class: "cursor-pointer",
+    role: "button",
+    tabindex: 0,
+    "aria-label": `Open trace details for ${request.requestIdLabel}`,
     onClick: () => openTraceDetails(request),
+    onKeydown: (event: KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openTraceDetails(request);
+    },
   };
 }
 

@@ -53,7 +53,7 @@ const environmentForm = reactive({
   transport: EnvironmentTransport.DIRECT,
   agentId: "",
   accessToken: "",
-  responseHeaderTimeoutMillis: 10000,
+  responseHeaderTimeoutMillis: 10000 as number | null,
   enabled: true,
 });
 const environmentTransportOptions = [
@@ -259,6 +259,10 @@ function openEditEnvironment(environment: Environment) {
 
 async function submitEnvironment() {
   await runLocalAction(async () => {
+    const timeout = environmentForm.responseHeaderTimeoutMillis;
+    if (timeout === null || !Number.isInteger(timeout) || timeout < 1000 || timeout > 300000) {
+      throw new Error("Response header timeout must be between 1000 and 300000 ms.");
+    }
     if (environmentForm.transport === EnvironmentTransport.AGENT && !environmentForm.agentId) {
       throw new Error("Select a local agent.");
     }
@@ -268,7 +272,7 @@ async function submitEnvironment() {
       transport: environmentForm.transport,
       agentId: BigInt(environmentForm.transport === EnvironmentTransport.AGENT ? environmentForm.agentId : "0"),
       accessToken: environmentForm.accessToken,
-      responseHeaderTimeoutMillis: BigInt(environmentForm.responseHeaderTimeoutMillis),
+      responseHeaderTimeoutMillis: BigInt(timeout),
       enabled: environmentForm.enabled,
     };
     if (environmentForm.id) {

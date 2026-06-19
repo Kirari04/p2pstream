@@ -2,11 +2,19 @@ import { defineConfig } from "@playwright/test";
 import { createManagementWebServer, repoDir } from "./playwright.shared";
 import { resolve } from "node:path";
 
-const managementPort = process.env.PLAYWRIGHT_MANAGEMENT_PORT ?? "19081";
-const frontendPort = process.env.PLAYWRIGHT_FRONTEND_PORT ?? "5173";
+const managementPort = portFromEnv(process.env.PLAYWRIGHT_MANAGEMENT_PORT, "19081");
+const frontendPort = portFromEnv(process.env.PLAYWRIGHT_FRONTEND_PORT, "5173");
 const dataDir = resolve(repoDir, "tmp/playwright-data");
 const cacheDir = resolve(repoDir, "tmp/playwright-cache");
 const e2eBinary = resolve(repoDir, "tmp/p2pstream-playwright");
+
+function portFromEnv(value: string | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return fallback;
+  const port = Number.parseInt(trimmed, 10);
+  return port >= 1 && port <= 65535 ? port.toString() : fallback;
+}
 
 export default defineConfig({
   testDir: "./e2e",

@@ -10,13 +10,16 @@ export function useConfirmDialog() {
     description: string,
     confirmLabel = "Delete",
   ): Promise<boolean> {
+    cancelActiveDialog();
     return new Promise((resolve) => {
       let settled = false;
       const settle = (value: boolean) => {
         if (settled) return;
         settled = true;
-        activeDialog = null;
-        activeResolve = null;
+        if (activeResolve === settle) {
+          activeDialog = null;
+          activeResolve = null;
+        }
         resolve(value);
       };
 
@@ -36,10 +39,16 @@ export function useConfirmDialog() {
   }
 
   function handleCancel() {
-    activeDialog?.destroy();
-    activeResolve?.(false);
+    cancelActiveDialog();
+  }
+
+  function cancelActiveDialog() {
+    const dialogToCancel = activeDialog;
+    const resolveToCancel = activeResolve;
     activeDialog = null;
     activeResolve = null;
+    dialogToCancel?.destroy();
+    resolveToCancel?.(false);
   }
 
   return { confirm, handleCancel };

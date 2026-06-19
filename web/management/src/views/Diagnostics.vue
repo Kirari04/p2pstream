@@ -38,6 +38,17 @@ let requestSequence = 0;
 const outcome = computed(() => diagnostics.value?.outcome);
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
 const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
+const recentSampleRowKeys = computed(() => {
+  const keys = new WeakMap<DashboardDiagnosticsSample, string>();
+  const seen = new Map<string, number>();
+  for (const sample of recentSamples.value) {
+    const baseKey = sampleRowBaseKey(sample);
+    const occurrence = seen.get(baseKey) ?? 0;
+    seen.set(baseKey, occurrence + 1);
+    keys.set(sample, `${baseKey}-${occurrence.toString()}`);
+  }
+  return keys;
+});
 const maxStatusRequests = computed(() => Math.max(1, ...statusCodes.value.map((row) => toNumber(row.requests))));
 const dimensionSections = computed(() => [
   { title: "Error kinds", rows: diagnostics.value?.errorKinds ?? [], empty: "No proxy failures in this window." },
@@ -204,8 +215,26 @@ function toNumber(value: bigint | number): number {
   return Number(value > max ? max : value);
 }
 
+function sampleRowBaseKey(sample: DashboardDiagnosticsSample): string {
+  return [
+    sample.occurredAtUnixMillis.toString(),
+    sample.method,
+    sample.host,
+    sample.pathPrefix,
+    sample.statusCode.toString(),
+    sample.errorKind,
+    sample.listenerLabel,
+    sample.routeLabel,
+    sample.routeTargetLabel,
+    sample.agentLabel,
+    sample.durationMs.toString(),
+    sample.requestBytes.toString(),
+    sample.responseBytes.toString(),
+  ].join("|");
+}
+
 function sampleRowKey(sample: DashboardDiagnosticsSample): string {
-  return `${sample.occurredAtUnixMillis.toString()}-${sample.statusCode.toString()}-${sample.errorKind}`;
+  return recentSampleRowKeys.value.get(sample) ?? sampleRowBaseKey(sample);
 }
 </script>
 

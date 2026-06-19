@@ -34,6 +34,27 @@ const summaryCards = computed(() => [
   { label: "Captcha", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.WAF_CAPTCHA_PAGE).length.toString(), detail: "{{ .captcha_element_html }} required" },
   { label: "Waiting Room", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE).length.toString(), detail: "queue placeholders required" },
 ]);
+const templateUsageCounts = computed(() => {
+  const counts = new Map<string, number>();
+  const config = publicProxyConfig.value;
+  if (!config) return counts;
+  const increment = (id: bigint) => {
+    const key = id.toString();
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  };
+  for (const target of config.routeTargets) {
+    if (target.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE) increment(target.staticResponseTemplateId);
+  }
+  for (const rule of config.rateLimitRules) {
+    if (rule.responseBodyMode === PublicResponseBodyMode.TEMPLATE) increment(rule.responseBodyTemplateId);
+  }
+  for (const rule of config.wafRules) {
+    if (rule.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE) increment(rule.blockResponseTemplateId);
+    if (rule.captchaPageTemplateId) increment(rule.captchaPageTemplateId);
+    if (rule.waitingRoomPageTemplateId) increment(rule.waitingRoomPageTemplateId);
+  }
+  return counts;
+});
 
 function kindRank(kind: PublicResponseTemplateKind): number {
   switch (kind) {
@@ -73,18 +94,7 @@ function requiredPlaceholderLabel(kind: PublicResponseTemplateKind): string {
 }
 
 function usageCount(template: PublicResponseTemplate): number {
-  const config = publicProxyConfig.value;
-  if (!config) return 0;
-  const id = template.id;
-  let count = 0;
-  count += config.routeTargets.filter((target) => target.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE && target.staticResponseTemplateId === id).length;
-  count += config.rateLimitRules.filter((rule) => rule.responseBodyMode === PublicResponseBodyMode.TEMPLATE && rule.responseBodyTemplateId === id).length;
-  count += config.wafRules.filter((rule) => (
-    (rule.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE && rule.blockResponseTemplateId === id) ||
-    rule.captchaPageTemplateId === id ||
-    rule.waitingRoomPageTemplateId === id
-  )).length;
-  return count;
+  return templateUsageCounts.value.get(template.id.toString()) ?? 0;
 }
 
 function formatUpdatedAt(template: PublicResponseTemplate): string {
