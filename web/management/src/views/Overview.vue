@@ -699,7 +699,11 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   position: relative;
   width: 100%;
   min-height: 0;
-  background: var(--app-border-subtle);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-accent) 76%, var(--app-panel)),
+    var(--app-accent)
+  );
   transition: height 160ms ease;
 }
 
