@@ -530,53 +530,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 
 .window-tabs,
 .mini-tabs {
-  display: inline-grid;
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.2rem;
-}
-
-.window-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.mini-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.window-tabs button,
-.mini-tabs button {
-  min-width: 0;
-  border-radius: 4px;
-  color: var(--app-text-muted);
-  font-size: 0.78rem;
-  font-weight: 650;
-  letter-spacing: 0;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.window-tabs button {
-  height: 2rem;
-  padding: 0 0.75rem;
-}
-
-.mini-tabs button {
-  height: 1.85rem;
-  padding: 0 0.55rem;
-}
-
-.window-tabs button:hover,
-.mini-tabs button:hover {
-  background: var(--app-panel-muted);
-  color: var(--app-text);
-}
-
-.window-tabs button.active,
-.mini-tabs button.active {
-  background: var(--app-panel);
-  color: var(--app-text);
+  flex-shrink: 0;
 }
 
 .signal-dot {
