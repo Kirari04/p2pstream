@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/public/logo-mark.svg" width="96" height="96" alt="p2pstream logo">
+</p>
+
 # p2pstream
 
 p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, route-owned proxy/static targets, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
