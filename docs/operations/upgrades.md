@@ -11,6 +11,7 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
 - A current backup of `CONFIG_DIR`, `/data` in Compose.
 - The same `p2pstream-data` volume or binary install data directory will remain mounted.
 - Optional: a pinned image tag for repeatable deployments.
+- Avoid `staging` for production upgrades unless you are intentionally validating the next release candidate.
 - Avoid `nightly` for production upgrades unless you are intentionally testing unreleased development changes.
 
 ## Steps
@@ -34,7 +35,15 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
    image: ghcr.io/kirari04/p2pstream:vX.Y.Z
    ```
 
-4. Use the Docker-only `nightly` tag only for development validation:
+4. Use the mutable `staging` tag only for pre-release validation:
+
+   ```yaml
+   image: ghcr.io/kirari04/p2pstream:staging
+   ```
+
+   `staging` is rebuilt from the `staging` branch and can change before the final release. Staging management UIs generate matching staging Linux agent installer commands.
+
+5. Use the Docker-only `nightly` tag only for development validation:
 
    ```yaml
    image: ghcr.io/kirari04/p2pstream:nightly
@@ -42,20 +51,20 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
 
    `nightly` is rebuilt from the `dev` branch and can change without a stable release.
 
-5. For binary/systemd installs:
+6. For binary/systemd installs:
 
    ```bash
    sudo install -m 0755 p2pstream /usr/local/bin/p2pstream
    sudo systemctl restart p2pstream
    ```
 
-6. Use the same server and agent tag when you want server and agent capabilities to move together.
+7. Use the same server and agent tag when you want server and agent capabilities to move together.
 
    After the Yamux tunnel transport change, server and agent versions must match. Old WebSocket agents are incompatible with Yamux-tunnel servers, and Yamux agents are incompatible with old WebSocket-only servers.
 
-7. For installations created before the route-target model, public backend configuration is migrated into route targets automatically. Old public backend CRUD/API surfaces are removed, and existing cache entries are discarded because cache keys are target-aware.
+8. For installations created before the route-target model, public backend configuration is migrated into route targets automatically. Old public backend CRUD/API surfaces are removed, and existing cache entries are discarded because cache keys are target-aware.
 
-8. The route-target-only observability migration resets retained proxy request events and proxy rollups so legacy backend IDs are removed. Agent stats history is not reset.
+9. The route-target-only observability migration resets retained proxy request events and proxy rollups so legacy backend IDs are removed. Agent stats history is not reset.
 
 ## Verification
 

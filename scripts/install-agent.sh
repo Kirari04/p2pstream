@@ -239,13 +239,16 @@ main() {
     || fail "P2PSTREAM_REPOSITORY must use GitHub owner/repo with letters, numbers, dots, underscores, or hyphens"
 
   arch="$(detect_arch)"
+  version="$(single_line "$version")"
   if [[ "$version" == "latest" ]]; then
     tag="$(latest_release_tag "$repository")"
+  elif [[ "$version" == "staging" ]]; then
+    tag="staging"
+  elif [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    tag="$version"
   else
-    tag="$(single_line "$version")"
+    fail "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
   fi
-
-  [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "release version must look like vX.Y.Z"
 
   asset="p2pstream_${tag}_linux_${arch}.tar.gz"
   base_url="https://github.com/${repository}/releases/download/${tag}"

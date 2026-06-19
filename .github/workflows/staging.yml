@@ -1,0 +1,260 @@
+name: Staging
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  STAGING_TAG: staging
+
+jobs:
+  verify:
+    name: Verify staging
+    runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ steps.version.outputs.commit_sha }}
+      image: ${{ steps.image.outputs.image }}
+      short_sha: ${{ steps.version.outputs.short_sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.18
+
+      - name: Generate code
+        run: make generate
+
+      - name: Verify generated files are committed
+        run: git diff --exit-code
+
+      - name: Check installer syntax
+        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+
+      - name: Run installer lifecycle tests
+        run: scripts/test-agent-lifecycle.sh
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run Go vet
+        run: go vet ./...
+
+      - name: Run frontend unit tests
+        run: cd web/management && bun test src/lib/*.test.ts
+
+      - name: Typecheck management UI
+        run: cd web/management && bun run typecheck
+
+      - name: Build management UI
+        run: cd web/management && bun run build
+
+      - name: Resolve staging metadata
+        id: version
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "commit_sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          echo "short_sha=$(git rev-parse --short=7 HEAD)" >>"$GITHUB_OUTPUT"
+
+      - name: Set image name
+        id: image
+        shell: bash
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >>"$GITHUB_OUTPUT"
+
+  binary:
+    name: Build Linux ${{ matrix.arch }} staging binary
+    needs: verify
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify.outputs.commit_sha }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.18
+
+      - name: Build binary
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          COMMIT_SHA: ${{ needs.verify.outputs.commit_sha }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${STAGING_TAG} -X p2pstream/internal/buildinfo.Commit=${COMMIT_SHA} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o dist/p2pstream main.go
+          chmod +x dist/p2pstream
+          VERSION="${STAGING_TAG}" COMMIT="${COMMIT_SHA}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
+          mkdir -p dist/package
+          cp dist/p2pstream dist/package/p2pstream
+          cp -R dist/legal/. dist/package/
+          tar -C dist/package -czf "p2pstream_${STAGING_TAG}_linux_${ARCH}.tar.gz" .
+
+      - name: Upload binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: staging-binary-linux-${{ matrix.arch }}
+          path: p2pstream_staging_linux_${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  image:
+    name: Build Linux ${{ matrix.arch }} staging image
+    needs: verify
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify.outputs.commit_sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push architecture image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: runtime
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          build-args: |
+            VERSION=${{ env.STAGING_TAG }}
+            COMMIT=${{ needs.verify.outputs.commit_sha }}
+            SOURCE_REPOSITORY=${{ github.repository }}
+            VITE_RELEASE_REPOSITORY=${{ github.repository }}
+            VITE_RELEASE_REF=${{ env.STAGING_TAG }}
+          tags: |
+            ${{ needs.verify.outputs.image }}:${{ env.STAGING_TAG }}-linux-${{ matrix.arch }}
+            ${{ needs.verify.outputs.image }}:${{ env.STAGING_TAG }}-sha-${{ needs.verify.outputs.short_sha }}-linux-${{ matrix.arch }}
+
+  publish:
+    name: Publish staging release
+    needs:
+      - verify
+      - binary
+      - image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.verify.outputs.commit_sha }}
+
+      - name: Download binary archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: staging-binary-linux-*
+          path: dist/artifacts
+
+      - name: Prepare staging assets
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p dist/assets
+          find dist/artifacts -type f -name '*.tar.gz' -exec cp {} dist/assets/ \;
+          git archive --format=tar.gz --prefix="p2pstream-${STAGING_TAG}/" -o "dist/assets/p2pstream_${STAGING_TAG}_source.tar.gz" HEAD
+          (cd dist/assets && sha256sum *.tar.gz > checksums.txt)
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publish multi-arch staging tags
+        shell: bash
+        env:
+          IMAGE: ${{ needs.verify.outputs.image }}
+          SHORT_SHA: ${{ needs.verify.outputs.short_sha }}
+        run: |
+          set -Eeuo pipefail
+          docker buildx imagetools create \
+            -t "${IMAGE}:${STAGING_TAG}" \
+            -t "${IMAGE}:${STAGING_TAG}-sha-${SHORT_SHA}" \
+            "${IMAGE}:${STAGING_TAG}-linux-amd64" \
+            "${IMAGE}:${STAGING_TAG}-linux-arm64"
+
+      - name: Publish mutable staging release
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ needs.verify.outputs.commit_sha }}
+          GH_TOKEN: ${{ github.token }}
+          SHORT_SHA: ${{ needs.verify.outputs.short_sha }}
+        run: |
+          set -Eeuo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
+          git tag -fa "${STAGING_TAG}" -m "Staging ${COMMIT_SHA}"
+          git push --force origin "refs/tags/${STAGING_TAG}"
+
+          printf -v notes '%s\n\n%s' \
+            "Mutable p2pstream staging build for commit ${SHORT_SHA}." \
+            "This prerelease is rebuilt from the staging branch and is intended for validation before merging staging to main."
+
+          if gh release view "${STAGING_TAG}" >/dev/null 2>&1; then
+            gh release edit "${STAGING_TAG}" --prerelease --title "${STAGING_TAG}" --notes "$notes"
+            gh release upload "${STAGING_TAG}" dist/assets/* --clobber
+          else
+            gh release create "${STAGING_TAG}" dist/assets/* --prerelease --target "${COMMIT_SHA}" --title "${STAGING_TAG}" --notes "$notes"
+          fi
