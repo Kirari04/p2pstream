@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
+import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -13,10 +15,6 @@ import {
   policyMatchValidationReason,
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
-import Button from "@/components/ui/Button.vue";
-import DangerButton from "@/components/ui/DangerButton.vue";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicRateLimitKeySource,
   PublicTrafficShaperBudgetScope,
@@ -59,17 +57,6 @@ const form = reactive({
   match: defaultPolicyMatchForm() as PolicyMatchForm,
   keyParts: [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }] as KeyPartForm[],
 });
-
-const keySourceOptions = [
-  { label: "Remote IP", value: PublicRateLimitKeySource.REMOTE_IP },
-  { label: "Host", value: PublicRateLimitKeySource.HOST },
-  { label: "Method", value: PublicRateLimitKeySource.METHOD },
-  { label: "Path", value: PublicRateLimitKeySource.PATH },
-  { label: "Protocol", value: PublicRateLimitKeySource.PROTOCOL },
-  { label: "Header", value: PublicRateLimitKeySource.HEADER },
-  { label: "Cookie", value: PublicRateLimitKeySource.COOKIE },
-  { label: "Query param", value: PublicRateLimitKeySource.QUERY_PARAM },
-];
 
 const keyPartsDisabledReason = computed(() =>
   form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST
@@ -150,29 +137,10 @@ function kibToBytes(value: number): bigint {
   return BigInt(Math.round((value || 0) * 1024));
 }
 
-function addKeyPart() {
-  form.keyParts.push({ source: PublicRateLimitKeySource.REMOTE_IP, name: "" });
-}
-
-function removeKeyPart(index: number) {
-  form.keyParts.splice(index, 1);
-  if (!form.keyParts.length) addKeyPart();
-}
-
 function keyPartNeedsName(source: PublicRateLimitKeySource): boolean {
   return source === PublicRateLimitKeySource.HEADER ||
     source === PublicRateLimitKeySource.COOKIE ||
     source === PublicRateLimitKeySource.QUERY_PARAM;
-}
-
-function keyPartNameDisabledReason(source: PublicRateLimitKeySource): string {
-  if (keyPartsDisabledReason.value) return keyPartsDisabledReason.value;
-  return keyPartNeedsName(source) ? "" : "This key source does not need a name.";
-}
-
-function removeKeyPartDisabledReason(): string {
-  if (keyPartsDisabledReason.value) return keyPartsDisabledReason.value;
-  return form.keyParts.length <= 1 ? "At least one key part is required." : "";
 }
 
 async function run(action: () => Promise<void>): Promise<boolean> {
@@ -216,66 +184,68 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'" max-width="60rem">
-    <form class="grid gap-5" @submit.prevent="submitRule">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'"
+    :style="modalCardStyle('60rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Name
-          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="form.name" size="small" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="form.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
+          <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="form.enabled" class="self-end">
           Enabled
-        </label>
+        </NCheckbox>
       </section>
 
       <section class="grid gap-4">
-        <div class="grid grid-cols-2 overflow-hidden rounded-md border border-[#333] bg-[#0b0b0b] p-1">
-          <button
-            type="button"
-            class="rounded px-3 py-2 text-sm font-medium transition"
-            :class="form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+        <NButtonGroup class="grid grid-cols-2" size="small">
+          <NButton
+            :type="form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY ? 'primary' : 'default'"
             @click="form.budgetScope = PublicTrafficShaperBudgetScope.PER_KEY"
           >
             Per key
-          </button>
-          <button
-            type="button"
-            class="rounded px-3 py-2 text-sm font-medium transition"
-            :class="form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+          </NButton>
+          <NButton
+            :type="form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST ? 'primary' : 'default'"
             @click="form.budgetScope = PublicTrafficShaperBudgetScope.PER_REQUEST"
           >
             Per request
-          </button>
-        </div>
+          </NButton>
+        </NButtonGroup>
 
         <div class="grid gap-4 sm:grid-cols-5">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Upload KiB/s
-            <input v-model.number="form.uploadKibPerSecond" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.uploadKibPerSecond" size="small" :min="0" :step="1" />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Client-to-server bandwidth cap.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Download KiB/s
-            <input v-model.number="form.downloadKibPerSecond" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.downloadKibPerSecond" size="small" :min="0" :step="1" />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Server-to-client bandwidth cap.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Burst KiB
-            <input v-model.number="form.burstKib" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.burstKib" size="small" :min="0" :step="1" />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Extra data allowed in a burst before throttling.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Request free KiB
-            <input v-model.number="form.requestFreeKib" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.requestFreeKib" size="small" :min="0" :step="1" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Response free KiB
-            <input v-model.number="form.responseFreeKib" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.responseFreeKib" size="small" :min="0" :step="1" />
           </label>
         </div>
         <p class="rounded-md border border-[#222] bg-[#050505] px-3 py-2 text-xs text-[#888]">
@@ -285,48 +255,18 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyMatchEditor :form="form.match" />
 
-      <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <div class="flex items-center justify-between gap-3">
-          <h4 class="text-sm font-semibold text-white">Key parts</h4>
-          <DisabledHint :disabled="Boolean(keyPartsDisabledReason)" :reason="keyPartsDisabledReason">
-            <SecondaryButton type="button" size="small" label="Add Key" :disabled="Boolean(keyPartsDisabledReason)" @click="addKeyPart" />
-          </DisabledHint>
-        </div>
-        <div class="grid gap-2">
-          <div v-for="(part, index) in form.keyParts" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <DisabledHint full-width :disabled="Boolean(keyPartsDisabledReason)" :reason="keyPartsDisabledReason">
-              <select v-model="part.source" class="app-control text-sm" :disabled="Boolean(keyPartsDisabledReason)">
-                <option v-for="option in keySourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-              </select>
-            </DisabledHint>
-            <DisabledHint full-width :disabled="Boolean(keyPartNameDisabledReason(part.source))" :reason="keyPartNameDisabledReason(part.source)">
-              <input v-model="part.name" class="app-control text-sm" placeholder="Name" :disabled="Boolean(keyPartNameDisabledReason(part.source))" />
-            </DisabledHint>
-            <DisabledHint :disabled="Boolean(removeKeyPartDisabledReason())" :reason="removeKeyPartDisabledReason()">
-              <DangerButton
-                size="small"
-                class="row-remove-button"
-                aria-label="Remove key part"
-                title="Remove key part"
-                type="button"
-                :disabled="Boolean(removeKeyPartDisabledReason())"
-                @click="removeKeyPart(index)"
-              >
-                <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-              </DangerButton>
-            </DisabledHint>
-          </div>
-        </div>
-      </section>
+      <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" :disabled-reason="keyPartsDisabledReason" />
 
       <div class="mt-2 flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
+        <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="shaperSubmitDisabledReason">
-          <Button type="submit" :label="form.id ? 'Save Changes' : 'Create Shaper'" :disabled="submitDisabled" />
+          <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
+            {{ form.id ? 'Save Changes' : 'Create Shaper' }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>

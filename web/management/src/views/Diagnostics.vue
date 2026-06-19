@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, h, onMounted, ref, watch } from "vue";
+import { NButton, NButtonGroup, NDataTable, NSelect } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import type {
   DashboardDiagnosticsSample,
@@ -21,6 +23,10 @@ type WindowLabel = "5m" | "1h" | "24h" | "30d";
 const managementClient = useManagementClient();
 const windowLabels: WindowLabel[] = ["5m", "1h", "24h", "30d"];
 const sampleOptions = [25, 50, 100];
+const sampleSelectOptions = sampleOptions.map((option) => ({
+  label: `${option.toString()} samples`,
+  value: option,
+}));
 
 const selectedWindowLabel = ref<WindowLabel>("1h");
 const sampleLimit = ref(25);
@@ -31,6 +37,7 @@ let requestSequence = 0;
 
 const outcome = computed(() => diagnostics.value?.outcome);
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
+const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
 const maxStatusRequests = computed(() => Math.max(1, ...statusCodes.value.map((row) => toNumber(row.requests))));
 const dimensionSections = computed(() => [
   { title: "Error kinds", rows: diagnostics.value?.errorKinds ?? [], empty: "No proxy failures in this window." },
@@ -38,6 +45,87 @@ const dimensionSections = computed(() => [
   { title: "Routes", rows: diagnostics.value?.problemRoutes ?? [], empty: "No problem routes in this window." },
   { title: "Route targets", rows: diagnostics.value?.problemRouteTargets ?? [], empty: "No problem targets in this window." },
   { title: "Agents", rows: diagnostics.value?.problemAgents ?? [], empty: "No problem agents in this window." },
+]);
+const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() => [
+  {
+    title: "Time",
+    key: "time",
+    width: 150,
+    render: (sample) => formatSampleTime(sample.occurredAtUnixMillis),
+  },
+  {
+    title: "Request",
+    key: "request",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: sampleContext,
+  },
+  {
+    title: "Path prefix",
+    key: "pathPrefix",
+    width: 160,
+    ellipsis: { tooltip: true },
+    render: (sample) => formatPathPrefix(sample.pathPrefix),
+  },
+  {
+    title: "Status",
+    key: "status",
+    width: 100,
+    render: (sample) => h("span", { class: ["status-pill", `tone-${statusTone(sample.statusCode)}`] }, sampleStatusLabel(sample)),
+  },
+  {
+    title: "Error kind",
+    key: "errorKind",
+    width: 160,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.errorKind || "-",
+  },
+  {
+    title: "Listener",
+    key: "listener",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.listenerLabel || "-",
+  },
+  {
+    title: "Route",
+    key: "route",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.routeLabel || "-",
+  },
+  {
+    title: "Target",
+    key: "target",
+    width: 160,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.routeTargetLabel || "-",
+  },
+  {
+    title: "Agent",
+    key: "agent",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.agentLabel || "-",
+  },
+  {
+    title: "Duration",
+    key: "duration",
+    width: 110,
+    render: (sample) => formatDuration(sample.durationMs),
+  },
+  {
+    title: "Down",
+    key: "down",
+    width: 100,
+    render: (sample) => formatBytes(sample.responseBytes),
+  },
+  {
+    title: "Up",
+    key: "up",
+    width: 100,
+    render: (sample) => formatBytes(sample.requestBytes),
+  },
 ]);
 
 async function loadDiagnostics() {
@@ -115,6 +203,10 @@ function toNumber(value: bigint | number): number {
   const max = BigInt(Number.MAX_SAFE_INTEGER);
   return Number(value > max ? max : value);
 }
+
+function sampleRowKey(sample: DashboardDiagnosticsSample): string {
+  return `${sample.occurredAtUnixMillis.toString()}-${sample.statusCode.toString()}-${sample.errorKind}`;
+}
 </script>
 
 <template>
@@ -125,22 +217,20 @@ function toNumber(value: bigint | number): number {
         <p>Proxy outcomes, response distribution, failure dimensions, and recent problem samples.</p>
       </div>
       <div class="header-controls">
-        <div class="window-tabs" role="tablist" aria-label="Diagnostics window">
-          <button
+        <NButtonGroup class="window-tabs" role="tablist" aria-label="Diagnostics window" size="small">
+          <NButton
             v-for="label in windowLabels"
             :key="label"
-            type="button"
+            attr-type="button"
             role="tab"
             :aria-selected="selectedWindowLabel === label"
-            :class="{ active: selectedWindowLabel === label }"
+            :type="selectedWindowLabel === label ? 'primary' : 'default'"
             @click="selectedWindowLabel = label"
           >
             {{ label }}
-          </button>
-        </div>
-        <select v-model.number="sampleLimit" class="sample-select" aria-label="Sample limit">
-          <option v-for="option in sampleOptions" :key="option" :value="option">{{ option }} samples</option>
-        </select>
+          </NButton>
+        </NButtonGroup>
+        <NSelect v-model:value="sampleLimit" class="sample-select" size="small" aria-label="Sample limit" :options="sampleSelectOptions" />
       </div>
     </section>
 
@@ -227,47 +317,16 @@ function toNumber(value: bigint | number): number {
           <p>Newest non-success responses and proxy/internal failures.</p>
         </div>
       </div>
-      <div class="table-scroll">
-        <table class="samples-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Request</th>
-              <th>Path prefix</th>
-              <th>Status</th>
-              <th>Error kind</th>
-              <th>Listener</th>
-              <th>Route</th>
-              <th>Target</th>
-              <th>Agent</th>
-              <th>Duration</th>
-              <th>Down</th>
-              <th>Up</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="sample in diagnostics?.recentSamples ?? []" :key="`${sample.occurredAtUnixMillis.toString()}-${sample.statusCode.toString()}-${sample.errorKind}`">
-              <td>{{ formatSampleTime(sample.occurredAtUnixMillis) }}</td>
-              <td class="name-cell" :title="sampleContext(sample)">{{ sampleContext(sample) }}</td>
-              <td class="name-cell" :title="formatPathPrefix(sample.pathPrefix)">{{ formatPathPrefix(sample.pathPrefix) }}</td>
-              <td>
-                <span class="status-pill" :class="`tone-${statusTone(sample.statusCode)}`">{{ sampleStatusLabel(sample) }}</span>
-              </td>
-              <td class="name-cell" :title="sample.errorKind || '-'">{{ sample.errorKind || "-" }}</td>
-              <td class="name-cell" :title="sample.listenerLabel || '-'">{{ sample.listenerLabel || "-" }}</td>
-              <td class="name-cell" :title="sample.routeLabel || '-'">{{ sample.routeLabel || "-" }}</td>
-              <td class="name-cell" :title="sample.routeTargetLabel || '-'">{{ sample.routeTargetLabel || "-" }}</td>
-              <td class="name-cell" :title="sample.agentLabel || '-'">{{ sample.agentLabel || "-" }}</td>
-              <td>{{ formatDuration(sample.durationMs) }}</td>
-              <td>{{ formatBytes(sample.responseBytes) }}</td>
-              <td>{{ formatBytes(sample.requestBytes) }}</td>
-            </tr>
-            <tr v-if="!(diagnostics?.recentSamples ?? []).length">
-              <td colspan="12" class="empty-row">No recent problem samples in this window.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <NDataTable
+        :columns="sampleColumns"
+        :data="recentSamples"
+        :row-key="sampleRowKey"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="1530"
+        size="small"
+      />
     </section>
   </div>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
 import type { ComputedRef } from "vue";
+import { NButton, NButtonGroup, NDataTable } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import {
   ProxyState,
   PublicRouteTargetTransport,
@@ -38,6 +40,7 @@ const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null
 
 const selectedWindowLabel = ref("1h");
 const activeHotspotTab = ref<HotspotTab>("listeners");
+const windowLabels = ["5m", "1h", "24h", "30d"];
 
 const dashboardValue = computed(() => dashboard?.value ?? null);
 const config = computed(() => publicProxyConfig?.value ?? null);
@@ -93,6 +96,51 @@ const hotspotRows = computed(() => {
       return current.topListeners;
   }
 });
+const hotspotColumns = computed<DataTableColumns<DashboardProxyDimensionSummary>>(() => [
+  {
+    title: "Name",
+    key: "name",
+    minWidth: 220,
+    ellipsis: { tooltip: true },
+    render: (row) => row.label,
+  },
+  {
+    title: "Requests",
+    key: "requests",
+    width: 130,
+    render: (row) => formatNumber(row.requests),
+  },
+  {
+    title: "Success",
+    key: "success",
+    width: 110,
+    render: rowSuccess,
+  },
+  {
+    title: "Non-success",
+    key: "nonSuccess",
+    width: 130,
+    render: (row) => formatNumber(rowNonSuccess(row)),
+  },
+  {
+    title: "Avg latency",
+    key: "avgLatency",
+    width: 130,
+    render: (row) => formatDuration(row.avgDurationMs),
+  },
+  {
+    title: "Down",
+    key: "down",
+    width: 120,
+    render: (row) => formatBytes(row.responseBytes),
+  },
+  {
+    title: "Up",
+    key: "up",
+    width: 120,
+    render: (row) => formatBytes(row.requestBytes),
+  },
+]);
 
 const configSnapshot = computed(() => {
   const directTargets = routeTargets.value.filter((target) => target.targetType === PublicRouteTargetType.PROXY && target.transport !== PublicRouteTargetTransport.AGENT).length;
@@ -184,6 +232,10 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   const nonSuccess = "nonSuccess" in bucket ? bucket.nonSuccess : bucket.clientError + bucket.serverError;
   return `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: ${formatNumber(bucket.requests)} requests, ${formatNumber(nonSuccess)} non-success, down ${formatBytes(bucket.responseBytes)}, up ${formatBytes(bucket.requestBytes)}`;
 }
+
+function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
+  return `${activeHotspotTab.value}-${row.id.toString()}-${row.label}`;
+}
 </script>
 
 <template>
@@ -193,19 +245,19 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
         <h3>Proxy Overview</h3>
         <p>Operational stats from retained proxy request events.</p>
       </div>
-      <div class="window-tabs" role="tablist" aria-label="Dashboard window">
-        <button
-          v-for="window in ['5m', '1h', '24h', '30d']"
+      <NButtonGroup class="window-tabs" role="tablist" aria-label="Dashboard window" size="small">
+        <NButton
+          v-for="window in windowLabels"
           :key="window"
-          type="button"
+          attr-type="button"
           role="tab"
           :aria-selected="selectedWindowLabel === window"
-          :class="{ active: selectedWindowLabel === window }"
+          :type="selectedWindowLabel === window ? 'primary' : 'default'"
           @click="selectedWindowLabel = window"
         >
           {{ window }}
-        </button>
-      </div>
+        </NButton>
+      </NButtonGroup>
     </section>
 
     <section class="overview-grid metric-strip">
@@ -361,50 +413,31 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
           <h4>Hotspots</h4>
           <p>Top in the last hour.</p>
         </div>
-        <div class="mini-tabs" role="tablist" aria-label="Hotspot dimension">
-          <button
+        <NButtonGroup class="mini-tabs" role="tablist" aria-label="Hotspot dimension" size="small">
+          <NButton
             v-for="tab in hotspotTabs"
             :key="tab.key"
-            type="button"
+            attr-type="button"
             role="tab"
             :aria-selected="activeHotspotTab === tab.key"
-            :class="{ active: activeHotspotTab === tab.key }"
+            :type="activeHotspotTab === tab.key ? 'primary' : 'default'"
             @click="activeHotspotTab = tab.key"
           >
             {{ tab.label }}
-          </button>
-        </div>
+          </NButton>
+        </NButtonGroup>
       </div>
 
-      <div class="table-scroll">
-        <table class="hotspot-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Requests</th>
-              <th>Success</th>
-              <th>Non-success</th>
-              <th>Avg latency</th>
-              <th>Down</th>
-              <th>Up</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in hotspotRows" :key="`${activeHotspotTab}-${row.id.toString()}-${row.label}`">
-              <td class="name-cell">{{ row.label }}</td>
-              <td>{{ formatNumber(row.requests) }}</td>
-              <td>{{ rowSuccess(row) }}</td>
-              <td>{{ formatNumber(rowNonSuccess(row)) }}</td>
-              <td>{{ formatDuration(row.avgDurationMs) }}</td>
-              <td>{{ formatBytes(row.responseBytes) }}</td>
-              <td>{{ formatBytes(row.requestBytes) }}</td>
-            </tr>
-            <tr v-if="!hotspotRows.length">
-              <td colspan="7" class="empty-row">No hotspot data for this dimension.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <NDataTable
+        :columns="hotspotColumns"
+        :data="hotspotRows"
+        :row-key="hotspotRowKey"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="960"
+        size="small"
+      />
     </section>
 
     <section class="dashboard-panel">

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
+import { NButton, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/components/ui/Button.vue";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   PublicListenerProtocol,
   type GetPublicProxyConfigResponse,
@@ -42,6 +41,10 @@ const listenerForm = reactive({
   protocol: PublicListenerProtocol.HTTP,
   enabled: true,
 });
+const protocolOptions = [
+  { label: "HTTP", value: PublicListenerProtocol.HTTP },
+  { label: "HTTPS", value: PublicListenerProtocol.HTTPS },
+];
 
 function resetForm() {
   listenerForm.id = "";
@@ -104,44 +107,49 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'" max-width="36rem">
-    <form @submit.prevent="submitListener" class="grid gap-4 sm:grid-cols-2">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+    :style="modalCardStyle('36rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form @submit.prevent="submitListener" class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Name
-        <input v-model="listenerForm.name" class="app-control text-sm normal-case tracking-normal" required />
+        <NInput v-model:value="listenerForm.name" size="small" required />
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Bind address
-        <input v-model="listenerForm.bindAddress" class="app-control text-sm normal-case tracking-normal" placeholder="0.0.0.0" />
+        <NInput v-model:value="listenerForm.bindAddress" size="small" placeholder="0.0.0.0" />
         <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Leave empty to bind on all interfaces.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Port
-        <input v-model.number="listenerForm.port" class="app-control text-sm normal-case tracking-normal" type="number" min="1" max="65535" required />
+        <NInputNumber v-model:value="listenerForm.port" size="small" :min="1" :max="65535" required />
         <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Ports below 1024 may require elevated privileges.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Protocol
-        <select v-model="listenerForm.protocol" class="app-control text-sm normal-case tracking-normal">
-          <option :value="PublicListenerProtocol.HTTP">HTTP</option>
-          <option :value="PublicListenerProtocol.HTTPS">HTTPS</option>
-        </select>
+        <NSelect v-model:value="listenerForm.protocol" size="small" :options="protocolOptions" />
         <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Choose HTTPS to enable TLS termination.</p>
       </label>
-      <label class="flex items-center gap-2 text-sm text-[#d4d4d8] sm:col-span-2 mt-2">
-        <input v-model="listenerForm.enabled" type="checkbox" />
+      <NCheckbox v-model:checked="listenerForm.enabled" class="mt-2 sm:col-span-2">
         Enabled
-      </label>
+      </NCheckbox>
       <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
+        <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(listenerSubmitDisabledReason)" :reason="listenerSubmitDisabledReason">
-          <Button
-                       :label="listenerForm.id ? 'Save Changes' : 'Create Listener'"
-            type="submit"
+          <NButton
+            type="primary"
+            attr-type="submit"
             :disabled="Boolean(listenerSubmitDisabledReason)"
-          />
+          >
+            {{ listenerForm.id ? 'Save Changes' : 'Create Listener' }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { NButton } from "naive-ui";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import { NButton, NModal } from "naive-ui";
+import { modalCardStyle } from "@/lib/naiveUi";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 
 defineProps<{
@@ -48,7 +47,14 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
 </script>
 
 <template>
-  <Modal :model-value="modelValue" :title="request ? `Edit ${request.nodeLabel}` : 'Edit Settings'" max-width="34rem" @update:model-value="emit('update:modelValue', $event)">
+  <NModal
+    :show="modelValue"
+    preset="card"
+    :title="request ? `Edit ${request.nodeLabel}` : 'Edit Settings'"
+    :style="modalCardStyle('34rem')"
+    :bordered="false"
+    @update:show="emit('update:modelValue', $event)"
+  >
     <div class="grid gap-4">
       <div class="grid gap-2">
         <NButton
@@ -63,10 +69,10 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
         </NButton>
       </div>
       <div class="flex justify-end">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
       </div>
     </div>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>

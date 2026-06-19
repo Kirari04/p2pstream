@@ -3,7 +3,7 @@ import { createManagementWebServer, repoDir } from "./playwright.shared";
 import { resolve } from "node:path";
 
 const managementPort = process.env.PLAYWRIGHT_MANAGEMENT_PORT ?? "19081";
-const frontendPort = "5173";
+const frontendPort = process.env.PLAYWRIGHT_FRONTEND_PORT ?? "5173";
 const dataDir = resolve(repoDir, "tmp/playwright-data");
 const cacheDir = resolve(repoDir, "tmp/playwright-cache");
 const e2eBinary = resolve(repoDir, "tmp/p2pstream-playwright");

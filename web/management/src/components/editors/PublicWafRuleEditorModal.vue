@@ -2,11 +2,13 @@
 import { computed, inject, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -21,10 +23,6 @@ import {
   wafTriggerPayloadFromForm,
   type WafTriggerMetric,
 } from "@/lib/publicWafTriggerForm";
-import Button from "@/components/ui/Button.vue";
-import DangerButton from "@/components/ui/DangerButton.vue";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicRateLimitKeySource,
   PublicResponseBodyMode,
@@ -77,6 +75,26 @@ const providers = computed(() => props.config?.wafCaptchaProviders ?? []);
 const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
 const captchaTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_CAPTCHA_PAGE));
 const waitingRoomTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE));
+const genericTemplateOptions = computed(() =>
+  genericTemplates.value.map((template) => ({
+    label: template.name,
+    value: template.id.toString(),
+  })),
+);
+const captchaTemplateOptions = computed(() => [
+  { label: "Built-in captcha page", value: "" },
+  ...captchaTemplates.value.map((template) => ({
+    label: template.name,
+    value: template.id.toString(),
+  })),
+]);
+const waitingRoomTemplateOptions = computed(() => [
+  { label: "Built-in waiting-room page", value: "" },
+  ...waitingRoomTemplates.value.map((template) => ({
+    label: template.name,
+    value: template.id.toString(),
+  })),
+]);
 
 const form = reactive({
   id: "",
@@ -210,6 +228,20 @@ const automaticTriggerGroups: AutomaticTriggerGroup[] = [
 
 const enabledProviders = computed(() => providers.value.filter((provider) => provider.enabled));
 const selectedCaptchaProvider = computed(() => providers.value.find((provider) => provider.id.toString() === form.captchaProviderId) ?? null);
+const captchaProviderOptions = computed(() => {
+  const options = providers.value.map((provider) => ({
+    label: `${provider.name}${provider.enabled ? "" : " (disabled)"}`,
+    value: provider.id.toString(),
+    disabled: !provider.enabled,
+  }));
+  if (form.captchaProviderId && !selectedCaptchaProvider.value) {
+    return [
+      { label: `Missing provider ${form.captchaProviderId}`, value: form.captchaProviderId, disabled: true },
+      ...options,
+    ];
+  }
+  return options;
+});
 const selectedActionDescription = computed(() => {
   switch (form.action) {
     case PublicWafRuleAction.CAPTCHA:
@@ -388,8 +420,8 @@ function removeBlockHeader(index: number) {
   form.blockResponseHeaders.splice(index, 1);
 }
 
-function updateTriggerMetricEnabled(metric: WafTriggerMetric, event: Event) {
-  form.triggers = setWafTriggerMetricEnabled(form.triggers, metric, (event.target as HTMLInputElement).checked);
+function updateTriggerMetricEnabled(metric: WafTriggerMetric, checked: boolean) {
+  form.triggers = setWafTriggerMetricEnabled(form.triggers, metric, checked);
 }
 
 async function run(action: () => Promise<void>): Promise<boolean> {
@@ -451,49 +483,53 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'" max-width="64rem">
-    <form class="grid gap-5" @submit.prevent="submitRule">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'"
+    :style="modalCardStyle('64rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Name
-          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="form.name" size="small" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="form.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
+          <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="form.enabled" class="self-end">
           Enabled
-        </label>
+        </NCheckbox>
       </section>
 
       <section class="grid gap-4">
-        <div class="grid grid-cols-1 overflow-hidden rounded-md border border-[#333] bg-[#0b0b0b] p-1 sm:grid-cols-3">
-          <button
+        <NButtonGroup class="grid grid-cols-1 sm:grid-cols-3" size="small">
+          <NButton
             v-for="option in actionOptions"
             :key="option.value"
-            type="button"
-            class="rounded px-3 py-2 text-sm font-medium transition"
-            :class="form.action === option.value ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+            attr-type="button"
+            :type="form.action === option.value ? 'primary' : 'default'"
             @click="form.action = option.value"
           >
             {{ option.label }}
-          </button>
-        </div>
+          </NButton>
+        </NButtonGroup>
         <p class="text-xs leading-5 text-[#888]">{{ selectedActionDescription }}</p>
-        <div class="grid grid-cols-2 overflow-hidden rounded-md border border-[#333] bg-[#0b0b0b] p-1">
-          <button
+        <NButtonGroup class="grid grid-cols-2" size="small">
+          <NButton
             v-for="option in activationOptions"
             :key="option.value"
-            type="button"
-            class="rounded px-3 py-2 text-sm font-medium transition"
-            :class="form.activationMode === option.value ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+            attr-type="button"
+            :type="form.activationMode === option.value ? 'primary' : 'default'"
             @click="form.activationMode = option.value"
           >
             {{ option.label }}
-          </button>
-        </div>
+          </NButton>
+        </NButtonGroup>
         <div class="grid gap-1 border-l border-[#333] pl-3">
           <p class="text-xs font-semibold text-[#d4d4d8]">{{ selectedActivationTitle }}</p>
           <p class="text-xs leading-5 text-[#888]">{{ selectedActivationDescription }}</p>
@@ -511,24 +547,13 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Provider
-            <select v-model="form.captchaProviderId" class="app-control text-sm normal-case tracking-normal" :disabled="!providers.length">
-              <option value="">{{ providers.length ? 'Select provider' : 'No captcha providers configured' }}</option>
-              <option
-                v-if="form.captchaProviderId && !selectedCaptchaProvider"
-                :value="form.captchaProviderId"
-                disabled
-              >
-                Missing provider {{ form.captchaProviderId }}
-              </option>
-              <option
-                v-for="provider in providers"
-                :key="provider.id.toString()"
-                :value="provider.id.toString()"
-                :disabled="!provider.enabled"
-              >
-                {{ provider.name }}{{ provider.enabled ? '' : ' (disabled)' }}
-              </option>
-            </select>
+            <NSelect
+              v-model:value="form.captchaProviderId"
+              size="small"
+              :options="captchaProviderOptions"
+              :placeholder="providers.length ? 'Select provider' : 'No captcha providers configured'"
+              :disabled="!providers.length"
+            />
             <span v-if="!providers.length" class="text-xs normal-case tracking-normal text-[#666]">
               Add a captcha provider in the WAF section before creating a captcha rule.
             </span>
@@ -538,16 +563,11 @@ defineExpose({ openCreate, openEdit, close });
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Pass TTL minutes
-            <input v-model.number="form.captchaPassMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.captchaPassMinutes" size="small" :min="1" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
             Page template
-            <select v-model="form.captchaPageTemplateId" class="app-control text-sm normal-case tracking-normal">
-              <option value="">Built-in captcha page</option>
-              <option v-for="template in captchaTemplates" :key="template.id.toString()" :value="template.id.toString()">
-                {{ template.name }}
-              </option>
-            </select>
+            <NSelect v-model:value="form.captchaPageTemplateId" size="small" :options="captchaTemplateOptions" />
           </label>
         </div>
       </section>
@@ -557,43 +577,38 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-5">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Capacity
-            <input v-model.number="form.waitingRoomMaxAdmitted" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.waitingRoomMaxAdmitted" size="small" :min="1" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Admit/sec
-            <input v-model.number="form.waitingRoomAdmissionRate" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.waitingRoomAdmissionRate" size="small" :min="1" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             TTL minutes
-            <input v-model.number="form.waitingRoomAdmissionTtlMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.waitingRoomAdmissionTtlMinutes" size="small" :min="1" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Poll seconds
-            <input v-model.number="form.waitingRoomPollSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.waitingRoomPollSeconds" size="small" :min="1" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Timeout minutes
-            <input v-model.number="form.waitingRoomTimeoutMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.waitingRoomTimeoutMinutes" size="small" :min="1" />
           </label>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Page title
-            <input v-model="form.waitingRoomPageTitle" class="app-control text-sm normal-case tracking-normal" />
+            <NInput v-model:value="form.waitingRoomPageTitle" size="small" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Page body
-            <input v-model="form.waitingRoomPageBody" class="app-control text-sm normal-case tracking-normal" />
+            <NInput v-model:value="form.waitingRoomPageBody" size="small" />
           </label>
         </div>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Page template
-          <select v-model="form.waitingRoomPageTemplateId" class="app-control text-sm normal-case tracking-normal">
-            <option value="">Built-in waiting-room page</option>
-            <option v-for="template in waitingRoomTemplates" :key="template.id.toString()" :value="template.id.toString()">
-              {{ template.name }}
-            </option>
-          </select>
+          <NSelect v-model:value="form.waitingRoomPageTemplateId" size="small" :options="waitingRoomTemplateOptions" />
         </label>
       </section>
 
@@ -614,7 +629,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-3">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Window seconds
-            <input v-model.number="form.triggers.requestWindowSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.triggers.requestWindowSeconds" size="small" :min="1" />
             <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Rolling window used by request-volume metrics.</p>
           </label>
         </div>
@@ -631,14 +646,13 @@ defineExpose({ openCreate, openEdit, close });
               :class="form.triggers.metrics[metric.key].enabled ? 'border-[#333]' : 'opacity-70'"
             >
               <div class="flex items-center justify-between gap-3">
-                <label class="flex min-w-0 items-center gap-2 text-sm font-medium text-[#d4d4d8]">
-                  <input
-                    type="checkbox"
-                    :checked="form.triggers.metrics[metric.key].enabled"
-                    @change="updateTriggerMetricEnabled(metric.key, $event)"
-                  />
-                  <span class="truncate">{{ metric.label }}</span>
-                </label>
+                <NCheckbox
+                  class="min-w-0"
+                  :checked="form.triggers.metrics[metric.key].enabled"
+                  @update:checked="updateTriggerMetricEnabled(metric.key, $event)"
+                >
+                  <span class="truncate text-sm font-medium">{{ metric.label }}</span>
+                </NCheckbox>
                 <span
                   class="shrink-0 rounded border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-wider"
                   :class="form.triggers.metrics[metric.key].enabled ? 'border-emerald-500/30 text-emerald-300' : 'border-[#333] text-[#777]'"
@@ -648,14 +662,14 @@ defineExpose({ openCreate, openEdit, close });
               </div>
               <div class="grid gap-1.5">
                 <div class="flex items-center gap-2">
-                  <input
-                    v-model.number="form.triggers.metrics[metric.key].value"
-                    type="number"
+                  <NInputNumber
+                    v-model:value="form.triggers.metrics[metric.key].value"
+                    size="small"
+                    class="min-w-0 flex-1"
                     :min="metric.min"
                     :max="metric.max"
                     :step="metric.step ?? 1"
                     :disabled="!form.triggers.metrics[metric.key].enabled"
-                    class="app-control min-w-0 flex-1 text-sm normal-case tracking-normal disabled:cursor-not-allowed disabled:border-[#222] disabled:bg-[#111] disabled:text-[#555]"
                   />
                   <span class="w-16 shrink-0 text-xs text-[#777]">{{ metric.unit }}</span>
                 </div>
@@ -672,12 +686,12 @@ defineExpose({ openCreate, openEdit, close });
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Minimum active seconds
-              <input v-model.number="form.triggers.minimumActiveSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+              <NInputNumber v-model:value="form.triggers.minimumActiveSeconds" size="small" :min="1" />
               <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Pressure must persist this long before the action begins.</p>
             </label>
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Quiet seconds
-              <input v-model.number="form.triggers.quietSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+              <NInputNumber v-model:value="form.triggers.quietSeconds" size="small" :min="1" />
               <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">The action stays active this long after all pressure clears.</p>
             </label>
           </div>
@@ -689,72 +703,81 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-3">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Status
-            <input v-model.number="form.blockResponseStatusCode" type="number" min="400" max="599" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.blockResponseStatusCode" size="small" :min="400" :max="599" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
             Content type
-            <input v-model="form.blockResponseContentType" class="app-control text-sm normal-case tracking-normal" />
+            <NInput v-model:value="form.blockResponseContentType" size="small" />
           </label>
         </div>
         <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
           <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Body source
-            <div class="grid grid-cols-2 rounded-md border border-[#333] bg-[#0b0b0b] p-1">
-              <button
-                type="button"
-                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
-                :class="form.blockResponseBodyMode === PublicResponseBodyMode.INLINE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+            <NButtonGroup class="grid grid-cols-2" size="small">
+              <NButton
+                attr-type="button"
+                :type="form.blockResponseBodyMode === PublicResponseBodyMode.INLINE ? 'primary' : 'default'"
                 @click="form.blockResponseBodyMode = PublicResponseBodyMode.INLINE"
               >
                 Inline
-              </button>
-              <button
-                type="button"
-                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
-                :class="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+              </NButton>
+              <NButton
+                attr-type="button"
+                :type="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'primary' : 'default'"
                 @click="form.blockResponseBodyMode = PublicResponseBodyMode.TEMPLATE"
               >
                 Template
-              </button>
-            </div>
+              </NButton>
+            </NButtonGroup>
           </div>
           <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Template
-            <select v-model="form.blockResponseTemplateId" class="app-control text-sm normal-case tracking-normal">
-              <option value="">{{ genericTemplates.length ? 'Select template' : 'No generic templates' }}</option>
-              <option v-for="template in genericTemplates" :key="template.id.toString()" :value="template.id.toString()">
-                {{ template.name }}
-              </option>
-            </select>
+            <NSelect
+              v-model:value="form.blockResponseTemplateId"
+              size="small"
+              :options="genericTemplateOptions"
+              :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
+              :disabled="!genericTemplates.length"
+            />
           </label>
           <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Body
-            <textarea v-model="form.blockResponseBody" class="app-control min-h-24 text-sm normal-case tracking-normal font-mono" />
+            <NInput v-model:value="form.blockResponseBody" type="textarea" class="font-mono" :autosize="{ minRows: 4, maxRows: 8 }" />
           </label>
         </div>
         <div class="grid gap-2">
           <div class="flex items-center justify-between gap-3">
             <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Headers</span>
-            <SecondaryButton type="button" size="small" label="Add Header" @click="addBlockHeader" />
+            <NButton secondary size="small" attr-type="button" @click="addBlockHeader">Add Header</NButton>
           </div>
           <div v-for="(header, index) in form.blockResponseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <input v-model="header.name" class="app-control text-sm" placeholder="Name" />
-            <input v-model="header.value" class="app-control text-sm" placeholder="Value" />
-            <DangerButton size="small" class="row-remove-button" aria-label="Remove response header" title="Remove response header" type="button" @click="removeBlockHeader(index)">
+            <NInput v-model:value="header.name" size="small" placeholder="Name" />
+            <NInput v-model:value="header.value" size="small" placeholder="Value" />
+            <NButton
+              type="error"
+              size="small"
+              class="row-remove-button"
+              aria-label="Remove response header"
+              title="Remove response header"
+              attr-type="button"
+              @click="removeBlockHeader(index)"
+            >
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+            </NButton>
           </div>
         </div>
       </section>
 
       <div class="flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
-        <DisabledHint :disabled="Boolean(submitDisabledReason)" :reason="submitDisabledReason">
-          <Button :label="form.id ? 'Save Changes' : 'Create Rule'" type="submit" :disabled="submitDisabled" />
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
+        <DisabledHint :disabled="submitDisabled" :reason="submitDisabledReason">
+          <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
+            {{ form.id ? 'Save Changes' : 'Create Rule' }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>

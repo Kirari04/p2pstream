@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref, watch } from "vue";
-import type { ComputedRef } from "vue";
+import type { ComputedRef, InputHTMLAttributes } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NSelect } from "naive-ui";
+import { NButton, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import {
   AGENT_ID_SYSTEM_LABEL_KEY,
-  agentLabelKeySuggestions,
-  agentLabelValueSuggestions,
   agentMatchesSelector,
   selectorRowsFromLabels,
   selectorRowsToRecord,
@@ -17,10 +15,7 @@ import {
   type SelectorLabelRow,
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/components/ui/Button.vue";
-import DangerButton from "@/components/ui/DangerButton.vue";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   PublicRouteTargetLoadBalancing,
   PublicResponseBodyMode,
@@ -69,11 +64,39 @@ const routeFormMode = ref<RouteFormMode>("create");
 const listeners = computed(() => props.config?.listeners ?? []);
 const routes = computed(() => props.config?.routes ?? []);
 const agents = computed(() => props.config?.agents ?? []);
-const selectorKeySuggestions = computed(() => agentLabelKeySuggestions(agents.value));
+const listenerOptions = computed(() =>
+  listeners.value.map((listener) => ({
+    label: listener.name,
+    value: listener.id.toString(),
+  })),
+);
+const routeActionOptions = [
+  { label: "Forward", value: PublicRouteAction.FORWARD },
+  { label: "Redirect", value: PublicRouteAction.REDIRECT },
+];
+const targetLoadBalancingOptions = [
+  { label: "Round-robin", value: PublicRouteTargetLoadBalancing.ROUND_ROBIN },
+  { label: "Weighted round-robin", value: PublicRouteTargetLoadBalancing.WEIGHTED_ROUND_ROBIN },
+  { label: "Random", value: PublicRouteTargetLoadBalancing.RANDOM },
+  { label: "Weighted random", value: PublicRouteTargetLoadBalancing.WEIGHTED_RANDOM },
+  { label: "Least active", value: PublicRouteTargetLoadBalancing.LEAST_ACTIVE_REQUESTS },
+  { label: "Weighted least active", value: PublicRouteTargetLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS },
+];
+const redirectTargetModeOptions = [
+  { label: "Same host path", value: PublicRouteRedirectTargetMode.SAME_HOST_PATH },
+  { label: "External origin", value: PublicRouteRedirectTargetMode.EXTERNAL_ORIGIN_KEEP_PATH },
+  { label: "Absolute URL", value: PublicRouteRedirectTargetMode.ABSOLUTE_URL },
+];
 const targetTransportOptions = [
   { label: "Direct", value: PublicRouteTargetTransport.DIRECT },
   { label: "Agent", value: PublicRouteTargetTransport.AGENT },
 ];
+const targetTypeOptions = [
+  { label: "Proxy", value: PublicRouteTargetType.PROXY },
+  { label: "Static", value: PublicRouteTargetType.STATIC },
+];
+const targetSelectorKeyInputProps = { "data-testid": "target-selector-key" } as unknown as InputHTMLAttributes;
+const targetSelectorValueInputProps = { "data-testid": "target-selector-value" } as unknown as InputHTMLAttributes;
 const exactAgentOptions = computed(() => [
   { label: "Choose agent", value: "" },
   ...agents.value.map((agent) => ({
@@ -332,10 +355,6 @@ function removeSelectorLabel(target: TargetForm, index: number) {
   }
 }
 
-function selectorValueSuggestions(key: string): string[] {
-  return agentLabelValueSuggestions(agents.value, key);
-}
-
 function matchingAgents(target: TargetForm) {
   const validationError = validateSelectorRows(target.selectorLabels);
   if (validationError) return [];
@@ -417,88 +436,81 @@ defineExpose({ openCreate, openEdit, openClone, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="modalTitle" max-width="72rem">
-    <form @submit.prevent="submitRoute" class="grid gap-5">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="modalTitle"
+    :style="modalCardStyle('72rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRoute">
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Listener
-          <select v-model="routeForm.listenerId" class="app-control text-sm normal-case tracking-normal" required>
-            <option v-for="listener in listeners" :key="listener.id.toString()" :value="listener.id.toString()">{{ listener.name }}</option>
-          </select>
+          <NSelect v-model:value="routeForm.listenerId" size="small" :options="listenerOptions" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Action
-          <select v-model="routeForm.action" class="app-control text-sm normal-case tracking-normal">
-            <option :value="PublicRouteAction.FORWARD">Forward</option>
-            <option :value="PublicRouteAction.REDIRECT">Redirect</option>
-          </select>
+          <NSelect v-model:value="routeForm.action" size="small" :options="routeActionOptions" />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="routeForm.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
+          <NInputNumber v-model:value="routeForm.priority" size="small" required />
         </label>
-        <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="routeForm.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="routeForm.enabled" class="self-end">
           Enabled
-        </label>
+        </NCheckbox>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Host pattern
-          <input v-model="routeForm.hostPattern" class="app-control text-sm normal-case tracking-normal" placeholder="*.example.com" />
+          <NInput v-model:value="routeForm.hostPattern" size="small" placeholder="*.example.com" />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Path prefix
-          <input v-model="routeForm.pathPrefix" class="app-control text-sm normal-case tracking-normal" placeholder="/" />
+          <NInput v-model:value="routeForm.pathPrefix" size="small" placeholder="/" />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Target balancing
-          <select v-model="routeForm.targetLoadBalancing" class="app-control text-sm normal-case tracking-normal" :disabled="routeIsRedirect">
-            <option :value="PublicRouteTargetLoadBalancing.ROUND_ROBIN">Round-robin</option>
-            <option :value="PublicRouteTargetLoadBalancing.WEIGHTED_ROUND_ROBIN">Weighted round-robin</option>
-            <option :value="PublicRouteTargetLoadBalancing.RANDOM">Random</option>
-            <option :value="PublicRouteTargetLoadBalancing.WEIGHTED_RANDOM">Weighted random</option>
-            <option :value="PublicRouteTargetLoadBalancing.LEAST_ACTIVE_REQUESTS">Least active</option>
-            <option :value="PublicRouteTargetLoadBalancing.WEIGHTED_LEAST_ACTIVE_REQUESTS">Weighted least active</option>
-          </select>
+          <NSelect
+            v-model:value="routeForm.targetLoadBalancing"
+            size="small"
+            :options="targetLoadBalancingOptions"
+            :disabled="routeIsRedirect"
+          />
         </label>
-        <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="routeForm.isDefault" type="checkbox" />
+        <NCheckbox v-model:checked="routeForm.isDefault" class="self-end">
           Default route
-        </label>
+        </NCheckbox>
       </section>
 
       <section v-if="routeIsRedirect" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Mode
-          <select v-model="routeForm.redirectTargetMode" class="app-control text-sm normal-case tracking-normal">
-            <option :value="PublicRouteRedirectTargetMode.SAME_HOST_PATH">Same host path</option>
-            <option :value="PublicRouteRedirectTargetMode.EXTERNAL_ORIGIN_KEEP_PATH">External origin</option>
-            <option :value="PublicRouteRedirectTargetMode.ABSOLUTE_URL">Absolute URL</option>
-          </select>
+          <NSelect v-model:value="routeForm.redirectTargetMode" size="small" :options="redirectTargetModeOptions" />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Target
-          <input v-model="routeForm.redirectTarget" class="app-control text-sm normal-case tracking-normal" :placeholder="redirectTargetPlaceholder(routeForm.redirectTargetMode)" required />
+          <NInput v-model:value="routeForm.redirectTarget" size="small" :placeholder="redirectTargetPlaceholder(routeForm.redirectTargetMode)" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Status
-          <input v-model.number="routeForm.redirectStatusCode" type="number" min="300" max="399" class="app-control text-sm normal-case tracking-normal" />
+          <NInputNumber v-model:value="routeForm.redirectStatusCode" size="small" :min="300" :max="399" />
         </label>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="routeForm.redirectPreservePathSuffix" type="checkbox" />
+        <NCheckbox v-model:checked="routeForm.redirectPreservePathSuffix">
           Preserve path suffix
-        </label>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="routeForm.redirectPreserveQuery" type="checkbox" />
+        </NCheckbox>
+        <NCheckbox v-model:checked="routeForm.redirectPreserveQuery">
           Preserve query
-        </label>
+        </NCheckbox>
       </section>
 
       <section v-else class="grid gap-4">
         <div class="flex items-center justify-between gap-3">
           <h4 class="text-sm font-semibold text-white">Targets</h4>
-          <SecondaryButton type="button" size="small" label="Add Target" @click="addTarget">
+          <NButton secondary size="small" attr-type="button" @click="addTarget">
             <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-          </SecondaryButton>
+            Add Target
+          </NButton>
         </div>
 
         <div v-for="(target, index) in routeForm.targets" :key="`${target.id || 'new'}-${index}`" data-testid="route-target-row" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
@@ -506,26 +518,23 @@ defineExpose({ openCreate, openEdit, openClone, close });
             <div class="grid flex-1 gap-4 sm:grid-cols-4">
               <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                 Name
-                <input v-model="target.name" class="app-control text-sm normal-case tracking-normal" required />
+                <NInput v-model:value="target.name" size="small" required />
               </label>
               <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                 Type
-                <select v-model="target.targetType" class="app-control text-sm normal-case tracking-normal">
-                  <option :value="PublicRouteTargetType.PROXY">Proxy</option>
-                  <option :value="PublicRouteTargetType.STATIC">Static</option>
-                </select>
+                <NSelect v-model:value="target.targetType" size="small" :options="targetTypeOptions" />
               </label>
               <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                 Priority group
-                <input v-model.number="target.priorityGroup" type="number" min="0" class="app-control text-sm normal-case tracking-normal" />
+                <NInputNumber v-model:value="target.priorityGroup" size="small" :min="0" />
               </label>
               <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                 Weight
-                <input v-model.number="target.weight" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+                <NInputNumber v-model:value="target.weight" size="small" :min="1" />
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
                 URL
-                <input v-model="target.url" class="app-control text-sm normal-case tracking-normal" placeholder="http://upstream:9000" required />
+                <NInput v-model:value="target.url" size="small" placeholder="http://upstream:9000" required />
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                 Transport
@@ -538,7 +547,7 @@ defineExpose({ openCreate, openEdit, openClone, close });
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                 Header timeout ms
-                <input v-model.number="target.responseHeaderTimeoutMillis" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+                <NInputNumber v-model:value="target.responseHeaderTimeoutMillis" size="small" :min="1" />
               </label>
               <div v-if="target.targetType === PublicRouteTargetType.PROXY && target.transport === PublicRouteTargetTransport.AGENT" class="grid gap-3 rounded-md border border-[#1f1f1f] bg-[#080808] p-3 sm:col-span-4">
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -563,40 +572,41 @@ defineExpose({ openCreate, openEdit, openClone, close });
                   <div v-for="(selector, selectorIndex) in target.selectorLabels" :key="selector.id" data-testid="target-selector-row" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                     <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                       Selector key
-                      <input
-                        v-model="selector.key"
-                        data-testid="target-selector-key"
-                        class="app-control text-sm normal-case tracking-normal"
+                      <NInput
+                        v-model:value="selector.key"
+                        size="small"
                         placeholder="site"
-                        :list="`selector-key-options-${index}-${selectorIndex}`"
                         required
+                        :input-props="targetSelectorKeyInputProps"
                       />
-                      <datalist :id="`selector-key-options-${index}-${selectorIndex}`">
-                        <option v-for="key in selectorKeySuggestions" :key="key" :value="key" />
-                      </datalist>
                     </label>
                     <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                       Selector value
-                      <input
-                        v-model="selector.value"
-                        data-testid="target-selector-value"
-                        class="app-control text-sm normal-case tracking-normal"
+                      <NInput
+                        v-model:value="selector.value"
+                        size="small"
                         placeholder="home-lab"
-                        :list="`selector-value-options-${index}-${selectorIndex}`"
+                        :input-props="targetSelectorValueInputProps"
                       />
-                      <datalist :id="`selector-value-options-${index}-${selectorIndex}`">
-                        <option v-for="value in selectorValueSuggestions(selector.key)" :key="value" :value="value" />
-                      </datalist>
                     </label>
-                    <DangerButton type="button" size="small" aria-label="Remove selector label" title="Remove selector label" class="self-end" @click="removeSelectorLabel(target, selectorIndex)">
+                    <NButton
+                      type="error"
+                      size="small"
+                      aria-label="Remove selector label"
+                      title="Remove selector label"
+                      class="self-end"
+                      attr-type="button"
+                      @click="removeSelectorLabel(target, selectorIndex)"
+                    >
                       <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                    </DangerButton>
+                    </NButton>
                   </div>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                  <SecondaryButton type="button" size="small" label="Add Selector" @click="addSelectorLabel(target)">
+                  <NButton secondary size="small" attr-type="button" @click="addSelectorLabel(target)">
                     <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
+                    Add Selector
+                  </NButton>
                   <div data-testid="selector-match-preview" class="text-right text-xs leading-5">
                     <p :class="matchingAgents(target).length ? 'text-[#d4d4d8]' : 'text-[#f5c28b]'">
                       Matches {{ matchingAgents(target).length }} enabled agents; {{ connectedMatchingAgents(target).length }} connected.
@@ -609,36 +619,36 @@ defineExpose({ openCreate, openEdit, openClone, close });
                   </div>
                 </div>
               </div>
-              <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-                <input v-model="target.tlsSkipVerify" type="checkbox" />
+              <NCheckbox v-if="target.targetType === PublicRouteTargetType.PROXY" v-model:checked="target.tlsSkipVerify">
                 Skip TLS verify
-              </label>
+              </NCheckbox>
               <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
                 Status
-                <input v-model.number="target.staticStatusCode" type="number" min="100" max="599" class="app-control text-sm normal-case tracking-normal" />
+                <NInputNumber v-model:value="target.staticStatusCode" size="small" :min="100" :max="599" />
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-3">
                 Body
-                <textarea v-model="target.staticResponseBody" rows="3" class="app-control text-sm normal-case tracking-normal" />
+                <NInput v-model:value="target.staticResponseBody" type="textarea" size="small" :autosize="{ minRows: 3, maxRows: 8 }" />
               </label>
-              <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-                <input v-model="target.enabled" type="checkbox" />
+              <NCheckbox v-model:checked="target.enabled">
                 Enabled
-              </label>
+              </NCheckbox>
             </div>
-            <DangerButton type="button" size="small" aria-label="Remove target" title="Remove target" @click="removeTarget(index)">
+            <NButton type="error" size="small" aria-label="Remove target" title="Remove target" attr-type="button" @click="removeTarget(index)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+            </NButton>
           </div>
         </div>
       </section>
 
       <div class="mt-2 flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="routeSubmitDisabled" :reason="routeSubmitDisabledReason">
-          <Button :label="submitLabel" type="submit" :disabled="routeSubmitDisabled" />
+          <NButton type="primary" attr-type="submit" :disabled="routeSubmitDisabled">
+            {{ submitLabel }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
+import { NButton, NInput, NModal, NSelect } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import HtmlTemplateEditor from "@/components/editors/HtmlTemplateEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/components/ui/Button.vue";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   PublicResponseTemplateKind,
   type PublicResponseTemplate,
@@ -149,10 +148,6 @@ function applyKind(value: PublicResponseTemplateKind) {
   }
 }
 
-function handleKindChange(event: Event) {
-  applyKind(Number((event.target as HTMLSelectElement).value) as PublicResponseTemplateKind);
-}
-
 async function submit() {
   if (disabledReason.value || !runManagementAction) return;
   const payload = {
@@ -179,37 +174,44 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="modalTitle" max-width="72rem">
-    <form class="grid gap-5" @submit.prevent="submit">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="modalTitle"
+    :style="modalCardStyle('72rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submit">
       <section class="grid gap-4 md:grid-cols-[1fr_14rem]">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Name
-          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="form.name" size="small" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Kind
-          <select :value="form.kind" class="app-control text-sm normal-case tracking-normal" @change="handleKindChange">
-            <option v-for="option in kindOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
+          <NSelect :value="form.kind" size="small" :options="kindOptions" @update:value="applyKind(Number($event) as PublicResponseTemplateKind)" />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Description
-          <input v-model="form.description" class="app-control text-sm normal-case tracking-normal" />
+          <NInput v-model:value="form.description" size="small" />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Content type
-          <input v-model="form.contentType" class="app-control text-sm normal-case tracking-normal" />
+          <NInput v-model:value="form.contentType" size="small" />
         </label>
       </section>
 
       <HtmlTemplateEditor v-model="form.body" :kind="form.kind" :content-type="form.contentType" />
 
       <div class="flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
+        <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason">
-          <Button :label="submitLabel" type="submit" :disabled="Boolean(disabledReason)" />
+          <NButton type="primary" attr-type="submit" :disabled="Boolean(disabledReason)">
+            {{ submitLabel }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>

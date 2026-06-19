@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from "vue";
+import { computed, h, inject, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
+import { NButton, NButtonGroup, NCheckbox, NDataTable, NInput, NModal, NTag } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import { Ban as BanIcon } from "@lucide/vue";
 import { Check as CheckIcon } from "@lucide/vue";
 import { Pencil as PencilIcon } from "@lucide/vue";
@@ -9,7 +11,6 @@ import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { CircleX as TimesCircleIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
@@ -32,11 +33,7 @@ import {
   recentDisconnectCount,
 } from "@/lib/dashboardStats";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/components/ui/Button.vue";
-import DangerButton from "@/components/ui/DangerButton.vue";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
-import Tag from "@/components/ui/Tag.vue";
+import { modalCardStyle } from "@/lib/naiveUi";
 import type {
   Agent,
   AgentConnectionSession,
@@ -54,7 +51,7 @@ const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null
 const runManagementAction = inject<Runner>("runManagementAction");
 const isBusy = inject<ComputedRef<boolean>>("isBusy");
 
-const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
+const { confirm } = useConfirmDialog();
 const status = computed(() => dashboard?.value?.status ?? null);
 const config = computed(() => publicProxyConfig?.value ?? null);
 const agents = computed(() => publicProxyConfig?.value?.agents ?? []);
@@ -93,6 +90,11 @@ const uninstallReleaseRepository = ref(defaultReleaseRepository());
 const uninstallCopyLabel = ref("Copy");
 let setupCopyReset: number | undefined;
 let uninstallCopyReset: number | undefined;
+const setupTabOptions: Array<{ value: "install" | "docker" | "cli"; label: string }> = [
+  { value: "install", label: "Linux install" },
+  { value: "docker", label: "Docker Compose" },
+  { value: "cli", label: "CLI" },
+];
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
@@ -127,6 +129,141 @@ const uninstallSnippet = computed(() => {
   if (uninstallSnippetError.value) return "";
   return buildUninstallSnippet();
 });
+const agentColumns = computed<DataTableColumns<Agent>>(() => [
+  {
+    title: "Agent",
+    key: "agent",
+    minWidth: 280,
+    render: (agent) => h("div", [
+      h("p", { class: "font-medium text-white" }, agent.name),
+      h("p", { class: "font-mono text-xs text-[#888]" }, agent.publicId),
+      h("div", { class: "mt-2 flex flex-wrap gap-1.5" }, [
+        ...agentUserLabels(agent).map((label) => h(
+          "span",
+          { key: label.id, class: "rounded border border-[#333] bg-[#101010] px-2 py-0.5 font-mono text-[11px] text-[#d4d4d8]" },
+          `${label.key}=${label.value}`,
+        )),
+        !agentUserLabels(agent).length ? h("span", { class: "text-xs text-[#666]" }, "No user labels") : null,
+      ]),
+      h("code", { class: "mt-1 block break-all font-mono text-[11px] text-[#666]" }, exactAgentSelector(agent)),
+    ]),
+  },
+  {
+    title: "State",
+    key: "state",
+    width: 160,
+    render: (agent) => h("div", { class: "flex items-center gap-2" }, [
+      h(NTag, { size: "small", bordered: false, type: agentConnected(agent) ? "success" : "warning" }, { default: () => agentConnected(agent) ? "Connected" : "Offline" }),
+      !agent.enabled ? h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Disabled" }) : null,
+    ]),
+  },
+  {
+    title: "Current",
+    key: "current",
+    width: 150,
+    render: (agent) => h("div", [
+      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, currentAgentDuration(agent)),
+      h("p", { class: "mt-1 text-xs text-[#666]" }, currentAgentDurationKind(agent)),
+    ]),
+  },
+  {
+    title: "Uptime",
+    key: "uptime",
+    width: 150,
+    render: (agent) => h("div", [
+      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, agentUptimePercentLabel(agent)),
+      h("p", { class: "mt-1 text-xs text-[#666]" }, `connections ${agentConnectionCounts(agent)}`),
+    ]),
+  },
+  { title: "Last Connected", key: "lastConnected", width: 190, render: (agent) => h("span", { class: "font-mono text-xs" }, formatDate(agentLastConnected(agent))) },
+  { title: "Last Disconnected", key: "lastDisconnected", width: 190, render: (agent) => h("span", { class: "font-mono text-xs" }, formatDate(agentLastDisconnected(agent))) },
+  {
+    title: "Active Requests",
+    key: "activeRequests",
+    width: 170,
+    render: (agent) => h("div", [
+      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, agent.activeRequests.toString()),
+      agent.latestStats
+        ? h("p", { class: "mt-1 font-mono text-xs text-[#666]" }, `${bigIntLabel(agent.latestStats.memorySysMb)} MB / ${bigIntLabel(agent.latestStats.numGoroutine)} goroutines`)
+        : null,
+    ]),
+  },
+  {
+    title: "Actions",
+    key: "actions",
+    width: 260,
+    align: "right",
+    render: (agent) => h("div", { class: "flex justify-end gap-2" }, [
+      h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
+        default: () => h(NButton, {
+          secondary: true,
+          size: "small",
+          "aria-label": agent.enabled ? "Disable agent" : "Enable agent",
+          title: agent.enabled ? "Disable agent" : "Enable agent",
+          disabled: Boolean(busyDisabledReason.value),
+          onClick: () => void setAgentEnabled(agent, !agent.enabled),
+        }, { icon: () => agent.enabled ? h(BanIcon, { class: "h-3.5 w-3.5" }) : h(CheckIcon, { class: "h-3.5 w-3.5" }) }),
+      }),
+      h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
+        default: () => h(NButton, {
+          secondary: true,
+          size: "small",
+          "aria-label": "Rotate token",
+          title: "Rotate token",
+          disabled: Boolean(busyDisabledReason.value),
+          onClick: () => rotateAgentToken(agent),
+        }, { icon: () => h(RefreshIcon, { class: "h-3.5 w-3.5" }) }),
+      }),
+      h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
+        default: () => h(NButton, {
+          secondary: true,
+          size: "small",
+          "aria-label": "Edit agent",
+          title: "Edit agent",
+          disabled: Boolean(busyDisabledReason.value),
+          onClick: () => editAgent(agent),
+        }, { icon: () => h(PencilIcon, { class: "h-3.5 w-3.5" }) }),
+      }),
+      h(NButton, {
+        secondary: true,
+        size: "small",
+        "aria-label": "Show uninstall command",
+        title: "Show uninstall command",
+        onClick: () => openUninstallModal(agent),
+      }, { icon: () => h(TimesCircleIcon, { class: "h-3.5 w-3.5" }) }),
+      h(DisabledHint, { disabled: Boolean(deleteAgentDisabledReason(agent)), reason: deleteAgentDisabledReason(agent) }, {
+        default: () => h(NButton, {
+          type: "error",
+          size: "small",
+          "aria-label": "Delete agent",
+          title: "Delete agent",
+          disabled: Boolean(deleteAgentDisabledReason(agent)),
+          onClick: () => void deleteAgent(agent),
+        }, { icon: () => h(TrashIcon, { class: "h-3.5 w-3.5" }) }),
+      }),
+    ]),
+  },
+]);
+const sessionColumns = computed<DataTableColumns<AgentConnectionSession>>(() => [
+  {
+    title: "Agent",
+    key: "agent",
+    minWidth: 220,
+    render: (session) => h("div", [
+      h("p", { class: "font-medium text-white" }, sessionAgentLabel(session)),
+      sessionAgentDetail(session) ? h("p", { class: "font-mono text-xs text-[#888]" }, sessionAgentDetail(session)) : null,
+    ]),
+  },
+  { title: "Started", key: "started", width: 190, render: (session) => h("span", { class: "font-mono text-xs" }, formatDate(session.connectedAtUnixMillis)) },
+  { title: "Ended", key: "ended", width: 190, render: (session) => h("span", { class: "font-mono text-xs" }, session.active ? "-" : formatDate(session.disconnectedAtUnixMillis)) },
+  { title: "Duration", key: "duration", width: 150, render: (session) => h("span", { class: "font-mono text-xs" }, formatLongDuration(session.durationMillis)) },
+  {
+    title: "State",
+    key: "state",
+    width: 120,
+    render: (session) => h(NTag, { size: "small", bordered: false, type: session.active ? "success" : "default" }, { default: () => session.active ? "Active" : "Closed" }),
+  },
+]);
 
 function buildSetupSnippet(): string {
   if (!issuedAgent.value) return "";
@@ -233,6 +370,32 @@ function openUninstallModal(agent: Agent) {
 function closeUninstallModal() {
   uninstallAgent.value = null;
   uninstallCopyLabel.value = "Copy";
+}
+
+function handleRotateModalUpdate(show: boolean) {
+  if (!show) closeRotateAgentModal();
+}
+
+function handleUninstallModalUpdate(show: boolean) {
+  if (!show) closeUninstallModal();
+}
+
+function handleSetupModalUpdate(show: boolean) {
+  if (!show) clearIssuedToken();
+}
+
+function agentRowKey(agent: Agent): string {
+  return agent.id.toString();
+}
+
+function agentRowProps(agent: Agent): Record<string, string> {
+  return {
+    "data-testid": `agent-row-${agent.publicId}`,
+  };
+}
+
+function sessionRowKey(session: AgentConnectionSession): string {
+  return session.id.toString();
 }
 
 function deleteAgentDisabledReason(agent: Agent): string {
@@ -413,9 +576,10 @@ async function copyUninstallSnippet() {
         <p class="text-[#888] text-sm">Registered agents, connection state, and recent runtime metrics.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-        <SecondaryButton size="small" label="Add Agent" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
+        <NButton secondary size="small" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+          Add Agent
+        </NButton>
       </DisabledHint>
     </div>
 
@@ -473,155 +637,47 @@ async function copyUninstallSnippet() {
       <div class="border-b border-[#333] px-5 py-4">
         <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Registered Agents</h4>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[1180px] text-sm">
-          <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
-            <tr>
-              <th class="px-5 py-3">Agent</th>
-              <th class="px-5 py-3">State</th>
-              <th class="px-5 py-3">Current</th>
-              <th class="px-5 py-3">Uptime</th>
-              <th class="px-5 py-3">Last Connected</th>
-              <th class="px-5 py-3">Last Disconnected</th>
-              <th class="px-5 py-3">Active Requests</th>
-              <th class="px-5 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="agent in agents"
-              :key="agent.id.toString()"
-              :data-testid="`agent-row-${agent.publicId}`"
-              class="border-b border-[#1f1f1f] last:border-0"
-            >
-              <td class="px-5 py-4">
-                <p class="font-medium text-white">{{ agent.name }}</p>
-                <p class="font-mono text-xs text-[#888]">{{ agent.publicId }}</p>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <span
-                    v-for="label in agentUserLabels(agent)"
-                    :key="label.id"
-                    class="rounded border border-[#333] bg-[#101010] px-2 py-0.5 font-mono text-[11px] text-[#d4d4d8]"
-                  >
-                    {{ label.key }}={{ label.value }}
-                  </span>
-                  <span v-if="!agentUserLabels(agent).length" class="text-xs text-[#666]">No user labels</span>
-                </div>
-                <code class="mt-1 block break-all font-mono text-[11px] text-[#666]">{{ exactAgentSelector(agent) }}</code>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex items-center gap-2">
-                  <Tag :value="agentConnected(agent) ? 'Connected' : 'Offline'" :severity="agentConnected(agent) ? 'success' : 'warn'" />
-                  <Tag v-if="!agent.enabled" value="Disabled" severity="warn" />
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">{{ currentAgentDuration(agent) }}</p>
-                <p class="mt-1 text-xs text-[#666]">{{ currentAgentDurationKind(agent) }}</p>
-              </td>
-              <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">{{ agentUptimePercentLabel(agent) }}</p>
-                <p class="mt-1 text-xs text-[#666]">connections {{ agentConnectionCounts(agent) }}</p>
-              </td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(agentLastConnected(agent)) }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(agentLastDisconnected(agent)) }}</td>
-              <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">{{ agent.activeRequests.toString() }}</p>
-                <p v-if="agent.latestStats" class="mt-1 font-mono text-xs text-[#666]">
-                  {{ bigIntLabel(agent.latestStats.memorySysMb) }} MB / {{ bigIntLabel(agent.latestStats.numGoroutine) }} goroutines
-                </p>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex justify-end gap-2">
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton
-                      size="small"
-                      :aria-label="agent.enabled ? 'Disable agent' : 'Enable agent'"
-                      :title="agent.enabled ? 'Disable agent' : 'Enable agent'"
-                      :disabled="Boolean(busyDisabledReason)"
-                      @click="setAgentEnabled(agent, !agent.enabled)"
-                    >
-                      <template #icon>
-                        <BanIcon v-if="agent.enabled" class="h-3.5 w-3.5" />
-                        <CheckIcon v-else class="h-3.5 w-3.5" />
-                      </template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton size="small" aria-label="Rotate token" title="Rotate token" :disabled="Boolean(busyDisabledReason)" @click="rotateAgentToken(agent)">
-                      <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton size="small" aria-label="Edit agent" title="Edit agent" :disabled="Boolean(busyDisabledReason)" @click="editAgent(agent)">
-                      <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <SecondaryButton size="small" aria-label="Show uninstall command" title="Show uninstall command" @click="openUninstallModal(agent)">
-                    <template #icon><TimesCircleIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <DisabledHint :disabled="Boolean(deleteAgentDisabledReason(agent))" :reason="deleteAgentDisabledReason(agent)">
-                    <DangerButton size="small" aria-label="Delete agent" title="Delete agent" :disabled="Boolean(deleteAgentDisabledReason(agent))" @click="deleteAgent(agent)">
-                      <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                    </DangerButton>
-                  </DisabledHint>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!agents.length">
-              <td colspan="8">
-                <EmptyState
-                  title="No agents registered"
-                  description="Agents forward traffic to services behind NAT or firewalls by connecting outbound to this proxy."
-                  action-label="Add Agent"
-                  @action="openAddAgentModal"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <NDataTable
+        v-if="agents.length"
+        :columns="agentColumns"
+        :data="agents"
+        :row-key="agentRowKey"
+        :row-props="agentRowProps"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="1280"
+        size="small"
+      />
+      <EmptyState
+        v-else
+        title="No agents registered"
+        description="Agents forward traffic to services behind NAT or firewalls by connecting outbound to this proxy."
+        action-label="Add Agent"
+        @action="openAddAgentModal"
+      />
     </section>
 
     <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4">
         <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Recent Connection Sessions</h4>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[860px] text-sm">
-          <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
-            <tr>
-              <th class="px-5 py-3">Agent</th>
-              <th class="px-5 py-3">Started</th>
-              <th class="px-5 py-3">Ended</th>
-              <th class="px-5 py-3">Duration</th>
-              <th class="px-5 py-3">State</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="session in recentAgentConnections" :key="session.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
-              <td class="px-5 py-4">
-                <p class="font-medium text-white">{{ sessionAgentLabel(session) }}</p>
-                <p v-if="sessionAgentDetail(session)" class="font-mono text-xs text-[#888]">{{ sessionAgentDetail(session) }}</p>
-              </td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(session.connectedAtUnixMillis) }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ session.active ? "-" : formatDate(session.disconnectedAtUnixMillis) }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatLongDuration(session.durationMillis) }}</td>
-              <td class="px-5 py-4">
-                <Tag :value="session.active ? 'Active' : 'Closed'" :severity="session.active ? 'success' : 'secondary'" />
-              </td>
-            </tr>
-            <tr v-if="!recentAgentConnections.length">
-              <td colspan="5">
-                <EmptyState
-                  title="No connection sessions"
-                  description="Agent connection sessions will appear after registered agents connect to management."
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <NDataTable
+        v-if="recentAgentConnections.length"
+        :columns="sessionColumns"
+        :data="recentAgentConnections"
+        :row-key="sessionRowKey"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="860"
+        size="small"
+      />
+      <EmptyState
+        v-else
+        title="No connection sessions"
+        description="Agent connection sessions will appear after registered agents connect to management."
+      />
     </section>
 
     <AgentEditorModal
@@ -630,9 +686,15 @@ async function copyUninstallSnippet() {
       allow-create
       @created-agent="handleAgentCreated"
     />
-    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
 
-    <Modal :model-value="Boolean(rotateAgentToConfirm)" title="Rotate Agent Token" max-width="34rem" @update:model-value="closeRotateAgentModal">
+    <NModal
+      :show="Boolean(rotateAgentToConfirm)"
+      preset="card"
+      title="Rotate Agent Token"
+      :style="modalCardStyle('34rem')"
+      :bordered="false"
+      @update:show="handleRotateModalUpdate"
+    >
       <div v-if="rotateAgentToConfirm" class="grid gap-5">
         <div class="grid gap-2">
           <p class="text-sm text-white">Rotate the token for {{ rotateAgentToConfirm.name }}?</p>
@@ -646,16 +708,23 @@ async function copyUninstallSnippet() {
         </div>
         <div class="flex justify-end gap-3">
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-            <SecondaryButton type="button" label="Cancel" :disabled="Boolean(busyDisabledReason)" @click="closeRotateAgentModal" />
+            <NButton secondary attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="closeRotateAgentModal">Cancel</NButton>
           </DisabledHint>
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-            <DangerButton type="button" label="Rotate Token" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken" />
+            <NButton type="error" attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken">Rotate Token</NButton>
           </DisabledHint>
         </div>
       </div>
-    </Modal>
+    </NModal>
 
-    <Modal :model-value="Boolean(uninstallAgent)" title="Agent Uninstall" max-width="46rem" @update:model-value="closeUninstallModal">
+    <NModal
+      :show="Boolean(uninstallAgent)"
+      preset="card"
+      title="Agent Uninstall"
+      :style="modalCardStyle('46rem')"
+      :bordered="false"
+      @update:show="handleUninstallModalUpdate"
+    >
       <div v-if="uninstallAgent" class="grid gap-5">
         <div class="grid gap-3 md:grid-cols-2">
           <div class="grid gap-1.5">
@@ -680,20 +749,27 @@ async function copyUninstallSnippet() {
 
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           GitHub Repository
-          <input v-model="uninstallReleaseRepository" class="app-control text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+          <NInput v-model:value="uninstallReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
         </label>
 
         <p v-if="uninstallSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ uninstallSnippetError }}</p>
         <pre v-else class="max-h-[260px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ uninstallSnippet }}</code></pre>
 
         <div class="flex justify-end gap-3">
-          <SecondaryButton type="button" :label="uninstallCopyLabel" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet" />
-          <Button label="Done" @click="closeUninstallModal" />
+          <NButton secondary attr-type="button" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet">{{ uninstallCopyLabel }}</NButton>
+          <NButton type="primary" attr-type="button" @click="closeUninstallModal">Done</NButton>
         </div>
       </div>
-    </Modal>
+    </NModal>
 
-    <Modal :model-value="Boolean(issuedToken && issuedAgent)" title="Agent Setup" max-width="48rem" @update:model-value="clearIssuedToken">
+    <NModal
+      :show="Boolean(issuedToken && issuedAgent)"
+      preset="card"
+      title="Agent Setup"
+      :style="modalCardStyle('48rem')"
+      :bordered="false"
+      @update:show="handleSetupModalUpdate"
+    >
       <div v-if="issuedAgent" class="grid gap-5">
         <div class="grid gap-3 md:grid-cols-2">
           <div class="grid gap-1.5">
@@ -714,19 +790,19 @@ async function copyUninstallSnippet() {
         <div class="grid gap-3 md:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Management URL
-            <input v-model="setupManagementUrl" class="app-control text-sm normal-case tracking-normal" required />
+            <NInput v-model:value="setupManagementUrl" size="small" required />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             GitHub Repository
-            <input v-model="setupReleaseRepository" class="app-control text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+            <NInput v-model:value="setupReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
           </label>
           <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Docker Image
-            <input
-              v-model="setupDockerImage"
-              class="app-control text-sm normal-case tracking-normal"
+            <NInput
+              v-model:value="setupDockerImage"
+              size="small"
               required
-              @input="setupDockerImageTouched = true"
+              @update:value="setupDockerImageTouched = true"
             />
           </label>
         </div>
@@ -734,20 +810,15 @@ async function copyUninstallSnippet() {
         <div v-if="!managementUsesTLS" class="rounded-md border border-[#5f3b1d] bg-[#160d05] p-3 text-xs leading-5 text-[#f5c28b]">
           <p class="font-semibold uppercase tracking-wider">Insecure management URL</p>
           <p class="mt-1 text-[#c79866]">Agents reject HTTP management URLs by default. Enable the override only for isolated local development.</p>
-          <label class="mt-3 flex items-center gap-2 text-[#f5c28b]">
-            <input v-model="setupAllowInsecureManagement" type="checkbox" />
+          <NCheckbox v-model:checked="setupAllowInsecureManagement" class="mt-3 text-[#f5c28b]">
             Allow insecure agent management connection
-          </label>
+          </NCheckbox>
         </div>
 
         <div v-if="managementUsesTLS" class="grid gap-3 md:grid-cols-3">
           <label v-if="!embeddedManagementCAPEMBase64" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Management CA file
-            <input
-              v-model="setupManagementCAFile"
-              class="app-control text-sm normal-case tracking-normal"
-              placeholder="/etc/p2pstream/management-ca.pem"
-            />
+            <NInput v-model:value="setupManagementCAFile" size="small" placeholder="/etc/p2pstream/management-ca.pem" />
           </label>
           <div v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Management CA
@@ -757,49 +828,34 @@ async function copyUninstallSnippet() {
           </div>
           <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Agent Certificate
-            <input v-model="setupAgentTLSCertFile" class="app-control text-sm normal-case tracking-normal" required />
+            <NInput v-model:value="setupAgentTLSCertFile" size="small" required />
           </label>
           <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Agent Key
-            <input v-model="setupAgentTLSKeyFile" class="app-control text-sm normal-case tracking-normal" required />
+            <NInput v-model:value="setupAgentTLSKeyFile" size="small" required />
           </label>
         </div>
 
-        <div class="flex flex-wrap gap-2" role="tablist" aria-label="Agent setup format">
-          <button
-            type="button"
-            class="rounded-md border px-3 py-2 text-sm transition"
-            :class="setupTab === 'install' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
-            @click="setupTab = 'install'"
+        <NButtonGroup class="flex flex-wrap" role="tablist" aria-label="Agent setup format" size="small">
+          <NButton
+            v-for="tab in setupTabOptions"
+            :key="tab.value"
+            attr-type="button"
+            :type="setupTab === tab.value ? 'primary' : 'default'"
+            @click="setupTab = tab.value"
           >
-            Linux install
-          </button>
-          <button
-            type="button"
-            class="rounded-md border px-3 py-2 text-sm transition"
-            :class="setupTab === 'docker' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
-            @click="setupTab = 'docker'"
-          >
-            Docker Compose
-          </button>
-          <button
-            type="button"
-            class="rounded-md border px-3 py-2 text-sm transition"
-            :class="setupTab === 'cli' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
-            @click="setupTab = 'cli'"
-          >
-            CLI
-          </button>
-        </div>
+            {{ tab.label }}
+          </NButton>
+        </NButtonGroup>
 
         <p v-if="setupSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ setupSnippetError }}</p>
         <pre v-else class="max-h-[360px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ setupSnippet }}</code></pre>
 
         <div class="flex justify-end gap-3">
-          <SecondaryButton type="button" :label="setupCopyLabel" :disabled="Boolean(setupSnippetError)" @click="copySetupSnippet" />
-          <Button label="Done" @click="clearIssuedToken" />
+          <NButton secondary attr-type="button" :disabled="Boolean(setupSnippetError)" @click="copySetupSnippet">{{ setupCopyLabel }}</NButton>
+          <NButton type="primary" attr-type="button" @click="clearIssuedToken">Done</NButton>
         </div>
       </div>
-    </Modal>
+    </NModal>
   </div>
 </template>

@@ -3,9 +3,11 @@ import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NButtonGroup, NCheckbox, NEmpty, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -14,8 +16,6 @@ import {
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
 import { cacheScopeLabel, routeDestinationLabel, routeTargetName, routeTargetTypeLabel } from "@/lib/publicProxyLabels";
-import Button from "@/components/ui/Button.vue";
-import Modal from "@/components/ui/Modal.vue";
 import {
   PublicCacheQueryMode,
   PublicCacheScope,
@@ -475,21 +475,27 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'" max-width="64rem">
-    <form class="grid gap-5" @submit.prevent="submitRule">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'"
+    :style="modalCardStyle('64rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Name
-          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="form.name" size="small" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="form.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
+          <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="form.enabled" class="self-end">
           Enabled
-        </label>
+        </NCheckbox>
       </section>
 
       <PublicPolicyMatchEditor :form="form.match" />
@@ -499,44 +505,42 @@ defineExpose({ openCreate, openEdit, close });
         <p class="text-xs leading-5 text-[#777]">
           Authorization requests are always bypassed. Cookie requests are cached only when this rule allows them. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
-        <label class="flex items-start gap-3 rounded-md border border-[#222] bg-[#050505] p-3 text-sm text-[#d4d4d8]">
-          <input v-model="form.allowCookieRequests" type="checkbox" class="mt-0.5" />
+        <NCheckbox v-model:checked="form.allowCookieRequests" class="rounded-md border border-[#222] bg-[#050505] p-3">
           <span class="grid gap-1">
             <span class="font-medium text-white">Cache requests with Cookie headers</span>
             <span class="text-xs leading-5 text-[#777]">
               Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
             </span>
           </span>
-        </label>
-        <label v-if="form.allowCookieRequests" class="flex items-start gap-3 rounded-md border border-[#333] bg-black p-3 text-sm text-[#d4d4d8]">
-          <input v-model="form.allowCookieRequestsAcknowledged" type="checkbox" class="mt-0.5" />
+        </NCheckbox>
+        <NCheckbox
+          v-if="form.allowCookieRequests"
+          v-model:checked="form.allowCookieRequestsAcknowledged"
+          class="rounded-md border border-[#333] bg-black p-3"
+        >
           <span class="grid gap-1">
             <span class="font-medium text-white">I understand Cookie is ignored in this cache key</span>
             <span class="text-xs leading-5 text-[#777]">
               Only use this for responses that are identical for every visitor, even when the request includes cookies.
             </span>
           </span>
-        </label>
+        </NCheckbox>
         <div class="grid gap-4 sm:grid-cols-4">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             TTL mode
-            <select v-model="form.ttlMode" class="app-control text-sm normal-case tracking-normal">
-              <option v-for="option in ttlModeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
+            <NSelect v-model:value="form.ttlMode" size="small" :options="ttlModeOptions" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Default TTL minutes
-            <input v-model.number="form.ttlMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.ttlMinutes" size="small" :min="1" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Scope
-            <select v-model="form.scope" class="app-control text-sm normal-case tracking-normal">
-              <option v-for="option in scopeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
+            <NSelect v-model:value="form.scope" size="small" :options="scopeOptions" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Max object MiB
-            <input v-model.number="form.maxObjectMiB" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.maxObjectMiB" size="small" :min="1" />
           </label>
         </div>
         <p class="text-xs leading-5 text-[#777]">
@@ -566,39 +570,36 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Routes</p>
                 <h5 class="panel-heading">{{ routeSelectionSummary }}</h5>
               </div>
-              <button type="button" class="panel-link-button" :disabled="!form.routeIds.length" @click="clearRoutes">
+              <NButton secondary size="tiny" attr-type="button" :disabled="!form.routeIds.length" @click="clearRoutes">
                 Clear
-              </button>
+              </NButton>
             </div>
             <div class="target-toolbar">
-              <input v-model="routeFilterText" class="app-control target-search" placeholder="Filter routes" />
-              <button type="button" class="panel-action-button" :disabled="!canSelectVisibleRoutes" @click="selectVisibleRoutes">
+              <NInput v-model:value="routeFilterText" size="small" class="target-search" placeholder="Filter routes" />
+              <NButton secondary size="small" attr-type="button" :disabled="!canSelectVisibleRoutes" @click="selectVisibleRoutes">
                 Select visible
-              </button>
+              </NButton>
             </div>
             <p v-if="routeSelectionValidationReason" class="field-error">{{ routeSelectionValidationReason }}</p>
             <div class="target-list" role="listbox" aria-label="Route filters">
-              <label
+              <div
                 v-for="route in filteredRoutes"
                 :key="route.id.toString()"
                 class="target-row"
                 :class="{ 'target-row-selected': isRouteSelected(route.id) }"
               >
-                <input
-                  type="checkbox"
+                <NCheckbox
                   :checked="isRouteSelected(route.id)"
                   :disabled="!isRouteSelected(route.id) && form.routeIds.length >= maxCacheListItems"
                   :aria-label="`Filter cache rule to route ${routeLabel(route)}`"
-                  @change="toggleRoute(route.id)"
+                  @update:checked="toggleRoute(route.id)"
                 />
                 <span class="target-row-body">
                   <span class="target-row-title">{{ routeLabel(route) }}</span>
                   <span class="target-row-detail">{{ routeDetail(route) }}</span>
                 </span>
-              </label>
-              <div v-if="!filteredRoutes.length" class="target-empty">
-                {{ routes.length ? "No routes match the filter." : "No routes configured." }}
               </div>
+              <NEmpty v-if="!filteredRoutes.length" class="target-empty" size="small" :description="routes.length ? 'No routes match the filter.' : 'No routes configured.'" />
             </div>
           </div>
 
@@ -608,39 +609,36 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Targets</p>
                 <h5 class="panel-heading">{{ targetSelectionSummary }}</h5>
               </div>
-              <button type="button" class="panel-link-button" :disabled="!form.targetIds.length" @click="clearTargets">
+              <NButton secondary size="tiny" attr-type="button" :disabled="!form.targetIds.length" @click="clearTargets">
                 Clear
-              </button>
+              </NButton>
             </div>
             <div class="target-toolbar">
-              <input v-model="targetFilterText" class="app-control target-search" placeholder="Filter targets" />
-              <button type="button" class="panel-action-button" :disabled="!canSelectVisibleTargets" @click="selectVisibleTargets">
+              <NInput v-model:value="targetFilterText" size="small" class="target-search" placeholder="Filter targets" />
+              <NButton secondary size="small" attr-type="button" :disabled="!canSelectVisibleTargets" @click="selectVisibleTargets">
                 Select visible
-              </button>
+              </NButton>
             </div>
             <p v-if="targetSelectionValidationReason" class="field-error">{{ targetSelectionValidationReason }}</p>
             <div class="target-list" role="listbox" aria-label="Target filters">
-              <label
+              <div
                 v-for="target in filteredProxyTargets"
                 :key="target.id.toString()"
                 class="target-row"
                 :class="{ 'target-row-selected': isTargetSelected(target.id) }"
               >
-                <input
-                  type="checkbox"
+                <NCheckbox
                   :checked="isTargetSelected(target.id)"
                   :disabled="!isTargetSelected(target.id) && form.targetIds.length >= maxCacheListItems"
                   :aria-label="`Filter cache rule to target ${routeTargetName(target)}`"
-                  @change="toggleTarget(target.id)"
+                  @update:checked="toggleTarget(target.id)"
                 />
                 <span class="target-row-body">
                   <span class="target-row-title">{{ routeTargetName(target) }}</span>
                   <span class="target-row-detail">{{ targetDetail(target) }}</span>
                 </span>
-              </label>
-              <div v-if="!filteredProxyTargets.length" class="target-empty">
-                {{ proxyTargets.length ? "No targets match the filter." : "No proxy targets configured." }}
               </div>
+              <NEmpty v-if="!filteredProxyTargets.length" class="target-empty" size="small" :description="proxyTargets.length ? 'No targets match the filter.' : 'No proxy targets configured.'" />
             </div>
           </div>
         </div>
@@ -650,21 +648,22 @@ defineExpose({ openCreate, openEdit, close });
             <p class="panel-eyebrow">Query mode</p>
             <h5 class="panel-heading">{{ queryModeSummary }}</h5>
           </div>
-          <div class="query-mode-grid" role="radiogroup" aria-label="Query cache key mode">
-            <button
+          <NButtonGroup class="query-mode-grid" role="radiogroup" aria-label="Query cache key mode" size="small">
+            <NButton
               v-for="option in queryModeOptions"
               :key="option.value"
-              type="button"
               class="query-mode-button"
               :class="{ 'query-mode-button-active': form.queryMode === option.value }"
               :aria-checked="form.queryMode === option.value"
+              attr-type="button"
               role="radio"
+              :type="form.queryMode === option.value ? 'primary' : 'default'"
               @click="form.queryMode = option.value"
             >
               <span>{{ option.label }}</span>
               <small>{{ queryModeDescription(option.value) }}</small>
-            </button>
-          </div>
+            </NButton>
+          </NButtonGroup>
         </div>
 
         <div v-if="queryParamsEditorVisible" class="value-editor">
@@ -673,28 +672,28 @@ defineExpose({ openCreate, openEdit, close });
               <p class="panel-eyebrow">Query params</p>
               <h5 class="panel-heading">{{ normalizedQueryParams.length.toString() }} active</h5>
             </div>
-            <button type="button" class="add-row-button" :disabled="form.queryParams.length >= maxCacheListItems" @click="addQueryParam">
-              <PlusIcon class="h-3.5 w-3.5" />
-              <span>Add param</span>
-            </button>
+            <NButton secondary size="small" attr-type="button" :disabled="form.queryParams.length >= maxCacheListItems" @click="addQueryParam">
+              <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+              Add param
+            </NButton>
           </div>
           <p v-if="queryParamsValidationReason" class="field-error">{{ queryParamsValidationReason }}</p>
           <div v-if="!form.queryParams.length" class="value-empty">
             <p>No query parameters listed.</p>
-            <button type="button" @click="addQueryParam">
-              <PlusIcon class="h-3.5 w-3.5" />
-              <span>Add param</span>
-            </button>
+            <NButton secondary size="small" attr-type="button" @click="addQueryParam">
+              <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+              Add param
+            </NButton>
           </div>
           <div v-else class="value-list">
             <div v-for="(param, index) in form.queryParams" :key="`query-${index}`" class="value-row">
               <div class="value-field">
-                <input v-model="form.queryParams[index]" class="app-control value-input" placeholder="version" />
+                <NInput v-model:value="form.queryParams[index]" size="small" class="value-input" placeholder="version" />
                 <p v-if="queryParamError(param)" class="field-error">{{ queryParamError(param) }}</p>
               </div>
-              <button type="button" class="remove-row-button" aria-label="Remove query parameter" title="Remove query parameter" @click="removeQueryParam(index)">
-                <TrashIcon class="h-3.5 w-3.5" />
-              </button>
+              <NButton type="error" size="small" class="remove-row-button" aria-label="Remove query parameter" title="Remove query parameter" attr-type="button" @click="removeQueryParam(index)">
+                <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+              </NButton>
             </div>
           </div>
         </div>
@@ -706,28 +705,28 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Vary headers</p>
                 <h5 class="panel-heading">{{ normalizedVaryHeaders.length.toString() }} active</h5>
               </div>
-              <button type="button" class="add-row-button" :disabled="form.varyHeaders.length >= maxCacheListItems" @click="addVaryHeader">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add header</span>
-              </button>
+              <NButton secondary size="small" attr-type="button" :disabled="form.varyHeaders.length >= maxCacheListItems" @click="addVaryHeader">
+                <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+                Add header
+              </NButton>
             </div>
             <p v-if="varyHeadersValidationReason" class="field-error">{{ varyHeadersValidationReason }}</p>
             <div v-if="!form.varyHeaders.length" class="value-empty">
               <p>No vary headers configured.</p>
-              <button type="button" @click="addVaryHeader">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add header</span>
-              </button>
+              <NButton secondary size="small" attr-type="button" @click="addVaryHeader">
+                <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+                Add header
+              </NButton>
             </div>
             <div v-else class="value-list">
               <div v-for="(header, index) in form.varyHeaders" :key="`vary-${index}`" class="value-row">
                 <div class="value-field">
-                  <input v-model="form.varyHeaders[index]" class="app-control value-input" placeholder="Accept-Encoding" />
+                  <NInput v-model:value="form.varyHeaders[index]" size="small" class="value-input" placeholder="Accept-Encoding" />
                   <p v-if="varyHeaderError(header)" class="field-error">{{ varyHeaderError(header) }}</p>
                 </div>
-                <button type="button" class="remove-row-button" aria-label="Remove vary header" title="Remove vary header" @click="removeVaryHeader(index)">
-                  <TrashIcon class="h-3.5 w-3.5" />
-                </button>
+                <NButton type="error" size="small" class="remove-row-button" aria-label="Remove vary header" title="Remove vary header" attr-type="button" @click="removeVaryHeader(index)">
+                  <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                </NButton>
               </div>
             </div>
           </div>
@@ -738,48 +737,49 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Cache status codes</p>
                 <h5 class="panel-heading">{{ normalizedCacheStatusCodes.length.toString() }} active</h5>
               </div>
-              <button type="button" class="add-row-button" :disabled="form.cacheStatusCodes.length >= maxCacheListItems" @click="addCacheStatusCode">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add code</span>
-              </button>
+              <NButton secondary size="small" attr-type="button" :disabled="form.cacheStatusCodes.length >= maxCacheListItems" @click="addCacheStatusCode">
+                <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+                Add code
+              </NButton>
             </div>
             <p v-if="cacheStatusCodesValidationReason" class="field-error">{{ cacheStatusCodesValidationReason }}</p>
             <div v-if="!form.cacheStatusCodes.length" class="value-empty">
               <p>No status codes configured.</p>
-              <button type="button" @click="addCacheStatusCode">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add code</span>
-              </button>
+              <NButton secondary size="small" attr-type="button" @click="addCacheStatusCode">
+                <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+                Add code
+              </NButton>
             </div>
             <div v-else class="value-list">
               <div v-for="(status, index) in form.cacheStatusCodes" :key="`status-${index}`" class="value-row">
                 <div class="value-field">
-                  <input v-model="form.cacheStatusCodes[index]" inputmode="numeric" class="app-control value-input" placeholder="200" />
+                  <NInput v-model:value="form.cacheStatusCodes[index]" size="small" class="value-input" placeholder="200" />
                   <p v-if="statusCodeError(status)" class="field-error">{{ statusCodeError(status) }}</p>
                 </div>
-                <button type="button" class="remove-row-button" aria-label="Remove status code" title="Remove status code" @click="removeCacheStatusCode(index)">
-                  <TrashIcon class="h-3.5 w-3.5" />
-                </button>
+                <NButton type="error" size="small" class="remove-row-button" aria-label="Remove status code" title="Remove status code" attr-type="button" @click="removeCacheStatusCode(index)">
+                  <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                </NButton>
               </div>
             </div>
           </div>
         </div>
 
-        <label class="cache-status-toggle">
+        <NCheckbox v-model:checked="form.addCacheStatusHeader" class="cache-status-toggle">
           <span class="min-w-0">
             <span class="toggle-title">Expose cache status</span>
             <span class="toggle-detail">X-p2pstream-Cache response header</span>
           </span>
-          <input v-model="form.addCacheStatusHeader" type="checkbox" />
-        </label>
+        </NCheckbox>
       </section>
 
       <div class="flex justify-end gap-3 border-t border-[#222] pt-4">
-        <Button type="button" severity="secondary" label="Cancel" @click="close" />
-        <Button type="submit" :label="form.id ? 'Save Rule' : 'Create Rule'" :disabled="submitDisabled" :title="submitDisabledReason" />
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
+        <NButton type="primary" attr-type="submit" :disabled="submitDisabled" :title="submitDisabledReason">
+          {{ form.id ? 'Save Rule' : 'Create Rule' }}
+        </NButton>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>

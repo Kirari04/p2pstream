@@ -4,19 +4,15 @@ import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { useNotification } from "naive-ui";
-import { computed, inject, onMounted, reactive, ref } from "vue";
+import { NButton, NButtonGroup, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NSelect, NTag, useNotification } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
+import { computed, h, inject, onMounted, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { localManagementClient } from "@/api/managementClient";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/components/ui/Button.vue";
-import DangerButton from "@/components/ui/DangerButton.vue";
-import Modal from "@/components/ui/Modal.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
-import Tag from "@/components/ui/Tag.vue";
+import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
 import type {
   Agent,
   Environment,
@@ -60,11 +56,159 @@ const environmentForm = reactive({
   responseHeaderTimeoutMillis: 10000,
   enabled: true,
 });
+const environmentTransportOptions = [
+  { label: "Direct", value: EnvironmentTransport.DIRECT },
+  { label: "Agent", value: EnvironmentTransport.AGENT },
+];
 
 const busyDisabledReason = computed(() => isBusy.value || isLoading.value || testingEnvironmentId.value ? BUSY_REASON : "");
 const enabledLocalAgents = computed(() => localAgents.value.filter((agent) => agent.enabled));
+const localAgentOptions = computed(() => [
+  { label: "Select agent", value: "", disabled: true },
+  ...enabledLocalAgents.value.map((agent) => ({
+    label: `${agent.name}${agent.connected ? "" : " (offline)"}`,
+    value: agent.id.toString(),
+  })),
+]);
 const certificateTrustCertificate = computed(() => certificateTrustEnvironment.value?.observedCertificate);
 const certificateTrustFingerprint = computed(() => certificateTrustCertificate.value?.sha256Fingerprint ?? "");
+const environmentColumns = computed<DataTableColumns<Environment>>(() => [
+  {
+    title: "Environment",
+    key: "environment",
+    minWidth: 260,
+    render: (environment) => h("div", [
+      h("p", { class: "font-medium text-white" }, environment.name),
+      h("p", { class: "max-w-md truncate font-mono text-xs text-[#888]" }, environment.managementUrl),
+      h("div", { class: "mt-2 flex gap-2" }, [
+        !environment.enabled
+          ? h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Disabled" })
+          : null,
+        environment.accessTokenConfigured
+          ? h(NTag, { size: "small", bordered: false, type: "default" }, { default: () => "Token" })
+          : null,
+      ]),
+    ]),
+  },
+  {
+    title: "Transport",
+    key: "transport",
+    minWidth: 180,
+    render: (environment) => h("div", [
+      h("p", { class: "text-[#d4d4d8]" }, transportLabel(environment.transport)),
+      environment.transport === EnvironmentTransport.AGENT
+        ? h("p", { class: "font-mono text-xs text-[#888]" }, [
+          environment.agentName || `agent #${environment.agentId.toString()}`,
+          " ",
+          h("span", { class: environment.agentConnected ? "text-green-400" : "text-amber-400" }, environment.agentConnected ? "connected" : "offline"),
+        ])
+        : null,
+    ]),
+  },
+  {
+    title: "Trust",
+    key: "trust",
+    width: 120,
+    render: (environment) => h(
+      NTag,
+      { size: "small", bordered: false, type: naiveTagType(trustSeverity(environment.trustState)) },
+      { default: () => trustLabel(environment.trustState) },
+    ),
+  },
+  {
+    title: "Certificate",
+    key: "certificate",
+    minWidth: 260,
+    render: (environment) => h("div", { class: "grid max-w-[18rem] gap-1.5" }, [
+      h("p", { class: "truncate text-xs text-[#d4d4d8]", title: certificateSubject(certificateForEnvironment(environment)) }, certificateSubject(certificateForEnvironment(environment))),
+      h(
+        "code",
+        {
+          class: "inline-flex max-w-full rounded border border-[#333] bg-[#050505] px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-[#d4d4d8]",
+          title: certificateFingerprintForEnvironment(environment) || "No certificate discovered",
+        },
+        [h("span", { class: "truncate" }, formatFingerprint(certificateFingerprintForEnvironment(environment)))],
+      ),
+      h("p", { class: "text-xs text-[#888]" }, `Expires ${formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis)}`),
+    ]),
+  },
+  {
+    title: "Test Result",
+    key: "testResult",
+    minWidth: 220,
+    render: (environment) => h("div", { class: "grid max-w-xs gap-1.5", "aria-live": "polite" }, [
+      h(
+        NTag,
+        { size: "small", bordered: false, type: naiveTagType(testResultSeverity(environment)) },
+        { default: () => testResultLabel(environment) },
+      ),
+      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, formatDate(testResultCheckedAt(environment))),
+      testResultMessage(environment)
+        ? h(
+          "p",
+          {
+            class: ["truncate text-xs", testResultState(environment) === "error" ? "text-red-400" : "text-[#888]"],
+            title: testResultMessage(environment),
+          },
+          testResultMessage(environment),
+        )
+        : null,
+    ]),
+  },
+  {
+    title: "Actions",
+    key: "actions",
+    width: 300,
+    align: "right",
+    render: (environment) => h("div", { class: "flex justify-end gap-2" }, [
+      h(NButton, {
+        secondary: true,
+        size: "small",
+        "aria-label": "Discover certificate",
+        title: "Discover certificate",
+        disabled: Boolean(busyDisabledReason.value),
+        onClick: () => void discoverCertificate(environment),
+      }, { icon: () => h(RefreshIcon, { class: "h-3.5 w-3.5" }) }),
+      h(NButton, {
+        secondary: true,
+        size: "small",
+        "aria-label": "Trust certificate",
+        title: "Trust certificate",
+        disabled: Boolean(busyDisabledReason.value) || !environment.observedCertificate?.sha256Fingerprint,
+        onClick: () => trustCertificate(environment),
+      }, { icon: () => h(CheckIcon, { class: "h-3.5 w-3.5" }) }),
+      h(
+        DisabledHint,
+        { disabled: Boolean(testEnvironmentDisabledReason(environment)), reason: testEnvironmentDisabledReason(environment) },
+        {
+          default: () => h(NButton, {
+            secondary: true,
+            size: "small",
+            loading: isEnvironmentTesting(environment),
+            disabled: Boolean(testEnvironmentDisabledReason(environment)),
+            onClick: () => void testEnvironment(environment),
+          }, { default: () => isEnvironmentTesting(environment) ? "Testing" : "Test" }),
+        },
+      ),
+      h(NButton, {
+        secondary: true,
+        size: "small",
+        "aria-label": "Edit environment",
+        title: "Edit environment",
+        disabled: Boolean(busyDisabledReason.value),
+        onClick: () => openEditEnvironment(environment),
+      }, { icon: () => h(PencilIcon, { class: "h-3.5 w-3.5" }) }),
+      h(NButton, {
+        type: "error",
+        size: "small",
+        "aria-label": "Delete environment",
+        title: "Delete environment",
+        disabled: Boolean(busyDisabledReason.value),
+        onClick: () => void deleteEnvironment(environment),
+      }, { icon: () => h(TrashIcon, { class: "h-3.5 w-3.5" }) }),
+    ]),
+  },
+]);
 
 onMounted(() => {
   void refreshLocalData();
@@ -380,6 +524,14 @@ function formatDate(value: bigint | undefined): string {
 function messageFromError(err: unknown): string {
   return err instanceof Error ? err.message : "Request failed";
 }
+
+function environmentRowKey(environment: Environment): string {
+  return environment.id.toString();
+}
+
+function handleTrustModalUpdate(show: boolean) {
+  if (!show) closeTrustCertificateModal();
+}
 </script>
 
 <template>
@@ -390,9 +542,10 @@ function messageFromError(err: unknown): string {
         <p class="text-sm text-[#888]">Remote management endpoints, routing, and certificate trust.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-        <SecondaryButton size="small" label="Add Environment" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
+        <NButton secondary size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+          Add Environment
+        </NButton>
       </DisabledHint>
     </div>
 
@@ -404,173 +557,84 @@ function messageFromError(err: unknown): string {
       <div class="border-b border-[#333] px-5 py-4">
         <h5 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Registered Environments</h5>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[1120px] text-sm">
-          <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
-            <tr>
-              <th class="px-5 py-3">Environment</th>
-              <th class="px-5 py-3">Transport</th>
-              <th class="px-5 py-3">Trust</th>
-              <th class="px-5 py-3">Certificate</th>
-              <th class="px-5 py-3">Test Result</th>
-              <th class="px-5 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="environment in environments" :key="environment.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
-              <td class="px-5 py-4">
-                <p class="font-medium text-white">{{ environment.name }}</p>
-                <p class="max-w-md truncate font-mono text-xs text-[#888]">{{ environment.managementUrl }}</p>
-                <div class="mt-2 flex gap-2">
-                  <Tag v-if="!environment.enabled" value="Disabled" severity="warn" />
-                  <Tag v-if="environment.accessTokenConfigured" value="Token" severity="secondary" />
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <p class="text-[#d4d4d8]">{{ transportLabel(environment.transport) }}</p>
-                <p v-if="environment.transport === EnvironmentTransport.AGENT" class="font-mono text-xs text-[#888]">
-                  {{ environment.agentName || `agent #${environment.agentId.toString()}` }}
-                  <span :class="environment.agentConnected ? 'text-green-400' : 'text-amber-400'">
-                    {{ environment.agentConnected ? 'connected' : 'offline' }}
-                  </span>
-                </p>
-              </td>
-              <td class="px-5 py-4">
-                <Tag :value="trustLabel(environment.trustState)" :severity="trustSeverity(environment.trustState)" />
-              </td>
-              <td class="px-5 py-4">
-                <div class="grid max-w-[18rem] gap-1.5">
-                  <p class="truncate text-xs text-[#d4d4d8]" :title="certificateSubject(certificateForEnvironment(environment))">
-                    {{ certificateSubject(certificateForEnvironment(environment)) }}
-                  </p>
-                  <code
-                    class="inline-flex max-w-full rounded border border-[#333] bg-[#050505] px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-[#d4d4d8]"
-                    :title="certificateFingerprintForEnvironment(environment) || 'No certificate discovered'"
-                  >
-                    <span class="truncate">{{ formatFingerprint(certificateFingerprintForEnvironment(environment)) }}</span>
-                  </code>
-                  <p class="text-xs text-[#888]">
-                    Expires {{ formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis) }}
-                  </p>
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <div class="grid max-w-xs gap-1.5" aria-live="polite">
-                  <Tag :value="testResultLabel(environment)" :severity="testResultSeverity(environment)" />
-                  <p class="font-mono text-xs text-[#d4d4d8]">
-                    {{ formatDate(testResultCheckedAt(environment)) }}
-                  </p>
-                  <p
-                    v-if="testResultMessage(environment)"
-                    class="truncate text-xs"
-                    :class="testResultState(environment) === 'error' ? 'text-red-400' : 'text-[#888]'"
-                    :title="testResultMessage(environment)"
-                  >
-                    {{ testResultMessage(environment) }}
-                  </p>
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex justify-end gap-2">
-                  <SecondaryButton size="small" aria-label="Discover certificate" title="Discover certificate" :disabled="Boolean(busyDisabledReason)" @click="discoverCertificate(environment)">
-                    <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <SecondaryButton size="small" aria-label="Trust certificate" title="Trust certificate" :disabled="Boolean(busyDisabledReason) || !environment.observedCertificate?.sha256Fingerprint" @click="trustCertificate(environment)">
-                    <template #icon><CheckIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <DisabledHint
-                    :disabled="Boolean(testEnvironmentDisabledReason(environment))"
-                    :reason="testEnvironmentDisabledReason(environment)"
-                  >
-                    <SecondaryButton
-                      size="small"
-                      :label="isEnvironmentTesting(environment) ? 'Testing' : 'Test'"
-                      :loading="isEnvironmentTesting(environment)"
-                      :disabled="Boolean(testEnvironmentDisabledReason(environment))"
-                      @click="testEnvironment(environment)"
-                    />
-                  </DisabledHint>
-                  <SecondaryButton size="small" aria-label="Edit environment" title="Edit environment" :disabled="Boolean(busyDisabledReason)" @click="openEditEnvironment(environment)">
-                    <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <DangerButton size="small" aria-label="Delete environment" title="Delete environment" :disabled="Boolean(busyDisabledReason)" @click="deleteEnvironment(environment)">
-                    <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                  </DangerButton>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!environments.length">
-              <td colspan="6" class="px-5 py-10 text-center text-sm text-[#888]">No remote environments registered.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <NDataTable
+        :columns="environmentColumns"
+        :data="environments"
+        :row-key="environmentRowKey"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="1120"
+        size="small"
+      />
     </section>
 
-    <Modal v-model="isEnvironmentModalOpen" :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'" max-width="42rem">
-      <form class="grid gap-4" @submit.prevent="submitEnvironment">
+    <NModal
+      v-model:show="isEnvironmentModalOpen"
+      preset="card"
+      :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'"
+      :style="modalCardStyle('42rem')"
+      :bordered="false"
+    >
+      <form class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1" @submit.prevent="submitEnvironment">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Name
-          <input v-model="environmentForm.name" class="app-control text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="environmentForm.name" size="small" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Management URL
-          <input v-model="environmentForm.managementUrl" class="app-control text-sm normal-case tracking-normal" placeholder="https://proxy.example.com:8081" required />
+          <NInput v-model:value="environmentForm.managementUrl" size="small" placeholder="https://proxy.example.com:8081" required />
         </label>
         <div class="grid gap-2 text-xs font-medium uppercase tracking-wider text-[#888]">
           Transport
-          <div class="inline-flex w-fit rounded-md border border-[#333] bg-[#050505] p-1">
-            <button
-              type="button"
-              class="rounded px-3 py-1.5 text-sm normal-case tracking-normal"
-              :class="environmentForm.transport === EnvironmentTransport.DIRECT ? 'bg-white text-black' : 'text-[#888]'"
-              @click="environmentForm.transport = EnvironmentTransport.DIRECT"
+          <NButtonGroup class="w-fit" size="small">
+            <NButton
+              v-for="option in environmentTransportOptions"
+              :key="option.value"
+              attr-type="button"
+              :type="environmentForm.transport === option.value ? 'primary' : 'default'"
+              @click="environmentForm.transport = option.value"
             >
-              Direct
-            </button>
-            <button
-              type="button"
-              class="rounded px-3 py-1.5 text-sm normal-case tracking-normal"
-              :class="environmentForm.transport === EnvironmentTransport.AGENT ? 'bg-white text-black' : 'text-[#888]'"
-              @click="environmentForm.transport = EnvironmentTransport.AGENT"
-            >
-              Agent
-            </button>
-          </div>
+              {{ option.label }}
+            </NButton>
+          </NButtonGroup>
         </div>
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Local Agent
-          <select v-model="environmentForm.agentId" class="app-control text-sm normal-case tracking-normal" required>
-            <option value="" disabled>Select agent</option>
-            <option v-for="agent in enabledLocalAgents" :key="agent.id.toString()" :value="agent.id.toString()">
-              {{ agent.name }}{{ agent.connected ? '' : ' (offline)' }}
-            </option>
-          </select>
+          <NSelect v-model:value="environmentForm.agentId" size="small" :options="localAgentOptions" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Access Token
-          <input
-            v-model="environmentForm.accessToken"
-            class="app-control text-sm normal-case tracking-normal"
+          <NInput
+            v-model:value="environmentForm.accessToken"
+            size="small"
             :placeholder="environmentForm.id ? 'Leave blank to keep existing token' : 'p2pat_...'"
             :required="!environmentForm.id"
           />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Response Header Timeout
-          <input v-model.number="environmentForm.responseHeaderTimeoutMillis" type="number" min="1000" max="300000" class="app-control text-sm normal-case tracking-normal" required />
+          <NInputNumber v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
         </label>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="environmentForm.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="environmentForm.enabled">
           Enabled
-        </label>
+        </NCheckbox>
         <div class="mt-4 flex justify-end gap-3">
-          <SecondaryButton type="button" label="Cancel" @click="isEnvironmentModalOpen = false" />
-          <Button :label="environmentForm.id ? 'Save Changes' : 'Create Environment'" type="submit" :disabled="Boolean(busyDisabledReason)" />
+          <NButton secondary attr-type="button" @click="isEnvironmentModalOpen = false">Cancel</NButton>
+          <NButton type="primary" attr-type="submit" :disabled="Boolean(busyDisabledReason)">
+            {{ environmentForm.id ? 'Save Changes' : 'Create Environment' }}
+          </NButton>
         </div>
       </form>
-    </Modal>
-    <Modal :model-value="Boolean(certificateTrustEnvironment)" title="Trust Certificate" max-width="34rem" @update:model-value="closeTrustCertificateModal">
+    </NModal>
+    <NModal
+      :show="Boolean(certificateTrustEnvironment)"
+      preset="card"
+      title="Trust Certificate"
+      :style="modalCardStyle('34rem')"
+      :bordered="false"
+      @update:show="handleTrustModalUpdate"
+    >
       <div class="grid gap-5">
         <div class="rounded-md border border-[#333] bg-[#050505] p-4">
           <div class="grid gap-4">
@@ -616,20 +680,17 @@ function messageFromError(err: unknown): string {
           </div>
         </div>
         <div class="flex justify-end gap-3">
-          <SecondaryButton type="button" label="Cancel" @click="closeTrustCertificateModal" />
-          <Button
-            type="button"
-            label="Trust Certificate"
+          <NButton secondary attr-type="button" @click="closeTrustCertificateModal">Cancel</NButton>
+          <NButton
+            type="primary"
+            attr-type="button"
             :disabled="Boolean(busyDisabledReason) || !certificateTrustFingerprint"
             @click="confirmTrustCertificate"
-          />
+          >
+            Trust Certificate
+          </NButton>
         </div>
       </div>
-    </Modal>
-    <ConfirmDialog
-      :state="confirmDialog.state"
-      @confirm="confirmDialog.handleConfirm"
-      @cancel="confirmDialog.handleCancel"
-    />
+    </NModal>
   </div>
 </template>

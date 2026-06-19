@@ -1,17 +1,12 @@
 <script setup lang="ts">
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
-import { NCard, NForm, NFormItem, NInput, NSelect, useMessage, useNotification } from "naive-ui";
+import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NSelect, NSkeleton, useMessage, useNotification } from "naive-ui";
 import { computed, onBeforeUnmount, onMounted, ref, provide, watch } from "vue";
 import { useRoute } from "vue-router";
 import { localManagementClient, managementClient, setActiveManagementClientBase } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/components/ui/Button.vue";
-import DangerButton from "@/components/ui/DangerButton.vue";
-import Message from "@/components/ui/Message.vue";
-import SecondaryButton from "@/components/ui/SecondaryButton.vue";
-import Skeleton from "@/components/ui/Skeleton.vue";
 import {
   EnvironmentTrustState,
   type Environment,
@@ -447,7 +442,8 @@ onBeforeUnmount(() => {
             </a>
             <ThemeToggle />
             <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
-              <SecondaryButton
+              <NButton
+                secondary
                 size="small"
                 :loading="isRefreshing"
                 :disabled="Boolean(refreshDisabledReason)"
@@ -458,15 +454,17 @@ onBeforeUnmount(() => {
                 <template #icon>
                   <RefreshIcon class="h-3.5 w-3.5" />
                 </template>
-              </SecondaryButton>
+              </NButton>
             </DisabledHint>
             <DisabledHint v-if="currentUser" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-              <SecondaryButton
-                label="Log out"
+              <NButton
+                secondary
                 size="small"
                 :disabled="Boolean(busyDisabledReason)"
                 @click="requestLogout"
-              />
+              >
+                Log out
+              </NButton>
             </DisabledHint>
           </div>
         </div>
@@ -488,17 +486,17 @@ onBeforeUnmount(() => {
     </header>
 
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <Message v-if="error" severity="error" class="mb-6">
+      <NAlert v-if="error" type="error" class="mb-6" :bordered="false">
         {{ error }}
-      </Message>
-      <Message v-if="selectedEnvironmentBlocked" severity="warn" class="mb-6">
+      </NAlert>
+      <NAlert v-if="selectedEnvironmentBlocked" type="warning" class="mb-6" :bordered="false">
         {{ selectedEnvironmentBlocked }}
-      </Message>
+      </NAlert>
 
       <div v-if="isLoading" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div v-for="i in 4" :key="i" class="app-card p-6">
-          <Skeleton width="40%" height="0.75rem" class="mb-3" />
-          <Skeleton width="70%" height="1.5rem" />
+          <NSkeleton text width="40%" height="0.75rem" class="mb-3" />
+          <NSkeleton text width="70%" height="1.5rem" />
         </div>
       </div>
 
@@ -515,7 +513,9 @@ onBeforeUnmount(() => {
                 <NInput v-model:value="setupForm.password" type="password" autocomplete="new-password" minlength="12" />
               </NFormItem>
             </NForm>
-            <Button label="Complete Setup" type="submit" class="mt-4 w-full" :loading="isBusy" />
+            <NButton type="primary" attr-type="submit" class="mt-4 w-full" :loading="isBusy">
+              Complete Setup
+            </NButton>
           </form>
         </NCard>
       </div>
@@ -545,7 +545,9 @@ onBeforeUnmount(() => {
                 <NInput v-model:value="loginForm.password" type="password" autocomplete="current-password" />
               </NFormItem>
             </NForm>
-            <Button label="Continue" type="submit" class="mt-4 w-full" :loading="isBusy" />
+            <NButton type="primary" attr-type="submit" class="mt-4 w-full" :loading="isBusy">
+              Continue
+            </NButton>
           </form>
         </NCard>
       </div>
@@ -580,19 +582,23 @@ onBeforeUnmount(() => {
 
         <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-            <SecondaryButton
-              label="Stay logged in"
+            <NButton
+              secondary
               :disabled="Boolean(busyDisabledReason)"
               @click="cancelLogout"
-            />
+            >
+              Stay logged in
+            </NButton>
           </DisabledHint>
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-            <DangerButton
-              label="Log out"
+            <NButton
+              type="error"
               :loading="isBusy"
               :disabled="Boolean(busyDisabledReason)"
               @click="confirmLogout"
-            />
+            >
+              Log out
+            </NButton>
           </DisabledHint>
         </div>
       </section>

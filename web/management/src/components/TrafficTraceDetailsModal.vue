@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import Modal from "@/components/ui/Modal.vue";
+import { NModal } from "naive-ui";
+import { modalCardStyle } from "@/lib/naiveUi";
 import type { TraceRequest } from "@/types/trafficTrace";
 import {
   PublicRateLimitAlgorithm,
@@ -143,7 +144,14 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 </script>
 
 <template>
-  <Modal v-model="isOpen" title="Trace details" max-width="52rem">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    title="Trace details"
+    :style="modalCardStyle('52rem')"
+    :bordered="false"
+    size="huge"
+  >
     <div v-if="request" class="space-y-6">
       <section class="grid gap-3 sm:grid-cols-2">
         <div class="trace-field sm:col-span-2">
@@ -308,7 +316,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
         </div>
       </section>
     </div>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>

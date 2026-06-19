@@ -1693,10 +1693,10 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
     />
 
     <div class="traffic-token-layer">
-      <button
+      <NButton
         v-for="view in tokenViews"
         :key="view.token.requestId"
-        type="button"
+        attr-type="button"
         class="traffic-token"
         :class="[view.colorClass, view.nearCache ? 'traffic-token-cache-near' : '']"
         :style="{
@@ -1708,7 +1708,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
       >
         <span class="traffic-token-halo" />
         <span class="traffic-token-dot" />
-      </button>
+      </NButton>
       <span
         v-for="pulse in cacheStorePulseViews"
         :key="pulse.id"

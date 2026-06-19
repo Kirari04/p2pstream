@@ -1,23 +1,9 @@
-import { reactive } from "vue";
-import { useDialog } from "naive-ui";
-
-export interface ConfirmDialogState {
-  open: boolean;
-  title: string;
-  description: string;
-  confirmLabel: string;
-  resolve: ((value: boolean) => void) | null;
-}
+import { useDialog, type DialogReactive } from "naive-ui";
 
 export function useConfirmDialog() {
   const dialog = useDialog();
-  const state = reactive<ConfirmDialogState>({
-    open: false,
-    title: "",
-    description: "",
-    confirmLabel: "Delete",
-    resolve: null,
-  });
+  let activeDialog: DialogReactive | null = null;
+  let activeResolve: ((value: boolean) => void) | null = null;
 
   function confirm(
     title: string,
@@ -29,10 +15,13 @@ export function useConfirmDialog() {
       const settle = (value: boolean) => {
         if (settled) return;
         settled = true;
+        activeDialog = null;
+        activeResolve = null;
         resolve(value);
       };
 
-      dialog.warning({
+      activeResolve = settle;
+      activeDialog = dialog.warning({
         title,
         content: description,
         positiveText: confirmLabel,
@@ -46,17 +35,12 @@ export function useConfirmDialog() {
     });
   }
 
-  function handleConfirm() {
-    state.resolve?.(true);
-    state.open = false;
-    state.resolve = null;
-  }
-
   function handleCancel() {
-    state.resolve?.(false);
-    state.open = false;
-    state.resolve = null;
+    activeDialog?.destroy();
+    activeResolve?.(false);
+    activeDialog = null;
+    activeResolve = null;
   }
 
-  return { state, confirm, handleConfirm, handleCancel };
+  return { confirm, handleCancel };
 }
