@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import BanIcon from "@primevue/icons/ban";
-import CheckIcon from "@primevue/icons/check";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import RefreshIcon from "@primevue/icons/refresh";
-import TimesIcon from "@primevue/icons/times";
-import TrashIcon from "@primevue/icons/trash";
-import WindowMaximizeIcon from "@primevue/icons/windowmaximize";
+import { computed, h, ref } from "vue";
+import { NButton, NDataTable, NTag } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
+import { Ban as BanIcon } from "@lucide/vue";
+import { Check as CheckIcon } from "@lucide/vue";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { X as TimesIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { Copy as WindowMaximizeIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
@@ -28,10 +29,7 @@ import {
   routeTargetSummary,
   severityForState,
 } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import { naiveTagType } from "@/lib/naiveUi";
 import {
   ProxyState,
   PublicRouteAction,
@@ -60,9 +58,136 @@ const routes = computed(() => config.value?.routes ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const runningListeners = computed(() => listeners.value.filter((listener) => listenerStatus(listener)?.running).length);
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
+const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
+  {
+    title: "Name",
+    key: "name",
+    minWidth: 180,
+    ellipsis: { tooltip: true },
+    render: (listener) => listener.name,
+  },
+  {
+    title: "Bind",
+    key: "bind",
+    minWidth: 180,
+    render: (listener) => h("span", { class: "font-mono text-xs" }, bindLabel(listener)),
+  },
+  {
+    title: "Protocol",
+    key: "protocol",
+    width: 120,
+    render: (listener) => protocolLabel(listener.protocol),
+  },
+  {
+    title: "Routes",
+    key: "routes",
+    width: 100,
+    render: (listener) => routes.value.filter((route) => route.listenerId === listener.id).length.toString(),
+  },
+  {
+    title: "State",
+    key: "state",
+    minWidth: 180,
+    render: (listener) => h("div", { class: "flex flex-col gap-1" }, [
+      h(
+        NTag,
+        {
+          size: "small",
+          bordered: false,
+          type: naiveTagType(listener.enabled ? severityForState(listenerRuntimeState(listener, listenerStatus(listener))) : "warn"),
+          class: "w-fit",
+        },
+        { default: () => listenerStateLabel(listener, listenerStatus(listener)) },
+      ),
+      listenerStatus(listener)?.lastError
+        ? h("span", { class: "max-w-[280px] truncate text-xs text-red-400" }, listenerStatus(listener)?.lastError)
+        : null,
+    ]),
+  },
+  {
+    title: "Actions",
+    key: "actions",
+    width: 220,
+    align: "right",
+    render: (listener) => h("div", { class: "flex justify-end gap-2" }, [
+      h(
+        DisabledHint,
+        { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value },
+        {
+          default: () => h(
+            NButton,
+            {
+              secondary: true,
+              size: "small",
+              "aria-label": listener.enabled ? "Disable listener" : "Enable listener",
+              title: listener.enabled ? "Disable listener" : "Enable listener",
+              disabled: Boolean(busyDisabledReason.value),
+              onClick: () => void setListenerEnabled(listener, !listener.enabled),
+            },
+            { icon: () => listener.enabled ? h(BanIcon, { class: "h-3.5 w-3.5" }) : h(CheckIcon, { class: "h-3.5 w-3.5" }) },
+          ),
+        },
+      ),
+      h(
+        DisabledHint,
+        { disabled: Boolean(listenerRunningDisabledReason(listener)), reason: listenerRunningDisabledReason(listener) },
+        {
+          default: () => h(
+            NButton,
+            {
+              secondary: true,
+              size: "small",
+              "aria-label": listenerStatus(listener)?.running ? "Stop listener" : "Start listener",
+              title: listenerStatus(listener)?.running ? "Stop listener" : "Start listener",
+              disabled: Boolean(listenerRunningDisabledReason(listener)),
+              onClick: () => void setListenerRunning(listener, !listenerStatus(listener)?.running),
+            },
+            { icon: () => listenerStatus(listener)?.running ? h(TimesIcon, { class: "h-3.5 w-3.5" }) : h(RefreshIcon, { class: "h-3.5 w-3.5" }) },
+          ),
+        },
+      ),
+      h(
+        DisabledHint,
+        { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value },
+        {
+          default: () => h(
+            NButton,
+            {
+              secondary: true,
+              size: "small",
+              "aria-label": "Edit listener",
+              title: "Edit listener",
+              disabled: Boolean(busyDisabledReason.value),
+              onClick: () => editListener(listener),
+            },
+            { icon: () => h(PencilIcon, { class: "h-3.5 w-3.5" }) },
+          ),
+        },
+      ),
+      h(
+        DisabledHint,
+        { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value },
+        {
+          default: () => h(
+            NButton,
+            {
+              type: "error",
+              size: "small",
+              "aria-label": "Delete listener",
+              title: "Delete listener",
+              disabled: Boolean(busyDisabledReason.value),
+              onClick: () => void deleteListener(listener.id),
+            },
+            { icon: () => h(TrashIcon, { class: "h-3.5 w-3.5" }) },
+          ),
+        },
+      ),
+    ]),
+  },
+]);
 
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
-const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
+const { confirm } = useConfirmDialog();
 
 const summaryCards = computed(() => [
   { label: "Listeners", value: listeners.value.length.toString(), detail: `${runningListeners.value.toString()} running` },
@@ -73,6 +198,16 @@ const summaryCards = computed(() => [
 
 function listenerStatus(listener: PublicListener) {
   return listenerStatuses.value.find((item) => item.listenerId === listener.id);
+}
+
+function listenerRowKey(listener: PublicListener): string {
+  return listener.id.toString();
+}
+
+function listenerRowProps(listener: PublicListener): Record<string, string> {
+  return {
+    "data-testid": `listener-row-${listener.id.toString()}`,
+  };
 }
 
 function listenerRunningDisabledReason(listener: PublicListener): string {
@@ -146,29 +281,33 @@ async function deleteRoute(id: bigint) {
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h3 class="mb-2 text-xl font-bold">Proxy</h3>
-        <p class="text-sm text-[#888]">Public listeners, routes, and route targets.</p>
+        <p class="text-sm text-[var(--app-text-muted)]">Public listeners, routes, and route targets.</p>
       </div>
       <div class="flex items-center gap-3">
-        <Tag :severity="proxySeverity" :value="proxyStateLabel(proxyState, status?.proxyRunning)" />
+        <NTag size="small" :bordered="false" :type="naiveTagType(proxySeverity)">
+          {{ proxyStateLabel(proxyState, status?.proxyRunning) }}
+        </NTag>
         <DisabledHint v-if="!proxyIsRunning" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-          <Button
-            label="Start Proxy"
+          <NButton
+            type="primary"
             :loading="isBusy && !proxyIsRunning"
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(true)"
           >
             <template #icon><PlusIcon class="h-4 w-4" /></template>
-          </Button>
+            Start Proxy
+          </NButton>
         </DisabledHint>
         <DisabledHint v-else :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-          <DangerButton
-            label="Stop Proxy"
+          <NButton
+            type="error"
             :loading="isBusy && proxyIsRunning"
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(false)"
           >
             <template #icon><BanIcon class="h-4 w-4" /></template>
-          </DangerButton>
+            Stop Proxy
+          </NButton>
         </DisabledHint>
       </div>
     </div>
@@ -178,100 +317,37 @@ async function deleteRoute(id: bigint) {
     </p>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
+      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
+        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
+        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
+        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+    <section class="app-card overflow-hidden">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Public Listeners</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Incoming endpoints where the proxy accepts connections.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Public Listeners</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Incoming endpoints where the proxy accepts connections.</p>
         </div>
-        <SecondaryButton size="small" label="Add Listener" @click="openAddListenerModal">
+        <NButton secondary size="small" @click="openAddListenerModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+          Add Listener
+        </NButton>
       </div>
-      <div class="overflow-x-auto">
-        <table v-if="listeners.length" class="w-full min-w-[900px] text-sm">
-          <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
-            <tr>
-              <th class="px-5 py-3">Name</th>
-              <th class="px-5 py-3">Bind</th>
-              <th class="px-5 py-3">Protocol</th>
-              <th class="px-5 py-3">Routes</th>
-              <th class="px-5 py-3">State</th>
-              <th class="px-5 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="listener in listeners" :key="listener.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
-              <td class="px-5 py-4 font-medium text-white">{{ listener.name }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ bindLabel(listener) }}</td>
-              <td class="px-5 py-4">{{ protocolLabel(listener.protocol) }}</td>
-              <td class="px-5 py-4 text-[#d4d4d8]">
-                {{ routes.filter((route) => route.listenerId === listener.id).length.toString() }}
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex flex-col gap-1">
-                  <Tag
-                    :severity="listener.enabled ? severityForState(listenerRuntimeState(listener, listenerStatus(listener))) : 'warn'"
-                    :value="listenerStateLabel(listener, listenerStatus(listener))"
-                    class="w-fit"
-                  />
-                  <span v-if="listenerStatus(listener)?.lastError" class="max-w-[280px] truncate text-xs text-red-400">
-                    {{ listenerStatus(listener)?.lastError }}
-                  </span>
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex justify-end gap-2">
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton
-                      size="small"
-                      :aria-label="listener.enabled ? 'Disable listener' : 'Enable listener'"
-                      :title="listener.enabled ? 'Disable listener' : 'Enable listener'"
-                      :disabled="Boolean(busyDisabledReason)"
-                      @click="setListenerEnabled(listener, !listener.enabled)"
-                    >
-                      <template #icon>
-                        <BanIcon v-if="listener.enabled" class="h-3.5 w-3.5" />
-                        <CheckIcon v-else class="h-3.5 w-3.5" />
-                      </template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <DisabledHint :disabled="Boolean(listenerRunningDisabledReason(listener))" :reason="listenerRunningDisabledReason(listener)">
-                    <SecondaryButton
-                      size="small"
-                      :aria-label="listenerStatus(listener)?.running ? 'Stop listener' : 'Start listener'"
-                      :title="listenerStatus(listener)?.running ? 'Stop listener' : 'Start listener'"
-                      :disabled="Boolean(listenerRunningDisabledReason(listener))"
-                      @click="setListenerRunning(listener, !listenerStatus(listener)?.running)"
-                    >
-                      <template #icon>
-                        <TimesIcon v-if="listenerStatus(listener)?.running" class="h-3.5 w-3.5" />
-                        <RefreshIcon v-else class="h-3.5 w-3.5" />
-                      </template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton size="small" aria-label="Edit listener" title="Edit listener" :disabled="Boolean(busyDisabledReason)" @click="editListener(listener)">
-                      <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <DangerButton size="small" aria-label="Delete listener" title="Delete listener" :disabled="Boolean(busyDisabledReason)" @click="deleteListener(listener.id)">
-                      <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                    </DangerButton>
-                  </DisabledHint>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div>
+        <NDataTable
+          v-if="listeners.length"
+          :columns="listenerColumns"
+          :data="listeners"
+          :row-key="listenerRowKey"
+          :row-props="listenerRowProps"
+          :pagination="false"
+          :bordered="false"
+          :single-line="false"
+          :scroll-x="900"
+          size="small"
+        />
         <EmptyState
           v-else
           title="No listeners configured"
@@ -282,45 +358,51 @@ async function deleteRoute(id: bigint) {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+    <section class="app-card overflow-hidden">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Routes</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Rules that match incoming requests to route targets.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Routes</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Rules that match incoming requests to route targets.</p>
         </div>
-        <SecondaryButton size="small" label="Add Route" @click="openAddRouteModal">
+        <NButton secondary size="small" @click="openAddRouteModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+          Add Route
+        </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="route in routes" :key="route.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
+        <div
+          v-for="route in routes"
+          :key="route.id.toString()"
+          :data-testid="`route-row-${route.id.toString()}`"
+          class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]"
+        >
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
               <span
                 v-if="routeAction(route) === PublicRouteAction.REDIRECT"
-                class="shrink-0 rounded border border-[#0f766e] px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-[#5eead4]"
+                class="shrink-0 rounded border border-[var(--app-accent)] px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-[var(--app-accent)]"
               >
                 Redirect
               </span>
             </div>
-            <p class="truncate font-mono text-xs text-[#888]">
+            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">
               {{ route.priority.toString() }} / {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
             </p>
-            <p class="truncate font-mono text-xs text-[#71717a]">
+            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">
               {{ routeTargetSummary(route) }}
             </p>
           </div>
           <div class="flex gap-2">
-            <SecondaryButton size="small" aria-label="Edit route" title="Edit route" @click="editRoute(route.id)">
+            <NButton secondary size="small" aria-label="Edit route" title="Edit route" @click="editRoute(route.id)">
               <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <SecondaryButton size="small" aria-label="Clone route" title="Clone route" @click="cloneRoute(route.id)">
+            </NButton>
+            <NButton secondary size="small" aria-label="Clone route" title="Clone route" @click="cloneRoute(route.id)">
               <template #icon><WindowMaximizeIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete route" title="Delete route" @click="deleteRoute(route.id)">
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete route" title="Delete route" @click="deleteRoute(route.id)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+            </NButton>
           </div>
         </div>
         <EmptyState
@@ -334,6 +416,5 @@ async function deleteRoute(id: bigint) {
     </section>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
-    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
   </div>
 </template>

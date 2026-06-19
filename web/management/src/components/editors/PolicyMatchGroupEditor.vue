@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NCheckbox, NInput, NSelect } from "naive-ui";
 import {
   PublicPolicyMatchBooleanOperator,
   PublicPolicyMatchConditionOperator,
@@ -28,6 +29,11 @@ withDefaults(defineProps<{
 const emit = defineEmits<{
   (event: "remove"): void;
 }>();
+
+const booleanOperatorOptions = [
+  { label: "All", value: PublicPolicyMatchBooleanOperator.ALL },
+  { label: "Any", value: PublicPolicyMatchBooleanOperator.ANY },
+];
 
 const fieldOptions = [
   { label: "Method", value: PublicPolicyMatchField.METHOD },
@@ -114,25 +120,21 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 <template>
   <div class="policy-match-group" :class="{ nested: !root }">
     <div class="builder-toolbar">
-      <select v-model="group.operator" class="vercel-input compact-select">
-        <option :value="PublicPolicyMatchBooleanOperator.ALL">All</option>
-        <option :value="PublicPolicyMatchBooleanOperator.ANY">Any</option>
-      </select>
-      <label class="negate-toggle">
-        <input v-model="group.negated" type="checkbox" />
+      <NSelect v-model:value="group.operator" class="compact-select" size="small" :options="booleanOperatorOptions" />
+      <NCheckbox v-model:checked="group.negated" class="negate-toggle">
         Not
-      </label>
-      <button type="button" class="tool-button" @click="addCondition(group)">
+      </NCheckbox>
+      <NButton secondary size="small" @click="addCondition(group)">
         <PlusIcon class="h-3.5 w-3.5" />
         <span>Condition</span>
-      </button>
-      <button type="button" class="tool-button" @click="addGroup(group)">
+      </NButton>
+      <NButton secondary size="small" @click="addGroup(group)">
         <PlusIcon class="h-3.5 w-3.5" />
         <span>Group</span>
-      </button>
-      <button v-if="!root" type="button" class="icon-button" aria-label="Remove group" title="Remove group" @click="emit('remove')">
-        <TrashIcon class="h-3.5 w-3.5" />
-      </button>
+      </NButton>
+      <NButton v-if="!root" type="error" size="small" aria-label="Remove group" title="Remove group" @click="emit('remove')">
+        <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+      </NButton>
     </div>
 
     <div class="condition-list">
@@ -146,26 +148,33 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
           'uses-values': conditionUsesValues(condition.operator),
         }"
       >
-        <select v-model="condition.field" class="vercel-input" @change="onFieldChange(condition)">
-          <option v-for="option in fieldOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
-        <input v-if="conditionNeedsName(condition.field)" v-model="condition.name" class="vercel-input" :placeholder="namePlaceholder(condition)" />
-        <select v-model="condition.operator" class="vercel-input operator-select" @change="onOperatorChange(condition)">
-          <option v-for="option in operatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
-        <textarea
+        <NSelect
+          :value="condition.field"
+          size="small"
+          :options="fieldOptions"
+          @update:value="(value) => { condition.field = Number(value) as PublicPolicyMatchField; onFieldChange(condition); }"
+        />
+        <NInput v-if="conditionNeedsName(condition.field)" v-model:value="condition.name" size="small" :placeholder="namePlaceholder(condition)" />
+        <NSelect
+          :value="condition.operator"
+          class="operator-select"
+          size="small"
+          :options="operatorOptions"
+          @update:value="(value) => { condition.operator = Number(value) as PublicPolicyMatchConditionOperator; onOperatorChange(condition); }"
+        />
+        <NInput
           v-if="conditionUsesValues(condition.operator)"
-          v-model="condition.valuesText"
-          class="vercel-input value-input"
+          v-model:value="condition.valuesText"
+          type="textarea"
+          class="value-input"
           :placeholder="valuePlaceholder(condition)"
         />
-        <label class="negate-toggle small condition-negate">
-          <input v-model="condition.negated" type="checkbox" />
+        <NCheckbox v-model:checked="condition.negated" class="negate-toggle small condition-negate">
           Not
-        </label>
-        <button type="button" class="icon-button" aria-label="Remove condition" title="Remove condition" @click="removeCondition(group, index)">
-          <TrashIcon class="h-3.5 w-3.5" />
-        </button>
+        </NCheckbox>
+        <NButton type="error" size="small" aria-label="Remove condition" title="Remove condition" @click="removeCondition(group, index)">
+          <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+        </NButton>
       </div>
     </div>
 
@@ -190,9 +199,9 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 }
 
 .policy-match-group.nested {
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #030303;
+  background: var(--app-panel-muted);
   padding: 0.75rem;
 }
 
@@ -211,7 +220,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 .tool-button,
 .icon-button {
   border-radius: 5px;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-size: 0.75rem;
   font-weight: 650;
   transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
@@ -222,16 +231,16 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   height: 2rem;
   align-items: center;
   gap: 0.4rem;
-  border: 1px solid #333;
-  background: #080808;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel-muted);
   padding: 0 0.65rem;
 }
 
 .tool-button:hover,
 .icon-button:hover {
-  border-color: #666;
-  background: #111;
-  color: #fff;
+  border-color: var(--app-border);
+  background: var(--app-panel-muted);
+  color: var(--app-text);
 }
 
 .condition-list {
@@ -268,7 +277,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-size: 0.78rem;
   min-height: 2.25rem;
 }
@@ -282,17 +291,17 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   width: 2.25rem;
   height: 2.25rem;
   place-items: center;
-  border: 1px solid #333;
-  background: #080808;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel-muted);
 }
 
 .empty-match {
   display: grid;
   min-height: 4.5rem;
   place-items: center;
-  border: 1px dashed #333;
+  border: 1px dashed var(--app-border);
   border-radius: 6px;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 

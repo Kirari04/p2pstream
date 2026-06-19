@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import RefreshIcon from "@primevue/icons/refresh";
-import TrashIcon from "@primevue/icons/trash";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal, NSelect, NTag, NUpload } from "naive-ui";
+import type { UploadFileInfo } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
@@ -26,11 +27,7 @@ import {
   tlsStatusSeverity,
   type TlsMethod,
 } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
 import {
   PublicAcmeCa,
   PublicAcmeChallengeType,
@@ -56,6 +53,10 @@ const manualTlsMaterialOptions: Array<{ value: ManualTlsMaterialMode; label: str
   { value: "generate", label: "Generate self-signed" },
   { value: "upload", label: "Upload PEM" },
 ];
+const acmeCaOptions = [
+  { label: "Let's Encrypt production", value: PublicAcmeCa.LETS_ENCRYPT_PRODUCTION },
+  { label: "Let's Encrypt staging", value: PublicAcmeCa.LETS_ENCRYPT_STAGING },
+];
 
 const {
   dashboard,
@@ -69,6 +70,19 @@ const listeners = computed(() => config.value?.listeners ?? []);
 const httpsListeners = computed(() => listeners.value.filter((listener) => listener.protocol === PublicListenerProtocol.HTTPS));
 const tlsCertificates = computed(() => config.value?.tlsCertificates ?? []);
 const tlsDnsCredentials = computed(() => config.value?.tlsDnsCredentials ?? []);
+const httpsListenerOptions = computed(() =>
+  httpsListeners.value.map((listener) => ({
+    label: listener.name,
+    value: listener.id.toString(),
+  })),
+);
+const dnsCredentialOptions = computed(() => [
+  { label: "Select credential", value: "" },
+  ...tlsDnsCredentials.value.map((credential) => ({
+    label: credential.name,
+    value: credential.id.toString(),
+  })),
+]);
 const certificateErrors = computed(() => tlsCertificates.value.filter((cert) => cert.status === PublicTlsCertificateStatus.ERROR || Boolean(cert.lastError)).length);
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
 
@@ -83,7 +97,7 @@ const isTlsModalOpen = ref(false);
 const isTlsCredentialModalOpen = ref(false);
 const tlsUploadError = ref("");
 const tlsCredentialError = ref("");
-const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
+const { confirm } = useConfirmDialog();
 
 const tlsForm = reactive({
   id: "",
@@ -215,10 +229,9 @@ function editTlsCredential(credential: PublicTlsDnsCredential) {
   isTlsCredentialModalOpen.value = true;
 }
 
-async function handleTlsFileChange(field: TlsFileField, event: Event) {
+async function handleTlsUploadChange(field: TlsFileField, options: { fileList: UploadFileInfo[] }) {
   tlsUploadError.value = "";
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
+  const file = options.fileList.at(-1)?.file ?? null;
   if (!file) {
     if (field === "cert") {
       tlsForm.certPem = null;
@@ -348,49 +361,57 @@ watch(tlsDnsCredentials, () => {
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h3 class="mb-2 text-xl font-bold">TLS</h3>
-        <p class="text-sm text-[#888]">HTTPS certificate mappings and DNS credentials.</p>
+        <p class="text-sm text-[var(--app-text-muted)]">HTTPS certificate mappings and DNS credentials.</p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <SecondaryButton size="small" label="Add DNS Credential" @click="openAddTlsCredentialModal">
+        <NButton secondary size="small" @click="openAddTlsCredentialModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
-        <SecondaryButton size="small" label="Add Certificate" @click="openAddTlsModal">
+          Add DNS Credential
+        </NButton>
+        <NButton secondary size="small" @click="openAddTlsModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+          Add Certificate
+        </NButton>
       </div>
     </div>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
+      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
+        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
+        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
+        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+    <section class="app-card overflow-hidden">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">TLS Certificates</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Certificates for HTTPS listeners.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">TLS Certificates</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Certificates for HTTPS listeners.</p>
         </div>
-        <SecondaryButton size="small" label="Add Certificate" @click="openAddTlsModal">
+        <NButton secondary size="small" @click="openAddTlsModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+          Add Certificate
+        </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="cert in tlsCertificates" :key="cert.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
+        <div
+          v-for="cert in tlsCertificates"
+          :key="cert.id.toString()"
+          :data-testid="`tls-row-${cert.id.toString()}`"
+          class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]"
+        >
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ listenerName(cert.listenerId, listeners) }} / {{ cert.hostnamePattern }}</p>
-              <Tag v-if="isDefaultSelfSignedCertificate(cert)" value="Self-signed" severity="info" />
-              <Tag v-else :value="tlsSourceLabel(cert)" severity="info" />
-              <Tag :value="tlsStatusLabel(cert)" :severity="tlsStatusSeverity(cert)" />
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ listenerName(cert.listenerId, listeners) }} / {{ cert.hostnamePattern }}</p>
+              <NTag v-if="isDefaultSelfSignedCertificate(cert)" size="small" :bordered="false" type="info">Self-signed</NTag>
+              <NTag v-else size="small" :bordered="false" type="info">{{ tlsSourceLabel(cert) }}</NTag>
+              <NTag size="small" :bordered="false" :type="naiveTagType(tlsStatusSeverity(cert))">{{ tlsStatusLabel(cert) }}</NTag>
             </div>
-            <p class="truncate text-xs text-[#888]">{{ tlsCertificateSummary(cert) }}</p>
-            <p v-if="tlsCertificateValiditySummary(cert)" class="truncate text-xs text-[#777]">{{ tlsCertificateValiditySummary(cert) }}</p>
-            <p v-if="tlsCertificateRenewalSummary(cert)" class="truncate text-xs text-[#666]">{{ tlsCertificateRenewalSummary(cert) }}</p>
-            <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="truncate text-xs text-[#666]">
+            <p class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateSummary(cert) }}</p>
+            <p v-if="tlsCertificateValiditySummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateValiditySummary(cert) }}</p>
+            <p v-if="tlsCertificateRenewalSummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateRenewalSummary(cert) }}</p>
+            <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="truncate text-xs text-[var(--app-text-muted)]">
               Cloudflare / {{ dnsCredentialName(cert.dnsCredentialId, tlsDnsCredentials) }}
             </p>
             <p v-if="cert.lastError" class="truncate text-xs text-red-400">{{ cert.lastError }}</p>
@@ -401,7 +422,8 @@ watch(tlsDnsCredentials, () => {
               :disabled="Boolean(busyDisabledReason)"
               :reason="busyDisabledReason"
             >
-              <SecondaryButton
+              <NButton
+                secondary
                 size="small"
                 aria-label="Renew TLS certificate"
                 title="Renew TLS certificate"
@@ -409,23 +431,23 @@ watch(tlsDnsCredentials, () => {
                 @click="renewTlsCertificate(cert.id)"
               >
                 <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
-              </SecondaryButton>
+              </NButton>
             </DisabledHint>
-            <SecondaryButton size="small" aria-label="Edit TLS mapping" title="Edit TLS mapping" @click="editTlsCertificate(cert.id)">
+            <NButton secondary size="small" aria-label="Edit TLS mapping" title="Edit TLS mapping" @click="editTlsCertificate(cert.id)">
               <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete TLS mapping" title="Delete TLS mapping" @click="deleteTlsCertificate(cert.id)">
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete TLS mapping" title="Delete TLS mapping" @click="deleteTlsCertificate(cert.id)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+            </NButton>
           </div>
         </div>
         <div v-if="httpsListeners.length && !tlsCertificates.length" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ httpsListeners[0]?.name ?? "HTTPS listener" }} / p2pstream.local</p>
-              <Tag value="Self-signed" severity="info" />
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ httpsListeners[0]?.name ?? "HTTPS listener" }} / p2pstream.local</p>
+              <NTag size="small" :bordered="false" type="info">Self-signed</NTag>
             </div>
-            <p class="truncate text-xs text-[#888]">Runtime fallback certificate</p>
+            <p class="truncate text-xs text-[var(--app-text-muted)]">Runtime fallback certificate</p>
           </div>
         </div>
         <EmptyState
@@ -436,33 +458,34 @@ watch(tlsDnsCredentials, () => {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+    <section class="app-card overflow-hidden">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">DNS Credentials</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Credentials used for DNS-01 certificate challenges.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">DNS Credentials</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Credentials used for DNS-01 certificate challenges.</p>
         </div>
-        <SecondaryButton size="small" label="Add DNS Credential" @click="openAddTlsCredentialModal">
+        <NButton secondary size="small" @click="openAddTlsCredentialModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+          Add DNS Credential
+        </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
         <div v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ credential.name }}</p>
-              <Tag value="Cloudflare" severity="info" />
-              <Tag v-if="!credential.enabled" value="Disabled" severity="warn" />
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ credential.name }}</p>
+              <NTag size="small" :bordered="false" type="info">Cloudflare</NTag>
+              <NTag v-if="!credential.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
             </div>
-            <p class="truncate font-mono text-xs text-[#888]">{{ credential.cloudflareZoneId }}</p>
+            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">{{ credential.cloudflareZoneId }}</p>
           </div>
           <div class="flex gap-2">
-            <SecondaryButton size="small" aria-label="Edit DNS credential" title="Edit DNS credential" @click="editTlsCredential(credential)">
+            <NButton secondary size="small" aria-label="Edit DNS credential" title="Edit DNS credential" @click="editTlsCredential(credential)">
               <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete DNS credential" title="Delete DNS credential" @click="deleteTlsCredential(credential.id)">
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete DNS credential" title="Delete DNS credential" @click="deleteTlsCredential(credential.id)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+            </NButton>
           </div>
         </div>
         <EmptyState
@@ -475,138 +498,142 @@ watch(tlsDnsCredentials, () => {
       </div>
     </section>
 
-    <Modal v-model="isTlsModalOpen" :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'" max-width="36rem">
-      <form @submit.prevent="submitTlsCertificate" class="grid gap-4">
-        <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+    <NModal
+      v-model:show="isTlsModalOpen"
+      preset="card"
+      :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'"
+      :style="modalCardStyle('36rem')"
+      :bordered="false"
+    >
+      <form class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1" @submit.prevent="submitTlsCertificate">
+        <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Method
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <button
+          <NButtonGroup class="grid grid-cols-2 gap-2 sm:grid-cols-4" size="small">
+            <NButton
               v-for="method in tlsMethodOptions"
               :key="method.value"
-              type="button"
-              class="rounded-md border px-2.5 py-2 text-xs font-semibold normal-case tracking-normal transition"
-              :class="tlsForm.method === method.value ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555]'"
+              attr-type="button"
+              :type="tlsForm.method === method.value ? 'primary' : 'default'"
               @click="tlsForm.method = method.value"
             >
               {{ method.label }}
-            </button>
-          </div>
+            </NButton>
+          </NButtonGroup>
         </div>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           HTTPS listener
-          <select v-model="tlsForm.listenerId" class="vercel-input text-sm normal-case tracking-normal" required>
-            <option v-for="listener in httpsListeners" :key="listener.id.toString()" :value="listener.id.toString()">{{ listener.name }}</option>
-          </select>
+          <NSelect v-model:value="tlsForm.listenerId" size="small" :options="httpsListenerOptions" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Hostname pattern
-          <input v-model="tlsForm.hostnamePattern" class="vercel-input text-sm normal-case tracking-normal" placeholder="app.example.com" required />
-          <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Exact domain or wildcard prefix (*.example.com).</p>
+          <NInput v-model:value="tlsForm.hostnamePattern" size="small" placeholder="app.example.com" required />
+          <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Exact domain or wildcard prefix (*.example.com).</p>
         </label>
         <div v-if="tlsForm.method !== 'manual'" class="grid gap-3">
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
               ACME email
-              <input v-model="tlsForm.acmeEmail" class="vercel-input text-sm normal-case tracking-normal" type="email" placeholder="admin@example.com" required />
-              <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Used for certificate expiration notices from Let's Encrypt.</p>
+              <NInput v-model:value="tlsForm.acmeEmail" size="small" type="text" placeholder="admin@example.com" required />
+              <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Used for certificate expiration notices from Let's Encrypt.</p>
             </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
               CA environment
-              <select v-model="tlsForm.acmeCa" class="vercel-input text-sm normal-case tracking-normal">
-                <option :value="PublicAcmeCa.LETS_ENCRYPT_PRODUCTION">Let's Encrypt production</option>
-                <option :value="PublicAcmeCa.LETS_ENCRYPT_STAGING">Let's Encrypt staging</option>
-              </select>
+              <NSelect v-model:value="tlsForm.acmeCa" size="small" :options="acmeCaOptions" />
             </label>
           </div>
-          <label v-if="tlsForm.method === 'dns_01'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="tlsForm.method === 'dns_01'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Cloudflare credential
-            <select v-model="tlsForm.dnsCredentialId" class="vercel-input text-sm normal-case tracking-normal" required>
-              <option value="">Select credential</option>
-              <option v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" :value="credential.id.toString()">{{ credential.name }}</option>
-            </select>
+            <NSelect v-model:value="tlsForm.dnsCredentialId" size="small" :options="dnsCredentialOptions" required />
           </label>
         </div>
         <div v-if="tlsForm.method === 'manual'" class="grid gap-3">
-          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Certificate material
-            <div class="grid grid-cols-2 gap-2">
-              <button
+            <NButtonGroup class="grid grid-cols-2 gap-2" size="small">
+              <NButton
                 v-for="option in manualTlsMaterialOptions"
                 :key="option.value"
-                type="button"
-                class="rounded-md border px-2.5 py-2 text-xs font-semibold normal-case tracking-normal transition"
-                :class="tlsForm.manualMode === option.value ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555]'"
+                attr-type="button"
+                :type="tlsForm.manualMode === option.value ? 'primary' : 'default'"
                 @click="tlsForm.manualMode = option.value"
               >
                 {{ option.label }}
-              </button>
-            </div>
+              </NButton>
+            </NButtonGroup>
           </div>
-          <label v-if="tlsForm.manualMode === 'generate'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="tlsForm.manualMode === 'generate'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Validity days
-            <input v-model.number="tlsForm.selfSignedValidityDays" class="vercel-input text-sm normal-case tracking-normal" type="number" min="1" max="3650" step="1" required />
+            <NInputNumber v-model:value="tlsForm.selfSignedValidityDays" size="small" :min="1" :max="3650" :step="1" required />
           </label>
           <div v-else class="grid gap-3 sm:grid-cols-2">
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
               Certificate file
-              <input
-                class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
-                type="file"
+              <NUpload
+                :default-upload="false"
+                :max="1"
                 accept=".pem,.crt,.cer"
-                :required="!tlsForm.id"
-                @change="handleTlsFileChange('cert', $event)"
-              />
-              <span v-if="tlsForm.certFileName" class="truncate text-xs normal-case tracking-normal text-[#d4d4d8]">{{ tlsForm.certFileName }}</span>
-            </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+                @change="handleTlsUploadChange('cert', $event)"
+              >
+                <NButton secondary size="small" attr-type="button">Choose certificate</NButton>
+              </NUpload>
+              <span v-if="tlsForm.certFileName" class="truncate text-xs normal-case tracking-normal text-[var(--app-text)]">{{ tlsForm.certFileName }}</span>
+            </div>
+            <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
               Private key file
-              <input
-                class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
-                type="file"
+              <NUpload
+                :default-upload="false"
+                :max="1"
                 accept=".pem,.key"
-                :required="!tlsForm.id"
-                @change="handleTlsFileChange('key', $event)"
-              />
-              <span v-if="tlsForm.keyFileName" class="truncate text-xs normal-case tracking-normal text-[#d4d4d8]">{{ tlsForm.keyFileName }}</span>
-            </label>
+                @change="handleTlsUploadChange('key', $event)"
+              >
+                <NButton secondary size="small" attr-type="button">Choose private key</NButton>
+              </NUpload>
+              <span v-if="tlsForm.keyFileName" class="truncate text-xs normal-case tracking-normal text-[var(--app-text)]">{{ tlsForm.keyFileName }}</span>
+            </div>
           </div>
         </div>
-        <p v-if="tlsForm.id && tlsForm.method === 'manual' && tlsForm.manualMode === 'upload'" class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs text-[#888]">
+        <p v-if="tlsForm.id && tlsForm.method === 'manual' && tlsForm.manualMode === 'upload'" class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 text-xs text-[var(--app-text-muted)]">
           Current certificate is stored in the app config directory.
         </p>
         <p v-if="tlsUploadError" class="rounded-md border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-400">
           {{ tlsUploadError }}
         </p>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8] mt-2">
-          <input v-model="tlsForm.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="tlsForm.enabled" class="mt-2">
           Enabled
-        </label>
+        </NCheckbox>
         <div class="mt-4 flex justify-end gap-3">
-          <SecondaryButton type="button" label="Cancel" @click="isTlsModalOpen = false" />
+          <NButton secondary attr-type="button" @click="isTlsModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsSubmitDisabledReason)" :reason="tlsSubmitDisabledReason">
-            <Button :label="tlsForm.id ? 'Save Changes' : 'Create TLS Mapping'" type="submit" :disabled="tlsSubmitDisabled" />
+            <NButton type="primary" attr-type="submit" :disabled="tlsSubmitDisabled">
+              {{ tlsForm.id ? 'Save Changes' : 'Create TLS Mapping' }}
+            </NButton>
           </DisabledHint>
         </div>
       </form>
-    </Modal>
+    </NModal>
 
-    <Modal v-model="isTlsCredentialModalOpen" :title="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'" max-width="32rem">
-      <form @submit.prevent="submitTlsCredential" class="grid gap-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+    <NModal
+      v-model:show="isTlsCredentialModalOpen"
+      preset="card"
+      :title="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'"
+      :style="modalCardStyle('32rem')"
+      :bordered="false"
+    >
+      <form class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1" @submit.prevent="submitTlsCredential">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Name
-          <input v-model="tlsCredentialForm.name" class="vercel-input text-sm normal-case tracking-normal" placeholder="cloudflare-prod" required />
+          <NInput v-model:value="tlsCredentialForm.name" size="small" placeholder="cloudflare-prod" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Cloudflare zone ID
-          <input v-model="tlsCredentialForm.cloudflareZoneId" class="vercel-input font-mono text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="tlsCredentialForm.cloudflareZoneId" size="small" class="font-mono" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           API token
-          <input
-            v-model="tlsCredentialForm.apiToken"
-            class="vercel-input text-sm normal-case tracking-normal"
+          <NInput
+            v-model:value="tlsCredentialForm.apiToken"
+            size="small"
             type="password"
-            autocomplete="new-password"
             :placeholder="tlsCredentialForm.apiTokenSaved ? 'Saved token' : 'Cloudflare API token'"
             :required="!tlsCredentialForm.id"
           />
@@ -614,19 +641,18 @@ watch(tlsDnsCredentials, () => {
         <p v-if="tlsCredentialError" class="rounded-md border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-400">
           {{ tlsCredentialError }}
         </p>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8] mt-2">
-          <input v-model="tlsCredentialForm.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="tlsCredentialForm.enabled" class="mt-2">
           Enabled
-        </label>
+        </NCheckbox>
         <div class="mt-4 flex justify-end gap-3">
-          <SecondaryButton type="button" label="Cancel" @click="isTlsCredentialModalOpen = false" />
+          <NButton secondary attr-type="button" @click="isTlsCredentialModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsCredentialSubmitDisabledReason)" :reason="tlsCredentialSubmitDisabledReason">
-            <Button :label="tlsCredentialForm.id ? 'Save Credential' : 'Create Credential'" type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)" />
+            <NButton type="primary" attr-type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)">
+              {{ tlsCredentialForm.id ? 'Save Credential' : 'Create Credential' }}
+            </NButton>
           </DisabledHint>
         </div>
       </form>
-    </Modal>
-
-    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
+    </NModal>
   </div>
 </template>

@@ -130,8 +130,8 @@ function editorExtensions(): Extension[] {
     EditorView.theme({
       "&": {
         minHeight: "22rem",
-        backgroundColor: "#030303",
-        color: "#ededed",
+        backgroundColor: "var(--app-panel-muted)",
+        color: "var(--app-text)",
         fontFamily: "var(--font-mono)",
         fontSize: "13px",
       },
@@ -140,31 +140,31 @@ function editorExtensions(): Extension[] {
         fontFamily: "var(--font-mono)",
       },
       ".cm-gutters": {
-        backgroundColor: "#050505",
-        color: "#666",
-        borderRight: "1px solid #222",
+        backgroundColor: "var(--app-panel-muted)",
+        color: "var(--app-text-muted)",
+        borderRight: "1px solid var(--app-border)",
       },
       ".cm-activeLine": {
-        backgroundColor: "#0c0c0c",
+        backgroundColor: "var(--app-panel)",
       },
       ".cm-activeLineGutter": {
-        backgroundColor: "#101010",
-        color: "#aaa",
+        backgroundColor: "var(--app-panel-muted)",
+        color: "var(--app-text-muted)",
       },
       ".cm-cursor": {
-        borderLeftColor: "#fff",
+        borderLeftColor: "var(--app-accent)",
       },
       ".cm-selectionBackground": {
-        backgroundColor: "#334155 !important",
+        backgroundColor: "var(--app-accent-soft) !important",
       },
       ".cm-tooltip": {
-        backgroundColor: "#080808",
-        border: "1px solid #333",
-        color: "#ededed",
+        backgroundColor: "var(--app-panel-muted)",
+        border: "1px solid var(--app-border)",
+        color: "var(--app-text)",
       },
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
-        backgroundColor: "#fff",
-        color: "#000",
+        backgroundColor: "var(--app-panel)",
+        color: "var(--app-text)",
       },
     }, { dark: true }),
     EditorView.updateListener.of((update) => {
@@ -312,18 +312,18 @@ onBeforeUnmount(() => {
 
 .placeholder-chip,
 .placeholder-muted {
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 5px;
   padding: 0.25rem 0.45rem;
-  color: #a1a1aa;
+  color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.7rem;
   line-height: 1.15;
 }
 
 .placeholder-chip.required {
-  border-color: #4b5563;
-  color: #f4f4f5;
+  border-color: var(--app-border);
+  color: var(--app-text);
 }
 
 .placeholder-muted {
@@ -345,9 +345,9 @@ onBeforeUnmount(() => {
 .preview-pane {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #030303;
+  background: var(--app-panel-muted);
 }
 
 .codemirror-host {
@@ -363,9 +363,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--app-border);
   padding: 0.55rem 0.75rem;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -376,17 +376,17 @@ onBeforeUnmount(() => {
   min-height: 22rem;
   width: 100%;
   border: 0;
-  background: #fff;
+  background: var(--app-panel);
 }
 
 .validation-strip {
   display: grid;
   gap: 0.35rem;
-  border: 1px solid #3f3220;
+  border: 1px solid color-mix(in srgb, var(--app-warning) 36%, var(--app-border));
   border-radius: 6px;
-  background: #140f06;
+  background: color-mix(in srgb, var(--app-warning) 9%, var(--app-panel));
   padding: 0.6rem 0.75rem;
-  color: #facc15;
+  color: var(--app-warning);
   font-size: 0.78rem;
   line-height: 1.45;
 }

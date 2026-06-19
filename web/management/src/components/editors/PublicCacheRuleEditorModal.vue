@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { NButton, NCheckbox, NDynamicTags, NInput, NInputNumber, NModal, NRadioButton, NRadioGroup, NSelect, NTransfer } from "naive-ui";
+import type { TransferOption } from "naive-ui";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -14,8 +15,6 @@ import {
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
 import { cacheScopeLabel, routeDestinationLabel, routeTargetName, routeTargetTypeLabel } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import Modal from "@/volt/Modal.vue";
 import {
   PublicCacheQueryMode,
   PublicCacheScope,
@@ -28,6 +27,10 @@ import {
 const managementClient = useManagementClient();
 
 type Runner = (action: () => Promise<void>) => Promise<boolean>;
+type CacheTransferOption = TransferOption & {
+  searchText: string;
+};
+type DynamicTagValue = string | { label: string; value?: string };
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -45,8 +48,6 @@ const rules = computed(() => props.config?.cacheRules ?? []);
 const routes = computed(() => props.config?.routes ?? []);
 const routeTargets = computed(() => props.config?.routeTargets ?? []);
 const proxyTargets = computed(() => routeTargets.value.filter((target) => target.targetType !== 2));
-const routeFilterText = ref("");
-const targetFilterText = ref("");
 
 const maxCacheListItems = 64;
 const defaultVaryHeaders = ["Accept-Encoding"];
@@ -89,23 +90,27 @@ const queryModeOptions = [
 ];
 
 const queryParamsEditorVisible = computed(() => queryModeUsesParams(form.queryMode));
-const filteredRoutes = computed(() => {
-  const needle = routeFilterText.value.trim().toLowerCase();
-  if (!needle) return routes.value;
-  return routes.value.filter((route) => routeSearchText(route).includes(needle));
-});
-const filteredProxyTargets = computed(() => {
-  const needle = targetFilterText.value.trim().toLowerCase();
-  if (!needle) return proxyTargets.value;
-  return proxyTargets.value.filter((target) => targetSearchText(target).includes(needle));
-});
-const canSelectVisibleRoutes = computed(() =>
-  form.routeIds.length < maxCacheListItems &&
-  filteredRoutes.value.some((route) => !isRouteSelected(route.id)),
+const routeTransferOptions = computed<CacheTransferOption[]>(() =>
+  routes.value.map((route) => {
+    const value = route.id.toString();
+    return {
+      label: `${routeLabel(route)} - ${routeDetail(route)}`,
+      value,
+      searchText: routeSearchText(route),
+      disabled: !form.routeIds.includes(value) && form.routeIds.length >= maxCacheListItems,
+    };
+  }),
 );
-const canSelectVisibleTargets = computed(() =>
-  form.targetIds.length < maxCacheListItems &&
-  filteredProxyTargets.value.some((target) => !isTargetSelected(target.id)),
+const targetTransferOptions = computed<CacheTransferOption[]>(() =>
+  proxyTargets.value.map((target) => {
+    const value = target.id.toString();
+    return {
+      label: `#${target.id.toString()} ${routeTargetName(target)} - ${targetDetail(target)}`,
+      value,
+      searchText: targetSearchText(target),
+      disabled: !form.targetIds.includes(value) && form.targetIds.length >= maxCacheListItems,
+    };
+  }),
 );
 const routeSelectionSummary = computed(() => form.routeIds.length ? `${form.routeIds.length.toString()} selected` : "All routes");
 const targetSelectionSummary = computed(() => form.targetIds.length ? `${form.targetIds.length.toString()} selected` : "All proxy targets");
@@ -175,8 +180,6 @@ function resetForm() {
   form.addCacheStatusHeader = true;
   form.allowCookieRequests = false;
   form.allowCookieRequestsAcknowledged = false;
-  routeFilterText.value = "";
-  targetFilterText.value = "";
 }
 
 function openCreate() {
@@ -206,8 +209,6 @@ function openEdit(ruleId: bigint | string) {
   form.addCacheStatusHeader = rule.addCacheStatusHeader;
   form.allowCookieRequests = rule.allowCookieRequests;
   form.allowCookieRequestsAcknowledged = rule.allowCookieRequests;
-  routeFilterText.value = "";
-  targetFilterText.value = "";
   isOpen.value = true;
 }
 
@@ -224,19 +225,6 @@ function nextRuleName(): string {
 
 function queryModeUsesParams(mode: PublicCacheQueryMode): boolean {
   return mode === PublicCacheQueryMode.ALLOWLIST || mode === PublicCacheQueryMode.DENYLIST;
-}
-
-function queryModeDescription(mode: PublicCacheQueryMode): string {
-  switch (mode) {
-    case PublicCacheQueryMode.IGNORE:
-      return "Path-only cache key";
-    case PublicCacheQueryMode.ALLOWLIST:
-      return "Only listed params";
-    case PublicCacheQueryMode.DENYLIST:
-      return "Exclude listed params";
-    default:
-      return "Complete query string";
-  }
 }
 
 function routeLabel(route: PublicRoute): string {
@@ -259,80 +247,39 @@ function targetSearchText(target: PublicRouteTarget): string {
   return `#${target.id.toString()} ${routeTargetName(target)} ${targetDetail(target)}`.toLowerCase();
 }
 
-function isRouteSelected(id: bigint | string): boolean {
-  return form.routeIds.includes(id.toString());
+function transferFilter(pattern: string, option: TransferOption): boolean {
+  const candidate = option as CacheTransferOption;
+  const needle = pattern.trim().toLowerCase();
+  if (!needle) return true;
+  return candidate.searchText.includes(needle) || String(candidate.label).toLowerCase().includes(needle);
 }
 
-function isTargetSelected(id: bigint | string): boolean {
-  return form.targetIds.includes(id.toString());
+function updateRouteIds(value: Array<string | number>) {
+  form.routeIds = value.map(String);
 }
 
-function toggleSelection(values: string[], id: bigint | string) {
-  const idString = id.toString();
-  const index = values.indexOf(idString);
-  if (index >= 0) {
-    values.splice(index, 1);
-    return;
-  }
-  if (values.length < maxCacheListItems) values.push(idString);
+function updateTargetIds(value: Array<string | number>) {
+  form.targetIds = value.map(String);
 }
 
-function toggleRoute(id: bigint | string) {
-  toggleSelection(form.routeIds, id);
+function dynamicTagToString(tag: DynamicTagValue): string {
+  return typeof tag === "string" ? tag : tag.value ?? tag.label;
 }
 
-function toggleTarget(id: bigint | string) {
-  toggleSelection(form.targetIds, id);
+function createTrimmedTag(label: string): string {
+  return label.trim();
 }
 
-function selectVisibleRoutes() {
-  const selected = new Set(form.routeIds);
-  for (const route of filteredRoutes.value) {
-    if (selected.size >= maxCacheListItems) break;
-    selected.add(route.id.toString());
-  }
-  form.routeIds = [...selected];
+function updateQueryParams(value: DynamicTagValue[]) {
+  form.queryParams = value.map(dynamicTagToString);
 }
 
-function selectVisibleTargets() {
-  const selected = new Set(form.targetIds);
-  for (const target of filteredProxyTargets.value) {
-    if (selected.size >= maxCacheListItems) break;
-    selected.add(target.id.toString());
-  }
-  form.targetIds = [...selected];
+function updateVaryHeaders(value: DynamicTagValue[]) {
+  form.varyHeaders = value.map(dynamicTagToString);
 }
 
-function clearRoutes() {
-  form.routeIds = [];
-}
-
-function clearTargets() {
-  form.targetIds = [];
-}
-
-function addQueryParam() {
-  if (form.queryParams.length < maxCacheListItems) form.queryParams.push("");
-}
-
-function removeQueryParam(index: number) {
-  form.queryParams.splice(index, 1);
-}
-
-function addVaryHeader() {
-  if (form.varyHeaders.length < maxCacheListItems) form.varyHeaders.push("");
-}
-
-function removeVaryHeader(index: number) {
-  form.varyHeaders.splice(index, 1);
-}
-
-function addCacheStatusCode() {
-  if (form.cacheStatusCodes.length < maxCacheListItems) form.cacheStatusCodes.push("");
-}
-
-function removeCacheStatusCode(index: number) {
-  form.cacheStatusCodes.splice(index, 1);
+function updateCacheStatusCodes(value: DynamicTagValue[]) {
+  form.cacheStatusCodes = value.map(dynamicTagToString);
 }
 
 function normalizeUniqueStrings(values: readonly string[]): string[] {
@@ -475,71 +422,75 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'" max-width="64rem">
-    <form class="grid gap-5" @submit.prevent="submitRule">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'"
+    :style="modalCardStyle('64rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Priority
-          <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
+          <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="form.enabled" class="self-end">
           Enabled
-        </label>
+        </NCheckbox>
       </section>
 
       <PublicPolicyMatchEditor :form="form.match" />
 
-      <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Cache behavior</h4>
-        <p class="text-xs leading-5 text-[#777]">
+      <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text)]">Cache behavior</h4>
+        <p class="text-xs leading-5 text-[var(--app-text-muted)]">
           Authorization requests are always bypassed. Cookie requests are cached only when this rule allows them. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
-        <label class="flex items-start gap-3 rounded-md border border-[#222] bg-[#050505] p-3 text-sm text-[#d4d4d8]">
-          <input v-model="form.allowCookieRequests" type="checkbox" class="mt-0.5" />
+        <NCheckbox v-model:checked="form.allowCookieRequests" class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
           <span class="grid gap-1">
-            <span class="font-medium text-white">Cache requests with Cookie headers</span>
-            <span class="text-xs leading-5 text-[#777]">
+            <span class="font-medium text-[var(--app-text)]">Cache requests with Cookie headers</span>
+            <span class="text-xs leading-5 text-[var(--app-text-muted)]">
               Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
             </span>
           </span>
-        </label>
-        <label v-if="form.allowCookieRequests" class="flex items-start gap-3 rounded-md border border-[#333] bg-black p-3 text-sm text-[#d4d4d8]">
-          <input v-model="form.allowCookieRequestsAcknowledged" type="checkbox" class="mt-0.5" />
+        </NCheckbox>
+        <NCheckbox
+          v-if="form.allowCookieRequests"
+          v-model:checked="form.allowCookieRequestsAcknowledged"
+          class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] p-3"
+        >
           <span class="grid gap-1">
-            <span class="font-medium text-white">I understand Cookie is ignored in this cache key</span>
-            <span class="text-xs leading-5 text-[#777]">
+            <span class="font-medium text-[var(--app-text)]">I understand Cookie is ignored in this cache key</span>
+            <span class="text-xs leading-5 text-[var(--app-text-muted)]">
               Only use this for responses that are identical for every visitor, even when the request includes cookies.
             </span>
           </span>
-        </label>
+        </NCheckbox>
         <div class="grid gap-4 sm:grid-cols-4">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             TTL mode
-            <select v-model="form.ttlMode" class="vercel-input text-sm normal-case tracking-normal">
-              <option v-for="option in ttlModeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
+            <NSelect v-model:value="form.ttlMode" size="small" :options="ttlModeOptions" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Default TTL minutes
-            <input v-model.number="form.ttlMinutes" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.ttlMinutes" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Scope
-            <select v-model="form.scope" class="vercel-input text-sm normal-case tracking-normal">
-              <option v-for="option in scopeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
+            <NSelect v-model:value="form.scope" size="small" :options="scopeOptions" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Max object MiB
-            <input v-model.number="form.maxObjectMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.maxObjectMiB" size="small" :min="1" />
           </label>
         </div>
-        <p class="text-xs leading-5 text-[#777]">
+        <p class="text-xs leading-5 text-[var(--app-text-muted)]">
           Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored, even when cookie requests are enabled above.
         </p>
       </section>
@@ -547,8 +498,8 @@ defineExpose({ openCreate, openEdit, close });
       <section class="cache-filter-section">
         <div class="cache-filter-header">
           <div>
-            <h4 class="text-sm font-semibold text-white">Keys and filters</h4>
-            <p class="mt-1 text-xs leading-5 text-[#777]">Empty route or target filters match every available target.</p>
+            <h4 class="text-sm font-semibold text-[var(--app-text)]">Keys and filters</h4>
+            <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">Empty route or target filters match every available target.</p>
           </div>
           <div class="cache-summary-chips" aria-label="Cache key summary">
             <span class="cache-summary-chip">{{ filterSelectionSummary }}</span>
@@ -566,40 +517,22 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Routes</p>
                 <h5 class="panel-heading">{{ routeSelectionSummary }}</h5>
               </div>
-              <button type="button" class="panel-link-button" :disabled="!form.routeIds.length" @click="clearRoutes">
-                Clear
-              </button>
-            </div>
-            <div class="target-toolbar">
-              <input v-model="routeFilterText" class="vercel-input target-search" placeholder="Filter routes" />
-              <button type="button" class="panel-action-button" :disabled="!canSelectVisibleRoutes" @click="selectVisibleRoutes">
-                Select visible
-              </button>
             </div>
             <p v-if="routeSelectionValidationReason" class="field-error">{{ routeSelectionValidationReason }}</p>
-            <div class="target-list" role="listbox" aria-label="Route filters">
-              <label
-                v-for="route in filteredRoutes"
-                :key="route.id.toString()"
-                class="target-row"
-                :class="{ 'target-row-selected': isRouteSelected(route.id) }"
-              >
-                <input
-                  type="checkbox"
-                  :checked="isRouteSelected(route.id)"
-                  :disabled="!isRouteSelected(route.id) && form.routeIds.length >= maxCacheListItems"
-                  :aria-label="`Filter cache rule to route ${routeLabel(route)}`"
-                  @change="toggleRoute(route.id)"
-                />
-                <span class="target-row-body">
-                  <span class="target-row-title">{{ routeLabel(route) }}</span>
-                  <span class="target-row-detail">{{ routeDetail(route) }}</span>
-                </span>
-              </label>
-              <div v-if="!filteredRoutes.length" class="target-empty">
-                {{ routes.length ? "No routes match the filter." : "No routes configured." }}
-              </div>
-            </div>
+            <NTransfer
+              :value="form.routeIds"
+              :options="routeTransferOptions"
+              source-title="Available routes"
+              target-title="Filtered routes"
+              select-all-text="Select available"
+              clear-text="Clear selected"
+              source-filterable
+              target-filterable
+              virtual-scroll
+              size="small"
+              :filter="transferFilter"
+              @update:value="updateRouteIds"
+            />
           </div>
 
           <div class="target-panel">
@@ -608,40 +541,22 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Targets</p>
                 <h5 class="panel-heading">{{ targetSelectionSummary }}</h5>
               </div>
-              <button type="button" class="panel-link-button" :disabled="!form.targetIds.length" @click="clearTargets">
-                Clear
-              </button>
-            </div>
-            <div class="target-toolbar">
-              <input v-model="targetFilterText" class="vercel-input target-search" placeholder="Filter targets" />
-              <button type="button" class="panel-action-button" :disabled="!canSelectVisibleTargets" @click="selectVisibleTargets">
-                Select visible
-              </button>
             </div>
             <p v-if="targetSelectionValidationReason" class="field-error">{{ targetSelectionValidationReason }}</p>
-            <div class="target-list" role="listbox" aria-label="Target filters">
-              <label
-                v-for="target in filteredProxyTargets"
-                :key="target.id.toString()"
-                class="target-row"
-                :class="{ 'target-row-selected': isTargetSelected(target.id) }"
-              >
-                <input
-                  type="checkbox"
-                  :checked="isTargetSelected(target.id)"
-                  :disabled="!isTargetSelected(target.id) && form.targetIds.length >= maxCacheListItems"
-                  :aria-label="`Filter cache rule to target ${routeTargetName(target)}`"
-                  @change="toggleTarget(target.id)"
-                />
-                <span class="target-row-body">
-                  <span class="target-row-title">{{ routeTargetName(target) }}</span>
-                  <span class="target-row-detail">{{ targetDetail(target) }}</span>
-                </span>
-              </label>
-              <div v-if="!filteredProxyTargets.length" class="target-empty">
-                {{ proxyTargets.length ? "No targets match the filter." : "No proxy targets configured." }}
-              </div>
-            </div>
+            <NTransfer
+              :value="form.targetIds"
+              :options="targetTransferOptions"
+              source-title="Available targets"
+              target-title="Filtered targets"
+              select-all-text="Select available"
+              clear-text="Clear selected"
+              source-filterable
+              target-filterable
+              virtual-scroll
+              size="small"
+              :filter="transferFilter"
+              @update:value="updateTargetIds"
+            />
           </div>
         </div>
 
@@ -650,21 +565,9 @@ defineExpose({ openCreate, openEdit, close });
             <p class="panel-eyebrow">Query mode</p>
             <h5 class="panel-heading">{{ queryModeSummary }}</h5>
           </div>
-          <div class="query-mode-grid" role="radiogroup" aria-label="Query cache key mode">
-            <button
-              v-for="option in queryModeOptions"
-              :key="option.value"
-              type="button"
-              class="query-mode-button"
-              :class="{ 'query-mode-button-active': form.queryMode === option.value }"
-              :aria-checked="form.queryMode === option.value"
-              role="radio"
-              @click="form.queryMode = option.value"
-            >
-              <span>{{ option.label }}</span>
-              <small>{{ queryModeDescription(option.value) }}</small>
-            </button>
-          </div>
+          <NRadioGroup v-model:value="form.queryMode" class="w-full" name="cache-query-mode" size="small">
+            <NRadioButton v-for="option in queryModeOptions" :key="option.value" :value="option.value" :label="option.label" />
+          </NRadioGroup>
         </div>
 
         <div v-if="queryParamsEditorVisible" class="value-editor">
@@ -673,30 +576,16 @@ defineExpose({ openCreate, openEdit, close });
               <p class="panel-eyebrow">Query params</p>
               <h5 class="panel-heading">{{ normalizedQueryParams.length.toString() }} active</h5>
             </div>
-            <button type="button" class="add-row-button" :disabled="form.queryParams.length >= maxCacheListItems" @click="addQueryParam">
-              <PlusIcon class="h-3.5 w-3.5" />
-              <span>Add param</span>
-            </button>
           </div>
           <p v-if="queryParamsValidationReason" class="field-error">{{ queryParamsValidationReason }}</p>
-          <div v-if="!form.queryParams.length" class="value-empty">
-            <p>No query parameters listed.</p>
-            <button type="button" @click="addQueryParam">
-              <PlusIcon class="h-3.5 w-3.5" />
-              <span>Add param</span>
-            </button>
-          </div>
-          <div v-else class="value-list">
-            <div v-for="(param, index) in form.queryParams" :key="`query-${index}`" class="value-row">
-              <div class="value-field">
-                <input v-model="form.queryParams[index]" class="vercel-input value-input" placeholder="version" />
-                <p v-if="queryParamError(param)" class="field-error">{{ queryParamError(param) }}</p>
-              </div>
-              <button type="button" class="remove-row-button" aria-label="Remove query parameter" title="Remove query parameter" @click="removeQueryParam(index)">
-                <TrashIcon class="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
+          <NDynamicTags
+            :value="form.queryParams"
+            size="small"
+            :max="maxCacheListItems"
+            :on-create="createTrimmedTag"
+            :input-props="{ placeholder: 'version' }"
+            @update:value="updateQueryParams"
+          />
         </div>
 
         <div class="value-editor-grid">
@@ -706,30 +595,16 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Vary headers</p>
                 <h5 class="panel-heading">{{ normalizedVaryHeaders.length.toString() }} active</h5>
               </div>
-              <button type="button" class="add-row-button" :disabled="form.varyHeaders.length >= maxCacheListItems" @click="addVaryHeader">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add header</span>
-              </button>
             </div>
             <p v-if="varyHeadersValidationReason" class="field-error">{{ varyHeadersValidationReason }}</p>
-            <div v-if="!form.varyHeaders.length" class="value-empty">
-              <p>No vary headers configured.</p>
-              <button type="button" @click="addVaryHeader">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add header</span>
-              </button>
-            </div>
-            <div v-else class="value-list">
-              <div v-for="(header, index) in form.varyHeaders" :key="`vary-${index}`" class="value-row">
-                <div class="value-field">
-                  <input v-model="form.varyHeaders[index]" class="vercel-input value-input" placeholder="Accept-Encoding" />
-                  <p v-if="varyHeaderError(header)" class="field-error">{{ varyHeaderError(header) }}</p>
-                </div>
-                <button type="button" class="remove-row-button" aria-label="Remove vary header" title="Remove vary header" @click="removeVaryHeader(index)">
-                  <TrashIcon class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+            <NDynamicTags
+              :value="form.varyHeaders"
+              size="small"
+              :max="maxCacheListItems"
+              :on-create="createTrimmedTag"
+              :input-props="{ placeholder: 'Accept-Encoding' }"
+              @update:value="updateVaryHeaders"
+            />
           </div>
 
           <div class="value-editor">
@@ -738,57 +613,44 @@ defineExpose({ openCreate, openEdit, close });
                 <p class="panel-eyebrow">Cache status codes</p>
                 <h5 class="panel-heading">{{ normalizedCacheStatusCodes.length.toString() }} active</h5>
               </div>
-              <button type="button" class="add-row-button" :disabled="form.cacheStatusCodes.length >= maxCacheListItems" @click="addCacheStatusCode">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add code</span>
-              </button>
             </div>
             <p v-if="cacheStatusCodesValidationReason" class="field-error">{{ cacheStatusCodesValidationReason }}</p>
-            <div v-if="!form.cacheStatusCodes.length" class="value-empty">
-              <p>No status codes configured.</p>
-              <button type="button" @click="addCacheStatusCode">
-                <PlusIcon class="h-3.5 w-3.5" />
-                <span>Add code</span>
-              </button>
-            </div>
-            <div v-else class="value-list">
-              <div v-for="(status, index) in form.cacheStatusCodes" :key="`status-${index}`" class="value-row">
-                <div class="value-field">
-                  <input v-model="form.cacheStatusCodes[index]" inputmode="numeric" class="vercel-input value-input" placeholder="200" />
-                  <p v-if="statusCodeError(status)" class="field-error">{{ statusCodeError(status) }}</p>
-                </div>
-                <button type="button" class="remove-row-button" aria-label="Remove status code" title="Remove status code" @click="removeCacheStatusCode(index)">
-                  <TrashIcon class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+            <NDynamicTags
+              :value="form.cacheStatusCodes"
+              size="small"
+              :max="maxCacheListItems"
+              :on-create="createTrimmedTag"
+              :input-props="{ placeholder: '200' }"
+              @update:value="updateCacheStatusCodes"
+            />
           </div>
         </div>
 
-        <label class="cache-status-toggle">
+        <NCheckbox v-model:checked="form.addCacheStatusHeader" class="cache-status-toggle">
           <span class="min-w-0">
             <span class="toggle-title">Expose cache status</span>
             <span class="toggle-detail">X-p2pstream-Cache response header</span>
           </span>
-          <input v-model="form.addCacheStatusHeader" type="checkbox" />
-        </label>
+        </NCheckbox>
       </section>
 
-      <div class="flex justify-end gap-3 border-t border-[#222] pt-4">
-        <Button type="button" severity="secondary" label="Cancel" @click="close" />
-        <Button type="submit" :label="form.id ? 'Save Rule' : 'Create Rule'" :disabled="submitDisabled" :title="submitDisabledReason" />
+      <div class="flex justify-end gap-3 border-t border-[var(--app-border)] pt-4">
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
+        <NButton type="primary" attr-type="submit" :disabled="submitDisabled" :title="submitDisabledReason">
+          {{ form.id ? 'Save Rule' : 'Create Rule' }}
+        </NButton>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>
 .cache-filter-section {
   display: grid;
   gap: 1rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 1rem;
 }
 
@@ -811,10 +673,10 @@ defineExpose({ openCreate, openEdit, close });
 
 .cache-summary-chip {
   min-height: 1.6rem;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #0b0b0b;
-  color: #c9c9cf;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   padding: 0.25rem 0.55rem;
   font-size: 0.68rem;
   font-weight: 650;
@@ -822,7 +684,12 @@ defineExpose({ openCreate, openEdit, close });
   white-space: nowrap;
 }
 
-.target-grid,
+.target-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
 .value-editor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -835,14 +702,14 @@ defineExpose({ openCreate, openEdit, close });
   display: grid;
   min-width: 0;
   gap: 0.75rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #080808;
+  background: var(--app-panel-muted);
   padding: 0.85rem;
 }
 
 .panel-eyebrow {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -853,7 +720,7 @@ defineExpose({ openCreate, openEdit, close });
 .panel-heading {
   margin-top: 0.18rem;
   overflow: hidden;
-  color: #fff;
+  color: var(--app-text);
   font-size: 0.92rem;
   font-weight: 650;
   line-height: 1.2;
@@ -861,236 +728,12 @@ defineExpose({ openCreate, openEdit, close });
   white-space: nowrap;
 }
 
-.target-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-}
-
-.target-search,
-.value-input {
-  min-width: 0;
-  height: 2.25rem;
-  font-size: 0.8rem;
-  letter-spacing: 0;
-  text-align: left;
-  text-transform: none;
-}
-
-.target-list {
-  min-height: 11rem;
-  max-height: 15rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid #202020;
-  border-radius: 6px;
-  background: #030303;
-}
-
-.target-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  min-height: 3.15rem;
-  align-items: center;
-  gap: 0.65rem;
-  border-bottom: 1px solid #151515;
-  padding: 0.55rem 0.65rem;
-  cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease;
-}
-
-.target-row:last-child {
-  border-bottom: 0;
-}
-
-.target-row:hover {
-  background: #0f0f0f;
-}
-
-.target-row-selected {
-  background: #111;
-}
-
-.target-row-body {
-  display: grid;
-  min-width: 0;
-  gap: 0.16rem;
-}
-
-.target-row-title,
-.target-row-detail {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.target-row-title {
-  color: #ededed;
-  font-size: 0.82rem;
-  font-weight: 650;
-}
-
-.target-row-detail {
-  color: #777;
-  font-size: 0.72rem;
-  line-height: 1.2;
-}
-
-.target-empty,
-.value-empty {
-  display: grid;
-  min-height: 8rem;
-  place-items: center;
-  align-content: center;
-  gap: 0.7rem;
-  color: #777;
-  font-size: 0.82rem;
-  text-align: center;
-}
-
-.panel-link-button,
-.panel-action-button,
-.add-row-button,
-.value-empty button {
-  display: inline-flex;
-  height: 2rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  border: 1px solid #333;
-  border-radius: 5px;
-  background: #050505;
-  color: #d4d4d8;
-  padding: 0 0.65rem;
-  font-size: 0.72rem;
-  font-weight: 650;
-  line-height: 1;
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
-  white-space: nowrap;
-}
-
-.panel-link-button {
-  border-color: transparent;
-  background: transparent;
-  color: #888;
-  padding-inline: 0.35rem;
-}
-
-.panel-link-button:not(:disabled):hover,
-.panel-action-button:not(:disabled):hover,
-.add-row-button:not(:disabled):hover,
-.value-empty button:hover {
-  border-color: #666;
-  background: #0f0f0f;
-  color: #fff;
-}
-
-.panel-link-button:not(:disabled):hover {
-  border-color: #333;
-}
-
-.panel-link-button:disabled,
-.panel-action-button:disabled,
-.add-row-button:disabled {
-  border-color: #202020;
-  color: #555;
-  cursor: not-allowed;
-}
-
 .query-mode-head {
   min-width: 0;
 }
 
-.query-mode-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.35rem;
-  border: 1px solid #333;
-  border-radius: 6px;
-  background: #050505;
-  padding: 0.25rem;
-}
-
-.query-mode-button {
-  display: grid;
-  min-width: 0;
-  min-height: 3.25rem;
-  align-content: center;
-  gap: 0.22rem;
-  border-radius: 4px;
-  color: #a1a1aa;
-  padding: 0.45rem 0.55rem;
-  text-align: left;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.query-mode-button span,
-.query-mode-button small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.query-mode-button span {
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.query-mode-button small {
-  color: inherit;
-  font-size: 0.68rem;
-  opacity: 0.68;
-}
-
-.query-mode-button:hover {
-  background: #141414;
-  color: #fff;
-}
-
-.query-mode-button-active {
-  background: #fff;
-  color: #000;
-}
-
-.value-list {
-  display: grid;
-  gap: 0.55rem;
-}
-
-.value-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.25rem;
-  gap: 0.5rem;
-  align-items: start;
-}
-
-.value-field {
-  display: grid;
-  min-width: 0;
-  gap: 0.3rem;
-}
-
-.remove-row-button {
-  display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #3f1d1d;
-  border-radius: 5px;
-  background: #100707;
-  color: #fca5a5;
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
-}
-
-.remove-row-button:hover {
-  border-color: #7f1d1d;
-  background: #1a0a0a;
-  color: #fecaca;
-}
-
 .field-error {
-  color: #fca5a5;
+  color: var(--app-error);
   font-size: 0.72rem;
   font-weight: 500;
   line-height: 1.35;
@@ -1102,9 +745,9 @@ defineExpose({ openCreate, openEdit, close });
   align-items: center;
   justify-content: space-between;
   gap: 0.85rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #080808;
+  background: var(--app-panel-muted);
   padding: 0.75rem 0.85rem;
   cursor: pointer;
 }
@@ -1118,14 +761,14 @@ defineExpose({ openCreate, openEdit, close });
 }
 
 .toggle-title {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.86rem;
   font-weight: 650;
 }
 
 .toggle-detail {
   margin-top: 0.15rem;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
 }
 
@@ -1139,31 +782,12 @@ defineExpose({ openCreate, openEdit, close });
     justify-content: flex-start;
   }
 
-  .target-grid,
   .value-editor-grid {
     grid-template-columns: 1fr;
-  }
-
-  .query-mode-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 560px) {
-  .target-toolbar,
-  .value-row {
-    grid-template-columns: 1fr;
-  }
-
-  .panel-action-button,
-  .remove-row-button {
-    width: 100%;
-  }
-
-  .query-mode-grid {
-    grid-template-columns: 1fr;
-  }
-
   .cache-status-toggle {
     align-items: flex-start;
   }

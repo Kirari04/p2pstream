@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import TrashIcon from "@primevue/icons/trash";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicRateLimitPreview from "@/components/editors/PublicRateLimitPreview.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
+import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -14,10 +17,6 @@ import {
   policyMatchValidationReason,
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
 import {
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
@@ -52,6 +51,12 @@ const isBusy = inject<ComputedRef<boolean>>("isBusy");
 const isOpen = ref(false);
 const rules = computed(() => props.config?.rateLimitRules ?? []);
 const genericTemplates = computed(() => (props.config?.responseTemplates ?? []).filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY));
+const genericTemplateOptions = computed(() =>
+  genericTemplates.value.map((template) => ({
+    label: template.name,
+    value: template.id.toString(),
+  })),
+);
 
 const form = reactive({
   id: "",
@@ -77,16 +82,6 @@ const algorithmOptions = [
   { label: "Sliding window", value: PublicRateLimitAlgorithm.SLIDING_WINDOW },
   { label: "Token bucket", value: PublicRateLimitAlgorithm.TOKEN_BUCKET },
   { label: "Leaky bucket", value: PublicRateLimitAlgorithm.LEAKY_BUCKET },
-];
-const keySourceOptions = [
-  { label: "Remote IP", value: PublicRateLimitKeySource.REMOTE_IP },
-  { label: "Host", value: PublicRateLimitKeySource.HOST },
-  { label: "Method", value: PublicRateLimitKeySource.METHOD },
-  { label: "Path", value: PublicRateLimitKeySource.PATH },
-  { label: "Protocol", value: PublicRateLimitKeySource.PROTOCOL },
-  { label: "Header", value: PublicRateLimitKeySource.HEADER },
-  { label: "Cookie", value: PublicRateLimitKeySource.COOKIE },
-  { label: "Query param", value: PublicRateLimitKeySource.QUERY_PARAM },
 ];
 
 const usesBurst = computed(() =>
@@ -167,27 +162,10 @@ function close() {
   isOpen.value = false;
 }
 
-function addKeyPart() {
-  form.keyParts.push({ source: PublicRateLimitKeySource.REMOTE_IP, name: "" });
-}
-
-function removeKeyPart(index: number) {
-  form.keyParts.splice(index, 1);
-  if (!form.keyParts.length) addKeyPart();
-}
-
 function keyPartNeedsName(source: PublicRateLimitKeySource): boolean {
   return source === PublicRateLimitKeySource.HEADER ||
     source === PublicRateLimitKeySource.COOKIE ||
     source === PublicRateLimitKeySource.QUERY_PARAM;
-}
-
-function keyPartNameDisabledReason(source: PublicRateLimitKeySource): string {
-  return keyPartNeedsName(source) ? "" : "This key source does not need a name.";
-}
-
-function removeKeyPartDisabledReason(): string {
-  return form.keyParts.length <= 1 ? "At least one key part is required." : "";
 }
 
 function addResponseHeader() {
@@ -243,55 +221,58 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'" max-width="60rem">
-    <form class="grid gap-5" @submit.prevent="submitRule">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'"
+    :style="modalCardStyle('60rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Priority
-          <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
+          <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="form.enabled" class="self-end">
           Enabled
-        </label>
+        </NCheckbox>
       </section>
 
       <section class="grid gap-4">
-        <div class="grid grid-cols-2 overflow-hidden rounded-md border border-[#333] bg-[#0b0b0b] p-1 sm:grid-cols-4">
-          <button
+        <NButtonGroup class="grid grid-cols-2 sm:grid-cols-4" size="small">
+          <NButton
             v-for="option in algorithmOptions"
             :key="option.value"
-            type="button"
-            class="rounded px-3 py-2 text-sm font-medium transition"
-            :class="form.algorithm === option.value ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+            :type="form.algorithm === option.value ? 'primary' : 'default'"
             @click="form.algorithm = option.value"
           >
             {{ option.label }}
-          </button>
-        </div>
+          </NButton>
+        </NButtonGroup>
         <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Limit
-            <input v-model.number="form.limit" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" required />
-            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Max requests allowed per window.</p>
+            <NInputNumber v-model:value="form.limit" size="small" :min="1" required />
+            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Max requests allowed per window.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Window seconds
-            <input v-model.number="form.windowSeconds" type="number" min="1" step="1" class="vercel-input text-sm normal-case tracking-normal" required />
-            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Duration of each rate limit window.</p>
+            <NInputNumber v-model:value="form.windowSeconds" size="small" :min="1" :step="1" required />
+            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Duration of each rate limit window.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Burst
             <DisabledHint full-width :disabled="Boolean(burstDisabledReason)" :reason="burstDisabledReason">
-              <input
-                v-model.number="form.burst"
-                type="number"
-                min="0"
-                class="vercel-input text-sm normal-case tracking-normal"
+              <NInputNumber
+                v-model:value="form.burst"
+                size="small"
+                :min="0"
                 :disabled="Boolean(burstDisabledReason)"
               />
             </DisabledHint>
@@ -309,114 +290,85 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyMatchEditor :form="form.match" />
 
-      <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <div class="flex items-center justify-between gap-3">
-          <h4 class="text-sm font-semibold text-white">Key parts</h4>
-          <SecondaryButton type="button" size="small" label="Add Key" @click="addKeyPart" />
-        </div>
-        <div class="grid gap-2">
-          <div v-for="(part, index) in form.keyParts" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <select v-model="part.source" class="vercel-input text-sm">
-              <option v-for="option in keySourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
-            <DisabledHint full-width :disabled="Boolean(keyPartNameDisabledReason(part.source))" :reason="keyPartNameDisabledReason(part.source)">
-              <input v-model="part.name" class="vercel-input text-sm" placeholder="Name" :disabled="Boolean(keyPartNameDisabledReason(part.source))" />
-            </DisabledHint>
-            <DisabledHint :disabled="Boolean(removeKeyPartDisabledReason())" :reason="removeKeyPartDisabledReason()">
-              <DangerButton
-                size="small"
-                class="row-remove-button"
-                aria-label="Remove key part"
-                title="Remove key part"
-                type="button"
-                :disabled="Boolean(removeKeyPartDisabledReason())"
-                @click="removeKeyPart(index)"
-              >
-                <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-              </DangerButton>
-            </DisabledHint>
-          </div>
-        </div>
-      </section>
+      <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
-      <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Denied response</h4>
+      <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text)]">Denied response</h4>
         <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Status
-            <input v-model.number="form.responseStatusCode" type="number" min="400" max="599" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="form.responseStatusCode" size="small" :min="400" :max="599" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
             Content type
-            <input v-model="form.responseContentType" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInput v-model:value="form.responseContentType" size="small" />
           </label>
         </div>
-        <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
-          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <div class="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Body source
-            <div class="grid grid-cols-2 rounded-md border border-[#333] bg-[#0b0b0b] p-1">
-              <button
-                type="button"
-                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
-                :class="form.responseBodyMode === PublicResponseBodyMode.INLINE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+            <NButtonGroup class="grid grid-cols-2" size="small">
+              <NButton
+                :type="form.responseBodyMode === PublicResponseBodyMode.INLINE ? 'primary' : 'default'"
                 @click="form.responseBodyMode = PublicResponseBodyMode.INLINE"
               >
                 Inline
-              </button>
-              <button
-                type="button"
-                class="rounded px-3 py-2 text-sm font-medium normal-case tracking-normal transition"
-                :class="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'bg-white text-black' : 'text-[#d4d4d8] hover:bg-[#1f1f1f]'"
+              </NButton>
+              <NButton
+                :type="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'primary' : 'default'"
                 @click="form.responseBodyMode = PublicResponseBodyMode.TEMPLATE"
               >
                 Template
-              </button>
-            </div>
+              </NButton>
+            </NButtonGroup>
           </div>
-          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Template
-            <select v-model="form.responseBodyTemplateId" class="vercel-input text-sm normal-case tracking-normal">
-              <option value="">{{ genericTemplates.length ? 'Select template' : 'No generic templates' }}</option>
-              <option v-for="template in genericTemplates" :key="template.id.toString()" :value="template.id.toString()">
-                {{ template.name }}
-              </option>
-            </select>
+            <NSelect
+              v-model:value="form.responseBodyTemplateId"
+              size="small"
+              :options="genericTemplateOptions"
+              :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
+              :disabled="!genericTemplates.length"
+            />
           </label>
-          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Body
-            <textarea v-model="form.responseBody" class="vercel-input min-h-24 text-sm normal-case tracking-normal font-mono" />
+            <NInput v-model:value="form.responseBody" type="textarea" class="font-mono" :autosize="{ minRows: 4, maxRows: 8 }" />
           </label>
         </div>
         <div class="grid gap-2">
           <div class="flex items-center justify-between gap-3">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Headers</span>
-            <SecondaryButton type="button" size="small" label="Add Header" @click="addResponseHeader" />
+            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Headers</span>
+            <NButton secondary size="small" @click="addResponseHeader">Add Header</NButton>
           </div>
           <div v-for="(header, index) in form.responseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <input v-model="header.name" class="vercel-input text-sm" placeholder="Name" />
-            <input v-model="header.value" class="vercel-input text-sm" placeholder="Value" />
-            <DangerButton
+            <NInput v-model:value="header.name" size="small" placeholder="Name" />
+            <NInput v-model:value="header.value" size="small" placeholder="Value" />
+            <NButton
+              type="error"
               size="small"
               class="row-remove-button"
               aria-label="Remove response header"
               title="Remove response header"
-              type="button"
               @click="removeResponseHeader(index)"
             >
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+            </NButton>
           </div>
         </div>
       </section>
 
       <div class="flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
-        <DisabledHint :disabled="Boolean(rateLimitSubmitDisabledReason)" :reason="rateLimitSubmitDisabledReason">
-          <Button :label="form.id ? 'Save Changes' : 'Create Rule'" type="submit" :disabled="submitDisabled" />
+        <NButton secondary @click="close">Cancel</NButton>
+        <DisabledHint :disabled="submitDisabled" :reason="rateLimitSubmitDisabledReason">
+          <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
+            {{ form.id ? 'Save Changes' : 'Create Rule' }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>

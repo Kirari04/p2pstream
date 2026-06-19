@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import { computed, h, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import type { ComputedRef } from "vue";
+import { NButton, NButtonGroup, NCheckbox, NDataTable } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
@@ -9,7 +11,6 @@ import TrafficFlowDiagram from "@/components/TrafficFlowDiagram.vue";
 import TrafficTraceDetailsModal from "@/components/TrafficTraceDetailsModal.vue";
 import { NO_TRACES_REASON, TRACE_BUSY_REASON } from "@/lib/disabledReasons";
 import { TrafficTraceStore, formatDuration, traceStreamRequestForSequence } from "@/lib/trafficTraceStore";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRenderStats, TraceRequest, TraceRequestView } from "@/types/trafficTrace";
 import { emptyTraceRenderStats } from "@/types/trafficTrace";
@@ -64,6 +65,52 @@ const traceLevelOptions = [
   { label: "Headers", value: TrafficTraceLevel.HEADERS },
   { label: "Debug", value: TrafficTraceLevel.DEBUG },
 ];
+const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
+  {
+    title: "Request",
+    key: "request",
+    minWidth: 260,
+    render: (request) => h("div", [
+      h("div", { class: "flex items-center gap-2" }, [
+        h("span", { class: "rounded border border-[var(--app-border)] px-1.5 py-0.5 font-mono text-[0.7rem] text-[var(--app-text)]" }, request.methodLabel),
+        h("span", { class: "max-w-[18rem] truncate font-mono text-xs text-[var(--app-text)]" }, request.pathLabel),
+      ]),
+      h("p", { class: "mt-1 max-w-[22rem] truncate font-mono text-[0.7rem] text-[var(--app-text-muted)]" }, request.requestIdLabel),
+    ]),
+  },
+  {
+    title: "Flow",
+    key: "flow",
+    minWidth: 260,
+    render: (request) => h("div", [
+      h("p", { class: "text-xs text-[var(--app-text)]" }, request.flowLabel),
+      h("p", { class: "mt-1 text-[0.7rem] text-[var(--app-text-muted)]" }, `${request.stageLabel}${request.sampledEventCount ? ` / sampled ${numberLabel(request.sampledEventCount)}` : ""}`),
+    ]),
+  },
+  {
+    title: "Status",
+    key: "status",
+    width: 110,
+    align: "right",
+    render: (request) => h("span", { class: ["font-mono text-xs", request.statusClass] }, request.statusLabel),
+  },
+  {
+    title: "Duration",
+    key: "duration",
+    width: 120,
+    align: "right",
+    render: (request) => h("span", { class: "font-mono text-xs text-[var(--app-text-muted)]" }, request.durationLabel),
+  },
+]);
+const trafficWindowColumns = computed<DataTableColumns<DashboardWindowSummary>>(() => [
+  { title: "Window", key: "window", minWidth: 140, render: (item) => item.label },
+  { title: "Requests", key: "requests", width: 130, align: "right", render: (item) => bigIntLabel(item.proxyRequests) },
+  { title: "Success", key: "success", width: 130, align: "right", render: (item) => h("span", { class: "text-green-500" }, bigIntLabel(item.proxySuccess)) },
+  { title: "Errors", key: "errors", width: 130, align: "right", render: (item) => h("span", { class: "text-red-500" }, bigIntLabel(proxyErrors(item))) },
+  { title: "Avg Duration", key: "duration", width: 140, align: "right", render: (item) => h("span", { class: "text-[var(--app-text-muted)]" }, formatDuration(item.proxyAvgDurationMs)) },
+  { title: "Traffic In", key: "in", width: 130, align: "right", render: (item) => formatBytes(item.agentBytesReceived) },
+  { title: "Traffic Out", key: "out", width: 130, align: "right", render: (item) => formatBytes(item.agentBytesSent) },
+]);
 
 const tracingEnabled = computed(() => traceSettings.value?.enabled === true);
 const traceBusyDisabledReason = computed(() => isTraceBusy.value ? TRACE_BUSY_REASON : "");
@@ -225,6 +272,29 @@ function openTraceDetails(request: TraceRequest | TraceRequestView | string) {
   isDetailsOpen.value = true;
 }
 
+function traceRowKey(request: TraceRequestView): string {
+  return request.requestId;
+}
+
+function traceRowProps(request: TraceRequestView) {
+  return {
+    class: "cursor-pointer",
+    role: "button",
+    tabindex: 0,
+    "aria-label": `Open trace details for ${request.requestIdLabel}`,
+    onClick: () => openTraceDetails(request),
+    onKeydown: (event: KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openTraceDetails(request);
+    },
+  };
+}
+
+function trafficWindowRowKey(item: DashboardWindowSummary): string {
+  return item.label;
+}
+
 function handleFlowEditRequest(request: TrafficFlowEditRequest) {
   if (request.targets.length === 1) {
     openEditTarget(request.targets[0]);
@@ -307,88 +377,80 @@ onBeforeUnmount(() => {
       <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3 class="text-xl font-bold mb-2">Traffic Flow</h3>
-          <p class="text-[#888] text-sm">Live request routing across listeners, routes, targets, agents, and upstreams.</p>
+          <p class="text-[var(--app-text-muted)] text-sm">Live request routing across listeners, routes, targets, agents, and upstreams.</p>
         </div>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
           <DisabledHint :disabled="Boolean(traceBusyDisabledReason)" :reason="traceBusyDisabledReason">
-            <label class="flex h-10 items-center gap-3 rounded-md border border-[#333] bg-black px-3 text-sm text-[#ededed]">
-              <input
-                type="checkbox"
-                               :checked="tracingEnabled"
-                :disabled="Boolean(traceBusyDisabledReason)"
-                @change="setTracingEnabled(($event.target as HTMLInputElement).checked)"
-              />
-              <span>Tracing</span>
-            </label>
+            <NCheckbox
+              class="flex h-10 items-center rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] px-3"
+              :checked="tracingEnabled"
+              :disabled="Boolean(traceBusyDisabledReason)"
+              @update:checked="setTracingEnabled"
+            >
+              Tracing
+            </NCheckbox>
           </DisabledHint>
 
-          <div class="grid grid-cols-4 overflow-hidden rounded-md border border-[#333]">
+          <NButtonGroup class="grid grid-cols-4 overflow-hidden rounded-md border border-[var(--app-border)]" size="small">
             <DisabledHint
-              v-for="(option, index) in traceLevelOptions"
+              v-for="option in traceLevelOptions"
               :key="option.value"
               full-width
               :disabled="Boolean(traceBusyDisabledReason)"
               :reason="traceBusyDisabledReason"
             >
-              <button
-                type="button"
-                class="h-10 w-full px-3 text-xs font-medium text-[#888] transition hover:bg-[#111] hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 disabled:saturate-0"
-                :class="[
-                  selectedTraceLevel === option.value ? 'bg-white text-black hover:bg-white hover:text-black' : 'bg-black',
-                  index === traceLevelOptions.length - 1 ? '' : 'border-r border-[#333]',
-                ]"
+              <NButton
+                attr-type="button"
+                class="h-10 w-full"
+                :type="selectedTraceLevel === option.value ? 'primary' : 'default'"
                 :disabled="Boolean(traceBusyDisabledReason)"
                 @click="setTraceLevel(option.value)"
               >
                 {{ option.label }}
-              </button>
+              </NButton>
             </DisabledHint>
-          </div>
+          </NButtonGroup>
         </div>
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Trace State</p>
-          <span class="text-lg font-semibold" :class="tracingEnabled ? 'text-green-400' : 'text-[#888]'">{{ streamStateLabel() }}</span>
+        <div class="app-card p-4">
+          <p class="app-card-title">Trace State</p>
+          <span class="text-lg font-semibold" :class="tracingEnabled ? 'text-green-400' : 'text-[var(--app-text-muted)]'">{{ streamStateLabel() }}</span>
         </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Events</p>
+        <div class="app-card p-4">
+          <p class="app-card-title">Events</p>
           <span class="text-lg font-semibold">{{ bigIntLabel(traceSettings?.emittedEvents) }}</span>
         </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Dropped</p>
-          <span class="text-lg font-semibold" :class="traceSettings?.droppedEvents ? 'text-amber-400' : 'text-[#ededed]'">
+        <div class="app-card p-4">
+          <p class="app-card-title">Dropped</p>
+          <span class="text-lg font-semibold" :class="traceSettings?.droppedEvents ? 'text-amber-400' : 'text-[var(--app-text)]'">
             {{ bigIntLabel(traceSettings?.droppedEvents) }}
           </span>
         </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Rendered</p>
+        <div class="app-card p-4">
+          <p class="app-card-title">Rendered</p>
           <span class="text-lg font-semibold">{{ numberLabel(renderStats.renderedTableRows) }}/{{ numberLabel(renderStats.retainedRequests) }}</span>
         </div>
       </div>
       <div class="grid gap-3">
-        <button
-          type="button"
-          class="text-xs font-medium text-[#666] transition hover:text-[#888]"
-          @click="showDebugStats = !showDebugStats"
-        >
+        <NButton quaternary size="small" attr-type="button" class="w-fit" @click="showDebugStats = !showDebugStats">
           {{ showDebugStats ? 'Hide' : 'Show' }} debug stats
-        </button>
+        </NButton>
         <div v-if="showDebugStats" class="grid gap-3 sm:grid-cols-3">
-          <div class="vercel-card p-4">
-            <p class="vercel-card-title">Subscribers</p>
+          <div class="app-card p-4">
+            <p class="app-card-title">Subscribers</p>
             <span class="text-lg font-semibold">{{ traceSettings?.subscriberCount?.toString() ?? "0" }}</span>
           </div>
-          <div class="vercel-card p-4">
-            <p class="vercel-card-title">Sampled</p>
-            <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[#ededed]'">
+          <div class="app-card p-4">
+            <p class="app-card-title">Sampled</p>
+            <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[var(--app-text)]'">
               {{ numberLabel(renderStats.sampledEvents) }}/{{ numberLabel(renderStats.sampledRequests) }}
             </span>
           </div>
-          <div class="vercel-card p-4">
-            <p class="vercel-card-title">Live Tokens</p>
+          <div class="app-card p-4">
+            <p class="app-card-title">Live Tokens</p>
             <span class="text-lg font-semibold">{{ renderedTokenCount }}</span>
           </div>
         </div>
@@ -407,103 +469,56 @@ onBeforeUnmount(() => {
         @edit-node="handleFlowEditRequest"
       />
 
-      <div class="vercel-card overflow-hidden">
-        <div class="flex items-center justify-between border-b border-[#333] px-5 py-4">
+      <div class="app-card overflow-hidden">
+        <div class="flex items-center justify-between border-b border-[var(--app-border)] px-5 py-4">
           <div>
             <h4 class="font-semibold">Recent traces</h4>
-            <p class="text-xs text-[#888]">{{ traceTableSummary }}</p>
+            <p class="text-xs text-[var(--app-text-muted)]">{{ traceTableSummary }}</p>
           </div>
           <DisabledHint :disabled="Boolean(clearTracesDisabledReason)" :reason="clearTracesDisabledReason">
-            <SecondaryButton
-              label="Clear"
+            <NButton
+              secondary
               size="small"
-              class="border-[#333]! bg-transparent! text-[#888]! hover:border-[#666]!"
+              class="border-[var(--app-border)]! bg-transparent! text-[var(--app-text-muted)]! hover:border-[var(--app-text-muted)]!"
               :disabled="Boolean(clearTracesDisabledReason)"
               @click="clearTraceRequests"
-            />
+            >
+              Clear
+            </NButton>
           </DisabledHint>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[760px] text-left text-sm">
-            <thead>
-              <tr class="border-b border-[#333] bg-[#0a0a0a]">
-                <th class="px-5 py-3 font-medium text-[#888]">Request</th>
-                <th class="px-5 py-3 font-medium text-[#888]">Flow</th>
-                <th class="px-5 py-3 font-medium text-[#888] text-right">Status</th>
-                <th class="px-5 py-3 font-medium text-[#888] text-right">Duration</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[#222]">
-              <tr
-                v-for="request in tableRequests"
-                :key="request.requestId"
-                v-memo="[request.version]"
-                class="cursor-pointer transition hover:bg-[#0a0a0a]"
-                @click="openTraceDetails(request)"
-              >
-                <td class="px-5 py-3">
-                  <div class="flex items-center gap-2">
-                    <span class="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[0.7rem] text-[#d4d4d8]">{{ request.methodLabel }}</span>
-                    <span class="max-w-[18rem] truncate font-mono text-xs text-white">{{ request.pathLabel }}</span>
-                  </div>
-                  <p class="mt-1 max-w-[22rem] truncate font-mono text-[0.7rem] text-[#666]">{{ request.requestIdLabel }}</p>
-                </td>
-                <td class="px-5 py-3">
-                  <p class="text-xs text-[#d4d4d8]">
-                    {{ request.flowLabel }}
-                  </p>
-                  <p class="mt-1 text-[0.7rem] text-[#888]">
-                    {{ request.stageLabel }}<span v-if="request.sampledEventCount"> / sampled {{ numberLabel(request.sampledEventCount) }}</span>
-                  </p>
-                </td>
-                <td class="px-5 py-3 text-right font-mono text-xs" :class="request.statusClass">
-                  {{ request.statusLabel }}
-                </td>
-                <td class="px-5 py-3 text-right font-mono text-xs text-[#888]">{{ request.durationLabel }}</td>
-              </tr>
-              <tr v-if="!tableRequests.length">
-                <td colspan="4" class="px-5 py-8 text-center text-sm text-[#666]">No traces captured. Enable tracing above to see live request flow.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <NDataTable
+          :columns="traceColumns"
+          :data="tableRequests"
+          :row-key="traceRowKey"
+          :row-props="traceRowProps"
+          :pagination="false"
+          :bordered="false"
+          :single-line="false"
+          :scroll-x="760"
+          size="small"
+        />
       </div>
     </section>
 
     <section class="space-y-4">
       <div>
         <h3 class="text-xl font-bold mb-2">Traffic History</h3>
-        <p class="text-[#888] text-sm">Aggregated request counts across different time windows.</p>
+        <p class="text-[var(--app-text-muted)] text-sm">Aggregated request counts across different time windows.</p>
       </div>
 
-      <div class="vercel-card overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm min-w-[800px]">
-            <thead>
-              <tr class="border-b border-[#333] bg-[#0a0a0a]">
-                <th class="px-6 py-4 font-medium text-[#888]">Window</th>
-                <th class="px-6 py-4 font-medium text-[#888] text-right">Requests</th>
-                <th class="px-6 py-4 font-medium text-[#888] text-right">Success</th>
-                <th class="px-6 py-4 font-medium text-[#888] text-right">Errors</th>
-                <th class="px-6 py-4 font-medium text-[#888] text-right">Avg Duration</th>
-                <th class="px-6 py-4 font-medium text-[#888] text-right">Traffic In</th>
-                <th class="px-6 py-4 font-medium text-[#888] text-right">Traffic Out</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[#333]">
-              <tr v-for="item in trafficWindows" :key="item.label" class="hover:bg-[#0a0a0a] transition-colors">
-                <td class="px-6 py-4 font-medium">{{ item.label }}</td>
-                <td class="px-6 py-4 text-right tabular-nums">{{ bigIntLabel(item.proxyRequests) }}</td>
-                <td class="px-6 py-4 text-right tabular-nums text-green-500">{{ bigIntLabel(item.proxySuccess) }}</td>
-                <td class="px-6 py-4 text-right tabular-nums text-red-500">{{ bigIntLabel(proxyErrors(item)) }}</td>
-                <td class="px-6 py-4 text-right tabular-nums text-[#888]">{{ formatDuration(item.proxyAvgDurationMs) }}</td>
-                <td class="px-6 py-4 text-right tabular-nums">{{ formatBytes(item.agentBytesReceived) }}</td>
-                <td class="px-6 py-4 text-right tabular-nums">{{ formatBytes(item.agentBytesSent) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div class="app-card overflow-hidden">
+        <NDataTable
+          :columns="trafficWindowColumns"
+          :data="trafficWindows"
+          :row-key="trafficWindowRowKey"
+          :pagination="false"
+          :bordered="false"
+          :single-line="false"
+          :scroll-x="910"
+          size="small"
+        />
       </div>
     </section>
 
