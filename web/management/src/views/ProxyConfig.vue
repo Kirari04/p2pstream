@@ -281,7 +281,7 @@ async function deleteRoute(id: bigint) {
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h3 class="mb-2 text-xl font-bold">Proxy</h3>
-        <p class="text-sm text-[#888]">Public listeners, routes, and route targets.</p>
+        <p class="text-sm text-[var(--app-text-muted)]">Public listeners, routes, and route targets.</p>
       </div>
       <div class="flex items-center gap-3">
         <NTag size="small" :bordered="false" :type="naiveTagType(proxySeverity)">
@@ -318,17 +318,17 @@ async function deleteRoute(id: bigint) {
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
+        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
+        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
       </div>
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Public Listeners</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Incoming endpoints where the proxy accepts connections.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Public Listeners</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Incoming endpoints where the proxy accepts connections.</p>
         </div>
         <NButton secondary size="small" @click="openAddListenerModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
@@ -359,17 +359,17 @@ async function deleteRoute(id: bigint) {
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Routes</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Rules that match incoming requests to route targets.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Routes</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Rules that match incoming requests to route targets.</p>
         </div>
         <NButton secondary size="small" @click="openAddRouteModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
           Add Route
         </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
         <div
           v-for="route in routes"
           :key="route.id.toString()"
@@ -378,18 +378,18 @@ async function deleteRoute(id: bigint) {
         >
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
               <span
                 v-if="routeAction(route) === PublicRouteAction.REDIRECT"
-                class="shrink-0 rounded border border-[#0f766e] px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-[#5eead4]"
+                class="shrink-0 rounded border border-[var(--app-accent)] px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-[var(--app-accent)]"
               >
                 Redirect
               </span>
             </div>
-            <p class="truncate font-mono text-xs text-[#888]">
+            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">
               {{ route.priority.toString() }} / {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
             </p>
-            <p class="truncate font-mono text-xs text-[#71717a]">
+            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">
               {{ routeTargetSummary(route) }}
             </p>
           </div>

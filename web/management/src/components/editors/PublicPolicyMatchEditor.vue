@@ -57,9 +57,9 @@ defineExpose({ validationReason });
 .policy-match {
   display: grid;
   gap: 1rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 1rem;
 }
 
@@ -72,7 +72,7 @@ defineExpose({ validationReason });
 }
 
 .match-head h4 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 0.92rem;
   font-weight: 650;
 }
@@ -92,7 +92,7 @@ defineExpose({ validationReason });
 }
 
 .field-error {
-  color: #f87171;
+  color: var(--app-error);
   font-size: 0.78rem;
 }
 </style>

@@ -493,11 +493,11 @@ defineExpose({ openCreate, openEdit, close });
   >
     <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Priority
           <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
@@ -518,7 +518,7 @@ defineExpose({ openCreate, openEdit, close });
             {{ option.label }}
           </NButton>
         </NButtonGroup>
-        <p class="text-xs leading-5 text-[#888]">{{ selectedActionDescription }}</p>
+        <p class="text-xs leading-5 text-[var(--app-text-muted)]">{{ selectedActionDescription }}</p>
         <NButtonGroup class="grid grid-cols-2" size="small">
           <NButton
             v-for="option in activationOptions"
@@ -530,10 +530,10 @@ defineExpose({ openCreate, openEdit, close });
             {{ option.label }}
           </NButton>
         </NButtonGroup>
-        <div class="grid gap-1 border-l border-[#333] pl-3">
-          <p class="text-xs font-semibold text-[#d4d4d8]">{{ selectedActivationTitle }}</p>
-          <p class="text-xs leading-5 text-[#888]">{{ selectedActivationDescription }}</p>
-          <p class="text-xs leading-5 text-[#666]">
+        <div class="grid gap-1 border-l border-[var(--app-border)] pl-3">
+          <p class="text-xs font-semibold text-[var(--app-text)]">{{ selectedActivationTitle }}</p>
+          <p class="text-xs leading-5 text-[var(--app-text-muted)]">{{ selectedActivationDescription }}</p>
+          <p class="text-xs leading-5 text-[var(--app-text-muted)]">
             WAF runs before rate limits, traffic shaping, routing, cache, and target forwarding. Lower priority numbers are evaluated first.
           </p>
         </div>
@@ -542,10 +542,10 @@ defineExpose({ openCreate, openEdit, close });
       <PublicPolicyMatchEditor :form="form.match" />
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
-      <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Captcha</h4>
+      <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text)]">Captcha</h4>
         <div class="grid gap-4 sm:grid-cols-2">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Provider
             <NSelect
               v-model:value="form.captchaProviderId"
@@ -554,96 +554,96 @@ defineExpose({ openCreate, openEdit, close });
               :placeholder="providers.length ? 'Select provider' : 'No captcha providers configured'"
               :disabled="!providers.length"
             />
-            <span v-if="!providers.length" class="text-xs normal-case tracking-normal text-[#666]">
+            <span v-if="!providers.length" class="text-xs normal-case tracking-normal text-[var(--app-text-muted)]">
               Add a captcha provider in the WAF section before creating a captcha rule.
             </span>
             <span v-else-if="!enabledProviders.length" class="text-xs normal-case tracking-normal text-amber-400">
               All configured captcha providers are disabled.
             </span>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Pass TTL minutes
             <NInputNumber v-model:value="form.captchaPassMinutes" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
             Page template
             <NSelect v-model:value="form.captchaPageTemplateId" size="small" :options="captchaTemplateOptions" />
           </label>
         </div>
       </section>
 
-      <section v-if="form.action === PublicWafRuleAction.WAITING_ROOM" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Waiting room</h4>
+      <section v-if="form.action === PublicWafRuleAction.WAITING_ROOM" class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text)]">Waiting room</h4>
         <div class="grid gap-4 sm:grid-cols-5">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Capacity
             <NInputNumber v-model:value="form.waitingRoomMaxAdmitted" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Admit/sec
             <NInputNumber v-model:value="form.waitingRoomAdmissionRate" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             TTL minutes
             <NInputNumber v-model:value="form.waitingRoomAdmissionTtlMinutes" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Poll seconds
             <NInputNumber v-model:value="form.waitingRoomPollSeconds" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Timeout minutes
             <NInputNumber v-model:value="form.waitingRoomTimeoutMinutes" size="small" :min="1" />
           </label>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Page title
             <NInput v-model:value="form.waitingRoomPageTitle" size="small" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Page body
             <NInput v-model:value="form.waitingRoomPageBody" size="small" />
           </label>
         </div>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Page template
           <NSelect v-model:value="form.waitingRoomPageTemplateId" size="small" :options="waitingRoomTemplateOptions" />
         </label>
       </section>
 
-      <section v-if="form.activationMode === PublicWafActivationMode.AUTOMATIC" class="grid gap-5 rounded-md border border-[#222] bg-[#050505] p-4">
+      <section v-if="form.activationMode === PublicWafActivationMode.AUTOMATIC" class="grid gap-5 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
         <div class="grid gap-1">
-          <h4 class="text-sm font-semibold text-white">Automatic trigger behavior</h4>
-          <p class="text-xs leading-5 text-[#888]">
+          <h4 class="text-sm font-semibold text-[var(--app-text)]">Automatic trigger behavior</h4>
+          <p class="text-xs leading-5 text-[var(--app-text-muted)]">
             These settings decide when the selected WAF action temporarily turns on for matching traffic.
             Enabled metrics are combined as OR conditions; disabled metrics are saved as 0 and ignored.
           </p>
         </div>
         <div class="grid gap-3 sm:grid-cols-4">
-          <div v-for="step in automaticFlowSteps" :key="step.label" class="border-l border-[#333] pl-3">
-            <p class="text-xs font-semibold text-[#d4d4d8]">{{ step.label }}</p>
-            <p class="mt-1 text-xs leading-5 text-[#888]">{{ step.body }}</p>
+          <div v-for="step in automaticFlowSteps" :key="step.label" class="border-l border-[var(--app-border)] pl-3">
+            <p class="text-xs font-semibold text-[var(--app-text)]">{{ step.label }}</p>
+            <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">{{ step.body }}</p>
           </div>
         </div>
         <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Window seconds
             <NInputNumber v-model:value="form.triggers.requestWindowSeconds" size="small" :min="1" />
-            <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Rolling window used by request-volume metrics.</p>
+            <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[var(--app-text-muted)]">Rolling window used by request-volume metrics.</p>
           </label>
         </div>
-        <div v-for="group in automaticTriggerGroups" :key="group.title" class="grid gap-3 rounded-md border border-[#222] bg-[#070707] p-3">
+        <div v-for="group in automaticTriggerGroups" :key="group.title" class="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
           <div class="grid gap-1">
-            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">{{ group.title }}</h5>
-            <p class="text-xs leading-5 text-[#666]">{{ group.body }}</p>
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-[var(--app-text-muted)]">{{ group.title }}</h5>
+            <p class="text-xs leading-5 text-[var(--app-text-muted)]">{{ group.body }}</p>
           </div>
           <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div
               v-for="metric in group.metrics"
               :key="metric.key"
-              class="grid gap-3 rounded border border-[#222] bg-[#0b0b0b] p-3"
-              :class="form.triggers.metrics[metric.key].enabled ? 'border-[#333]' : 'opacity-70'"
+              class="grid gap-3 rounded border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3"
+              :class="form.triggers.metrics[metric.key].enabled ? 'border-[var(--app-border)]' : 'opacity-70'"
             >
               <div class="flex items-center justify-between gap-3">
                 <NCheckbox
@@ -655,7 +655,7 @@ defineExpose({ openCreate, openEdit, close });
                 </NCheckbox>
                 <span
                   class="shrink-0 rounded border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-wider"
-                  :class="form.triggers.metrics[metric.key].enabled ? 'border-emerald-500/30 text-emerald-300' : 'border-[#333] text-[#777]'"
+                  :class="form.triggers.metrics[metric.key].enabled ? 'border-emerald-500/30 text-emerald-300' : 'border-[var(--app-border)] text-[var(--app-text-muted)]'"
                 >
                   {{ form.triggers.metrics[metric.key].enabled ? 'Enabled' : 'Disabled' }}
                 </span>
@@ -671,47 +671,47 @@ defineExpose({ openCreate, openEdit, close });
                     :step="metric.step ?? 1"
                     :disabled="!form.triggers.metrics[metric.key].enabled"
                   />
-                  <span class="w-16 shrink-0 text-xs text-[#777]">{{ metric.unit }}</span>
+                  <span class="w-16 shrink-0 text-xs text-[var(--app-text-muted)]">{{ metric.unit }}</span>
                 </div>
-                <p class="text-xs leading-5 text-[#666]">{{ metric.body }}</p>
+                <p class="text-xs leading-5 text-[var(--app-text-muted)]">{{ metric.body }}</p>
               </div>
             </div>
           </div>
         </div>
-        <div class="grid gap-3 rounded-md border border-[#222] bg-[#070707] p-3">
+        <div class="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
           <div class="grid gap-1">
-            <h5 class="text-xs font-semibold uppercase tracking-wider text-[#888]">Activation timing</h5>
-            <p class="text-xs leading-5 text-[#666]">Timing controls prevent brief spikes from rapidly turning the rule on and off. They are not detection metrics.</p>
+            <h5 class="text-xs font-semibold uppercase tracking-wider text-[var(--app-text-muted)]">Activation timing</h5>
+            <p class="text-xs leading-5 text-[var(--app-text-muted)]">Timing controls prevent brief spikes from rapidly turning the rule on and off. They are not detection metrics.</p>
           </div>
           <div class="grid gap-4 sm:grid-cols-2">
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
               Minimum active seconds
               <NInputNumber v-model:value="form.triggers.minimumActiveSeconds" size="small" :min="1" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Pressure must persist this long before the action begins.</p>
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[var(--app-text-muted)]">Pressure must persist this long before the action begins.</p>
             </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
               Quiet seconds
               <NInputNumber v-model:value="form.triggers.quietSeconds" size="small" :min="1" />
-              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">The action stays active this long after all pressure clears.</p>
+              <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[var(--app-text-muted)]">The action stays active this long after all pressure clears.</p>
             </label>
           </div>
         </div>
       </section>
 
-      <section v-if="form.action === PublicWafRuleAction.BLOCK" class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Block response</h4>
+      <section v-if="form.action === PublicWafRuleAction.BLOCK" class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text)]">Block response</h4>
         <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Status
             <NInputNumber v-model:value="form.blockResponseStatusCode" size="small" :min="400" :max="599" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
             Content type
             <NInput v-model:value="form.blockResponseContentType" size="small" />
           </label>
         </div>
-        <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
-          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <div class="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Body source
             <NButtonGroup class="grid grid-cols-2" size="small">
               <NButton
@@ -730,7 +730,7 @@ defineExpose({ openCreate, openEdit, close });
               </NButton>
             </NButtonGroup>
           </div>
-          <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Template
             <NSelect
               v-model:value="form.blockResponseTemplateId"
@@ -740,14 +740,14 @@ defineExpose({ openCreate, openEdit, close });
               :disabled="!genericTemplates.length"
             />
           </label>
-          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Body
             <NInput v-model:value="form.blockResponseBody" type="textarea" class="font-mono" :autosize="{ minRows: 4, maxRows: 8 }" />
           </label>
         </div>
         <div class="grid gap-2">
           <div class="flex items-center justify-between gap-3">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Headers</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Headers</span>
             <NButton secondary size="small" attr-type="button" @click="addBlockHeader">Add Header</NButton>
           </div>
           <div v-for="(header, index) in form.blockResponseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">

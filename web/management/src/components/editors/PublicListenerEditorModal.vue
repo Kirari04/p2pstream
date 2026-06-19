@@ -116,24 +116,24 @@ defineExpose({ openCreate, openEdit, close });
     size="huge"
   >
     <form @submit.prevent="submitListener" class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
         Name
         <NInput v-model:value="listenerForm.name" size="small" required />
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
         Bind address
         <NInput v-model:value="listenerForm.bindAddress" size="small" placeholder="0.0.0.0" />
-        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Leave empty to bind on all interfaces.</p>
+        <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Leave empty to bind on all interfaces.</p>
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
         Port
         <NInputNumber v-model:value="listenerForm.port" size="small" :min="1" :max="65535" required />
-        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Ports below 1024 may require elevated privileges.</p>
+        <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Ports below 1024 may require elevated privileges.</p>
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
         Protocol
         <NSelect v-model:value="listenerForm.protocol" size="small" :options="protocolOptions" />
-        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Choose HTTPS to enable TLS termination.</p>
+        <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Choose HTTPS to enable TLS termination.</p>
       </label>
       <NCheckbox v-model:checked="listenerForm.enabled" class="mt-2 sm:col-span-2">
         Enabled

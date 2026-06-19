@@ -157,37 +157,23 @@
     background: var(--app-panel);
     color: var(--app-text);
   }
+
+  .app-warning-panel {
+    border: 1px solid color-mix(in srgb, var(--app-warning) 36%, var(--app-border));
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--app-warning) 9%, var(--app-panel));
+    color: var(--app-warning);
+  }
+
+  .app-error-panel {
+    border: 1px solid color-mix(in srgb, var(--app-error) 36%, var(--app-border));
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--app-error) 9%, var(--app-panel));
+    color: var(--app-error);
+  }
 }
 
 @layer utilities {
-  .text-white,
-  .text-\[\#d4d4d8\],
-  .text-\[\#e5e7eb\] {
-    color: var(--app-text) !important;
-  }
-
-  .text-\[\#888\],
-  .text-\[\#777\],
-  .text-\[\#666\],
-  .text-\[\#71717a\],
-  .text-\[\#a1a1aa\] {
-    color: var(--app-text-muted) !important;
-  }
-
-  .bg-black,
-  .bg-\[\#050505\],
-  .bg-\[\#080808\],
-  .bg-\[\#0b0b0b\],
-  .bg-\[\#111\] {
-    background-color: var(--app-panel-muted) !important;
-  }
-
-  .border-\[\#333\],
-  .border-\[\#222\],
-  .border-\[\#1f1f1f\] {
-    border-color: var(--app-border) !important;
-  }
-
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

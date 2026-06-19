@@ -345,7 +345,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .diagnostics-header h3 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -353,7 +353,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .diagnostics-header p,
 .panel-heading p {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 
@@ -368,9 +368,9 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   display: inline-grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.2rem;
 }
 
@@ -378,7 +378,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   min-width: 0;
   height: 2rem;
   border-radius: 4px;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.78rem;
   font-weight: 650;
   letter-spacing: 0;
@@ -387,21 +387,21 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .window-tabs button:hover {
-  background: #111;
-  color: #fff;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
 }
 
 .window-tabs button.active {
-  background: #fff;
-  color: #000;
+  background: var(--app-panel);
+  color: var(--app-text);
 }
 
 .sample-select {
   height: 2.4rem;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
-  color: #ededed;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   font-size: 0.8rem;
   outline: none;
   padding: 0 0.6rem;
@@ -410,8 +410,8 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 .diagnostics-error {
   border: 1px solid rgb(239 68 68 / 45%);
   border-radius: 6px;
-  background: #000;
-  color: #fca5a5;
+  background: var(--app-panel-muted);
+  color: var(--app-error);
   font-size: 0.85rem;
   padding: 0.85rem 1rem;
 }
@@ -433,9 +433,9 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 .summary-item,
 .diagnostics-panel {
   min-width: 0;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #000;
+  background: var(--app-panel-muted);
 }
 
 .summary-item {
@@ -445,7 +445,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .summary-item span {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -453,14 +453,14 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .summary-item strong {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
 }
 
 .summary-item small {
   overflow: hidden;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -484,7 +484,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .panel-heading h4 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -501,7 +501,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   grid-template-columns: 8rem minmax(10rem, 1fr);
   gap: 0.55rem 0.75rem;
   align-items: center;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding-top: 0.65rem;
 }
 
@@ -513,7 +513,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .status-label strong {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.9rem;
   font-weight: 700;
 }
@@ -521,9 +521,9 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 .status-bar-track {
   overflow: hidden;
   height: 0.65rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #050505;
+  background: var(--app-panel-muted);
 }
 
 .status-bar {
@@ -536,7 +536,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   grid-column: 2;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.74rem;
 }
 
@@ -553,42 +553,42 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   height: 1.45rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #080808;
-  color: #d4d4d8;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   font-size: 0.72rem;
   font-weight: 750;
 }
 
 .tone-success {
-  background: #22c55e;
-  border-color: #22c55e;
-  color: #03130a;
+  background: var(--app-success);
+  border-color: var(--app-success);
+  color: white;
 }
 
 .tone-redirect {
-  background: #38bdf8;
-  border-color: #38bdf8;
-  color: #03111a;
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+  color: white;
 }
 
 .tone-client-error {
-  background: #f59e0b;
-  border-color: #f59e0b;
-  color: #1f1300;
+  background: var(--app-warning);
+  border-color: var(--app-warning);
+  color: white;
 }
 
 .tone-server-error {
-  background: #ef4444;
-  border-color: #ef4444;
-  color: #210505;
+  background: var(--app-error);
+  border-color: var(--app-error);
+  color: white;
 }
 
 .tone-neutral {
-  background: #d4d4d8;
-  border-color: #d4d4d8;
-  color: #09090b;
+  background: var(--app-border-subtle);
+  border-color: var(--app-border);
+  color: var(--app-text);
 }
 
 .breakdown-grid {
@@ -598,14 +598,14 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 .dimension-row {
   display: grid;
   gap: 0.35rem;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding-top: 0.55rem;
 }
 
 .dimension-name {
   min-width: 0;
   overflow: hidden;
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.82rem;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -616,7 +616,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
 }
 
@@ -639,14 +639,14 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .samples-table th,
 .samples-table td {
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding: 0.65rem 0.5rem;
   text-align: right;
   white-space: nowrap;
 }
 
 .samples-table th {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -654,7 +654,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .samples-table td {
-  color: #d4d4d8;
+  color: var(--app-text);
 }
 
 .samples-table th:first-child,
@@ -684,12 +684,12 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .empty-state,
 .empty-row {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 
 .empty-state {
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding-top: 0.7rem;
 }
 

@@ -135,17 +135,17 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
     key: "agent",
     minWidth: 280,
     render: (agent) => h("div", [
-      h("p", { class: "font-medium text-white" }, agent.name),
-      h("p", { class: "font-mono text-xs text-[#888]" }, agent.publicId),
+      h("p", { class: "font-medium text-[var(--app-text)]" }, agent.name),
+      h("p", { class: "font-mono text-xs text-[var(--app-text-muted)]" }, agent.publicId),
       h("div", { class: "mt-2 flex flex-wrap gap-1.5" }, [
         ...agentUserLabels(agent).map((label) => h(
-          "span",
-          { key: label.id, class: "rounded border border-[#333] bg-[#101010] px-2 py-0.5 font-mono text-[11px] text-[#d4d4d8]" },
-          `${label.key}=${label.value}`,
+          NTag,
+          { key: label.id, size: "small", bordered: true, class: "font-mono" },
+          { default: () => `${label.key}=${label.value}` },
         )),
-        !agentUserLabels(agent).length ? h("span", { class: "text-xs text-[#666]" }, "No user labels") : null,
+        !agentUserLabels(agent).length ? h("span", { class: "text-xs text-[var(--app-text-muted)]" }, "No user labels") : null,
       ]),
-      h("code", { class: "mt-1 block break-all font-mono text-[11px] text-[#666]" }, exactAgentSelector(agent)),
+      h("code", { class: "mt-1 block break-all font-mono text-[11px] text-[var(--app-text-muted)]" }, exactAgentSelector(agent)),
     ]),
   },
   {
@@ -162,8 +162,8 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
     key: "current",
     width: 150,
     render: (agent) => h("div", [
-      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, currentAgentDuration(agent)),
-      h("p", { class: "mt-1 text-xs text-[#666]" }, currentAgentDurationKind(agent)),
+      h("p", { class: "font-mono text-xs text-[var(--app-text)]" }, currentAgentDuration(agent)),
+      h("p", { class: "mt-1 text-xs text-[var(--app-text-muted)]" }, currentAgentDurationKind(agent)),
     ]),
   },
   {
@@ -171,8 +171,8 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
     key: "uptime",
     width: 150,
     render: (agent) => h("div", [
-      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, agentUptimePercentLabel(agent)),
-      h("p", { class: "mt-1 text-xs text-[#666]" }, `connections ${agentConnectionCounts(agent)}`),
+      h("p", { class: "font-mono text-xs text-[var(--app-text)]" }, agentUptimePercentLabel(agent)),
+      h("p", { class: "mt-1 text-xs text-[var(--app-text-muted)]" }, `connections ${agentConnectionCounts(agent)}`),
     ]),
   },
   { title: "Last Connected", key: "lastConnected", width: 190, render: (agent) => h("span", { class: "font-mono text-xs" }, formatDate(agentLastConnected(agent))) },
@@ -182,9 +182,9 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
     key: "activeRequests",
     width: 170,
     render: (agent) => h("div", [
-      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, agent.activeRequests.toString()),
+      h("p", { class: "font-mono text-xs text-[var(--app-text)]" }, agent.activeRequests.toString()),
       agent.latestStats
-        ? h("p", { class: "mt-1 font-mono text-xs text-[#666]" }, `${bigIntLabel(agent.latestStats.memorySysMb)} MB / ${bigIntLabel(agent.latestStats.numGoroutine)} goroutines`)
+        ? h("p", { class: "mt-1 font-mono text-xs text-[var(--app-text-muted)]" }, `${bigIntLabel(agent.latestStats.memorySysMb)} MB / ${bigIntLabel(agent.latestStats.numGoroutine)} goroutines`)
         : null,
     ]),
   },
@@ -250,8 +250,8 @@ const sessionColumns = computed<DataTableColumns<AgentConnectionSession>>(() => 
     key: "agent",
     minWidth: 220,
     render: (session) => h("div", [
-      h("p", { class: "font-medium text-white" }, sessionAgentLabel(session)),
-      sessionAgentDetail(session) ? h("p", { class: "font-mono text-xs text-[#888]" }, sessionAgentDetail(session)) : null,
+      h("p", { class: "font-medium text-[var(--app-text)]" }, sessionAgentLabel(session)),
+      sessionAgentDetail(session) ? h("p", { class: "font-mono text-xs text-[var(--app-text-muted)]" }, sessionAgentDetail(session)) : null,
     ]),
   },
   { title: "Started", key: "started", width: 190, render: (session) => h("span", { class: "font-mono text-xs" }, formatDate(session.connectedAtUnixMillis)) },
@@ -573,7 +573,7 @@ async function copyUninstallSnippet() {
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h3 class="text-xl font-bold mb-2">Agents</h3>
-        <p class="text-[#888] text-sm">Registered agents, connection state, and recent runtime metrics.</p>
+        <p class="text-[var(--app-text-muted)] text-sm">Registered agents, connection state, and recent runtime metrics.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
         <NButton secondary size="small" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
@@ -587,22 +587,22 @@ async function copyUninstallSnippet() {
       <div class="app-card p-5">
         <p class="app-card-title">Connected Agents</p>
         <span class="app-card-value">{{ connectedAgentCount }}/{{ enabledAgents }}</span>
-        <p class="mt-2 text-xs text-[#888]">connected / enabled</p>
+        <p class="mt-2 text-xs text-[var(--app-text-muted)]">connected / enabled</p>
       </div>
       <div class="app-card p-5">
         <p class="app-card-title">Fleet Uptime</p>
         <span class="app-card-value">{{ formatPercent(fleetUptime) }}</span>
-        <p class="mt-2 text-xs text-[#888]">{{ retentionDaysLabel }} retention</p>
+        <p class="mt-2 text-xs text-[var(--app-text-muted)]">{{ retentionDaysLabel }} retention</p>
       </div>
       <div class="app-card p-5">
         <p class="app-card-title">Longest Current Uptime</p>
         <span class="app-card-value">{{ formatLongDuration(longestCurrentUptimeMillis) }}</span>
-        <p class="mt-2 text-xs text-[#888]">connected sessions</p>
+        <p class="mt-2 text-xs text-[var(--app-text-muted)]">connected sessions</p>
       </div>
       <div class="app-card p-5">
         <p class="app-card-title">Recent Disconnects</p>
         <span class="app-card-value">{{ recentDisconnects }}</span>
-        <p class="mt-2 text-xs text-[#888]">last 24h</p>
+        <p class="mt-2 text-xs text-[var(--app-text-muted)]">last 24h</p>
       </div>
     </div>
 
@@ -634,8 +634,8 @@ async function copyUninstallSnippet() {
     </div>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4">
-        <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Registered Agents</h4>
+      <div class="border-b border-[var(--app-border)] px-5 py-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text-muted)] uppercase tracking-widest">Registered Agents</h4>
       </div>
       <NDataTable
         v-if="agents.length"
@@ -659,8 +659,8 @@ async function copyUninstallSnippet() {
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4">
-        <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Recent Connection Sessions</h4>
+      <div class="border-b border-[var(--app-border)] px-5 py-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text-muted)] uppercase tracking-widest">Recent Connection Sessions</h4>
       </div>
       <NDataTable
         v-if="recentAgentConnections.length"
@@ -697,14 +697,14 @@ async function copyUninstallSnippet() {
     >
       <div v-if="rotateAgentToConfirm" class="grid gap-5">
         <div class="grid gap-2">
-          <p class="text-sm text-white">Rotate the token for {{ rotateAgentToConfirm.name }}?</p>
-          <p class="text-sm leading-6 text-[#888]">
+          <p class="text-sm text-[var(--app-text)]">Rotate the token for {{ rotateAgentToConfirm.name }}?</p>
+          <p class="text-sm leading-6 text-[var(--app-text-muted)]">
             The new token will be shown once. The active agent connection will be disconnected immediately. In-flight requests through this agent may fail, and future connections and stats reports must use the new token.
           </p>
         </div>
-        <div class="rounded-md border border-[#333] bg-[#0b0b0b] p-3">
-          <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-[#888]">Agent ID</span>
-          <code class="block overflow-x-auto font-mono text-xs text-white">{{ rotateAgentToConfirm.publicId }}</code>
+        <div class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
+          <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Agent ID</span>
+          <code class="block overflow-x-auto font-mono text-xs text-[var(--app-text)]">{{ rotateAgentToConfirm.publicId }}</code>
         </div>
         <div class="flex justify-end gap-3">
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
@@ -728,32 +728,32 @@ async function copyUninstallSnippet() {
       <div v-if="uninstallAgent" class="grid gap-5">
         <div class="grid gap-3 md:grid-cols-2">
           <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent</span>
-            <span class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-sm text-white">{{ uninstallAgent.name }}</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Agent</span>
+            <span class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 text-sm text-[var(--app-text)]">{{ uninstallAgent.name }}</span>
           </div>
           <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent ID</span>
-            <code class="overflow-x-auto rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 font-mono text-xs text-white">{{ uninstallAgent.publicId }}</code>
+            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Agent ID</span>
+            <code class="overflow-x-auto rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 font-mono text-xs text-[var(--app-text)]">{{ uninstallAgent.publicId }}</code>
           </div>
         </div>
 
-        <div class="rounded-md border border-[#5f3b1d] bg-[#160d05] p-3 text-xs leading-5 text-[#f5c28b]">
+        <div class="app-warning-panel p-3 text-xs leading-5">
           <p class="font-semibold uppercase tracking-wider">Remote host full purge</p>
-          <p class="mt-1 text-[#c79866]">
+          <p class="mt-1 opacity-80">
             Run this command on the Linux host where the shell installer was used. It stops and removes the systemd service, deletes the config directory and binary, and removes the p2pstream service user and group.
           </p>
-          <p class="mt-2 text-[#c79866]">
+          <p class="mt-2 opacity-80">
             This does not delete the management agent record. Delete or disable the agent here after the host is removed.
           </p>
         </div>
 
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           GitHub Repository
           <NInput v-model:value="uninstallReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
         </label>
 
-        <p v-if="uninstallSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ uninstallSnippetError }}</p>
-        <pre v-else class="max-h-[260px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ uninstallSnippet }}</code></pre>
+        <p v-if="uninstallSnippetError" class="app-error-panel p-3 text-xs leading-5">{{ uninstallSnippetError }}</p>
+        <pre v-else class="max-h-[260px] overflow-auto rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4 text-xs leading-5 text-[var(--app-text)]"><code>{{ uninstallSnippet }}</code></pre>
 
         <div class="flex justify-end gap-3">
           <NButton secondary attr-type="button" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet">{{ uninstallCopyLabel }}</NButton>
@@ -773,30 +773,30 @@ async function copyUninstallSnippet() {
       <div v-if="issuedAgent" class="grid gap-5">
         <div class="grid gap-3 md:grid-cols-2">
           <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent</span>
-            <span class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-sm text-white">{{ issuedAgent.name }}</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Agent</span>
+            <span class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 text-sm text-[var(--app-text)]">{{ issuedAgent.name }}</span>
           </div>
           <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Generated ID</span>
-            <code class="overflow-x-auto rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 font-mono text-xs text-white">{{ issuedAgent.publicId }}</code>
+            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Generated ID</span>
+            <code class="overflow-x-auto rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 font-mono text-xs text-[var(--app-text)]">{{ issuedAgent.publicId }}</code>
           </div>
         </div>
 
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           One-Time Token
-          <code class="block break-all rounded-md border border-[#333] bg-[#0b0b0b] p-3 font-mono text-xs text-white">{{ issuedToken }}</code>
+          <code class="block break-all rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3 font-mono text-xs text-[var(--app-text)]">{{ issuedToken }}</code>
         </label>
 
         <div class="grid gap-3 md:grid-cols-2">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Management URL
             <NInput v-model:value="setupManagementUrl" size="small" required />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             GitHub Repository
             <NInput v-model:value="setupReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
           </label>
-          <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Docker Image
             <NInput
               v-model:value="setupDockerImage"
@@ -807,30 +807,30 @@ async function copyUninstallSnippet() {
           </label>
         </div>
 
-        <div v-if="!managementUsesTLS" class="rounded-md border border-[#5f3b1d] bg-[#160d05] p-3 text-xs leading-5 text-[#f5c28b]">
+        <div v-if="!managementUsesTLS" class="app-warning-panel p-3 text-xs leading-5">
           <p class="font-semibold uppercase tracking-wider">Insecure management URL</p>
-          <p class="mt-1 text-[#c79866]">Agents reject HTTP management URLs by default. Enable the override only for isolated local development.</p>
-          <NCheckbox v-model:checked="setupAllowInsecureManagement" class="mt-3 text-[#f5c28b]">
+          <p class="mt-1 opacity-80">Agents reject HTTP management URLs by default. Enable the override only for isolated local development.</p>
+          <NCheckbox v-model:checked="setupAllowInsecureManagement" class="mt-3">
             Allow insecure agent management connection
           </NCheckbox>
         </div>
 
         <div v-if="managementUsesTLS" class="grid gap-3 md:grid-cols-3">
-          <label v-if="!embeddedManagementCAPEMBase64" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="!embeddedManagementCAPEMBase64" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Management CA file
             <NInput v-model:value="setupManagementCAFile" size="small" placeholder="/etc/p2pstream/management-ca.pem" />
           </label>
-          <div v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <div v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Management CA
-            <div class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs normal-case leading-5 tracking-normal text-[#d4d4d8]">
+            <div class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 text-xs normal-case leading-5 tracking-normal text-[var(--app-text)]">
               Embedded pinned CA from this management server
             </div>
           </div>
-          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Agent Certificate
             <NInput v-model:value="setupAgentTLSCertFile" size="small" required />
           </label>
-          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Agent Key
             <NInput v-model:value="setupAgentTLSKeyFile" size="small" required />
           </label>
@@ -848,8 +848,8 @@ async function copyUninstallSnippet() {
           </NButton>
         </NButtonGroup>
 
-        <p v-if="setupSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ setupSnippetError }}</p>
-        <pre v-else class="max-h-[360px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ setupSnippet }}</code></pre>
+        <p v-if="setupSnippetError" class="app-error-panel p-3 text-xs leading-5">{{ setupSnippetError }}</p>
+        <pre v-else class="max-h-[360px] overflow-auto rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4 text-xs leading-5 text-[var(--app-text)]"><code>{{ setupSnippet }}</code></pre>
 
         <div class="flex justify-end gap-3">
           <NButton secondary attr-type="button" :disabled="Boolean(setupSnippetError)" @click="copySetupSnippet">{{ setupCopyLabel }}</NButton>

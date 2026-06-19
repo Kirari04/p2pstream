@@ -263,8 +263,8 @@ function handleIssuedTokenModalUpdate(show: boolean) {
   <div class="space-y-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <h4 class="mb-2 text-lg font-semibold text-white">API Tokens</h4>
-        <p class="text-sm text-[#888]">Admin API credentials for {{ selectedEnvironmentLabel }}.</p>
+        <h4 class="mb-2 text-lg font-semibold text-[var(--app-text)]">API Tokens</h4>
+        <p class="text-sm text-[var(--app-text-muted)]">Admin API credentials for {{ selectedEnvironmentLabel }}.</p>
       </div>
       <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
         <NButton
@@ -281,18 +281,18 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       </DisabledHint>
     </div>
 
-    <div v-if="selectedEnvironmentBlocked" class="rounded-md border border-amber-900/60 bg-black p-4 text-sm text-amber-300">
+    <div v-if="selectedEnvironmentBlocked" class="rounded-md border border-amber-900/60 bg-[var(--app-panel)] p-4 text-sm text-amber-300">
       {{ selectedEnvironmentBlocked }}
     </div>
-    <div v-if="operationError" class="rounded-md border border-red-900/60 bg-black p-4 text-sm text-red-400">
+    <div v-if="operationError" class="rounded-md border border-red-900/60 bg-[var(--app-panel)] p-4 text-sm text-red-400">
       {{ operationError }}
     </div>
 
     <section class="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
       <div class="app-card p-5">
-        <h5 class="mb-4 text-sm font-semibold uppercase tracking-widest text-[#888]">Create API Token</h5>
+        <h5 class="mb-4 text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Create API Token</h5>
         <form class="grid gap-4" @submit.prevent="createToken">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Name
             <NInput
               v-model:value="tokenForm.name"
@@ -301,7 +301,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
               :disabled="Boolean(actionDisabledReason)"
             />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Expires
             <NDatePicker
               v-model:value="tokenForm.expiresAtUnixMillis"
@@ -323,8 +323,8 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       </div>
 
       <div class="app-card overflow-hidden">
-        <div class="border-b border-[#333] px-5 py-4">
-          <h5 class="text-sm font-semibold uppercase tracking-widest text-[#888]">API Tokens</h5>
+        <div class="border-b border-[var(--app-border)] px-5 py-4">
+          <h5 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">API Tokens</h5>
         </div>
         <NDataTable
           :columns="tokenColumns"
@@ -348,18 +348,18 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       @update:show="handleIssuedTokenModalUpdate"
     >
       <div class="space-y-4">
-        <div class="rounded-md border border-[#333] bg-[#050505] p-4">
+        <div class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
           <div class="mb-2">
-            <p class="text-xs font-medium uppercase tracking-wider text-[#888]">One-Time Token</p>
+            <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">One-Time Token</p>
           </div>
           <code
-            class="block min-h-12 break-all rounded-md border border-[#1f1f1f] bg-black p-3 font-mono text-xs leading-6 text-white"
+            class="block min-h-12 break-all rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] p-3 font-mono text-xs leading-6 text-[var(--app-text)]"
           >
             <template v-if="isIssuedTokenVisible">
               {{ issuedToken }}
             </template>
             <template v-else>
-              <span>{{ issuedTokenVisiblePrefix }}</span><span class="inline-block select-none text-[#777] blur-[4px]" aria-hidden="true">{{ issuedTokenBlurredRemainder }}</span>
+              <span>{{ issuedTokenVisiblePrefix }}</span><span class="inline-block select-none text-[var(--app-text-muted)] blur-[4px]" aria-hidden="true">{{ issuedTokenBlurredRemainder }}</span>
             </template>
           </code>
         </div>

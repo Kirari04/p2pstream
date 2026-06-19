@@ -194,11 +194,11 @@ defineExpose({ openCreate, openEdit, close });
   >
     <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Priority
           <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
@@ -224,31 +224,31 @@ defineExpose({ openCreate, openEdit, close });
         </NButtonGroup>
 
         <div class="grid gap-4 sm:grid-cols-5">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Upload KiB/s
             <NInputNumber v-model:value="form.uploadKibPerSecond" size="small" :min="0" :step="1" />
-            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Client-to-server bandwidth cap.</p>
+            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Client-to-server bandwidth cap.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Download KiB/s
             <NInputNumber v-model:value="form.downloadKibPerSecond" size="small" :min="0" :step="1" />
-            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Server-to-client bandwidth cap.</p>
+            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Server-to-client bandwidth cap.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Burst KiB
             <NInputNumber v-model:value="form.burstKib" size="small" :min="0" :step="1" />
-            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Extra data allowed in a burst before throttling.</p>
+            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Extra data allowed in a burst before throttling.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Request free KiB
             <NInputNumber v-model:value="form.requestFreeKib" size="small" :min="0" :step="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Response free KiB
             <NInputNumber v-model:value="form.responseFreeKib" size="small" :min="0" :step="1" />
           </label>
         </div>
-        <p class="rounded-md border border-[#222] bg-[#050505] px-3 py-2 text-xs text-[#888]">
+        <p class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 text-xs text-[var(--app-text-muted)]">
           A value of 0 leaves that direction unlimited. Free KiB are sent without delay and do not consume the shaper budget.
         </p>
       </section>

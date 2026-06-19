@@ -199,9 +199,9 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 }
 
 .policy-match-group.nested {
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #030303;
+  background: var(--app-panel-muted);
   padding: 0.75rem;
 }
 
@@ -220,7 +220,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 .tool-button,
 .icon-button {
   border-radius: 5px;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-size: 0.75rem;
   font-weight: 650;
   transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
@@ -231,16 +231,16 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   height: 2rem;
   align-items: center;
   gap: 0.4rem;
-  border: 1px solid #333;
-  background: #080808;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel-muted);
   padding: 0 0.65rem;
 }
 
 .tool-button:hover,
 .icon-button:hover {
-  border-color: #666;
-  background: #111;
-  color: #fff;
+  border-color: var(--app-border);
+  background: var(--app-panel-muted);
+  color: var(--app-text);
 }
 
 .condition-list {
@@ -277,7 +277,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-size: 0.78rem;
   min-height: 2.25rem;
 }
@@ -291,17 +291,17 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   width: 2.25rem;
   height: 2.25rem;
   place-items: center;
-  border: 1px solid #333;
-  background: #080808;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel-muted);
 }
 
 .empty-match {
   display: grid;
   min-height: 4.5rem;
   place-items: center;
-  border: 1px dashed #333;
+  border: 1px dashed var(--app-border);
   border-radius: 6px;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 

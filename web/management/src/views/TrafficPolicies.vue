@@ -203,40 +203,40 @@ async function deleteTrafficShaperRule(id: bigint) {
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h3 class="mb-2 text-xl font-bold">Traffic Policy</h3>
-        <p class="text-sm text-[#888]">Rate limits, WAF rules, cache behavior, and bandwidth shaping.</p>
+        <p class="text-sm text-[var(--app-text-muted)]">Rate limits, WAF rules, cache behavior, and bandwidth shaping.</p>
       </div>
     </div>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
+        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
+        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
       </div>
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Rate Limits</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Throttle traffic based on request rate per client or route.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Rate Limits</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Throttle traffic based on request rate per client or route.</p>
         </div>
         <NButton secondary size="small" @click="openAddRateLimitRuleModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
           Add Rule
         </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
         <div v-for="rule in rateLimitRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ rule.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ rateLimitAlgorithmLabel(rule.algorithm) }}</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ rateLimitRuleSummary(rule) }} / key {{ rateLimitKeySummary(rule) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ publicPolicyMatchSummary(rule) }} / response {{ rule.responseStatusCode.toString() }}</p>
+            <p class="mt-1 truncate font-mono text-xs text-[var(--app-text-muted)]">{{ rateLimitRuleSummary(rule) }} / key {{ rateLimitKeySummary(rule) }}</p>
+            <p class="mt-1 truncate text-xs text-[var(--app-text-muted)]">{{ publicPolicyMatchSummary(rule) }} / response {{ rule.responseStatusCode.toString() }}</p>
           </div>
           <div class="flex gap-2 lg:justify-end">
             <NButton secondary size="small" aria-label="Edit rate-limit rule" title="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
@@ -258,10 +258,10 @@ async function deleteTrafficShaperRule(id: bigint) {
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">WAF</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Block, challenge, or queue matching application traffic before it reaches routes.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">WAF</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Block, challenge, or queue matching application traffic before it reaches routes.</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <NButton secondary size="small" @click="openAddWafCaptchaProviderModal">
@@ -274,16 +274,16 @@ async function deleteTrafficShaperRule(id: bigint) {
           </NButton>
         </div>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
         <div v-for="provider in wafCaptchaProviders" :key="`provider-${provider.id.toString()}`" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ provider.name }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ provider.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ wafProviderLabel(provider.providerType) }}</NTag>
               <NTag size="small" :bordered="false" :type="naiveTagType(provider.secretKeySet ? 'success' : 'danger')">{{ provider.secretKeySet ? 'Secret saved' : 'Secret missing' }}</NTag>
               <NTag v-if="!provider.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ provider.siteKey }}</p>
+            <p class="mt-1 truncate font-mono text-xs text-[var(--app-text-muted)]">{{ provider.siteKey }}</p>
           </div>
           <div class="flex gap-2 lg:justify-end">
             <NButton secondary size="small" aria-label="Edit captcha provider" title="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
@@ -297,14 +297,14 @@ async function deleteTrafficShaperRule(id: bigint) {
         <div v-for="rule in wafRules" :key="`rule-${rule.id.toString()}`" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ rule.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ wafActionLabel(rule.action) }}</NTag>
               <NTag size="small" :bordered="false" type="info">{{ wafActivationLabel(rule.activationMode) }}</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ wafRuleSummary(rule, wafCaptchaProviders) }} / key {{ rateLimitKeySummary(rule) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ publicPolicyMatchSummary(rule) }}</p>
+            <p class="mt-1 truncate font-mono text-xs text-[var(--app-text-muted)]">{{ wafRuleSummary(rule, wafCaptchaProviders) }} / key {{ rateLimitKeySummary(rule) }}</p>
+            <p class="mt-1 truncate text-xs text-[var(--app-text-muted)]">{{ publicPolicyMatchSummary(rule) }}</p>
           </div>
           <div class="flex gap-2 lg:justify-end">
             <NButton secondary size="small" aria-label="Edit WAF rule" title="Edit WAF rule" @click="editWafRule(rule.id)">
@@ -326,10 +326,10 @@ async function deleteTrafficShaperRule(id: bigint) {
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Cache</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Cache public static files on the proxy after routing while keeping WAF, rate limits, and shaping active.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Cache</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Cache public static files on the proxy after routing while keeping WAF, rate limits, and shaping active.</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <NButton secondary size="small" @click="purgeAllCache">
@@ -342,34 +342,34 @@ async function deleteTrafficShaperRule(id: bigint) {
           </NButton>
         </div>
       </div>
-      <div class="grid gap-4 border-b border-[#222] bg-[#050505] px-5 py-4">
+      <div class="grid gap-4 border-b border-[var(--app-border)] bg-[var(--app-panel-muted)] px-5 py-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h5 class="text-xs font-semibold uppercase tracking-widest text-[#888]">Cache Settings</h5>
-            <p class="mt-1 text-xs text-[#666]">Bodies are stored under the configured public cache directory; metadata stays in SQLite.</p>
+            <h5 class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Cache Settings</h5>
+            <p class="mt-1 text-xs text-[var(--app-text-muted)]">Bodies are stored under the configured public cache directory; metadata stays in SQLite.</p>
           </div>
           <NCheckbox v-model:checked="cacheSettingsForm.enabled">
             Enabled
           </NCheckbox>
         </div>
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Disk MiB
             <NInputNumber v-model:value="cacheSettingsForm.maxDiskMiB" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Memory MiB
             <NInputNumber v-model:value="cacheSettingsForm.maxMemoryMiB" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Hot object KiB
             <NInputNumber v-model:value="cacheSettingsForm.hotObjectKiB" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Max entries
             <NInputNumber v-model:value="cacheSettingsForm.maxEntries" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Cleanup seconds
             <NInputNumber v-model:value="cacheSettingsForm.cleanupIntervalSeconds" size="small" :min="1" :max="3600" />
           </label>
@@ -380,19 +380,19 @@ async function deleteTrafficShaperRule(id: bigint) {
           </NButton>
         </div>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
         <div v-for="rule in cacheRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ rule.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ cacheTtlModeLabel(rule.ttlMode) }}</NTag>
               <NTag size="small" :bordered="false" type="info">{{ cacheScopeLabel(rule.scope) }}</NTag>
               <NTag size="small" :bordered="false" :type="naiveTagType(rule.allowCookieRequests ? 'warn' : 'info')">{{ rule.allowCookieRequests ? 'Cookies allowed' : 'Cookies blocked' }}</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ cacheRuleSummary(rule) }} / {{ cacheQueryModeLabel(rule.queryMode) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ cacheRuleMatchSummary(rule) }}</p>
+            <p class="mt-1 truncate font-mono text-xs text-[var(--app-text-muted)]">{{ cacheRuleSummary(rule) }} / {{ cacheQueryModeLabel(rule.queryMode) }}</p>
+            <p class="mt-1 truncate text-xs text-[var(--app-text-muted)]">{{ cacheRuleMatchSummary(rule) }}</p>
           </div>
           <div class="flex gap-2 lg:justify-end">
             <NButton secondary size="small" aria-label="Edit cache rule" title="Edit cache rule" @click="editCacheRule(rule.id)">
@@ -414,27 +414,27 @@ async function deleteTrafficShaperRule(id: bigint) {
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Traffic Shaper</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Limit bandwidth consumption per request or client.</p>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Traffic Shaper</h4>
+          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Limit bandwidth consumption per request or client.</p>
         </div>
         <NButton secondary size="small" @click="openAddTrafficShaperRuleModal">
           <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
           Add Shaper
         </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
         <div v-for="rule in trafficShaperRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ rule.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ publicPolicyMatchSummary(rule) }} / key {{ trafficShaperKeySummary(rule) }}</p>
+            <p class="mt-1 truncate font-mono text-xs text-[var(--app-text-muted)]">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</p>
+            <p class="mt-1 truncate text-xs text-[var(--app-text-muted)]">{{ publicPolicyMatchSummary(rule) }} / key {{ trafficShaperKeySummary(rule) }}</p>
           </div>
           <div class="flex gap-2 lg:justify-end">
             <NButton secondary size="small" aria-label="Edit traffic-shaper rule" title="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">

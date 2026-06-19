@@ -138,22 +138,22 @@ defineExpose({ openCreate, openEdit, close });
   >
     <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitProvider">
       <section class="grid gap-4 sm:grid-cols-2">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Provider
           <NSelect v-model:value="form.providerType" size="small" :options="providerOptions" />
         </label>
       </section>
 
       <section class="grid gap-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Site key
           <NInput v-model:value="form.siteKey" size="small" autocomplete="off" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Secret key
           <NInput
             v-model:value="form.secretKey"

@@ -117,7 +117,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h3 class="mb-2 text-xl font-bold">Response Templates</h3>
-        <p class="text-sm text-[#888]">Reusable static bodies and validated WAF HTML pages.</p>
+        <p class="text-sm text-[var(--app-text-muted)]">Reusable static bodies and validated WAF HTML pages.</p>
       </div>
       <NButton type="primary" @click="openCreate()">
         <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
@@ -127,17 +127,17 @@ async function deleteTemplate(template: PublicResponseTemplate) {
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
+        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
+        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
       </div>
     </section>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Templates</h4>
+      <div class="border-b border-[var(--app-border)] px-5 py-4">
+        <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Templates</h4>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
+      <div class="divide-y divide-[var(--app-border-subtle)]">
         <div
           v-for="template in templates"
           :key="template.id.toString()"
@@ -146,12 +146,12 @@ async function deleteTemplate(template: PublicResponseTemplate) {
         >
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ template.name }}</p>
+              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ template.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ kindLabel(template.kind) }}</NTag>
               <NTag size="small" :bordered="false" :type="naiveTagType(usageCount(template) ? 'warn' : 'info')">{{ usageCount(template).toString() }} uses</NTag>
             </div>
-            <p class="mt-1 truncate text-xs text-[#888]">{{ template.description || template.contentType || "No description" }}</p>
-            <p class="mt-1 truncate font-mono text-xs text-[#666]">Required: {{ requiredPlaceholderLabel(template.kind) }} / updated {{ formatUpdatedAt(template) }}</p>
+            <p class="mt-1 truncate text-xs text-[var(--app-text-muted)]">{{ template.description || template.contentType || "No description" }}</p>
+            <p class="mt-1 truncate font-mono text-xs text-[var(--app-text-muted)]">Required: {{ requiredPlaceholderLabel(template.kind) }} / updated {{ formatUpdatedAt(template) }}</p>
           </div>
           <div class="flex gap-2 lg:justify-end">
             <NButton secondary size="small" aria-label="Edit template" title="Edit template" @click="openEdit(template)">

@@ -51,9 +51,9 @@ function removeDisabledReason(): string {
 </script>
 
 <template>
-  <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
+  <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
     <div class="flex items-center justify-between gap-3">
-      <h4 class="text-sm font-semibold text-white">Key parts</h4>
+      <h4 class="text-sm font-semibold text-[var(--app-text)]">Key parts</h4>
       <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason || ''">
         <NButton secondary size="small" :disabled="Boolean(disabledReason)" @click="addKeyPart">
           Add Key

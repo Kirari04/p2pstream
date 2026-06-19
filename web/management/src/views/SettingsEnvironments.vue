@@ -78,8 +78,8 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     key: "environment",
     minWidth: 260,
     render: (environment) => h("div", [
-      h("p", { class: "font-medium text-white" }, environment.name),
-      h("p", { class: "max-w-md truncate font-mono text-xs text-[#888]" }, environment.managementUrl),
+      h("p", { class: "font-medium text-[var(--app-text)]" }, environment.name),
+      h("p", { class: "max-w-md truncate font-mono text-xs text-[var(--app-text-muted)]" }, environment.managementUrl),
       h("div", { class: "mt-2 flex gap-2" }, [
         !environment.enabled
           ? h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Disabled" })
@@ -95,9 +95,9 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     key: "transport",
     minWidth: 180,
     render: (environment) => h("div", [
-      h("p", { class: "text-[#d4d4d8]" }, transportLabel(environment.transport)),
+      h("p", { class: "text-[var(--app-text)]" }, transportLabel(environment.transport)),
       environment.transport === EnvironmentTransport.AGENT
-        ? h("p", { class: "font-mono text-xs text-[#888]" }, [
+        ? h("p", { class: "font-mono text-xs text-[var(--app-text-muted)]" }, [
           environment.agentName || `agent #${environment.agentId.toString()}`,
           " ",
           h("span", { class: environment.agentConnected ? "text-green-400" : "text-amber-400" }, environment.agentConnected ? "connected" : "offline"),
@@ -120,16 +120,16 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     key: "certificate",
     minWidth: 260,
     render: (environment) => h("div", { class: "grid max-w-[18rem] gap-1.5" }, [
-      h("p", { class: "truncate text-xs text-[#d4d4d8]", title: certificateSubject(certificateForEnvironment(environment)) }, certificateSubject(certificateForEnvironment(environment))),
+      h("p", { class: "truncate text-xs text-[var(--app-text)]", title: certificateSubject(certificateForEnvironment(environment)) }, certificateSubject(certificateForEnvironment(environment))),
       h(
         "code",
         {
-          class: "inline-flex max-w-full rounded border border-[#333] bg-[#050505] px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-[#d4d4d8]",
+          class: "inline-flex max-w-full rounded border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-[var(--app-text)]",
           title: certificateFingerprintForEnvironment(environment) || "No certificate discovered",
         },
         [h("span", { class: "truncate" }, formatFingerprint(certificateFingerprintForEnvironment(environment)))],
       ),
-      h("p", { class: "text-xs text-[#888]" }, `Expires ${formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis)}`),
+      h("p", { class: "text-xs text-[var(--app-text-muted)]" }, `Expires ${formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis)}`),
     ]),
   },
   {
@@ -142,12 +142,12 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         { size: "small", bordered: false, type: naiveTagType(testResultSeverity(environment)) },
         { default: () => testResultLabel(environment) },
       ),
-      h("p", { class: "font-mono text-xs text-[#d4d4d8]" }, formatDate(testResultCheckedAt(environment))),
+      h("p", { class: "font-mono text-xs text-[var(--app-text)]" }, formatDate(testResultCheckedAt(environment))),
       testResultMessage(environment)
         ? h(
           "p",
           {
-            class: ["truncate text-xs", testResultState(environment) === "error" ? "text-red-400" : "text-[#888]"],
+            class: ["truncate text-xs", testResultState(environment) === "error" ? "text-red-400" : "text-[var(--app-text-muted)]"],
             title: testResultMessage(environment),
           },
           testResultMessage(environment),
@@ -538,8 +538,8 @@ function handleTrustModalUpdate(show: boolean) {
   <div class="space-y-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <h4 class="mb-2 text-lg font-semibold text-white">Environments</h4>
-        <p class="text-sm text-[#888]">Remote management endpoints, routing, and certificate trust.</p>
+        <h4 class="mb-2 text-lg font-semibold text-[var(--app-text)]">Environments</h4>
+        <p class="text-sm text-[var(--app-text-muted)]">Remote management endpoints, routing, and certificate trust.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
         <NButton secondary size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
@@ -549,13 +549,13 @@ function handleTrustModalUpdate(show: boolean) {
       </DisabledHint>
     </div>
 
-    <div v-if="operationError" class="rounded-md border border-red-900/60 bg-black p-4 text-sm text-red-400">
+    <div v-if="operationError" class="rounded-md border border-red-900/60 bg-[var(--app-panel)] p-4 text-sm text-red-400">
       {{ operationError }}
     </div>
 
     <section class="app-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4">
-        <h5 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Registered Environments</h5>
+      <div class="border-b border-[var(--app-border)] px-5 py-4">
+        <h5 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Registered Environments</h5>
       </div>
       <NDataTable
         :columns="environmentColumns"
@@ -577,15 +577,15 @@ function handleTrustModalUpdate(show: boolean) {
       :bordered="false"
     >
       <form class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1" @submit.prevent="submitEnvironment">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Name
           <NInput v-model:value="environmentForm.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Management URL
           <NInput v-model:value="environmentForm.managementUrl" size="small" placeholder="https://proxy.example.com:8081" required />
         </label>
-        <div class="grid gap-2 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <div class="grid gap-2 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Transport
           <NButtonGroup class="w-fit" size="small">
             <NButton
@@ -599,11 +599,11 @@ function handleTrustModalUpdate(show: boolean) {
             </NButton>
           </NButtonGroup>
         </div>
-        <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Local Agent
           <NSelect v-model:value="environmentForm.agentId" size="small" :options="localAgentOptions" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Access Token
           <NInput
             v-model:value="environmentForm.accessToken"
@@ -612,7 +612,7 @@ function handleTrustModalUpdate(show: boolean) {
             :required="!environmentForm.id"
           />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Response Header Timeout
           <NInputNumber v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
         </label>
@@ -636,44 +636,44 @@ function handleTrustModalUpdate(show: boolean) {
       @update:show="handleTrustModalUpdate"
     >
       <div class="grid gap-5">
-        <div class="rounded-md border border-[#333] bg-[#050505] p-4">
+        <div class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
           <div class="grid gap-4">
             <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Environment</p>
-              <p class="truncate text-sm text-white" :title="certificateTrustEnvironment?.name">
+              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Environment</p>
+              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateTrustEnvironment?.name">
                 {{ certificateTrustEnvironment?.name }}
               </p>
             </div>
             <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">SHA-256 Fingerprint</p>
+              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">SHA-256 Fingerprint</p>
               <code
-                class="block max-w-full truncate rounded-md border border-[#333] bg-black px-3 py-2 font-mono text-xs uppercase tracking-wider text-white"
+                class="block max-w-full truncate rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--app-text)]"
                 :title="certificateTrustFingerprint"
               >
                 {{ formatFingerprint(certificateTrustFingerprint) }}
               </code>
             </div>
             <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Subject</p>
-              <p class="truncate text-sm text-[#d4d4d8]" :title="certificateSubject(certificateTrustCertificate)">
+              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Subject</p>
+              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateSubject(certificateTrustCertificate)">
                 {{ certificateSubject(certificateTrustCertificate) }}
               </p>
             </div>
             <div v-if="certificateTrustCertificate?.issuer" class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Issuer</p>
-              <p class="truncate text-sm text-[#d4d4d8]" :title="certificateTrustCertificate.issuer">
+              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Issuer</p>
+              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateTrustCertificate.issuer">
                 {{ certificateTrustCertificate.issuer }}
               </p>
             </div>
             <div v-if="certificateSanSummary(certificateTrustCertificate)" class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Names</p>
-              <p class="truncate text-sm text-[#d4d4d8]" :title="certificateSanSummary(certificateTrustCertificate)">
+              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Names</p>
+              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateSanSummary(certificateTrustCertificate)">
                 {{ certificateSanSummary(certificateTrustCertificate) }}
               </p>
             </div>
             <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[#888]">Valid Until</p>
-              <p class="font-mono text-xs text-[#d4d4d8]">
+              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Valid Until</p>
+              <p class="font-mono text-xs text-[var(--app-text)]">
                 {{ formatDate(certificateTrustCertificate?.notAfterUnixMillis) }}
               </p>
             </div>

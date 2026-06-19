@@ -434,7 +434,7 @@ export function requestStatusClass(request: Pick<TraceRequest, "stage" | "status
   if (status >= 500) return "text-red-400";
   if (status >= 400) return "text-amber-400";
   if (status >= 200) return "text-green-400";
-  return "text-[#888]";
+  return "text-[var(--app-text-muted)]";
 }
 
 export function traceFlowLabel(request: TraceRequest): string {

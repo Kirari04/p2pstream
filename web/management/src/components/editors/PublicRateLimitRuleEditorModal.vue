@@ -231,11 +231,11 @@ defineExpose({ openCreate, openEdit, close });
   >
     <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Priority
           <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
@@ -256,17 +256,17 @@ defineExpose({ openCreate, openEdit, close });
           </NButton>
         </NButtonGroup>
         <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Limit
             <NInputNumber v-model:value="form.limit" size="small" :min="1" required />
-            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Max requests allowed per window.</p>
+            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Max requests allowed per window.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Window seconds
             <NInputNumber v-model:value="form.windowSeconds" size="small" :min="1" :step="1" required />
-            <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Duration of each rate limit window.</p>
+            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Duration of each rate limit window.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Burst
             <DisabledHint full-width :disabled="Boolean(burstDisabledReason)" :reason="burstDisabledReason">
               <NInputNumber
@@ -292,20 +292,20 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
-      <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Denied response</h4>
+      <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text)]">Denied response</h4>
         <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Status
             <NInputNumber v-model:value="form.responseStatusCode" size="small" :min="400" :max="599" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
             Content type
             <NInput v-model:value="form.responseContentType" size="small" />
           </label>
         </div>
-        <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
-          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <div class="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
+          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Body source
             <NButtonGroup class="grid grid-cols-2" size="small">
               <NButton
@@ -322,7 +322,7 @@ defineExpose({ openCreate, openEdit, close });
               </NButton>
             </NButtonGroup>
           </div>
-          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Template
             <NSelect
               v-model:value="form.responseBodyTemplateId"
@@ -332,14 +332,14 @@ defineExpose({ openCreate, openEdit, close });
               :disabled="!genericTemplates.length"
             />
           </label>
-          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Body
             <NInput v-model:value="form.responseBody" type="textarea" class="font-mono" :autosize="{ minRows: 4, maxRows: 8 }" />
           </label>
         </div>
         <div class="grid gap-2">
           <div class="flex items-center justify-between gap-3">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Headers</span>
+            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Headers</span>
             <NButton secondary size="small" @click="addResponseHeader">Add Header</NButton>
           </div>
           <div v-for="(header, index) in form.responseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">

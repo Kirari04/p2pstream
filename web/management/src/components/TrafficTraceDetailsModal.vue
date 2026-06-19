@@ -43,7 +43,7 @@ function statusClass(status: bigint, stage: TrafficTraceStage): string {
   if (code >= 500) return "text-red-400";
   if (code >= 400) return "text-amber-400";
   if (code >= 200) return "text-green-400";
-  return "text-[#888]";
+  return "text-[var(--app-text-muted)]";
 }
 
 function stageLabel(stage: TrafficTraceStage): string {
@@ -206,14 +206,14 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Rate limit</span>
           <strong>
             {{ request.rateLimitRuleName || `#${request.rateLimitRuleId.toString()}` }}
-            <span class="text-[#888]">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
+            <span class="text-[var(--app-text-muted)]">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
           </strong>
         </div>
         <div v-if="request.wafRuleId" class="trace-field sm:col-span-2">
           <span>WAF</span>
           <strong>
             {{ request.wafRuleName || `#${request.wafRuleId.toString()}` }}
-            <span class="text-[#888]">
+            <span class="text-[var(--app-text-muted)]">
               / {{ wafActionLabel(request.wafAction) }}
               / {{ wafActivationLabel(request.wafActivationMode) }}
               <template v-if="request.wafChallengeKind"> / {{ request.wafChallengeKind }}</template>
@@ -224,7 +224,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Traffic shaper</span>
           <strong>
             {{ request.trafficShaperRuleName || `#${request.trafficShaperRuleId.toString()}` }}
-            <span class="text-[#888]">
+            <span class="text-[var(--app-text-muted)]">
               / {{ trafficShaperScopeLabel(request.trafficShaperBudgetScope) }}
               / up {{ formatRate(request.trafficShaperUploadBytesPerSecond) }}
               / down {{ formatRate(request.trafficShaperDownloadBytesPerSecond) }}
@@ -307,11 +307,11 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 
       <section class="trace-panel">
         <h4>Lifecycle</h4>
-        <div class="divide-y divide-[#222]">
+        <div class="divide-y divide-[var(--app-border-subtle)]">
           <div v-for="event in request.events" :key="event.sequence.toString()" class="grid gap-2 py-2 text-xs sm:grid-cols-[10rem_1fr_6rem]">
-            <span class="text-[#888]">{{ formatDate(event.occurredAtUnixMillis) }}</span>
-            <span class="font-medium text-white">{{ stageLabel(event.stage) }}</span>
-            <span class="text-right font-mono text-[#888]">{{ formatDuration(event.durationMs) }}</span>
+            <span class="text-[var(--app-text-muted)]">{{ formatDate(event.occurredAtUnixMillis) }}</span>
+            <span class="font-medium text-[var(--app-text)]">{{ stageLabel(event.stage) }}</span>
+            <span class="text-right font-mono text-[var(--app-text-muted)]">{{ formatDuration(event.durationMs) }}</span>
           </div>
         </div>
       </section>
@@ -321,16 +321,16 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 
 <style scoped>
 .trace-field {
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.75rem;
 }
 
 .trace-field span {
   display: block;
   margin-bottom: 0.35rem;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -338,20 +338,20 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 }
 
 .trace-field strong {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.875rem;
 }
 
 .trace-panel {
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.85rem;
 }
 
 .trace-panel h4 {
   margin-bottom: 0.75rem;
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -362,7 +362,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 }
 
 .trace-panel dt {
-  color: #888;
+  color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
 }
@@ -370,13 +370,13 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 .trace-panel dd {
   margin: -0.35rem 0 0;
   overflow-wrap: anywhere;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
 .trace-panel p {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.8rem;
 }
 </style>

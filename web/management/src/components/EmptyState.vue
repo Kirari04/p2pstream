@@ -15,8 +15,8 @@ defineEmits<{
 
 <template>
   <div class="flex flex-col items-center justify-center gap-3 px-5 py-10 text-center">
-    <p class="text-sm font-medium text-[#888]">{{ title }}</p>
-    <p v-if="description" class="max-w-sm text-xs text-[#666]">{{ description }}</p>
+    <p class="text-sm font-medium text-[var(--app-text-muted)]">{{ title }}</p>
+    <p v-if="description" class="max-w-sm text-xs text-[var(--app-text-muted)]">{{ description }}</p>
     <NButton
       v-if="actionLabel"
       secondary

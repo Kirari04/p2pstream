@@ -538,12 +538,12 @@ const flowEdges = computed<Edge[]>(() =>
       focusable: false,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: "#52525b",
+        color: "var(--app-border)",
         width: 16,
         height: 16,
       },
       style: {
-        stroke: "#3f3f46",
+        stroke: "var(--app-border)",
         strokeWidth: 1.25,
       },
       data: {
@@ -1729,12 +1729,12 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   min-height: 360px;
   contain: layout paint style;
   overflow: hidden;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
   background:
-    linear-gradient(#111 1px, transparent 1px),
-    linear-gradient(90deg, #111 1px, transparent 1px),
-    #050505;
+    linear-gradient(var(--app-border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--app-border-subtle) 1px, transparent 1px),
+    var(--app-panel-muted);
   background-size: 32px 32px;
 }
 
@@ -1742,7 +1742,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   width: 100%;
   height: 100%;
   background: transparent;
-  color: #ededed;
+  color: var(--app-text);
 }
 
 .flow-status {
@@ -1753,36 +1753,36 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: rgb(0 0 0 / 78%);
+  background: color-mix(in srgb, var(--app-panel) 88%, transparent);
   padding: 4px 6px 4px 10px;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.75rem;
   line-height: 1;
   backdrop-filter: blur(8px);
 }
 
 .flow-overflow {
-  color: #f59e0b;
+  color: var(--app-warning);
 }
 
 .flow-fit-button {
   height: 24px;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #080808;
+  background: var(--app-panel-muted);
   padding: 0 9px;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-size: 0.72rem;
   font-weight: 600;
   transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
 
 .flow-fit-button:hover {
-  border-color: #666;
-  background: #111;
-  color: #fff;
+  border-color: var(--app-border);
+  background: var(--app-panel-muted);
+  color: var(--app-text);
 }
 
 .traffic-token-layer {
@@ -1829,36 +1829,36 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
 }
 
 .traffic-token-in-flight {
-  color: #22d3ee;
+  color: var(--app-accent);
 }
 
 .traffic-token-success {
-  color: #22c55e;
+  color: var(--app-success);
 }
 
 .traffic-token-cache-hit {
-  color: #10b981;
+  color: var(--app-success);
 }
 
 .traffic-token-cache-miss {
-  color: #38bdf8;
+  color: var(--app-accent);
 }
 
 .traffic-token-cache-bypass {
-  color: #a1a1aa;
+  color: var(--app-text-muted);
 }
 
 .traffic-token-cache-stored {
-  color: #34d399;
+  color: var(--app-success);
 }
 
 .traffic-token-client-error {
-  color: #f59e0b;
+  color: var(--app-warning);
 }
 
 .traffic-token-server-error,
 .traffic-token-failed {
-  color: #ef4444;
+  color: var(--app-error);
 }
 
 .traffic-token-dot,
@@ -1916,7 +1916,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
 }
 
 :deep(.vue-flow__edge-path) {
-  stroke: #3f3f46;
+  stroke: var(--app-border);
 }
 
 :deep(.vue-flow__edge.animated .vue-flow__edge-path) {

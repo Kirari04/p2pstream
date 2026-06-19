@@ -472,7 +472,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 }
 
 .overview-header h3 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -481,7 +481,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .overview-header p,
 .panel-heading p,
 .metric-subline {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 
@@ -498,9 +498,9 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .dashboard-panel,
 .empty-panel {
   min-width: 0;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #000;
+  background: var(--app-panel-muted);
 }
 
 .metric-card {
@@ -510,7 +510,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 }
 
 .metric-kicker {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -522,7 +522,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   min-width: 0;
   align-items: center;
   gap: 0.45rem;
-  color: #ededed;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -532,9 +532,9 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .mini-tabs {
   display: inline-grid;
   overflow: hidden;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.2rem;
 }
 
@@ -550,7 +550,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .mini-tabs button {
   min-width: 0;
   border-radius: 4px;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.78rem;
   font-weight: 650;
   letter-spacing: 0;
@@ -569,14 +569,14 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 
 .window-tabs button:hover,
 .mini-tabs button:hover {
-  background: #111;
-  color: #fff;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
 }
 
 .window-tabs button.active,
 .mini-tabs button.active {
-  background: #fff;
-  color: #000;
+  background: var(--app-panel);
+  color: var(--app-text);
 }
 
 .signal-dot {
@@ -587,19 +587,19 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 }
 
 .signal-good {
-  background: #22c55e;
+  background: var(--app-success);
 }
 
 .signal-warn {
-  background: #f59e0b;
+  background: var(--app-warning);
 }
 
 .signal-bad {
-  background: #ef4444;
+  background: var(--app-error);
 }
 
 .signal-muted {
-  background: #666;
+  background: var(--app-text-muted);
 }
 
 .overview-main-grid {
@@ -631,10 +631,10 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   display: inline-flex;
   min-height: 1.55rem;
   align-items: center;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #fff;
-  color: #000;
+  background: var(--app-panel);
+  color: var(--app-text);
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0 0.55rem;
@@ -642,12 +642,12 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 }
 
 .diagnostics-link:hover {
-  background: #d4d4d8;
+  background: var(--app-border-subtle);
 }
 
 .panel-heading h4,
 .empty-panel h4 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -657,10 +657,10 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   display: inline-flex;
   min-height: 1.55rem;
   align-items: center;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #080808;
-  color: #d4d4d8;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   font-size: 0.72rem;
   font-weight: 650;
   padding: 0 0.55rem;
@@ -669,7 +669,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 
 .signal-pill.warn {
   border-color: rgb(245 158 11 / 55%);
-  color: #fbbf24;
+  color: var(--app-warning);
 }
 
 .trend-bars {
@@ -690,16 +690,16 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   display: flex;
   align-items: end;
   overflow: hidden;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 4px;
-  background: #050505;
+  background: var(--app-panel-muted);
 }
 
 .trend-bar {
   position: relative;
   width: 100%;
   min-height: 0;
-  background: #d4d4d8;
+  background: var(--app-border-subtle);
   transition: height 160ms ease;
 }
 
@@ -708,7 +708,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   right: 0;
   bottom: 0;
   left: 0;
-  background: #ef4444;
+  background: var(--app-error);
 }
 
 .status-class-grid,
@@ -732,16 +732,16 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   display: grid;
   gap: 0.2rem;
   min-width: 0;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.75rem;
 }
 
 .status-class span,
 .snapshot-item span,
 .cache-stat span {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 650;
 }
@@ -749,7 +749,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .status-class strong,
 .snapshot-item strong,
 .cache-stat strong {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1rem;
   font-weight: 700;
 }
@@ -757,14 +757,14 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .snapshot-item small,
 .cache-stat small {
   overflow: hidden;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .cache-empty {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.8rem;
 }
 
@@ -778,20 +778,20 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: center;
-  border-top: 1px solid #1f1f1f;
+  border-top: 1px solid var(--app-border);
   padding-top: 0.45rem;
 }
 
 .error-row span {
   overflow: hidden;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-size: 0.8rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .error-row strong {
-  color: #fca5a5;
+  color: var(--app-error);
   font-size: 0.8rem;
   font-weight: 650;
 }
@@ -809,14 +809,14 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 
 .hotspot-table th,
 .hotspot-table td {
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding: 0.65rem 0.5rem;
   text-align: right;
   white-space: nowrap;
 }
 
 .hotspot-table th {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -831,14 +831,14 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .name-cell {
   max-width: 18rem;
   overflow: hidden;
-  color: #fff;
+  color: var(--app-text);
   font-weight: 650;
   text-overflow: ellipsis;
 }
 
 .empty-row,
 .stable-empty {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
   text-align: center;
 }
@@ -847,9 +847,9 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   display: grid;
   min-height: 8rem;
   place-items: center;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
 }
 
 .stable-empty.compact {
@@ -862,7 +862,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 
 .empty-panel p {
   margin-top: 0.25rem;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 

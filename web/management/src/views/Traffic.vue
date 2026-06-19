@@ -72,10 +72,10 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
     minWidth: 260,
     render: (request) => h("div", [
       h("div", { class: "flex items-center gap-2" }, [
-        h("span", { class: "rounded border border-[#333] px-1.5 py-0.5 font-mono text-[0.7rem] text-[#d4d4d8]" }, request.methodLabel),
-        h("span", { class: "max-w-[18rem] truncate font-mono text-xs text-white" }, request.pathLabel),
+        h("span", { class: "rounded border border-[var(--app-border)] px-1.5 py-0.5 font-mono text-[0.7rem] text-[var(--app-text)]" }, request.methodLabel),
+        h("span", { class: "max-w-[18rem] truncate font-mono text-xs text-[var(--app-text)]" }, request.pathLabel),
       ]),
-      h("p", { class: "mt-1 max-w-[22rem] truncate font-mono text-[0.7rem] text-[#666]" }, request.requestIdLabel),
+      h("p", { class: "mt-1 max-w-[22rem] truncate font-mono text-[0.7rem] text-[var(--app-text-muted)]" }, request.requestIdLabel),
     ]),
   },
   {
@@ -83,8 +83,8 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
     key: "flow",
     minWidth: 260,
     render: (request) => h("div", [
-      h("p", { class: "text-xs text-[#d4d4d8]" }, request.flowLabel),
-      h("p", { class: "mt-1 text-[0.7rem] text-[#888]" }, `${request.stageLabel}${request.sampledEventCount ? ` / sampled ${numberLabel(request.sampledEventCount)}` : ""}`),
+      h("p", { class: "text-xs text-[var(--app-text)]" }, request.flowLabel),
+      h("p", { class: "mt-1 text-[0.7rem] text-[var(--app-text-muted)]" }, `${request.stageLabel}${request.sampledEventCount ? ` / sampled ${numberLabel(request.sampledEventCount)}` : ""}`),
     ]),
   },
   {
@@ -99,7 +99,7 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
     key: "duration",
     width: 120,
     align: "right",
-    render: (request) => h("span", { class: "font-mono text-xs text-[#888]" }, request.durationLabel),
+    render: (request) => h("span", { class: "font-mono text-xs text-[var(--app-text-muted)]" }, request.durationLabel),
   },
 ]);
 const trafficWindowColumns = computed<DataTableColumns<DashboardWindowSummary>>(() => [
@@ -107,7 +107,7 @@ const trafficWindowColumns = computed<DataTableColumns<DashboardWindowSummary>>(
   { title: "Requests", key: "requests", width: 130, align: "right", render: (item) => bigIntLabel(item.proxyRequests) },
   { title: "Success", key: "success", width: 130, align: "right", render: (item) => h("span", { class: "text-green-500" }, bigIntLabel(item.proxySuccess)) },
   { title: "Errors", key: "errors", width: 130, align: "right", render: (item) => h("span", { class: "text-red-500" }, bigIntLabel(proxyErrors(item))) },
-  { title: "Avg Duration", key: "duration", width: 140, align: "right", render: (item) => h("span", { class: "text-[#888]" }, formatDuration(item.proxyAvgDurationMs)) },
+  { title: "Avg Duration", key: "duration", width: 140, align: "right", render: (item) => h("span", { class: "text-[var(--app-text-muted)]" }, formatDuration(item.proxyAvgDurationMs)) },
   { title: "Traffic In", key: "in", width: 130, align: "right", render: (item) => formatBytes(item.agentBytesReceived) },
   { title: "Traffic Out", key: "out", width: 130, align: "right", render: (item) => formatBytes(item.agentBytesSent) },
 ]);
@@ -369,13 +369,13 @@ onBeforeUnmount(() => {
       <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3 class="text-xl font-bold mb-2">Traffic Flow</h3>
-          <p class="text-[#888] text-sm">Live request routing across listeners, routes, targets, agents, and upstreams.</p>
+          <p class="text-[var(--app-text-muted)] text-sm">Live request routing across listeners, routes, targets, agents, and upstreams.</p>
         </div>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
           <DisabledHint :disabled="Boolean(traceBusyDisabledReason)" :reason="traceBusyDisabledReason">
             <NCheckbox
-              class="flex h-10 items-center rounded-md border border-[#333] bg-black px-3"
+              class="flex h-10 items-center rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] px-3"
               :checked="tracingEnabled"
               :disabled="Boolean(traceBusyDisabledReason)"
               @update:checked="setTracingEnabled"
@@ -384,7 +384,7 @@ onBeforeUnmount(() => {
             </NCheckbox>
           </DisabledHint>
 
-          <NButtonGroup class="grid grid-cols-4 overflow-hidden rounded-md border border-[#333]" size="small">
+          <NButtonGroup class="grid grid-cols-4 overflow-hidden rounded-md border border-[var(--app-border)]" size="small">
             <DisabledHint
               v-for="option in traceLevelOptions"
               :key="option.value"
@@ -409,7 +409,7 @@ onBeforeUnmount(() => {
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div class="app-card p-4">
           <p class="app-card-title">Trace State</p>
-          <span class="text-lg font-semibold" :class="tracingEnabled ? 'text-green-400' : 'text-[#888]'">{{ streamStateLabel() }}</span>
+          <span class="text-lg font-semibold" :class="tracingEnabled ? 'text-green-400' : 'text-[var(--app-text-muted)]'">{{ streamStateLabel() }}</span>
         </div>
         <div class="app-card p-4">
           <p class="app-card-title">Events</p>
@@ -417,7 +417,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="app-card p-4">
           <p class="app-card-title">Dropped</p>
-          <span class="text-lg font-semibold" :class="traceSettings?.droppedEvents ? 'text-amber-400' : 'text-[#ededed]'">
+          <span class="text-lg font-semibold" :class="traceSettings?.droppedEvents ? 'text-amber-400' : 'text-[var(--app-text)]'">
             {{ bigIntLabel(traceSettings?.droppedEvents) }}
           </span>
         </div>
@@ -437,7 +437,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="app-card p-4">
             <p class="app-card-title">Sampled</p>
-            <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[#ededed]'">
+            <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[var(--app-text)]'">
               {{ numberLabel(renderStats.sampledEvents) }}/{{ numberLabel(renderStats.sampledRequests) }}
             </span>
           </div>
@@ -462,16 +462,16 @@ onBeforeUnmount(() => {
       />
 
       <div class="app-card overflow-hidden">
-        <div class="flex items-center justify-between border-b border-[#333] px-5 py-4">
+        <div class="flex items-center justify-between border-b border-[var(--app-border)] px-5 py-4">
           <div>
             <h4 class="font-semibold">Recent traces</h4>
-            <p class="text-xs text-[#888]">{{ traceTableSummary }}</p>
+            <p class="text-xs text-[var(--app-text-muted)]">{{ traceTableSummary }}</p>
           </div>
           <DisabledHint :disabled="Boolean(clearTracesDisabledReason)" :reason="clearTracesDisabledReason">
             <NButton
               secondary
               size="small"
-              class="border-[#333]! bg-transparent! text-[#888]! hover:border-[#666]!"
+              class="border-[var(--app-border)]! bg-transparent! text-[var(--app-text-muted)]! hover:border-[var(--app-text-muted)]!"
               :disabled="Boolean(clearTracesDisabledReason)"
               @click="clearTraceRequests"
             >
@@ -497,7 +497,7 @@ onBeforeUnmount(() => {
     <section class="space-y-4">
       <div>
         <h3 class="text-xl font-bold mb-2">Traffic History</h3>
-        <p class="text-[#888] text-sm">Aggregated request counts across different time windows.</p>
+        <p class="text-[var(--app-text-muted)] text-sm">Aggregated request counts across different time windows.</p>
       </div>
 
       <div class="app-card overflow-hidden">

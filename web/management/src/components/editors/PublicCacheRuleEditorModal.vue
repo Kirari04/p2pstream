@@ -485,11 +485,11 @@ defineExpose({ openCreate, openEdit, close });
   >
     <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
       <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Priority
           <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
@@ -500,15 +500,15 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyMatchEditor :form="form.match" />
 
-      <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-        <h4 class="text-sm font-semibold text-white">Cache behavior</h4>
-        <p class="text-xs leading-5 text-[#777]">
+      <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+        <h4 class="text-sm font-semibold text-[var(--app-text)]">Cache behavior</h4>
+        <p class="text-xs leading-5 text-[var(--app-text-muted)]">
           Authorization requests are always bypassed. Cookie requests are cached only when this rule allows them. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
-        <NCheckbox v-model:checked="form.allowCookieRequests" class="rounded-md border border-[#222] bg-[#050505] p-3">
+        <NCheckbox v-model:checked="form.allowCookieRequests" class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
           <span class="grid gap-1">
-            <span class="font-medium text-white">Cache requests with Cookie headers</span>
-            <span class="text-xs leading-5 text-[#777]">
+            <span class="font-medium text-[var(--app-text)]">Cache requests with Cookie headers</span>
+            <span class="text-xs leading-5 text-[var(--app-text-muted)]">
               Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
             </span>
           </span>
@@ -516,34 +516,34 @@ defineExpose({ openCreate, openEdit, close });
         <NCheckbox
           v-if="form.allowCookieRequests"
           v-model:checked="form.allowCookieRequestsAcknowledged"
-          class="rounded-md border border-[#333] bg-black p-3"
+          class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] p-3"
         >
           <span class="grid gap-1">
-            <span class="font-medium text-white">I understand Cookie is ignored in this cache key</span>
-            <span class="text-xs leading-5 text-[#777]">
+            <span class="font-medium text-[var(--app-text)]">I understand Cookie is ignored in this cache key</span>
+            <span class="text-xs leading-5 text-[var(--app-text-muted)]">
               Only use this for responses that are identical for every visitor, even when the request includes cookies.
             </span>
           </span>
         </NCheckbox>
         <div class="grid gap-4 sm:grid-cols-4">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             TTL mode
             <NSelect v-model:value="form.ttlMode" size="small" :options="ttlModeOptions" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Default TTL minutes
             <NInputNumber v-model:value="form.ttlMinutes" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Scope
             <NSelect v-model:value="form.scope" size="small" :options="scopeOptions" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
             Max object MiB
             <NInputNumber v-model:value="form.maxObjectMiB" size="small" :min="1" />
           </label>
         </div>
-        <p class="text-xs leading-5 text-[#777]">
+        <p class="text-xs leading-5 text-[var(--app-text-muted)]">
           Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored, even when cookie requests are enabled above.
         </p>
       </section>
@@ -551,8 +551,8 @@ defineExpose({ openCreate, openEdit, close });
       <section class="cache-filter-section">
         <div class="cache-filter-header">
           <div>
-            <h4 class="text-sm font-semibold text-white">Keys and filters</h4>
-            <p class="mt-1 text-xs leading-5 text-[#777]">Empty route or target filters match every available target.</p>
+            <h4 class="text-sm font-semibold text-[var(--app-text)]">Keys and filters</h4>
+            <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">Empty route or target filters match every available target.</p>
           </div>
           <div class="cache-summary-chips" aria-label="Cache key summary">
             <span class="cache-summary-chip">{{ filterSelectionSummary }}</span>
@@ -772,7 +772,7 @@ defineExpose({ openCreate, openEdit, close });
         </NCheckbox>
       </section>
 
-      <div class="flex justify-end gap-3 border-t border-[#222] pt-4">
+      <div class="flex justify-end gap-3 border-t border-[var(--app-border)] pt-4">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <NButton type="primary" attr-type="submit" :disabled="submitDisabled" :title="submitDisabledReason">
           {{ form.id ? 'Save Rule' : 'Create Rule' }}
@@ -786,9 +786,9 @@ defineExpose({ openCreate, openEdit, close });
 .cache-filter-section {
   display: grid;
   gap: 1rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 1rem;
 }
 
@@ -811,10 +811,10 @@ defineExpose({ openCreate, openEdit, close });
 
 .cache-summary-chip {
   min-height: 1.6rem;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #0b0b0b;
-  color: #c9c9cf;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   padding: 0.25rem 0.55rem;
   font-size: 0.68rem;
   font-weight: 650;
@@ -835,14 +835,14 @@ defineExpose({ openCreate, openEdit, close });
   display: grid;
   min-width: 0;
   gap: 0.75rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #080808;
+  background: var(--app-panel-muted);
   padding: 0.85rem;
 }
 
 .panel-eyebrow {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -853,7 +853,7 @@ defineExpose({ openCreate, openEdit, close });
 .panel-heading {
   margin-top: 0.18rem;
   overflow: hidden;
-  color: #fff;
+  color: var(--app-text);
   font-size: 0.92rem;
   font-weight: 650;
   line-height: 1.2;
@@ -882,9 +882,9 @@ defineExpose({ openCreate, openEdit, close });
   max-height: 15rem;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid #202020;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #030303;
+  background: var(--app-panel-muted);
 }
 
 .target-row {
@@ -893,7 +893,7 @@ defineExpose({ openCreate, openEdit, close });
   min-height: 3.15rem;
   align-items: center;
   gap: 0.65rem;
-  border-bottom: 1px solid #151515;
+  border-bottom: 1px solid var(--app-border);
   padding: 0.55rem 0.65rem;
   cursor: pointer;
   transition: background 140ms ease, border-color 140ms ease;
@@ -904,11 +904,11 @@ defineExpose({ openCreate, openEdit, close });
 }
 
 .target-row:hover {
-  background: #0f0f0f;
+  background: var(--app-panel);
 }
 
 .target-row-selected {
-  background: #111;
+  background: var(--app-panel-muted);
 }
 
 .target-row-body {
@@ -925,13 +925,13 @@ defineExpose({ openCreate, openEdit, close });
 }
 
 .target-row-title {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.82rem;
   font-weight: 650;
 }
 
 .target-row-detail {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   line-height: 1.2;
 }
@@ -943,7 +943,7 @@ defineExpose({ openCreate, openEdit, close });
   place-items: center;
   align-content: center;
   gap: 0.7rem;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
   text-align: center;
 }
@@ -957,10 +957,10 @@ defineExpose({ openCreate, openEdit, close });
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 5px;
-  background: #050505;
-  color: #d4d4d8;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   padding: 0 0.65rem;
   font-size: 0.72rem;
   font-weight: 650;
@@ -972,7 +972,7 @@ defineExpose({ openCreate, openEdit, close });
 .panel-link-button {
   border-color: transparent;
   background: transparent;
-  color: #888;
+  color: var(--app-text-muted);
   padding-inline: 0.35rem;
 }
 
@@ -980,20 +980,20 @@ defineExpose({ openCreate, openEdit, close });
 .panel-action-button:not(:disabled):hover,
 .add-row-button:not(:disabled):hover,
 .value-empty button:hover {
-  border-color: #666;
-  background: #0f0f0f;
-  color: #fff;
+  border-color: var(--app-border);
+  background: var(--app-panel);
+  color: var(--app-text);
 }
 
 .panel-link-button:not(:disabled):hover {
-  border-color: #333;
+  border-color: var(--app-border);
 }
 
 .panel-link-button:disabled,
 .panel-action-button:disabled,
 .add-row-button:disabled {
-  border-color: #202020;
-  color: #555;
+  border-color: var(--app-border);
+  color: var(--app-text-muted);
   cursor: not-allowed;
 }
 
@@ -1005,9 +1005,9 @@ defineExpose({ openCreate, openEdit, close });
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.35rem;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.25rem;
 }
 
@@ -1018,7 +1018,7 @@ defineExpose({ openCreate, openEdit, close });
   align-content: center;
   gap: 0.22rem;
   border-radius: 4px;
-  color: #a1a1aa;
+  color: var(--app-text-muted);
   padding: 0.45rem 0.55rem;
   text-align: left;
   transition: background 140ms ease, color 140ms ease;
@@ -1043,13 +1043,13 @@ defineExpose({ openCreate, openEdit, close });
 }
 
 .query-mode-button:hover {
-  background: #141414;
-  color: #fff;
+  background: var(--app-panel);
+  color: var(--app-text);
 }
 
 .query-mode-button-active {
-  background: #fff;
-  color: #000;
+  background: var(--app-panel);
+  color: var(--app-text);
 }
 
 .value-list {
@@ -1076,21 +1076,21 @@ defineExpose({ openCreate, openEdit, close });
   height: 2.25rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid #3f1d1d;
+  border: 1px solid color-mix(in srgb, var(--app-error) 36%, var(--app-border));
   border-radius: 5px;
-  background: #100707;
-  color: #fca5a5;
+  background: color-mix(in srgb, var(--app-error) 9%, var(--app-panel));
+  color: var(--app-error);
   transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
 
 .remove-row-button:hover {
-  border-color: #7f1d1d;
-  background: #1a0a0a;
-  color: #fecaca;
+  border-color: color-mix(in srgb, var(--app-error) 36%, var(--app-border));
+  background: color-mix(in srgb, var(--app-error) 9%, var(--app-panel));
+  color: var(--app-error);
 }
 
 .field-error {
-  color: #fca5a5;
+  color: var(--app-error);
   font-size: 0.72rem;
   font-weight: 500;
   line-height: 1.35;
@@ -1102,9 +1102,9 @@ defineExpose({ openCreate, openEdit, close });
   align-items: center;
   justify-content: space-between;
   gap: 0.85rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #080808;
+  background: var(--app-panel-muted);
   padding: 0.75rem 0.85rem;
   cursor: pointer;
 }
@@ -1118,14 +1118,14 @@ defineExpose({ openCreate, openEdit, close });
 }
 
 .toggle-title {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.86rem;
   font-weight: 650;
 }
 
 .toggle-detail {
   margin-top: 0.15rem;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
 }
 
