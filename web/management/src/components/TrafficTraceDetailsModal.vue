@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import Modal from "@/volt/Modal.vue";
+import Modal from "@/components/ui/Modal.vue";
 import type { TraceRequest } from "@/types/trafficTrace";
 import {
   PublicRateLimitAlgorithm,

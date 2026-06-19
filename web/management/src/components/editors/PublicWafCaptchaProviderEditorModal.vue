@@ -4,9 +4,9 @@ import type { ComputedRef } from "vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import Button from "@/components/ui/Button.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicWafCaptchaProviderType,
   type GetPublicProxyConfigResponse,
@@ -134,11 +134,11 @@ defineExpose({ openCreate, openEdit, close });
       <section class="grid gap-4 sm:grid-cols-2">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Provider
-          <select v-model="form.providerType" class="vercel-input text-sm normal-case tracking-normal">
+          <select v-model="form.providerType" class="app-control text-sm normal-case tracking-normal">
             <option v-for="option in providerOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
         </label>
@@ -147,11 +147,11 @@ defineExpose({ openCreate, openEdit, close });
       <section class="grid gap-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Site key
-          <input v-model="form.siteKey" class="vercel-input text-sm normal-case tracking-normal" autocomplete="off" required />
+          <input v-model="form.siteKey" class="app-control text-sm normal-case tracking-normal" autocomplete="off" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Secret key
-          <input v-model="form.secretKey" class="vercel-input text-sm normal-case tracking-normal" autocomplete="off" type="password" :placeholder="form.secretKeySaved ? 'Saved - leave blank to keep current secret' : ''" />
+          <input v-model="form.secretKey" class="app-control text-sm normal-case tracking-normal" autocomplete="off" type="password" :placeholder="form.secretKeySaved ? 'Saved - leave blank to keep current secret' : ''" />
         </label>
         <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
           <input v-model="form.enabled" type="checkbox" />

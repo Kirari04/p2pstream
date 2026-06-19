@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import PlusIcon from "@primevue/icons/plus";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 
 defineProps<{
   title: string;

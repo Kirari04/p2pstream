@@ -52,7 +52,7 @@ export async function authenticate(page: Page, appBaseURL: string, options: Auth
   }]);
   await page.goto("/");
   if (options.waitForEnvironmentSelect !== false) {
-    await expect(page.locator('select[title^="Selected environment:"]')).toBeVisible();
+    await expect(page.getByTestId("environment-select")).toBeVisible();
   }
 }
 

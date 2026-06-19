@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import EyeIcon from "@primevue/icons/eye";
-import EyeSlashIcon from "@primevue/icons/eyeslash";
-import RefreshIcon from "@primevue/icons/refresh";
-import TrashIcon from "@primevue/icons/trash";
+import { Eye as EyeIcon } from "@lucide/vue";
+import { EyeOff as EyeSlashIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NCheckbox, NDatePicker, NInput } from "naive-ui";
 import { computed, inject, onMounted, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import { useManagementClient } from "@/composables/useManagementClient";
@@ -10,11 +11,11 @@ import DisabledHint from "@/components/DisabledHint.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import Tag from "@/components/ui/Tag.vue";
 import type { ManagementAccessToken } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
@@ -37,7 +38,7 @@ const issuedTokenBlurredRemainder = computed(() => issuedToken.value.slice(issue
 
 const tokenForm = reactive({
   name: "",
-  expiresAt: "",
+  expiresAtUnixMillis: null as number | null,
   enabled: true,
 });
 
@@ -127,7 +128,7 @@ async function createToken() {
     tokenCopyLabel.value = "Copy Token";
     isIssuedTokenModalOpen.value = true;
     tokenForm.name = "";
-    tokenForm.expiresAt = "";
+    tokenForm.expiresAtUnixMillis = null;
     tokenForm.enabled = true;
     await loadTokens();
   });
@@ -181,8 +182,8 @@ async function runTokenAction(action: () => Promise<void>) {
 }
 
 function tokenExpiryMillis(): bigint {
-  if (!tokenForm.expiresAt) return 0n;
-  const millis = new Date(tokenForm.expiresAt).getTime();
+  if (tokenForm.expiresAtUnixMillis === null) return 0n;
+  const millis = tokenForm.expiresAtUnixMillis;
   if (!Number.isFinite(millis)) {
     throw new Error("Expiry date is invalid.");
   }
@@ -228,28 +229,38 @@ function messageFromError(err: unknown): string {
     </div>
 
     <section class="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
-      <div class="vercel-card p-5">
+      <div class="app-card p-5">
         <h5 class="mb-4 text-sm font-semibold uppercase tracking-widest text-[#888]">Create API Token</h5>
         <form class="grid gap-4" @submit.prevent="createToken">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Name
-            <input v-model="tokenForm.name" class="vercel-input text-sm normal-case tracking-normal" required :disabled="Boolean(actionDisabledReason)" />
+            <NInput
+              v-model:value="tokenForm.name"
+              size="small"
+              required
+              :disabled="Boolean(actionDisabledReason)"
+            />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Expires
-            <input v-model="tokenForm.expiresAt" type="datetime-local" class="vercel-input text-sm normal-case tracking-normal" :disabled="Boolean(actionDisabledReason)" />
+            <NDatePicker
+              v-model:value="tokenForm.expiresAtUnixMillis"
+              type="datetime"
+              clearable
+              size="small"
+              :disabled="Boolean(actionDisabledReason)"
+            />
           </label>
-          <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-            <input v-model="tokenForm.enabled" type="checkbox" :disabled="Boolean(actionDisabledReason)" />
+          <NCheckbox v-model:checked="tokenForm.enabled" :disabled="Boolean(actionDisabledReason)">
             Enabled
-          </label>
+          </NCheckbox>
           <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
             <Button label="Create Token" type="submit" :disabled="Boolean(actionDisabledReason)" />
           </DisabledHint>
         </form>
       </div>
 
-      <div class="vercel-card overflow-hidden">
+      <div class="app-card overflow-hidden">
         <div class="border-b border-[#333] px-5 py-4">
           <h5 class="text-sm font-semibold uppercase tracking-widest text-[#888]">API Tokens</h5>
         </div>

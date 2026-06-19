@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -14,8 +14,8 @@ import {
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
 import { cacheScopeLabel, routeDestinationLabel, routeTargetName, routeTargetTypeLabel } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import Modal from "@/volt/Modal.vue";
+import Button from "@/components/ui/Button.vue";
+import Modal from "@/components/ui/Modal.vue";
 import {
   PublicCacheQueryMode,
   PublicCacheScope,
@@ -480,11 +480,11 @@ defineExpose({ openCreate, openEdit, close });
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model.number="form.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
           <input v-model="form.enabled" type="checkbox" />
@@ -520,23 +520,23 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-4">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             TTL mode
-            <select v-model="form.ttlMode" class="vercel-input text-sm normal-case tracking-normal">
+            <select v-model="form.ttlMode" class="app-control text-sm normal-case tracking-normal">
               <option v-for="option in ttlModeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Default TTL minutes
-            <input v-model.number="form.ttlMinutes" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.ttlMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Scope
-            <select v-model="form.scope" class="vercel-input text-sm normal-case tracking-normal">
+            <select v-model="form.scope" class="app-control text-sm normal-case tracking-normal">
               <option v-for="option in scopeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Max object MiB
-            <input v-model.number="form.maxObjectMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.maxObjectMiB" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
         </div>
         <p class="text-xs leading-5 text-[#777]">
@@ -571,7 +571,7 @@ defineExpose({ openCreate, openEdit, close });
               </button>
             </div>
             <div class="target-toolbar">
-              <input v-model="routeFilterText" class="vercel-input target-search" placeholder="Filter routes" />
+              <input v-model="routeFilterText" class="app-control target-search" placeholder="Filter routes" />
               <button type="button" class="panel-action-button" :disabled="!canSelectVisibleRoutes" @click="selectVisibleRoutes">
                 Select visible
               </button>
@@ -613,7 +613,7 @@ defineExpose({ openCreate, openEdit, close });
               </button>
             </div>
             <div class="target-toolbar">
-              <input v-model="targetFilterText" class="vercel-input target-search" placeholder="Filter targets" />
+              <input v-model="targetFilterText" class="app-control target-search" placeholder="Filter targets" />
               <button type="button" class="panel-action-button" :disabled="!canSelectVisibleTargets" @click="selectVisibleTargets">
                 Select visible
               </button>
@@ -689,7 +689,7 @@ defineExpose({ openCreate, openEdit, close });
           <div v-else class="value-list">
             <div v-for="(param, index) in form.queryParams" :key="`query-${index}`" class="value-row">
               <div class="value-field">
-                <input v-model="form.queryParams[index]" class="vercel-input value-input" placeholder="version" />
+                <input v-model="form.queryParams[index]" class="app-control value-input" placeholder="version" />
                 <p v-if="queryParamError(param)" class="field-error">{{ queryParamError(param) }}</p>
               </div>
               <button type="button" class="remove-row-button" aria-label="Remove query parameter" title="Remove query parameter" @click="removeQueryParam(index)">
@@ -722,7 +722,7 @@ defineExpose({ openCreate, openEdit, close });
             <div v-else class="value-list">
               <div v-for="(header, index) in form.varyHeaders" :key="`vary-${index}`" class="value-row">
                 <div class="value-field">
-                  <input v-model="form.varyHeaders[index]" class="vercel-input value-input" placeholder="Accept-Encoding" />
+                  <input v-model="form.varyHeaders[index]" class="app-control value-input" placeholder="Accept-Encoding" />
                   <p v-if="varyHeaderError(header)" class="field-error">{{ varyHeaderError(header) }}</p>
                 </div>
                 <button type="button" class="remove-row-button" aria-label="Remove vary header" title="Remove vary header" @click="removeVaryHeader(index)">
@@ -754,7 +754,7 @@ defineExpose({ openCreate, openEdit, close });
             <div v-else class="value-list">
               <div v-for="(status, index) in form.cacheStatusCodes" :key="`status-${index}`" class="value-row">
                 <div class="value-field">
-                  <input v-model="form.cacheStatusCodes[index]" inputmode="numeric" class="vercel-input value-input" placeholder="200" />
+                  <input v-model="form.cacheStatusCodes[index]" inputmode="numeric" class="app-control value-input" placeholder="200" />
                   <p v-if="statusCodeError(status)" class="field-error">{{ statusCodeError(status) }}</p>
                 </div>
                 <button type="button" class="remove-row-button" aria-label="Remove status code" title="Remove status code" @click="removeCacheStatusCode(index)">

@@ -5,9 +5,9 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import HtmlTemplateEditor from "@/components/editors/HtmlTemplateEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import Button from "@/components/ui/Button.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicResponseTemplateKind,
   type PublicResponseTemplate,
@@ -184,21 +184,21 @@ defineExpose({ openCreate, openEdit, close });
       <section class="grid gap-4 md:grid-cols-[1fr_14rem]">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Kind
-          <select :value="form.kind" class="vercel-input text-sm normal-case tracking-normal" @change="handleKindChange">
+          <select :value="form.kind" class="app-control text-sm normal-case tracking-normal" @change="handleKindChange">
             <option v-for="option in kindOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Description
-          <input v-model="form.description" class="vercel-input text-sm normal-case tracking-normal" />
+          <input v-model="form.description" class="app-control text-sm normal-case tracking-normal" />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Content type
-          <input v-model="form.contentType" class="vercel-input text-sm normal-case tracking-normal" />
+          <input v-model="form.contentType" class="app-control text-sm normal-case tracking-normal" />
         </label>
       </section>
 

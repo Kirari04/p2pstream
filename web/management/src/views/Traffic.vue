@@ -9,7 +9,7 @@ import TrafficFlowDiagram from "@/components/TrafficFlowDiagram.vue";
 import TrafficTraceDetailsModal from "@/components/TrafficTraceDetailsModal.vue";
 import { NO_TRACES_REASON, TRACE_BUSY_REASON } from "@/lib/disabledReasons";
 import { TrafficTraceStore, formatDuration, traceStreamRequestForSequence } from "@/lib/trafficTraceStore";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRenderStats, TraceRequest, TraceRequestView } from "@/types/trafficTrace";
 import { emptyTraceRenderStats } from "@/types/trafficTrace";
@@ -349,22 +349,22 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Trace State</p>
+        <div class="app-card p-4">
+          <p class="app-card-title">Trace State</p>
           <span class="text-lg font-semibold" :class="tracingEnabled ? 'text-green-400' : 'text-[#888]'">{{ streamStateLabel() }}</span>
         </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Events</p>
+        <div class="app-card p-4">
+          <p class="app-card-title">Events</p>
           <span class="text-lg font-semibold">{{ bigIntLabel(traceSettings?.emittedEvents) }}</span>
         </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Dropped</p>
+        <div class="app-card p-4">
+          <p class="app-card-title">Dropped</p>
           <span class="text-lg font-semibold" :class="traceSettings?.droppedEvents ? 'text-amber-400' : 'text-[#ededed]'">
             {{ bigIntLabel(traceSettings?.droppedEvents) }}
           </span>
         </div>
-        <div class="vercel-card p-4">
-          <p class="vercel-card-title">Rendered</p>
+        <div class="app-card p-4">
+          <p class="app-card-title">Rendered</p>
           <span class="text-lg font-semibold">{{ numberLabel(renderStats.renderedTableRows) }}/{{ numberLabel(renderStats.retainedRequests) }}</span>
         </div>
       </div>
@@ -377,18 +377,18 @@ onBeforeUnmount(() => {
           {{ showDebugStats ? 'Hide' : 'Show' }} debug stats
         </button>
         <div v-if="showDebugStats" class="grid gap-3 sm:grid-cols-3">
-          <div class="vercel-card p-4">
-            <p class="vercel-card-title">Subscribers</p>
+          <div class="app-card p-4">
+            <p class="app-card-title">Subscribers</p>
             <span class="text-lg font-semibold">{{ traceSettings?.subscriberCount?.toString() ?? "0" }}</span>
           </div>
-          <div class="vercel-card p-4">
-            <p class="vercel-card-title">Sampled</p>
+          <div class="app-card p-4">
+            <p class="app-card-title">Sampled</p>
             <span class="text-lg font-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'text-amber-400' : 'text-[#ededed]'">
               {{ numberLabel(renderStats.sampledEvents) }}/{{ numberLabel(renderStats.sampledRequests) }}
             </span>
           </div>
-          <div class="vercel-card p-4">
-            <p class="vercel-card-title">Live Tokens</p>
+          <div class="app-card p-4">
+            <p class="app-card-title">Live Tokens</p>
             <span class="text-lg font-semibold">{{ renderedTokenCount }}</span>
           </div>
         </div>
@@ -407,7 +407,7 @@ onBeforeUnmount(() => {
         @edit-node="handleFlowEditRequest"
       />
 
-      <div class="vercel-card overflow-hidden">
+      <div class="app-card overflow-hidden">
         <div class="flex items-center justify-between border-b border-[#333] px-5 py-4">
           <div>
             <h4 class="font-semibold">Recent traces</h4>
@@ -477,7 +477,7 @@ onBeforeUnmount(() => {
         <p class="text-[#888] text-sm">Aggregated request counts across different time windows.</p>
       </div>
 
-      <div class="vercel-card overflow-hidden">
+      <div class="app-card overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm min-w-[800px]">
             <thead>

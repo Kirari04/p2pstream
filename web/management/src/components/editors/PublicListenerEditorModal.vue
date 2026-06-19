@@ -4,9 +4,9 @@ import type { ComputedRef } from "vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import Button from "@/components/ui/Button.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicListenerProtocol,
   type GetPublicProxyConfigResponse,
@@ -108,21 +108,21 @@ defineExpose({ openCreate, openEdit, close });
     <form @submit.prevent="submitListener" class="grid gap-4 sm:grid-cols-2">
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Name
-        <input v-model="listenerForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
+        <input v-model="listenerForm.name" class="app-control text-sm normal-case tracking-normal" required />
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Bind address
-        <input v-model="listenerForm.bindAddress" class="vercel-input text-sm normal-case tracking-normal" placeholder="0.0.0.0" />
+        <input v-model="listenerForm.bindAddress" class="app-control text-sm normal-case tracking-normal" placeholder="0.0.0.0" />
         <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Leave empty to bind on all interfaces.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Port
-        <input v-model.number="listenerForm.port" class="vercel-input text-sm normal-case tracking-normal" type="number" min="1" max="65535" required />
+        <input v-model.number="listenerForm.port" class="app-control text-sm normal-case tracking-normal" type="number" min="1" max="65535" required />
         <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Ports below 1024 may require elevated privileges.</p>
       </label>
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Protocol
-        <select v-model="listenerForm.protocol" class="vercel-input text-sm normal-case tracking-normal">
+        <select v-model="listenerForm.protocol" class="app-control text-sm normal-case tracking-normal">
           <option :value="PublicListenerProtocol.HTTP">HTTP</option>
           <option :value="PublicListenerProtocol.HTTPS">HTTPS</option>
         </select>

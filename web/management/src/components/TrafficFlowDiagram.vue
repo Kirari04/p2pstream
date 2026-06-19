@@ -11,6 +11,7 @@ import {
   type NodeMouseEvent,
   type NodeTypesObject,
 } from "@vue-flow/core";
+import { NButton } from "naive-ui";
 import TrafficFlowEdge from "@/components/TrafficFlowEdge.vue";
 import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
 import {
@@ -1665,7 +1666,7 @@ function redirectModeShortLabel(mode: PublicRouteRedirectTargetMode): string {
     <div class="flow-status">
       <span>{{ visualTokens.length }} rendered</span>
       <span v-if="skippedVisualizations" class="flow-overflow">+{{ skippedVisualizations }} not rendered</span>
-      <button type="button" class="flow-fit-button" @click="fitDiagram()">Fit</button>
+      <NButton size="tiny" secondary @click="fitDiagram()">Fit</NButton>
     </div>
 
     <VueFlow

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
-import BanIcon from "@primevue/icons/ban";
-import CheckIcon from "@primevue/icons/check";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import RefreshIcon from "@primevue/icons/refresh";
-import TimesCircleIcon from "@primevue/icons/timescircle";
-import TrashIcon from "@primevue/icons/trash";
+import { Ban as BanIcon } from "@lucide/vue";
+import { Check as CheckIcon } from "@lucide/vue";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { CircleX as TimesCircleIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -32,11 +32,11 @@ import {
   recentDisconnectCount,
 } from "@/lib/dashboardStats";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import Tag from "@/components/ui/Tag.vue";
 import type {
   Agent,
   AgentConnectionSession,
@@ -420,56 +420,56 @@ async function copyUninstallSnippet() {
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Connected Agents</p>
-        <span class="vercel-card-value">{{ connectedAgentCount }}/{{ enabledAgents }}</span>
+      <div class="app-card p-5">
+        <p class="app-card-title">Connected Agents</p>
+        <span class="app-card-value">{{ connectedAgentCount }}/{{ enabledAgents }}</span>
         <p class="mt-2 text-xs text-[#888]">connected / enabled</p>
       </div>
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Fleet Uptime</p>
-        <span class="vercel-card-value">{{ formatPercent(fleetUptime) }}</span>
+      <div class="app-card p-5">
+        <p class="app-card-title">Fleet Uptime</p>
+        <span class="app-card-value">{{ formatPercent(fleetUptime) }}</span>
         <p class="mt-2 text-xs text-[#888]">{{ retentionDaysLabel }} retention</p>
       </div>
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Longest Current Uptime</p>
-        <span class="vercel-card-value">{{ formatLongDuration(longestCurrentUptimeMillis) }}</span>
+      <div class="app-card p-5">
+        <p class="app-card-title">Longest Current Uptime</p>
+        <span class="app-card-value">{{ formatLongDuration(longestCurrentUptimeMillis) }}</span>
         <p class="mt-2 text-xs text-[#888]">connected sessions</p>
       </div>
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Recent Disconnects</p>
-        <span class="vercel-card-value">{{ recentDisconnects }}</span>
+      <div class="app-card p-5">
+        <p class="app-card-title">Recent Disconnects</p>
+        <span class="app-card-value">{{ recentDisconnects }}</span>
         <p class="mt-2 text-xs text-[#888]">last 24h</p>
       </div>
     </div>
 
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Memory Usage (Sys)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(status.latestAgentStats?.memorySysMb) }} MB</span>
+      <div class="app-card p-6">
+        <p class="app-card-title">Memory Usage (Sys)</p>
+        <span class="app-card-value">{{ bigIntLabel(status.latestAgentStats?.memorySysMb) }} MB</span>
       </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Goroutines</p>
-        <span class="vercel-card-value">{{ bigIntLabel(status.latestAgentStats?.numGoroutine) }}</span>
+      <div class="app-card p-6">
+        <p class="app-card-title">Goroutines</p>
+        <span class="app-card-value">{{ bigIntLabel(status.latestAgentStats?.numGoroutine) }}</span>
       </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Active Requests</p>
-        <span class="vercel-card-value">{{ activeAgentRequests }}</span>
+      <div class="app-card p-6">
+        <p class="app-card-title">Active Requests</p>
+        <span class="app-card-value">{{ activeAgentRequests }}</span>
       </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Avg Memory (1h)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(oneHourWindow?.agentAvgMemoryMb) }} MB</span>
+      <div class="app-card p-6">
+        <p class="app-card-title">Avg Memory (1h)</p>
+        <span class="app-card-value">{{ bigIntLabel(oneHourWindow?.agentAvgMemoryMb) }} MB</span>
       </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Max Memory (24h)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(dayWindow?.agentMaxMemoryMb) }} MB</span>
+      <div class="app-card p-6">
+        <p class="app-card-title">Max Memory (24h)</p>
+        <span class="app-card-value">{{ bigIntLabel(dayWindow?.agentMaxMemoryMb) }} MB</span>
       </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Max Goroutines (24h)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(dayWindow?.agentMaxGoroutines) }}</span>
+      <div class="app-card p-6">
+        <p class="app-card-title">Max Goroutines (24h)</p>
+        <span class="app-card-value">{{ bigIntLabel(dayWindow?.agentMaxGoroutines) }}</span>
       </div>
     </div>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4">
         <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Registered Agents</h4>
       </div>
@@ -488,7 +488,12 @@ async function copyUninstallSnippet() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="agent in agents" :key="agent.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
+            <tr
+              v-for="agent in agents"
+              :key="agent.id.toString()"
+              :data-testid="`agent-row-${agent.publicId}`"
+              class="border-b border-[#1f1f1f] last:border-0"
+            >
               <td class="px-5 py-4">
                 <p class="font-medium text-white">{{ agent.name }}</p>
                 <p class="font-mono text-xs text-[#888]">{{ agent.publicId }}</p>
@@ -578,7 +583,7 @@ async function copyUninstallSnippet() {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4">
         <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Recent Connection Sessions</h4>
       </div>
@@ -675,7 +680,7 @@ async function copyUninstallSnippet() {
 
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           GitHub Repository
-          <input v-model="uninstallReleaseRepository" class="vercel-input text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+          <input v-model="uninstallReleaseRepository" class="app-control text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
         </label>
 
         <p v-if="uninstallSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ uninstallSnippetError }}</p>
@@ -709,17 +714,17 @@ async function copyUninstallSnippet() {
         <div class="grid gap-3 md:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Management URL
-            <input v-model="setupManagementUrl" class="vercel-input text-sm normal-case tracking-normal" required />
+            <input v-model="setupManagementUrl" class="app-control text-sm normal-case tracking-normal" required />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             GitHub Repository
-            <input v-model="setupReleaseRepository" class="vercel-input text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+            <input v-model="setupReleaseRepository" class="app-control text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
           </label>
           <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Docker Image
             <input
               v-model="setupDockerImage"
-              class="vercel-input text-sm normal-case tracking-normal"
+              class="app-control text-sm normal-case tracking-normal"
               required
               @input="setupDockerImageTouched = true"
             />
@@ -740,7 +745,7 @@ async function copyUninstallSnippet() {
             Management CA file
             <input
               v-model="setupManagementCAFile"
-              class="vercel-input text-sm normal-case tracking-normal"
+              class="app-control text-sm normal-case tracking-normal"
               placeholder="/etc/p2pstream/management-ca.pem"
             />
           </label>
@@ -752,11 +757,11 @@ async function copyUninstallSnippet() {
           </div>
           <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Agent Certificate
-            <input v-model="setupAgentTLSCertFile" class="vercel-input text-sm normal-case tracking-normal" required />
+            <input v-model="setupAgentTLSCertFile" class="app-control text-sm normal-case tracking-normal" required />
           </label>
           <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Agent Key
-            <input v-model="setupAgentTLSKeyFile" class="vercel-input text-sm normal-case tracking-normal" required />
+            <input v-model="setupAgentTLSKeyFile" class="app-control text-sm normal-case tracking-normal" required />
           </label>
         </div>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import DangerButton from "@/volt/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
 import type { ConfirmDialogState } from "@/composables/useConfirmDialog";
 
 defineProps<{

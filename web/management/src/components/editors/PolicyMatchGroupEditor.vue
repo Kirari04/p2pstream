@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import {
   PublicPolicyMatchBooleanOperator,
   PublicPolicyMatchConditionOperator,
@@ -114,7 +114,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 <template>
   <div class="policy-match-group" :class="{ nested: !root }">
     <div class="builder-toolbar">
-      <select v-model="group.operator" class="vercel-input compact-select">
+      <select v-model="group.operator" class="app-control compact-select">
         <option :value="PublicPolicyMatchBooleanOperator.ALL">All</option>
         <option :value="PublicPolicyMatchBooleanOperator.ANY">Any</option>
       </select>
@@ -146,17 +146,17 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
           'uses-values': conditionUsesValues(condition.operator),
         }"
       >
-        <select v-model="condition.field" class="vercel-input" @change="onFieldChange(condition)">
+        <select v-model="condition.field" class="app-control" @change="onFieldChange(condition)">
           <option v-for="option in fieldOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
-        <input v-if="conditionNeedsName(condition.field)" v-model="condition.name" class="vercel-input" :placeholder="namePlaceholder(condition)" />
-        <select v-model="condition.operator" class="vercel-input operator-select" @change="onOperatorChange(condition)">
+        <input v-if="conditionNeedsName(condition.field)" v-model="condition.name" class="app-control" :placeholder="namePlaceholder(condition)" />
+        <select v-model="condition.operator" class="app-control operator-select" @change="onOperatorChange(condition)">
           <option v-for="option in operatorOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
         <textarea
           v-if="conditionUsesValues(condition.operator)"
           v-model="condition.valuesText"
-          class="vercel-input value-input"
+          class="app-control value-input"
           :placeholder="valuePlaceholder(condition)"
         />
         <label class="negate-toggle small condition-negate">

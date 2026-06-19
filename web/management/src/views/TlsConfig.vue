@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import RefreshIcon from "@primevue/icons/refresh";
-import TrashIcon from "@primevue/icons/trash";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -26,11 +26,11 @@ import {
   tlsStatusSeverity,
   type TlsMethod,
 } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import Tag from "@/components/ui/Tag.vue";
 import {
   PublicAcmeCa,
   PublicAcmeChallengeType,
@@ -361,14 +361,14 @@ watch(tlsDnsCredentials, () => {
     </div>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
+      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
         <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
         <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
         <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">TLS Certificates</h4>
@@ -379,7 +379,12 @@ watch(tlsDnsCredentials, () => {
         </SecondaryButton>
       </div>
       <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="cert in tlsCertificates" :key="cert.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
+        <div
+          v-for="cert in tlsCertificates"
+          :key="cert.id.toString()"
+          :data-testid="`tls-row-${cert.id.toString()}`"
+          class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]"
+        >
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
               <p class="truncate text-sm font-medium text-white">{{ listenerName(cert.listenerId, listeners) }} / {{ cert.hostnamePattern }}</p>
@@ -436,7 +441,7 @@ watch(tlsDnsCredentials, () => {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">DNS Credentials</h4>
@@ -494,25 +499,25 @@ watch(tlsDnsCredentials, () => {
         </div>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           HTTPS listener
-          <select v-model="tlsForm.listenerId" class="vercel-input text-sm normal-case tracking-normal" required>
+          <select v-model="tlsForm.listenerId" class="app-control text-sm normal-case tracking-normal" required>
             <option v-for="listener in httpsListeners" :key="listener.id.toString()" :value="listener.id.toString()">{{ listener.name }}</option>
           </select>
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Hostname pattern
-          <input v-model="tlsForm.hostnamePattern" class="vercel-input text-sm normal-case tracking-normal" placeholder="app.example.com" required />
+          <input v-model="tlsForm.hostnamePattern" class="app-control text-sm normal-case tracking-normal" placeholder="app.example.com" required />
           <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Exact domain or wildcard prefix (*.example.com).</p>
         </label>
         <div v-if="tlsForm.method !== 'manual'" class="grid gap-3">
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               ACME email
-              <input v-model="tlsForm.acmeEmail" class="vercel-input text-sm normal-case tracking-normal" type="email" placeholder="admin@example.com" required />
+              <input v-model="tlsForm.acmeEmail" class="app-control text-sm normal-case tracking-normal" type="email" placeholder="admin@example.com" required />
               <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Used for certificate expiration notices from Let's Encrypt.</p>
             </label>
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               CA environment
-              <select v-model="tlsForm.acmeCa" class="vercel-input text-sm normal-case tracking-normal">
+              <select v-model="tlsForm.acmeCa" class="app-control text-sm normal-case tracking-normal">
                 <option :value="PublicAcmeCa.LETS_ENCRYPT_PRODUCTION">Let's Encrypt production</option>
                 <option :value="PublicAcmeCa.LETS_ENCRYPT_STAGING">Let's Encrypt staging</option>
               </select>
@@ -520,7 +525,7 @@ watch(tlsDnsCredentials, () => {
           </div>
           <label v-if="tlsForm.method === 'dns_01'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Cloudflare credential
-            <select v-model="tlsForm.dnsCredentialId" class="vercel-input text-sm normal-case tracking-normal" required>
+            <select v-model="tlsForm.dnsCredentialId" class="app-control text-sm normal-case tracking-normal" required>
               <option value="">Select credential</option>
               <option v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" :value="credential.id.toString()">{{ credential.name }}</option>
             </select>
@@ -544,13 +549,13 @@ watch(tlsDnsCredentials, () => {
           </div>
           <label v-if="tlsForm.manualMode === 'generate'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Validity days
-            <input v-model.number="tlsForm.selfSignedValidityDays" class="vercel-input text-sm normal-case tracking-normal" type="number" min="1" max="3650" step="1" required />
+            <input v-model.number="tlsForm.selfSignedValidityDays" class="app-control text-sm normal-case tracking-normal" type="number" min="1" max="3650" step="1" required />
           </label>
           <div v-else class="grid gap-3 sm:grid-cols-2">
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Certificate file
               <input
-                class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
+                class="app-control cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
                 type="file"
                 accept=".pem,.crt,.cer"
                 :required="!tlsForm.id"
@@ -561,7 +566,7 @@ watch(tlsDnsCredentials, () => {
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Private key file
               <input
-                class="vercel-input cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
+                class="app-control cursor-pointer text-sm normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-black"
                 type="file"
                 accept=".pem,.key"
                 :required="!tlsForm.id"
@@ -594,17 +599,17 @@ watch(tlsDnsCredentials, () => {
       <form @submit.prevent="submitTlsCredential" class="grid gap-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Name
-          <input v-model="tlsCredentialForm.name" class="vercel-input text-sm normal-case tracking-normal" placeholder="cloudflare-prod" required />
+          <input v-model="tlsCredentialForm.name" class="app-control text-sm normal-case tracking-normal" placeholder="cloudflare-prod" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Cloudflare zone ID
-          <input v-model="tlsCredentialForm.cloudflareZoneId" class="vercel-input font-mono text-sm normal-case tracking-normal" required />
+          <input v-model="tlsCredentialForm.cloudflareZoneId" class="app-control font-mono text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           API token
           <input
             v-model="tlsCredentialForm.apiToken"
-            class="vercel-input text-sm normal-case tracking-normal"
+            class="app-control text-sm normal-case tracking-normal"
             type="password"
             autocomplete="new-password"
             :placeholder="tlsCredentialForm.apiTokenSaved ? 'Saved token' : 'Cloudflare API token'"

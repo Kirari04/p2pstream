@@ -1,193 +1,203 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
-@import "tailwindcss-primeui";
 
 :root {
+  color-scheme: light;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --app-bg: #f5f7fb;
+  --app-shell: #ffffff;
+  --app-panel: #ffffff;
+  --app-panel-muted: #f8fafc;
+  --app-border: #d8e0ea;
+  --app-border-subtle: #e4eaf2;
+  --app-text: #142033;
+  --app-text-muted: #667085;
+  --app-accent: #2563eb;
+  --app-accent-soft: rgba(37, 99, 235, 0.11);
+  --app-success: #059669;
+  --app-warning: #d97706;
+  --app-error: #dc2626;
+  --app-shadow: 0 16px 45px rgba(20, 32, 51, 0.08);
+}
+
+:root:has(.n-config-provider.n-config-provider--dark),
+.dark {
   color-scheme: dark;
-
-  --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-
-  /* Vercel-like Minimalist Dark Theme */
-  --p-surface-0: #000000;
-  --p-surface-50: #0a0a0a;
-  --p-surface-100: #111111;
-  --p-surface-200: #333333;
-  --p-surface-300: #444444;
-  --p-surface-400: #666666;
-  --p-surface-500: #888888;
-  --p-surface-600: #a1a1aa;
-  --p-surface-700: #d4d4d8;
-  --p-surface-800: #e4e4e7;
-  --p-surface-900: #f4f4f5;
-  --p-surface-950: #ffffff;
-
-  --p-primary-color: #ffffff;
-  --p-primary-contrast-color: #000000;
-  --p-primary-hover-color: #f4f4f5;
-  --p-primary-active-color: #e4e4e7;
-
-  --p-content-border-color: #333333;
-  --p-content-hover-background: #111111;
-  --p-content-hover-color: #ffffff;
-
-  --p-text-color: #ededed;
-  --p-text-hover-color: #ffffff;
-  --p-text-muted-color: #888888;
-
-  --p-content-border-radius: 6px;
+  --app-bg: #111315;
+  --app-shell: #181b1f;
+  --app-panel: #181b1f;
+  --app-panel-muted: #20242a;
+  --app-border: #343a42;
+  --app-border-subtle: #2b3037;
+  --app-text: #f4f6f8;
+  --app-text-muted: #98a2b3;
+  --app-accent: #14b8a6;
+  --app-accent-soft: rgba(20, 184, 166, 0.14);
+  --app-success: #10b981;
+  --app-warning: #f59e0b;
+  --app-error: #f87171;
+  --app-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
 }
 
 @layer base {
   html {
+    min-height: 100%;
     font-family: var(--font-body);
+    background: var(--app-bg);
+    color: var(--app-text);
+    letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #000000;
-    color: var(--p-text-color);
   }
 
   body {
     min-height: 100vh;
     margin: 0;
+    background:
+      radial-gradient(circle at 18% -10%, color-mix(in srgb, var(--app-accent) 12%, transparent), transparent 28rem),
+      var(--app-bg);
   }
 
-  /* PrimeVue Overrides for Vercel Feel */
-  .p-card {
-    background-color: #000000 !important;
-    border: 1px solid #333333 !important;
-    border-radius: 6px !important;
-    box-shadow: none !important;
-    color: #ededed !important;
+  #app {
+    min-height: 100vh;
   }
-  .p-button {
-    font-weight: 500 !important;
-    border-radius: 6px !important;
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer components {
+  .app-card {
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-panel);
+    box-shadow: 0 1px 0 rgba(20, 32, 51, 0.02);
+    color: var(--app-text);
+  }
+
+  .app-card:hover {
+    border-color: color-mix(in srgb, var(--app-accent) 28%, var(--app-border));
+  }
+
+  .app-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--app-border-subtle);
+    padding: 1rem 1.25rem;
+  }
+
+  .app-card-body {
+    padding: 1.25rem;
+  }
+
+  .app-card-segmented .app-card-body {
+    background: var(--app-panel-muted);
+  }
+
+  .app-card-title {
+    margin-bottom: 0.5rem;
+    color: var(--app-text-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .app-card-value {
+    color: var(--app-text);
+    font-size: 1.5rem;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+
+  .app-control {
+    width: 100%;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    background: var(--app-panel);
+    color: var(--app-text);
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+
+  .app-control:focus {
+    border-color: var(--app-accent);
+    box-shadow: 0 0 0 3px var(--app-accent-soft);
+    outline: none;
+  }
+
+  .app-control:disabled,
+  .app-control[aria-disabled="true"] {
+    border-color: var(--app-border-subtle);
+    background: var(--app-panel-muted);
+    color: var(--app-text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  select.app-control,
+  .app-control:is(select) {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--app-text-muted) 50%), linear-gradient(135deg, var(--app-text-muted) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 52%, calc(100% - 11px) 52%;
+    background-repeat: no-repeat;
+    background-size: 5px 5px, 5px 5px;
+    padding-right: 2.25rem;
+  }
+
+  select.app-control option {
+    background: var(--app-panel);
+    color: var(--app-text);
   }
 }
 
 @layer utilities {
-  .vercel-card {
-    background-color: #000000;
-    border: 1px solid #333;
-    border-radius: 6px;
-    transition: border-color 0.15s ease;
-  }
-  .vercel-card:hover {
-    border-color: #444;
-  }
-  .vercel-card-title {
-    font-size: 0.875rem;
-    color: #888;
-    margin-bottom: 0.5rem;
-  }
-  .vercel-card-value {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #ededed;
-    letter-spacing: -0.025em;
-  }
-  .vercel-tabs-list {
-    border-bottom: 1px solid #333;
-    display: flex;
-    gap: 1.5rem;
-  }
-  .vercel-tab {
-    padding-bottom: 0.75rem;
-    color: #888;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: color 0.15s ease, border-color 0.15s ease;
-  }
-  .vercel-tab:hover {
-    color: #ededed;
-  }
-  .vercel-tab.active {
-    color: #ededed;
-    border-bottom-color: #ededed;
-  }
-  .vercel-input {
-    background: transparent;
-    border: 1px solid #333;
-    border-radius: 6px;
-    color: #ededed;
-    padding: 0.5rem 0.75rem;
-    width: 100%;
-    transition: border-color 0.15s ease;
-  }
-  .vercel-input:focus {
-    outline: none;
-    border-color: #888;
-  }
-  .vercel-input:disabled,
-  .vercel-input[aria-disabled="true"] {
-    border-color: #252525;
-    background: #080808;
-    color: #777;
-    cursor: not-allowed;
-    opacity: 1;
-  }
-  select.vercel-input,
-  .vercel-input:is(select) {
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23888' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    background-size: 1.25em 1.25em;
-    padding-right: 2.25rem;
-  }
-  select.vercel-input option {
-    background: #111;
-    color: #ededed;
+  .text-white,
+  .text-\[\#d4d4d8\],
+  .text-\[\#e5e7eb\] {
+    color: var(--app-text) !important;
   }
 
-  input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 1rem;
-    height: 1rem;
-    border: 1px solid #333;
-    border-radius: 3px;
-    background: transparent;
-    cursor: pointer;
-    position: relative;
-    flex-shrink: 0;
-    transition: background 0.15s ease, border-color 0.15s ease;
-  }
-  input[type="checkbox"]:checked {
-    background: white;
-    border-color: white;
-  }
-  input[type="checkbox"]:checked::after {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 1px;
-    width: 5px;
-    height: 9px;
-    border: solid black;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-  }
-  input[type="checkbox"]:focus-visible {
-    outline: 1px solid #888;
-    outline-offset: 2px;
+  .text-\[\#888\],
+  .text-\[\#777\],
+  .text-\[\#666\],
+  .text-\[\#71717a\],
+  .text-\[\#a1a1aa\] {
+    color: var(--app-text-muted) !important;
   }
 
-  input[type="checkbox"]:disabled,
-  input[type="radio"]:disabled,
-  select:disabled,
-  button:disabled {
-    cursor: not-allowed;
+  .bg-black,
+  .bg-\[\#050505\],
+  .bg-\[\#080808\],
+  .bg-\[\#0b0b0b\],
+  .bg-\[\#111\] {
+    background-color: var(--app-panel-muted) !important;
   }
-  input[type="checkbox"]:disabled {
-    border-color: #252525;
-    background: #080808;
-    opacity: 0.5;
+
+  .border-\[\#333\],
+  .border-\[\#222\],
+  .border-\[\#1f1f1f\] {
+    border-color: var(--app-border) !important;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .text-balance {
+    text-wrap: balance;
   }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
-import TrashIcon from "@primevue/icons/trash";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
@@ -21,10 +21,10 @@ import {
   wafTriggerPayloadFromForm,
   type WafTriggerMetric,
 } from "@/lib/publicWafTriggerForm";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicRateLimitKeySource,
   PublicResponseBodyMode,
@@ -456,11 +456,11 @@ defineExpose({ openCreate, openEdit, close });
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model.number="form.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
           <input v-model="form.enabled" type="checkbox" />
@@ -511,7 +511,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Provider
-            <select v-model="form.captchaProviderId" class="vercel-input text-sm normal-case tracking-normal" :disabled="!providers.length">
+            <select v-model="form.captchaProviderId" class="app-control text-sm normal-case tracking-normal" :disabled="!providers.length">
               <option value="">{{ providers.length ? 'Select provider' : 'No captcha providers configured' }}</option>
               <option
                 v-if="form.captchaProviderId && !selectedCaptchaProvider"
@@ -538,11 +538,11 @@ defineExpose({ openCreate, openEdit, close });
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Pass TTL minutes
-            <input v-model.number="form.captchaPassMinutes" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.captchaPassMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
             Page template
-            <select v-model="form.captchaPageTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+            <select v-model="form.captchaPageTemplateId" class="app-control text-sm normal-case tracking-normal">
               <option value="">Built-in captcha page</option>
               <option v-for="template in captchaTemplates" :key="template.id.toString()" :value="template.id.toString()">
                 {{ template.name }}
@@ -557,38 +557,38 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-5">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Capacity
-            <input v-model.number="form.waitingRoomMaxAdmitted" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.waitingRoomMaxAdmitted" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Admit/sec
-            <input v-model.number="form.waitingRoomAdmissionRate" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.waitingRoomAdmissionRate" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             TTL minutes
-            <input v-model.number="form.waitingRoomAdmissionTtlMinutes" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.waitingRoomAdmissionTtlMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Poll seconds
-            <input v-model.number="form.waitingRoomPollSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.waitingRoomPollSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Timeout minutes
-            <input v-model.number="form.waitingRoomTimeoutMinutes" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.waitingRoomTimeoutMinutes" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Page title
-            <input v-model="form.waitingRoomPageTitle" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model="form.waitingRoomPageTitle" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Page body
-            <input v-model="form.waitingRoomPageBody" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model="form.waitingRoomPageBody" class="app-control text-sm normal-case tracking-normal" />
           </label>
         </div>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Page template
-          <select v-model="form.waitingRoomPageTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+          <select v-model="form.waitingRoomPageTemplateId" class="app-control text-sm normal-case tracking-normal">
             <option value="">Built-in waiting-room page</option>
             <option v-for="template in waitingRoomTemplates" :key="template.id.toString()" :value="template.id.toString()">
               {{ template.name }}
@@ -614,7 +614,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-3">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Window seconds
-            <input v-model.number="form.triggers.requestWindowSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.triggers.requestWindowSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
             <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Rolling window used by request-volume metrics.</p>
           </label>
         </div>
@@ -655,7 +655,7 @@ defineExpose({ openCreate, openEdit, close });
                     :max="metric.max"
                     :step="metric.step ?? 1"
                     :disabled="!form.triggers.metrics[metric.key].enabled"
-                    class="vercel-input min-w-0 flex-1 text-sm normal-case tracking-normal disabled:cursor-not-allowed disabled:border-[#222] disabled:bg-[#111] disabled:text-[#555]"
+                    class="app-control min-w-0 flex-1 text-sm normal-case tracking-normal disabled:cursor-not-allowed disabled:border-[#222] disabled:bg-[#111] disabled:text-[#555]"
                   />
                   <span class="w-16 shrink-0 text-xs text-[#777]">{{ metric.unit }}</span>
                 </div>
@@ -672,12 +672,12 @@ defineExpose({ openCreate, openEdit, close });
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Minimum active seconds
-              <input v-model.number="form.triggers.minimumActiveSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+              <input v-model.number="form.triggers.minimumActiveSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
               <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">Pressure must persist this long before the action begins.</p>
             </label>
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Quiet seconds
-              <input v-model.number="form.triggers.quietSeconds" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+              <input v-model.number="form.triggers.quietSeconds" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
               <p class="text-xs font-normal normal-case leading-5 tracking-normal text-[#666]">The action stays active this long after all pressure clears.</p>
             </label>
           </div>
@@ -689,11 +689,11 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-3">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Status
-            <input v-model.number="form.blockResponseStatusCode" type="number" min="400" max="599" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.blockResponseStatusCode" type="number" min="400" max="599" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
             Content type
-            <input v-model="form.blockResponseContentType" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model="form.blockResponseContentType" class="app-control text-sm normal-case tracking-normal" />
           </label>
         </div>
         <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
@@ -720,7 +720,7 @@ defineExpose({ openCreate, openEdit, close });
           </div>
           <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Template
-            <select v-model="form.blockResponseTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+            <select v-model="form.blockResponseTemplateId" class="app-control text-sm normal-case tracking-normal">
               <option value="">{{ genericTemplates.length ? 'Select template' : 'No generic templates' }}</option>
               <option v-for="template in genericTemplates" :key="template.id.toString()" :value="template.id.toString()">
                 {{ template.name }}
@@ -729,7 +729,7 @@ defineExpose({ openCreate, openEdit, close });
           </label>
           <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Body
-            <textarea v-model="form.blockResponseBody" class="vercel-input min-h-24 text-sm normal-case tracking-normal font-mono" />
+            <textarea v-model="form.blockResponseBody" class="app-control min-h-24 text-sm normal-case tracking-normal font-mono" />
           </label>
         </div>
         <div class="grid gap-2">
@@ -738,8 +738,8 @@ defineExpose({ openCreate, openEdit, close });
             <SecondaryButton type="button" size="small" label="Add Header" @click="addBlockHeader" />
           </div>
           <div v-for="(header, index) in form.blockResponseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <input v-model="header.name" class="vercel-input text-sm" placeholder="Name" />
-            <input v-model="header.value" class="vercel-input text-sm" placeholder="Value" />
+            <input v-model="header.name" class="app-control text-sm" placeholder="Name" />
+            <input v-model="header.value" class="app-control text-sm" placeholder="Value" />
             <DangerButton size="small" class="row-remove-button" aria-label="Remove response header" title="Remove response header" type="button" @click="removeBlockHeader(index)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
             </DangerButton>

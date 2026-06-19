@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { authenticate } from "./helpers/auth";
 import { connectRPC } from "./helpers/connect";
+import { chooseNaiveSelectOption } from "./helpers/naive";
 
 const agentPublicID = "playwright-agent";
 
@@ -39,14 +40,14 @@ test("configures agent labels and an agent-selected route target", async ({ page
     labels: {},
   });
   await page.reload();
-  await expect(page.locator('select[title^="Selected environment:"]')).toBeVisible();
+  await expect(page.getByTestId("environment-select")).toBeVisible();
 
   await page.goto("/#/agent");
   await expect(page.getByRole("heading", { name: "Agents", exact: true })).toBeVisible();
   const agentRow = page.getByRole("row").filter({ hasText: agentPublicID }).first();
   await expect(agentRow).toBeVisible();
   await agentRow.getByRole("button", { name: "Edit agent" }).click();
-  await expect(page.getByRole("heading", { name: "Edit Agent" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Edit Agent", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add Label" }).click();
   await page.getByTestId("agent-label-row").nth(0).getByTestId("agent-label-key").fill("site");
   await page.getByTestId("agent-label-row").nth(0).getByTestId("agent-label-value").fill("loopback");
@@ -70,12 +71,13 @@ test("configures agent labels and an agent-selected route target", async ({ page
   await page.goto("/#/proxy");
   await expect(page.getByRole("heading", { name: "Proxy", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add Route" }).click();
-  await expect(page.getByRole("heading", { name: "Add Route" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Add Route", exact: true })).toBeVisible();
   await page.getByLabel("Path prefix").fill(routePath);
-  await page.getByTestId("route-target-row").first().getByLabel("Name").fill(targetName);
-  await page.getByTestId("route-target-row").first().getByLabel("Transport").selectOption({ label: "Agent" });
+  const targetRow = page.getByTestId("route-target-row").first();
+  await targetRow.getByLabel("Name").fill(targetName);
+  await chooseNaiveSelectOption(page, targetRow.getByLabel("Transport"), "Agent");
 
-  await page.getByTestId("exact-agent-selector").selectOption(agentPublicID);
+  await chooseNaiveSelectOption(page, page.getByTestId("exact-agent-selector"), "Playwright Agent");
   await expect(page.getByTestId("target-selector-key").first()).toHaveValue("p2pstream.io/agent-id");
   await expect(page.getByTestId("target-selector-value").first()).toHaveValue(agentPublicID);
 

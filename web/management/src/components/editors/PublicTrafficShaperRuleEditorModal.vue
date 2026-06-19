@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import TrashIcon from "@primevue/icons/trash";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
@@ -13,10 +13,10 @@ import {
   policyMatchValidationReason,
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicRateLimitKeySource,
   PublicTrafficShaperBudgetScope,
@@ -221,11 +221,11 @@ defineExpose({ openCreate, openEdit, close });
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model.number="form.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
           <input v-model="form.enabled" type="checkbox" />
@@ -256,26 +256,26 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-5">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Upload KiB/s
-            <input v-model.number="form.uploadKibPerSecond" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.uploadKibPerSecond" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Client-to-server bandwidth cap.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Download KiB/s
-            <input v-model.number="form.downloadKibPerSecond" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.downloadKibPerSecond" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Server-to-client bandwidth cap.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Burst KiB
-            <input v-model.number="form.burstKib" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.burstKib" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Extra data allowed in a burst before throttling.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Request free KiB
-            <input v-model.number="form.requestFreeKib" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.requestFreeKib" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Response free KiB
-            <input v-model.number="form.responseFreeKib" type="number" min="0" step="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.responseFreeKib" type="number" min="0" step="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
         </div>
         <p class="rounded-md border border-[#222] bg-[#050505] px-3 py-2 text-xs text-[#888]">
@@ -295,12 +295,12 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-2">
           <div v-for="(part, index) in form.keyParts" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <DisabledHint full-width :disabled="Boolean(keyPartsDisabledReason)" :reason="keyPartsDisabledReason">
-              <select v-model="part.source" class="vercel-input text-sm" :disabled="Boolean(keyPartsDisabledReason)">
+              <select v-model="part.source" class="app-control text-sm" :disabled="Boolean(keyPartsDisabledReason)">
                 <option v-for="option in keySourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
             </DisabledHint>
             <DisabledHint full-width :disabled="Boolean(keyPartNameDisabledReason(part.source))" :reason="keyPartNameDisabledReason(part.source)">
-              <input v-model="part.name" class="vercel-input text-sm" placeholder="Name" :disabled="Boolean(keyPartNameDisabledReason(part.source))" />
+              <input v-model="part.name" class="app-control text-sm" placeholder="Name" :disabled="Boolean(keyPartNameDisabledReason(part.source))" />
             </DisabledHint>
             <DisabledHint :disabled="Boolean(removeKeyPartDisabledReason())" :reason="removeKeyPartDisabledReason()">
               <DangerButton

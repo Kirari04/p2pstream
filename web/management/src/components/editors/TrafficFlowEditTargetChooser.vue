@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import { NButton } from "naive-ui";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 
 defineProps<{
@@ -50,16 +51,16 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
   <Modal :model-value="modelValue" :title="request ? `Edit ${request.nodeLabel}` : 'Edit Settings'" max-width="34rem" @update:model-value="emit('update:modelValue', $event)">
     <div class="grid gap-4">
       <div class="grid gap-2">
-        <button
+        <NButton
           v-for="target in request?.targets ?? []"
           :key="`${target.kind}:${target.id}`"
-          type="button"
-          class="grid gap-1 rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-3 text-left transition hover:border-[#666] hover:bg-[#111]"
+          secondary
+          class="target-choice"
           @click="selectTarget(target)"
         >
           <span class="text-sm font-medium text-white">{{ target.label }}</span>
           <span class="font-mono text-xs text-[#888]">{{ kindLabel(target.kind) }} #{{ target.id }}{{ target.subLabel ? ` / ${target.subLabel}` : "" }}</span>
-        </button>
+        </NButton>
       </div>
       <div class="flex justify-end">
         <SecondaryButton type="button" label="Cancel" @click="close" />
@@ -67,3 +68,18 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
     </div>
   </Modal>
 </template>
+
+<style scoped>
+.target-choice {
+  --n-height: auto !important;
+  justify-content: flex-start;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.target-choice :deep(.n-button__content) {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: start;
+}
+</style>

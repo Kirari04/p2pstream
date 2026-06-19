@@ -36,7 +36,7 @@ defineExpose({ validationReason });
     </div>
 
     <div v-if="form.mode === 'expression'" class="expression-panel">
-      <textarea v-model="form.expression" class="vercel-input expression-input" spellcheck="false" placeholder='method == "POST" && path_prefix(path, "/login")' />
+      <textarea v-model="form.expression" class="app-control expression-input" spellcheck="false" placeholder='method == "POST" && path_prefix(path, "/login")' />
     </div>
 
     <div v-else class="builder-panel">

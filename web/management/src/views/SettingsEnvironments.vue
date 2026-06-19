@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import CheckIcon from "@primevue/icons/check";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import RefreshIcon from "@primevue/icons/refresh";
-import TrashIcon from "@primevue/icons/trash";
-import { useToast } from "primevue/usetoast";
+import { Check as CheckIcon } from "@lucide/vue";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { useNotification } from "naive-ui";
 import { computed, inject, onMounted, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
 import { localManagementClient } from "@/api/managementClient";
@@ -12,11 +12,11 @@ import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import Tag from "@/components/ui/Tag.vue";
 import type {
   Agent,
   Environment,
@@ -32,7 +32,7 @@ const environments = inject<ComputedRef<Environment[]>>("environments", computed
 const reloadEnvironments = inject<(() => Promise<void>) | undefined>("reloadEnvironments", undefined);
 const isBusy = inject<ComputedRef<boolean>>("isBusy", computed(() => false));
 const confirmDialog = useConfirmDialog();
-const toast = useToast();
+const notification = useNotification();
 
 type EnvironmentTestState = "testing" | "success" | "error";
 
@@ -211,11 +211,10 @@ async function testEnvironment(environment: Environment) {
       checkedAtUnixMillis: checkedAt,
       message: environmentStatusMessage(resp.status),
     };
-    toast.add({
-      severity: "success",
-      summary: "Environment reachable",
-      detail: `${environment.name} responded successfully.`,
-      life: 3000,
+    notification.success({
+      title: "Environment reachable",
+      content: `${environment.name} responded successfully.`,
+      duration: 3000,
     });
   } catch (err) {
     const message = messageFromError(err);
@@ -224,11 +223,10 @@ async function testEnvironment(environment: Environment) {
       checkedAtUnixMillis: BigInt(Date.now()),
       message,
     };
-    toast.add({
-      severity: "error",
-      summary: "Environment test failed",
-      detail: message,
-      life: 5000,
+    notification.error({
+      title: "Environment test failed",
+      content: message,
+      duration: 5000,
     });
   } finally {
     testingEnvironmentId.value = "";
@@ -402,7 +400,7 @@ function messageFromError(err: unknown): string {
       {{ operationError }}
     </div>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4">
         <h5 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Registered Environments</h5>
       </div>
@@ -513,11 +511,11 @@ function messageFromError(err: unknown): string {
       <form class="grid gap-4" @submit.prevent="submitEnvironment">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Name
-          <input v-model="environmentForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model="environmentForm.name" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Management URL
-          <input v-model="environmentForm.managementUrl" class="vercel-input text-sm normal-case tracking-normal" placeholder="https://proxy.example.com:8081" required />
+          <input v-model="environmentForm.managementUrl" class="app-control text-sm normal-case tracking-normal" placeholder="https://proxy.example.com:8081" required />
         </label>
         <div class="grid gap-2 text-xs font-medium uppercase tracking-wider text-[#888]">
           Transport
@@ -542,7 +540,7 @@ function messageFromError(err: unknown): string {
         </div>
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Local Agent
-          <select v-model="environmentForm.agentId" class="vercel-input text-sm normal-case tracking-normal" required>
+          <select v-model="environmentForm.agentId" class="app-control text-sm normal-case tracking-normal" required>
             <option value="" disabled>Select agent</option>
             <option v-for="agent in enabledLocalAgents" :key="agent.id.toString()" :value="agent.id.toString()">
               {{ agent.name }}{{ agent.connected ? '' : ' (offline)' }}
@@ -553,14 +551,14 @@ function messageFromError(err: unknown): string {
           Access Token
           <input
             v-model="environmentForm.accessToken"
-            class="vercel-input text-sm normal-case tracking-normal"
+            class="app-control text-sm normal-case tracking-normal"
             :placeholder="environmentForm.id ? 'Leave blank to keep existing token' : 'p2pat_...'"
             :required="!environmentForm.id"
           />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Response Header Timeout
-          <input v-model.number="environmentForm.responseHeaderTimeoutMillis" type="number" min="1000" max="300000" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model.number="environmentForm.responseHeaderTimeoutMillis" type="number" min="1000" max="300000" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
           <input v-model="environmentForm.enabled" type="checkbox" />

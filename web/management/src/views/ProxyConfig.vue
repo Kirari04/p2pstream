@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import BanIcon from "@primevue/icons/ban";
-import CheckIcon from "@primevue/icons/check";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import RefreshIcon from "@primevue/icons/refresh";
-import TimesIcon from "@primevue/icons/times";
-import TrashIcon from "@primevue/icons/trash";
-import WindowMaximizeIcon from "@primevue/icons/windowmaximize";
+import { Ban as BanIcon } from "@lucide/vue";
+import { Check as CheckIcon } from "@lucide/vue";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { X as TimesIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { Copy as WindowMaximizeIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -28,10 +28,10 @@ import {
   routeTargetSummary,
   severityForState,
 } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import Tag from "@/components/ui/Tag.vue";
 import {
   ProxyState,
   PublicRouteAction,
@@ -178,14 +178,14 @@ async function deleteRoute(id: bigint) {
     </p>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
+      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
         <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
         <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
         <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Public Listeners</h4>
@@ -208,7 +208,12 @@ async function deleteRoute(id: bigint) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="listener in listeners" :key="listener.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
+            <tr
+              v-for="listener in listeners"
+              :key="listener.id.toString()"
+              :data-testid="`listener-row-${listener.id.toString()}`"
+              class="border-b border-[#1f1f1f] last:border-0"
+            >
               <td class="px-5 py-4 font-medium text-white">{{ listener.name }}</td>
               <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ bindLabel(listener) }}</td>
               <td class="px-5 py-4">{{ protocolLabel(listener.protocol) }}</td>
@@ -282,7 +287,7 @@ async function deleteRoute(id: bigint) {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Routes</h4>
@@ -293,7 +298,12 @@ async function deleteRoute(id: bigint) {
         </SecondaryButton>
       </div>
       <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="route in routes" :key="route.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
+        <div
+          v-for="route in routes"
+          :key="route.id.toString()"
+          :data-testid="`route-row-${route.id.toString()}`"
+          class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]"
+        >
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
               <p class="truncate text-sm font-medium text-white">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -33,10 +33,10 @@ import {
   wafProviderLabel,
   wafRuleSummary,
 } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import Tag from "@/components/ui/Tag.vue";
 import type { PublicWafCaptchaProvider } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
@@ -211,14 +211,14 @@ async function deleteTrafficShaperRule(id: bigint) {
     </div>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
+      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
         <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
         <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
         <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Rate Limits</h4>
@@ -259,7 +259,7 @@ async function deleteTrafficShaperRule(id: bigint) {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">WAF</h4>
@@ -325,7 +325,7 @@ async function deleteTrafficShaperRule(id: bigint) {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Cache</h4>
@@ -354,23 +354,23 @@ async function deleteTrafficShaperRule(id: bigint) {
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Disk MiB
-            <input v-model.number="cacheSettingsForm.maxDiskMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="cacheSettingsForm.maxDiskMiB" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Memory MiB
-            <input v-model.number="cacheSettingsForm.maxMemoryMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="cacheSettingsForm.maxMemoryMiB" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Hot object KiB
-            <input v-model.number="cacheSettingsForm.hotObjectKiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="cacheSettingsForm.hotObjectKiB" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Max entries
-            <input v-model.number="cacheSettingsForm.maxEntries" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="cacheSettingsForm.maxEntries" type="number" min="1" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Cleanup seconds
-            <input v-model.number="cacheSettingsForm.cleanupIntervalSeconds" type="number" min="1" max="3600" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="cacheSettingsForm.cleanupIntervalSeconds" type="number" min="1" max="3600" class="app-control text-sm normal-case tracking-normal" />
           </label>
         </div>
         <div class="flex justify-end">
@@ -410,7 +410,7 @@ async function deleteTrafficShaperRule(id: bigint) {
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Traffic Shaper</h4>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import {
@@ -13,10 +13,10 @@ import {
   type AgentLabelPair,
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
@@ -146,7 +146,7 @@ defineExpose({ openCreate, openEdit, close });
     <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="grid gap-5">
       <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
         Name
-        <input v-model="agentForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
+        <input v-model="agentForm.name" class="app-control text-sm normal-case tracking-normal" required />
       </label>
       <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
         <input v-model="agentForm.enabled" type="checkbox" />
@@ -166,11 +166,11 @@ defineExpose({ openCreate, openEdit, close });
           <div v-for="(label, index) in agentForm.labels" :key="label.id" data-testid="agent-label-row" class="grid gap-2 rounded-md border border-[#1f1f1f] bg-[#090909] p-3 sm:grid-cols-[1fr_1fr_auto]">
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Key
-              <input v-model="label.key" data-testid="agent-label-key" class="vercel-input text-sm normal-case tracking-normal" placeholder="site" required />
+              <input v-model="label.key" data-testid="agent-label-key" class="app-control text-sm normal-case tracking-normal" placeholder="site" required />
             </label>
             <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
               Value
-              <input v-model="label.value" data-testid="agent-label-value" class="vercel-input text-sm normal-case tracking-normal" placeholder="home-lab" />
+              <input v-model="label.value" data-testid="agent-label-value" class="app-control text-sm normal-case tracking-normal" placeholder="home-lab" />
             </label>
             <DangerButton type="button" size="small" aria-label="Remove label" title="Remove label" class="self-end" @click="removeLabel(index)">
               <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>

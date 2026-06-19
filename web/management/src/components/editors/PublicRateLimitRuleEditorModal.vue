@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef } from "vue";
-import TrashIcon from "@primevue/icons/trash";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicRateLimitPreview from "@/components/editors/PublicRateLimitPreview.vue";
@@ -14,10 +14,10 @@ import {
   policyMatchValidationReason,
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import Modal from "@/components/ui/Modal.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import {
   PublicRateLimitAlgorithm,
   PublicRateLimitKeySource,
@@ -248,11 +248,11 @@ defineExpose({ openCreate, openEdit, close });
       <section class="grid gap-4 sm:grid-cols-4">
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model="form.name" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
           Priority
-          <input v-model.number="form.priority" type="number" class="vercel-input text-sm normal-case tracking-normal" required />
+          <input v-model.number="form.priority" type="number" class="app-control text-sm normal-case tracking-normal" required />
         </label>
         <label class="flex items-center gap-2 self-end text-sm text-[#d4d4d8]">
           <input v-model="form.enabled" type="checkbox" />
@@ -276,12 +276,12 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-3">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Limit
-            <input v-model.number="form.limit" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" required />
+            <input v-model.number="form.limit" type="number" min="1" class="app-control text-sm normal-case tracking-normal" required />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Max requests allowed per window.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Window seconds
-            <input v-model.number="form.windowSeconds" type="number" min="1" step="1" class="vercel-input text-sm normal-case tracking-normal" required />
+            <input v-model.number="form.windowSeconds" type="number" min="1" step="1" class="app-control text-sm normal-case tracking-normal" required />
             <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Duration of each rate limit window.</p>
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
@@ -291,7 +291,7 @@ defineExpose({ openCreate, openEdit, close });
                 v-model.number="form.burst"
                 type="number"
                 min="0"
-                class="vercel-input text-sm normal-case tracking-normal"
+                class="app-control text-sm normal-case tracking-normal"
                 :disabled="Boolean(burstDisabledReason)"
               />
             </DisabledHint>
@@ -316,11 +316,11 @@ defineExpose({ openCreate, openEdit, close });
         </div>
         <div class="grid gap-2">
           <div v-for="(part, index) in form.keyParts" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <select v-model="part.source" class="vercel-input text-sm">
+            <select v-model="part.source" class="app-control text-sm">
               <option v-for="option in keySourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
             <DisabledHint full-width :disabled="Boolean(keyPartNameDisabledReason(part.source))" :reason="keyPartNameDisabledReason(part.source)">
-              <input v-model="part.name" class="vercel-input text-sm" placeholder="Name" :disabled="Boolean(keyPartNameDisabledReason(part.source))" />
+              <input v-model="part.name" class="app-control text-sm" placeholder="Name" :disabled="Boolean(keyPartNameDisabledReason(part.source))" />
             </DisabledHint>
             <DisabledHint :disabled="Boolean(removeKeyPartDisabledReason())" :reason="removeKeyPartDisabledReason()">
               <DangerButton
@@ -344,11 +344,11 @@ defineExpose({ openCreate, openEdit, close });
         <div class="grid gap-4 sm:grid-cols-3">
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Status
-            <input v-model.number="form.responseStatusCode" type="number" min="400" max="599" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model.number="form.responseStatusCode" type="number" min="400" max="599" class="app-control text-sm normal-case tracking-normal" />
           </label>
           <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888] sm:col-span-2">
             Content type
-            <input v-model="form.responseContentType" class="vercel-input text-sm normal-case tracking-normal" />
+            <input v-model="form.responseContentType" class="app-control text-sm normal-case tracking-normal" />
           </label>
         </div>
         <div class="grid gap-3 rounded-md border border-[#222] bg-[#050505] p-3">
@@ -375,7 +375,7 @@ defineExpose({ openCreate, openEdit, close });
           </div>
           <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Template
-            <select v-model="form.responseBodyTemplateId" class="vercel-input text-sm normal-case tracking-normal">
+            <select v-model="form.responseBodyTemplateId" class="app-control text-sm normal-case tracking-normal">
               <option value="">{{ genericTemplates.length ? 'Select template' : 'No generic templates' }}</option>
               <option v-for="template in genericTemplates" :key="template.id.toString()" :value="template.id.toString()">
                 {{ template.name }}
@@ -384,7 +384,7 @@ defineExpose({ openCreate, openEdit, close });
           </label>
           <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
             Body
-            <textarea v-model="form.responseBody" class="vercel-input min-h-24 text-sm normal-case tracking-normal font-mono" />
+            <textarea v-model="form.responseBody" class="app-control min-h-24 text-sm normal-case tracking-normal font-mono" />
           </label>
         </div>
         <div class="grid gap-2">
@@ -393,8 +393,8 @@ defineExpose({ openCreate, openEdit, close });
             <SecondaryButton type="button" size="small" label="Add Header" @click="addResponseHeader" />
           </div>
           <div v-for="(header, index) in form.responseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <input v-model="header.name" class="vercel-input text-sm" placeholder="Name" />
-            <input v-model="header.value" class="vercel-input text-sm" placeholder="Value" />
+            <input v-model="header.name" class="app-control text-sm" placeholder="Name" />
+            <input v-model="header.value" class="app-control text-sm" placeholder="Value" />
             <DangerButton
               size="small"
               class="row-remove-button"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { computed, ref } from "vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -10,10 +10,10 @@ import EmptyState from "@/components/EmptyState.vue";
 import PublicResponseTemplateEditorModal from "@/components/editors/PublicResponseTemplateEditorModal.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import Button from "@/components/ui/Button.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
+import Tag from "@/components/ui/Tag.vue";
 import {
   PublicResponseBodyMode,
   PublicResponseTemplateKind,
@@ -128,19 +128,24 @@ async function deleteTemplate(template: PublicResponseTemplate) {
     </div>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
+      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
         <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
         <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
         <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
+    <section class="app-card overflow-hidden">
       <div class="border-b border-[#333] px-5 py-4">
         <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Templates</h4>
       </div>
       <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="template in templates" :key="template.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
+        <div
+          v-for="template in templates"
+          :key="template.id.toString()"
+          :data-testid="`template-row-${template.id.toString()}`"
+          class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]"
+        >
           <div class="min-w-0">
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <p class="truncate text-sm font-medium text-white">{{ template.name }}</p>

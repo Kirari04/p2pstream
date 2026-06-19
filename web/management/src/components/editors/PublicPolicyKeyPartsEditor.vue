@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import TrashIcon from "@primevue/icons/trash";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import DisabledHint from "@/components/DisabledHint.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import DangerButton from "@/components/ui/DangerButton.vue";
+import SecondaryButton from "@/components/ui/SecondaryButton.vue";
 import { PublicRateLimitKeySource } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type KeyPartForm = {
@@ -61,13 +61,13 @@ function removeDisabledReason(): string {
     </div>
     <div class="grid gap-2">
       <div v-for="(part, index) in keyParts" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-        <select v-model="part.source" class="vercel-input text-sm" :disabled="Boolean(disabledReason)">
+        <select v-model="part.source" class="app-control text-sm" :disabled="Boolean(disabledReason)">
           <option v-for="option in keySourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
         <DisabledHint full-width :disabled="Boolean(disabledReason || keyPartNameDisabledReason(part.source))" :reason="disabledReason || keyPartNameDisabledReason(part.source)">
           <input
             v-model="part.name"
-            class="vercel-input text-sm"
+            class="app-control text-sm"
             placeholder="Name"
             :disabled="Boolean(disabledReason || keyPartNameDisabledReason(part.source))"
           />
