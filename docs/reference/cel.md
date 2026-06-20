@@ -43,7 +43,7 @@ Legacy `match` fields are removed from the public API. Existing stored legacy ro
 | `method` | string | Uppercase request method, such as `GET` or `POST`. |
 | `protocol` | string | Listener protocol, `http` or `https`. |
 | `host` | string | Normalized request host without port. |
-| `path` | string | URL path. |
+| `path` | string | Decoded URL path as seen by p2pstream policy layers. |
 | `remote_ip` | string | Client remote IP parsed from the connection remote address. |
 | `headers` | map string to list string | Header names are lowercase; repeated values are preserved. |
 | `cookies` | map string to string | First cookie value by name. |
@@ -121,6 +121,8 @@ Header and query conditions check all repeated values. Internally migrated legac
 
 Expressions must compile and evaluate to bool. Regex literals are validated when p2pstream can see them statically.
 
+For routes that allow encoded path separators, CEL still receives the decoded `path`. Use route-scoped compatibility sparingly and avoid CEL authorization logic that depends on slash boundaries that an upstream interprets differently.
+
 Literal arguments receive targeted validation:
 
 - `cidr(remote_ip, "...")` requires a valid CIDR prefix.
@@ -190,6 +192,8 @@ CEL policy matches cannot inspect:
 - request body.
 
 For cache rules, route and target scoping must use the rule's `route_ids` and `target_ids` filters instead of CEL.
+
+p2pstream may perform an internal route-only path security match before WAF, rate-limit, and traffic-shaper CEL evaluation. That match only selects the route path security mode; it does not expose route or target data to CEL and does not select a target.
 
 ## Troubleshooting
 

@@ -43,6 +43,8 @@ p2pstream always bypasses cache for requests with `Authorization`, `Cookie`, non
 
 `allow_cookie_requests` is retained for API and database compatibility, but Cookie-bearing requests never use shared cache lookup or storage. Do not rely on this field for cache behavior.
 
+Requests containing encoded path separators on routes that enable `allow_encoded_separators` path security always bypass shared cache. Compatibility routes can preserve encoded separators for upstreams that require them, but those ambiguous request targets are not used for shared cache lookup or storage.
+
 p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, including parameterized directives such as `private="Set-Cookie"`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
 
 Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
@@ -67,13 +69,14 @@ Request order:
 
 1. ACME HTTP challenge bypass
 2. Reserved WAF endpoints
-3. WAF evaluation
-4. Rate limits
-5. Traffic shaper selection
-6. Route/target resolution
-7. Cache rule evaluation and lookup
-8. Cache hit response, or upstream forwarding and cache store
-9. Final response
+3. Route-only path security match
+4. WAF evaluation
+5. Rate limits
+6. Traffic shaper selection
+7. Route/target resolution
+8. Cache rule evaluation and lookup
+9. Cache hit response, or upstream forwarding and cache store
+10. Final response
 
 Cache hits still consume rate-limit buckets and still use traffic shaping. Redirect routes and static targets are not cached. `HEAD` requests can be served from a cached `GET` object, but `HEAD` does not create a new cache object.
 

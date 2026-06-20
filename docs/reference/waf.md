@@ -82,7 +82,9 @@ Waiting-room page templates can only be selected for waiting-room WAF rules. The
 
 WAF rules use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, target data, target health, and load-balancer state are not available inside WAF match CEL. WAF rules still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside WAF match CEL. p2pstream may perform a route-only path security match before WAF, but WAF rules still run before route target selection.
+
+WAF path matching uses p2pstream's decoded request path. On routes that allow encoded separators for upstream compatibility, avoid WAF rules that depend on decoded slash boundaries for authorization.
 
 WAF key parts reuse rate-limit key sources: remote IP, host, method, path, protocol, header, cookie, and query parameter.
 

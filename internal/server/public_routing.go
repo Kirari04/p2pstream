@@ -147,6 +147,7 @@ type publicRouteConfig struct {
 	RedirectStatusCode         int64
 	RedirectPreservePathSuffix bool
 	RedirectPreserveQuery      bool
+	PathSecurityMode           string
 	Enabled                    bool
 }
 
@@ -211,6 +212,14 @@ type publicRouteResolution struct {
 	CacheKeyDigest                      string
 	RouteLoadBalancing                  string
 	RouteFallbackSelected               bool
+}
+
+type publicRouteMatch struct {
+	Snapshot     *publicProxySnapshot
+	Listener     publicListenerConfig
+	Route        publicRouteConfig
+	DefaultRoute bool
+	Err          error
 }
 
 type proxyRequestObservability struct {
@@ -1026,18 +1035,26 @@ func forwardedPort(host string, proto string) string {
 }
 
 func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRouteResolution, error) {
+	match, err := a.matchPublicRoute(listenerID, r)
+	if err != nil {
+		return publicRouteResolution{}, err
+	}
+	return a.resolvePublicRouteFromMatch(match)
+}
+
+func (a *App) matchPublicRoute(listenerID int64, r *http.Request) (publicRouteMatch, error) {
 	host := normalizeRequestHost(r.Host)
 
 	a.proxyMu.Lock()
 	snap := a.publicSnapshot
 	a.proxyMu.Unlock()
 	if snap == nil {
-		return publicRouteResolution{}, errors.New("public proxy config is not loaded")
+		return publicRouteMatch{}, errors.New("public proxy config is not loaded")
 	}
 
 	listener, ok := snap.Listeners[listenerID]
 	if !ok {
-		return publicRouteResolution{}, errors.New("listener not found")
+		return publicRouteMatch{}, errors.New("listener not found")
 	}
 
 	var matchedRoute publicRouteConfig
@@ -1064,12 +1081,29 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 	isDefaultRoute := false
 	if matchedRoute.ID == 0 {
 		if defaultRoute.ID == 0 {
-			return publicRouteResolution{}, errNoPublicRouteAvailable
+			return publicRouteMatch{}, errNoPublicRouteAvailable
 		}
 		matchedRoute = defaultRoute
 		isDefaultRoute = true
 	}
 
+	return publicRouteMatch{
+		Snapshot:     snap,
+		Listener:     listener,
+		Route:        matchedRoute,
+		DefaultRoute: isDefaultRoute,
+	}, nil
+}
+
+func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteResolution, error) {
+	if match.Err != nil {
+		return publicRouteResolution{}, match.Err
+	}
+	if match.Snapshot == nil {
+		return publicRouteResolution{}, errors.New("public proxy config is not loaded")
+	}
+	matchedRoute := match.Route
+	listener := match.Listener
 	routeID := sql.NullInt64{Int64: matchedRoute.ID, Valid: true}
 	action := normalizePublicRouteAction(matchedRoute.Action)
 	if action == publicRouteActionRedirect {
@@ -1077,12 +1111,12 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 			Listener:     listener,
 			Route:        matchedRoute,
 			Action:       publicRouteActionRedirect,
-			DefaultRoute: isDefaultRoute,
-			ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
+			DefaultRoute: match.DefaultRoute,
+			ListenerID:   sql.NullInt64{Int64: listener.ID, Valid: true},
 			RouteID:      routeID,
 		}, nil
 	}
-	target, agent, ok := a.selectRouteTarget(*snap, matchedRoute)
+	target, agent, ok := a.selectRouteTarget(*match.Snapshot, matchedRoute)
 	if !ok {
 		return publicRouteResolution{}, errNoRouteTargetAvailable
 	}
@@ -1093,8 +1127,8 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		Listener:           listener,
 		Route:              matchedRoute,
 		Action:             publicRouteActionForward,
-		DefaultRoute:       isDefaultRoute,
-		ListenerID:         sql.NullInt64{Int64: listenerID, Valid: true},
+		DefaultRoute:       match.DefaultRoute,
+		ListenerID:         sql.NullInt64{Int64: listener.ID, Valid: true},
 		RouteID:            routeID,
 		RouteTargetID:      sql.NullInt64{Int64: target.ID, Valid: target.ID != 0},
 		RouteLoadBalancing: matchedRoute.TargetLoadBalancing,

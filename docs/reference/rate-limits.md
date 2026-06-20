@@ -50,7 +50,9 @@ Token bucket is the default and works well for most API use cases. Use sliding w
 
 Rules use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, target data, target health, and load-balancer state are not available inside rate-limit match CEL. Rate limits still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside rate-limit match CEL. p2pstream may perform a route-only path security match before rate limits, but rate limits still run before route target selection.
+
+Rate-limit path matching and `path` key parts use p2pstream's decoded request path. On routes that allow encoded separators for upstream compatibility, avoid per-path limits that rely on decoded slash boundaries as a security boundary.
 
 Key sources:
 

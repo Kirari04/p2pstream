@@ -174,6 +174,58 @@ func TestPublicCacheCookieRequestDoesNotPopulateOrHitCache(t *testing.T) {
 	}
 }
 
+func TestPublicCacheCompatibilityRouteEncodedSeparatorBypasses(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	resolution.Route.PathSecurityMode = publicRoutePathSecurityModeAllowEncodedSeparators
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/group%2Fproject.txt", nil)
+	decision := app.checkPublicCache(req, resolution)
+	if decision.Status != publicCacheStatusBypass || decision.BypassReason != "encoded_path" {
+		t.Fatalf("encoded separator cache decision = %q/%q, want bypass/encoded_path", decision.Status, decision.BypassReason)
+	}
+	if decision.Cacheable {
+		t.Fatal("encoded separator compatibility request should not be cacheable")
+	}
+}
+
+func TestPublicCacheCompatibilityRouteEncodedSeparatorDoesNotPopulateOrHitCache(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	resolution.Route.PathSecurityMode = publicRoutePathSecurityModeAllowEncodedSeparators
+
+	originHits := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		originHits++
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Cache-Control", "max-age=300")
+		_, _ = w.Write([]byte("encoded-asset"))
+	}))
+	defer upstream.Close()
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	resolution.Target.ParsedURL = origin
+
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/group%2Fproject.txt", nil)
+		decision := app.checkPublicCache(req, resolution)
+		if decision.Status != publicCacheStatusBypass || decision.BypassReason != "encoded_path" {
+			t.Fatalf("request %d cache decision = %q/%q, want bypass/encoded_path", i+1, decision.Status, decision.BypassReason)
+		}
+		rec := httptest.NewRecorder()
+		app.proxyDirectTargetRequest(rec, req, resolution, nil, nil, &decision, proxyRequestObservability{})
+		if rec.Code != http.StatusOK || rec.Body.String() != "encoded-asset" {
+			t.Fatalf("request %d response = status %d body %q, want 200 encoded-asset", i+1, rec.Code, rec.Body.String())
+		}
+	}
+	if originHits != 2 {
+		t.Fatalf("origin hits = %d, want 2", originHits)
+	}
+}
+
 func TestPublicCacheAuthorizationStillBypasses(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()

@@ -307,6 +307,7 @@ type PublicRoute struct {
 	RedirectStatusCode         int64     `json:"redirect_status_code"`
 	RedirectPreservePathSuffix int64     `json:"redirect_preserve_path_suffix"`
 	RedirectPreserveQuery      int64     `json:"redirect_preserve_query"`
+	PathSecurityMode           string    `json:"path_security_mode"`
 	Enabled                    int64     `json:"enabled"`
 	CreatedAt                  time.Time `json:"created_at"`
 	UpdatedAt                  time.Time `json:"updated_at"`

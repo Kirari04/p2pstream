@@ -19,7 +19,9 @@ Traffic shaper rules limit upload and/or download throughput for matching reques
 
 Traffic shapers use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, target data, target health, and load-balancer state are not available inside shaper match CEL. Traffic shapers still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside shaper match CEL. p2pstream may perform a route-only path security match before traffic shapers, but traffic shapers still run before route target selection.
+
+Traffic-shaper path matching and `path` key parts use p2pstream's decoded request path. On routes that allow encoded separators for upstream compatibility, avoid shaping policy that relies on decoded slash boundaries as a security boundary.
 
 Key parts still identify the per-key budget. They can use remote IP, host, method, path, protocol, header, cookie, and query parameter values.
 
