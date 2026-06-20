@@ -1694,6 +1694,16 @@ SET status = ?,
 WHERE id = ?
 RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at;
 
+-- name: UpdatePublicTlsCertificateRenewalStatus :one
+UPDATE public_tls_certificates
+SET status = ?,
+    last_error = ?,
+    next_renewal_at = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at;
+
 -- name: DeletePublicTlsCertificate :exec
 DELETE FROM public_tls_certificates
 WHERE id = ?;

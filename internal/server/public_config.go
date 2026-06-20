@@ -790,7 +790,7 @@ func (a *App) CreatePublicTlsCertificate(
 		return nil, err
 	}
 	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
-	a.queuePublicACMECertificateIssue(cert)
+	a.queuePublicACMECertificateIssue(cert, publicACMETriggerConfigChange)
 	return connect.NewResponse(&p2pstreamv1.CreatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
 
@@ -853,7 +853,7 @@ func (a *App) UpdatePublicTlsCertificate(
 		_, _ = a.restartTLSListenerIfActive(ctx, existing.ListenerID)
 	}
 	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
-	a.queuePublicACMECertificateIssue(cert)
+	a.queuePublicACMECertificateIssue(cert, publicACMETriggerConfigChange)
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
 
@@ -892,16 +892,17 @@ func (a *App) RenewPublicTlsCertificate(
 	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("only ACME certificates can be renewed"))
 	}
-	cert, err = a.DB.UpdatePublicTlsCertificateStatus(ctx, db.UpdatePublicTlsCertificateStatusParams{
+	cert, err = a.DB.UpdatePublicTlsCertificateRenewalStatus(ctx, db.UpdatePublicTlsCertificateRenewalStatusParams{
 		ID:                   cert.ID,
 		Status:               publicTLSCertificateStatusRenewing,
 		LastError:            "",
+		NextRenewalAt:        sql.NullTime{},
 		LastRenewalAttemptAt: sql.NullTime{Time: time.Now().UTC(), Valid: true},
 	})
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	a.queuePublicACMECertificateIssue(cert)
+	a.queuePublicACMECertificateIssue(cert, publicACMETriggerManual)
 	return connect.NewResponse(&p2pstreamv1.RenewPublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
 
@@ -2285,11 +2286,11 @@ func validateACMEHostPattern(pattern string, challengeType string) error {
 	return nil
 }
 
-func (a *App) queuePublicACMECertificateIssue(cert db.PublicTlsCertificate) {
+func (a *App) queuePublicACMECertificateIssue(cert db.PublicTlsCertificate, trigger string) {
 	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME || cert.Enabled == 0 || a.PublicACME == nil {
 		return
 	}
-	a.PublicACME.QueueIssue(cert.ID)
+	a.PublicACME.QueueCertificate(cert, trigger)
 }
 
 func normalizePublicName(name string) (string, error) {

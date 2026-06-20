@@ -93,7 +93,7 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Cause | Fix |
 | --- | --- |
 | No matching certificate mapping | Add a mapping for the exact host or wildcard in **TLS**. |
-| ACME certificate not ready | Check certificate status and last error. |
+| ACME certificate not ready | Check certificate status, last attempt, last error, and next renewal or retry time in **TLS**. |
 | Request SNI mismatch | Test with the real hostname, not the IP address. |
 | Listener not restarted | Stop/start the listener or wait for automatic restart after certificate issuance. |
 
@@ -112,6 +112,8 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | DNS-01 | Cloudflare zone ID and API token must be valid and enabled. |
 | Wildcard | Use DNS-01; HTTP-01 and TLS-ALPN-01 do not support wildcard issuance. |
 | CA | Test with staging before production. |
+
+ACME renewal logs use `component=public_acme`. Filter those entries and inspect `cert_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `next_renewal_at`, and `retry_at`. A successful attempt logs `ACME certificate renewal succeeded`; a failed attempt logs `ACME certificate renewal failed` with the failed stage and retry time. Failed renewals retry automatically after 1 hour.
 
 ## Route Does Not Match
 

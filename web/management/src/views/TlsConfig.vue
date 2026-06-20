@@ -17,6 +17,7 @@ import {
   dnsCredentialName,
   isDefaultSelfSignedCertificate,
   listenerName,
+  tlsCertificateLastAttemptSummary,
   tlsCertificateSummary,
   tlsCertificateRenewalSummary,
   tlsCertificateValiditySummary,
@@ -411,10 +412,11 @@ watch(tlsDnsCredentials, () => {
             <p class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateSummary(cert) }}</p>
             <p v-if="tlsCertificateValiditySummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateValiditySummary(cert) }}</p>
             <p v-if="tlsCertificateRenewalSummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateRenewalSummary(cert) }}</p>
+            <p v-if="tlsCertificateLastAttemptSummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateLastAttemptSummary(cert) }}</p>
             <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="truncate text-xs text-[var(--app-text-muted)]">
               Cloudflare / {{ dnsCredentialName(cert.dnsCredentialId, tlsDnsCredentials) }}
             </p>
-            <p v-if="cert.lastError" class="truncate text-xs text-red-400">{{ cert.lastError }}</p>
+            <p v-if="cert.lastError" class="whitespace-pre-wrap break-words text-xs text-red-400">Last error: {{ cert.lastError }}</p>
           </div>
           <div class="flex gap-2">
             <DisabledHint

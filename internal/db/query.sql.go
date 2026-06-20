@@ -7174,6 +7174,58 @@ func (q *Queries) UpdatePublicTlsCertificateIssueState(ctx context.Context, arg 
 	return i, err
 }
 
+const updatePublicTlsCertificateRenewalStatus = `-- name: UpdatePublicTlsCertificateRenewalStatus :one
+UPDATE public_tls_certificates
+SET status = ?,
+    last_error = ?,
+    next_renewal_at = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
+`
+
+type UpdatePublicTlsCertificateRenewalStatusParams struct {
+	Status               string       `json:"status"`
+	LastError            string       `json:"last_error"`
+	NextRenewalAt        sql.NullTime `json:"next_renewal_at"`
+	LastRenewalAttemptAt sql.NullTime `json:"last_renewal_attempt_at"`
+	ID                   int64        `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTlsCertificateRenewalStatus(ctx context.Context, arg UpdatePublicTlsCertificateRenewalStatusParams) (PublicTlsCertificate, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTlsCertificateRenewalStatus,
+		arg.Status,
+		arg.LastError,
+		arg.NextRenewalAt,
+		arg.LastRenewalAttemptAt,
+		arg.ID,
+	)
+	var i PublicTlsCertificate
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.CertPath,
+		&i.KeyPath,
+		&i.Enabled,
+		&i.Source,
+		&i.AcmeChallengeType,
+		&i.AcmeCa,
+		&i.AcmeEmail,
+		&i.DnsCredentialID,
+		&i.Status,
+		&i.LastError,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.NextRenewalAt,
+		&i.LastRenewalAttemptAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updatePublicTlsCertificateStatus = `-- name: UpdatePublicTlsCertificateStatus :one
 UPDATE public_tls_certificates
 SET status = ?,
