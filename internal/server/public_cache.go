@@ -469,6 +469,9 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	if r.Header.Get("Authorization") != "" {
 		return "authorization"
 	}
+	if r.Header.Get("Cookie") != "" {
+		return "cookie"
+	}
 	if r.Header.Get("Range") != "" {
 		return "range"
 	}
@@ -482,9 +485,6 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 }
 
 func publicCacheRuleBypassReason(rule publicCacheRuleConfig, r *http.Request) string {
-	if r.Header.Get("Cookie") != "" && !rule.AllowCookieRequests {
-		return "cookie"
-	}
 	return ""
 }
 
