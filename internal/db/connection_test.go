@@ -819,7 +819,13 @@ func TestMigrationUpgradesLegacyPublicRoutesForRedirects(t *testing.T) {
 	if route.Action != "forward" || route.RedirectStatusCode != 302 || route.RedirectPreservePathSuffix != 1 || route.RedirectPreserveQuery != 1 {
 		t.Fatalf("unexpected migrated redirect defaults: %+v", route)
 	}
+	if route.PathSecurityMode != "strict" || defaultRoute.PathSecurityMode != "strict" {
+		t.Fatalf("unexpected migrated path security modes: route=%q default=%q", route.PathSecurityMode, defaultRoute.PathSecurityMode)
+	}
 	routeColumns := tableColumns(t, database, "public_routes")
+	if !containsString(routeColumns, "path_security_mode") {
+		t.Fatalf("public_routes missing path_security_mode after migration: %v", routeColumns)
+	}
 	for _, column := range []string{"backend_id", "fallback_backend_id", "load_balancing"} {
 		if containsString(routeColumns, column) {
 			t.Fatalf("public_routes still has legacy column %s after migration: %v", column, routeColumns)
@@ -1000,6 +1006,7 @@ func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 		RedirectStatusCode:         302,
 		RedirectPreservePathSuffix: 1,
 		RedirectPreserveQuery:      1,
+		PathSecurityMode:           "strict",
 		Enabled:                    1,
 	})
 	if err != nil {
@@ -1134,6 +1141,77 @@ func TestPublicRouteTargetUpstreamHeadersRoundTrip(t *testing.T) {
 	}
 	if len(remaining) != 1 || remaining[0].ID != otherHeader.ID || remaining[0].Name != "X-Other" || remaining[0].Value != "other" {
 		t.Fatalf("other target upstream headers were not preserved: %+v", remaining)
+	}
+}
+
+func TestPublicRoutePathSecurityModeRoundTrip(t *testing.T) {
+	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-route-mode-test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	listener, err := database.CreatePublicListener(context.Background(), CreatePublicListenerParams{
+		Name:        "route-mode-listener",
+		BindAddress: "",
+		Port:        18081,
+		Protocol:    "http",
+		Enabled:     1,
+	})
+	if err != nil {
+		t.Fatalf("create listener: %v", err)
+	}
+	route, err := database.CreatePublicRoute(context.Background(), CreatePublicRouteParams{
+		ListenerID:                 listener.ID,
+		Priority:                   10,
+		HostPattern:                "",
+		PathPrefix:                 "/git",
+		TargetLoadBalancing:        "round_robin",
+		IsDefault:                  0,
+		Action:                     "forward",
+		RedirectTargetMode:         "",
+		RedirectTarget:             "",
+		RedirectStatusCode:         302,
+		RedirectPreservePathSuffix: 1,
+		RedirectPreserveQuery:      1,
+		PathSecurityMode:           "allow_encoded_separators",
+		Enabled:                    1,
+	})
+	if err != nil {
+		t.Fatalf("create route: %v", err)
+	}
+	if route.PathSecurityMode != "allow_encoded_separators" {
+		t.Fatalf("created route path security mode = %q, want allow_encoded_separators", route.PathSecurityMode)
+	}
+	got, err := database.GetPublicRoute(context.Background(), route.ID)
+	if err != nil {
+		t.Fatalf("get route: %v", err)
+	}
+	if got.PathSecurityMode != "allow_encoded_separators" {
+		t.Fatalf("got route path security mode = %q, want allow_encoded_separators", got.PathSecurityMode)
+	}
+	updated, err := database.UpdatePublicRoute(context.Background(), UpdatePublicRouteParams{
+		ID:                         route.ID,
+		ListenerID:                 listener.ID,
+		Priority:                   10,
+		HostPattern:                "",
+		PathPrefix:                 "/git",
+		TargetLoadBalancing:        "round_robin",
+		IsDefault:                  0,
+		Action:                     "forward",
+		RedirectTargetMode:         "",
+		RedirectTarget:             "",
+		RedirectStatusCode:         302,
+		RedirectPreservePathSuffix: 1,
+		RedirectPreserveQuery:      1,
+		PathSecurityMode:           "strict",
+		Enabled:                    1,
+	})
+	if err != nil {
+		t.Fatalf("update route: %v", err)
+	}
+	if updated.PathSecurityMode != "strict" {
+		t.Fatalf("updated route path security mode = %q, want strict", updated.PathSecurityMode)
 	}
 }
 

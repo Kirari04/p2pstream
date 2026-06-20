@@ -146,6 +146,8 @@ const (
 	publicRouteRedirectTargetModeSameHostPath                 = "same_host_path"
 	publicRouteRedirectTargetModeExternalOriginKeepPath       = "external_origin_keep_path"
 	publicRouteRedirectTargetModeAbsoluteURL                  = "absolute_url"
+	publicRoutePathSecurityModeStrict                         = "strict"
+	publicRoutePathSecurityModeAllowEncodedSeparators         = "allow_encoded_separators"
 	publicRateLimitAlgorithmFixedWindow                       = "fixed_window"
 	publicRateLimitAlgorithmSlidingWindow                     = "sliding_window"
 	publicRateLimitAlgorithmTokenBucket                       = "token_bucket"
@@ -485,6 +487,7 @@ func (a *App) CreatePublicRoute(
 		req.Msg.RedirectStatusCode,
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
+		req.Msg.PathSecurityMode,
 	)
 	if err != nil {
 		return nil, err
@@ -523,6 +526,7 @@ func (a *App) UpdatePublicRoute(
 		req.Msg.RedirectStatusCode,
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
+		req.Msg.PathSecurityMode,
 	)
 	if err != nil {
 		return nil, err
@@ -564,6 +568,7 @@ func (a *App) createPublicRouteWithTargets(
 		RedirectStatusCode:         params.RedirectStatusCode,
 		RedirectPreservePathSuffix: params.RedirectPreservePathSuffix,
 		RedirectPreserveQuery:      params.RedirectPreserveQuery,
+		PathSecurityMode:           params.PathSecurityMode,
 		Enabled:                    params.Enabled,
 	})
 	if err != nil {
@@ -1252,6 +1257,7 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 			RedirectStatusCode:         defaultRedirectStatusCode,
 			RedirectPreservePathSuffix: 1,
 			RedirectPreserveQuery:      1,
+			PathSecurityMode:           publicRoutePathSecurityModeStrict,
 			Enabled:                    1,
 		})
 		if err != nil {
@@ -1438,6 +1444,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			RedirectStatusCode:         route.RedirectStatusCode,
 			RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
 			RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
+			PathSecurityMode:           normalizePublicRoutePathSecurityMode(route.PathSecurityMode),
 			Enabled:                    route.Enabled != 0,
 		})
 	}
@@ -1863,6 +1870,7 @@ func (a *App) validatePublicRouteInput(
 	redirectStatusCode int64,
 	redirectPreservePathSuffix bool,
 	redirectPreserveQuery bool,
+	pathSecurityMode p2pstreamv1.PublicRoutePathSecurityMode,
 ) (db.UpdatePublicRouteParams, []publicRouteTargetMutationInput, error) {
 	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
 		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
@@ -1881,6 +1889,10 @@ func (a *App) validatePublicRouteInput(
 		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("path prefix must start with /"))
 	}
 	actionString, err := routeActionStringFromProto(action)
+	if err != nil {
+		return db.UpdatePublicRouteParams{}, nil, err
+	}
+	pathSecurityModeString, err := routePathSecurityModeStringFromProto(pathSecurityMode)
 	if err != nil {
 		return db.UpdatePublicRouteParams{}, nil, err
 	}
@@ -1931,6 +1943,7 @@ func (a *App) validatePublicRouteInput(
 		RedirectStatusCode:         redirectStatusCode,
 		RedirectPreservePathSuffix: boolInt(redirectPreservePathSuffix),
 		RedirectPreserveQuery:      boolInt(redirectPreserveQuery),
+		PathSecurityMode:           pathSecurityModeString,
 		Enabled:                    boolInt(enabled),
 	}, routeTargets, nil
 }
@@ -2705,6 +2718,29 @@ func normalizePublicRouteRedirectTargetMode(mode string) string {
 	}
 }
 
+func normalizePublicRoutePathSecurityMode(mode string) string {
+	switch strings.TrimSpace(strings.ToLower(mode)) {
+	case "", publicRoutePathSecurityModeStrict:
+		return publicRoutePathSecurityModeStrict
+	case publicRoutePathSecurityModeAllowEncodedSeparators:
+		return publicRoutePathSecurityModeAllowEncodedSeparators
+	default:
+		return strings.TrimSpace(strings.ToLower(mode))
+	}
+}
+
+func routePathSecurityModeStringFromProto(mode p2pstreamv1.PublicRoutePathSecurityMode) (string, error) {
+	switch mode {
+	case p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_UNSPECIFIED,
+		p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_STRICT:
+		return publicRoutePathSecurityModeStrict, nil
+	case p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_ALLOW_ENCODED_SEPARATORS:
+		return publicRoutePathSecurityModeAllowEncodedSeparators, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("route path security mode must be strict or allow encoded separators"))
+	}
+}
+
 func protoRouteActionFromString(action string) p2pstreamv1.PublicRouteAction {
 	switch normalizePublicRouteAction(action) {
 	case publicRouteActionRedirect:
@@ -2726,6 +2762,17 @@ func protoRouteRedirectTargetModeFromString(mode string) p2pstreamv1.PublicRoute
 		return p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL
 	default:
 		return p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_UNSPECIFIED
+	}
+}
+
+func protoRoutePathSecurityModeFromString(mode string) p2pstreamv1.PublicRoutePathSecurityMode {
+	switch normalizePublicRoutePathSecurityMode(mode) {
+	case publicRoutePathSecurityModeAllowEncodedSeparators:
+		return p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_ALLOW_ENCODED_SEPARATORS
+	case publicRoutePathSecurityModeStrict:
+		return p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_STRICT
+	default:
+		return p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_UNSPECIFIED
 	}
 }
 
@@ -3258,6 +3305,7 @@ func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, up
 		RedirectStatusCode:         route.RedirectStatusCode,
 		RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
 		RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
+		PathSecurityMode:           protoRoutePathSecurityModeFromString(route.PathSecurityMode),
 	}
 }
 
