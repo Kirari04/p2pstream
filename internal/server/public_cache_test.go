@@ -430,7 +430,7 @@ func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
 	}
 }
 
-func TestPublicCacheManagementAPIRequiresCookieRequestAcknowledgement(t *testing.T) {
+func TestPublicCacheManagementAPIAcceptsLegacyCookieRequestFlagWithoutAcknowledgement(t *testing.T) {
 	app, _, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
 
@@ -451,8 +451,11 @@ func TestPublicCacheManagementAPIRequiresCookieRequestAcknowledgement(t *testing
 		AllowCookieRequests:  true,
 	})
 	createReq.Header().Set("Cookie", header.Get("Cookie"))
-	if _, err := app.CreatePublicCacheRule(context.Background(), createReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("expected acknowledgement validation error, got %v", err)
+	// allow_cookie_requests is deprecated and ineffective at runtime, so the legacy
+	// acknowledgement is no longer required: creating a rule with the flag set (and no
+	// acknowledgement) now succeeds.
+	if _, err := app.CreatePublicCacheRule(context.Background(), createReq); err != nil {
+		t.Fatalf("creating rule with legacy allow_cookie_requests flag failed: %v", err)
 	}
 }
 

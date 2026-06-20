@@ -382,11 +382,6 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		return decision
 	}
 	decision.Rule = rule
-	if reason := publicCacheRuleBypassReason(rule, r); reason != "" {
-		decision.Status = publicCacheStatusBypass
-		decision.BypassReason = reason
-		return decision
-	}
 	if rule.Scope == publicCacheScopeRoute {
 		decision.RouteTargetID = sql.NullInt64{}
 	}
@@ -481,10 +476,6 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	if len(r.TransferEncoding) > 0 || (r.Body != nil && r.Body != http.NoBody && r.ContentLength != 0) {
 		return "request_body"
 	}
-	return ""
-}
-
-func publicCacheRuleBypassReason(rule publicCacheRuleConfig, r *http.Request) string {
 	return ""
 }
 
@@ -1311,9 +1302,10 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 	if err != nil {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule name must be 1-64 alphanumeric, dot, dash, or underscore characters"))
 	}
-	if allowCookieRequests && !allowCookieRequestsAcknowledged {
-		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rules that allow Cookie requests require explicit acknowledgement that Cookie is not part of the cache key"))
-	}
+	// allowCookieRequests/allowCookieRequestsAcknowledged are retained for API and
+	// database compatibility only; Cookie-bearing requests always bypass shared cache
+	// at runtime, so the acknowledgement is no longer enforced.
+	_ = allowCookieRequestsAcknowledged
 	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicCacheRuleMutationInput{}, err
