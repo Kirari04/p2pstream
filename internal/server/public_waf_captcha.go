@@ -21,10 +21,12 @@ import (
 
 type publicWafCookiePayload struct {
 	RuleID          int64  `json:"rule_id"`
+	ListenerID      int64  `json:"listener_id"`
+	RuleFingerprint string `json:"rule_fingerprint"`
+	Host            string `json:"host"`
 	Kind            string `json:"kind"`
 	SessionID       string `json:"session_id,omitempty"`
 	ExpiresUnixMs   int64  `json:"expires_unix_ms"`
-	OriginalPathKey string `json:"original_path_key,omitempty"`
 }
 
 type publicWafCaptchaChallengePayload struct {
@@ -161,7 +163,7 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 		writeCaptchaChallenge(w, r, decision)
 		return decision
 	}
-	cookie := a.PublicWAF.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, now, decision.Listener, r)
+	cookie := a.PublicWAF.signedRuleCookie(rule, decision.Listener, r, publicWafCaptchaCookieKind, "", rule.CaptchaPassTTL, now)
 	http.SetCookie(w, cookie)
 	redirectTo := sanitizeWAFReturnTo(returnTo)
 	redirectTo = strings.ReplaceAll(redirectTo, `\`, "/")
@@ -482,14 +484,25 @@ func captchaRetryAfterSeconds(d time.Duration) string {
 	return strconv.FormatInt(int64((d+time.Second-time.Nanosecond)/time.Second), 10)
 }
 
-func (w *publicWAF) validRuleCookieLocked(r *http.Request, ruleID int64, kind string, now time.Time) bool {
-	name := wafCookieName(ruleID, kind)
+func (w *publicWAF) validRuleCookieLocked(r *http.Request, rule publicWafRuleConfig, listener publicListenerConfig, kind string, now time.Time) bool {
+	name := wafCookieName(rule.ID, kind)
 	cookie, err := r.Cookie(name)
 	if err != nil {
 		return false
 	}
 	payload, ok := w.verifyCookieValueLocked(cookie.Value, now)
-	return ok && payload.RuleID == ruleID && payload.Kind == kind
+	return ok && publicWafCookieMatchesRequest(payload, r, rule, listener, kind)
+}
+
+func publicWafCookieMatchesRequest(payload publicWafCookiePayload, r *http.Request, rule publicWafRuleConfig, listener publicListenerConfig, kind string) bool {
+	return rule.ID > 0 &&
+		listener.ID > 0 &&
+		rule.Fingerprint != "" &&
+		payload.RuleID == rule.ID &&
+		payload.ListenerID == listener.ID &&
+		payload.RuleFingerprint == rule.Fingerprint &&
+		payload.Host == publicWafChallengeRequestHost(r) &&
+		payload.Kind == kind
 }
 
 func publicWafCookieSecure(listener publicListenerConfig, r *http.Request) bool {
@@ -499,18 +512,21 @@ func publicWafCookieSecure(listener publicListenerConfig, r *http.Request) bool 
 	return r != nil && r.TLS != nil
 }
 
-func (w *publicWAF) signedRuleCookie(ruleID int64, kind string, sessionID string, ttl time.Duration, now time.Time, listener publicListenerConfig, r *http.Request) *http.Cookie {
+func (w *publicWAF) signedRuleCookie(rule publicWafRuleConfig, listener publicListenerConfig, r *http.Request, kind string, sessionID string, ttl time.Duration, now time.Time) *http.Cookie {
 	if ttl <= 0 {
 		ttl = defaultWafCaptchaPassTTL
 	}
 	payload := publicWafCookiePayload{
-		RuleID:        ruleID,
-		Kind:          kind,
-		SessionID:     sessionID,
-		ExpiresUnixMs: now.Add(ttl).UnixMilli(),
+		RuleID:          rule.ID,
+		ListenerID:      listener.ID,
+		RuleFingerprint: rule.Fingerprint,
+		Host:            publicWafChallengeRequestHost(r),
+		Kind:            kind,
+		SessionID:       sessionID,
+		ExpiresUnixMs:   now.Add(ttl).UnixMilli(),
 	}
 	return &http.Cookie{
-		Name:     wafCookieName(ruleID, kind),
+		Name:     wafCookieName(rule.ID, kind),
 		Value:    w.signCookieValue(payload),
 		Path:     "/",
 		Expires:  now.Add(ttl),
@@ -561,13 +577,13 @@ func (w *publicWAF) verifyCookieValueLocked(value string, now time.Time) (public
 	return payload, true
 }
 
-func (w *publicWAF) queueCookiePayloadLocked(r *http.Request, ruleID int64, now time.Time) (publicWafCookiePayload, bool) {
-	cookie, err := r.Cookie(wafCookieName(ruleID, publicWafQueueCookieKind))
+func (w *publicWAF) queueCookiePayloadLocked(r *http.Request, rule publicWafRuleConfig, listener publicListenerConfig, now time.Time) (publicWafCookiePayload, bool) {
+	cookie, err := r.Cookie(wafCookieName(rule.ID, publicWafQueueCookieKind))
 	if err != nil {
 		return publicWafCookiePayload{}, false
 	}
 	payload, ok := w.verifyCookieValueLocked(cookie.Value, now)
-	if !ok || payload.RuleID != ruleID || payload.Kind != publicWafQueueCookieKind || payload.SessionID == "" {
+	if !ok || !publicWafCookieMatchesRequest(payload, r, rule, listener, publicWafQueueCookieKind) || payload.SessionID == "" {
 		return publicWafCookiePayload{}, false
 	}
 	return payload, true
