@@ -225,10 +225,6 @@ func containsRawPublicPathBackslash(path string) bool {
 	return strings.Contains(path, `\`)
 }
 
-func containsEncodedPublicPathSeparator(path string) bool {
-	return containsEncodedPublicPathSlash(path) || containsEncodedPublicPathBackslash(path)
-}
-
 func containsEncodedPublicPathSlash(path string) bool {
 	return strings.Contains(strings.ToLower(path), "%2f")
 }
