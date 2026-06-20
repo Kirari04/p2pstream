@@ -38,6 +38,15 @@ func TestPublicCacheRequestBypassesUnsafeRequests(t *testing.T) {
 			want: "authorization",
 		},
 		{
+			name: "cookie",
+			req: func() *http.Request {
+				req := httptest.NewRequest(http.MethodGet, "http://example.test/app.js", nil)
+				req.Header.Set("Cookie", "sid=abc")
+				return req
+			}(),
+			want: "cookie",
+		},
+		{
 			name: "request body",
 			req:  httptest.NewRequest(http.MethodGet, "http://example.test/app.js", strings.NewReader("body")),
 			want: "request_body",
@@ -80,7 +89,7 @@ func TestPublicCacheCookieRequestBypassesByDefault(t *testing.T) {
 	}
 }
 
-func TestPublicCacheCookieRequestAllowedByRule(t *testing.T) {
+func TestPublicCacheCookieRequestAllowedByLegacyRuleStillBypasses(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
 	setTestCacheRuleAllowCookieRequests(t, app, true)
@@ -89,15 +98,18 @@ func TestPublicCacheCookieRequestAllowedByRule(t *testing.T) {
 	req.Header.Set("Cookie", "sid=1")
 
 	decision := app.checkPublicCache(req, resolution)
-	if decision.Status != publicCacheStatusMiss {
-		t.Fatalf("cookie request cache decision = %q/%q, want miss", decision.Status, decision.BypassReason)
+	if decision.Status != publicCacheStatusBypass || decision.BypassReason != "cookie" {
+		t.Fatalf("cookie request cache decision = %q/%q, want bypass/cookie", decision.Status, decision.BypassReason)
 	}
 	if !decision.CookieRequest {
 		t.Fatal("expected cookie request trace marker on decision")
 	}
+	if decision.Cacheable {
+		t.Fatal("cookie request with legacy allow flag should not be cacheable")
+	}
 }
 
-func TestPublicCacheCookieIgnoredInKey(t *testing.T) {
+func TestPublicCacheCookieRequestDoesNotPopulateOrHitCache(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
 	setTestCacheRuleAllowCookieRequests(t, app, true)
@@ -120,26 +132,45 @@ func TestPublicCacheCookieIgnoredInKey(t *testing.T) {
 	firstReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
 	firstReq.Header.Set("Cookie", "sid=a")
 	firstDecision := app.checkPublicCache(firstReq, resolution)
-	if firstDecision.Status != publicCacheStatusMiss {
-		t.Fatalf("first cache status = %q/%q, want miss", firstDecision.Status, firstDecision.BypassReason)
+	if firstDecision.Status != publicCacheStatusBypass || firstDecision.BypassReason != "cookie" {
+		t.Fatalf("first cache status = %q/%q, want bypass/cookie", firstDecision.Status, firstDecision.BypassReason)
 	}
 	firstRec := httptest.NewRecorder()
 	app.proxyDirectTargetRequest(firstRec, firstReq, resolution, nil, nil, &firstDecision, proxyRequestObservability{})
 	if firstRec.Code != http.StatusOK {
 		t.Fatalf("first response status = %d, want 200", firstRec.Code)
 	}
-	if firstDecision.Status != publicCacheStatusStored {
-		t.Fatalf("first decision after proxy = %q, want stored", firstDecision.Status)
+	if firstDecision.Status != publicCacheStatusBypass {
+		t.Fatalf("first decision after proxy = %q, want bypass", firstDecision.Status)
 	}
 
 	secondReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
-	secondReq.Header.Set("Cookie", "sid=b")
 	secondDecision := app.checkPublicCache(secondReq, resolution)
-	if secondDecision.Status != publicCacheStatusHit {
-		t.Fatalf("second cache status = %q/%q, want hit", secondDecision.Status, secondDecision.BypassReason)
+	if secondDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("second cache status = %q/%q, want miss because cookie request did not populate cache", secondDecision.Status, secondDecision.BypassReason)
 	}
-	if originHits != 1 {
-		t.Fatalf("origin hits = %d, want 1", originHits)
+	secondRec := httptest.NewRecorder()
+	app.proxyDirectTargetRequest(secondRec, secondReq, resolution, nil, nil, &secondDecision, proxyRequestObservability{})
+	if secondRec.Code != http.StatusOK {
+		t.Fatalf("second response status = %d, want 200", secondRec.Code)
+	}
+	if secondDecision.Status != publicCacheStatusStored {
+		t.Fatalf("second decision after proxy = %q, want stored", secondDecision.Status)
+	}
+
+	thirdReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
+	thirdReq.Header.Set("Cookie", "sid=b")
+	thirdDecision := app.checkPublicCache(thirdReq, resolution)
+	if thirdDecision.Status != publicCacheStatusBypass || thirdDecision.BypassReason != "cookie" {
+		t.Fatalf("third cache status = %q/%q, want bypass/cookie despite stored non-cookie response", thirdDecision.Status, thirdDecision.BypassReason)
+	}
+	thirdRec := httptest.NewRecorder()
+	app.proxyDirectTargetRequest(thirdRec, thirdReq, resolution, nil, nil, &thirdDecision, proxyRequestObservability{})
+	if thirdRec.Code != http.StatusOK {
+		t.Fatalf("third response status = %d, want 200", thirdRec.Code)
+	}
+	if originHits != 3 {
+		t.Fatalf("origin hits = %d, want 3", originHits)
 	}
 }
 
@@ -323,10 +354,9 @@ func TestPublicCacheResponseEligibilityTTLAndDenials(t *testing.T) {
 	}
 }
 
-func TestPublicCacheSetCookieResponseNotStoredWithCookieRequestsAllowed(t *testing.T) {
+func TestPublicCacheSetCookieResponseNotStored(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
-	setTestCacheRuleAllowCookieRequests(t, app, true)
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "max-age=300")
@@ -342,7 +372,6 @@ func TestPublicCacheSetCookieResponseNotStoredWithCookieRequestsAllowed(t *testi
 	resolution.Target.ParsedURL = origin
 
 	firstReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
-	firstReq.Header.Set("Cookie", "sid=a")
 	firstDecision := app.checkPublicCache(firstReq, resolution)
 	if firstDecision.Status != publicCacheStatusMiss {
 		t.Fatalf("first cache status = %q/%q, want miss", firstDecision.Status, firstDecision.BypassReason)
@@ -354,7 +383,6 @@ func TestPublicCacheSetCookieResponseNotStoredWithCookieRequestsAllowed(t *testi
 	}
 
 	secondReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
-	secondReq.Header.Set("Cookie", "sid=b")
 	secondDecision := app.checkPublicCache(secondReq, resolution)
 	if secondDecision.Status != publicCacheStatusMiss {
 		t.Fatalf("second cache status = %q/%q, want miss because Set-Cookie response was not stored", secondDecision.Status, secondDecision.BypassReason)
@@ -454,7 +482,7 @@ func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
 	}
 }
 
-func TestPublicCacheManagementAPIRequiresCookieRequestAcknowledgement(t *testing.T) {
+func TestPublicCacheManagementAPIAcceptsLegacyCookieRequestFlagWithoutAcknowledgement(t *testing.T) {
 	app, _, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
 
@@ -475,8 +503,11 @@ func TestPublicCacheManagementAPIRequiresCookieRequestAcknowledgement(t *testing
 		AllowCookieRequests:  true,
 	})
 	createReq.Header().Set("Cookie", header.Get("Cookie"))
-	if _, err := app.CreatePublicCacheRule(context.Background(), createReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("expected acknowledgement validation error, got %v", err)
+	// allow_cookie_requests is deprecated and ineffective at runtime, so the legacy
+	// acknowledgement is no longer required: creating a rule with the flag set (and no
+	// acknowledgement) now succeeds.
+	if _, err := app.CreatePublicCacheRule(context.Background(), createReq); err != nil {
+		t.Fatalf("creating rule with legacy allow_cookie_requests flag failed: %v", err)
 	}
 }
 
