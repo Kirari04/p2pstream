@@ -374,6 +374,12 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		decision.BypassReason = reason
 		return decision
 	}
+	if publicRouteAllowsEncodedPathSeparators(resolution.Route) && publicRequestHasEncodedPathSeparator(r) {
+		decision.Status = publicCacheStatusBypass
+		decision.BypassReason = "encoded_path"
+		decision.LookupDuration = time.Since(startedAt)
+		return decision
+	}
 
 	rule, ok := selectPublicCacheRule(snap.CacheRules, resolution.Listener, r, resolution)
 	if !ok {

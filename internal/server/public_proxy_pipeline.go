@@ -37,18 +37,23 @@ type publicProxyContext struct {
 	RequestContext proxyRequestContext
 	Trace          *trafficRequestTrace
 
-	Resolution             publicRouteResolution
-	TrafficShaperSelected  bool
-	TrafficShaperDecision  publicTrafficShaperDecision
-	CacheDecision          *publicCacheDecision
-	RouteResolutionFailure error
-	cleanup                []func()
+	Resolution                   publicRouteResolution
+	RouteMatch                   publicRouteMatch
+	HasRouteMatch                bool
+	EncodedPathSeparatorsAllowed bool
+	PathIssues                   publicPathIssueSet
+	TrafficShaperSelected        bool
+	TrafficShaperDecision        publicTrafficShaperDecision
+	CacheDecision                *publicCacheDecision
+	RouteResolutionFailure       error
+	cleanup                      []func()
 }
 
 var publicProxyStages = []publicProxyStage{
-	rejectAmbiguousPublicPathStage,
+	rejectGloballyInvalidPublicPathStage,
 	serveACMEChallengeStage,
 	serveWAFReservedStage,
+	routePathSecurityStage,
 	beginWAFPressureStage,
 	wafPolicyStage,
 	rateLimitStage,
@@ -108,10 +113,47 @@ func (ctx *publicProxyContext) runCleanup() {
 	}
 }
 
-func rejectAmbiguousPublicPathStage(ctx *publicProxyContext) publicProxyStageResult {
-	if !publicRequestPathIsAmbiguous(ctx.Request) {
+func rejectGloballyInvalidPublicPathStage(ctx *publicProxyContext) publicProxyStageResult {
+	ctx.PathIssues = classifyPublicRequestPath(ctx.Request)
+	if !ctx.PathIssues.DecodedDotSegment && !ctx.PathIssues.RawBackslash {
 		return publicProxyStageContinue
 	}
+	return rejectInvalidPublicRequestTarget(ctx)
+}
+
+func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.App == nil {
+		return publicProxyStageContinue
+	}
+	if !ctx.PathIssues.hasEncodedSeparator() {
+		match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+		if err != nil {
+			match.Err = err
+		}
+		ctx.RouteMatch = match
+		ctx.HasRouteMatch = true
+		return publicProxyStageContinue
+	}
+	match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+	if err != nil {
+		match.Err = err
+		ctx.RouteMatch = match
+		ctx.HasRouteMatch = true
+		if errors.Is(err, errNoPublicRouteAvailable) {
+			return rejectInvalidPublicRequestTarget(ctx)
+		}
+		return publicProxyStageContinue
+	}
+	ctx.RouteMatch = match
+	ctx.HasRouteMatch = true
+	if publicRouteAllowsEncodedPathSeparators(match.Route) {
+		ctx.EncodedPathSeparatorsAllowed = true
+		return publicProxyStageContinue
+	}
+	return rejectInvalidPublicRequestTarget(ctx)
+}
+
+func rejectInvalidPublicRequestTarget(ctx *publicProxyContext) publicProxyStageResult {
 	http.Error(ctx.ResponseWriter, "bad request", http.StatusBadRequest)
 	ctx.App.recordProxyRequestEventWithIDsAndContext(
 		context.Background(),
@@ -140,23 +182,34 @@ func rejectAmbiguousPublicPathStage(ctx *publicProxyContext) publicProxyStageRes
 	return publicProxyStageDone
 }
 
-func publicRequestPathIsAmbiguous(r *http.Request) bool {
-	if r == nil || r.URL == nil {
-		return false
-	}
-	if containsAmbiguousPublicPathEscape(r.URL.RawPath) ||
-		containsAmbiguousPublicPathEscape(r.URL.EscapedPath()) ||
-		containsAmbiguousPublicPathEscape(requestTargetPathForPublicValidation(r)) {
-		return true
-	}
-	return strings.Contains(r.URL.Path, `\`) || containsPublicPathDotSegment(r.URL.Path)
+type publicPathIssueSet struct {
+	DecodedDotSegment bool
+	RawBackslash      bool
+	EncodedSlash      bool
+	EncodedBackslash  bool
 }
 
-func containsAmbiguousPublicPathEscape(path string) bool {
-	path = strings.ToLower(path)
-	return strings.Contains(path, "%2e") ||
-		strings.Contains(path, "%2f") ||
-		strings.Contains(path, "%5c")
+func (s publicPathIssueSet) hasEncodedSeparator() bool {
+	return s.EncodedSlash || s.EncodedBackslash
+}
+
+func classifyPublicRequestPath(r *http.Request) publicPathIssueSet {
+	var issues publicPathIssueSet
+	if r == nil || r.URL == nil {
+		return issues
+	}
+	issues.DecodedDotSegment = containsPublicPathDotSegment(r.URL.Path)
+	rawTargetPath := requestTargetPathForPublicValidation(r)
+	issues.RawBackslash = containsRawPublicPathBackslash(rawTargetPath) || containsRawPublicPathBackslash(r.URL.RawPath)
+	for _, path := range []string{r.URL.RawPath, r.URL.EscapedPath(), rawTargetPath} {
+		if containsEncodedPublicPathSlash(path) {
+			issues.EncodedSlash = true
+		}
+		if containsEncodedPublicPathBackslash(path) {
+			issues.EncodedBackslash = true
+		}
+	}
+	return issues
 }
 
 func containsPublicPathDotSegment(path string) bool {
@@ -166,6 +219,30 @@ func containsPublicPathDotSegment(path string) bool {
 		}
 	}
 	return false
+}
+
+func containsRawPublicPathBackslash(path string) bool {
+	return strings.Contains(path, `\`)
+}
+
+func containsEncodedPublicPathSeparator(path string) bool {
+	return containsEncodedPublicPathSlash(path) || containsEncodedPublicPathBackslash(path)
+}
+
+func containsEncodedPublicPathSlash(path string) bool {
+	return strings.Contains(strings.ToLower(path), "%2f")
+}
+
+func containsEncodedPublicPathBackslash(path string) bool {
+	return strings.Contains(strings.ToLower(path), "%5c")
+}
+
+func publicRequestHasEncodedPathSeparator(r *http.Request) bool {
+	return classifyPublicRequestPath(r).hasEncodedSeparator()
+}
+
+func publicRouteAllowsEncodedPathSeparators(route publicRouteConfig) bool {
+	return normalizePublicRoutePathSecurityMode(route.PathSecurityMode) == publicRoutePathSecurityModeAllowEncodedSeparators
 }
 
 func requestTargetPathForPublicValidation(r *http.Request) string {
@@ -385,7 +462,15 @@ func trafficShaperStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
-	resolution, err := ctx.App.resolvePublicRoute(ctx.ListenerID, ctx.Request)
+	var (
+		resolution publicRouteResolution
+		err        error
+	)
+	if ctx.HasRouteMatch {
+		resolution, err = ctx.App.resolvePublicRouteFromMatch(ctx.RouteMatch)
+	} else {
+		resolution, err = ctx.App.resolvePublicRoute(ctx.ListenerID, ctx.Request)
+	}
 	if err != nil {
 		statusCode := http.StatusBadGateway
 		errorKind := "route_resolution_failed"
