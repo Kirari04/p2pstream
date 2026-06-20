@@ -321,6 +321,13 @@ func TestPublicCacheResponseEligibilityTTLAndDenials(t *testing.T) {
 	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
 		t.Fatal("Vary: Authorization response should not be cacheable")
 	}
+
+	for _, header := range []string{"X-Forwarded-Host", "X-Forwarded-Port", "Forwarded", "X-Real-IP"} {
+		resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Vary": []string{header}}}
+		if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+			t.Fatalf("Vary: %s response should not be cacheable", header)
+		}
+	}
 }
 
 func TestPublicCacheSetCookieResponseNotStoredWithCookieRequestsAllowed(t *testing.T) {
@@ -391,9 +398,24 @@ func TestPublicCacheRejectsSensitiveConfiguredVaryHeaders(t *testing.T) {
 	app, _, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
 
-	for _, header := range []string{"Cookie", "Authorization", "Set-Cookie"} {
+	for _, header := range []string{"Cookie", "Authorization", "Set-Cookie", "Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Forwarded-Port", "X-Real-IP"} {
 		if _, err := app.validatePublicCacheRuleInput(context.Background(), "bad-vary", 10, true, nil, nil, p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND, p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED, defaultPublicCacheTTLMillis, p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL, nil, []string{header}, []int64{http.StatusOK}, defaultPublicCacheMaxObjectBytes, true, false, false, nil); err == nil {
 			t.Fatalf("expected validation error for configured vary header %q", header)
+		}
+	}
+}
+
+func TestPublicCacheGeneratedForwardedVaryHeadersAreCaseInsensitive(t *testing.T) {
+	rule := publicCacheRuleConfig{
+		TTL:              time.Hour,
+		VaryHeaders:      []string{"Accept-Encoding"},
+		CacheStatusCodes: []int64{http.StatusOK},
+		MaxObjectBytes:   defaultPublicCacheMaxObjectBytes,
+	}
+	for _, header := range []string{"x-forwarded-host", "X-FoRwArDeD-PoRt"} {
+		resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Vary": []string{header}}}
+		if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+			t.Fatalf("Vary: %s response should not be cacheable", header)
 		}
 	}
 }
