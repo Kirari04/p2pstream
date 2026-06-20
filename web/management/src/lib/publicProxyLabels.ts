@@ -532,8 +532,24 @@ export function tlsCertificateValiditySummary(cert: PublicTlsCertificate): strin
 
 export function tlsCertificateRenewalSummary(cert: PublicTlsCertificate): string {
   if (cert.source !== PublicTlsCertificateSource.ACME) return "";
+  if (cert.status === PublicTlsCertificateStatus.RENEWING) {
+    const attempt = formatUnixMillis(cert.lastRenewalAttemptAtUnixMillis);
+    return attempt ? `Renewal started ${attempt}` : "Renewal in progress";
+  }
+  if (cert.status === PublicTlsCertificateStatus.ERROR) {
+    const retry = formatUnixMillis(cert.nextRenewalAtUnixMillis);
+    return retry ? `Retry scheduled ${retry}` : "Retry not scheduled yet";
+  }
   const renewal = formatUnixMillis(cert.nextRenewalAtUnixMillis);
-  return renewal ? `Renews ${renewal}` : "";
+  if (renewal) return `Next renewal ${renewal}`;
+  if (cert.status === PublicTlsCertificateStatus.PENDING) return "Initial issuance pending";
+  return "Next renewal not scheduled yet";
+}
+
+export function tlsCertificateLastAttemptSummary(cert: PublicTlsCertificate): string {
+  if (cert.source !== PublicTlsCertificateSource.ACME) return "";
+  const attempt = formatUnixMillis(cert.lastRenewalAttemptAtUnixMillis);
+  return attempt ? `Last attempt ${attempt}` : "";
 }
 
 export function tlsMethodForCertificate(cert: PublicTlsCertificate): TlsMethod {

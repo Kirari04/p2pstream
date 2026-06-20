@@ -186,6 +186,7 @@ type Querier interface {
 	UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicRouteTargetParams) (PublicRouteTarget, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error)
+	UpdatePublicTlsCertificateRenewalStatus(ctx context.Context, arg UpdatePublicTlsCertificateRenewalStatusParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateStatus(ctx context.Context, arg UpdatePublicTlsCertificateStatusParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsDnsCredential(ctx context.Context, arg UpdatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
