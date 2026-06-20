@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -18,6 +19,8 @@ const (
 	publicProxyStageContinue publicProxyStageResult = iota
 	publicProxyStageDone
 )
+
+const publicInvalidRequestTargetErrorKind = "invalid_request_target"
 
 type publicProxyStage func(*publicProxyContext) publicProxyStageResult
 
@@ -43,6 +46,7 @@ type publicProxyContext struct {
 }
 
 var publicProxyStages = []publicProxyStage{
+	rejectAmbiguousPublicPathStage,
 	serveACMEChallengeStage,
 	serveWAFReservedStage,
 	beginWAFPressureStage,
@@ -102,6 +106,90 @@ func (ctx *publicProxyContext) runCleanup() {
 	for i := len(ctx.cleanup) - 1; i >= 0; i-- {
 		ctx.cleanup[i]()
 	}
+}
+
+func rejectAmbiguousPublicPathStage(ctx *publicProxyContext) publicProxyStageResult {
+	if !publicRequestPathIsAmbiguous(ctx.Request) {
+		return publicProxyStageContinue
+	}
+	http.Error(ctx.ResponseWriter, "bad request", http.StatusBadRequest)
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
+		context.Background(),
+		http.StatusBadRequest,
+		time.Since(ctx.StartedAt),
+		publicInvalidRequestTargetErrorKind,
+		sql.NullInt64{Int64: ctx.ListenerID, Valid: true},
+		sql.NullInt64{},
+		sql.NullInt64{},
+		ctx.Observability.requestBytesValue(),
+		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
+	)
+	if ctx.Trace != nil {
+		resolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
+		ctx.Trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
+			&resolution,
+			nil,
+			http.StatusBadRequest,
+			publicInvalidRequestTargetErrorKind,
+			ctx.ResponseWriter.Header(),
+			nil,
+		)
+	}
+	return publicProxyStageDone
+}
+
+func publicRequestPathIsAmbiguous(r *http.Request) bool {
+	if r == nil || r.URL == nil {
+		return false
+	}
+	if containsAmbiguousPublicPathEscape(r.URL.RawPath) ||
+		containsAmbiguousPublicPathEscape(r.URL.EscapedPath()) ||
+		containsAmbiguousPublicPathEscape(requestTargetPathForPublicValidation(r)) {
+		return true
+	}
+	return strings.Contains(r.URL.Path, `\`) || containsPublicPathDotSegment(r.URL.Path)
+}
+
+func containsAmbiguousPublicPathEscape(path string) bool {
+	path = strings.ToLower(path)
+	return strings.Contains(path, "%2e") ||
+		strings.Contains(path, "%2f") ||
+		strings.Contains(path, "%5c")
+}
+
+func containsPublicPathDotSegment(path string) bool {
+	for _, segment := range strings.Split(path, "/") {
+		if segment == "." || segment == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func requestTargetPathForPublicValidation(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	target := r.RequestURI
+	if target == "" && r.URL != nil {
+		target = r.URL.RequestURI()
+	}
+	if idx := strings.IndexByte(target, '?'); idx >= 0 {
+		target = target[:idx]
+	}
+	if strings.HasPrefix(target, "/") || target == "" {
+		return target
+	}
+	if schemeIdx := strings.Index(target, "://"); schemeIdx >= 0 {
+		rest := target[schemeIdx+3:]
+		if pathIdx := strings.IndexByte(rest, '/'); pathIdx >= 0 {
+			return rest[pathIdx:]
+		}
+		return "/"
+	}
+	return target
 }
 
 func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {

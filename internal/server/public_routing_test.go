@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"sync/atomic"
 	"testing"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
@@ -60,6 +62,89 @@ func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
 	}
 	if !match.matches(listener, req) {
 		t.Fatal("policy host did not match canonical dotted host")
+	}
+}
+
+func TestPublicProxyRejectsAmbiguousPathBeforePolicyAndRoute(t *testing.T) {
+	wafRule := testWafRule(1, publicWafActionBlock)
+	app, handler, hits := newTestPublicPathProxy(t, "/public", []publicWafRuleConfig{wafRule})
+
+	app.PublicWAF.reconcile(app.publicSnapshot)
+
+	for _, target := range []string{
+		"http://app.example/public/%2e%2e/admin",
+		"http://app.example/public/%2E%2E/admin",
+		"http://app.example/public/%2fadmin",
+		"http://app.example/public/%2Fadmin",
+		"http://app.example/public/%5cadmin",
+		"http://app.example/public/%5Cadmin",
+		"http://app.example/public/../admin",
+		"http://app.example/public/./admin",
+	} {
+		t.Run(target, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler(rec, httptest.NewRequest(http.MethodGet, target, nil))
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+			}
+			if got := hits.Load(); got != 0 {
+				t.Fatalf("upstream hits = %d, want 0", got)
+			}
+		})
+	}
+}
+
+func TestPublicProxyAllowsSafeEncodedNonSeparatorPath(t *testing.T) {
+	_, handler, hits := newTestPublicPathProxy(t, "/assets", nil)
+
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "http://app.example/assets/a%20b.txt", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("upstream hits = %d, want 1", got)
+	}
+}
+
+func TestPublicProxyPlainSafePathStillWorks(t *testing.T) {
+	_, handler, hits := newTestPublicPathProxy(t, "/assets", nil)
+
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "http://app.example/assets/app.js", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("upstream hits = %d, want 1", got)
+	}
+}
+
+func TestPublicProxyACMEChallengeExactLiteralPathStillWorks(t *testing.T) {
+	app := NewApp(nil, nil)
+	app.PublicACME = &publicACMEManager{httpChallenges: make(map[string]string)}
+	cleanup := app.PublicACME.SetHTTPChallenge("/.well-known/acme-challenge/token", "response")
+	defer cleanup()
+
+	rec := httptest.NewRecorder()
+	app.publicProxyHandler(1)(rec, httptest.NewRequest(http.MethodGet, "http://app.example/.well-known/acme-challenge/token", nil))
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "response" {
+		t.Fatalf("ACME response = status %d body %q, want 200 response", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPublicProxyWAFReservedExactLiteralPathStillHandled(t *testing.T) {
+	app := NewApp(nil, nil)
+
+	rec := httptest.NewRecorder()
+	app.publicProxyHandler(1)(rec, httptest.NewRequest(http.MethodPost, "http://app.example"+publicWafCaptchaVerifyPath, nil))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("WAF reserved response status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusBadRequest)
 	}
 }
 
@@ -174,4 +259,46 @@ func TestRedirectLocationPreservesSafePathSuffix(t *testing.T) {
 	if location != "/target/users" {
 		t.Fatalf("location = %q, want %q", location, "/target/users")
 	}
+}
+
+func newTestPublicPathProxy(t *testing.T, pathPrefix string, wafRules []publicWafRuleConfig) (*App, http.HandlerFunc, *atomic.Int64) {
+	t.Helper()
+	var hits atomic.Int64
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	target := publicRouteTargetConfig{
+		ID:         20,
+		RouteID:    10,
+		Name:       "upstream",
+		Enabled:    true,
+		TargetType: publicRouteTargetTypeProxy,
+		Transport:  publicRouteTargetTransportDirect,
+		ParsedURL:  origin,
+	}
+	route := publicRouteConfig{
+		ID:         10,
+		Enabled:    true,
+		PathPrefix: pathPrefix,
+		Action:     publicRouteActionForward,
+		Targets:    []publicRouteTargetConfig{target},
+	}
+	app := NewApp(nil, nil)
+	app.publicSnapshot = &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {route},
+		},
+		RouteTargets:    map[int64]publicRouteTargetConfig{target.ID: target},
+		WafRules:        wafRules,
+		WafCookieSecret: []byte("test-secret"),
+	}
+	return app, app.publicProxyHandler(1), &hits
 }
