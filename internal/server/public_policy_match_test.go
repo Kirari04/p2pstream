@@ -84,6 +84,62 @@ func TestPublicPolicyMatchBuilderOnlyRule(t *testing.T) {
 	}
 }
 
+func TestPublicPolicyMatchValidationAcceptsLiteralRegexCEL(t *testing.T) {
+	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
+		CelExpression: `path.matches("^/admin/.*$")`,
+	})
+	if err != nil {
+		t.Fatalf("literal regex CEL should be accepted: %v", err)
+	}
+	if !config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/admin/users", nil)) {
+		t.Fatal("literal regex CEL did not match expected path")
+	}
+	if config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/public/users", nil)) {
+		t.Fatal("literal regex CEL matched unexpected path")
+	}
+}
+
+func TestPublicPolicyMatchValidationAcceptsGlobalLiteralRegexCEL(t *testing.T) {
+	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
+		CelExpression: `matches(path, "^/admin/.*$")`,
+	})
+	if err != nil {
+		t.Fatalf("global literal regex CEL should be accepted: %v", err)
+	}
+	if !config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/admin/users", nil)) {
+		t.Fatal("global literal regex CEL did not match expected path")
+	}
+	if config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/public/users", nil)) {
+		t.Fatal("global literal regex CEL matched unexpected path")
+	}
+}
+
+func TestPublicPolicyMatchBuilderRegexConditionRemainsAccepted(t *testing.T) {
+	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
+		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
+			Root: &p2pstreamv1.PublicPolicyMatchGroup{
+				Conditions: []*p2pstreamv1.PublicPolicyMatchCondition{{
+					Field:    p2pstreamv1.PublicPolicyMatchField_PUBLIC_POLICY_MATCH_FIELD_PATH,
+					Operator: p2pstreamv1.PublicPolicyMatchConditionOperator_PUBLIC_POLICY_MATCH_CONDITION_OPERATOR_MATCHES,
+					Values:   []string{`^/assets/.+\.js$`},
+				}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("builder regex condition should be accepted: %v", err)
+	}
+	if config.CELExpression == "" || !strings.Contains(config.CELExpression, `.matches(`) {
+		t.Fatalf("builder regex condition did not generate matches CEL: %q", config.CELExpression)
+	}
+	if !config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/assets/app.js", nil)) {
+		t.Fatal("builder regex condition did not match expected path")
+	}
+	if config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/assets/app.css", nil)) {
+		t.Fatal("builder regex condition matched unexpected path")
+	}
+}
+
 func TestPublicPolicyMatchValidationRejectsInvalidCEL(t *testing.T) {
 	for _, expr := range []string{
 		`unknown_request_field == true`,
@@ -95,6 +151,45 @@ func TestPublicPolicyMatchValidationRejectsInvalidCEL(t *testing.T) {
 		if _, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{CelExpression: expr}); err == nil {
 			t.Fatalf("expected invalid expression %q to be rejected", expr)
 		}
+	}
+}
+
+func TestPublicPolicyMatchValidationRejectsDynamicRegexCEL(t *testing.T) {
+	for _, expr := range []string{
+		`path.matches(headers["x-re"][0])`,
+		`path.matches(query["re"][0])`,
+		`matches(path, headers["x-re"][0])`,
+	} {
+		_, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{CelExpression: expr})
+		if err == nil {
+			t.Fatalf("expected dynamic regex expression %q to be rejected", expr)
+		}
+		if !strings.Contains(err.Error(), "policy match regex argument must be a string literal") {
+			t.Fatalf("dynamic regex expression %q rejected with wrong error: %v", expr, err)
+		}
+	}
+}
+
+func TestPublicPolicyMatchValidationRejectsOversizedRegexLiteral(t *testing.T) {
+	value := strings.Repeat("a", maxPublicPolicyMatchValueBytes+1)
+	_, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
+		CelExpression: `path.matches("` + value + `")`,
+	})
+	if err == nil {
+		t.Fatal("expected oversized regex literal to be rejected")
+	}
+	if !strings.Contains(err.Error(), "policy match regex value is too large") {
+		t.Fatalf("oversized regex literal rejected with wrong error: %v", err)
+	}
+}
+
+func TestPublicPolicyMatchStoredJSONRejectsDynamicRegex(t *testing.T) {
+	_, err := decodePublicPolicyMatchJSON(`{"cel_expression":"path.matches(headers[\"x-re\"][0])"}`)
+	if err == nil {
+		t.Fatal("expected stored dynamic regex CEL to be rejected")
+	}
+	if !strings.Contains(err.Error(), "policy match regex argument must be a string literal") {
+		t.Fatalf("stored dynamic regex rejected with wrong error: %v", err)
 	}
 }
 

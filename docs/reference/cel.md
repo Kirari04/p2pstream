@@ -120,6 +120,7 @@ Header and query conditions check all repeated values. Internally migrated legac
 | CEL evaluation cost limit | `20000` |
 
 Expressions must compile and evaluate to bool. Regex literals are validated when p2pstream can see them statically.
+Regex arguments to `.matches()` must be string literals; dynamic regex patterns from request fields such as headers, cookies, or query parameters are rejected during policy validation and stored rule loading.
 
 For routes that allow encoded path separators, CEL still receives the decoded `path`. Use route-scoped compatibility sparingly and avoid CEL authorization logic that depends on slash boundaries that an upstream interprets differently.
 
@@ -128,6 +129,7 @@ Literal arguments receive targeted validation:
 - `cidr(remote_ip, "...")` requires a valid CIDR prefix.
 - `path_prefix(path, "...")` requires a prefix starting with `/`.
 - `host_match(host, "...")` requires a non-empty host pattern.
+- `value.matches("...")` requires a string-literal regex no larger than the condition value limit.
 
 ## Examples
 
@@ -153,6 +155,12 @@ Bot user-agent match:
 
 ```text
 headers["user-agent"].exists(v, v.matches("(?i)(bot|crawler)"))
+```
+
+Invalid dynamic regex source:
+
+```text
+path.matches(headers["x-re"][0])
 ```
 
 Cookie absence:
@@ -202,7 +210,7 @@ p2pstream may perform an internal route-only path security match before WAF, rat
 | Rule matches every request | Check whether `match_rule` is empty or the builder has no conditions. Empty matches mean any request. |
 | Header rule does not match | Use lowercase header names such as `headers["x-plan"]`; p2pstream lowercases header keys. |
 | Header or query value rule does not match | Use `.exists(v, ...)` because headers and query parameters are lists. |
-| Regex is rejected | Compile the regex separately and escape backslashes correctly inside the CEL string. |
+| Regex is rejected | Use a string-literal regex, keep it within the value-size limit, compile it separately, and escape backslashes correctly inside the CEL string. |
 | Path prefix is rejected | Prefix values for `path_prefix` and builder path-prefix conditions must start with `/`. |
 | CIDR is rejected or never matches | Use a valid CIDR prefix and confirm p2pstream sees the expected client IP. |
 | Route or target data is missing | CEL only sees request data. Use feature-specific route/target filters where available. |
