@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, h, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
-import type { ComputedRef } from "vue";
 import { NButton, NButtonGroup, NCheckbox, NDataTable } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
+import { dashboardKey, publicProxyConfigKey, selectedEnvironmentIdKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
@@ -16,18 +16,17 @@ import type { TraceRenderStats, TraceRequest, TraceRequestView } from "@/types/t
 import { emptyTraceRenderStats } from "@/types/trafficTrace";
 import type {
   DashboardWindowSummary,
-  GetDashboardResponse,
-  GetPublicProxyConfigResponse,
   TrafficTraceEvent,
   TrafficTraceSettings,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceLevel } from "@/gen/proto/p2pstream/v1/management_pb";
+import { messageFromError } from "@/lib/errors";
 
 const managementClient = useManagementClient();
 
-const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
-const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
-const selectedEnvironmentId = inject<ComputedRef<string>>("selectedEnvironmentId", computed(() => "0"));
+const dashboard = inject(dashboardKey, computed(() => null));
+const publicProxyConfig = inject(publicProxyConfigKey, computed(() => null));
+const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
 
 const trafficWindows = computed(() => dashboard?.value?.windows ?? []);
 const config = computed(() => publicProxyConfig?.value ?? null);
@@ -344,9 +343,6 @@ function streamStateLabel(): string {
   return "Idle";
 }
 
-function messageFromError(err: unknown): string {
-  return err instanceof Error ? err.message : "Request failed";
-}
 
 onMounted(() => {
   window.addEventListener("pagehide", handlePageHide);
