@@ -1,25 +1,7 @@
 <script setup lang="ts">
 import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
-import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
-
-type AgentNodeStatus = {
-  state: "connected" | "offline" | "disabled" | "unknown";
-  label: string;
-};
-type CacheNodeStatus = {
-  label: string;
-  tone: "hit" | "miss" | "bypass" | "stored" | "lookup" | "neutral";
-};
-
-type TrafficNodeData = {
-  label: string;
-  subLabel: string;
-  kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "target" | "redirect" | "agent" | "upstream" | "response";
-  editTargets: TrafficFlowEditTarget[];
-  agentStatus?: AgentNodeStatus;
-  cacheStatus?: CacheNodeStatus;
-};
+import type { TrafficNodeData } from "@/lib/trafficFlowModel";
 
 defineProps<NodeProps<TrafficNodeData>>();
 </script>

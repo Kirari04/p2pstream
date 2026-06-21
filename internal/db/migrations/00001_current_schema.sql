@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS agents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     public_id TEXT NOT NULL UNIQUE,
@@ -616,3 +617,7 @@ ON connections (connected_at);
 
 CREATE INDEX IF NOT EXISTS idx_connections_disconnected_at
 ON connections (disconnected_at);
+
+-- +goose Down
+-- The baseline migration is intentionally non-destructive. Runtime downgrades are not supported.
+SELECT 1;

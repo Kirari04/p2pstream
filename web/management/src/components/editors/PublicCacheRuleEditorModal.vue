@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import type { ComputedRef } from "vue";
 import { NButton, NCheckbox, NDynamicTags, NInput, NInputNumber, NModal, NRadioButton, NRadioGroup, NSelect, NTransfer } from "naive-ui";
 import type { TransferOption } from "naive-ui";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
+import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { modalCardStyle } from "@/lib/naiveUi";
@@ -26,7 +26,6 @@ import {
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type CacheTransferOption = TransferOption & {
   searchText: string;
 };
@@ -40,8 +39,8 @@ const emit = defineEmits<{
   (event: "saved"): void;
 }>();
 
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const isOpen = ref(false);
 const rules = computed(() => props.config?.cacheRules ?? []);
