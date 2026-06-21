@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/joho/godotenv v1.5.1
-	github.com/mattn/go-sqlite3 v1.14.44
+	github.com/mattn/go-sqlite3 v1.14.47
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
