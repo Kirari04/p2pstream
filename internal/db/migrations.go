@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -10,11 +11,11 @@ import (
 )
 
 func runEmbeddedMigrations(database *sql.DB) error {
-	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("sqlite3"); err != nil {
+	provider, err := goose.NewProvider(goose.DialectSQLite3, database, migrations.FS)
+	if err != nil {
 		return fmt.Errorf("configure db migrations: %w", err)
 	}
-	if err := goose.Up(database, "."); err != nil {
+	if _, err := provider.Up(context.Background()); err != nil {
 		return fmt.Errorf("run db migrations: %w", err)
 	}
 	return nil

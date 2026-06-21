@@ -125,6 +125,8 @@ make docker-smoke
 
 `make verify` is a clean-tree CI-style gate: run it with no staged, unstaged, or untracked files. It regenerates code and fails if generation leaves any tracked diff or untracked generated file, then runs installer syntax and lifecycle checks, Go tests and vet, management UI unit tests, typecheck, and production build. GitHub Actions runs those checks and also builds the runtime Docker image.
 
+Database migrations use the embedded Goose library at runtime. For one-off migration scaffolding, run the pinned CLI outside the tracked tool set, for example `go run github.com/pressly/goose/v3/cmd/goose@v3.27.1 create <name> sql`.
+
 Development happens on the `dev` branch. Open normal feature and dependency PRs against `dev`, merge `dev` into `staging` to publish staging binaries/images for validation, and merge `staging` into `main` only when you want to publish a stable release.
 
 ## Releases
