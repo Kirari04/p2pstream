@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, h, inject, ref, watch } from "vue";
-import type { ComputedRef } from "vue";
 import { NButton, NButtonGroup, NCheckbox, NDataTable, NInput, NModal, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { Ban as BanIcon } from "@lucide/vue";
@@ -14,6 +13,7 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
+import { dashboardKey, isBusyKey, publicProxyConfigKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { AGENT_ID_SYSTEM_LABEL_KEY, userAgentLabelPairs } from "@/lib/agentLabels";
 import {
@@ -38,18 +38,15 @@ import type {
   Agent,
   AgentConnectionSession,
   AgentUptimeSummary,
-  GetDashboardResponse,
-  GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 
-const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
-const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const dashboard = inject(dashboardKey, computed(() => null));
+const publicProxyConfig = inject(publicProxyConfigKey, computed(() => null));
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const { confirm } = useConfirmDialog();
 const status = computed(() => dashboard?.value?.status ?? null);

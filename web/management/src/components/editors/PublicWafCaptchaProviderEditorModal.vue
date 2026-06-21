@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import type { ComputedRef } from "vue";
 import { NButton, NCheckbox, NInput, NModal, NSelect } from "naive-ui";
+import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -13,7 +13,6 @@ import {
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -23,8 +22,8 @@ const emit = defineEmits<{
   (event: "saved"): void;
 }>();
 
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const isOpen = ref(false);
 const providers = computed(() => props.config?.wafCaptchaProviders ?? []);
