@@ -1,4 +1,4 @@
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, onScopeDispose, ref, watch, type Ref } from "vue";
 import { localManagementClient, managementClient, setActiveManagementClientBase } from "@/api/managementClient";
 import { messageFromError } from "@/lib/errors";
 import {
@@ -11,6 +11,7 @@ import {
 
 interface DashboardRefreshOptions {
   currentUser: Ref<User | null>;
+  // Session-owned refs shared with dashboard refresh so global request state stays centralized.
   error: Ref<string | null>;
   isBusy: Ref<boolean>;
   isLoading: Ref<boolean>;
@@ -153,6 +154,8 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
       refreshTimer.value = null;
     }
   }
+
+  onScopeDispose(stopAutoRefresh);
 
   async function loadAuthenticatedData() {
     await loadEnvironments();
