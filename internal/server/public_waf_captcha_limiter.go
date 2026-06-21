@@ -130,20 +130,28 @@ func (l *publicWafReservedEndpointLimiter) allow(listenerID int64, path string, 
 
 	l.pruneLocked(now)
 	ipKey := fmt.Sprintf("reserved:ip:%d:%s:%s", listenerID, path, remoteIP)
-	pathKey := fmt.Sprintf("reserved:path:%d:%s", listenerID, path)
 	ipBucket := l.bucketLocked(ipKey, now)
-	pathBucket := l.bucketLocked(pathKey, now)
 
 	ipRetryAfter, ipAllowed := ipBucket.canAllow(publicWafReservedEndpointIPLimit, publicWafReservedEndpointWindow, now)
-	pathRetryAfter, pathAllowed := pathBucket.canAllow(publicWafReservedEndpointPathLimit, publicWafReservedEndpointWindow, now)
-	if !ipAllowed || !pathAllowed {
-		return maxDuration(ipRetryAfter, pathRetryAfter), false
+	if !ipAllowed {
+		return ipRetryAfter, false
+	}
+	var pathBucket *publicWafFixedWindowBucket
+	if path != publicWafWaitingRoomStatusPath {
+		pathKey := fmt.Sprintf("reserved:path:%d:%s", listenerID, path)
+		pathBucket = l.bucketLocked(pathKey, now)
+		pathRetryAfter, pathAllowed := pathBucket.canAllow(publicWafReservedEndpointPathLimit, publicWafReservedEndpointWindow, now)
+		if !pathAllowed {
+			return pathRetryAfter, false
+		}
 	}
 
 	ipBucket.count++
 	ipBucket.lastSeenAt = now
-	pathBucket.count++
-	pathBucket.lastSeenAt = now
+	if pathBucket != nil {
+		pathBucket.count++
+		pathBucket.lastSeenAt = now
+	}
 	return 0, true
 }
 

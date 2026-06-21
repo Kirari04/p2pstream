@@ -571,6 +571,32 @@ func TestPublicWafReservedWaitingRoomStatusRateLimited(t *testing.T) {
 	}
 }
 
+func TestPublicWafReservedWaitingRoomStatusSkipsAggregatePathLimit(t *testing.T) {
+	limiter := newPublicWafReservedEndpointLimiter()
+	now := time.Unix(100, 0)
+	for i := 0; i < publicWafReservedEndpointPathLimit+1; i++ {
+		retryAfter, allowed := limiter.allow(1, publicWafWaitingRoomStatusPath, "client-"+strconv.Itoa(i), now)
+		if !allowed {
+			t.Fatalf("status poll %d was aggregate limited with retryAfter=%v", i+1, retryAfter)
+		}
+	}
+
+	entryLimiter := newPublicWafReservedEndpointLimiter()
+	for i := 0; i < publicWafReservedEndpointPathLimit; i++ {
+		retryAfter, allowed := entryLimiter.allow(1, publicWafWaitingRoomPath, "client-"+strconv.Itoa(i), now)
+		if !allowed {
+			t.Fatalf("entry request %d was limited early with retryAfter=%v", i+1, retryAfter)
+		}
+	}
+	retryAfter, allowed := entryLimiter.allow(1, publicWafWaitingRoomPath, "client-over-limit", now)
+	if allowed {
+		t.Fatal("waiting-room entry path was not aggregate limited")
+	}
+	if retryAfter <= 0 {
+		t.Fatalf("entry path retryAfter = %v, want positive duration", retryAfter)
+	}
+}
+
 func TestPublicWafCaptchaVerifySuccessSetsCookieAndRedirects(t *testing.T) {
 	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
