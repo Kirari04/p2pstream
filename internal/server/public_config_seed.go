@@ -11,6 +11,7 @@ import (
 	"p2pstream/internal/db"
 )
 
+// defaultWelcomeBody is embedded seed content and is not mutated at runtime.
 //go:embed templates/default_welcome.html
 var defaultWelcomeBody string
 
