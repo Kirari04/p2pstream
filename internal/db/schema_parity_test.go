@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,25 +21,89 @@ type schemaObject struct {
 }
 
 func TestSchemaParity(t *testing.T) {
-	migratedDB := openSchemaParityDB(t, "migrated.db")
-	if err := runEmbeddedMigrations(migratedDB); err != nil {
-		t.Fatalf("run embedded migrations: %v", err)
+	schemaDB := openSchemaParityDB(t, "schema.db")
+	applySchemaSQL(t, schemaDB)
+	want := readNormalizedSchema(t, schemaDB)
+
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, database *sql.DB)
+	}{
+		{
+			name: "Goose migration",
+			setup: func(t *testing.T, database *sql.DB) {
+				t.Helper()
+				if err := runEmbeddedMigrations(database); err != nil {
+					t.Fatalf("run embedded migrations: %v", err)
+				}
+			},
+		},
+		{
+			name: "legacy migration",
+			setup: func(t *testing.T, database *sql.DB) {
+				t.Helper()
+				instance := &DB{
+					DB:      database,
+					Queries: New(database),
+				}
+				if err := instance.migrate(); err != nil {
+					t.Fatalf("run legacy migrations: %v", err)
+				}
+			},
+		},
 	}
 
-	schemaDB := openSchemaParityDB(t, "schema.db")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			databaseName := strings.ToLower(strings.ReplaceAll(tt.name, " ", "-")) + ".db"
+			database := openSchemaParityDB(t, databaseName)
+			tt.setup(t, database)
+			assertSchemaParity(t, tt.name, readNormalizedSchema(t, database), want)
+		})
+	}
+}
+
+func applySchemaSQL(t *testing.T, database *sql.DB) {
+	t.Helper()
+
 	schemaSQL, err := os.ReadFile(repoPath(t, "sql", "schema.sql"))
 	if err != nil {
 		t.Fatalf("read schema.sql: %v", err)
 	}
-	if _, err := schemaDB.Exec(string(schemaSQL)); err != nil {
+	if _, err := database.Exec(string(schemaSQL)); err != nil {
 		t.Fatalf("apply schema.sql: %v", err)
 	}
+}
 
-	got := readNormalizedSchema(t, migratedDB)
-	want := readNormalizedSchema(t, schemaDB)
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("Goose migration schema differs from sql/schema.sql\nmigrated: %#v\nschema:   %#v", got, want)
+func assertSchemaParity(t *testing.T, label string, got, want []schemaObject) {
+	t.Helper()
+
+	if reflect.DeepEqual(got, want) {
+		return
 	}
+	index := firstSchemaDifference(got, want)
+	t.Fatalf("%s schema differs from sql/schema.sql at object %d\n%s: %s\nsql/schema.sql: %s", label, index, label, formatSchemaObject(got, index), formatSchemaObject(want, index))
+}
+
+func firstSchemaDifference(got, want []schemaObject) int {
+	limit := len(got)
+	if len(want) < limit {
+		limit = len(want)
+	}
+	for i := 0; i < limit; i++ {
+		if got[i] != want[i] {
+			return i
+		}
+	}
+	return limit
+}
+
+func formatSchemaObject(objects []schemaObject, index int) string {
+	if index >= len(objects) {
+		return "<missing>"
+	}
+	object := objects[index]
+	return fmt.Sprintf("%s %s on %s: %s", object.Type, object.Name, object.Table, object.SQL)
 }
 
 func openSchemaParityDB(t *testing.T, name string) *sql.DB {
@@ -83,6 +148,7 @@ func readNormalizedSchema(t *testing.T, database *sql.DB) []schemaObject {
 }
 
 func normalizeSchemaSQL(value string) string {
+	// Keep normalization whitespace-only so parity failures catch schema drift.
 	return strings.Join(strings.Fields(value), " ")
 }
 
