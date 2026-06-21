@@ -59,10 +59,12 @@ func (t *loginThrottle) recordFailure(key string, now time.Time) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	entry := t.entries[key]
-	if entry == nil || now.Sub(entry.windowStart) > loginThrottleWindow {
+	if entry == nil || (!loginThrottleEntryBlocked(entry, now) && loginThrottleEntryExpired(entry, now)) {
 		t.pruneLocked(now)
 		if len(t.entries) >= t.maxEntries {
-			t.evictOldestLocked()
+			if !t.evictOldestUnlockedEntryLocked(now) {
+				return
+			}
 		}
 		entry = &loginThrottleEntry{windowStart: now}
 		t.entries[key] = entry
@@ -75,19 +77,27 @@ func (t *loginThrottle) recordFailure(key string, now time.Time) {
 
 func (t *loginThrottle) pruneLocked(now time.Time) {
 	for key, entry := range t.entries {
-		if entry == nil || now.Sub(entry.windowStart) > loginThrottleWindow {
+		if entry == nil || (!loginThrottleEntryBlocked(entry, now) && loginThrottleEntryExpired(entry, now)) {
 			delete(t.entries, key)
 		}
 	}
 }
 
-func (t *loginThrottle) evictOldestLocked() {
+func (t *loginThrottle) evictOldestUnlockedEntryLocked(now time.Time) bool {
 	var oldestKey string
 	var oldestStart time.Time
 	for key, entry := range t.entries {
+		// recordFailure prunes before eviction; keep these checks defensive for callers that do not.
 		if entry == nil {
 			delete(t.entries, key)
-			return
+			return true
+		}
+		if !loginThrottleEntryBlocked(entry, now) && loginThrottleEntryExpired(entry, now) {
+			delete(t.entries, key)
+			return true
+		}
+		if loginThrottleEntryBlocked(entry, now) {
+			continue
 		}
 		if oldestKey == "" || entry.windowStart.Before(oldestStart) {
 			oldestKey = key
@@ -96,7 +106,17 @@ func (t *loginThrottle) evictOldestLocked() {
 	}
 	if oldestKey != "" {
 		delete(t.entries, oldestKey)
+		return true
 	}
+	return false
+}
+
+func loginThrottleEntryBlocked(entry *loginThrottleEntry, now time.Time) bool {
+	return entry != nil && !entry.blockedUntil.IsZero() && now.Before(entry.blockedUntil)
+}
+
+func loginThrottleEntryExpired(entry *loginThrottleEntry, now time.Time) bool {
+	return entry == nil || now.Sub(entry.windowStart) > loginThrottleWindow
 }
 
 func (t *loginThrottle) recordSuccess(key string) {
