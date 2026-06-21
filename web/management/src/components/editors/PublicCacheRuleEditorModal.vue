@@ -429,32 +429,32 @@ defineExpose({ openCreate, openEdit, close });
     :bordered="false"
     size="huge"
   >
-    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
-      <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
+    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRule">
+      <section class="layout-grid space-lg mq-sm-cols-four">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
           <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <NCheckbox v-model:checked="form.enabled" class="self-end">
+        <NCheckbox v-model:checked="form.enabled" class="self-align-end">
           Enabled
         </NCheckbox>
       </section>
 
       <PublicPolicyMatchEditor :form="form.match" />
 
-      <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
-        <h4 class="text-sm font-semibold text-[var(--app-text)]">Cache behavior</h4>
-        <p class="text-xs leading-5 text-[var(--app-text-muted)]">
+      <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+        <h4 class="copy-sm weight-semibold base-text">Cache behavior</h4>
+        <p class="copy-xs line-normal muted-text">
           Authorization requests are always bypassed. Cookie requests are cached only when this rule allows them. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
-        <NCheckbox v-model:checked="form.allowCookieRequests" class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
-          <span class="grid gap-1">
-            <span class="font-medium text-[var(--app-text)]">Cache requests with Cookie headers</span>
-            <span class="text-xs leading-5 text-[var(--app-text-muted)]">
+        <NCheckbox v-model:checked="form.allowCookieRequests" class="round-md framed frame-standard muted-bg pad-md">
+          <span class="layout-grid space-2xs">
+            <span class="weight-medium base-text">Cache requests with Cookie headers</span>
+            <span class="copy-xs line-normal muted-text">
               Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
             </span>
           </span>
@@ -462,34 +462,34 @@ defineExpose({ openCreate, openEdit, close });
         <NCheckbox
           v-if="form.allowCookieRequests"
           v-model:checked="form.allowCookieRequestsAcknowledged"
-          class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] p-3"
+          class="round-md framed frame-standard panel-bg pad-md"
         >
-          <span class="grid gap-1">
-            <span class="font-medium text-[var(--app-text)]">I understand Cookie is ignored in this cache key</span>
-            <span class="text-xs leading-5 text-[var(--app-text-muted)]">
+          <span class="layout-grid space-2xs">
+            <span class="weight-medium base-text">I understand Cookie is ignored in this cache key</span>
+            <span class="copy-xs line-normal muted-text">
               Only use this for responses that are identical for every visitor, even when the request includes cookies.
             </span>
           </span>
         </NCheckbox>
-        <div class="grid gap-4 sm:grid-cols-4">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div class="layout-grid space-lg mq-sm-cols-four">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             TTL mode
             <NSelect v-model:value="form.ttlMode" size="small" :options="ttlModeOptions" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Default TTL minutes
             <NInputNumber v-model:value="form.ttlMinutes" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Scope
             <NSelect v-model:value="form.scope" size="small" :options="scopeOptions" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Max object MiB
             <NInputNumber v-model:value="form.maxObjectMiB" size="small" :min="1" />
           </label>
         </div>
-        <p class="text-xs leading-5 text-[var(--app-text-muted)]">
+        <p class="copy-xs line-normal muted-text">
           Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored, even when cookie requests are enabled above.
         </p>
       </section>
@@ -497,8 +497,8 @@ defineExpose({ openCreate, openEdit, close });
       <section class="cache-filter-section">
         <div class="cache-filter-header">
           <div>
-            <h4 class="text-sm font-semibold text-[var(--app-text)]">Keys and filters</h4>
-            <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">Empty route or target filters match every available target.</p>
+            <h4 class="copy-sm weight-semibold base-text">Keys and filters</h4>
+            <p class="margin-top-xs copy-xs line-normal muted-text">Empty route or target filters match every available target.</p>
           </div>
           <div class="cache-summary-chips" aria-label="Cache key summary">
             <span class="cache-summary-chip">{{ filterSelectionSummary }}</span>
@@ -512,7 +512,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="target-grid">
           <div class="target-panel">
             <div class="target-panel-head">
-              <div class="min-w-0">
+              <div class="min-width-zero">
                 <p class="panel-eyebrow">Routes</p>
                 <h5 class="panel-heading">{{ routeSelectionSummary }}</h5>
               </div>
@@ -536,7 +536,7 @@ defineExpose({ openCreate, openEdit, close });
 
           <div class="target-panel">
             <div class="target-panel-head">
-              <div class="min-w-0">
+              <div class="min-width-zero">
                 <p class="panel-eyebrow">Targets</p>
                 <h5 class="panel-heading">{{ targetSelectionSummary }}</h5>
               </div>
@@ -564,14 +564,14 @@ defineExpose({ openCreate, openEdit, close });
             <p class="panel-eyebrow">Query mode</p>
             <h5 class="panel-heading">{{ queryModeSummary }}</h5>
           </div>
-          <NRadioGroup v-model:value="form.queryMode" class="w-full" name="cache-query-mode" size="small">
+          <NRadioGroup v-model:value="form.queryMode" class="fill-width" name="cache-query-mode" size="small">
             <NRadioButton v-for="option in queryModeOptions" :key="option.value" :value="option.value" :label="option.label" />
           </NRadioGroup>
         </div>
 
         <div v-if="queryParamsEditorVisible" class="value-editor">
           <div class="value-editor-head">
-            <div class="min-w-0">
+            <div class="min-width-zero">
               <p class="panel-eyebrow">Query params</p>
               <h5 class="panel-heading">{{ normalizedQueryParams.length.toString() }} active</h5>
             </div>
@@ -590,7 +590,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="value-editor-grid">
           <div class="value-editor">
             <div class="value-editor-head">
-              <div class="min-w-0">
+              <div class="min-width-zero">
                 <p class="panel-eyebrow">Vary headers</p>
                 <h5 class="panel-heading">{{ normalizedVaryHeaders.length.toString() }} active</h5>
               </div>
@@ -608,7 +608,7 @@ defineExpose({ openCreate, openEdit, close });
 
           <div class="value-editor">
             <div class="value-editor-head">
-              <div class="min-w-0">
+              <div class="min-width-zero">
                 <p class="panel-eyebrow">Cache status codes</p>
                 <h5 class="panel-heading">{{ normalizedCacheStatusCodes.length.toString() }} active</h5>
               </div>
@@ -626,14 +626,14 @@ defineExpose({ openCreate, openEdit, close });
         </div>
 
         <NCheckbox v-model:checked="form.addCacheStatusHeader" class="cache-status-toggle">
-          <span class="min-w-0">
+          <span class="min-width-zero">
             <span class="toggle-title">Expose cache status</span>
             <span class="toggle-detail">X-p2pstream-Cache response header</span>
           </span>
         </NCheckbox>
       </section>
 
-      <div class="flex justify-end gap-3 border-t border-[var(--app-border)] pt-4">
+      <div class="layout-row align-end-row space-md divider-top frame-standard pad-top-lg">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <NButton type="primary" attr-type="submit" :disabled="submitDisabled" :title="submitDisabledReason">
           {{ form.id ? 'Save Rule' : 'Create Rule' }}

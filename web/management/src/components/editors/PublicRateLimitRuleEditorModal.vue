@@ -228,23 +228,23 @@ defineExpose({ openCreate, openEdit, close });
     :bordered="false"
     size="huge"
   >
-    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
-      <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
+    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRule">
+      <section class="layout-grid space-lg mq-sm-cols-four">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
           <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <NCheckbox v-model:checked="form.enabled" class="self-end">
+        <NCheckbox v-model:checked="form.enabled" class="self-align-end">
           Enabled
         </NCheckbox>
       </section>
 
-      <section class="grid gap-4">
-        <NButtonGroup class="grid grid-cols-2 sm:grid-cols-4" size="small">
+      <section class="layout-grid space-lg">
+        <NButtonGroup class="layout-grid cols-two mq-sm-cols-four" size="small">
           <NButton
             v-for="option in algorithmOptions"
             :key="option.value"
@@ -254,18 +254,18 @@ defineExpose({ openCreate, openEdit, close });
             {{ option.label }}
           </NButton>
         </NButtonGroup>
-        <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div class="layout-grid space-lg mq-sm-cols-three">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Limit
             <NInputNumber v-model:value="form.limit" size="small" :min="1" required />
-            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Max requests allowed per window.</p>
+            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Max requests allowed per window.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Window seconds
             <NInputNumber v-model:value="form.windowSeconds" size="small" :min="1" :step="1" required />
-            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Duration of each rate limit window.</p>
+            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Duration of each rate limit window.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Burst
             <DisabledHint full-width :disabled="Boolean(burstDisabledReason)" :reason="burstDisabledReason">
               <NInputNumber
@@ -291,22 +291,22 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
-      <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
-        <h4 class="text-sm font-semibold text-[var(--app-text)]">Denied response</h4>
-        <div class="grid gap-4 sm:grid-cols-3">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+        <h4 class="copy-sm weight-semibold base-text">Denied response</h4>
+        <div class="layout-grid space-lg mq-sm-cols-three">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Status
             <NInputNumber v-model:value="form.responseStatusCode" size="small" :min="400" :max="599" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
             Content type
             <NInput v-model:value="form.responseContentType" size="small" />
           </label>
         </div>
-        <div class="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3">
-          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div class="layout-grid space-md round-md framed frame-standard muted-bg pad-md">
+          <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Body source
-            <NButtonGroup class="grid grid-cols-2" size="small">
+            <NButtonGroup class="layout-grid cols-two" size="small">
               <NButton
                 :type="form.responseBodyMode === PublicResponseBodyMode.INLINE ? 'primary' : 'default'"
                 @click="form.responseBodyMode = PublicResponseBodyMode.INLINE"
@@ -321,7 +321,7 @@ defineExpose({ openCreate, openEdit, close });
               </NButton>
             </NButtonGroup>
           </div>
-          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Template
             <NSelect
               v-model:value="form.responseBodyTemplateId"
@@ -331,17 +331,17 @@ defineExpose({ openCreate, openEdit, close });
               :disabled="!genericTemplates.length"
             />
           </label>
-          <label v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label v-else class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Body
-            <NInput v-model:value="form.responseBody" type="textarea" class="font-mono" :autosize="{ minRows: 4, maxRows: 8 }" />
+            <NInput v-model:value="form.responseBody" type="textarea" class="mono-text" :autosize="{ minRows: 4, maxRows: 8 }" />
           </label>
         </div>
-        <div class="grid gap-2">
-          <div class="flex items-center justify-between gap-3">
-            <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Headers</span>
+        <div class="layout-grid space-sm">
+          <div class="layout-row align-center spread-items space-md">
+            <span class="copy-xs weight-medium label-case letter-wide muted-text">Headers</span>
             <NButton secondary size="small" @click="addResponseHeader">Add Header</NButton>
           </div>
-          <div v-for="(header, index) in form.responseHeaders" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <div v-for="(header, index) in form.responseHeaders" :key="index" class="layout-grid space-sm mq-sm-two-auto">
             <NInput v-model:value="header.name" size="small" placeholder="Name" />
             <NInput v-model:value="header.value" size="small" placeholder="Value" />
             <NButton
@@ -352,13 +352,13 @@ defineExpose({ openCreate, openEdit, close });
               title="Remove response header"
               @click="removeResponseHeader(index)"
             >
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
             </NButton>
           </div>
         </div>
       </section>
 
-      <div class="flex justify-end gap-3">
+      <div class="layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="rateLimitSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, h, ref } from "vue";
-import { NButton, NDataTable, NTag } from "naive-ui";
+import { useRoute, useRouter } from "vue-router";
+import { NButton, NDataTable, NTabPane, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { Ban as BanIcon } from "@lucide/vue";
 import { Check as CheckIcon } from "@lucide/vue";
@@ -36,7 +37,25 @@ import {
   type PublicListener,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
+const proxySectionKeys = ["routes", "listeners"] as const;
+type ProxySectionKey = typeof proxySectionKeys[number];
+type ProxySectionSummary = {
+  key: ProxySectionKey;
+  label: string;
+  value: string;
+  detail: string;
+  description: string;
+};
+type ProxySummaryCard = ProxySectionSummary | {
+  key: "targets" | "proxy";
+  label: string;
+  value: string;
+  detail: string;
+};
+
 const managementClient = useManagementClient();
+const route = useRoute();
+const router = useRouter();
 
 const {
   dashboard,
@@ -70,7 +89,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
     title: "Bind",
     key: "bind",
     minWidth: 180,
-    render: (listener) => h("span", { class: "font-mono text-xs" }, bindLabel(listener)),
+    render: (listener) => h("span", { class: "mono-text copy-xs" }, bindLabel(listener)),
   },
   {
     title: "Protocol",
@@ -88,19 +107,19 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
     title: "State",
     key: "state",
     minWidth: 180,
-    render: (listener) => h("div", { class: "flex flex-col gap-1" }, [
+    render: (listener) => h("div", { class: "layout-row layout-column space-2xs" }, [
       h(
         NTag,
         {
           size: "small",
           bordered: false,
           type: naiveTagType(listener.enabled ? severityForState(listenerRuntimeState(listener, listenerStatus(listener))) : "warn"),
-          class: "w-fit",
+          class: "fit-width",
         },
         { default: () => listenerStateLabel(listener, listenerStatus(listener)) },
       ),
       listenerStatus(listener)?.lastError
-        ? h("span", { class: "max-w-[280px] truncate text-xs text-red-400" }, listenerStatus(listener)?.lastError)
+        ? h("span", { class: "max-token-width clip-text copy-xs error-text" }, listenerStatus(listener)?.lastError)
         : null,
     ]),
   },
@@ -109,7 +128,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
     key: "actions",
     width: 220,
     align: "right",
-    render: (listener) => h("div", { class: "flex justify-end gap-2" }, [
+    render: (listener) => h("div", { class: "layout-row align-end-row space-sm" }, [
       h(
         DisabledHint,
         { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value },
@@ -124,7 +143,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
               disabled: Boolean(busyDisabledReason.value),
               onClick: () => void setListenerEnabled(listener, !listener.enabled),
             },
-            { icon: () => listener.enabled ? h(BanIcon, { class: "h-3.5 w-3.5" }) : h(CheckIcon, { class: "h-3.5 w-3.5" }) },
+            { icon: () => listener.enabled ? h(BanIcon, { class: "icon-sm" }) : h(CheckIcon, { class: "icon-sm" }) },
           ),
         },
       ),
@@ -142,7 +161,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
               disabled: Boolean(listenerRunningDisabledReason(listener)),
               onClick: () => void setListenerRunning(listener, !listenerStatus(listener)?.running),
             },
-            { icon: () => listenerStatus(listener)?.running ? h(TimesIcon, { class: "h-3.5 w-3.5" }) : h(RefreshIcon, { class: "h-3.5 w-3.5" }) },
+            { icon: () => listenerStatus(listener)?.running ? h(TimesIcon, { class: "icon-sm" }) : h(RefreshIcon, { class: "icon-sm" }) },
           ),
         },
       ),
@@ -160,7 +179,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
               disabled: Boolean(busyDisabledReason.value),
               onClick: () => editListener(listener),
             },
-            { icon: () => h(PencilIcon, { class: "h-3.5 w-3.5" }) },
+            { icon: () => h(PencilIcon, { class: "icon-sm" }) },
           ),
         },
       ),
@@ -178,7 +197,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
               disabled: Boolean(busyDisabledReason.value),
               onClick: () => void deleteListener(listener.id),
             },
-            { icon: () => h(TrashIcon, { class: "h-3.5 w-3.5" }) },
+            { icon: () => h(TrashIcon, { class: "icon-sm" }) },
           ),
         },
       ),
@@ -189,12 +208,31 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
 const { confirm } = useConfirmDialog();
 
-const summaryCards = computed(() => [
-  { label: "Listeners", value: listeners.value.length.toString(), detail: `${runningListeners.value.toString()} running` },
-  { label: "Targets", value: routeTargets.value.length.toString(), detail: "proxy and static destinations" },
-  { label: "Routes", value: routes.value.length.toString(), detail: "listener match rules" },
-  { label: "Proxy", value: proxyStateLabel(proxyState.value, status.value?.proxyRunning), detail: proxyIsRunning.value ? "accepting traffic" : "not running" },
+const proxySections = computed<ProxySectionSummary[]>(() => [
+  {
+    key: "routes",
+    label: "Routes",
+    value: routes.value.length.toString(),
+    detail: `${routeTargets.value.length.toString()} route targets`,
+    description: "Rules that match incoming requests to route targets.",
+  },
+  {
+    key: "listeners",
+    label: "Public Listeners",
+    value: listeners.value.length.toString(),
+    detail: `${runningListeners.value.toString()} running`,
+    description: "Incoming endpoints where the proxy accepts connections.",
+  },
 ]);
+const summaryCards = computed<ProxySummaryCard[]>(() => [
+  ...proxySections.value,
+  { key: "targets", label: "Targets", value: routeTargets.value.length.toString(), detail: "proxy and static destinations" },
+  { key: "proxy", label: "Proxy", value: proxyStateLabel(proxyState.value, status.value?.proxyRunning), detail: proxyIsRunning.value ? "accepting traffic" : "not running" },
+]);
+const activeProxySection = computed<ProxySectionKey>(() => normalizeProxySection(route.params.section));
+const activeProxyMeta = computed(() => (
+  proxySections.value.find((section) => section.key === activeProxySection.value) ?? proxySections.value[0]
+));
 
 function listenerStatus(listener: PublicListener) {
   return listenerStatuses.value.find((item) => item.listenerId === listener.id);
@@ -219,6 +257,17 @@ function listenerRunningDisabledReason(listener: PublicListener): string {
 async function run(action: () => Promise<void>) {
   if (!runManagementAction) return;
   await runManagementAction(action);
+}
+
+function normalizeProxySection(value: unknown): ProxySectionKey {
+  const section = Array.isArray(value) ? value[0] : value;
+  return proxySectionKeys.includes(section as ProxySectionKey) ? section as ProxySectionKey : "routes";
+}
+
+async function selectProxySection(value: string | number) {
+  const section = normalizeProxySection(value);
+  if (section === activeProxySection.value) return;
+  await router.push(`/proxy/${section}`);
 }
 
 function openAddListenerModal() {
@@ -277,13 +326,13 @@ async function deleteRoute(id: bigint) {
 </script>
 
 <template>
-  <div v-if="dashboard" class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div v-if="dashboard" class="stack-xl">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
-        <h3 class="mb-2 text-xl font-bold">Proxy</h3>
-        <p class="text-sm text-[var(--app-text-muted)]">Public listeners, routes, and route targets.</p>
+        <h3 class="margin-bottom-sm copy-xl weight-bold">Proxy</h3>
+        <p class="copy-sm muted-text">{{ activeProxyMeta.description }}</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="layout-row align-center space-md">
         <NTag size="small" :bordered="false" :type="naiveTagType(proxySeverity)">
           {{ proxyStateLabel(proxyState, status?.proxyRunning) }}
         </NTag>
@@ -294,7 +343,7 @@ async function deleteRoute(id: bigint) {
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(true)"
           >
-            <template #icon><PlusIcon class="h-4 w-4" /></template>
+            <template #icon><PlusIcon class="icon-md icon-md" /></template>
             Start Proxy
           </NButton>
         </DisabledHint>
@@ -305,116 +354,171 @@ async function deleteRoute(id: bigint) {
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(false)"
           >
-            <template #icon><BanIcon class="h-4 w-4" /></template>
+            <template #icon><BanIcon class="icon-md icon-md" /></template>
             Stop Proxy
           </NButton>
         </DisabledHint>
       </div>
     </div>
 
-    <p v-if="proxyError" class="rounded-md border border-red-900/50 bg-red-950/20 px-4 py-3 text-sm text-red-400">
+    <p v-if="proxyError" class="round-md framed error-border error-surface pad-x-lg pad-y-md copy-sm error-text">
       {{ proxyError }}
     </p>
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
+    <section class="summary-grid summary-grid--four proxy-summary-grid" aria-label="Proxy configuration summary">
+      <div
+        v-for="card in summaryCards"
+        :key="card.key"
+        class="surface-card pad-lg proxy-summary-card"
+        :class="{ 'proxy-summary-card--active': card.key === activeProxySection }"
+      >
+        <p class="copy-xs weight-semibold label-case letter-widest muted-text">{{ card.label }}</p>
+        <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ card.value }}</p>
+        <p class="margin-top-xs copy-xs muted-text">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="app-card overflow-hidden">
-      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
-        <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Public Listeners</h4>
-          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Incoming endpoints where the proxy accepts connections.</p>
-        </div>
-        <NButton secondary size="small" @click="openAddListenerModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-          Add Listener
-        </NButton>
-      </div>
-      <div>
-        <NDataTable
-          v-if="listeners.length"
-          :columns="listenerColumns"
-          :data="listeners"
-          :row-key="listenerRowKey"
-          :row-props="listenerRowProps"
-          :pagination="false"
-          :bordered="false"
-          :single-line="false"
-          :scroll-x="900"
-          size="small"
-        />
-        <EmptyState
-          v-else
-          title="No listeners configured"
-          description="Listeners accept public HTTP or HTTPS traffic on published ports."
-          action-label="Add Listener"
-          @action="openAddListenerModal"
-        />
-      </div>
-    </section>
-
-    <section class="app-card overflow-hidden">
-      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
-        <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Routes</h4>
-          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Rules that match incoming requests to route targets.</p>
-        </div>
-        <NButton secondary size="small" @click="openAddRouteModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-          Add Route
-        </NButton>
-      </div>
-      <div class="divide-y divide-[var(--app-border-subtle)]">
-        <div
-          v-for="route in routes"
-          :key="route.id.toString()"
-          :data-testid="`route-row-${route.id.toString()}`"
-          class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]"
-        >
-          <div class="min-w-0">
-            <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
-              <span
-                v-if="routeAction(route) === PublicRouteAction.REDIRECT"
-                class="shrink-0 rounded border border-[var(--app-accent)] px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wider text-[var(--app-accent)]"
-              >
-                Redirect
-              </span>
+    <NTabs class="proxy-tabs" type="line" animated :value="activeProxySection" @update:value="selectProxySection">
+      <NTabPane name="routes" :tab="`Routes (${routes.length})`">
+        <section class="surface-card hide-overflow">
+          <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
+            <div>
+              <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Routes</h4>
+              <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Rules that match incoming requests to route targets.</p>
             </div>
-            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">
-              {{ route.priority.toString() }} / {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
-            </p>
-            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">
-              {{ routeTargetSummary(route) }}
-            </p>
-          </div>
-          <div class="flex gap-2">
-            <NButton secondary size="small" aria-label="Edit route" title="Edit route" @click="editRoute(route.id)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </NButton>
-            <NButton secondary size="small" aria-label="Clone route" title="Clone route" @click="cloneRoute(route.id)">
-              <template #icon><WindowMaximizeIcon class="h-3.5 w-3.5" /></template>
-            </NButton>
-            <NButton type="error" size="small" aria-label="Delete route" title="Delete route" @click="deleteRoute(route.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            <NButton secondary size="small" @click="openAddRouteModal">
+              <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+              Add Route
             </NButton>
           </div>
-        </div>
-        <EmptyState
-          v-if="!routes.length"
-          title="No routes configured"
-          description="Routes match hosts and paths before forwarding, redirecting, or using listener defaults."
-          action-label="Add Route"
-          @action="openAddRouteModal"
-        />
-      </div>
-    </section>
+          <div class="divided-list">
+            <div
+              v-for="route in routes"
+              :key="route.id.toString()"
+              :data-testid="`route-row-${route.id.toString()}`"
+              class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto"
+            >
+              <div class="min-width-zero">
+                <div class="layout-row min-width-zero align-center space-sm">
+                  <p class="clip-text copy-sm weight-medium base-text">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
+                  <span
+                    v-if="routeAction(route) === PublicRouteAction.REDIRECT"
+                    class="no-shrink round-sm framed accent-frame pad-x-xs pad-y-2xs copy-3xs weight-semibold label-case letter-wide accent-text"
+                  >
+                    Redirect
+                  </span>
+                </div>
+                <p class="clip-text mono-text copy-xs muted-text">
+                  {{ route.priority.toString() }} / {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
+                </p>
+                <p class="clip-text mono-text copy-xs muted-text">
+                  {{ routeTargetSummary(route) }}
+                </p>
+              </div>
+              <div class="layout-row space-sm">
+                <NButton secondary size="small" aria-label="Edit route" title="Edit route" @click="editRoute(route.id)">
+                  <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+                </NButton>
+                <NButton secondary size="small" aria-label="Clone route" title="Clone route" @click="cloneRoute(route.id)">
+                  <template #icon><WindowMaximizeIcon class="icon-sm icon-sm" /></template>
+                </NButton>
+                <NButton type="error" size="small" aria-label="Delete route" title="Delete route" @click="deleteRoute(route.id)">
+                  <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+                </NButton>
+              </div>
+            </div>
+            <EmptyState
+              v-if="!routes.length"
+              title="No routes configured"
+              description="Routes match hosts and paths before forwarding, redirecting, or using listener defaults."
+              action-label="Add Route"
+              @action="openAddRouteModal"
+            />
+          </div>
+        </section>
+      </NTabPane>
+
+      <NTabPane name="listeners" :tab="`Public Listeners (${listeners.length})`">
+        <section class="surface-card hide-overflow">
+          <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
+            <div>
+              <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Public Listeners</h4>
+              <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Incoming endpoints where the proxy accepts connections.</p>
+            </div>
+            <NButton secondary size="small" @click="openAddListenerModal">
+              <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+              Add Listener
+            </NButton>
+          </div>
+          <div>
+            <NDataTable
+              v-if="listeners.length"
+              :columns="listenerColumns"
+              :data="listeners"
+              :row-key="listenerRowKey"
+              :row-props="listenerRowProps"
+              :pagination="false"
+              :bordered="false"
+              :single-line="false"
+              :scroll-x="900"
+              size="small"
+            />
+            <EmptyState
+              v-else
+              title="No listeners configured"
+              description="Listeners accept public HTTP or HTTPS traffic on published ports."
+              action-label="Add Listener"
+              @action="openAddListenerModal"
+            />
+          </div>
+        </section>
+      </NTabPane>
+    </NTabs>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
   </div>
 </template>
+
+<style scoped>
+.proxy-summary-card {
+  min-height: 7rem;
+  padding: 0.875rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.proxy-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.proxy-summary-card--active {
+  border-color: var(--app-accent);
+  box-shadow: inset 0 0 0 1px var(--app-accent-soft);
+}
+
+.proxy-summary-card--active .base-text {
+  color: var(--app-accent);
+}
+
+.proxy-tabs {
+  min-width: 0;
+}
+
+.proxy-tabs :deep(.n-tabs-nav) {
+  margin-bottom: 1rem;
+}
+
+.proxy-tabs :deep(.n-tab-pane) {
+  padding-top: 0.25rem;
+}
+
+@media (min-width: 900px) {
+  .proxy-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .proxy-summary-card {
+    min-height: 0;
+    padding: 1rem;
+  }
+}
+</style>

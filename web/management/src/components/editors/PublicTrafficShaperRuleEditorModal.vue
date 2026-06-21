@@ -191,23 +191,23 @@ defineExpose({ openCreate, openEdit, close });
     :bordered="false"
     size="huge"
   >
-    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRule">
-      <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
+    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRule">
+      <section class="layout-grid space-lg mq-sm-cols-four">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
           <NInputNumber v-model:value="form.priority" size="small" required />
         </label>
-        <NCheckbox v-model:checked="form.enabled" class="self-end">
+        <NCheckbox v-model:checked="form.enabled" class="self-align-end">
           Enabled
         </NCheckbox>
       </section>
 
-      <section class="grid gap-4">
-        <NButtonGroup class="grid grid-cols-2" size="small">
+      <section class="layout-grid space-lg">
+        <NButtonGroup class="layout-grid cols-two" size="small">
           <NButton
             :type="form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY ? 'primary' : 'default'"
             @click="form.budgetScope = PublicTrafficShaperBudgetScope.PER_KEY"
@@ -222,32 +222,32 @@ defineExpose({ openCreate, openEdit, close });
           </NButton>
         </NButtonGroup>
 
-        <div class="grid gap-4 sm:grid-cols-5">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div class="layout-grid space-lg mq-sm-cols-five">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Upload KiB/s
             <NInputNumber v-model:value="form.uploadKibPerSecond" size="small" :min="0" :step="1" />
-            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Client-to-server bandwidth cap.</p>
+            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Client-to-server bandwidth cap.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Download KiB/s
             <NInputNumber v-model:value="form.downloadKibPerSecond" size="small" :min="0" :step="1" />
-            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Server-to-client bandwidth cap.</p>
+            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Server-to-client bandwidth cap.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Burst KiB
             <NInputNumber v-model:value="form.burstKib" size="small" :min="0" :step="1" />
-            <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Extra data allowed in a burst before throttling.</p>
+            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Extra data allowed in a burst before throttling.</p>
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Request free KiB
             <NInputNumber v-model:value="form.requestFreeKib" size="small" :min="0" :step="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Response free KiB
             <NInputNumber v-model:value="form.responseFreeKib" size="small" :min="0" :step="1" />
           </label>
         </div>
-        <p class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 text-xs text-[var(--app-text-muted)]">
+        <p class="round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-xs muted-text">
           A value of 0 leaves that direction unlimited. Free KiB are sent without delay and do not consume the shaper budget.
         </p>
       </section>
@@ -256,7 +256,7 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" :disabled-reason="keyPartsDisabledReason" />
 
-      <div class="mt-2 flex justify-end gap-3">
+      <div class="margin-top-sm layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="shaperSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">

@@ -123,49 +123,49 @@ async function deleteTemplate(template: PublicResponseTemplate) {
 </script>
 
 <template>
-  <div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div class="stack-xl">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
-        <h3 class="mb-2 text-xl font-bold">Response Templates</h3>
-        <p class="text-sm text-[var(--app-text-muted)]">Reusable static bodies and validated WAF HTML pages.</p>
+        <h3 class="margin-bottom-sm copy-xl weight-bold">Response Templates</h3>
+        <p class="copy-sm muted-text">Reusable static bodies and validated WAF HTML pages.</p>
       </div>
       <NButton type="primary" @click="openCreate()">
-        <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+        <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
         Add Template
       </NButton>
     </div>
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
+    <section class="layout-grid space-lg mq-sm-cols-two mq-xl-cols-four">
+      <div v-for="card in summaryCards" :key="card.label" class="surface-card pad-lg">
+        <p class="copy-xs weight-semibold label-case letter-widest muted-text">{{ card.label }}</p>
+        <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ card.value }}</p>
+        <p class="margin-top-xs copy-xs muted-text">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="app-card overflow-hidden">
-      <div class="border-b border-[var(--app-border)] px-5 py-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Templates</h4>
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg">
+        <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Templates</h4>
       </div>
-      <div class="divide-y divide-[var(--app-border-subtle)]">
+      <div class="divided-list">
         <div
           v-for="template in templates"
           :key="template.id.toString()"
           :data-testid="`template-row-${template.id.toString()}`"
-          class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]"
+          class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto"
         >
-          <div class="min-w-0">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ template.name }}</p>
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero wrap-items align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ template.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ kindLabel(template.kind) }}</NTag>
               <NTag size="small" :bordered="false" :type="naiveTagType(usageCount(template) ? 'warn' : 'info')">{{ usageCount(template).toString() }} uses</NTag>
             </div>
-            <p class="mt-1 truncate text-xs text-[var(--app-text-muted)]">{{ template.description || template.contentType || "No description" }}</p>
-            <p class="mt-1 truncate font-mono text-xs text-[var(--app-text-muted)]">Required: {{ requiredPlaceholderLabel(template.kind) }} / updated {{ formatUpdatedAt(template) }}</p>
+            <p class="margin-top-xs clip-text copy-xs muted-text">{{ template.description || template.contentType || "No description" }}</p>
+            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">Required: {{ requiredPlaceholderLabel(template.kind) }} / updated {{ formatUpdatedAt(template) }}</p>
           </div>
-          <div class="flex gap-2 lg:justify-end">
+          <div class="layout-row space-sm mq-lg-end">
             <NButton secondary size="small" aria-label="Edit template" title="Edit template" @click="openEdit(template)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
             </NButton>
             <DisabledHint :disabled="usageCount(template) > 0 || isBusy" :reason="usageCount(template) > 0 ? 'Remove all references before deleting this template.' : ''">
               <NButton
@@ -176,7 +176,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
                 :disabled="usageCount(template) > 0 || isBusy"
                 @click="deleteTemplate(template)"
               >
-                <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
               </NButton>
             </DisabledHint>
           </div>
@@ -191,7 +191,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
       </div>
     </section>
 
-    <section class="grid gap-3 sm:grid-cols-3">
+    <section class="layout-grid space-md mq-sm-cols-three">
       <NButton secondary @click="openCreate(PublicResponseTemplateKind.GENERIC_BODY)">New Generic Body</NButton>
       <NButton secondary @click="openCreate(PublicResponseTemplateKind.WAF_CAPTCHA_PAGE)">New Captcha Page</NButton>
       <NButton secondary @click="openCreate(PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE)">New Waiting Room</NButton>

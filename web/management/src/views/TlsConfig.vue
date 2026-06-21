@@ -358,67 +358,67 @@ watch(tlsDnsCredentials, () => {
 </script>
 
 <template>
-  <div v-if="dashboard" class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div v-if="dashboard" class="stack-xl">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
-        <h3 class="mb-2 text-xl font-bold">TLS</h3>
-        <p class="text-sm text-[var(--app-text-muted)]">HTTPS certificate mappings and DNS credentials.</p>
+        <h3 class="margin-bottom-sm copy-xl weight-bold">TLS</h3>
+        <p class="copy-sm muted-text">HTTPS certificate mappings and DNS credentials.</p>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div class="layout-row wrap-items space-sm">
         <NButton secondary size="small" @click="openAddTlsCredentialModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
           Add DNS Credential
         </NButton>
         <NButton secondary size="small" @click="openAddTlsModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
           Add Certificate
         </NButton>
       </div>
     </div>
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="app-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-[var(--app-text)]">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[var(--app-text-muted)]">{{ card.detail }}</p>
+    <section class="layout-grid space-lg mq-sm-cols-two mq-xl-cols-four">
+      <div v-for="card in summaryCards" :key="card.label" class="surface-card pad-lg">
+        <p class="copy-xs weight-semibold label-case letter-widest muted-text">{{ card.label }}</p>
+        <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ card.value }}</p>
+        <p class="margin-top-xs copy-xs muted-text">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="app-card overflow-hidden">
-      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">TLS Certificates</h4>
-          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Certificates for HTTPS listeners.</p>
+          <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">TLS Certificates</h4>
+          <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Certificates for HTTPS listeners.</p>
         </div>
         <NButton secondary size="small" @click="openAddTlsModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
           Add Certificate
         </NButton>
       </div>
-      <div class="divide-y divide-[var(--app-border-subtle)]">
+      <div class="divided-list">
         <div
           v-for="cert in tlsCertificates"
           :key="cert.id.toString()"
           :data-testid="`tls-row-${cert.id.toString()}`"
-          class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]"
+          class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto"
         >
-          <div class="min-w-0">
-            <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ listenerName(cert.listenerId, listeners) }} / {{ cert.hostnamePattern }}</p>
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ listenerName(cert.listenerId, listeners) }} / {{ cert.hostnamePattern }}</p>
               <NTag v-if="isDefaultSelfSignedCertificate(cert)" size="small" :bordered="false" type="info">Self-signed</NTag>
               <NTag v-else size="small" :bordered="false" type="info">{{ tlsSourceLabel(cert) }}</NTag>
               <NTag size="small" :bordered="false" :type="naiveTagType(tlsStatusSeverity(cert))">{{ tlsStatusLabel(cert) }}</NTag>
             </div>
-            <p class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateSummary(cert) }}</p>
-            <p v-if="tlsCertificateValiditySummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateValiditySummary(cert) }}</p>
-            <p v-if="tlsCertificateRenewalSummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateRenewalSummary(cert) }}</p>
-            <p v-if="tlsCertificateLastAttemptSummary(cert)" class="truncate text-xs text-[var(--app-text-muted)]">{{ tlsCertificateLastAttemptSummary(cert) }}</p>
-            <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="truncate text-xs text-[var(--app-text-muted)]">
+            <p class="clip-text copy-xs muted-text">{{ tlsCertificateSummary(cert) }}</p>
+            <p v-if="tlsCertificateValiditySummary(cert)" class="clip-text copy-xs muted-text">{{ tlsCertificateValiditySummary(cert) }}</p>
+            <p v-if="tlsCertificateRenewalSummary(cert)" class="clip-text copy-xs muted-text">{{ tlsCertificateRenewalSummary(cert) }}</p>
+            <p v-if="tlsCertificateLastAttemptSummary(cert)" class="clip-text copy-xs muted-text">{{ tlsCertificateLastAttemptSummary(cert) }}</p>
+            <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="clip-text copy-xs muted-text">
               Cloudflare / {{ dnsCredentialName(cert.dnsCredentialId, tlsDnsCredentials) }}
             </p>
-            <p v-if="cert.lastError" class="whitespace-pre-wrap break-words text-xs text-red-400">Last error: {{ cert.lastError }}</p>
+            <p v-if="cert.lastError" class="preserve-lines wrap-anywhere copy-xs error-text">Last error: {{ cert.lastError }}</p>
           </div>
-          <div class="flex gap-2">
+          <div class="layout-row space-sm">
             <DisabledHint
               v-if="cert.source === PublicTlsCertificateSource.ACME"
               :disabled="Boolean(busyDisabledReason)"
@@ -432,24 +432,24 @@ watch(tlsDnsCredentials, () => {
                 :disabled="Boolean(busyDisabledReason)"
                 @click="renewTlsCertificate(cert.id)"
               >
-                <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
+                <template #icon><RefreshIcon class="icon-sm icon-sm" /></template>
               </NButton>
             </DisabledHint>
             <NButton secondary size="small" aria-label="Edit TLS mapping" title="Edit TLS mapping" @click="editTlsCertificate(cert.id)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
             </NButton>
             <NButton type="error" size="small" aria-label="Delete TLS mapping" title="Delete TLS mapping" @click="deleteTlsCertificate(cert.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
             </NButton>
           </div>
         </div>
-        <div v-if="httpsListeners.length && !tlsCertificates.length" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ httpsListeners[0]?.name ?? "HTTPS listener" }} / p2pstream.local</p>
+        <div v-if="httpsListeners.length && !tlsCertificates.length" class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto">
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ httpsListeners[0]?.name ?? "HTTPS listener" }} / p2pstream.local</p>
               <NTag size="small" :bordered="false" type="info">Self-signed</NTag>
             </div>
-            <p class="truncate text-xs text-[var(--app-text-muted)]">Runtime fallback certificate</p>
+            <p class="clip-text copy-xs muted-text">Runtime fallback certificate</p>
           </div>
         </div>
         <EmptyState
@@ -460,33 +460,33 @@ watch(tlsDnsCredentials, () => {
       </div>
     </section>
 
-    <section class="app-card overflow-hidden">
-      <div class="border-b border-[var(--app-border)] px-5 py-4 flex items-center justify-between gap-4">
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">DNS Credentials</h4>
-          <p class="mt-0.5 text-xs text-[var(--app-text-muted)] normal-case tracking-normal">Credentials used for DNS-01 certificate challenges.</p>
+          <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">DNS Credentials</h4>
+          <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Credentials used for DNS-01 certificate challenges.</p>
         </div>
         <NButton secondary size="small" @click="openAddTlsCredentialModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
           Add DNS Credential
         </NButton>
       </div>
-      <div class="divide-y divide-[var(--app-border-subtle)]">
-        <div v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" class="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 items-center gap-2">
-              <p class="truncate text-sm font-medium text-[var(--app-text)]">{{ credential.name }}</p>
+      <div class="divided-list">
+        <div v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto">
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ credential.name }}</p>
               <NTag size="small" :bordered="false" type="info">Cloudflare</NTag>
               <NTag v-if="!credential.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
             </div>
-            <p class="truncate font-mono text-xs text-[var(--app-text-muted)]">{{ credential.cloudflareZoneId }}</p>
+            <p class="clip-text mono-text copy-xs muted-text">{{ credential.cloudflareZoneId }}</p>
           </div>
-          <div class="flex gap-2">
+          <div class="layout-row space-sm">
             <NButton secondary size="small" aria-label="Edit DNS credential" title="Edit DNS credential" @click="editTlsCredential(credential)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
             </NButton>
             <NButton type="error" size="small" aria-label="Delete DNS credential" title="Delete DNS credential" @click="deleteTlsCredential(credential.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
             </NButton>
           </div>
         </div>
@@ -507,10 +507,10 @@ watch(tlsDnsCredentials, () => {
       :style="modalCardStyle('36rem')"
       :bordered="false"
     >
-      <form class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1" @submit.prevent="submitTlsCertificate">
-        <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <form class="layout-grid max-modal-height space-lg scroll-y pad-right-xs" @submit.prevent="submitTlsCertificate">
+        <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Method
-          <NButtonGroup class="grid grid-cols-2 gap-2 sm:grid-cols-4" size="small">
+          <NButtonGroup class="layout-grid cols-two space-sm mq-sm-cols-four" size="small">
             <NButton
               v-for="method in tlsMethodOptions"
               :key="method.value"
@@ -522,36 +522,36 @@ watch(tlsDnsCredentials, () => {
             </NButton>
           </NButtonGroup>
         </div>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           HTTPS listener
           <NSelect v-model:value="tlsForm.listenerId" size="small" :options="httpsListenerOptions" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Hostname pattern
           <NInput v-model:value="tlsForm.hostnamePattern" size="small" placeholder="app.example.com" required />
-          <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Exact domain or wildcard prefix (*.example.com).</p>
+          <p class="copy-xs weight-normal normal-text letter-normal muted-text">Exact domain or wildcard prefix (*.example.com).</p>
         </label>
-        <div v-if="tlsForm.method !== 'manual'" class="grid gap-3">
-          <div class="grid gap-3 sm:grid-cols-2">
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div v-if="tlsForm.method !== 'manual'" class="layout-grid space-md">
+          <div class="layout-grid space-md mq-sm-cols-two">
+            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               ACME email
               <NInput v-model:value="tlsForm.acmeEmail" size="small" type="text" placeholder="admin@example.com" required />
-              <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Used for certificate expiration notices from Let's Encrypt.</p>
+              <p class="copy-xs weight-normal normal-text letter-normal muted-text">Used for certificate expiration notices from Let's Encrypt.</p>
             </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               CA environment
               <NSelect v-model:value="tlsForm.acmeCa" size="small" :options="acmeCaOptions" />
             </label>
           </div>
-          <label v-if="tlsForm.method === 'dns_01'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label v-if="tlsForm.method === 'dns_01'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Cloudflare credential
             <NSelect v-model:value="tlsForm.dnsCredentialId" size="small" :options="dnsCredentialOptions" required />
           </label>
         </div>
-        <div v-if="tlsForm.method === 'manual'" class="grid gap-3">
-          <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div v-if="tlsForm.method === 'manual'" class="layout-grid space-md">
+          <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Certificate material
-            <NButtonGroup class="grid grid-cols-2 gap-2" size="small">
+            <NButtonGroup class="layout-grid cols-two space-sm" size="small">
               <NButton
                 v-for="option in manualTlsMaterialOptions"
                 :key="option.value"
@@ -563,12 +563,12 @@ watch(tlsDnsCredentials, () => {
               </NButton>
             </NButtonGroup>
           </div>
-          <label v-if="tlsForm.manualMode === 'generate'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label v-if="tlsForm.manualMode === 'generate'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Validity days
             <NInputNumber v-model:value="tlsForm.selfSignedValidityDays" size="small" :min="1" :max="3650" :step="1" required />
           </label>
-          <div v-else class="grid gap-3 sm:grid-cols-2">
-            <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <div v-else class="layout-grid space-md mq-sm-cols-two">
+            <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               Certificate file
               <NUpload
                 :default-upload="false"
@@ -578,9 +578,9 @@ watch(tlsDnsCredentials, () => {
               >
                 <NButton secondary size="small" attr-type="button">Choose certificate</NButton>
               </NUpload>
-              <span v-if="tlsForm.certFileName" class="truncate text-xs normal-case tracking-normal text-[var(--app-text)]">{{ tlsForm.certFileName }}</span>
+              <span v-if="tlsForm.certFileName" class="clip-text copy-xs normal-text letter-normal base-text">{{ tlsForm.certFileName }}</span>
             </div>
-            <div class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+            <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               Private key file
               <NUpload
                 :default-upload="false"
@@ -590,20 +590,20 @@ watch(tlsDnsCredentials, () => {
               >
                 <NButton secondary size="small" attr-type="button">Choose private key</NButton>
               </NUpload>
-              <span v-if="tlsForm.keyFileName" class="truncate text-xs normal-case tracking-normal text-[var(--app-text)]">{{ tlsForm.keyFileName }}</span>
+              <span v-if="tlsForm.keyFileName" class="clip-text copy-xs normal-text letter-normal base-text">{{ tlsForm.keyFileName }}</span>
             </div>
           </div>
         </div>
-        <p v-if="tlsForm.id && tlsForm.method === 'manual' && tlsForm.manualMode === 'upload'" class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-3 py-2 text-xs text-[var(--app-text-muted)]">
+        <p v-if="tlsForm.id && tlsForm.method === 'manual' && tlsForm.manualMode === 'upload'" class="round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-xs muted-text">
           Current certificate is stored in the app config directory.
         </p>
-        <p v-if="tlsUploadError" class="rounded-md border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-400">
+        <p v-if="tlsUploadError" class="round-md framed error-border error-surface pad-x-md pad-y-sm copy-sm error-text">
           {{ tlsUploadError }}
         </p>
-        <NCheckbox v-model:checked="tlsForm.enabled" class="mt-2">
+        <NCheckbox v-model:checked="tlsForm.enabled" class="margin-top-sm">
           Enabled
         </NCheckbox>
-        <div class="mt-4 flex justify-end gap-3">
+        <div class="margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isTlsModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsSubmitDisabledReason)" :reason="tlsSubmitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="tlsSubmitDisabled">
@@ -621,16 +621,16 @@ watch(tlsDnsCredentials, () => {
       :style="modalCardStyle('32rem')"
       :bordered="false"
     >
-      <form class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1" @submit.prevent="submitTlsCredential">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <form class="layout-grid max-modal-height space-lg scroll-y pad-right-xs" @submit.prevent="submitTlsCredential">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
           <NInput v-model:value="tlsCredentialForm.name" size="small" placeholder="cloudflare-prod" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Cloudflare zone ID
-          <NInput v-model:value="tlsCredentialForm.cloudflareZoneId" size="small" class="font-mono" required />
+          <NInput v-model:value="tlsCredentialForm.cloudflareZoneId" size="small" class="mono-text" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           API token
           <NInput
             v-model:value="tlsCredentialForm.apiToken"
@@ -640,13 +640,13 @@ watch(tlsDnsCredentials, () => {
             :required="!tlsCredentialForm.id"
           />
         </label>
-        <p v-if="tlsCredentialError" class="rounded-md border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-400">
+        <p v-if="tlsCredentialError" class="round-md framed error-border error-surface pad-x-md pad-y-sm copy-sm error-text">
           {{ tlsCredentialError }}
         </p>
-        <NCheckbox v-model:checked="tlsCredentialForm.enabled" class="mt-2">
+        <NCheckbox v-model:checked="tlsCredentialForm.enabled" class="margin-top-sm">
           Enabled
         </NCheckbox>
-        <div class="mt-4 flex justify-end gap-3">
+        <div class="margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isTlsCredentialModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsCredentialSubmitDisabledReason)" :reason="tlsCredentialSubmitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)">

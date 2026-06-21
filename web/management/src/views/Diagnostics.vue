@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from "vue";
-import { NButton, NButtonGroup, NDataTable, NSelect } from "naive-ui";
+import { NAlert, NButton, NButtonGroup, NDataTable, NEmpty, NSelect } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import type {
@@ -263,7 +263,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
       </div>
     </section>
 
-    <section v-if="error" class="diagnostics-error">{{ error }}</section>
+    <NAlert v-if="error" type="error" :show-icon="false">{{ error }}</NAlert>
 
     <section class="summary-strip" :class="{ loading: isLoading }">
       <div class="summary-item">
@@ -317,7 +317,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
           </div>
         </div>
       </div>
-      <div v-else class="empty-state">No status codes in this window.</div>
+      <NEmpty v-else size="small" description="No status codes in this window." />
     </section>
 
     <section class="breakdown-grid">
@@ -335,27 +335,30 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
             </div>
           </div>
         </div>
-        <div v-else class="empty-state compact">{{ section.empty }}</div>
+        <NEmpty v-else size="small" class="panel-empty panel-empty--compact" :description="section.empty" />
       </div>
     </section>
 
-    <section class="diagnostics-panel">
+    <section class="diagnostics-panel diagnostics-panel--table">
       <div class="panel-heading">
         <div>
           <h4>Recent Samples</h4>
           <p>Newest non-success responses and proxy/internal failures.</p>
         </div>
       </div>
-      <NDataTable
-        :columns="sampleColumns"
-        :data="recentSamples"
-        :row-key="sampleRowKey"
-        :pagination="false"
-        :bordered="false"
-        :single-line="false"
-        :scroll-x="1530"
-        size="small"
-      />
+      <div v-if="recentSamples.length" class="diagnostics-table-shell">
+        <NDataTable
+          :columns="sampleColumns"
+          :data="recentSamples"
+          :row-key="sampleRowKey"
+          :pagination="false"
+          :bordered="false"
+          :single-line="false"
+          :scroll-x="1530"
+          size="small"
+        />
+      </div>
+      <NEmpty v-else size="small" description="No recent problem samples in this window." />
     </section>
   </div>
 </template>
@@ -367,10 +370,14 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .diagnostics-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  justify-content: space-between;
   gap: 1rem;
+}
+
+.diagnostics-header > div:first-child {
+  min-width: 0;
 }
 
 .diagnostics-header h3 {
@@ -387,62 +394,28 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .header-controls {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: end;
+  display: grid;
+  grid-template-columns: auto 14rem;
+  align-items: center;
   gap: 0.5rem;
+  justify-content: end;
 }
 
 .window-tabs {
-  display: inline-grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.2rem;
+  min-width: 15rem;
 }
 
-.window-tabs button {
+.window-tabs :deep(.n-button) {
   min-width: 0;
   height: 2rem;
-  border-radius: 4px;
-  color: var(--app-text-muted);
   font-size: 0.78rem;
   font-weight: 650;
   letter-spacing: 0;
   padding: 0 0.75rem;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.window-tabs button:hover {
-  background: var(--app-panel-muted);
-  color: var(--app-text);
-}
-
-.window-tabs button.active {
-  background: var(--app-panel);
-  color: var(--app-text);
 }
 
 .sample-select {
-  height: 2.4rem;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  color: var(--app-text);
-  font-size: 0.8rem;
-  outline: none;
-  padding: 0 0.6rem;
-}
-
-.diagnostics-error {
-  border: 1px solid rgb(239 68 68 / 45%);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  color: var(--app-error);
-  font-size: 0.85rem;
-  padding: 0.85rem 1rem;
+  width: 14rem;
 }
 
 .summary-strip,
@@ -499,6 +472,10 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   display: grid;
   gap: 1rem;
   padding: 1rem;
+}
+
+.diagnostics-panel--table {
+  overflow: hidden;
 }
 
 .panel-heading {
@@ -655,79 +632,19 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   white-space: nowrap;
 }
 
-.table-scroll {
+.diagnostics-table-shell {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   overflow-x: auto;
 }
 
-.samples-table {
-  width: 100%;
-  min-width: 1120px;
-  border-collapse: collapse;
-  font-size: 0.78rem;
+.diagnostics-table-shell :deep(.n-data-table) {
+  min-width: 0;
 }
 
-.samples-table th,
-.samples-table td {
-  border-top: 1px solid var(--app-border);
-  padding: 0.65rem 0.5rem;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.samples-table th {
-  color: var(--app-text-muted);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.samples-table td {
-  color: var(--app-text);
-}
-
-.samples-table th:first-child,
-.samples-table td:first-child,
-.samples-table th:nth-child(2),
-.samples-table td:nth-child(2),
-.samples-table th:nth-child(3),
-.samples-table td:nth-child(3),
-.samples-table th:nth-child(5),
-.samples-table td:nth-child(5),
-.samples-table th:nth-child(6),
-.samples-table td:nth-child(6),
-.samples-table th:nth-child(7),
-.samples-table td:nth-child(7),
-.samples-table th:nth-child(8),
-.samples-table td:nth-child(8),
-.samples-table th:nth-child(9),
-.samples-table td:nth-child(9) {
-  text-align: left;
-}
-
-.name-cell {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.empty-state,
-.empty-row {
-  color: var(--app-text-muted);
-  font-size: 0.82rem;
-}
-
-.empty-state {
-  border-top: 1px solid var(--app-border);
-  padding-top: 0.7rem;
-}
-
-.empty-state.compact {
-  font-size: 0.78rem;
-}
-
-.empty-row {
-  text-align: center !important;
+.panel-empty {
+  align-self: start;
 }
 
 @media (min-width: 640px) {
@@ -752,17 +669,19 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 860px) {
   .diagnostics-header {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .header-controls {
+    grid-template-columns: 1fr;
     justify-content: stretch;
   }
 
   .window-tabs {
+    min-width: 0;
     width: 100%;
   }
 

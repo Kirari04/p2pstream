@@ -79,9 +79,9 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     key: "environment",
     minWidth: 260,
     render: (environment) => h("div", [
-      h("p", { class: "font-medium text-[var(--app-text)]" }, environment.name),
-      h("p", { class: "max-w-md truncate font-mono text-xs text-[var(--app-text-muted)]" }, environment.managementUrl),
-      h("div", { class: "mt-2 flex gap-2" }, [
+      h("p", { class: "weight-medium base-text" }, environment.name),
+      h("p", { class: "max-auth-width clip-text mono-text copy-xs muted-text" }, environment.managementUrl),
+      h("div", { class: "margin-top-sm layout-row space-sm" }, [
         !environment.enabled
           ? h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Disabled" })
           : null,
@@ -96,12 +96,12 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     key: "transport",
     minWidth: 180,
     render: (environment) => h("div", [
-      h("p", { class: "text-[var(--app-text)]" }, transportLabel(environment.transport)),
+      h("p", { class: "base-text" }, transportLabel(environment.transport)),
       environment.transport === EnvironmentTransport.AGENT
-        ? h("p", { class: "font-mono text-xs text-[var(--app-text-muted)]" }, [
+        ? h("p", { class: "mono-text copy-xs muted-text" }, [
           environment.agentName || `agent #${environment.agentId.toString()}`,
           " ",
-          h("span", { class: environment.agentConnected ? "text-green-400" : "text-amber-400" }, environment.agentConnected ? "connected" : "offline"),
+          h("span", { class: environment.agentConnected ? "success-text" : "warning-text" }, environment.agentConnected ? "connected" : "offline"),
         ])
         : null,
     ]),
@@ -120,35 +120,35 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     title: "Certificate",
     key: "certificate",
     minWidth: 260,
-    render: (environment) => h("div", { class: "grid max-w-[18rem] gap-1.5" }, [
-      h("p", { class: "truncate text-xs text-[var(--app-text)]", title: certificateSubject(certificateForEnvironment(environment)) }, certificateSubject(certificateForEnvironment(environment))),
+    render: (environment) => h("div", { class: "layout-grid max-token-width space-xs" }, [
+      h("p", { class: "clip-text copy-xs base-text", title: certificateSubject(certificateForEnvironment(environment)) }, certificateSubject(certificateForEnvironment(environment))),
       h(
         "code",
         {
-          class: "inline-flex max-w-full rounded border border-[var(--app-border)] bg-[var(--app-panel-muted)] px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-[var(--app-text)]",
+          class: "inline-row max-full round-sm framed frame-standard muted-bg pad-x-sm pad-y-xs mono-text copy-micro label-case letter-wide base-text",
           title: certificateFingerprintForEnvironment(environment) || "No certificate discovered",
         },
-        [h("span", { class: "truncate" }, formatFingerprint(certificateFingerprintForEnvironment(environment)))],
+        [h("span", { class: "clip-text" }, formatFingerprint(certificateFingerprintForEnvironment(environment)))],
       ),
-      h("p", { class: "text-xs text-[var(--app-text-muted)]" }, `Expires ${formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis)}`),
+      h("p", { class: "copy-xs muted-text" }, `Expires ${formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis)}`),
     ]),
   },
   {
     title: "Test Result",
     key: "testResult",
     minWidth: 220,
-    render: (environment) => h("div", { class: "grid max-w-xs gap-1.5", "aria-live": "polite" }, [
+    render: (environment) => h("div", { class: "layout-grid max-content-sm space-xs", "aria-live": "polite" }, [
       h(
         NTag,
         { size: "small", bordered: false, type: naiveTagType(testResultSeverity(environment)) },
         { default: () => testResultLabel(environment) },
       ),
-      h("p", { class: "font-mono text-xs text-[var(--app-text)]" }, formatDate(testResultCheckedAt(environment))),
+      h("p", { class: "mono-text copy-xs base-text" }, formatDate(testResultCheckedAt(environment))),
       testResultMessage(environment)
         ? h(
           "p",
           {
-            class: ["truncate text-xs", testResultState(environment) === "error" ? "text-red-400" : "text-[var(--app-text-muted)]"],
+            class: ["clip-text copy-xs", testResultState(environment) === "error" ? "error-text" : "muted-text"],
             title: testResultMessage(environment),
           },
           testResultMessage(environment),
@@ -161,7 +161,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     key: "actions",
     width: 300,
     align: "right",
-    render: (environment) => h("div", { class: "flex justify-end gap-2" }, [
+    render: (environment) => h("div", { class: "layout-row align-end-row space-sm" }, [
       h(NButton, {
         secondary: true,
         size: "small",
@@ -169,7 +169,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         title: "Discover certificate",
         disabled: Boolean(busyDisabledReason.value),
         onClick: () => void discoverCertificate(environment),
-      }, { icon: () => h(RefreshIcon, { class: "h-3.5 w-3.5" }) }),
+      }, { icon: () => h(RefreshIcon, { class: "icon-sm" }) }),
       h(NButton, {
         secondary: true,
         size: "small",
@@ -177,7 +177,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         title: "Trust certificate",
         disabled: Boolean(busyDisabledReason.value) || !environment.observedCertificate?.sha256Fingerprint,
         onClick: () => trustCertificate(environment),
-      }, { icon: () => h(CheckIcon, { class: "h-3.5 w-3.5" }) }),
+      }, { icon: () => h(CheckIcon, { class: "icon-sm" }) }),
       h(
         DisabledHint,
         { disabled: Boolean(testEnvironmentDisabledReason(environment)), reason: testEnvironmentDisabledReason(environment) },
@@ -198,7 +198,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         title: "Edit environment",
         disabled: Boolean(busyDisabledReason.value),
         onClick: () => openEditEnvironment(environment),
-      }, { icon: () => h(PencilIcon, { class: "h-3.5 w-3.5" }) }),
+      }, { icon: () => h(PencilIcon, { class: "icon-sm" }) }),
       h(NButton, {
         type: "error",
         size: "small",
@@ -206,7 +206,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         title: "Delete environment",
         disabled: Boolean(busyDisabledReason.value),
         onClick: () => void deleteEnvironment(environment),
-      }, { icon: () => h(TrashIcon, { class: "h-3.5 w-3.5" }) }),
+      }, { icon: () => h(TrashIcon, { class: "icon-sm" }) }),
     ]),
   },
 ]);
@@ -537,27 +537,27 @@ function handleTrustModalUpdate(show: boolean) {
 </script>
 
 <template>
-  <div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div class="stack-xl">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
-        <h4 class="mb-2 text-lg font-semibold text-[var(--app-text)]">Environments</h4>
-        <p class="text-sm text-[var(--app-text-muted)]">Remote management endpoints, routing, and certificate trust.</p>
+        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Environments</h4>
+        <p class="copy-sm muted-text">Remote management endpoints, routing, and certificate trust.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
         <NButton secondary size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
           Add Environment
         </NButton>
       </DisabledHint>
     </div>
 
-    <div v-if="operationError" class="rounded-md border border-red-900/60 bg-[var(--app-panel)] p-4 text-sm text-red-400">
+    <div v-if="operationError" class="round-md framed error-border panel-bg pad-lg copy-sm error-text">
       {{ operationError }}
     </div>
 
-    <section class="app-card overflow-hidden">
-      <div class="border-b border-[var(--app-border)] px-5 py-4">
-        <h5 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Registered Environments</h5>
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg">
+        <h5 class="copy-sm weight-semibold label-case letter-widest muted-text">Registered Environments</h5>
       </div>
       <NDataTable
         :columns="environmentColumns"
@@ -578,18 +578,18 @@ function handleTrustModalUpdate(show: boolean) {
       :style="modalCardStyle('42rem')"
       :bordered="false"
     >
-      <form class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1" @submit.prevent="submitEnvironment">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <form class="layout-grid max-modal-height space-lg scroll-y pad-right-xs" @submit.prevent="submitEnvironment">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
           <NInput v-model:value="environmentForm.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Management URL
           <NInput v-model:value="environmentForm.managementUrl" size="small" placeholder="https://proxy.example.com:8081" required />
         </label>
-        <div class="grid gap-2 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div class="layout-grid space-sm copy-xs weight-medium label-case letter-wide muted-text">
           Transport
-          <NButtonGroup class="w-fit" size="small">
+          <NButtonGroup class="fit-width" size="small">
             <NButton
               v-for="option in environmentTransportOptions"
               :key="option.value"
@@ -601,11 +601,11 @@ function handleTrustModalUpdate(show: boolean) {
             </NButton>
           </NButtonGroup>
         </div>
-        <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Local Agent
           <NSelect v-model:value="environmentForm.agentId" size="small" :options="localAgentOptions" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Access Token
           <NInput
             v-model:value="environmentForm.accessToken"
@@ -614,14 +614,14 @@ function handleTrustModalUpdate(show: boolean) {
             :required="!environmentForm.id"
           />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Response Header Timeout
           <NInputNumber v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
         </label>
         <NCheckbox v-model:checked="environmentForm.enabled">
           Enabled
         </NCheckbox>
-        <div class="mt-4 flex justify-end gap-3">
+        <div class="margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isEnvironmentModalOpen = false">Cancel</NButton>
           <NButton type="primary" attr-type="submit" :disabled="Boolean(busyDisabledReason)">
             {{ environmentForm.id ? 'Save Changes' : 'Create Environment' }}
@@ -637,51 +637,51 @@ function handleTrustModalUpdate(show: boolean) {
       :bordered="false"
       @update:show="handleTrustModalUpdate"
     >
-      <div class="grid gap-5">
-        <div class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
-          <div class="grid gap-4">
-            <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Environment</p>
-              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateTrustEnvironment?.name">
+      <div class="layout-grid space-xl">
+        <div class="round-md framed frame-standard muted-bg pad-lg">
+          <div class="layout-grid space-lg">
+            <div class="layout-grid space-2xs">
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">Environment</p>
+              <p class="clip-text copy-sm base-text" :title="certificateTrustEnvironment?.name">
                 {{ certificateTrustEnvironment?.name }}
               </p>
             </div>
-            <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">SHA-256 Fingerprint</p>
+            <div class="layout-grid space-2xs">
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">SHA-256 Fingerprint</p>
               <code
-                class="block max-w-full truncate rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--app-text)]"
+                class="flow-box max-full clip-text round-md framed frame-standard panel-bg pad-x-md pad-y-sm mono-text copy-xs label-case letter-wide base-text"
                 :title="certificateTrustFingerprint"
               >
                 {{ formatFingerprint(certificateTrustFingerprint) }}
               </code>
             </div>
-            <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Subject</p>
-              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateSubject(certificateTrustCertificate)">
+            <div class="layout-grid space-2xs">
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">Subject</p>
+              <p class="clip-text copy-sm base-text" :title="certificateSubject(certificateTrustCertificate)">
                 {{ certificateSubject(certificateTrustCertificate) }}
               </p>
             </div>
-            <div v-if="certificateTrustCertificate?.issuer" class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Issuer</p>
-              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateTrustCertificate.issuer">
+            <div v-if="certificateTrustCertificate?.issuer" class="layout-grid space-2xs">
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">Issuer</p>
+              <p class="clip-text copy-sm base-text" :title="certificateTrustCertificate.issuer">
                 {{ certificateTrustCertificate.issuer }}
               </p>
             </div>
-            <div v-if="certificateSanSummary(certificateTrustCertificate)" class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Names</p>
-              <p class="truncate text-sm text-[var(--app-text)]" :title="certificateSanSummary(certificateTrustCertificate)">
+            <div v-if="certificateSanSummary(certificateTrustCertificate)" class="layout-grid space-2xs">
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">Names</p>
+              <p class="clip-text copy-sm base-text" :title="certificateSanSummary(certificateTrustCertificate)">
                 {{ certificateSanSummary(certificateTrustCertificate) }}
               </p>
             </div>
-            <div class="grid gap-1">
-              <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Valid Until</p>
-              <p class="font-mono text-xs text-[var(--app-text)]">
+            <div class="layout-grid space-2xs">
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">Valid Until</p>
+              <p class="mono-text copy-xs base-text">
                 {{ formatDate(certificateTrustCertificate?.notAfterUnixMillis) }}
               </p>
             </div>
           </div>
         </div>
-        <div class="flex justify-end gap-3">
+        <div class="layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="closeTrustCertificateModal">Cancel</NButton>
           <NButton
             type="primary"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
-import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NSelect, NSkeleton, useMessage, useNotification } from "naive-ui";
+import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NModal, NSelect, NSkeleton, useMessage, useNotification } from "naive-ui";
 import { computed, onMounted, provide } from "vue";
 import { useRoute } from "vue-router";
 import { managementClient } from "@/api/managementClient";
@@ -60,16 +60,21 @@ const {
   stopAutoRefresh,
 } = dashboardRefresh;
 
-const tabs = [
+type NavTab = {
+  path: string;
+  label: string;
+  activePrefix?: string;
+};
+
+const tabs: NavTab[] = [
   { path: "/overview", label: "Overview" },
-  { path: "/diagnostics", label: "Diagnostics" },
-  { path: "/traffic", label: "Traffic" },
-  { path: "/proxy", label: "Proxy" },
-  { path: "/agent", label: "Agents" },
-  { path: "/policies", label: "Traffic Policy" },
+  { path: "/monitor/traffic", label: "Monitor", activePrefix: "/monitor" },
+  { path: "/proxy/routes", label: "Proxy", activePrefix: "/proxy" },
+  { path: "/agent", label: "Agents", activePrefix: "/agent" },
+  { path: "/policies/rate-limits", label: "Traffic Policy", activePrefix: "/policies" },
   { path: "/templates", label: "Templates" },
   { path: "/tls", label: "TLS" },
-  { path: "/settings", label: "Settings" },
+  { path: "/settings", label: "Settings", activePrefix: "/settings" },
 ];
 
 const sourceOfferHref = "/.well-known/p2pstream/source";
@@ -86,7 +91,15 @@ const refreshDisabledReason = computed(() => {
   return "";
 });
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
-const canShowRouteContent = computed(() => Boolean(dashboard.value) || route.path.startsWith("/settings"));
+const canShowRouteContent = computed(() =>
+  Boolean(dashboard.value) || route.path.startsWith("/settings") || route.name === "not-found",
+);
+
+function isNavTabActive(tab: NavTab): boolean {
+  if (route.path === tab.path) return true;
+  if (!tab.activePrefix) return false;
+  return route.path === tab.activePrefix || route.path.startsWith(`${tab.activePrefix}/`);
+}
 
 // Provide state to views
 provide(dashboardKey, computed(() => dashboard.value));
@@ -176,31 +189,31 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
-    <header class="sticky top-0 z-50 border-b border-[var(--app-border)] bg-[var(--app-shell)]/95 backdrop-blur-xl">
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="flex h-16 items-center justify-between">
-          <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2">
-              <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--app-accent)] text-white shadow-sm">
-                <div class="h-3.5 w-3.5 rotate-45 rounded-[2px] border-2 border-white"></div>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <div class="app-header__bar">
+          <div class="app-brand">
+            <div class="app-brand__group">
+              <div class="app-brand__mark">
+                <div class="app-brand__diamond"></div>
               </div>
-              <span class="text-xl font-semibold tracking-normal">p2pstream</span>
+              <span class="app-brand__name">p2pstream</span>
             </div>
-            <div class="hidden h-6 w-px bg-[var(--app-border)] sm:block"></div>
-            <div v-if="currentUser" class="hidden sm:flex items-center gap-2">
-              <span class="text-sm font-medium text-[var(--app-text-muted)]">{{ currentUser.username }}</span>
+            <div class="app-brand__divider"></div>
+            <div v-if="currentUser" class="app-user">
+              <span>{{ currentUser.username }}</span>
             </div>
           </div>
 
-          <div class="flex items-center gap-3">
-            <label v-if="currentUser" class="hidden items-center gap-2 text-xs font-semibold uppercase tracking-normal text-[var(--app-text-muted)] md:flex">
+          <div class="app-header__actions">
+            <label v-if="currentUser" class="app-env-label">
               Environment
               <NSelect
                 v-model:value="selectedEnvironmentId"
                 data-testid="environment-select"
                 size="small"
-                class="w-52"
+                class="app-env-select"
                 :options="environmentSelectOptions"
                 :title="`Selected environment: ${selectedEnvironmentLabel}`"
               />
@@ -209,7 +222,7 @@ onMounted(() => {
               :href="sourceOfferHref"
               :title="sourceOfferTitle"
               :aria-label="sourceOfferTitle"
-              class="inline-flex text-sm font-medium text-[var(--app-text-muted)] transition-colors hover:text-[var(--app-text)]"
+              class="app-source-link"
               target="_blank"
               rel="noreferrer"
             >
@@ -227,7 +240,7 @@ onMounted(() => {
                 @click="loadDashboard"
               >
                 <template #icon>
-                  <RefreshIcon class="h-3.5 w-3.5" />
+                  <RefreshIcon class="icon-sm" />
                 </template>
               </NButton>
             </DisabledHint>
@@ -245,14 +258,14 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="currentUser && !isLoading && !setupState?.setupRequired" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <nav class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+      <div v-if="currentUser && !isLoading && !setupState?.setupRequired" class="app-header__nav-wrap">
+        <nav class="app-nav no-scrollbar">
           <router-link
             v-for="tab in tabs"
             :key="tab.path"
             :to="tab.path"
-            class="rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
-            active-class="bg-[var(--app-accent-soft)] text-[var(--app-accent)]"
+            class="app-nav__link"
+            :class="{ 'app-nav__link--active': isNavTabActive(tab) }"
           >
             {{ tab.label }}
           </router-link>
@@ -260,26 +273,26 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <NAlert v-if="error" type="error" class="mb-6" :bordered="false">
+    <main class="app-main">
+      <NAlert v-if="error" type="error" class="margin-bottom-xl" :bordered="false">
         {{ error }}
       </NAlert>
-      <NAlert v-if="selectedEnvironmentBlocked" type="warning" class="mb-6" :bordered="false">
+      <NAlert v-if="selectedEnvironmentBlocked" type="warning" class="margin-bottom-xl" :bordered="false">
         {{ selectedEnvironmentBlocked }}
       </NAlert>
 
-      <div v-if="isLoading" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div v-for="i in 4" :key="i" class="app-card p-6">
-          <NSkeleton text width="40%" height="0.75rem" class="mb-3" />
+      <div v-if="isLoading" class="layout-grid space-2xl mq-sm-cols-two mq-lg-cols-four">
+        <NCard v-for="i in 4" :key="i" :bordered="true">
+          <NSkeleton text width="40%" height="0.75rem" class="margin-bottom-md" />
           <NSkeleton text width="70%" height="1.5rem" />
-        </div>
+        </NCard>
       </div>
 
-      <div v-else-if="setupState?.setupRequired && setupState.setupAvailable" class="max-w-md mx-auto py-12">
-        <NCard :bordered="false" class="shadow-sm">
-          <h2 class="mb-2 text-2xl font-semibold tracking-normal">Setup Admin</h2>
-          <p class="mb-6 text-sm text-[var(--app-text-muted)]">Create the primary administrator account.</p>
-          <form class="grid gap-4" @submit.prevent="submitSetup">
+      <div v-else-if="setupState?.setupRequired && setupState.setupAvailable" class="max-auth-width centered-block pad-y-4xl">
+        <NCard :bordered="false" class="surface-shadow">
+          <h2 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Setup Admin</h2>
+          <p class="margin-bottom-xl copy-sm muted-text">Create the primary administrator account.</p>
+          <form class="layout-grid space-lg" @submit.prevent="submitSetup">
             <NForm :model="setupForm">
               <NFormItem label="Username" path="username">
                 <NInput v-model:value="setupForm.username" autocomplete="username" />
@@ -288,30 +301,30 @@ onMounted(() => {
                 <NInput v-model:value="setupForm.password" type="password" autocomplete="new-password" minlength="12" />
               </NFormItem>
             </NForm>
-            <NButton type="primary" attr-type="submit" class="mt-4 w-full" :loading="isBusy">
+            <NButton type="primary" attr-type="submit" class="margin-top-lg fill-width" :loading="isBusy">
               Complete Setup
             </NButton>
           </form>
         </NCard>
       </div>
 
-      <div v-else-if="setupState?.setupRequired" class="max-w-xl mx-auto py-12">
-        <NCard :bordered="false" class="shadow-sm">
-          <div class="mb-3 inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 dark:border-red-900/50 dark:bg-red-500/10 dark:text-red-300">
+      <div v-else-if="setupState?.setupRequired" class="max-panel-width centered-block pad-y-4xl">
+        <NCard :bordered="false" class="surface-shadow">
+          <div class="status-lock-pill margin-bottom-md">
             Setup locked
           </div>
-          <h2 class="mb-2 text-2xl font-semibold tracking-normal">Restart required</h2>
-          <p class="break-words text-sm leading-6 text-[var(--app-text-muted)]">
+          <h2 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Restart required</h2>
+          <p class="wrap-anywhere copy-sm line-relaxed muted-text">
             {{ setupState.setupUnavailableReason || "Setup window expired; restart the server to retry setup." }}
           </p>
         </NCard>
       </div>
 
-      <div v-else-if="!currentUser && !isLoading" class="max-w-md mx-auto py-12">
-        <NCard :bordered="false" class="shadow-sm">
-          <h2 class="mb-2 text-2xl font-semibold tracking-normal">Login</h2>
-          <p class="mb-6 text-sm text-[var(--app-text-muted)]">Enter your credentials to access the dashboard.</p>
-          <form class="grid gap-4" @submit.prevent="submitLogin">
+      <div v-else-if="!currentUser && !isLoading" class="max-auth-width centered-block pad-y-4xl">
+        <NCard :bordered="false" class="surface-shadow">
+          <h2 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Login</h2>
+          <p class="margin-bottom-xl copy-sm muted-text">Enter your credentials to access the dashboard.</p>
+          <form class="layout-grid space-lg" @submit.prevent="submitLogin">
             <NForm :model="loginForm">
               <NFormItem label="Username" path="username">
                 <NInput v-model:value="loginForm.username" autocomplete="username" />
@@ -320,7 +333,7 @@ onMounted(() => {
                 <NInput v-model:value="loginForm.password" type="password" autocomplete="current-password" />
               </NFormItem>
             </NForm>
-            <NButton type="primary" attr-type="submit" class="mt-4 w-full" :loading="isBusy">
+            <NButton type="primary" attr-type="submit" class="margin-top-lg fill-width" :loading="isBusy">
               Continue
             </NButton>
           </form>
@@ -330,32 +343,32 @@ onMounted(() => {
       <router-view v-else-if="canShowRouteContent"></router-view>
     </main>
 
-    <div
-      v-if="isLogoutConfirmOpen && currentUser"
-      class="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
-      role="presentation"
-      @click.self="cancelLogout"
+    <NModal
+      :show="isLogoutConfirmOpen && Boolean(currentUser)"
+      :mask-closable="!isBusy"
+      @update:show="(show) => { if (!show) cancelLogout(); }"
     >
-      <section
-        class="w-full max-w-md rounded-xl border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-2xl shadow-black/10"
+      <NCard
+        class="logout-card"
+        :bordered="false"
         role="dialog"
         aria-modal="true"
         aria-labelledby="logout-confirm-title"
         aria-describedby="logout-confirm-description"
       >
-        <div class="mb-5">
-          <div class="mb-3 inline-flex rounded-full border border-[var(--app-border)] px-2.5 py-1 text-xs font-semibold text-[var(--app-text-muted)]">
+        <div class="margin-bottom-xl">
+          <div class="margin-bottom-md inline-row round-full framed frame-standard pad-x-smd pad-y-xs copy-xs weight-semibold muted-text">
             Session
           </div>
-          <h2 id="logout-confirm-title" class="mb-2 text-xl font-semibold tracking-normal text-[var(--app-text)]">
+          <h2 id="logout-confirm-title" class="margin-bottom-sm copy-xl weight-semibold letter-normal base-text">
             Log out of p2pstream?
           </h2>
-          <p id="logout-confirm-description" class="text-sm leading-6 text-[var(--app-text-muted)]">
+          <p id="logout-confirm-description" class="copy-sm line-relaxed muted-text">
             Your current session will end and dashboard data will be cleared from this browser view.
           </p>
         </div>
 
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div class="layout-row layout-column-reverse space-md mq-sm-row mq-sm-end">
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
             <NButton
               secondary
@@ -376,18 +389,7 @@ onMounted(() => {
             </NButton>
           </DisabledHint>
         </div>
-      </section>
-    </div>
+      </NCard>
+    </NModal>
   </div>
 </template>
-
-<style>
-nav a:not(.router-link-active) {
-  color: var(--app-text-muted);
-}
-
-nav a:not(.router-link-active):hover {
-  background: var(--app-panel-muted);
-  color: var(--app-text);
-}
-</style>
