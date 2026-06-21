@@ -267,12 +267,22 @@ func validatePublicPolicyMatchCELAst(checked *cel.Ast) error {
 				}
 			}
 		case "matches":
-			if call.IsMemberFunction() && len(args) == 1 {
-				if value, ok := publicPolicyMatchStringLiteral(args[0]); ok {
-					if _, err := regexp.Compile(value); err != nil {
-						validationErr = fmt.Errorf("policy match regex value is invalid")
-					}
-				}
+			if !call.IsMemberFunction() || len(args) != 1 {
+				validationErr = fmt.Errorf("policy match regex call is invalid")
+				return
+			}
+			value, ok := publicPolicyMatchStringLiteral(args[0])
+			if !ok {
+				validationErr = fmt.Errorf("policy match regex argument must be a string literal")
+				return
+			}
+			if len(value) > maxPublicPolicyMatchValueBytes {
+				validationErr = fmt.Errorf("policy match regex value is too large")
+				return
+			}
+			if _, err := regexp.Compile(value); err != nil {
+				validationErr = fmt.Errorf("policy match regex value is invalid")
+				return
 			}
 		}
 	})
