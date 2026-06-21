@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NSelect, NSkeleton, useMessage, useNotification } from "naive-ui";
-import { computed, onBeforeUnmount, onMounted, ref, provide, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, provide } from "vue";
 import { useRoute } from "vue-router";
-import { localManagementClient, managementClient, setActiveManagementClientBase } from "@/api/managementClient";
+import { managementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 import {
@@ -20,34 +20,45 @@ import {
   selectedEnvironmentLabelKey,
   setProxyRunningKey,
 } from "@/composables/managementContextKeys";
+import { useDashboardRefresh } from "@/composables/useDashboardRefresh";
+import { useManagementSession } from "@/composables/useManagementSession";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { messageFromError } from "@/lib/errors";
-import {
-  EnvironmentTrustState,
-  type Environment,
-  type GetDashboardResponse,
-  type GetPublicProxyConfigResponse,
-  type GetSetupStateResponse,
-  type User,
-} from "@/gen/proto/p2pstream/v1/management_pb";
 
 const message = useMessage();
 const notification = useNotification();
 const route = useRoute();
 
-const setupState = ref<GetSetupStateResponse | null>(null);
-const currentUser = ref<User | null>(null);
-const dashboard = ref<GetDashboardResponse | null>(null);
-const publicProxyConfig = ref<GetPublicProxyConfigResponse | null>(null);
-const environments = ref<Environment[]>([]);
-const selectedEnvironmentId = ref(loadSelectedEnvironmentId());
-const isLoading = ref(true);
-const isBusy = ref(false);
-const isRefreshing = ref(false);
-const pendingDashboardReload = ref(false);
-const isLogoutConfirmOpen = ref(false);
-const refreshTimer = ref<number | null>(null);
-const error = ref<string | null>(null);
+const session = useManagementSession();
+const {
+  setupState,
+  currentUser,
+  setupForm,
+  loginForm,
+  isLoading,
+  isBusy,
+  isLogoutConfirmOpen,
+  error,
+  requestLogout,
+  cancelLogout,
+} = session;
+const dashboardRefresh = useDashboardRefresh({ currentUser, error, isBusy, isLoading });
+const {
+  dashboard,
+  publicProxyConfig,
+  environments,
+  selectedEnvironmentId,
+  selectedEnvironmentLabel,
+  selectedEnvironmentBlocked,
+  environmentSelectOptions,
+  isRefreshing,
+  loadEnvironments,
+  loadDashboard,
+  loadAuthenticatedData,
+  clearDashboardState,
+  clearAuthenticatedData,
+  stopAutoRefresh,
+} = dashboardRefresh;
 
 const tabs = [
   { path: "/overview", label: "Overview" },
@@ -69,92 +80,13 @@ const sourceOfferTitle = computed(() => {
   return "View source and license";
 });
 
-const setupForm = ref({ username: "admin", password: "" });
-const setupToken = ref("");
-const loginForm = ref({ username: "admin", password: "" });
 const refreshDisabledReason = computed(() => {
   if (isRefreshing.value) return "Dashboard refresh is already running.";
   if (isBusy.value) return BUSY_REASON;
   return "";
 });
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
-const environmentOptions = computed(() => [
-  { id: "0", name: "Local", enabled: true, trustState: EnvironmentTrustState.TRUSTED },
-  ...environments.value.map((environment) => ({
-    id: environment.id.toString(),
-    name: environment.name,
-    enabled: environment.enabled,
-    trustState: environment.trustState,
-  })),
-]);
-const environmentSelectOptions = computed(() => environmentOptions.value.map((environment) => ({
-  label: `${environment.name}${environment.enabled ? "" : " (disabled)"}`,
-  value: environment.id,
-})));
-const selectedRemoteEnvironment = computed(() => {
-  if (selectedEnvironmentId.value === "0") return null;
-  return environments.value.find((environment) => environment.id.toString() === selectedEnvironmentId.value) ?? null;
-});
-const selectedEnvironmentLabel = computed(() => selectedRemoteEnvironment.value?.name ?? "Local");
-const selectedEnvironmentBlocked = computed(() => {
-  const environment = selectedRemoteEnvironment.value;
-  if (!environment) return "";
-  if (!environment.enabled) return "Environment is disabled.";
-  if (environment.trustState !== EnvironmentTrustState.TRUSTED) return "Environment certificate must be trusted before management requests can run.";
-  return "";
-});
 const canShowRouteContent = computed(() => Boolean(dashboard.value) || route.path.startsWith("/settings"));
-
-function loadSelectedEnvironmentId(): string {
-  try {
-    return window.localStorage.getItem("p2pstream:selected-environment") || "0";
-  } catch {
-    return "0";
-  }
-}
-
-function persistSelectedEnvironmentId() {
-  try {
-    window.localStorage.setItem("p2pstream:selected-environment", selectedEnvironmentId.value);
-  } catch {
-    // Ignore private browsing/storage failures.
-  }
-}
-
-async function loadEnvironments() {
-  if (!currentUser.value) {
-    environments.value = [];
-    selectedEnvironmentId.value = "0";
-    return;
-  }
-  const resp = await localManagementClient.listEnvironments({});
-  environments.value = resp.environments;
-  if (selectedEnvironmentId.value !== "0" && !environments.value.some((environment) => environment.id.toString() === selectedEnvironmentId.value && environment.enabled)) {
-    selectedEnvironmentId.value = "0";
-  }
-}
-
-function syncSelectedEnvironmentClient() {
-  const environment = selectedRemoteEnvironment.value;
-  if (!environment) {
-    setActiveManagementClientBase(window.location.origin);
-  } else {
-    setActiveManagementClientBase(`${window.location.origin}/environments/${environment.id.toString()}`);
-  }
-  persistSelectedEnvironmentId();
-}
-
-watch(selectedEnvironmentId, () => {
-  syncSelectedEnvironmentClient();
-  if (!currentUser.value) return;
-  dashboard.value = null;
-  publicProxyConfig.value = null;
-  if (isLoading.value) {
-    pendingDashboardReload.value = true;
-    return;
-  }
-  void loadDashboard();
-});
 
 // Provide state to views
 provide(dashboardKey, computed(() => dashboard.value));
@@ -173,28 +105,13 @@ async function bootstrap() {
   stopAutoRefresh();
 
   try {
-    setupState.value = await localManagementClient.getSetupState({});
-    if (setupState.value.setupRequired) {
-      currentUser.value = null;
-      dashboard.value = null;
-      publicProxyConfig.value = null;
+    const sessionState = await session.bootstrapSession();
+    if (sessionState !== "authenticated") {
+      clearDashboardState();
       return;
     }
 
-    try {
-      const userResp = await localManagementClient.getCurrentUser({});
-      currentUser.value = userResp.user ?? null;
-    } catch {
-      currentUser.value = null;
-      dashboard.value = null;
-      publicProxyConfig.value = null;
-      return;
-    }
-
-    await loadEnvironments();
-    syncSelectedEnvironmentClient();
-    await loadDashboard();
-    startAutoRefresh();
+    await loadAuthenticatedData();
   } catch (err) {
     error.value = messageFromError(err);
   } finally {
@@ -202,135 +119,16 @@ async function bootstrap() {
   }
 }
 
-async function loadDashboard() {
-  if (isRefreshing.value) {
-    pendingDashboardReload.value = true;
-    return;
-  }
-  isRefreshing.value = true;
-  error.value = null;
-  const loadEnvironmentId = selectedEnvironmentId.value;
-  try {
-    syncSelectedEnvironmentClient();
-    const [dashboardResp, publicProxyResp] = await Promise.all([
-      managementClient.getDashboard({}),
-      managementClient.getPublicProxyConfig({}),
-    ]);
-    if (loadEnvironmentId !== selectedEnvironmentId.value) {
-      pendingDashboardReload.value = true;
-      return;
-    }
-    dashboard.value = dashboardResp;
-    publicProxyConfig.value = publicProxyResp;
-  } catch (err) {
-    if (loadEnvironmentId === selectedEnvironmentId.value) {
-      error.value = messageFromError(err);
-    } else {
-      pendingDashboardReload.value = true;
-    }
-  } finally {
-    isRefreshing.value = false;
-    if (pendingDashboardReload.value && currentUser.value) {
-      pendingDashboardReload.value = false;
-      void loadDashboard();
-    }
-  }
-}
-
-function startAutoRefresh() {
-  stopAutoRefresh();
-  if (!currentUser.value) return;
-  refreshTimer.value = window.setInterval(() => {
-    if (!currentUser.value || isBusy.value || isRefreshing.value) return;
-    void loadDashboard();
-  }, 5000);
-}
-
-function stopAutoRefresh() {
-  if (refreshTimer.value !== null) {
-    window.clearInterval(refreshTimer.value);
-    refreshTimer.value = null;
-  }
-}
-
 async function submitSetup() {
-  isBusy.value = true;
-  error.value = null;
-  try {
-    await localManagementClient.setupAdmin({
-      username: setupForm.value.username,
-      password: setupForm.value.password,
-      setupToken: setupToken.value,
-    });
-    await login(setupForm.value.username, setupForm.value.password);
-    setupState.value = await localManagementClient.getSetupState({});
-    await loadDashboard();
-    startAutoRefresh();
-  } catch (err) {
-    error.value = messageFromError(err);
-  } finally {
-    isBusy.value = false;
-  }
+  await session.submitSetup(loadAuthenticatedData);
 }
 
 async function submitLogin() {
-  isBusy.value = true;
-  error.value = null;
-  try {
-    await login(loginForm.value.username, loginForm.value.password);
-    await loadDashboard();
-    startAutoRefresh();
-  } catch (err) {
-    error.value = messageFromError(err);
-  } finally {
-    isBusy.value = false;
-  }
-}
-
-async function login(username: string, password: string) {
-  const loginResp = await localManagementClient.login({ username, password });
-  currentUser.value = loginResp.user ?? null;
-  await loadEnvironments();
-  syncSelectedEnvironmentClient();
-}
-
-function requestLogout() {
-  if (isBusy.value) return;
-  isLogoutConfirmOpen.value = true;
-}
-
-function cancelLogout() {
-  if (isBusy.value) return;
-  isLogoutConfirmOpen.value = false;
+  await session.submitLogin(loadAuthenticatedData);
 }
 
 async function confirmLogout() {
-  const didLogout = await logout();
-  if (didLogout) {
-    isLogoutConfirmOpen.value = false;
-  }
-}
-
-async function logout(): Promise<boolean> {
-  isBusy.value = true;
-  error.value = null;
-  try {
-    await localManagementClient.logout({});
-    stopAutoRefresh();
-    currentUser.value = null;
-    dashboard.value = null;
-    publicProxyConfig.value = null;
-    environments.value = [];
-    selectedEnvironmentId.value = "0";
-    syncSelectedEnvironmentClient();
-    loginForm.value.password = "";
-    return true;
-  } catch (err) {
-    error.value = messageFromError(err);
-    return false;
-  } finally {
-    isBusy.value = false;
-  }
+  await session.confirmLogout(clearAuthenticatedData);
 }
 
 async function setProxyRunning(shouldRun: boolean) {
@@ -370,39 +168,8 @@ provide(setProxyRunningKey, setProxyRunning);
 provide(runManagementActionKey, runManagementAction);
 provide(logoutKey, requestLogout);
 
-function setupTokenFromURL(): string {
-  const routeToken = stringQueryValue(route.query.setup_token);
-  if (routeToken) {
-    scrubSetupTokenFromURL();
-    return routeToken;
-  }
-  try {
-    const token = new URLSearchParams(window.location.search).get("setup_token")?.trim() ?? "";
-    if (token) scrubSetupTokenFromURL();
-    return token;
-  } catch {
-    return "";
-  }
-}
-
-function scrubSetupTokenFromURL() {
-  try {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has("setup_token")) return;
-    url.searchParams.delete("setup_token");
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-  } catch {
-    // Ignore browsers or test environments without full history support.
-  }
-}
-
-function stringQueryValue(value: unknown): string {
-  if (Array.isArray(value)) return stringQueryValue(value[0]);
-  return typeof value === "string" ? value.trim() : "";
-}
-
 onMounted(() => {
-  setupToken.value = setupTokenFromURL();
+  session.initializeSetupToken();
   void bootstrap();
 });
 
