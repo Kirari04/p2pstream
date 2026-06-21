@@ -43,6 +43,7 @@ func (a *App) publicConfigService() *publicConfigService {
 	if a.publicConfig != nil {
 		return a.publicConfig
 	}
+	// Cache the initial dependencies; callers should not reassign them after construction.
 	a.publicConfig = newPublicConfigService(a, a.DB, a.TargetHealth, appPublicConfigRuntime{app: a})
 	return a.publicConfig
 }
