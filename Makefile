@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test verify verify-clean-tree
+.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -19,6 +19,9 @@ generate-sqlc:
 generate: generate-proto generate-sqlc
 
 sqlc: generate-sqlc
+
+schema-check:
+	@go test ./internal/db -run TestSchemaParity
 
 frontend-install:
 	@cd web/management && bun install --frozen-lockfile
