@@ -38,6 +38,9 @@ func Open(databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	// Keep runtime PRAGMAs aligned with applySQLitePragmas. The DSN covers new
+	// pooled connections; this block establishes the opened handle and settings
+	// that are not exposed as go-sqlite3 DSN options.
 	if _, err := db.ExecContext(context.Background(), `
 		PRAGMA journal_mode = WAL;
 		PRAGMA synchronous = NORMAL;
@@ -57,7 +60,8 @@ func Open(databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	// Enforce pragmas for any connections opened after migration.
+	// Enforce the same runtime pragmas after migration in case schema setup
+	// opened additional pooled connections.
 	if _, err := db.ExecContext(context.Background(), `
 		PRAGMA journal_mode = WAL;
 		PRAGMA synchronous = NORMAL;

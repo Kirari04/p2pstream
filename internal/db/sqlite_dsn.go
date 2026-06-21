@@ -33,6 +33,8 @@ func normalizeSQLiteDSN(databaseURL string) (string, error) {
 }
 
 func applySQLitePragmas(values url.Values) {
+	// Keep connection-open DSN pragmas aligned with Open's runtime PRAGMA block.
+	// The DSN values apply to every sqlite3 connection the pool creates.
 	values.Set("_journal_mode", "WAL")
 	values.Set("_synchronous", "NORMAL")
 	values.Set("_busy_timeout", "10000")

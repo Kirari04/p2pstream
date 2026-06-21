@@ -62,10 +62,13 @@ func TestOpenSecuresSQLiteDirectoryAndFiles(t *testing.T) {
 	}
 }
 
-func TestOpenChmodsExistingSQLiteDirectory(t *testing.T) {
+func TestOpenPreservesExistingSQLiteDirectoryMode(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "loose")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.Chmod(dir, 0755); err != nil {
+		t.Fatalf("chmod setup dir: %v", err)
 	}
 
 	database, err := Open(filepath.Join(dir, "p2pstream.db"))
@@ -74,7 +77,7 @@ func TestOpenChmodsExistingSQLiteDirectory(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 
-	assertDBMode(t, dir, 0700)
+	assertDBMode(t, dir, 0755)
 }
 
 func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
