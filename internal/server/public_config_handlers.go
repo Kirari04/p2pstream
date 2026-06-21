@@ -17,6 +17,14 @@ func (a *App) GetPublicProxyConfig(
 	if _, err := a.requireUser(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().getPublicProxyConfig(ctx, req)
+}
+
+func (s *publicConfigService) getPublicProxyConfig(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.GetPublicProxyConfigRequest],
+) (*connect.Response[p2pstreamv1.GetPublicProxyConfigResponse], error) {
+	a := s.app
 	resp, err := a.publicProxyConfigResponse(ctx)
 	if err != nil {
 		return nil, err
@@ -31,6 +39,13 @@ func (a *App) ListPublicRouteTargetHealthTraces(
 	if _, err := a.requireUser(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().listPublicRouteTargetHealthTraces(ctx, req)
+}
+
+func (s *publicConfigService) listPublicRouteTargetHealthTraces(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.ListPublicRouteTargetHealthTracesRequest],
+) (*connect.Response[p2pstreamv1.ListPublicRouteTargetHealthTracesResponse], error) {
 	if req.Msg.RouteTargetId <= 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route target id is required"))
 	}
@@ -40,8 +55,8 @@ func (a *App) ListPublicRouteTargetHealthTraces(
 	}
 	var traces []*p2pstreamv1.PublicRouteTargetHealthTrace
 	var retained int64
-	if a.TargetHealth != nil {
-		traces, retained = a.TargetHealth.listHealthTraces(req.Msg.RouteTargetId, req.Msg.AgentId, limit, req.Msg.FailuresOnly)
+	if s.targetHealth != nil {
+		traces, retained = s.targetHealth.listHealthTraces(req.Msg.RouteTargetId, req.Msg.AgentId, limit, req.Msg.FailuresOnly)
 	}
 	return connect.NewResponse(&p2pstreamv1.ListPublicRouteTargetHealthTracesResponse{
 		Traces:               traces,
@@ -57,11 +72,19 @@ func (a *App) CreatePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().createPublicListener(ctx, req)
+}
+
+func (s *publicConfigService) createPublicListener(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.CreatePublicListenerRequest],
+) (*connect.Response[p2pstreamv1.CreatePublicListenerResponse], error) {
+	a := s.app
 	params, err := a.validatePublicListenerInput(req.Msg.Name, req.Msg.BindAddress, req.Msg.Port, req.Msg.Protocol, req.Msg.Enabled, false)
 	if err != nil {
 		return nil, err
 	}
-	listener, err := a.DB.CreatePublicListener(ctx, db.CreatePublicListenerParams{
+	listener, err := s.db.CreatePublicListener(ctx, db.CreatePublicListenerParams{
 		Name:        params.Name,
 		BindAddress: params.BindAddress,
 		Port:        params.Port,
@@ -78,7 +101,7 @@ func (a *App) CreatePublicListener(
 	return connect.NewResponse(&p2pstreamv1.CreatePublicListenerResponse{
 		Listener: publicListenerToProto(listener),
 		Status:   status,
-		Proxy:    a.proxyStatus(),
+		Proxy:    publicConfigProxyStatus(s.runtime),
 	}), nil
 }
 
@@ -89,12 +112,20 @@ func (a *App) UpdatePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().updatePublicListener(ctx, req)
+}
+
+func (s *publicConfigService) updatePublicListener(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.UpdatePublicListenerRequest],
+) (*connect.Response[p2pstreamv1.UpdatePublicListenerResponse], error) {
+	a := s.app
 	params, err := a.validatePublicListenerInput(req.Msg.Name, req.Msg.BindAddress, req.Msg.Port, req.Msg.Protocol, req.Msg.Enabled, false)
 	if err != nil {
 		return nil, err
 	}
 	params.ID = req.Msg.Id
-	listener, err := a.DB.UpdatePublicListener(ctx, params)
+	listener, err := s.db.UpdatePublicListener(ctx, params)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -105,7 +136,7 @@ func (a *App) UpdatePublicListener(
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicListenerResponse{
 		Listener: publicListenerToProto(listener),
 		Status:   status,
-		Proxy:    a.proxyStatus(),
+		Proxy:    publicConfigProxyStatus(s.runtime),
 	}), nil
 }
 
@@ -116,6 +147,14 @@ func (a *App) DeletePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().deletePublicListener(ctx, req)
+}
+
+func (s *publicConfigService) deletePublicListener(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.DeletePublicListenerRequest],
+) (*connect.Response[p2pstreamv1.DeletePublicListenerResponse], error) {
+	a := s.app
 	a.proxyMu.Lock()
 	running := false
 	if runtime := a.publicListenerState[req.Msg.Id]; runtime != nil {
@@ -125,7 +164,7 @@ func (a *App) DeletePublicListener(
 	if running {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("stop or disable listener before deleting it"))
 	}
-	if err := a.DB.DeletePublicListener(ctx, req.Msg.Id); err != nil {
+	if err := s.db.DeletePublicListener(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
@@ -141,14 +180,22 @@ func (a *App) EnablePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	listener, err := a.DB.GetPublicListener(ctx, req.Msg.Id)
+	return a.publicConfigService().enablePublicListener(ctx, req)
+}
+
+func (s *publicConfigService) enablePublicListener(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.EnablePublicListenerRequest],
+) (*connect.Response[p2pstreamv1.EnablePublicListenerResponse], error) {
+	a := s.app
+	listener, err := s.db.GetPublicListener(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
 	if _, err := a.validatePublicListenerInput(listener.Name, listener.BindAddress, listener.Port, protoProtocolFromString(listener.Protocol), true, true); err != nil {
 		return nil, err
 	}
-	listener, err = a.DB.SetPublicListenerEnabled(ctx, db.SetPublicListenerEnabledParams{ID: req.Msg.Id, Enabled: 1})
+	listener, err = s.db.SetPublicListenerEnabled(ctx, db.SetPublicListenerEnabledParams{ID: req.Msg.Id, Enabled: 1})
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -159,7 +206,7 @@ func (a *App) EnablePublicListener(
 	return connect.NewResponse(&p2pstreamv1.EnablePublicListenerResponse{
 		Listener: publicListenerToProto(listener),
 		Status:   status,
-		Proxy:    a.proxyStatus(),
+		Proxy:    publicConfigProxyStatus(s.runtime),
 	}), nil
 }
 
@@ -170,7 +217,15 @@ func (a *App) DisablePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	listener, err := a.DB.SetPublicListenerEnabled(ctx, db.SetPublicListenerEnabledParams{ID: req.Msg.Id, Enabled: 0})
+	return a.publicConfigService().disablePublicListener(ctx, req)
+}
+
+func (s *publicConfigService) disablePublicListener(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.DisablePublicListenerRequest],
+) (*connect.Response[p2pstreamv1.DisablePublicListenerResponse], error) {
+	a := s.app
+	listener, err := s.db.SetPublicListenerEnabled(ctx, db.SetPublicListenerEnabledParams{ID: req.Msg.Id, Enabled: 0})
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -184,7 +239,7 @@ func (a *App) DisablePublicListener(
 	return connect.NewResponse(&p2pstreamv1.DisablePublicListenerResponse{
 		Listener: publicListenerToProto(listener),
 		Status:   status,
-		Proxy:    a.proxyStatus(),
+		Proxy:    publicConfigProxyStatus(s.runtime),
 	}), nil
 }
 
@@ -195,6 +250,14 @@ func (a *App) StartPublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().startPublicListener(ctx, req)
+}
+
+func (s *publicConfigService) startPublicListener(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.StartPublicListenerRequest],
+) (*connect.Response[p2pstreamv1.StartPublicListenerResponse], error) {
+	a := s.app
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -202,7 +265,7 @@ func (a *App) StartPublicListener(
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&p2pstreamv1.StartPublicListenerResponse{Status: status, Proxy: a.proxyStatus()}), nil
+	return connect.NewResponse(&p2pstreamv1.StartPublicListenerResponse{Status: status, Proxy: publicConfigProxyStatus(s.runtime)}), nil
 }
 
 func (a *App) StopPublicListener(
@@ -212,6 +275,14 @@ func (a *App) StopPublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().stopPublicListener(ctx, req)
+}
+
+func (s *publicConfigService) stopPublicListener(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.StopPublicListenerRequest],
+) (*connect.Response[p2pstreamv1.StopPublicListenerResponse], error) {
+	a := s.app
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -219,7 +290,7 @@ func (a *App) StopPublicListener(
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&p2pstreamv1.StopPublicListenerResponse{Status: status, Proxy: a.proxyStatus()}), nil
+	return connect.NewResponse(&p2pstreamv1.StopPublicListenerResponse{Status: status, Proxy: publicConfigProxyStatus(s.runtime)}), nil
 }
 
 func (a *App) CreatePublicRoute(
@@ -229,6 +300,14 @@ func (a *App) CreatePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().createPublicRoute(ctx, req)
+}
+
+func (s *publicConfigService) createPublicRoute(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.CreatePublicRouteRequest],
+) (*connect.Response[p2pstreamv1.CreatePublicRouteResponse], error) {
+	a := s.app
 	params, routeTargets, err := a.validatePublicRouteInput(
 		ctx,
 		req.Msg.ListenerId,
@@ -257,7 +336,7 @@ func (a *App) CreatePublicRoute(
 		return nil, err
 	}
 	upstreamHeaders, responseHeaders := a.publicRouteTargetHeaderMaps(ctx)
-	return connect.NewResponse(&p2pstreamv1.CreatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, a.TargetHealth)}), nil
+	return connect.NewResponse(&p2pstreamv1.CreatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, s.targetHealth)}), nil
 }
 
 func (a *App) UpdatePublicRoute(
@@ -267,6 +346,14 @@ func (a *App) UpdatePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().updatePublicRoute(ctx, req)
+}
+
+func (s *publicConfigService) updatePublicRoute(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.UpdatePublicRouteRequest],
+) (*connect.Response[p2pstreamv1.UpdatePublicRouteResponse], error) {
+	a := s.app
 	params, routeTargets, err := a.validatePublicRouteInput(
 		ctx,
 		req.Msg.ListenerId,
@@ -296,7 +383,7 @@ func (a *App) UpdatePublicRoute(
 		return nil, err
 	}
 	upstreamHeaders, responseHeaders := a.publicRouteTargetHeaderMaps(ctx)
-	return connect.NewResponse(&p2pstreamv1.UpdatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, a.TargetHealth)}), nil
+	return connect.NewResponse(&p2pstreamv1.UpdatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, s.targetHealth)}), nil
 }
 
 func (a *App) createPublicRouteWithTargets(
@@ -416,7 +503,15 @@ func (a *App) DeletePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	if err := a.DB.DeletePublicRoute(ctx, req.Msg.Id); err != nil {
+	return a.publicConfigService().deletePublicRoute(ctx, req)
+}
+
+func (s *publicConfigService) deletePublicRoute(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.DeletePublicRouteRequest],
+) (*connect.Response[p2pstreamv1.DeletePublicRouteResponse], error) {
+	a := s.app
+	if err := s.db.DeletePublicRoute(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
