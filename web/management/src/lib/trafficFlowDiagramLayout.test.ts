@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   PublicRouteAction,
+  PublicRouteRedirectTargetMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
   TrafficTraceStage,
@@ -17,6 +18,7 @@ import {
   agentKey,
   createTrafficFlowConfigIndex,
   listenerKey,
+  redirectKey,
   routeKey,
   targetKey,
   TrafficRequestPathCache,
@@ -84,6 +86,84 @@ describe("trafficFlowDiagramLayout", () => {
     expect(layout.nodeByKey.get(agentKey(7n))?.agentStatus?.state).toBe("connected");
     expect(edgeKeys(layout.edges)).toContain(`${targetKey(2n)}->${agentKey(7n)}`);
     expect(edgeKeys(layout.edges)).toContain(`${agentKey(7n)}->upstream`);
+  });
+
+  test("routes redirect actions through redirect and response nodes", () => {
+    const config = configWith({
+      listeners: [listener()],
+      routes: [route({
+        id: 3n,
+        listenerId: 1n,
+        action: PublicRouteAction.REDIRECT,
+        redirectTargetMode: PublicRouteRedirectTargetMode.ABSOLUTE_URL,
+        redirectTarget: "https://example.test/new",
+      })],
+    });
+    const layout = buildLayout(config, []);
+
+    expect(layout.nodeByKey.get(redirectKey(3n))?.kind).toBe("redirect");
+    expect(layout.nodeByKey.get(redirectKey(3n))?.subLabel).toBe("302 url");
+    expect(edgeKeys(layout.edges)).toContain(`${routeKey(3n)}->${redirectKey(3n)}`);
+    expect(edgeKeys(layout.edges)).toContain(`${redirectKey(3n)}->response`);
+  });
+
+  test("routes static targets through the static response node", () => {
+    const config = configWith({
+      listeners: [listener()],
+      routes: [route({ id: 3n, listenerId: 1n })],
+      routeTargets: [routeTarget({
+        id: 2n,
+        routeId: 3n,
+        targetType: PublicRouteTargetType.STATIC,
+        staticStatusCode: 204n,
+      })],
+    });
+    const layout = buildLayout(config, []);
+
+    expect(layout.nodeByKey.get("static-response")?.kind).toBe("upstream");
+    expect(edgeKeys(layout.edges)).toContain(`${targetKey(2n)}->static-response`);
+    expect(edgeKeys(layout.edges)).toContain("static-response->response");
+  });
+
+  test("routes terminal policy decisions directly to response", () => {
+    const wafBlocked = traceRequest({
+      requestId: "waf-blocked",
+      listenerId: 1n,
+      wafRuleId: 8n,
+      stage: TrafficTraceStage.WAF_BLOCKED,
+    });
+    const rateLimited = traceRequest({
+      requestId: "rate-limited",
+      listenerId: 1n,
+      rateLimitRuleId: 9n,
+      stage: TrafficTraceStage.RATE_LIMITED,
+    });
+    const layout = buildLayout(configWith({}), [wafBlocked, rateLimited]);
+
+    expect(edgeKeys(layout.edges)).toContain(`${WAF_KEY}->response`);
+    expect(edgeKeys(layout.edges)).toContain(`${RATE_LIMIT_KEY}->response`);
+  });
+
+  test("preserves attacker-controlled trace labels as node data", () => {
+    const hostileLabel = `<script>alert("x")</script> ${"very-long-hostname.".repeat(8)}`;
+    const request = traceRequest({
+      requestId: "hostile-labels",
+      listenerId: 1n,
+      listenerName: hostileLabel,
+      routeId: 3n,
+      routeLabel: `/prefix?<img src=x onerror=alert(1)> ${"segment/".repeat(16)}`,
+      routeTargetId: 2n,
+      routeTargetName: `target ${"<b>bold</b>".repeat(12)}`,
+      routeTargetType: PublicRouteTargetType.PROXY,
+      routeTargetTransport: PublicRouteTargetTransport.DIRECT,
+      stage: TrafficTraceStage.UPSTREAM_STARTED,
+    });
+    const layout = buildLayout(configWith({}), [request]);
+
+    expect(layout.nodeByKey.get(listenerKey(1n))?.label).toBe(hostileLabel);
+    expect(layout.nodeByKey.get(routeKey(3n))?.label).toContain("<img");
+    expect(layout.nodeByKey.get(targetKey(2n))?.label).toContain("<b>bold</b>");
+    expect(edgeKeys(layout.edges)).toContain(`${targetKey(2n)}->upstream`);
   });
 });
 
