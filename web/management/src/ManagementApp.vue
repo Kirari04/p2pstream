@@ -6,7 +6,22 @@ import { useRoute } from "vue-router";
 import { localManagementClient, managementClient, setActiveManagementClientBase } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
+import {
+  dashboardKey,
+  environmentsKey,
+  isBusyKey,
+  logoutKey,
+  managementClientKey,
+  publicProxyConfigKey,
+  reloadEnvironmentsKey,
+  runManagementActionKey,
+  selectedEnvironmentBlockedKey,
+  selectedEnvironmentIdKey,
+  selectedEnvironmentLabelKey,
+  setProxyRunningKey,
+} from "@/composables/managementContextKeys";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { messageFromError } from "@/lib/errors";
 import {
   EnvironmentTrustState,
   type Environment,
@@ -142,15 +157,15 @@ watch(selectedEnvironmentId, () => {
 });
 
 // Provide state to views
-provide('dashboard', computed(() => dashboard.value));
-provide('publicProxyConfig', computed(() => publicProxyConfig.value));
-provide('isBusy', computed(() => isBusy.value));
-provide('managementClient', managementClient);
-provide('environments', computed(() => environments.value));
-provide('selectedEnvironmentId', computed(() => selectedEnvironmentId.value));
-provide('selectedEnvironmentLabel', selectedEnvironmentLabel);
-provide('selectedEnvironmentBlocked', selectedEnvironmentBlocked);
-provide('reloadEnvironments', loadEnvironments);
+provide(dashboardKey, computed(() => dashboard.value));
+provide(publicProxyConfigKey, computed(() => publicProxyConfig.value));
+provide(isBusyKey, computed(() => isBusy.value));
+provide(managementClientKey, managementClient);
+provide(environmentsKey, computed(() => environments.value));
+provide(selectedEnvironmentIdKey, computed(() => selectedEnvironmentId.value));
+provide(selectedEnvironmentLabelKey, selectedEnvironmentLabel);
+provide(selectedEnvironmentBlockedKey, selectedEnvironmentBlocked);
+provide(reloadEnvironmentsKey, loadEnvironments);
 
 async function bootstrap() {
   isLoading.value = true;
@@ -351,13 +366,9 @@ async function runManagementAction(action: () => Promise<void>, successMessage?:
   }
 }
 
-provide('setProxyRunning', setProxyRunning);
-provide('runManagementAction', runManagementAction);
-provide('logout', requestLogout);
-
-function messageFromError(err: unknown): string {
-  return err instanceof Error ? err.message : "Request failed";
-}
+provide(setProxyRunningKey, setProxyRunning);
+provide(runManagementActionKey, runManagementAction);
+provide(logoutKey, requestLogout);
 
 function setupTokenFromURL(): string {
   const routeToken = stringQueryValue(route.query.setup_token);
