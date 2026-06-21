@@ -65,6 +65,19 @@ Key sources:
 - cookie,
 - query parameter.
 
+`REMOTE_IP` is the only built-in client-IP identity source. It uses the peer address seen by p2pstream. `HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Behind another reverse proxy, place p2pstream where it sees the real client address or use only trusted application headers; trusted-proxy parsing is not available yet.
+
+Before upgrading from an older version that allowed arbitrary header key parts, inspect stored rules:
+
+```sql
+SELECT id, name, key_parts_json
+FROM public_rate_limit_rules
+WHERE lower(key_parts_json) LIKE '%forwarded%'
+   OR lower(key_parts_json) LIKE '%x-real-ip%'
+   OR lower(key_parts_json) LIKE '%client-ip%'
+   OR lower(key_parts_json) LIKE '%connecting-ip%';
+```
+
 <figure class="doc-screenshot">
   <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy rate limits section showing rule priority, match summaries, algorithms, budgets, and enabled state">
   <figcaption>The Rate Limits section shows the active budgets beside nearby WAF controls, making priority and match breadth easier to audit.</figcaption>

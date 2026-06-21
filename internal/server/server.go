@@ -53,6 +53,7 @@ type App struct {
 	AgentTransports    *agentTransportPool
 	DashboardCache     *dashboardResponseCache
 	LoginThrottle      *loginThrottle
+	agentAuthLocks     *agentAuthLockMap
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -74,6 +75,40 @@ type App struct {
 
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
+
+	agentTunnelBeforeFinalAuth func(db.Agent)
+}
+
+type agentAuthLockMap struct {
+	mu    sync.Mutex
+	locks map[int64]*sync.Mutex
+}
+
+func newAgentAuthLockMap() *agentAuthLockMap {
+	return &agentAuthLockMap{locks: make(map[int64]*sync.Mutex)}
+}
+
+func (m *agentAuthLockMap) lock(agentID int64) func() {
+	if m == nil {
+		return func() {}
+	}
+	m.mu.Lock()
+	lock := m.locks[agentID]
+	if lock == nil {
+		lock = &sync.Mutex{}
+		m.locks[agentID] = lock
+	}
+	m.mu.Unlock()
+
+	lock.Lock()
+	return lock.Unlock
+}
+
+func (a *App) lockAgentAuth(agentID int64) func() {
+	if a == nil || a.agentAuthLocks == nil {
+		return func() {}
+	}
+	return a.agentAuthLocks.lock(agentID)
 }
 
 func NewApp(cfg *config.Config, database *db.DB) *App {
@@ -95,6 +130,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		AgentTransports:     newAgentTransportPool(),
 		DashboardCache:      newDashboardResponseCache(),
 		LoginThrottle:       newLoginThrottle(cfg.LoginThrottleMaxKeys),
+		agentAuthLocks:      newAgentAuthLockMap(),
 		latestAgentStats:    make(map[int64]stats.AgentStats),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
@@ -272,7 +308,9 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 }
 
 func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
-	agentRow, err := a.authenticateAgent(r.Context(), r.Header.Get("X-P2PStream-Agent-ID"), r.Header.Get("Authorization"))
+	publicID := r.Header.Get("X-P2PStream-Agent-ID")
+	authorization := r.Header.Get("Authorization")
+	agentRow, err := a.authenticateAgent(r.Context(), publicID, authorization)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -295,6 +333,31 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "agent tunnel requires HTTP/1.1 hijack support", http.StatusInternalServerError)
 		return
 	}
+
+	if a.agentTunnelBeforeFinalAuth != nil {
+		a.agentTunnelBeforeFinalAuth(agentRow)
+	}
+
+	unlock := a.lockAgentAuth(agentRow.ID)
+	locked := true
+	unlockAgentAuth := func() {
+		if locked {
+			locked = false
+			unlock()
+		}
+	}
+	defer unlockAgentAuth()
+
+	finalAgentRow, err := a.authenticateAgent(r.Context(), publicID, authorization)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if finalAgentRow.ID != agentRow.ID {
+		http.Error(w, "agent identity changed", http.StatusUnauthorized)
+		return
+	}
+	agentRow = finalAgentRow
 
 	if existing := a.AgentHub.connectedByID(agentRow.ID); existing != nil {
 		log.Warn().Str("agent", agentRow.PublicID).Msg("Rejecting duplicate agent connection")
@@ -364,6 +427,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Rejecting duplicate agent connection")
 		return
 	}
+	unlockAgentAuth()
+
 	cleanupAgent := func() {
 		a.AgentHub.disconnect(agent)
 		if a.TargetHealth != nil {

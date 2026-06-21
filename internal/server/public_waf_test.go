@@ -1174,6 +1174,91 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 	}
 }
 
+func TestPublicWafValidationRejectsUnsafeForwardingHeaderKeyParts(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	for _, header := range []string{"X-Forwarded-For", "x-real-ip", "CF-Connecting-IP"} {
+		_, err := app.validatePublicWafRuleInput(
+			context.Background(),
+			"unsafe-key",
+			100,
+			true,
+			p2pstreamv1.PublicWafRuleAction_PUBLIC_WAF_RULE_ACTION_BLOCK,
+			p2pstreamv1.PublicWafActivationMode_PUBLIC_WAF_ACTIVATION_MODE_ALWAYS,
+			[]*p2pstreamv1.PublicRateLimitKeyPart{{
+				Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+				Name:   header,
+			}},
+			0,
+			0,
+			nil,
+			nil,
+			0,
+			"",
+			p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+			0,
+			0,
+			0,
+			"",
+			nil,
+			nil,
+		)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("header %q: expected invalid argument, got %v", header, err)
+		}
+		if !strings.Contains(err.Error(), "rate limit header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+			t.Fatalf("header %q: unexpected error %v", header, err)
+		}
+	}
+}
+
+func TestPublicWafValidationAllowsApplicationHeaderKeyPart(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	params, err := app.validatePublicWafRuleInput(
+		context.Background(),
+		"safe-key",
+		100,
+		true,
+		p2pstreamv1.PublicWafRuleAction_PUBLIC_WAF_RULE_ACTION_BLOCK,
+		p2pstreamv1.PublicWafActivationMode_PUBLIC_WAF_ACTIVATION_MODE_ALWAYS,
+		[]*p2pstreamv1.PublicRateLimitKeyPart{{
+			Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+			Name:   "x-plan",
+		}},
+		0,
+		0,
+		nil,
+		nil,
+		0,
+		"",
+		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+		0,
+		0,
+		0,
+		"",
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("validate application header key part: %v", err)
+	}
+	if !strings.Contains(params.KeyPartsJSON, `"name":"X-Plan"`) {
+		t.Fatalf("key parts json = %q, want canonical X-Plan", params.KeyPartsJSON)
+	}
+}
+
+func TestPublicWafStoredRuleRejectsUnsafeForwardingHeaderKeyPart(t *testing.T) {
+	_, err := publicWafRuleRowToConfig(db.PublicWafRule{
+		Name:         "stored-unsafe",
+		KeyPartsJson: `[{"source":"header","name":"x-forwarded-for"}]`,
+	})
+	if err == nil {
+		t.Fatal("expected stored unsafe forwarding header key part to be rejected")
+	}
+	if !strings.Contains(err.Error(), "rate limit header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+		t.Fatalf("unexpected stored-row error: %v", err)
+	}
+}
+
 func TestPublicWafTriggerValidationPreservesDisabledSignals(t *testing.T) {
 	cfg, err := validatePublicWafTriggers(&p2pstreamv1.PublicWafTriggerConfig{
 		RequestWindowMillis:       10000,
