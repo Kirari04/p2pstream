@@ -56,6 +56,9 @@ func Open(databaseURL string) (*DB, error) {
 		Queries: New(db),
 	}
 
+	if err := runEmbeddedMigrations(db); err != nil {
+		return nil, err
+	}
 	if err := instance.migrate(); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}

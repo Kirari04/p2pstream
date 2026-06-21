@@ -80,6 +80,71 @@ func TestOpenPreservesExistingSQLiteDirectoryMode(t *testing.T) {
 	assertDBMode(t, dir, 0755)
 }
 
+func TestAdoptEmbeddedMigrationBaselineStampsLegacySchema(t *testing.T) {
+	database, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "legacy.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	if _, err := database.Exec(`
+		CREATE TABLE agents (id INTEGER PRIMARY KEY AUTOINCREMENT);
+		CREATE TABLE proxy_request_events (id INTEGER PRIMARY KEY AUTOINCREMENT);
+	`); err != nil {
+		t.Fatalf("create legacy sentinels: %v", err)
+	}
+
+	if err := adoptEmbeddedMigrationBaseline(database); err != nil {
+		t.Fatalf("adopt baseline: %v", err)
+	}
+	if err := adoptEmbeddedMigrationBaseline(database); err != nil {
+		t.Fatalf("adopt baseline again: %v", err)
+	}
+
+	rows, err := database.Query(`SELECT version_id FROM goose_db_version WHERE is_applied = 1 ORDER BY version_id`)
+	if err != nil {
+		t.Fatalf("query goose versions: %v", err)
+	}
+	defer rows.Close()
+	var versions []int64
+	for rows.Next() {
+		var version int64
+		if err := rows.Scan(&version); err != nil {
+			t.Fatalf("scan version: %v", err)
+		}
+		versions = append(versions, version)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate versions: %v", err)
+	}
+	if len(versions) != 2 || versions[0] != 0 || versions[1] != embeddedMigrationBaselineVersion {
+		t.Fatalf("versions = %v, want [0 1]", versions)
+	}
+}
+
+func TestAdoptEmbeddedMigrationBaselineIgnoresUnrelatedSchema(t *testing.T) {
+	database, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "unrelated.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	if _, err := database.Exec(`CREATE TABLE agents (id INTEGER PRIMARY KEY AUTOINCREMENT)`); err != nil {
+		t.Fatalf("create unrelated table: %v", err)
+	}
+	if err := adoptEmbeddedMigrationBaseline(database); err != nil {
+		t.Fatalf("adopt baseline: %v", err)
+	}
+
+	var count int64
+	if err := database.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'goose_db_version'`).Scan(&count); err != nil {
+		t.Fatalf("query sqlite_master: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("goose_db_version table exists for unrelated schema")
+	}
+}
+
 func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	database, err := Open(filepath.Join(t.TempDir(), "p2pstream-test.db"))
 	if err != nil {
