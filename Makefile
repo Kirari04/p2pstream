@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test
+.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test verify
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -107,6 +107,17 @@ docker-smoke-clean:
 test:
 	@go test ./...
 	@cd web/management && bun run typecheck
+
+verify:
+	@$(MAKE) generate
+	@git diff --exit-code
+	@bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+	@scripts/test-agent-lifecycle.sh
+	@go test ./...
+	@go vet ./...
+	@cd web/management && bun test src/lib/*.test.ts
+	@cd web/management && bun run typecheck
+	@cd web/management && bun run build
 
 kill:
 	@echo "Ensuring previous processes are killed..."

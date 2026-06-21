@@ -117,10 +117,13 @@ For shell-installed agents, uninstall and full-purge commands are documented in 
 ```bash
 make dev
 make test
+make verify
 make build
 make docker-build
 make docker-smoke
 ```
+
+`make verify` mirrors the main CI verification path: code generation drift check, installer syntax and lifecycle checks, Go tests and vet, management UI unit tests, typecheck, and production build.
 
 Development happens on the `dev` branch. Open normal feature and dependency PRs against `dev`, merge `dev` into `staging` to publish staging binaries/images for validation, and merge `staging` into `main` only when you want to publish a stable release.
 
