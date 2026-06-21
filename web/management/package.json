@@ -5,6 +5,7 @@
   "packageManager": "bun@1.2.18",
   "scripts": {
     "dev": "bun run --bun vite --host 127.0.0.1 --port 5173 --strictPort",
+    "test": "bun test src",
     "build": "vue-tsc --noEmit && bun run --bun vite build",
     "docs:screenshots": "playwright test -c playwright.docs-screenshots.config.ts",
     "e2e": "playwright test",

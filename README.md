@@ -123,7 +123,7 @@ make docker-build
 make docker-smoke
 ```
 
-`make verify` mirrors the main CI verification path: code generation drift check, installer syntax and lifecycle checks, Go tests and vet, management UI unit tests, typecheck, and production build.
+`make verify` is a clean-tree CI-style gate: run it with no staged, unstaged, or untracked files. It regenerates code and fails if generation leaves any tracked diff or untracked generated file, then runs installer syntax and lifecycle checks, Go tests and vet, management UI unit tests, typecheck, and production build. GitHub Actions runs those checks and also builds the runtime Docker image.
 
 Development happens on the `dev` branch. Open normal feature and dependency PRs against `dev`, merge `dev` into `staging` to publish staging binaries/images for validation, and merge `staging` into `main` only when you want to publish a stable release.
 

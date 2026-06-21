@@ -68,7 +68,7 @@ jobs:
         run: go vet ./...
 
       - name: Run frontend unit tests
-        run: cd web/management && bun test src/lib/*.test.ts
+        run: cd web/management && bun run test
 
       - name: Typecheck management UI
         run: cd web/management && bun run typecheck

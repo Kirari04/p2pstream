@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test verify
+.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run sqlc test verify verify-clean-tree
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -108,14 +108,22 @@ test:
 	@go test ./...
 	@cd web/management && bun run typecheck
 
-verify:
+verify-clean-tree:
+	@status="$$(git status --porcelain --untracked-files=all)"; \
+	if [ -n "$$status" ]; then \
+		echo "verify requires a clean working tree:" >&2; \
+		printf '%s\n' "$$status" >&2; \
+		exit 1; \
+	fi
+
+verify: verify-clean-tree
 	@$(MAKE) generate
-	@git diff --exit-code
+	@$(MAKE) verify-clean-tree
 	@bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
 	@scripts/test-agent-lifecycle.sh
 	@go test ./...
 	@go vet ./...
-	@cd web/management && bun test src/lib/*.test.ts
+	@cd web/management && bun run test
 	@cd web/management && bun run typecheck
 	@cd web/management && bun run build
 
