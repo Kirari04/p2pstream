@@ -34,7 +34,7 @@ func (a *App) StartProxy(ctx context.Context, req *connect.Request[p2pstreamv1.S
 		return nil, err
 	}
 
-	status, err := a.startProxy(ctx)
+	status, err := a.proxyRuntimeService().start(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (a *App) StopProxy(ctx context.Context, req *connect.Request[p2pstreamv1.St
 	shutdownCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	status, err := a.stopProxy(shutdownCtx)
+	status, err := a.proxyRuntimeService().stop(shutdownCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -57,11 +57,11 @@ func (a *App) StopProxy(ctx context.Context, req *connect.Request[p2pstreamv1.St
 }
 
 func (a *App) StartProxyListener(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
-	return a.startProxy(ctx)
+	return a.proxyRuntimeService().start(ctx)
 }
 
 func (a *App) StopProxyListener(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
-	return a.stopProxy(ctx)
+	return a.proxyRuntimeService().stop(ctx)
 }
 
 func (a *App) startProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {

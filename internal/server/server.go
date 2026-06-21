@@ -54,6 +54,7 @@ type App struct {
 	PublicCache     *publicProxyCache
 	PublicACME      *publicACMEManager
 	publicConfig    *publicConfigService
+	proxyRuntime    *proxyRuntime
 	AgentTransports *agentTransportPool
 	DashboardCache  *dashboardResponseCache
 	LoginThrottle   *loginThrottle
