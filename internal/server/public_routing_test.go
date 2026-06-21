@@ -65,6 +65,115 @@ func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
 	}
 }
 
+func TestApplyTrustedForwardedHeadersCanonicalizesHostAndPort(t *testing.T) {
+	tests := []struct {
+		name         string
+		listener     publicListenerConfig
+		host         string
+		remoteAddr   string
+		wantHost     string
+		wantPort     string
+		wantProto    string
+		wantClientIP string
+	}{
+		{
+			name:         "http listener strips trailing dot and uses configured port",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP, Port: 8080},
+			host:         "app.example.:444",
+			remoteAddr:   "192.0.2.10:5555",
+			wantHost:     "app.example",
+			wantPort:     "8080",
+			wantProto:    "http",
+			wantClientIP: "192.0.2.10",
+		},
+		{
+			name:         "https listener uses configured port without TLS state",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTPS, Port: 8443},
+			host:         "app.example:444",
+			remoteAddr:   "192.0.2.11:5555",
+			wantHost:     "app.example",
+			wantPort:     "8443",
+			wantProto:    "https",
+			wantClientIP: "192.0.2.11",
+		},
+		{
+			name:         "normal host falls back to default http port",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+			host:         "app.example",
+			remoteAddr:   "192.0.2.12:5555",
+			wantHost:     "app.example",
+			wantPort:     "80",
+			wantProto:    "http",
+			wantClientIP: "192.0.2.12",
+		},
+		{
+			name:         "ipv6 host",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+			host:         "[2001:db8::1]:8443",
+			remoteAddr:   "[2001:db8::2]:5555",
+			wantHost:     "2001:db8::1",
+			wantPort:     "80",
+			wantProto:    "http",
+			wantClientIP: "2001:db8::2",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			inReq := httptest.NewRequest(http.MethodGet, "http://app.example/assets/app.txt", nil)
+			inReq.Host = tc.host
+			inReq.RemoteAddr = tc.remoteAddr
+			outReq := httptest.NewRequest(http.MethodGet, "http://upstream.example/assets/app.txt", nil)
+			installAttackerForwardingHeaders(outReq.Header)
+
+			applyTrustedForwardedHeaders(outReq, inReq, tc.listener)
+
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-Host", tc.wantHost)
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-Port", tc.wantPort)
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-Proto", tc.wantProto)
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-For", tc.wantClientIP)
+			assertForwardedHeader(t, outReq.Header, "X-Real-IP", tc.wantClientIP)
+			assertForwardedHeader(t, outReq.Header, "Forwarded", "")
+			assertNoAttackerForwardingValues(t, outReq.Header)
+		})
+	}
+}
+
+func TestPublicProxyForwardsCanonicalHostAndConfiguredPort(t *testing.T) {
+	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTP, 8080)
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.:444/assets/app.txt", nil)
+	req.Host = "app.example.:444"
+	installAttackerForwardingHeaders(req.Header)
+
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	headers := <-captured
+	assertForwardedHeader(t, headers, "X-Forwarded-Host", "app.example")
+	assertForwardedHeader(t, headers, "X-Forwarded-Port", "8080")
+	assertForwardedHeader(t, headers, "X-Forwarded-Proto", "http")
+	assertNoAttackerForwardingValues(t, headers)
+}
+
+func TestPublicProxyForwardsHTTPSListenerDefaultPort(t *testing.T) {
+	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTPS, 0)
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.:444/assets/app.txt", nil)
+	req.Host = "app.example.:444"
+
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	headers := <-captured
+	assertForwardedHeader(t, headers, "X-Forwarded-Host", "app.example")
+	assertForwardedHeader(t, headers, "X-Forwarded-Port", "443")
+	assertForwardedHeader(t, headers, "X-Forwarded-Proto", "https")
+}
+
 func TestPublicRequestPathClassification(t *testing.T) {
 	tests := []struct {
 		name string
@@ -535,4 +644,75 @@ func newTestPublicPathProxyWithMode(t *testing.T, pathPrefix string, wafRules []
 		WafCookieSecret: []byte("test-secret"),
 	}
 	return app, app.publicProxyHandler(1), &hits, &lastPath
+}
+
+func newTestForwardedHeaderProxy(t *testing.T, listenerProtocol string, listenerPort int64) (http.HandlerFunc, <-chan http.Header) {
+	t.Helper()
+	captured := make(chan http.Header, 1)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured <- r.Header.Clone()
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	target := publicRouteTargetConfig{
+		ID:         20,
+		RouteID:    10,
+		Name:       "upstream",
+		Enabled:    true,
+		TargetType: publicRouteTargetTypeProxy,
+		Transport:  publicRouteTargetTransportDirect,
+		ParsedURL:  origin,
+	}
+	route := publicRouteConfig{
+		ID:               10,
+		Enabled:          true,
+		HostPattern:      "app.example",
+		PathPrefix:       "/assets",
+		Action:           publicRouteActionForward,
+		PathSecurityMode: publicRoutePathSecurityModeStrict,
+		Targets:          []publicRouteTargetConfig{target},
+	}
+	app := NewApp(nil, nil)
+	app.publicSnapshot = &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: listenerProtocol, Port: listenerPort, Enabled: true}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {route},
+		},
+		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
+	}
+	return app.publicProxyHandler(1), captured
+}
+
+func installAttackerForwardingHeaders(header http.Header) {
+	header.Set("Forwarded", "for=1.2.3.4")
+	header.Set("X-Forwarded-For", "1.2.3.4")
+	header.Set("X-Forwarded-Host", "attacker.example")
+	header.Set("X-Forwarded-Proto", "https")
+	header.Set("X-Forwarded-Port", "9999")
+	header.Set("X-Real-IP", "1.2.3.4")
+}
+
+func assertForwardedHeader(t *testing.T, header http.Header, name string, want string) {
+	t.Helper()
+	if got := header.Get(name); got != want {
+		t.Fatalf("%s = %q, want %q", name, got, want)
+	}
+}
+
+func assertNoAttackerForwardingValues(t *testing.T, header http.Header) {
+	t.Helper()
+	for _, value := range []string{"attacker.example", "9999", "1.2.3.4"} {
+		for name, values := range header {
+			for _, got := range values {
+				if got == value {
+					t.Fatalf("attacker forwarding value %q remained in header %s", value, name)
+				}
+			}
+		}
+	}
 }

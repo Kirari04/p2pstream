@@ -45,9 +45,11 @@ p2pstream always bypasses cache for requests with `Authorization`, `Cookie`, non
 
 Requests containing encoded path separators on routes that enable `allow_encoded_separators` path security always bypass shared cache. Compatibility routes can preserve encoded separators for upstreams that require them, but those ambiguous request targets are not used for shared cache lookup or storage.
 
-p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, including parameterized directives such as `private="Set-Cookie"`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
+p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, including parameterized directives such as `private="Set-Cookie"`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, generated forwarding-header Vary values, disallowed status codes, or bodies larger than the rule limit.
 
-Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
+Configured Vary headers cannot be `Cookie`, `Authorization`, `Set-Cookie`, `Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or `X-Real-IP`.
+
+Public cache entries are keyed on p2pstream's canonical request identity. Generated forwarding headers are rebuilt before upstream forwarding and are not valid shared-cache Vary dimensions.
 
 Cache rule matches inspect only request data through CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 

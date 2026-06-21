@@ -281,7 +281,7 @@ func TestDirectPublicRouteTargetAppliesUpstreamRequestConfig(t *testing.T) {
 		resp.Header.Get("X-Got-Basic-Auth") != "true" {
 		t.Fatalf("upstream request config was not applied, response headers=%+v", resp.Header)
 	}
-	assertTrustedForwardedHeaders(t, resp.Header, listenerAddr)
+	assertTrustedForwardedHeaders(t, resp.Header, listenerAddr, "80")
 }
 
 func TestPublicRoutePathPrefixUsesSegmentBoundaries(t *testing.T) {
@@ -381,7 +381,7 @@ func TestAgentPublicRouteTargetAppliesUpstreamRequestConfig(t *testing.T) {
 		resp.Header.Get("X-Got-Basic-Auth") != "true" {
 		t.Fatalf("agent upstream request config was not applied, response headers=%+v", resp.Header)
 	}
-	assertTrustedForwardedHeaders(t, resp.Header, listenerAddr)
+	assertTrustedForwardedHeaders(t, resp.Header, listenerAddr, "80")
 
 	cancel()
 	<-agentDone
@@ -555,10 +555,10 @@ func setSpoofedForwardedHeaders(req *http.Request) {
 	req.Header.Set("X-Real-IP", "203.0.113.66")
 }
 
-func assertTrustedForwardedHeaders(t *testing.T, got http.Header, listenerAddr string) {
+func assertTrustedForwardedHeaders(t *testing.T, got http.Header, listenerAddr string, wantPort string) {
 	t.Helper()
 
-	_, wantPort, err := net.SplitHostPort(listenerAddr)
+	wantHost, _, err := net.SplitHostPort(listenerAddr)
 	if err != nil {
 		t.Fatalf("listener address %q did not include a port: %v", listenerAddr, err)
 	}
@@ -571,8 +571,8 @@ func assertTrustedForwardedHeaders(t *testing.T, got http.Header, listenerAddr s
 	if realIP := got.Get("X-Got-Real-IP"); realIP == "" || realIP == "203.0.113.66" {
 		t.Fatalf("X-Real-IP = %q, want trusted client IP", realIP)
 	}
-	if got.Get("X-Got-Forwarded-Host") != listenerAddr {
-		t.Fatalf("X-Forwarded-Host = %q, want %q", got.Get("X-Got-Forwarded-Host"), listenerAddr)
+	if got.Get("X-Got-Forwarded-Host") != wantHost {
+		t.Fatalf("X-Forwarded-Host = %q, want %q", got.Get("X-Got-Forwarded-Host"), wantHost)
 	}
 	if got.Get("X-Got-Forwarded-Proto") != "http" {
 		t.Fatalf("X-Forwarded-Proto = %q, want http", got.Get("X-Got-Forwarded-Proto"))

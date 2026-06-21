@@ -60,6 +60,7 @@ const (
 	maxPublicCacheCleanupIntervalMillis     = int64(3600000)
 	maxPublicCacheHeaderBytes               = 256 * 1024
 	maxPublicCacheListItems                 = 64
+	publicCacheKeyDigestVersion             = "v3"
 )
 
 var defaultPublicCacheStatusCodes = []int64{200, 203, 204, 301, 308}
@@ -591,7 +592,7 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 		}
 	}
 	parts := []string{
-		"v2",
+		publicCacheKeyDigestVersion,
 		resolution.Listener.Protocol,
 		normalizeRequestHost(r.Host),
 		r.URL.EscapedPath(),
@@ -1028,7 +1029,15 @@ func publicCacheResponseVaryHeaders(ruleHeaders []string, varyValues []string) (
 
 func publicCacheSensitiveVaryHeader(header string) bool {
 	switch strings.ToLower(textproto.CanonicalMIMEHeaderKey(strings.TrimSpace(header))) {
-	case "cookie", "authorization", "set-cookie":
+	case "cookie",
+		"authorization",
+		"set-cookie",
+		"forwarded",
+		"x-forwarded-for",
+		"x-forwarded-host",
+		"x-forwarded-proto",
+		"x-forwarded-port",
+		"x-real-ip":
 		return true
 	default:
 		return false
@@ -1356,7 +1365,7 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 	}
 	for _, header := range varyHeaders {
 		if publicCacheSensitiveVaryHeader(header) {
-			return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache vary headers must not include Cookie, Authorization, or Set-Cookie"))
+			return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache vary headers must not include Cookie, Authorization, Set-Cookie, or generated forwarding headers"))
 		}
 	}
 	statusCodes = normalizePublicCacheStatusCodes(statusCodes)
