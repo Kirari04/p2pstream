@@ -245,6 +245,115 @@ func TestPublicTrafficShaperValidationAndDBRoundTrip(t *testing.T) {
 	}
 }
 
+func TestPublicTrafficShaperValidationRejectsUnsafeForwardingHeaderKeyParts(t *testing.T) {
+	for _, header := range []string{"X-Forwarded-For", "x-real-ip"} {
+		_, err := validatePublicTrafficShaperRuleInput(
+			"unsafe-key",
+			100,
+			true,
+			p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
+			1024,
+			0,
+			0,
+			0,
+			0,
+			[]*p2pstreamv1.PublicRateLimitKeyPart{{
+				Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+				Name:   header,
+			}},
+			nil,
+		)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("header %q: expected invalid argument, got %v", header, err)
+		}
+		if !strings.Contains(err.Error(), "traffic shaper header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+			t.Fatalf("header %q: unexpected error %v", header, err)
+		}
+	}
+}
+
+func TestPublicTrafficShaperValidationAllowsApplicationHeaderKeyPart(t *testing.T) {
+	params, err := validatePublicTrafficShaperRuleInput(
+		"safe-key",
+		100,
+		true,
+		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
+		1024,
+		0,
+		0,
+		0,
+		0,
+		[]*p2pstreamv1.PublicRateLimitKeyPart{{
+			Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+			Name:   "x-plan",
+		}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("validate application header key part: %v", err)
+	}
+	if !strings.Contains(params.KeyPartsJSON, `"name":"X-Plan"`) {
+		t.Fatalf("key parts json = %q, want canonical X-Plan", params.KeyPartsJSON)
+	}
+}
+
+func TestPublicTrafficShaperPerRequestIgnoresUnsafeKeyParts(t *testing.T) {
+	params, err := validatePublicTrafficShaperRuleInput(
+		"per-request",
+		100,
+		true,
+		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST,
+		1024,
+		0,
+		0,
+		0,
+		0,
+		[]*p2pstreamv1.PublicRateLimitKeyPart{{
+			Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+			Name:   "X-Forwarded-For",
+		}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("per-request shaper should ignore unsafe key parts: %v", err)
+	}
+	if params.KeyPartsJSON != "[]" {
+		t.Fatalf("per-request key parts json = %q, want []", params.KeyPartsJSON)
+	}
+}
+
+func TestPublicTrafficShaperStoredPerKeyRejectsUnsafeForwardingHeaderKeyPart(t *testing.T) {
+	_, err := publicTrafficShaperRuleRowToConfig(db.PublicTrafficShaperRule{
+		Name:                   "stored-unsafe",
+		BudgetScope:            publicTrafficShaperBudgetScopePerKey,
+		UploadBytesPerSecond:   1024,
+		DownloadBytesPerSecond: 0,
+		KeyPartsJson:           `[{"source":"header","name":"x-forwarded-for"}]`,
+	})
+	if err == nil {
+		t.Fatal("expected stored per-key unsafe forwarding header key part to be rejected")
+	}
+	if !strings.Contains(err.Error(), "traffic shaper header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+		t.Fatalf("unexpected stored-row error: %v", err)
+	}
+}
+
+func TestPublicTrafficShaperStoredPerRequestIgnoresUnsafeForwardingHeaderKeyPart(t *testing.T) {
+	rule, err := publicTrafficShaperRuleRowToConfig(db.PublicTrafficShaperRule{
+		Name:                   "stored-per-request",
+		BudgetScope:            publicTrafficShaperBudgetScopePerRequest,
+		UploadBytesPerSecond:   1024,
+		DownloadBytesPerSecond: 0,
+		KeyPartsJson:           `[{"source":"header","name":"x-forwarded-for"}]`,
+	})
+	if err != nil {
+		t.Fatalf("stored per-request shaper should ignore unsafe key parts: %v", err)
+	}
+	if rule.KeyParts != nil {
+		t.Fatalf("per-request key parts = %#v, want nil", rule.KeyParts)
+	}
+}
+
 func TestPublicTrafficShaperPrunesIdlePerKeyBuckets(t *testing.T) {
 	shaper := newPublicTrafficShaper()
 	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
