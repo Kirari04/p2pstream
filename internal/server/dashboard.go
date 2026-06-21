@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/db"
@@ -586,8 +585,8 @@ func dashboardAgentWindowFromRollup(row db.GetAgentStatsRollupSummarySinceRow) d
 	}
 }
 
-func (a *App) recordProxyRequestEvent(ctx context.Context, statusCode int, duration time.Duration, errorKind string) {
-	a.recordProxyRequestEventWithIDs(ctx, statusCode, duration, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, 0, 0)
+func (a *App) recordProxyRequestEvent(ctx context.Context, event proxyRequestEvent) {
+	a.observabilityRecorderService().recordProxyRequestEvent(ctx, event)
 }
 
 func (a *App) recordProxyRequestEventWithIDs(
@@ -729,39 +728,23 @@ func (a *App) recordProxyRequestEventWithRouteTargetCacheAndContext(
 	responseBytes uint64,
 	requestContext proxyRequestContext,
 ) {
-	if a.DB == nil {
-		return
-	}
-	if duration < 0 {
-		duration = 0
-	}
-	if statusCode == 0 {
-		statusCode = http.StatusInternalServerError
-	}
-
-	occurredAt := time.Now().UTC()
-	if err := a.insertProxyRequestEventWithRollups(ctx, db.InsertProxyRequestEventAtParams{
-		OccurredAt:    occurredAt,
-		StatusCode:    int64(statusCode),
-		DurationMs:    duration.Milliseconds(),
+	a.recordProxyRequestEvent(ctx, proxyRequestEvent{
+		StatusCode:    statusCode,
+		Duration:      duration,
 		ErrorKind:     errorKind,
-		Method:        requestContext.Method,
-		Host:          requestContext.Host,
-		PathPrefix:    requestContext.PathPrefix,
 		ListenerID:    listenerID,
 		RouteID:       routeID,
 		RouteTargetID: routeTargetID,
 		WafRuleID:     wafRuleID,
 		WafAction:     wafAction,
 		AgentID:       agentID,
-		RequestBytes:  int64FromUint64(requestBytes),
-		ResponseBytes: int64FromUint64(responseBytes),
 		CacheRuleID:   cacheRuleID,
 		CacheStatus:   cacheStatus,
-		CacheBytes:    int64FromUint64(cacheBytes),
-	}); err != nil {
-		log.Warn().Err(err).Msg("Failed to record proxy request event")
-	}
+		CacheBytes:    cacheBytes,
+		RequestBytes:  requestBytes,
+		ResponseBytes: responseBytes,
+		Context:       requestContext,
+	})
 }
 
 func dashboardListenerSummaries(rows []db.ListTopProxyListenersSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
@@ -1252,81 +1235,7 @@ func int64FromUint64(value uint64) int64 {
 }
 
 func (a *App) cleanupObservability(ctx context.Context, now time.Time) {
-	if a.DB == nil {
-		return
-	}
-
-	a.observabilityMu.Lock()
-	if !a.observabilityLastCleanup.IsZero() && now.Sub(a.observabilityLastCleanup) < observabilityCleanupInterval {
-		a.observabilityMu.Unlock()
-		return
-	}
-	a.observabilityLastCleanup = now
-	a.observabilityMu.Unlock()
-
-	cutoff := now.AddDate(0, 0, -a.observabilityRetentionDays())
-	cutoffBucketUnixMillis := rollupBucketUnixMillis(cutoff)
-	if err := a.DB.DeleteProxyRequestRollupsBefore(ctx, cutoffBucketUnixMillis); err != nil {
-		log.Warn().Err(err).Msg("Failed to clean up old proxy request rollups")
-	}
-	if err := a.DB.DeleteProxyRequestTupleRollupsBefore(ctx, cutoffBucketUnixMillis); err != nil {
-		log.Warn().Err(err).Msg("Failed to clean up old proxy request tuple rollups")
-	}
-	if err := a.DB.DeleteProxyRequestStatusRollupsBefore(ctx, cutoffBucketUnixMillis); err != nil {
-		log.Warn().Err(err).Msg("Failed to clean up old proxy request status rollups")
-	}
-	if err := a.DB.DeleteAgentStatRollupsBefore(ctx, cutoffBucketUnixMillis); err != nil {
-		log.Warn().Err(err).Msg("Failed to clean up old agent stat rollups")
-	}
-	if err := a.DB.DeleteProxyRequestEventsBefore(ctx, cutoff); err != nil {
-		log.Warn().Err(err).Msg("Failed to clean up old proxy request events")
-	}
-	if err := a.DB.DeleteAgentStatsBefore(ctx, cutoff); err != nil {
-		log.Warn().Err(err).Msg("Failed to clean up old agent stats")
-	}
-	if err := a.DB.DeleteDisconnectedConnectionsBefore(ctx, sql.NullTime{Time: cutoff, Valid: true}); err != nil {
-		log.Warn().Err(err).Msg("Failed to clean up old disconnected agent connections")
-	}
-
-	maxRows := a.observabilityMaxRows()
-	if maxRows <= 0 {
-		return
-	}
-	ready, err := a.observabilityRollupsReady(ctx)
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to check observability rollup readiness for row cap")
-		return
-	}
-	if !ready {
-		return
-	}
-
-	for i := 0; i < observabilityRowCapDeleteMaxBatches; i++ {
-		deleted, err := a.DB.DeleteOldestProxyRequestEventsOverLimit(ctx, db.DeleteOldestProxyRequestEventsOverLimitParams{
-			Offset:      maxRows,
-			DeleteLimit: observabilityRowCapDeleteBatchRows,
-		})
-		if err != nil {
-			log.Warn().Err(err).Msg("Failed to enforce proxy request event row cap")
-			break
-		}
-		if deleted < observabilityRowCapDeleteBatchRows {
-			break
-		}
-	}
-	for i := 0; i < observabilityRowCapDeleteMaxBatches; i++ {
-		deleted, err := a.DB.DeleteOldestAgentStatsOverLimit(ctx, db.DeleteOldestAgentStatsOverLimitParams{
-			Offset:      maxRows,
-			DeleteLimit: observabilityRowCapDeleteBatchRows,
-		})
-		if err != nil {
-			log.Warn().Err(err).Msg("Failed to enforce agent stat row cap")
-			break
-		}
-		if deleted < observabilityRowCapDeleteBatchRows {
-			break
-		}
-	}
+	a.observabilityRecorderService().cleanup(ctx, now)
 }
 
 func (a *App) observabilityRetentionDays() int {

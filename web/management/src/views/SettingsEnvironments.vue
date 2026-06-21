@@ -7,9 +7,9 @@ import { Trash2 as TrashIcon } from "@lucide/vue";
 import { NButton, NButtonGroup, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NSelect, NTag, useNotification } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref } from "vue";
-import type { ComputedRef } from "vue";
 import { localManagementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
+import { environmentsKey, isBusyKey, reloadEnvironmentsKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
@@ -23,10 +23,11 @@ import {
   EnvironmentTransport,
   EnvironmentTrustState,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+import { messageFromError } from "@/lib/errors";
 
-const environments = inject<ComputedRef<Environment[]>>("environments", computed(() => []));
-const reloadEnvironments = inject<(() => Promise<void>) | undefined>("reloadEnvironments", undefined);
-const isBusy = inject<ComputedRef<boolean>>("isBusy", computed(() => false));
+const environments = inject(environmentsKey, computed(() => []));
+const reloadEnvironments = inject(reloadEnvironmentsKey, undefined);
+const isBusy = inject(isBusyKey, computed(() => false));
 const confirmDialog = useConfirmDialog();
 const notification = useNotification();
 
@@ -525,9 +526,6 @@ function formatDate(value: bigint | undefined): string {
   return new Date(Number(value)).toLocaleString();
 }
 
-function messageFromError(err: unknown): string {
-  return err instanceof Error ? err.message : "Request failed";
-}
 
 function environmentRowKey(environment: Environment): string {
   return environment.id.toString();

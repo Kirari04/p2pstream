@@ -44,19 +44,22 @@ type App struct {
 
 	// These service fields remain public for package tests during the extraction stack.
 	// New construction should go through appServices so they can become private later.
-	AgentHub        *agentHub
-	LoadBalancers   *loadBalancerRegistry
-	TargetHealth    *publicRouteTargetHealthMonitor
-	TrafficTracer   *trafficTracer
-	RateLimiter     *publicRateLimiter
-	TrafficShaper   *publicTrafficShaper
-	PublicWAF       *publicWAF
-	PublicCache     *publicProxyCache
-	PublicACME      *publicACMEManager
-	publicConfig    *publicConfigService
-	AgentTransports *agentTransportPool
-	DashboardCache  *dashboardResponseCache
-	LoginThrottle   *loginThrottle
+	AgentHub              *agentHub
+	LoadBalancers         *loadBalancerRegistry
+	TargetHealth          *publicRouteTargetHealthMonitor
+	TrafficTracer         *trafficTracer
+	RateLimiter           *publicRateLimiter
+	TrafficShaper         *publicTrafficShaper
+	PublicWAF             *publicWAF
+	PublicCache           *publicProxyCache
+	PublicACME            *publicACMEManager
+	publicConfig          *publicConfigService
+	proxyRuntime          *proxyRuntime
+	observabilityRecorder *observabilityRecorder
+	auth                  *authService
+	AgentTransports       *agentTransportPool
+	DashboardCache        *dashboardResponseCache
+	LoginThrottle         *loginThrottle
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
