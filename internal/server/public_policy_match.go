@@ -267,11 +267,17 @@ func validatePublicPolicyMatchCELAst(checked *cel.Ast) error {
 				}
 			}
 		case "matches":
-			if !call.IsMemberFunction() || len(args) != 1 {
+			var regexArg celast.Expr
+			switch {
+			case call.IsMemberFunction() && len(args) == 1:
+				regexArg = args[0]
+			case !call.IsMemberFunction() && len(args) == 2:
+				regexArg = args[1]
+			default:
 				validationErr = fmt.Errorf("policy match regex call is invalid")
 				return
 			}
-			value, ok := publicPolicyMatchStringLiteral(args[0])
+			value, ok := publicPolicyMatchStringLiteral(regexArg)
 			if !ok {
 				validationErr = fmt.Errorf("policy match regex argument must be a string literal")
 				return

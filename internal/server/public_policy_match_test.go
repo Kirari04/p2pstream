@@ -99,6 +99,21 @@ func TestPublicPolicyMatchValidationAcceptsLiteralRegexCEL(t *testing.T) {
 	}
 }
 
+func TestPublicPolicyMatchValidationAcceptsGlobalLiteralRegexCEL(t *testing.T) {
+	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
+		CelExpression: `matches(path, "^/admin/.*$")`,
+	})
+	if err != nil {
+		t.Fatalf("global literal regex CEL should be accepted: %v", err)
+	}
+	if !config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/admin/users", nil)) {
+		t.Fatal("global literal regex CEL did not match expected path")
+	}
+	if config.matches(publicListenerConfig{}, httptest.NewRequest(http.MethodGet, "http://example.test/public/users", nil)) {
+		t.Fatal("global literal regex CEL matched unexpected path")
+	}
+}
+
 func TestPublicPolicyMatchBuilderRegexConditionRemainsAccepted(t *testing.T) {
 	config, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
 		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
@@ -130,7 +145,6 @@ func TestPublicPolicyMatchValidationRejectsInvalidCEL(t *testing.T) {
 		`unknown_request_field == true`,
 		`method`,
 		`path.matches("[")`,
-		`matches(path, "^/admin")`,
 		`cidr(remote_ip, "not-a-cidr")`,
 		`path_prefix(path, "api")`,
 	} {
@@ -144,6 +158,7 @@ func TestPublicPolicyMatchValidationRejectsDynamicRegexCEL(t *testing.T) {
 	for _, expr := range []string{
 		`path.matches(headers["x-re"][0])`,
 		`path.matches(query["re"][0])`,
+		`matches(path, headers["x-re"][0])`,
 	} {
 		_, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{CelExpression: expr})
 		if err == nil {
