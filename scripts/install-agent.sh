@@ -5,15 +5,23 @@ readonly DEFAULT_REPOSITORY="Kirari04/p2pstream"
 readonly SERVICE_NAME="p2pstream-agent"
 readonly CONFIG_DIR="${P2PSTREAM_CONFIG_DIR:-/etc/p2pstream}"
 readonly ENV_FILE="${CONFIG_DIR}/agent.env"
-readonly SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+readonly SYSTEMD_DIR="${P2PSTREAM_SYSTEMD_DIR:-/etc/systemd/system}"
+readonly SERVICE_FILE="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
 readonly MANAGEMENT_CA_PEM_FILE="${CONFIG_DIR}/management-ca.pem"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
+INSTALL_TMP_DIR=""
 
 fail() {
   printf 'p2pstream agent install failed: %s\n' "$*" >&2
   exit 1
+}
+
+cleanup_tmp_dir() {
+  if [[ -n "$INSTALL_TMP_DIR" ]]; then
+    rm -rf "$INSTALL_TMP_DIR"
+  fi
 }
 
 require_command() {
@@ -24,6 +32,14 @@ require_env() {
   local name="$1"
   if [[ -z "${!name:-}" ]]; then
     fail "missing required environment variable: ${name}"
+  fi
+}
+
+require_readable_file() {
+  local name="$1"
+  local path="$2"
+  if [[ ! -f "$path" || ! -r "$path" ]]; then
+    fail "${name} must reference a readable file: ${path}"
   fi
 }
 
@@ -116,6 +132,43 @@ ensure_service_user() {
   fi
 }
 
+validate_management_url_inputs() {
+  local url_lower
+  url_lower="$(single_line "$MANAGEMENT_URL")"
+  url_lower="${url_lower,,}"
+  case "$url_lower" in
+    https://*)
+      ;;
+    http://*)
+      if [[ "${AGENT_ALLOW_INSECURE_MANAGEMENT:-}" != "true" ]]; then
+        fail "refusing insecure MANAGEMENT_URL; use https or set AGENT_ALLOW_INSECURE_MANAGEMENT=true"
+      fi
+      if [[ -n "${MANAGEMENT_CA_FILE:-}" || -n "${MANAGEMENT_CA_PEM_BASE64:-}" || -n "${AGENT_TLS_CERT_FILE:-}" || -n "${AGENT_TLS_KEY_FILE:-}" ]]; then
+        fail "agent TLS files require an https MANAGEMENT_URL"
+      fi
+      ;;
+    *)
+      fail "MANAGEMENT_URL must start with https:// or http://"
+      ;;
+  esac
+}
+
+validate_tls_inputs() {
+  if [[ -n "${AGENT_TLS_CERT_FILE:-}" && -z "${AGENT_TLS_KEY_FILE:-}" ]]; then
+    fail "AGENT_TLS_CERT_FILE and AGENT_TLS_KEY_FILE must be set together"
+  fi
+  if [[ -z "${AGENT_TLS_CERT_FILE:-}" && -n "${AGENT_TLS_KEY_FILE:-}" ]]; then
+    fail "AGENT_TLS_CERT_FILE and AGENT_TLS_KEY_FILE must be set together"
+  fi
+  if [[ -n "${MANAGEMENT_CA_FILE:-}" && -z "${MANAGEMENT_CA_PEM_BASE64:-}" ]]; then
+    require_readable_file MANAGEMENT_CA_FILE "$MANAGEMENT_CA_FILE"
+  fi
+  if [[ -n "${AGENT_TLS_CERT_FILE:-}" ]]; then
+    require_readable_file AGENT_TLS_CERT_FILE "$AGENT_TLS_CERT_FILE"
+    require_readable_file AGENT_TLS_KEY_FILE "$AGENT_TLS_KEY_FILE"
+  fi
+}
+
 decode_management_ca_pem() {
   if [[ -z "${MANAGEMENT_CA_PEM_BASE64:-}" ]]; then
     return
@@ -123,6 +176,33 @@ decode_management_ca_pem() {
   require_command base64
   printf '%s' "$MANAGEMENT_CA_PEM_BASE64" | base64 -d >"$1" 2>/dev/null \
     || fail "MANAGEMENT_CA_PEM_BASE64 is not valid base64"
+}
+
+sync_management_ca() {
+  local tmp_dir="$1"
+  if [[ -n "${MANAGEMENT_CA_PEM_BASE64:-}" ]]; then
+    decode_management_ca_pem "${tmp_dir}/management-ca.pem"
+    install -m 0644 "${tmp_dir}/management-ca.pem" "$MANAGEMENT_CA_PEM_FILE"
+    MANAGEMENT_CA_FILE="$MANAGEMENT_CA_PEM_FILE"
+    return
+  fi
+  if [[ -n "${MANAGEMENT_CA_FILE:-}" ]]; then
+    return
+  fi
+  if [[ -e "$MANAGEMENT_CA_PEM_FILE" || -L "$MANAGEMENT_CA_PEM_FILE" ]]; then
+    rm -f "$MANAGEMENT_CA_PEM_FILE"
+  fi
+}
+
+restart_service() {
+  systemctl daemon-reload
+  systemctl enable "$SERVICE_NAME"
+  if ! systemctl restart "$SERVICE_NAME"; then
+    printf 'p2pstream agent install failed: systemctl restart %s failed\n' "$SERVICE_NAME" >&2
+    printf 'Check status with: sudo systemctl status %s\n' "$SERVICE_NAME" >&2
+    printf 'View logs with: sudo journalctl -u %s -n 100 --no-pager\n' "$SERVICE_NAME" >&2
+    exit 1
+  fi
 }
 
 main() {
@@ -135,6 +215,7 @@ main() {
   require_command groupadd
   require_command useradd
   require_command mktemp
+  require_command rm
   require_command sed
   require_command sha256sum
   require_command systemctl
@@ -145,9 +226,8 @@ main() {
   require_env MANAGEMENT_URL
   require_env AGENT_ID
   require_env AGENT_TOKEN
-  if [[ "$MANAGEMENT_URL" == http://* && "${AGENT_ALLOW_INSECURE_MANAGEMENT:-}" != "true" ]]; then
-    fail "refusing insecure MANAGEMENT_URL; use https or set AGENT_ALLOW_INSECURE_MANAGEMENT=true"
-  fi
+  validate_management_url_inputs
+  validate_tls_inputs
   ensure_service_user
 
   local repository="${P2PSTREAM_REPOSITORY:-$DEFAULT_REPOSITORY}"
@@ -159,18 +239,22 @@ main() {
     || fail "P2PSTREAM_REPOSITORY must use GitHub owner/repo with letters, numbers, dots, underscores, or hyphens"
 
   arch="$(detect_arch)"
+  version="$(single_line "$version")"
   if [[ "$version" == "latest" ]]; then
     tag="$(latest_release_tag "$repository")"
+  elif [[ "$version" == "staging" ]]; then
+    tag="staging"
+  elif [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    tag="$version"
   else
-    tag="$(single_line "$version")"
+    fail "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
   fi
-
-  [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "release version must look like vX.Y.Z"
 
   asset="p2pstream_${tag}_linux_${arch}.tar.gz"
   base_url="https://github.com/${repository}/releases/download/${tag}"
   tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "$tmp_dir"' EXIT
+  INSTALL_TMP_DIR="$tmp_dir"
+  trap cleanup_tmp_dir EXIT
 
   printf 'Downloading p2pstream %s for linux/%s...\n' "$tag" "$arch"
   curl -fL "${base_url}/${asset}" -o "${tmp_dir}/${asset}"
@@ -187,21 +271,17 @@ main() {
   install -m 0755 "${tmp_dir}/p2pstream" "$INSTALL_PATH"
 
   install -d -m 0755 "$CONFIG_DIR"
-  if [[ -n "${MANAGEMENT_CA_PEM_BASE64:-}" ]]; then
-    decode_management_ca_pem "${tmp_dir}/management-ca.pem"
-    install -m 0644 "${tmp_dir}/management-ca.pem" "$MANAGEMENT_CA_PEM_FILE"
-    MANAGEMENT_CA_FILE="$MANAGEMENT_CA_PEM_FILE"
-  fi
+  sync_management_ca "$tmp_dir"
   write_agent_env "${tmp_dir}/agent.env"
   install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0600 "${tmp_dir}/agent.env" "$ENV_FILE"
 
   write_service_file "${tmp_dir}/${SERVICE_NAME}.service"
+  install -d -m 0755 "$SYSTEMD_DIR"
   install -m 0644 "${tmp_dir}/${SERVICE_NAME}.service" "$SERVICE_FILE"
 
-  systemctl daemon-reload
-  systemctl enable --now "$SERVICE_NAME"
+  restart_service
 
-  printf 'p2pstream agent installed and started.\n'
+  printf 'p2pstream agent installed and restarted.\n'
   printf 'Check status with: sudo systemctl status %s\n' "$SERVICE_NAME"
   printf 'View logs with: sudo journalctl -u %s -f\n' "$SERVICE_NAME"
 }

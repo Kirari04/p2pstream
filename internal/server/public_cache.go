@@ -60,6 +60,7 @@ const (
 	maxPublicCacheCleanupIntervalMillis     = int64(3600000)
 	maxPublicCacheHeaderBytes               = 256 * 1024
 	maxPublicCacheListItems                 = 64
+	publicCacheKeyDigestVersion             = "v3"
 )
 
 var defaultPublicCacheStatusCodes = []int64{200, 203, 204, 301, 308}
@@ -374,6 +375,12 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		decision.BypassReason = reason
 		return decision
 	}
+	if publicRouteAllowsEncodedPathSeparators(resolution.Route) && publicRequestHasEncodedPathSeparator(r) {
+		decision.Status = publicCacheStatusBypass
+		decision.BypassReason = "encoded_path"
+		decision.LookupDuration = time.Since(startedAt)
+		return decision
+	}
 
 	rule, ok := selectPublicCacheRule(snap.CacheRules, resolution.Listener, r, resolution)
 	if !ok {
@@ -382,11 +389,6 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		return decision
 	}
 	decision.Rule = rule
-	if reason := publicCacheRuleBypassReason(rule, r); reason != "" {
-		decision.Status = publicCacheStatusBypass
-		decision.BypassReason = reason
-		return decision
-	}
 	if rule.Scope == publicCacheScopeRoute {
 		decision.RouteTargetID = sql.NullInt64{}
 	}
@@ -469,6 +471,9 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	if r.Header.Get("Authorization") != "" {
 		return "authorization"
 	}
+	if r.Header.Get("Cookie") != "" {
+		return "cookie"
+	}
 	if r.Header.Get("Range") != "" {
 		return "range"
 	}
@@ -477,13 +482,6 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	}
 	if len(r.TransferEncoding) > 0 || (r.Body != nil && r.Body != http.NoBody && r.ContentLength != 0) {
 		return "request_body"
-	}
-	return ""
-}
-
-func publicCacheRuleBypassReason(rule publicCacheRuleConfig, r *http.Request) string {
-	if r.Header.Get("Cookie") != "" && !rule.AllowCookieRequests {
-		return "cookie"
 	}
 	return ""
 }
@@ -594,7 +592,7 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 		}
 	}
 	parts := []string{
-		"v2",
+		publicCacheKeyDigestVersion,
 		resolution.Listener.Protocol,
 		normalizeRequestHost(r.Host),
 		r.URL.EscapedPath(),
@@ -620,7 +618,7 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			attrs["handler"] = "cache"
 			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT, &resolution, nil, statusCode, errorKind, w.Header(), attrs)
 		}
-		a.recordProxyRequestEventWithRouteTargetCache(
+		a.recordProxyRequestEventWithRouteTargetCacheAndContext(
 			context.Background(),
 			statusCode,
 			time.Since(startedAt),
@@ -636,6 +634,7 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			uint64FromInt64(decision.Entry.SizeBytes),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
+			proxyRequestContextFromHTTP(r),
 		)
 	}()
 	if decision.Entry == nil {
@@ -1030,7 +1029,15 @@ func publicCacheResponseVaryHeaders(ruleHeaders []string, varyValues []string) (
 
 func publicCacheSensitiveVaryHeader(header string) bool {
 	switch strings.ToLower(textproto.CanonicalMIMEHeaderKey(strings.TrimSpace(header))) {
-	case "cookie", "authorization", "set-cookie":
+	case "cookie",
+		"authorization",
+		"set-cookie",
+		"forwarded",
+		"x-forwarded-for",
+		"x-forwarded-host",
+		"x-forwarded-proto",
+		"x-forwarded-port",
+		"x-real-ip":
 		return true
 	default:
 		return false
@@ -1310,9 +1317,10 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 	if err != nil {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule name must be 1-64 alphanumeric, dot, dash, or underscore characters"))
 	}
-	if allowCookieRequests && !allowCookieRequestsAcknowledged {
-		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rules that allow Cookie requests require explicit acknowledgement that Cookie is not part of the cache key"))
-	}
+	// allowCookieRequests/allowCookieRequestsAcknowledged are retained for API and
+	// database compatibility only; Cookie-bearing requests always bypass shared cache
+	// at runtime, so the acknowledgement is no longer enforced.
+	_ = allowCookieRequestsAcknowledged
 	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicCacheRuleMutationInput{}, err
@@ -1357,7 +1365,7 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 	}
 	for _, header := range varyHeaders {
 		if publicCacheSensitiveVaryHeader(header) {
-			return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache vary headers must not include Cookie, Authorization, or Set-Cookie"))
+			return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache vary headers must not include Cookie, Authorization, Set-Cookie, or generated forwarding headers"))
 		}
 	}
 	statusCodes = normalizePublicCacheStatusCodes(statusCodes)

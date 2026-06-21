@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/public/logo-mark.svg" width="96" height="96" alt="p2pstream logo">
+</p>
+
 # p2pstream
 
 p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, route-owned proxy/static targets, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
@@ -70,7 +74,7 @@ Published images are available from GitHub Container Registry:
 ghcr.io/kirari04/p2pstream:latest
 ```
 
-Use `latest` or a pinned `vX.Y.Z` tag for stable deployments. The `nightly` tag is rebuilt from the `dev` branch for testing unreleased changes.
+Use `latest` or a pinned `vX.Y.Z` tag for stable deployments. The mutable `staging` tag is rebuilt from the `staging` branch for pre-release validation, including Linux agent installer assets. The `nightly` tag is rebuilt from the `dev` branch as a Docker-only development channel.
 
 ## Default Deployment Notes
 
@@ -113,16 +117,21 @@ For shell-installed agents, uninstall and full-purge commands are documented in 
 ```bash
 make dev
 make test
+make verify
 make build
 make docker-build
 make docker-smoke
 ```
 
-Development happens on the `dev` branch. Open normal feature and dependency PRs against `dev`; merge `dev` into `main` only when you want to publish a stable release.
+`make verify` is a clean-tree CI-style gate: run it with no staged, unstaged, or untracked files. It regenerates code and fails if generation leaves any tracked diff or untracked generated file, then runs installer syntax and lifecycle checks, Go tests and vet, management UI unit tests, typecheck, and production build. GitHub Actions runs those checks and also builds the runtime Docker image.
+
+Database migrations use the embedded Goose library at runtime. For one-off migration scaffolding, run the pinned CLI outside the tracked tool set, for example `go run github.com/pressly/goose/v3/cmd/goose@v3.27.1 create <name> sql`.
+
+Development happens on the `dev` branch. Open normal feature and dependency PRs against `dev`, merge `dev` into `staging` to publish staging binaries/images for validation, and merge `staging` into `main` only when you want to publish a stable release.
 
 ## Releases
 
-GitHub Actions verifies the project, publishes a multi-arch Linux container to GHCR, creates the next patch tag from `main`, and attaches Linux `amd64` and `arm64` binary release archives plus `checksums.txt`. The `main` branch is release-only; merging `dev` into `main` publishes the next stable release.
+GitHub Actions verifies the project and publishes release artifacts by channel. The `staging` branch updates the mutable `staging` GitHub prerelease, Linux `amd64` and `arm64` binary archives, checksums, source archive, and `ghcr.io/kirari04/p2pstream:staging` image tags. The `main` branch is release-only; merging `staging` into `main` rebuilds the final stable release, creates the next patch tag, publishes `latest`, and attaches stable Linux binary archives plus `checksums.txt`.
 
 A scheduled nightly workflow builds the current `dev` branch and publishes the Docker-only `ghcr.io/kirari04/p2pstream:nightly` tag. Nightly images are for development validation and should not be used as repeatable production pins.
 

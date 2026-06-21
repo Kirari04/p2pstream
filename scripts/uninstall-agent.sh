@@ -4,7 +4,9 @@ set -Eeuo pipefail
 readonly SERVICE_NAME="p2pstream-agent"
 readonly CONFIG_DIR="${P2PSTREAM_CONFIG_DIR:-/etc/p2pstream}"
 readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
-readonly SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+readonly SYSTEMD_DIR="${P2PSTREAM_SYSTEMD_DIR:-/etc/systemd/system}"
+readonly SERVICE_FILE="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
+readonly SERVICE_DROPIN_DIR="${SERVICE_FILE}.d"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
 readonly CONFIRM_VALUE="full-purge"
@@ -143,6 +145,7 @@ main() {
   info "Uninstalling p2pstream agent with full purge."
   info "Service: ${SERVICE_NAME}"
   info "Service file: ${SERVICE_FILE}"
+  info "Service drop-ins: ${SERVICE_DROPIN_DIR}"
   info "Config directory: ${CONFIG_DIR}"
   info "Binary: ${INSTALL_PATH}"
   if is_dry_run; then
@@ -151,6 +154,7 @@ main() {
 
   stop_service
   remove_file "$SERVICE_FILE"
+  remove_dir "$SERVICE_DROPIN_DIR"
   reload_systemd
   remove_dir "$CONFIG_DIR"
   remove_file "$INSTALL_PATH"

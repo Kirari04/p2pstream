@@ -4,10 +4,12 @@ on:
   pull_request:
     branches:
       - dev
+      - staging
       - main
   push:
     branches:
       - dev
+      - staging
 
 permissions:
   contents: read
@@ -20,6 +22,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  main-source-gate:
+    if: github.event_name == 'pull_request'
+    name: Main source gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require staging source for main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "${{ github.base_ref }}" == "main" && "${{ github.head_ref }}" != "staging" ]]; then
+            echo "Pull requests to main must come from the staging branch." >&2
+            exit 1
+          fi
+
   verify:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: Verify
@@ -46,7 +62,10 @@ jobs:
         run: git diff --exit-code
 
       - name: Check installer syntax
-        run: bash -n scripts/install-agent.sh
+        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+
+      - name: Run installer lifecycle tests
+        run: scripts/test-agent-lifecycle.sh
 
       - name: Run Go tests
         run: go test ./...
@@ -55,7 +74,7 @@ jobs:
         run: go vet ./...
 
       - name: Run frontend unit tests
-        run: cd web/management && bun test src/lib/*.test.ts
+        run: cd web/management && bun run test
 
       - name: Typecheck management UI
         run: cd web/management && bun run typecheck

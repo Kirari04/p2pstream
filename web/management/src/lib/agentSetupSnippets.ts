@@ -12,12 +12,16 @@ export type AgentSetupSnippetInput = {
   agentId: string;
   agentToken: string;
   repository?: string;
+  version?: string;
+  scriptRef?: string;
   dockerImage?: string;
   tls?: AgentSetupTLSConfig;
 };
 
 export const FALLBACK_RELEASE_REPOSITORY = "Kirari04/p2pstream";
 const RELEASE_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const RELEASE_VERSION_PATTERN = /^v\d+\.\d+\.\d+$/;
+const SCRIPT_REF_PATTERN = /^(main|staging|v\d+\.\d+\.\d+|[A-Fa-f0-9]{7,40})$/;
 
 export function normalizeManagementUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
@@ -36,20 +40,49 @@ export function isValidRepository(value: string | undefined): boolean {
 	return RELEASE_REPOSITORY_PATTERN.test((value ?? "").trim());
 }
 
-export function dockerImageForRepository(repository: string | undefined): string {
-  return `ghcr.io/${normalizeRepository(repository).toLowerCase()}:latest`;
+export function normalizeReleaseVersion(value: string | undefined): string {
+  const version = singleLine(value ?? "").trim() || "latest";
+  if (version === "latest" || version === "staging" || RELEASE_VERSION_PATTERN.test(version)) {
+    return version;
+  }
+  throw new Error("Release version must be latest, staging, or vX.Y.Z.");
+}
+
+export function isValidScriptRef(value: string | undefined): boolean {
+  return SCRIPT_REF_PATTERN.test(singleLine(value ?? "").trim());
+}
+
+export function scriptRefForVersion(version: string | undefined): string {
+  const normalized = normalizeReleaseVersion(version);
+  return normalized === "latest" ? "main" : normalized;
+}
+
+export function normalizeScriptRef(value: string | undefined, version: string | undefined): string {
+  const scriptRef = singleLine(value ?? "").trim() || scriptRefForVersion(version);
+  if (!isValidScriptRef(scriptRef)) {
+    throw new Error("Installer script ref must be main, staging, vX.Y.Z, or a commit SHA.");
+  }
+  return scriptRef;
+}
+
+export function dockerImageForRepository(repository: string | undefined, version?: string): string {
+  const imageTag = normalizeReleaseVersion(version);
+  return `ghcr.io/${normalizeRepository(repository).toLowerCase()}:${imageTag}`;
 }
 
 export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
   const repository = normalizeRepository(input.repository);
+  const version = normalizeReleaseVersion(input.version);
+  const scriptRef = normalizeScriptRef(input.scriptRef, version);
   const parts = [
     `MANAGEMENT_URL=${shellQuote(normalizeManagementUrl(input.managementUrl))}`,
     ...installTLSParts(input.tls),
     `AGENT_ID=${shellQuote(input.agentId)}`,
     `AGENT_TOKEN=${shellQuote(input.agentToken)}`,
     `P2PSTREAM_REPOSITORY=${shellQuote(repository)}`,
+    `P2PSTREAM_VERSION=${shellQuote(version)}`,
   ];
-  return `curl -fsSL https://raw.githubusercontent.com/${repository}/main/scripts/install-agent.sh | sudo env ${parts.join(" ")} bash`;
+  return `curl -fsSL https://raw.githubusercontent.com/${repository}/${scriptRef}/scripts/install-agent.sh | sudo env ${parts.join(" ")} bash`;
 }
 
 export function linuxUninstallSnippet(input: Pick<AgentSetupSnippetInput, "repository">): string {
@@ -58,7 +91,8 @@ export function linuxUninstallSnippet(input: Pick<AgentSetupSnippetInput, "repos
 }
 
 export function dockerComposeSnippet(input: AgentSetupSnippetInput): string {
-  const image = input.dockerImage?.trim() || dockerImageForRepository(input.repository);
+  const version = normalizeReleaseVersion(input.version);
+  const image = input.dockerImage?.trim() || dockerImageForRepository(input.repository, version);
   return `services:
   p2pstream-agent:
     image: ${yamlQuote(image)}

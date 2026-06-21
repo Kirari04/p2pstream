@@ -15,6 +15,7 @@ A non-default route requires at least one of:
 | `priority` | Lower numbers evaluate first. |
 | `host_pattern` | Exact host or wildcard subdomain. |
 | `path_prefix` | Must start with `/` when set. |
+| `path_security_mode` | Defaults to `strict`. Use `allow_encoded_separators` only for upstreams that require encoded `/` or `\` path identifiers. |
 | `action` | `forward` or `redirect`; defaults to forward when unspecified. |
 | `target_load_balancing` | Defaults to round-robin for forward target pools. |
 | `is_default` | Marks the listener default route. One default route is allowed per listener. |
@@ -52,6 +53,19 @@ Wildcard patterns do not match the apex `example.com`.
 
 Redirect routes require target mode, target, and status code `301`, `302`, `307`, or `308`.
 
+## Path Security
+
+Every route has a path security mode:
+
+| Mode | Behavior |
+| --- | --- |
+| `strict` | Rejects request targets containing encoded path separators such as `%2F` or `%5C` before WAF, rate limits, traffic shaping, cache, or forwarding. |
+| `allow_encoded_separators` | Allows encoded separators for compatibility with upstreams that use encoded path IDs, such as GitLab project paths. Shared cache bypasses encoded-separator requests on these routes. |
+
+Decoded `.` and `..` path segments and raw literal backslashes are always rejected on public listeners. Encoded dots inside ordinary segment names, such as `/files/v1%2e2/readme`, are allowed; encoded dots that decode to a whole `.` or `..` segment are rejected.
+
+The compatibility mode is route-scoped so only the backend that needs encoded separators receives them. WAF, rate-limit, and traffic-shaper path matching still use p2pstream's decoded request path model, so avoid relying on decoded slash boundaries for routes that enable encoded separators.
+
 <figure class="doc-screenshot">
   <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing listener, host pattern, path prefix, action, targets, and priority">
   <figcaption>The route editor defines the listener-scoped match, action, priority, and forward target pool or redirect settings.</figcaption>
@@ -80,6 +94,8 @@ Redirect routes require target mode, target, and status code `301`, `302`, `307`
 ## Runtime Effects
 
 Routes are sorted by priority ascending, then route ID ascending. If no enabled non-default route matches, the listener default route handles the request.
+
+p2pstream performs a lightweight route match before WAF, rate limits, and traffic shapers only to determine the matched route's path security mode. Target selection and load-balancer accounting still happen after those policy layers.
 
 At request time, disabled targets, unhealthy targets, invalid target configs, and unavailable agent selector matches are skipped. p2pstream selects from the lowest available priority group. If no target is usable, the response is `503`.
 

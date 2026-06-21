@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +20,8 @@ const (
 	publicProxyStageDone
 )
 
+const publicInvalidRequestTargetErrorKind = "invalid_request_target"
+
 type publicProxyStage func(*publicProxyContext) publicProxyStageResult
 
 type publicProxyContext struct {
@@ -31,19 +34,26 @@ type publicProxyContext struct {
 	Recorder       *proxyResponseRecorder
 	Request        *http.Request
 	Observability  proxyRequestObservability
+	RequestContext proxyRequestContext
 	Trace          *trafficRequestTrace
 
-	Resolution             publicRouteResolution
-	TrafficShaperSelected  bool
-	TrafficShaperDecision  publicTrafficShaperDecision
-	CacheDecision          *publicCacheDecision
-	RouteResolutionFailure error
-	cleanup                []func()
+	Resolution                   publicRouteResolution
+	RouteMatch                   publicRouteMatch
+	HasRouteMatch                bool
+	EncodedPathSeparatorsAllowed bool
+	PathIssues                   publicPathIssueSet
+	TrafficShaperSelected        bool
+	TrafficShaperDecision        publicTrafficShaperDecision
+	CacheDecision                *publicCacheDecision
+	RouteResolutionFailure       error
+	cleanup                      []func()
 }
 
 var publicProxyStages = []publicProxyStage{
+	rejectGloballyInvalidPublicPathStage,
 	serveACMEChallengeStage,
 	serveWAFReservedStage,
+	routePathSecurityStage,
 	beginWAFPressureStage,
 	wafPolicyStage,
 	rateLimitStage,
@@ -76,6 +86,7 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 		Recorder:       recorder,
 		Request:        r,
 		Observability:  observability,
+		RequestContext: proxyRequestContextFromHTTP(r),
 		Trace:          trace,
 	}
 }
@@ -102,6 +113,158 @@ func (ctx *publicProxyContext) runCleanup() {
 	}
 }
 
+func rejectGloballyInvalidPublicPathStage(ctx *publicProxyContext) publicProxyStageResult {
+	ctx.PathIssues = classifyPublicRequestPath(ctx.Request)
+	if !ctx.PathIssues.DecodedDotSegment && !ctx.PathIssues.RawBackslash {
+		return publicProxyStageContinue
+	}
+	return rejectInvalidPublicRequestTarget(ctx)
+}
+
+func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.App == nil {
+		return publicProxyStageContinue
+	}
+	if !ctx.PathIssues.hasEncodedSeparator() {
+		match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+		if err != nil {
+			match.Err = err
+		}
+		ctx.RouteMatch = match
+		ctx.HasRouteMatch = true
+		return publicProxyStageContinue
+	}
+	match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+	if err != nil {
+		match.Err = err
+		ctx.RouteMatch = match
+		ctx.HasRouteMatch = true
+		if errors.Is(err, errNoPublicRouteAvailable) {
+			return rejectInvalidPublicRequestTarget(ctx)
+		}
+		return publicProxyStageContinue
+	}
+	ctx.RouteMatch = match
+	ctx.HasRouteMatch = true
+	if publicRouteAllowsEncodedPathSeparators(match.Route) {
+		ctx.EncodedPathSeparatorsAllowed = true
+		return publicProxyStageContinue
+	}
+	return rejectInvalidPublicRequestTarget(ctx)
+}
+
+func rejectInvalidPublicRequestTarget(ctx *publicProxyContext) publicProxyStageResult {
+	http.Error(ctx.ResponseWriter, "bad request", http.StatusBadRequest)
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
+		context.Background(),
+		http.StatusBadRequest,
+		time.Since(ctx.StartedAt),
+		publicInvalidRequestTargetErrorKind,
+		sql.NullInt64{Int64: ctx.ListenerID, Valid: true},
+		sql.NullInt64{},
+		sql.NullInt64{},
+		ctx.Observability.requestBytesValue(),
+		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
+	)
+	if ctx.Trace != nil {
+		resolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
+		ctx.Trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
+			&resolution,
+			nil,
+			http.StatusBadRequest,
+			publicInvalidRequestTargetErrorKind,
+			ctx.ResponseWriter.Header(),
+			nil,
+		)
+	}
+	return publicProxyStageDone
+}
+
+type publicPathIssueSet struct {
+	DecodedDotSegment bool
+	RawBackslash      bool
+	EncodedSlash      bool
+	EncodedBackslash  bool
+}
+
+func (s publicPathIssueSet) hasEncodedSeparator() bool {
+	return s.EncodedSlash || s.EncodedBackslash
+}
+
+func classifyPublicRequestPath(r *http.Request) publicPathIssueSet {
+	var issues publicPathIssueSet
+	if r == nil || r.URL == nil {
+		return issues
+	}
+	issues.DecodedDotSegment = containsPublicPathDotSegment(r.URL.Path)
+	rawTargetPath := requestTargetPathForPublicValidation(r)
+	issues.RawBackslash = containsRawPublicPathBackslash(rawTargetPath) || containsRawPublicPathBackslash(r.URL.RawPath)
+	for _, path := range []string{r.URL.RawPath, r.URL.EscapedPath(), rawTargetPath} {
+		if containsEncodedPublicPathSlash(path) {
+			issues.EncodedSlash = true
+		}
+		if containsEncodedPublicPathBackslash(path) {
+			issues.EncodedBackslash = true
+		}
+	}
+	return issues
+}
+
+func containsPublicPathDotSegment(path string) bool {
+	for _, segment := range strings.Split(path, "/") {
+		if segment == "." || segment == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func containsRawPublicPathBackslash(path string) bool {
+	return strings.Contains(path, `\`)
+}
+
+func containsEncodedPublicPathSlash(path string) bool {
+	return strings.Contains(strings.ToLower(path), "%2f")
+}
+
+func containsEncodedPublicPathBackslash(path string) bool {
+	return strings.Contains(strings.ToLower(path), "%5c")
+}
+
+func publicRequestHasEncodedPathSeparator(r *http.Request) bool {
+	return classifyPublicRequestPath(r).hasEncodedSeparator()
+}
+
+func publicRouteAllowsEncodedPathSeparators(route publicRouteConfig) bool {
+	return normalizePublicRoutePathSecurityMode(route.PathSecurityMode) == publicRoutePathSecurityModeAllowEncodedSeparators
+}
+
+func requestTargetPathForPublicValidation(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	target := r.RequestURI
+	if target == "" && r.URL != nil {
+		target = r.URL.RequestURI()
+	}
+	if idx := strings.IndexByte(target, '?'); idx >= 0 {
+		target = target[:idx]
+	}
+	if strings.HasPrefix(target, "/") || target == "" {
+		return target
+	}
+	if schemeIdx := strings.Index(target, "://"); schemeIdx >= 0 {
+		rest := target[schemeIdx+3:]
+		if pathIdx := strings.IndexByte(rest, '/'); pathIdx >= 0 {
+			return rest[pathIdx:]
+		}
+		return "/"
+	}
+	return target
+}
+
 func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.App.PublicACME == nil || !ctx.App.PublicACME.ServeHTTPChallenge(ctx.ResponseWriter, ctx.Request) {
 		return publicProxyStageContinue
@@ -110,7 +273,7 @@ func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
-	ctx.App.recordProxyRequestEventWithIDs(
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
 		context.Background(),
 		statusCode,
 		time.Since(ctx.StartedAt),
@@ -120,6 +283,7 @@ func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -148,7 +312,7 @@ func serveWAFReservedStage(ctx *publicProxyContext) publicProxyStageResult {
 			wafDebugAttributes(decision),
 		)
 	}
-	ctx.App.recordProxyRequestEventWithPolicyIDs(
+	ctx.App.recordProxyRequestEventWithPolicyIDsAndContext(
 		context.Background(),
 		statusCode,
 		time.Since(ctx.StartedAt),
@@ -160,6 +324,7 @@ func serveWAFReservedStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -196,7 +361,7 @@ func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
 			wafDebugAttributes(decision),
 		)
 	}
-	ctx.App.recordProxyRequestEventWithPolicyIDs(
+	ctx.App.recordProxyRequestEventWithPolicyIDsAndContext(
 		context.Background(),
 		statusCode,
 		time.Since(ctx.StartedAt),
@@ -208,6 +373,7 @@ func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -241,7 +407,7 @@ func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
 			},
 		)
 	}
-	ctx.App.recordProxyRequestEventWithIDs(
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
 		context.Background(),
 		decision.StatusCode,
 		time.Since(ctx.StartedAt),
@@ -251,6 +417,7 @@ func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
 		sql.NullInt64{},
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
 	)
 	return publicProxyStageDone
 }
@@ -291,7 +458,15 @@ func trafficShaperStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
-	resolution, err := ctx.App.resolvePublicRoute(ctx.ListenerID, ctx.Request)
+	var (
+		resolution publicRouteResolution
+		err        error
+	)
+	if ctx.HasRouteMatch {
+		resolution, err = ctx.App.resolvePublicRouteFromMatch(ctx.RouteMatch)
+	} else {
+		resolution, err = ctx.App.resolvePublicRoute(ctx.ListenerID, ctx.Request)
+	}
 	if err != nil {
 		statusCode := http.StatusBadGateway
 		errorKind := "route_resolution_failed"
@@ -306,7 +481,7 @@ func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
 		} else {
 			http.Error(ctx.ResponseWriter, err.Error(), statusCode)
 		}
-		ctx.App.recordProxyRequestEventWithIDs(
+		ctx.App.recordProxyRequestEventWithIDsAndContext(
 			context.Background(),
 			statusCode,
 			time.Since(ctx.StartedAt),
@@ -316,6 +491,7 @@ func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
 			sql.NullInt64{},
 			ctx.Observability.requestBytesValue(),
 			ctx.Observability.responseBytesValue(),
+			ctx.RequestContext,
 		)
 		if ctx.Trace != nil {
 			failureResolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}

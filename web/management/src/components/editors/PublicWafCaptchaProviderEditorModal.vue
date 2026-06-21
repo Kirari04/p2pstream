@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import type { ComputedRef } from "vue";
+import { NButton, NCheckbox, NInput, NModal, NSelect } from "naive-ui";
+import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   PublicWafCaptchaProviderType,
   type GetPublicProxyConfigResponse,
@@ -14,7 +13,6 @@ import {
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -24,8 +22,8 @@ const emit = defineEmits<{
   (event: "saved"): void;
 }>();
 
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const isOpen = ref(false);
 const providers = computed(() => props.config?.wafCaptchaProviders ?? []);
@@ -129,42 +127,54 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'" max-width="42rem">
-    <form class="grid gap-5" @submit.prevent="submitProvider">
-      <section class="grid gap-4 sm:grid-cols-2">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'"
+    :style="modalCardStyle('42rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitProvider">
+      <section class="layout-grid space-lg mq-sm-cols-two">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
-          <input v-model="form.name" class="vercel-input text-sm normal-case tracking-normal" required />
+          <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Provider
-          <select v-model="form.providerType" class="vercel-input text-sm normal-case tracking-normal">
-            <option v-for="option in providerOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
+          <NSelect v-model:value="form.providerType" size="small" :options="providerOptions" />
         </label>
       </section>
 
-      <section class="grid gap-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <section class="layout-grid space-lg">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Site key
-          <input v-model="form.siteKey" class="vercel-input text-sm normal-case tracking-normal" autocomplete="off" required />
+          <NInput v-model:value="form.siteKey" size="small" autocomplete="off" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Secret key
-          <input v-model="form.secretKey" class="vercel-input text-sm normal-case tracking-normal" autocomplete="off" type="password" :placeholder="form.secretKeySaved ? 'Saved - leave blank to keep current secret' : ''" />
+          <NInput
+            v-model:value="form.secretKey"
+            size="small"
+            autocomplete="off"
+            type="password"
+            :placeholder="form.secretKeySaved ? 'Saved - leave blank to keep current secret' : ''"
+          />
         </label>
-        <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-          <input v-model="form.enabled" type="checkbox" />
+        <NCheckbox v-model:checked="form.enabled">
           Enabled
-        </label>
+        </NCheckbox>
       </section>
 
-      <div class="flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
+      <div class="layout-row align-end-row space-md">
+        <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(submitDisabledReason)" :reason="submitDisabledReason">
-          <Button :label="form.id ? 'Save Changes' : 'Create Provider'" type="submit" :disabled="submitDisabled" />
+          <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
+            {{ form.id ? 'Save Changes' : 'Create Provider' }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>

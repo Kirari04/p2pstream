@@ -1,15 +1,22 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
@@ -36,9 +43,13 @@ func (i fakeACMEIssuer) Issue(context.Context, publicACMEChallengeStore, publicA
 func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 	database := newServerTestDB(t)
 	listener := seedServerHTTPSListener(t, database)
-	certPEM, keyPEM, err := generateSelfSignedCertificatePEM(24 * time.Hour)
+	certPEM, keyPEM, err := generateSelfSignedCertificatePEM(90 * 24 * time.Hour)
 	if err != nil {
 		t.Fatalf("generate cert: %v", err)
+	}
+	leaf, err := parseLeafCertificate(certPEM)
+	if err != nil {
+		t.Fatalf("parse generated cert: %v", err)
 	}
 
 	configDir := t.TempDir()
@@ -58,7 +69,9 @@ func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 		t.Fatalf("create ACME cert: %v", err)
 	}
 
-	app.PublicACME.issueCertificate(context.Background(), cert.ID)
+	logs := captureACMELogs(t, func() {
+		app.PublicACME.issueCertificate(context.Background(), cert.ID, publicACMETriggerManual)
+	})
 
 	updated, err := database.GetPublicTlsCertificate(context.Background(), cert.ID)
 	if err != nil {
@@ -67,8 +80,22 @@ func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 	if updated.Status != publicTLSCertificateStatusReady || updated.CertPath == "" || updated.KeyPath == "" || !updated.ExpiresAt.Valid {
 		t.Fatalf("unexpected issued cert row: %+v", updated)
 	}
+	if !updated.NextRenewalAt.Valid || !updated.NextRenewalAt.Time.Equal(leaf.NotAfter.UTC().Add(-publicACMERenewBefore)) {
+		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMERenewBefore))
+	}
 	assertServerFileBytes(t, updated.CertPath, certPEM)
 	assertServerFileBytes(t, updated.KeyPath, keyPEM)
+
+	entry := findACMELogEntry(t, logs, "ACME certificate renewal succeeded")
+	if entry["component"] != publicACMELogComponent ||
+		entry["stage"] != publicACMEStageRecordSuccess ||
+		entry["trigger"] != publicACMETriggerManual ||
+		entry["hostname"] != "acme.example.com" {
+		t.Fatalf("unexpected success log entry: %+v", entry)
+	}
+	if _, ok := entry["next_renewal_at"]; !ok {
+		t.Fatalf("success log missing next_renewal_at: %+v", entry)
+	}
 }
 
 func TestPublicACMEManagerFailureKeepsExistingCertificateFiles(t *testing.T) {
@@ -93,7 +120,9 @@ func TestPublicACMEManagerFailureKeepsExistingCertificateFiles(t *testing.T) {
 		t.Fatalf("create ACME cert: %v", err)
 	}
 
-	app.PublicACME.issueCertificate(context.Background(), cert.ID)
+	logs := captureACMELogs(t, func() {
+		app.PublicACME.issueCertificate(context.Background(), cert.ID, publicACMETriggerScheduledScan)
+	})
 
 	updated, err := database.GetPublicTlsCertificate(context.Background(), cert.ID)
 	if err != nil {
@@ -101,6 +130,47 @@ func TestPublicACMEManagerFailureKeepsExistingCertificateFiles(t *testing.T) {
 	}
 	if updated.Status != publicTLSCertificateStatusError || updated.CertPath != cert.CertPath || updated.KeyPath != cert.KeyPath || updated.LastError == "" {
 		t.Fatalf("unexpected failed cert row: %+v", updated)
+	}
+	if !strings.Contains(updated.LastError, publicACMEStageIssueCertificate+": issuer failed") {
+		t.Fatalf("last error = %q, want staged issuer failure", updated.LastError)
+	}
+	if !updated.NextRenewalAt.Valid || !updated.LastRenewalAttemptAt.Valid || !updated.NextRenewalAt.Time.After(updated.LastRenewalAttemptAt.Time) {
+		t.Fatalf("expected retry schedule after failed attempt: %+v", updated)
+	}
+
+	entry := findACMELogEntry(t, logs, "ACME certificate renewal failed")
+	if entry["component"] != publicACMELogComponent ||
+		entry["stage"] != publicACMEStageIssueCertificate ||
+		entry["trigger"] != publicACMETriggerScheduledScan ||
+		entry["hostname"] != "acme.example.com" {
+		t.Fatalf("unexpected failure log entry: %+v", entry)
+	}
+	if _, ok := entry["retry_at"]; !ok {
+		t.Fatalf("failure log missing retry_at: %+v", entry)
+	}
+}
+
+func TestPublicACMECertificateScheduleDecisionUsesRetryTime(t *testing.T) {
+	now := time.Date(2026, 6, 20, 10, 0, 0, 0, time.UTC)
+	cert := db.PublicTlsCertificate{
+		ID:              1,
+		ListenerID:      2,
+		HostnamePattern: "acme.example.com",
+		Enabled:         1,
+		Source:          publicTLSCertificateSourceACME,
+		Status:          publicTLSCertificateStatusError,
+		NextRenewalAt:   sqlNullTime(now.Add(30 * time.Minute)),
+	}
+
+	decision := publicACMECertificateScheduleDecision(cert, now)
+	if decision.Due || decision.Reason != "waiting_for_retry" || !decision.NextAttemptAt.Valid || !decision.NextAttemptAt.Time.Equal(now.Add(30*time.Minute)) {
+		t.Fatalf("decision before retry = %+v", decision)
+	}
+
+	cert.NextRenewalAt = sqlNullTime(now.Add(-time.Minute))
+	decision = publicACMECertificateScheduleDecision(cert, now)
+	if !decision.Due || decision.Reason != "retry_due" {
+		t.Fatalf("decision after retry = %+v", decision)
 	}
 }
 
@@ -397,4 +467,48 @@ func assertServerFileBytes(t *testing.T, path string, want []byte) {
 	if string(got) != string(want) {
 		t.Fatalf("file %s contents mismatch", path)
 	}
+}
+
+func sqlNullTime(value time.Time) sql.NullTime {
+	return sql.NullTime{Time: value, Valid: true}
+}
+
+func captureACMELogs(t *testing.T, fn func()) []map[string]any {
+	t.Helper()
+	var buf bytes.Buffer
+	previousLogger := log.Logger
+	previousLevel := zerolog.GlobalLevel()
+	log.Logger = zerolog.New(&buf)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	t.Cleanup(func() {
+		log.Logger = previousLogger
+		zerolog.SetGlobalLevel(previousLevel)
+	})
+
+	fn()
+
+	rawLines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	entries := make([]map[string]any, 0, len(rawLines))
+	for _, line := range rawLines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var entry map[string]any
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			t.Fatalf("parse log line %q: %v", line, err)
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+func findACMELogEntry(t *testing.T, entries []map[string]any, message string) map[string]any {
+	t.Helper()
+	for _, entry := range entries {
+		if entry["message"] == message {
+			return entry
+		}
+	}
+	t.Fatalf("missing log entry %q in %+v", message, entries)
+	return nil
 }

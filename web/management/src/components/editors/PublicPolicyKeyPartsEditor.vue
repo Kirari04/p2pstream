@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import TrashIcon from "@primevue/icons/trash";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NInput, NSelect } from "naive-ui";
 import DisabledHint from "@/components/DisabledHint.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
 import { PublicRateLimitKeySource } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type KeyPartForm = {
@@ -52,38 +51,38 @@ function removeDisabledReason(): string {
 </script>
 
 <template>
-  <section class="grid gap-4 rounded-md border border-[#222] bg-[#050505] p-4">
-    <div class="flex items-center justify-between gap-3">
-      <h4 class="text-sm font-semibold text-white">Key parts</h4>
+  <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+    <div class="layout-row align-center spread-items space-md">
+      <h4 class="copy-sm weight-semibold base-text">Key parts</h4>
       <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason || ''">
-        <SecondaryButton type="button" size="small" label="Add Key" :disabled="Boolean(disabledReason)" @click="addKeyPart" />
+        <NButton secondary size="small" :disabled="Boolean(disabledReason)" @click="addKeyPart">
+          Add Key
+        </NButton>
       </DisabledHint>
     </div>
-    <div class="grid gap-2">
-      <div v-for="(part, index) in keyParts" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-        <select v-model="part.source" class="vercel-input text-sm" :disabled="Boolean(disabledReason)">
-          <option v-for="option in keySourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
+    <div class="layout-grid space-sm">
+      <div v-for="(part, index) in keyParts" :key="index" class="layout-grid space-sm mq-sm-two-auto">
+        <NSelect v-model:value="part.source" size="small" :options="keySourceOptions" :disabled="Boolean(disabledReason)" />
         <DisabledHint full-width :disabled="Boolean(disabledReason || keyPartNameDisabledReason(part.source))" :reason="disabledReason || keyPartNameDisabledReason(part.source)">
-          <input
-            v-model="part.name"
-            class="vercel-input text-sm"
+          <NInput
+            v-model:value="part.name"
+            size="small"
             placeholder="Name"
             :disabled="Boolean(disabledReason || keyPartNameDisabledReason(part.source))"
           />
         </DisabledHint>
         <DisabledHint :disabled="Boolean(removeDisabledReason())" :reason="removeDisabledReason()">
-          <DangerButton
+          <NButton
+            type="error"
             size="small"
             class="row-remove-button"
             aria-label="Remove key part"
             title="Remove key part"
-            type="button"
             :disabled="Boolean(removeDisabledReason())"
             @click="removeKeyPart(index)"
           >
-            <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-          </DangerButton>
+            <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+          </NButton>
         </DisabledHint>
       </div>
     </div>

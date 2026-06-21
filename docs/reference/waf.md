@@ -82,9 +82,24 @@ Waiting-room page templates can only be selected for waiting-room WAF rules. The
 
 WAF rules use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, target data, target health, and load-balancer state are not available inside WAF match CEL. WAF rules still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside WAF match CEL. p2pstream may perform a route-only path security match before WAF, but WAF rules still run before route target selection.
+
+WAF path matching uses p2pstream's decoded request path. On routes that allow encoded separators for upstream compatibility, avoid WAF rules that depend on decoded slash boundaries for authorization.
 
 WAF key parts reuse rate-limit key sources: remote IP, host, method, path, protocol, header, cookie, and query parameter.
+
+`REMOTE_IP` is the only built-in client-IP identity source. It uses the peer address seen by p2pstream. `HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Behind another reverse proxy, place p2pstream where it sees the real client address or use only trusted application headers; trusted-proxy parsing is not available yet.
+
+Before upgrading from an older version that allowed arbitrary header key parts, inspect stored WAF rules:
+
+```sql
+SELECT id, name, key_parts_json
+FROM public_waf_rules
+WHERE lower(key_parts_json) LIKE '%forwarded%'
+   OR lower(key_parts_json) LIKE '%x-real-ip%'
+   OR lower(key_parts_json) LIKE '%client-ip%'
+   OR lower(key_parts_json) LIKE '%connecting-ip%';
+```
 
 Automatic trigger thresholds accept `0` to disable individual signals. CPU percentages are 0 to 100.
 

@@ -111,9 +111,12 @@ type ProxyRequestEvent struct {
 	StatusCode    int64         `json:"status_code"`
 	DurationMs    int64         `json:"duration_ms"`
 	ErrorKind     string        `json:"error_kind"`
+	Method        string        `json:"method"`
+	Host          string        `json:"host"`
+	PathPrefix    string        `json:"path_prefix"`
 	ListenerID    sql.NullInt64 `json:"listener_id"`
-	RouteID       sql.NullInt64 `json:"route_id"`
 	RouteTargetID sql.NullInt64 `json:"route_target_id"`
+	RouteID       sql.NullInt64 `json:"route_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
 	WafAction     string        `json:"waf_action"`
 	AgentID       sql.NullInt64 `json:"agent_id"`
@@ -147,11 +150,26 @@ type ProxyRequestRollupMinute struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type ProxyRequestStatusRollupMinute struct {
+	BucketUnixMillis int64     `json:"bucket_unix_millis"`
+	StatusCode       int64     `json:"status_code"`
+	Requests         int64     `json:"requests"`
+	Success          int64     `json:"success"`
+	ClientError      int64     `json:"client_error"`
+	ServerError      int64     `json:"server_error"`
+	InternalError    int64     `json:"internal_error"`
+	DurationMsSum    int64     `json:"duration_ms_sum"`
+	RequestBytes     int64     `json:"request_bytes"`
+	ResponseBytes    int64     `json:"response_bytes"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
 type ProxyRequestTupleRollupMinute struct {
 	BucketUnixMillis int64     `json:"bucket_unix_millis"`
 	ListenerID       int64     `json:"listener_id"`
-	RouteID          int64     `json:"route_id"`
 	RouteTargetID    int64     `json:"route_target_id"`
+	RouteID          int64     `json:"route_id"`
 	AgentID          int64     `json:"agent_id"`
 	ErrorKind        string    `json:"error_kind"`
 	StatusClass      int64     `json:"status_class"`
@@ -289,6 +307,7 @@ type PublicRoute struct {
 	RedirectStatusCode         int64     `json:"redirect_status_code"`
 	RedirectPreservePathSuffix int64     `json:"redirect_preserve_path_suffix"`
 	RedirectPreserveQuery      int64     `json:"redirect_preserve_query"`
+	PathSecurityMode           string    `json:"path_security_mode"`
 	Enabled                    int64     `json:"enabled"`
 	CreatedAt                  time.Time `json:"created_at"`
 	UpdatedAt                  time.Time `json:"updated_at"`

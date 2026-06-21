@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { authenticate } from "./helpers/auth";
 import { connectRPC } from "./helpers/connect";
+import { chooseNaiveSelectOption } from "./helpers/naive";
 
 const managementPort = process.env.PLAYWRIGHT_MANAGEMENT_PORT ?? "19081";
 
@@ -63,9 +64,11 @@ test("switches to a trusted loopback environment through scoped Connect proxy", 
   });
 
   await page.reload();
-  const environmentSelect = page.locator('select[title^="Selected environment:"]');
+  const environmentSelect = page.getByTestId("environment-select");
   await expect(environmentSelect).toBeVisible();
-  await expect(environmentSelect.locator(`option[value="${environmentID}"]`)).toHaveText(environmentName);
+  await environmentSelect.click();
+  await expect(page.locator(".n-base-select-option").filter({ hasText: environmentName })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   const dashboardResponse = page.waitForResponse((response) =>
     response.url().includes(`/environments/${environmentID}/p2pstream.v1.AgentManagementService/GetDashboard`) &&
@@ -75,10 +78,10 @@ test("switches to a trusted loopback environment through scoped Connect proxy", 
     response.url().includes(`/environments/${environmentID}/p2pstream.v1.AgentManagementService/GetPublicProxyConfig`) &&
     response.status() === 200
   );
-  await environmentSelect.selectOption(environmentID);
+  await chooseNaiveSelectOption(page, environmentSelect, environmentName);
   await Promise.all([dashboardResponse, publicConfigResponse]);
 
-  await expect(environmentSelect).toHaveValue(environmentID);
+  await expect(environmentSelect).toContainText(environmentName);
   await expect(environmentSelect).toHaveAttribute("title", `Selected environment: ${environmentName}`);
   await expect(page.getByText(/404|not implemented/i)).toHaveCount(0);
 
@@ -87,8 +90,8 @@ test("switches to a trusted loopback environment through scoped Connect proxy", 
     response.url().includes("/p2pstream.v1.AgentManagementService/GetDashboard") &&
     response.status() === 200
   );
-  await environmentSelect.selectOption("0");
+  await chooseNaiveSelectOption(page, environmentSelect, "Local");
   await localDashboardResponse;
-  await expect(environmentSelect).toHaveValue("0");
+  await expect(environmentSelect).toContainText("Local");
   await expect(environmentSelect).toHaveAttribute("title", "Selected environment: Local");
 });

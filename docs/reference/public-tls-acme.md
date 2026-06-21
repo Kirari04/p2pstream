@@ -30,7 +30,7 @@ Statuses:
 | Pending | Waiting for initial issuance. |
 | Renewing | Issuance or renewal is running. |
 | Ready | Certificate material is available. |
-| Error | Last issuance attempt failed; check `last_error`. |
+| Error | Last issuance attempt failed; check `last_error` and the next retry time. |
 
 ## Validation Rules
 
@@ -43,9 +43,13 @@ Statuses:
 
 ## Runtime Effects
 
-Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after a delay.
+Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after 1 hour.
 
-The management UI shows certificate validity when metadata is stored or the certificate file can be parsed.
+For ready ACME certificates, `next_renewal_at` is the next planned renewal time. For failed ACME certificates, `next_renewal_at` is the next automatic retry time. While a renewal is running, the next schedule is cleared until the attempt succeeds or fails.
+
+The management UI shows certificate validity when metadata is stored or the certificate file can be parsed. For ACME certificates it also shows the last attempt time, the next renewal or retry time, and the last error.
+
+Server logs for ACME use `component=public_acme`. Renewal entries include fields such as `cert_id`, `listener_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `expires_at`, `next_renewal_at`, and `retry_at`. Challenge tokens, DNS TXT values, DNS API tokens, and private key material are not logged.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing certificate mappings, ACME challenge type, status, renewal time, and DNS credentials">

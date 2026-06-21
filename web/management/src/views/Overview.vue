@@ -1,21 +1,20 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
-import type { ComputedRef } from "vue";
+import { NButton, NButtonGroup, NDataTable } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
+import { dashboardKey, publicProxyConfigKey } from "@/composables/managementContextKeys";
 import {
   ProxyState,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
   type DashboardProxyDimensionSummary,
   type DashboardTrafficBucket,
-  type GetDashboardResponse,
-  type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   bytesPerSecond,
   cacheActivityRequests,
   cacheHitRate,
   cacheLookupRequests,
-  errorRate,
   filledTrafficBuckets,
   formatByteRate,
   formatBytes,
@@ -23,6 +22,8 @@ import {
   formatNumber,
   formatPercent,
   fleetUptimePercent,
+  nonSuccessRequests,
+  proxyFailureRequests,
   requestsPerSecond,
   statusClassCounts,
   successRate,
@@ -32,11 +33,12 @@ import {
 
 type HotspotTab = "listeners" | "targets" | "routes" | "agents";
 
-const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
-const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
+const dashboard = inject(dashboardKey, computed(() => null));
+const publicProxyConfig = inject(publicProxyConfigKey, computed(() => null));
 
 const selectedWindowLabel = ref("1h");
 const activeHotspotTab = ref<HotspotTab>("listeners");
+const windowLabels = ["5m", "1h", "24h", "30d"];
 
 const dashboardValue = computed(() => dashboard?.value ?? null);
 const config = computed(() => publicProxyConfig?.value ?? null);
@@ -92,6 +94,51 @@ const hotspotRows = computed(() => {
       return current.topListeners;
   }
 });
+const hotspotColumns = computed<DataTableColumns<DashboardProxyDimensionSummary>>(() => [
+  {
+    title: "Name",
+    key: "name",
+    minWidth: 220,
+    ellipsis: { tooltip: true },
+    render: (row) => row.label,
+  },
+  {
+    title: "Requests",
+    key: "requests",
+    width: 130,
+    render: (row) => formatNumber(row.requests),
+  },
+  {
+    title: "Success",
+    key: "success",
+    width: 110,
+    render: rowSuccess,
+  },
+  {
+    title: "Non-success",
+    key: "nonSuccess",
+    width: 130,
+    render: (row) => formatNumber(rowNonSuccess(row)),
+  },
+  {
+    title: "Avg latency",
+    key: "avgLatency",
+    width: 130,
+    render: (row) => formatDuration(row.avgDurationMs),
+  },
+  {
+    title: "Down",
+    key: "down",
+    width: 120,
+    render: (row) => formatBytes(row.responseBytes),
+  },
+  {
+    title: "Up",
+    key: "up",
+    width: 120,
+    render: (row) => formatBytes(row.requestBytes),
+  },
+]);
 
 const configSnapshot = computed(() => {
   const directTargets = routeTargets.value.filter((target) => target.targetType === PublicRouteTargetType.PROXY && target.transport !== PublicRouteTargetTransport.AGENT).length;
@@ -151,8 +198,8 @@ function agentsMetricSubline(): string {
   return `${formatPercent(fleetUptime.value)} uptime / ${active}`;
 }
 
-function rowErrors(row: DashboardProxyDimensionSummary): bigint {
-  return row.clientError + row.serverError + row.internalError;
+function rowNonSuccess(row: DashboardProxyDimensionSummary): bigint {
+  return row.clientError + row.serverError;
 }
 
 function rowSuccess(row: DashboardProxyDimensionSummary): string {
@@ -174,14 +221,18 @@ function bucketHeight(bucket: DashboardTrafficBucketView): string {
 }
 
 function bucketErrorHeight(bucket: DashboardTrafficBucketView): string {
-  if (bucket.requests === 0n || bucket.errors === 0n) return "0%";
-  return `${Math.max(12, Math.round((Number(bucket.errors) / Number(bucket.requests)) * 100)).toString()}%`;
+  if (bucket.requests === 0n || bucket.nonSuccess === 0n) return "0%";
+  return `${Math.max(12, Math.round((Number(bucket.nonSuccess) / Number(bucket.requests)) * 100)).toString()}%`;
 }
 
 function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView): string {
   const start = new Date(Number(bucket.bucketUnixMillis));
-  const errors = "errors" in bucket ? bucket.errors : bucket.clientError + bucket.serverError + bucket.internalError;
-  return `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: ${formatNumber(bucket.requests)} requests, ${formatNumber(errors)} errors, down ${formatBytes(bucket.responseBytes)}, up ${formatBytes(bucket.requestBytes)}`;
+  const nonSuccess = "nonSuccess" in bucket ? bucket.nonSuccess : bucket.clientError + bucket.serverError;
+  return `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: ${formatNumber(bucket.requests)} requests, ${formatNumber(nonSuccess)} non-success, down ${formatBytes(bucket.responseBytes)}, up ${formatBytes(bucket.requestBytes)}`;
+}
+
+function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
+  return `${activeHotspotTab.value}-${row.id.toString()}-${row.label}`;
 }
 </script>
 
@@ -192,19 +243,19 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
         <h3>Proxy Overview</h3>
         <p>Operational stats from retained proxy request events.</p>
       </div>
-      <div class="window-tabs" role="tablist" aria-label="Dashboard window">
-        <button
-          v-for="window in ['5m', '1h', '24h', '30d']"
+      <NButtonGroup class="window-tabs" role="tablist" aria-label="Dashboard window" size="small">
+        <NButton
+          v-for="window in windowLabels"
           :key="window"
-          type="button"
+          attr-type="button"
           role="tab"
           :aria-selected="selectedWindowLabel === window"
-          :class="{ active: selectedWindowLabel === window }"
+          :type="selectedWindowLabel === window ? 'primary' : 'default'"
           @click="selectedWindowLabel = window"
         >
           {{ window }}
-        </button>
-      </div>
+        </NButton>
+      </NButtonGroup>
     </section>
 
     <section class="overview-grid metric-strip">
@@ -225,8 +276,8 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 
       <div class="metric-card">
         <p class="metric-kicker">Success</p>
-        <div class="metric-value text-green-300">{{ formatPercent(successRate(selectedWindow)) }}</div>
-        <p class="metric-subline">{{ formatPercent(errorRate(selectedWindow)) }} errors</p>
+        <div class="metric-value success-text">{{ formatPercent(successRate(selectedWindow)) }}</div>
+        <p class="metric-subline">{{ formatNumber(nonSuccessRequests(selectedWindow)) }} non-success / {{ formatNumber(proxyFailureRequests(selectedWindow)) }} proxy failures</p>
       </div>
 
       <div class="metric-card">
@@ -325,9 +376,12 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
             <h4>Problem Signals</h4>
             <p>Selected window plus last-hour error kinds.</p>
           </div>
-          <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
-            {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
-          </span>
+          <div class="panel-actions">
+            <router-link to="/monitor/diagnostics" class="diagnostics-link">View diagnostics</router-link>
+            <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
+              {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
+            </span>
+          </div>
         </div>
 
         <div class="status-class-grid">
@@ -346,7 +400,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
             <span>{{ errorKindLabel(error.label) }}</span>
             <strong>{{ formatNumber(error.requests) }}</strong>
           </div>
-          <div v-if="!proxyError && !dashboardValue.topErrorKinds.length" class="stable-empty compact">No proxy errors in the last hour.</div>
+          <div v-if="!proxyError && !dashboardValue.topErrorKinds.length" class="stable-empty compact">No proxy failures in the last hour.</div>
         </div>
       </div>
     </section>
@@ -357,50 +411,31 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
           <h4>Hotspots</h4>
           <p>Top in the last hour.</p>
         </div>
-        <div class="mini-tabs" role="tablist" aria-label="Hotspot dimension">
-          <button
+        <NButtonGroup class="mini-tabs" role="tablist" aria-label="Hotspot dimension" size="small">
+          <NButton
             v-for="tab in hotspotTabs"
             :key="tab.key"
-            type="button"
+            attr-type="button"
             role="tab"
             :aria-selected="activeHotspotTab === tab.key"
-            :class="{ active: activeHotspotTab === tab.key }"
+            :type="activeHotspotTab === tab.key ? 'primary' : 'default'"
             @click="activeHotspotTab = tab.key"
           >
             {{ tab.label }}
-          </button>
-        </div>
+          </NButton>
+        </NButtonGroup>
       </div>
 
-      <div class="table-scroll">
-        <table class="hotspot-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Requests</th>
-              <th>Success</th>
-              <th>Errors</th>
-              <th>Avg latency</th>
-              <th>Down</th>
-              <th>Up</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in hotspotRows" :key="`${activeHotspotTab}-${row.id.toString()}-${row.label}`">
-              <td class="name-cell">{{ row.label }}</td>
-              <td>{{ formatNumber(row.requests) }}</td>
-              <td>{{ rowSuccess(row) }}</td>
-              <td>{{ formatNumber(rowErrors(row)) }}</td>
-              <td>{{ formatDuration(row.avgDurationMs) }}</td>
-              <td>{{ formatBytes(row.responseBytes) }}</td>
-              <td>{{ formatBytes(row.requestBytes) }}</td>
-            </tr>
-            <tr v-if="!hotspotRows.length">
-              <td colspan="7" class="empty-row">No hotspot data for this dimension.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <NDataTable
+        :columns="hotspotColumns"
+        :data="hotspotRows"
+        :row-key="hotspotRowKey"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="960"
+        size="small"
+      />
     </section>
 
     <section class="dashboard-panel">
@@ -435,7 +470,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 }
 
 .overview-header h3 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -444,7 +479,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 .overview-header p,
 .panel-heading p,
 .metric-subline {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 
@@ -461,9 +496,9 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 .dashboard-panel,
 .empty-panel {
   min-width: 0;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #000;
+  background: var(--app-panel-muted);
 }
 
 .metric-card {
@@ -473,7 +508,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 }
 
 .metric-kicker {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -485,7 +520,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   min-width: 0;
   align-items: center;
   gap: 0.45rem;
-  color: #ededed;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -493,53 +528,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 
 .window-tabs,
 .mini-tabs {
-  display: inline-grid;
-  overflow: hidden;
-  border: 1px solid #333;
-  border-radius: 6px;
-  background: #050505;
-  padding: 0.2rem;
-}
-
-.window-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.mini-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.window-tabs button,
-.mini-tabs button {
-  min-width: 0;
-  border-radius: 4px;
-  color: #888;
-  font-size: 0.78rem;
-  font-weight: 650;
-  letter-spacing: 0;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.window-tabs button {
-  height: 2rem;
-  padding: 0 0.75rem;
-}
-
-.mini-tabs button {
-  height: 1.85rem;
-  padding: 0 0.55rem;
-}
-
-.window-tabs button:hover,
-.mini-tabs button:hover {
-  background: #111;
-  color: #fff;
-}
-
-.window-tabs button.active,
-.mini-tabs button.active {
-  background: #fff;
-  color: #000;
+  flex-shrink: 0;
 }
 
 .signal-dot {
@@ -550,19 +539,19 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 }
 
 .signal-good {
-  background: #22c55e;
+  background: var(--app-success);
 }
 
 .signal-warn {
-  background: #f59e0b;
+  background: var(--app-warning);
 }
 
 .signal-bad {
-  background: #ef4444;
+  background: var(--app-error);
 }
 
 .signal-muted {
-  background: #666;
+  background: var(--app-text-muted);
 }
 
 .overview-main-grid {
@@ -583,9 +572,34 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   gap: 1rem;
 }
 
+.panel-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 0.45rem;
+}
+
+.diagnostics-link {
+  display: inline-flex;
+  min-height: 1.55rem;
+  align-items: center;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0 0.55rem;
+  white-space: nowrap;
+}
+
+.diagnostics-link:hover {
+  background: var(--app-border-subtle);
+}
+
 .panel-heading h4,
 .empty-panel h4 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -595,10 +609,10 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   display: inline-flex;
   min-height: 1.55rem;
   align-items: center;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #080808;
-  color: #d4d4d8;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   font-size: 0.72rem;
   font-weight: 650;
   padding: 0 0.55rem;
@@ -607,7 +621,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 
 .signal-pill.warn {
   border-color: rgb(245 158 11 / 55%);
-  color: #fbbf24;
+  color: var(--app-warning);
 }
 
 .trend-bars {
@@ -628,16 +642,20 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   display: flex;
   align-items: end;
   overflow: hidden;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 4px;
-  background: #050505;
+  background: var(--app-panel-muted);
 }
 
 .trend-bar {
   position: relative;
   width: 100%;
   min-height: 0;
-  background: #d4d4d8;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-accent) 76%, var(--app-panel)),
+    var(--app-accent)
+  );
   transition: height 160ms ease;
 }
 
@@ -646,7 +664,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   right: 0;
   bottom: 0;
   left: 0;
-  background: #ef4444;
+  background: var(--app-error);
 }
 
 .status-class-grid,
@@ -670,16 +688,16 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   display: grid;
   gap: 0.2rem;
   min-width: 0;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.75rem;
 }
 
 .status-class span,
 .snapshot-item span,
 .cache-stat span {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 650;
 }
@@ -687,7 +705,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 .status-class strong,
 .snapshot-item strong,
 .cache-stat strong {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1rem;
   font-weight: 700;
 }
@@ -695,14 +713,14 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 .snapshot-item small,
 .cache-stat small {
   overflow: hidden;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .cache-empty {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.8rem;
 }
 
@@ -716,20 +734,20 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: center;
-  border-top: 1px solid #1f1f1f;
+  border-top: 1px solid var(--app-border);
   padding-top: 0.45rem;
 }
 
 .error-row span {
   overflow: hidden;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-size: 0.8rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .error-row strong {
-  color: #fca5a5;
+  color: var(--app-error);
   font-size: 0.8rem;
   font-weight: 650;
 }
@@ -747,14 +765,14 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 
 .hotspot-table th,
 .hotspot-table td {
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding: 0.65rem 0.5rem;
   text-align: right;
   white-space: nowrap;
 }
 
 .hotspot-table th {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -769,14 +787,14 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 .name-cell {
   max-width: 18rem;
   overflow: hidden;
-  color: #fff;
+  color: var(--app-text);
   font-weight: 650;
   text-overflow: ellipsis;
 }
 
 .empty-row,
 .stable-empty {
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
   text-align: center;
 }
@@ -785,9 +803,9 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
   display: grid;
   min-height: 8rem;
   place-items: center;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
 }
 
 .stable-empty.compact {
@@ -800,7 +818,7 @@ function bucketTitle(bucket: DashboardTrafficBucket | DashboardTrafficBucketView
 
 .empty-panel p {
   margin-top: 0.25rem;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 

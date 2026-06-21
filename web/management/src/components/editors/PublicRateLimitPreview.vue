@@ -454,22 +454,22 @@ function clamp(value: number, min: number, max: number): number {
     aria-label="Rate limit behavior preview"
   >
     <div class="rate-preview-header">
-      <div class="min-w-0">
+      <div class="min-width-zero">
         <p class="rate-preview-title">{{ algorithmLabel }}</p>
         <p class="rate-preview-subtitle">{{ meterLabel }} / {{ rateLabel }}</p>
       </div>
       <div class="rate-preview-stats">
         <div>
           <span>Allowed</span>
-          <strong class="text-green-400">{{ allowedLabel }}</strong>
+          <strong class="success-text">{{ allowedLabel }}</strong>
         </div>
         <div>
           <span>Rejected</span>
-          <strong class="text-red-400">{{ rejectedLabel }}</strong>
+          <strong class="error-text">{{ rejectedLabel }}</strong>
         </div>
         <div>
           <span>Remaining</span>
-          <strong class="text-[#d4d4d8]">{{ remainingLabel }}</strong>
+          <strong class="base-text">{{ remainingLabel }}</strong>
         </div>
       </div>
     </div>
@@ -483,7 +483,7 @@ function clamp(value: number, min: number, max: number): number {
     >
       <defs>
         <marker id="rate-preview-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 Z" fill="#52525b" />
+          <path d="M0,0 L8,4 L0,8 Z" fill="var(--app-border)" />
         </marker>
       </defs>
 
@@ -558,9 +558,9 @@ function clamp(value: number, min: number, max: number): number {
   display: grid;
   gap: 0.85rem;
   overflow: hidden;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 1rem;
   transition: opacity 160ms ease, border-color 160ms ease;
 }
@@ -575,7 +575,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .rate-preview-title {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.92rem;
   font-weight: 700;
   line-height: 1.25;
@@ -584,7 +584,7 @@ function clamp(value: number, min: number, max: number): number {
 .rate-preview-subtitle {
   margin-top: 0.18rem;
   overflow: hidden;
-  color: #888;
+  color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
   text-overflow: ellipsis;
@@ -599,15 +599,15 @@ function clamp(value: number, min: number, max: number): number {
 
 .rate-preview-stats div {
   min-width: 0;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #0b0b0b;
+  background: var(--app-panel-muted);
   padding: 0.55rem 0.65rem;
 }
 
 .rate-preview-stats span {
   display: block;
-  color: #71717a;
+  color: var(--app-text-muted);
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -625,27 +625,27 @@ function clamp(value: number, min: number, max: number): number {
 .rate-preview-svg {
   width: 100%;
   height: 190px;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #030303;
+  background: var(--app-panel-muted);
 }
 
 .preview-track {
   fill: none;
-  stroke: #3f3f46;
+  stroke: var(--app-border);
   stroke-linecap: round;
   stroke-width: 2;
 }
 
 .preview-stop-line {
-  stroke: #7f1d1d;
+  stroke: color-mix(in srgb, var(--app-error) 36%, var(--app-border));
   stroke-dasharray: 4 5;
   stroke-linecap: round;
   stroke-width: 2;
 }
 
 .preview-label {
-  fill: #71717a;
+  fill: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
@@ -654,42 +654,42 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .preview-label-red {
-  fill: #ef4444;
+  fill: var(--app-error);
 }
 
 .preview-meter-shell,
 .preview-tank-shell {
-  fill: #0b0b0b;
-  stroke: #333;
+  fill: var(--app-panel-muted);
+  stroke: var(--app-border);
   stroke-width: 1;
 }
 
 .preview-meter-segment {
-  fill: #18181b;
+  fill: var(--app-panel);
 }
 
 .preview-meter-segment-filled,
 .preview-window-fill,
 .preview-tank-fill {
-  fill: #22c55e;
+  fill: var(--app-success);
 }
 
 .preview-tank-fill-amber {
-  fill: #f59e0b;
+  fill: var(--app-warning);
 }
 
 .preview-sweep {
-  stroke: #22d3ee;
+  stroke: var(--app-accent);
   stroke-linecap: round;
   stroke-width: 2;
 }
 
 .preview-rail-hit {
-  fill: #22d3ee;
+  fill: var(--app-accent);
 }
 
 .preview-drain-line {
-  stroke: #22d3ee;
+  stroke: var(--app-accent);
   stroke-dasharray: 5 4;
   stroke-linecap: round;
   stroke-width: 2;
@@ -697,7 +697,7 @@ function clamp(value: number, min: number, max: number): number {
 
 .preview-refill-line {
   fill: none;
-  stroke: #22d3ee;
+  stroke: var(--app-accent);
   stroke-linecap: round;
   stroke-width: 2;
 }
@@ -707,13 +707,13 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .preview-request-allowed {
-  color: #22d3ee;
-  fill: #22d3ee;
+  color: var(--app-accent);
+  fill: var(--app-accent);
 }
 
 .preview-request-rejected {
-  color: #ef4444;
-  fill: #ef4444;
+  color: var(--app-error);
+  fill: var(--app-error);
 }
 
 @media (min-width: 720px) {

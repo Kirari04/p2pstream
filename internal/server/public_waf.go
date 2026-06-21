@@ -53,7 +53,7 @@ const (
 	defaultWafTriggerMinimumRequestRate  = int64(50)
 	defaultWafTriggerSpikeMultiplier     = 4.0
 	defaultWafTriggerProxyActiveRequests = int64(100)
-	defaultWafTriggerRouteTargetActive       = int64(100)
+	defaultWafTriggerRouteTargetActive   = int64(100)
 	defaultWafTriggerAgentActive         = int64(50)
 	defaultWafTriggerServerCPU           = 85.0
 	defaultWafTriggerAgentCPU            = 85.0
@@ -84,16 +84,16 @@ type publicWafCaptchaProviderConfig struct {
 }
 
 type publicWafTriggerConfig struct {
-	RequestWindowMillis    int64
-	MinimumRequestRate     int64
-	TrafficSpikeMultiplier float64
-	ProxyActiveRequests    int64
-	RouteTargetActiveRequests  int64
-	AgentActiveRequests    int64
-	ServerCPUPercent       float64
-	AgentCPUPercent        float64
-	MinimumActiveMillis    int64
-	QuietPeriodMillis      int64
+	RequestWindowMillis       int64
+	MinimumRequestRate        int64
+	TrafficSpikeMultiplier    float64
+	ProxyActiveRequests       int64
+	RouteTargetActiveRequests int64
+	AgentActiveRequests       int64
+	ServerCPUPercent          float64
+	AgentCPUPercent           float64
+	MinimumActiveMillis       int64
+	QuietPeriodMillis         int64
 }
 
 type publicWafWaitingRoomConfig struct {
@@ -155,7 +155,7 @@ type publicWafRuleMutationInput struct {
 	TriggerMinimumRequestRate            int64
 	TriggerTrafficSpikeMultiplier        float64
 	TriggerProxyActiveRequests           int64
-	TriggerRouteTargetActiveRequests         int64
+	TriggerRouteTargetActiveRequests     int64
 	TriggerAgentActiveRequests           int64
 	TriggerServerCpuPercent              float64
 	TriggerAgentCpuPercent               float64
@@ -172,16 +172,17 @@ type publicWafRuleMutationInput struct {
 }
 
 type publicWAF struct {
-	mu                   sync.Mutex
-	rules                map[int64]*publicWafRuleRuntime
-	cookieSecret         atomic.Value // stores immutable []byte
-	proxyActiveRequests  atomic.Int64
-	captchaHTTPClient    *http.Client
-	captchaVerifyLimiter *publicWafCaptchaVerifyLimiter
-	captchaVerifySlots   chan struct{}
-	cpuSampler           *sysmetrics.ProcessCPUSampler
-	lastCPUSampleAt      time.Time
-	lastCPUPercent       float64
+	mu                      sync.Mutex
+	rules                   map[int64]*publicWafRuleRuntime
+	cookieSecret            atomic.Value // stores immutable []byte
+	proxyActiveRequests     atomic.Int64
+	captchaHTTPClient       *http.Client
+	captchaVerifyLimiter    *publicWafCaptchaVerifyLimiter
+	reservedEndpointLimiter *publicWafReservedEndpointLimiter
+	captchaVerifySlots      chan struct{}
+	cpuSampler              *sysmetrics.ProcessCPUSampler
+	lastCPUSampleAt         time.Time
+	lastCPUPercent          float64
 }
 
 type publicWafRuleRuntime struct {
@@ -216,11 +217,12 @@ type publicWafDecision struct {
 
 func newPublicWAF() *publicWAF {
 	return &publicWAF{
-		rules:                make(map[int64]*publicWafRuleRuntime),
-		captchaHTTPClient:    &http.Client{Timeout: publicWafChallengeTimeoutSeconds * time.Second},
-		captchaVerifyLimiter: newPublicWafCaptchaVerifyLimiter(),
-		captchaVerifySlots:   make(chan struct{}, publicWafCaptchaVerifyMaxConcurrentCalls),
-		cpuSampler:           sysmetrics.NewProcessCPUSampler(),
+		rules:                   make(map[int64]*publicWafRuleRuntime),
+		captchaHTTPClient:       &http.Client{Timeout: publicWafChallengeTimeoutSeconds * time.Second},
+		captchaVerifyLimiter:    newPublicWafCaptchaVerifyLimiter(),
+		reservedEndpointLimiter: newPublicWafReservedEndpointLimiter(),
+		captchaVerifySlots:      make(chan struct{}, publicWafCaptchaVerifyMaxConcurrentCalls),
+		cpuSampler:              sysmetrics.NewProcessCPUSampler(),
 	}
 }
 
@@ -324,7 +326,7 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 		}
 		switch rule.Action {
 		case publicWafActionCaptcha:
-			if w.validRuleCookieLocked(r, rule.ID, publicWafCaptchaCookieKind, now) {
+			if w.validRuleCookieLocked(r, rule, listener, publicWafCaptchaCookieKind, now) {
 				return publicWafDecision{}, true
 			}
 			provider, ok := snap.WafCaptchaProviders[rule.CaptchaProviderID]
@@ -589,6 +591,10 @@ func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error)
 			return publicWafRuleConfig{}, err
 		}
 	}
+	keyParts, err = validateStoredRateLimitClientIdentityKeyParts(keyParts)
+	if err != nil {
+		return publicWafRuleConfig{}, err
+	}
 	var blockHeaders []publicRateLimitResponseHeaderConfig
 	if strings.TrimSpace(row.BlockResponseHeadersJson) != "" {
 		if err := json.Unmarshal([]byte(row.BlockResponseHeadersJson), &blockHeaders); err != nil {
@@ -616,16 +622,16 @@ func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error)
 			PageBody:                  row.WaitingRoomPageBody,
 		},
 		Triggers: publicWafTriggerConfig{
-			RequestWindowMillis:    row.TriggerRequestWindowMillis,
-			MinimumRequestRate:     row.TriggerMinimumRequestRate,
-			TrafficSpikeMultiplier: row.TriggerTrafficSpikeMultiplier,
-			ProxyActiveRequests:    row.TriggerProxyActiveRequests,
-			RouteTargetActiveRequests:  row.TriggerRouteTargetActiveRequests,
-			AgentActiveRequests:    row.TriggerAgentActiveRequests,
-			ServerCPUPercent:       row.TriggerServerCpuPercent,
-			AgentCPUPercent:        row.TriggerAgentCpuPercent,
-			MinimumActiveMillis:    row.TriggerMinimumActiveMillis,
-			QuietPeriodMillis:      row.TriggerQuietPeriodMillis,
+			RequestWindowMillis:       row.TriggerRequestWindowMillis,
+			MinimumRequestRate:        row.TriggerMinimumRequestRate,
+			TrafficSpikeMultiplier:    row.TriggerTrafficSpikeMultiplier,
+			ProxyActiveRequests:       row.TriggerProxyActiveRequests,
+			RouteTargetActiveRequests: row.TriggerRouteTargetActiveRequests,
+			AgentActiveRequests:       row.TriggerAgentActiveRequests,
+			ServerCPUPercent:          row.TriggerServerCpuPercent,
+			AgentCPUPercent:           row.TriggerAgentCpuPercent,
+			MinimumActiveMillis:       row.TriggerMinimumActiveMillis,
+			QuietPeriodMillis:         row.TriggerQuietPeriodMillis,
 		},
 		BlockResponseStatusCode:   int(row.BlockResponseStatusCode),
 		BlockResponseBody:         row.BlockResponseBody,
@@ -825,16 +831,16 @@ func publicWafWaitingRoomToProto(cfg publicWafWaitingRoomConfig) *p2pstreamv1.Pu
 
 func publicWafTriggersToProto(cfg publicWafTriggerConfig) *p2pstreamv1.PublicWafTriggerConfig {
 	return &p2pstreamv1.PublicWafTriggerConfig{
-		RequestWindowMillis:    cfg.RequestWindowMillis,
-		MinimumRequestRate:     cfg.MinimumRequestRate,
-		TrafficSpikeMultiplier: cfg.TrafficSpikeMultiplier,
-		ProxyActiveRequests:    cfg.ProxyActiveRequests,
-		RouteTargetActiveRequests:  cfg.RouteTargetActiveRequests,
-		AgentActiveRequests:    cfg.AgentActiveRequests,
-		ServerCpuPercent:       cfg.ServerCPUPercent,
-		AgentCpuPercent:        cfg.AgentCPUPercent,
-		MinimumActiveMillis:    cfg.MinimumActiveMillis,
-		QuietPeriodMillis:      cfg.QuietPeriodMillis,
+		RequestWindowMillis:       cfg.RequestWindowMillis,
+		MinimumRequestRate:        cfg.MinimumRequestRate,
+		TrafficSpikeMultiplier:    cfg.TrafficSpikeMultiplier,
+		ProxyActiveRequests:       cfg.ProxyActiveRequests,
+		RouteTargetActiveRequests: cfg.RouteTargetActiveRequests,
+		AgentActiveRequests:       cfg.AgentActiveRequests,
+		ServerCpuPercent:          cfg.ServerCPUPercent,
+		AgentCpuPercent:           cfg.AgentCPUPercent,
+		MinimumActiveMillis:       cfg.MinimumActiveMillis,
+		QuietPeriodMillis:         cfg.QuietPeriodMillis,
 	}
 }
 
@@ -910,7 +916,7 @@ func (a *App) validatePublicWafRuleInput(
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
-	keyPartConfig, err := validateRateLimitKeyParts(keyParts)
+	keyPartConfig, err := validateRateLimitClientIdentityKeyParts(keyParts)
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
@@ -1019,7 +1025,7 @@ func (a *App) validatePublicWafRuleInput(
 		TriggerMinimumRequestRate:            triggerConfig.MinimumRequestRate,
 		TriggerTrafficSpikeMultiplier:        triggerConfig.TrafficSpikeMultiplier,
 		TriggerProxyActiveRequests:           triggerConfig.ProxyActiveRequests,
-		TriggerRouteTargetActiveRequests:         triggerConfig.RouteTargetActiveRequests,
+		TriggerRouteTargetActiveRequests:     triggerConfig.RouteTargetActiveRequests,
 		TriggerAgentActiveRequests:           triggerConfig.AgentActiveRequests,
 		TriggerServerCpuPercent:              triggerConfig.ServerCPUPercent,
 		TriggerAgentCpuPercent:               triggerConfig.AgentCPUPercent,
@@ -1089,16 +1095,16 @@ func validatePublicWafWaitingRoom(cfg *p2pstreamv1.PublicWafWaitingRoomConfig) (
 
 func validatePublicWafTriggers(cfg *p2pstreamv1.PublicWafTriggerConfig) (publicWafTriggerConfig, error) {
 	resp := publicWafTriggerConfig{
-		RequestWindowMillis:    int64(defaultWafTriggerRequestWindow / time.Millisecond),
-		MinimumRequestRate:     defaultWafTriggerMinimumRequestRate,
-		TrafficSpikeMultiplier: defaultWafTriggerSpikeMultiplier,
-		ProxyActiveRequests:    defaultWafTriggerProxyActiveRequests,
-		RouteTargetActiveRequests:  defaultWafTriggerRouteTargetActive,
-		AgentActiveRequests:    defaultWafTriggerAgentActive,
-		ServerCPUPercent:       defaultWafTriggerServerCPU,
-		AgentCPUPercent:        defaultWafTriggerAgentCPU,
-		MinimumActiveMillis:    int64(defaultWafTriggerMinimumActive / time.Millisecond),
-		QuietPeriodMillis:      int64(defaultWafTriggerQuietPeriod / time.Millisecond),
+		RequestWindowMillis:       int64(defaultWafTriggerRequestWindow / time.Millisecond),
+		MinimumRequestRate:        defaultWafTriggerMinimumRequestRate,
+		TrafficSpikeMultiplier:    defaultWafTriggerSpikeMultiplier,
+		ProxyActiveRequests:       defaultWafTriggerProxyActiveRequests,
+		RouteTargetActiveRequests: defaultWafTriggerRouteTargetActive,
+		AgentActiveRequests:       defaultWafTriggerAgentActive,
+		ServerCPUPercent:          defaultWafTriggerServerCPU,
+		AgentCPUPercent:           defaultWafTriggerAgentCPU,
+		MinimumActiveMillis:       int64(defaultWafTriggerMinimumActive / time.Millisecond),
+		QuietPeriodMillis:         int64(defaultWafTriggerQuietPeriod / time.Millisecond),
 	}
 	if cfg != nil {
 		resp.RequestWindowMillis = valueOrDefault(cfg.RequestWindowMillis, resp.RequestWindowMillis)
@@ -1429,7 +1435,7 @@ func wafCreateParams(input publicWafRuleMutationInput) db.CreatePublicWafRulePar
 		TriggerMinimumRequestRate:            input.TriggerMinimumRequestRate,
 		TriggerTrafficSpikeMultiplier:        input.TriggerTrafficSpikeMultiplier,
 		TriggerProxyActiveRequests:           input.TriggerProxyActiveRequests,
-		TriggerRouteTargetActiveRequests:         input.TriggerRouteTargetActiveRequests,
+		TriggerRouteTargetActiveRequests:     input.TriggerRouteTargetActiveRequests,
 		TriggerAgentActiveRequests:           input.TriggerAgentActiveRequests,
 		TriggerServerCpuPercent:              input.TriggerServerCpuPercent,
 		TriggerAgentCpuPercent:               input.TriggerAgentCpuPercent,
@@ -1469,7 +1475,7 @@ func wafUpdateParams(id int64, input publicWafRuleMutationInput) db.UpdatePublic
 		TriggerMinimumRequestRate:            input.TriggerMinimumRequestRate,
 		TriggerTrafficSpikeMultiplier:        input.TriggerTrafficSpikeMultiplier,
 		TriggerProxyActiveRequests:           input.TriggerProxyActiveRequests,
-		TriggerRouteTargetActiveRequests:         input.TriggerRouteTargetActiveRequests,
+		TriggerRouteTargetActiveRequests:     input.TriggerRouteTargetActiveRequests,
 		TriggerAgentActiveRequests:           input.TriggerAgentActiveRequests,
 		TriggerServerCpuPercent:              input.TriggerServerCpuPercent,
 		TriggerAgentCpuPercent:               input.TriggerAgentCpuPercent,

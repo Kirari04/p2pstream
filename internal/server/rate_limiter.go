@@ -490,6 +490,10 @@ func publicRateLimitRuleRowToConfig(row db.PublicRateLimitRule) (publicRateLimit
 			return publicRateLimitRuleConfig{}, err
 		}
 	}
+	keyParts, err = validateStoredRateLimitClientIdentityKeyParts(keyParts)
+	if err != nil {
+		return publicRateLimitRuleConfig{}, err
+	}
 	var responseHeaders []publicRateLimitResponseHeaderConfig
 	if strings.TrimSpace(row.ResponseHeadersJson) != "" {
 		if err := json.Unmarshal([]byte(row.ResponseHeadersJson), &responseHeaders); err != nil {
@@ -620,7 +624,7 @@ func validatePublicRateLimitRuleInput(
 	if err != nil {
 		return publicRateLimitRuleMutationInput{}, err
 	}
-	keyPartConfig, err := validateRateLimitKeyParts(keyParts)
+	keyPartConfig, err := validateRateLimitClientIdentityKeyParts(keyParts)
 	if err != nil {
 		return publicRateLimitRuleMutationInput{}, err
 	}
@@ -724,6 +728,106 @@ func validateRateLimitKeyParts(parts []*p2pstreamv1.PublicRateLimitKeyPart) ([]p
 		resp = append(resp, publicRateLimitKeyPartConfig{Source: publicRateLimitKeySourceRemoteIP})
 	}
 	return resp, nil
+}
+
+func validateRateLimitClientIdentityKeyParts(parts []*p2pstreamv1.PublicRateLimitKeyPart) ([]publicRateLimitKeyPartConfig, error) {
+	config, err := validateRateLimitKeyParts(parts)
+	if err != nil {
+		return nil, err
+	}
+	return validateRateLimitClientIdentityKeyPartConfig(config)
+}
+
+func validateStoredRateLimitClientIdentityKeyParts(parts []publicRateLimitKeyPartConfig) ([]publicRateLimitKeyPartConfig, error) {
+	config, err := validateStoredRateLimitKeyParts(parts)
+	if err != nil {
+		return nil, err
+	}
+	return validateRateLimitClientIdentityKeyPartConfig(config)
+}
+
+func validateStoredRateLimitKeyParts(parts []publicRateLimitKeyPartConfig) ([]publicRateLimitKeyPartConfig, error) {
+	if len(parts) == 0 {
+		return []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceRemoteIP}}, nil
+	}
+	if len(parts) > maxRateLimitKeyParts {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit rule has too many key parts"))
+	}
+	resp := make([]publicRateLimitKeyPartConfig, 0, len(parts))
+	for _, part := range parts {
+		source := strings.TrimSpace(part.Source)
+		name := strings.TrimSpace(part.Name)
+		if !validStoredRateLimitKeySource(source) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit key source is invalid"))
+		}
+		switch source {
+		case publicRateLimitKeySourceHeader:
+			if name == "" {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit header key part requires a name"))
+			}
+			name = textproto.CanonicalMIMEHeaderKey(name)
+			if !validHTTPToken(name) {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit header key part name is invalid"))
+			}
+		case publicRateLimitKeySourceCookie, publicRateLimitKeySourceQueryParam:
+			if name == "" {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit cookie and query key parts require a name"))
+			}
+		default:
+			name = ""
+		}
+		resp = append(resp, publicRateLimitKeyPartConfig{Source: source, Name: name})
+	}
+	if len(resp) == 0 {
+		resp = append(resp, publicRateLimitKeyPartConfig{Source: publicRateLimitKeySourceRemoteIP})
+	}
+	return resp, nil
+}
+
+func validateRateLimitClientIdentityKeyPartConfig(parts []publicRateLimitKeyPartConfig) ([]publicRateLimitKeyPartConfig, error) {
+	for _, part := range parts {
+		if part.Source == publicRateLimitKeySourceHeader && unsafeForwardingKeyPartHeader(part.Name) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("rate limit header key part must not use forwarding or client IP headers; use REMOTE_IP"))
+		}
+	}
+	return parts, nil
+}
+
+func validStoredRateLimitKeySource(source string) bool {
+	switch source {
+	case publicRateLimitKeySourceRemoteIP,
+		publicRateLimitKeySourceHost,
+		publicRateLimitKeySourceMethod,
+		publicRateLimitKeySourcePath,
+		publicRateLimitKeySourceProtocol,
+		publicRateLimitKeySourceHeader,
+		publicRateLimitKeySourceCookie,
+		publicRateLimitKeySourceQueryParam:
+		return true
+	default:
+		return false
+	}
+}
+
+func unsafeForwardingKeyPartHeader(name string) bool {
+	normalized := strings.ToLower(textproto.CanonicalMIMEHeaderKey(strings.TrimSpace(name)))
+	switch normalized {
+	case "forwarded",
+		"x-forwarded-for",
+		"x-forwarded-host",
+		"x-forwarded-proto",
+		"x-forwarded-port",
+		"x-real-ip",
+		"client-ip",
+		"true-client-ip",
+		"cf-connecting-ip",
+		"fastly-client-ip",
+		"x-client-ip",
+		"x-cluster-client-ip":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateRateLimitResponseHeaders(headers []*p2pstreamv1.PublicRateLimitResponseHeader) ([]publicRateLimitResponseHeaderConfig, error) {

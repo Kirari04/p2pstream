@@ -33,11 +33,14 @@ func (a *App) insertProxyRequestEventWithRollups(ctx context.Context, event db.I
 	if _, err := qtx.InsertProxyRequestEventAt(ctx, event); err != nil {
 		return err
 	}
-	total, tuple := proxyRequestRollupParams(event)
+	total, tuple, status := proxyRequestRollupParams(event)
 	if err := qtx.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
 		return err
 	}
 	if err := qtx.UpsertProxyRequestTupleRollupMinute(ctx, tuple); err != nil {
+		return err
+	}
+	if err := qtx.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -79,7 +82,7 @@ func (a *App) insertAgentStatWithRollup(ctx context.Context, stat db.InsertAgent
 	return tx.Commit()
 }
 
-func proxyRequestRollupParams(event db.InsertProxyRequestEventAtParams) (db.UpsertProxyRequestRollupMinuteParams, db.UpsertProxyRequestTupleRollupMinuteParams) {
+func proxyRequestRollupParams(event db.InsertProxyRequestEventAtParams) (db.UpsertProxyRequestRollupMinuteParams, db.UpsertProxyRequestTupleRollupMinuteParams, db.UpsertProxyRequestStatusRollupMinuteParams) {
 	success := int64Bool(event.StatusCode >= 200 && event.StatusCode < 400)
 	clientError := int64Bool(event.StatusCode >= 400 && event.StatusCode < 500)
 	serverError := int64Bool(event.StatusCode >= 500)
@@ -136,7 +139,19 @@ func proxyRequestRollupParams(event db.InsertProxyRequestEventAtParams) (db.Upse
 		RequestBytes:     event.RequestBytes,
 		ResponseBytes:    event.ResponseBytes,
 	}
-	return total, tuple
+	status := db.UpsertProxyRequestStatusRollupMinuteParams{
+		BucketUnixMillis: bucketUnixMillis,
+		StatusCode:       event.StatusCode,
+		Requests:         1,
+		Success:          success,
+		ClientError:      clientError,
+		ServerError:      serverError,
+		InternalError:    internalError,
+		DurationMsSum:    event.DurationMs,
+		RequestBytes:     event.RequestBytes,
+		ResponseBytes:    event.ResponseBytes,
+	}
+	return total, tuple, status
 }
 
 func (a *App) observabilityRollupsReady(ctx context.Context) (bool, error) {
@@ -190,6 +205,12 @@ func (a *App) backfillObservabilityRollupBatch(ctx context.Context) (bool, error
 				return false, err
 			}
 			if err := qtx.BackfillProxyRequestTupleRollupMinutesRange(ctx, db.BackfillProxyRequestTupleRollupMinutesRangeParams{
+				FromID:    state.ProxyBackfilledThroughID,
+				ThroughID: next,
+			}); err != nil {
+				return false, err
+			}
+			if err := qtx.BackfillProxyRequestStatusRollupMinutesRange(ctx, db.BackfillProxyRequestStatusRollupMinutesRangeParams{
 				FromID:    state.ProxyBackfilledThroughID,
 				ThroughID: next,
 			}); err != nil {

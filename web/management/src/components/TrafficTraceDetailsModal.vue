@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import Modal from "@/volt/Modal.vue";
+import { NModal } from "naive-ui";
+import { modalCardStyle } from "@/lib/naiveUi";
 import type { TraceRequest } from "@/types/trafficTrace";
 import {
   PublicRateLimitAlgorithm,
@@ -34,15 +35,15 @@ const showHeaders = computed(() => props.level >= TrafficTraceLevel.HEADERS);
 const showDebug = computed(() => props.level >= TrafficTraceLevel.DEBUG);
 
 function statusClass(status: bigint, stage: TrafficTraceStage): string {
-  if (stage === TrafficTraceStage.FAILED) return "text-red-400";
-  if (stage === TrafficTraceStage.WAF_BLOCKED) return "text-red-400";
-  if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM) return "text-amber-400";
-  if (stage === TrafficTraceStage.RATE_LIMITED) return "text-amber-400";
+  if (stage === TrafficTraceStage.FAILED) return "trace-status--error";
+  if (stage === TrafficTraceStage.WAF_BLOCKED) return "trace-status--error";
+  if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM) return "trace-status--warning";
+  if (stage === TrafficTraceStage.RATE_LIMITED) return "trace-status--warning";
   const code = Number(status);
-  if (code >= 500) return "text-red-400";
-  if (code >= 400) return "text-amber-400";
-  if (code >= 200) return "text-green-400";
-  return "text-[#888]";
+  if (code >= 500) return "trace-status--error";
+  if (code >= 400) return "trace-status--warning";
+  if (code >= 200) return "trace-status--success";
+  return "trace-status--muted";
 }
 
 function stageLabel(stage: TrafficTraceStage): string {
@@ -143,14 +144,21 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 </script>
 
 <template>
-  <Modal v-model="isOpen" title="Trace details" max-width="52rem">
-    <div v-if="request" class="space-y-6">
-      <section class="grid gap-3 sm:grid-cols-2">
-        <div class="trace-field sm:col-span-2">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    title="Trace details"
+    :style="modalCardStyle('52rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <div v-if="request" class="stack-lg">
+      <section class="layout-grid space-md mq-sm-cols-two">
+        <div class="trace-field mq-sm-span-two">
           <span>Request</span>
-          <strong class="break-all font-mono">{{ request.requestId }}</strong>
+          <strong class="wrap-anywhere mono-text">{{ request.requestId }}</strong>
         </div>
-        <p v-if="request.sampledEventCount > 0" class="rounded-md border border-amber-900/60 bg-amber-950/20 px-3 py-2 text-xs text-amber-300 sm:col-span-2">
+        <p v-if="request.sampledEventCount > 0" class="round-md framed warning-border warning-surface pad-x-md pad-y-sm copy-xs warning-text mq-sm-span-two">
           Some intermediate trace events were omitted while the UI was under load. {{ numberLabel(request.sampledEventCount) }} events were sampled for this request.
         </p>
         <div class="trace-field">
@@ -163,9 +171,9 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
             {{ request.statusCode ? request.statusCode.toString() : stageLabel(request.stage) }}
           </strong>
         </div>
-        <div class="trace-field sm:col-span-2">
+        <div class="trace-field mq-sm-span-two">
           <span>Path</span>
-          <strong class="break-all font-mono">{{ request.path || "/" }}</strong>
+          <strong class="wrap-anywhere mono-text">{{ request.path || "/" }}</strong>
         </div>
         <div class="trace-field">
           <span>Duration</span>
@@ -177,7 +185,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
         </div>
       </section>
 
-      <section class="grid gap-3 sm:grid-cols-2">
+      <section class="layout-grid space-md mq-sm-cols-two">
         <div class="trace-field">
           <span>Listener</span>
           <strong>{{ request.listenerName || (request.listenerId ? `#${request.listenerId.toString()}` : "-") }}</strong>
@@ -194,29 +202,29 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Agent</span>
           <strong>{{ request.agentName || request.agentPublicId || "-" }}</strong>
         </div>
-        <div v-if="request.rateLimitRuleId" class="trace-field sm:col-span-2">
+        <div v-if="request.rateLimitRuleId" class="trace-field mq-sm-span-two">
           <span>Rate limit</span>
           <strong>
             {{ request.rateLimitRuleName || `#${request.rateLimitRuleId.toString()}` }}
-            <span class="text-[#888]">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
+            <span class="muted-text">/ {{ rateLimitAlgorithmLabel(request.rateLimitAlgorithm) }}</span>
           </strong>
         </div>
-        <div v-if="request.wafRuleId" class="trace-field sm:col-span-2">
+        <div v-if="request.wafRuleId" class="trace-field mq-sm-span-two">
           <span>WAF</span>
           <strong>
             {{ request.wafRuleName || `#${request.wafRuleId.toString()}` }}
-            <span class="text-[#888]">
+            <span class="muted-text">
               / {{ wafActionLabel(request.wafAction) }}
               / {{ wafActivationLabel(request.wafActivationMode) }}
               <template v-if="request.wafChallengeKind"> / {{ request.wafChallengeKind }}</template>
             </span>
           </strong>
         </div>
-        <div v-if="request.trafficShaperRuleId" class="trace-field sm:col-span-2">
+        <div v-if="request.trafficShaperRuleId" class="trace-field mq-sm-span-two">
           <span>Traffic shaper</span>
           <strong>
             {{ request.trafficShaperRuleName || `#${request.trafficShaperRuleId.toString()}` }}
-            <span class="text-[#888]">
+            <span class="muted-text">
               / {{ trafficShaperScopeLabel(request.trafficShaperBudgetScope) }}
               / up {{ formatRate(request.trafficShaperUploadBytesPerSecond) }}
               / down {{ formatRate(request.trafficShaperDownloadBytesPerSecond) }}
@@ -226,14 +234,14 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
         </div>
       </section>
 
-      <section v-if="showDetailed" class="grid gap-3 sm:grid-cols-2">
+      <section v-if="showDetailed" class="layout-grid space-md mq-sm-cols-two">
         <div class="trace-field">
           <span>Host</span>
-          <strong class="break-all font-mono">{{ request.host || "-" }}</strong>
+          <strong class="wrap-anywhere mono-text">{{ request.host || "-" }}</strong>
         </div>
         <div class="trace-field">
           <span>Query</span>
-          <strong class="break-all font-mono">{{ request.query || "-" }}</strong>
+          <strong class="wrap-anywhere mono-text">{{ request.query || "-" }}</strong>
         </div>
         <div class="trace-field">
           <span>Target type</span>
@@ -243,17 +251,17 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Transport</span>
           <strong>{{ routeTargetTransportLabel(request.routeTargetTransport) }}</strong>
         </div>
-        <div class="trace-field sm:col-span-2">
+        <div class="trace-field mq-sm-span-two">
           <span>Target origin</span>
-          <strong class="break-all font-mono">{{ request.targetOrigin || "-" }}</strong>
+          <strong class="wrap-anywhere mono-text">{{ request.targetOrigin || "-" }}</strong>
         </div>
-        <div class="trace-field sm:col-span-2">
+        <div class="trace-field mq-sm-span-two">
           <span>Error kind</span>
           <strong>{{ request.errorKind || "-" }}</strong>
         </div>
       </section>
 
-      <section v-if="showHeaders" class="grid gap-4 lg:grid-cols-2">
+      <section v-if="showHeaders" class="layout-grid space-lg mq-lg-cols-two">
         <div class="trace-panel">
           <h4>Request headers</h4>
           <dl v-if="entries(latestEvent?.requestHeaders).length">
@@ -276,7 +284,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
         </div>
       </section>
 
-      <section v-if="showDebug" class="grid gap-4 lg:grid-cols-2">
+      <section v-if="showDebug" class="layout-grid space-lg mq-lg-cols-two">
         <div class="trace-field">
           <span>Request bytes</span>
           <strong>{{ formatBytes(request.requestBytes) }}</strong>
@@ -285,7 +293,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
           <span>Response bytes</span>
           <strong>{{ formatBytes(request.responseBytes) }}</strong>
         </div>
-        <div class="trace-panel lg:col-span-2">
+        <div class="trace-panel mq-lg-span-two">
           <h4>Debug attributes</h4>
           <dl v-if="entries(latestEvent?.debugAttributes).length">
             <template v-for="[name, value] in entries(latestEvent?.debugAttributes)" :key="name">
@@ -299,30 +307,30 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 
       <section class="trace-panel">
         <h4>Lifecycle</h4>
-        <div class="divide-y divide-[#222]">
-          <div v-for="event in request.events" :key="event.sequence.toString()" class="grid gap-2 py-2 text-xs sm:grid-cols-[10rem_1fr_6rem]">
-            <span class="text-[#888]">{{ formatDate(event.occurredAtUnixMillis) }}</span>
-            <span class="font-medium text-white">{{ stageLabel(event.stage) }}</span>
-            <span class="text-right font-mono text-[#888]">{{ formatDuration(event.durationMs) }}</span>
+        <div class="divided-list">
+          <div v-for="event in request.events" :key="event.sequence.toString()" class="layout-grid space-sm pad-y-sm copy-xs mq-sm-trace-event">
+            <span class="muted-text">{{ formatDate(event.occurredAtUnixMillis) }}</span>
+            <span class="weight-medium base-text">{{ stageLabel(event.stage) }}</span>
+            <span class="align-right-text mono-text muted-text">{{ formatDuration(event.durationMs) }}</span>
           </div>
         </div>
       </section>
     </div>
-  </Modal>
+  </NModal>
 </template>
 
 <style scoped>
 .trace-field {
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.75rem;
 }
 
 .trace-field span {
   display: block;
   margin-bottom: 0.35rem;
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -330,20 +338,20 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 }
 
 .trace-field strong {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.875rem;
 }
 
 .trace-panel {
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 0.85rem;
 }
 
 .trace-panel h4 {
   margin-bottom: 0.75rem;
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -354,7 +362,7 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 }
 
 .trace-panel dt {
-  color: #888;
+  color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
 }
@@ -362,13 +370,13 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 .trace-panel dd {
   margin: -0.35rem 0 0;
   overflow-wrap: anywhere;
-  color: #d4d4d8;
+  color: var(--app-text);
   font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
 .trace-panel p {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.8rem;
 }
 </style>

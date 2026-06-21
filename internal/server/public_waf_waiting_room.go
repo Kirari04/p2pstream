@@ -30,11 +30,11 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 	if rt == nil {
 		rt = newPublicWaitingRoomRuntime()
 	}
-	if w.validRuleCookieLocked(r, rule.ID, publicWafAdmissionCookieKind, now) {
+	if w.validRuleCookieLocked(r, rule, listener, publicWafAdmissionCookieKind, now) {
 		return publicWafDecision{}, true
 	}
 	sessionID := ""
-	if payload, ok := w.queueCookiePayloadLocked(r, rule.ID, now); ok {
+	if payload, ok := w.queueCookiePayloadLocked(r, rule, listener, now); ok {
 		sessionID = payload.SessionID
 	}
 	if sessionID == "" {
@@ -67,7 +67,7 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 		rt.queue = append(rt.queue, sessionID)
 	}
 	position := rt.positionLocked(sessionID)
-	queueCookie := w.signedRuleCookie(rule.ID, publicWafQueueCookieKind, sessionID, queueTimeout, now, listener, r)
+	queueCookie := w.signedRuleCookie(rule, listener, r, publicWafQueueCookieKind, sessionID, queueTimeout, now)
 	if rt.canAdmitLocked(rule, now, sessionID) {
 		admissionTTL := time.Duration(rule.WaitingRoom.AdmissionSessionTTLMillis) * time.Millisecond
 		if admissionTTL <= 0 {
@@ -82,7 +82,7 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 			Action:           publicWafActionWaitingRoom,
 			StatusCode:       http.StatusSeeOther,
 			RedirectLocation: sanitizeWAFReturnTo(r.URL.RequestURI()),
-			Cookies:          []*http.Cookie{queueCookie, w.signedRuleCookie(rule.ID, publicWafAdmissionCookieKind, sessionID, admissionTTL, now, listener, r)},
+			Cookies:          []*http.Cookie{queueCookie, w.signedRuleCookie(rule, listener, r, publicWafAdmissionCookieKind, sessionID, admissionTTL, now)},
 			AutomaticActive:  automaticActive,
 			ChallengeKind:    publicWafActionWaitingRoom,
 			QueuePosition:    position,
@@ -287,7 +287,7 @@ func (a *App) servePublicWAFWaitingRoomStatus(w http.ResponseWriter, r *http.Req
 	now := time.Now()
 	a.PublicWAF.mu.Lock()
 	defer a.PublicWAF.mu.Unlock()
-	if a.PublicWAF.validRuleCookieLocked(r, rule.ID, publicWafAdmissionCookieKind, now) {
+	if a.PublicWAF.validRuleCookieLocked(r, rule, listener, publicWafAdmissionCookieKind, now) {
 		redirectTo := sanitizeWAFReturnTo(r.URL.Query().Get("return_to"))
 		redirectTo = strings.ReplaceAll(redirectTo, `\`, "/")
 		redirectURL, err := url.Parse(redirectTo)
@@ -300,7 +300,7 @@ func (a *App) servePublicWAFWaitingRoomStatus(w http.ResponseWriter, r *http.Req
 	}
 	runtime := a.PublicWAF.runtimeLocked(rule)
 	sessionID := ""
-	if payload, ok := a.PublicWAF.queueCookiePayloadLocked(r, rule.ID, now); ok {
+	if payload, ok := a.PublicWAF.queueCookiePayloadLocked(r, rule, listener, now); ok {
 		sessionID = payload.SessionID
 	}
 	position := int64(0)

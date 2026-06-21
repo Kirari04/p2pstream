@@ -1,7 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
-import tailwindcss from "@tailwindcss/vite";
 
 const managementProxyTarget = process.env.VITE_MANAGEMENT_PROXY_TARGET ?? "https://127.0.0.1:8081";
 const managementProxySecure = process.env.VITE_MANAGEMENT_PROXY_SECURE === "true";
@@ -10,7 +9,7 @@ const hmrHost = process.env.VITE_HMR_HOST ?? "localhost";
 const hmrClientPort = Number.parseInt(process.env.VITE_HMR_CLIENT_PORT ?? "8081", 10);
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [vue()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

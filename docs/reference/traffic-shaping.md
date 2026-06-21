@@ -19,9 +19,24 @@ Traffic shaper rules limit upload and/or download throughput for matching reques
 
 Traffic shapers use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
-Route data, target data, target health, and load-balancer state are not available inside shaper match CEL. Traffic shapers still run before route resolution.
+Route data, target data, target health, and load-balancer state are not available inside shaper match CEL. p2pstream may perform a route-only path security match before traffic shapers, but traffic shapers still run before route target selection.
+
+Traffic-shaper path matching and `path` key parts use p2pstream's decoded request path. On routes that allow encoded separators for upstream compatibility, avoid shaping policy that relies on decoded slash boundaries as a security boundary.
 
 Key parts still identify the per-key budget. They can use remote IP, host, method, path, protocol, header, cookie, and query parameter values.
+
+For `per_key` shaping, `REMOTE_IP` is the only built-in client-IP identity source. `HEADER` key parts remain supported for application headers such as `X-Plan`, but forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and `X-Forwarded-Port` are rejected. `per_request` shaping ignores key parts.
+
+Before upgrading from an older version that allowed arbitrary header key parts, inspect stored per-key shapers:
+
+```sql
+SELECT id, name, key_parts_json
+FROM public_traffic_shaper_rules
+WHERE lower(key_parts_json) LIKE '%forwarded%'
+   OR lower(key_parts_json) LIKE '%x-real-ip%'
+   OR lower(key_parts_json) LIKE '%client-ip%'
+   OR lower(key_parts_json) LIKE '%connecting-ip%';
+```
 
 Byte rates and exempt bytes must be non-negative. Use realistic rates so operational debugging remains clear.
 

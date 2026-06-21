@@ -1,47 +1,55 @@
-import { reactive } from "vue";
-
-export interface ConfirmDialogState {
-  open: boolean;
-  title: string;
-  description: string;
-  confirmLabel: string;
-  resolve: ((value: boolean) => void) | null;
-}
+import { useDialog, type DialogReactive } from "naive-ui";
 
 export function useConfirmDialog() {
-  const state = reactive<ConfirmDialogState>({
-    open: false,
-    title: "",
-    description: "",
-    confirmLabel: "Delete",
-    resolve: null,
-  });
+  const dialog = useDialog();
+  let activeDialog: DialogReactive | null = null;
+  let activeResolve: ((value: boolean) => void) | null = null;
 
   function confirm(
     title: string,
     description: string,
     confirmLabel = "Delete",
   ): Promise<boolean> {
+    cancelActiveDialog();
     return new Promise((resolve) => {
-      state.title = title;
-      state.description = description;
-      state.confirmLabel = confirmLabel;
-      state.resolve = resolve;
-      state.open = true;
+      let settled = false;
+      const settle = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        if (activeResolve === settle) {
+          activeDialog = null;
+          activeResolve = null;
+        }
+        resolve(value);
+      };
+
+      activeResolve = settle;
+      activeDialog = dialog.warning({
+        title,
+        content: description,
+        positiveText: confirmLabel,
+        negativeText: "Cancel",
+        maskClosable: true,
+        onPositiveClick: () => settle(true),
+        onNegativeClick: () => settle(false),
+        onClose: () => settle(false),
+        onMaskClick: () => settle(false),
+      });
     });
   }
 
-  function handleConfirm() {
-    state.resolve?.(true);
-    state.open = false;
-    state.resolve = null;
-  }
-
   function handleCancel() {
-    state.resolve?.(false);
-    state.open = false;
-    state.resolve = null;
+    cancelActiveDialog();
   }
 
-  return { state, confirm, handleConfirm, handleCancel };
+  function cancelActiveDialog() {
+    const dialogToCancel = activeDialog;
+    const resolveToCancel = activeResolve;
+    activeDialog = null;
+    activeResolve = null;
+    dialogToCancel?.destroy();
+    resolveToCancel?.(false);
+  }
+
+  return { confirm, handleCancel };
 }

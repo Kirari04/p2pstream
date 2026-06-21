@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"sync/atomic"
 	"testing"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
@@ -60,6 +62,424 @@ func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
 	}
 	if !match.matches(listener, req) {
 		t.Fatal("policy host did not match canonical dotted host")
+	}
+}
+
+func TestApplyTrustedForwardedHeadersCanonicalizesHostAndPort(t *testing.T) {
+	tests := []struct {
+		name         string
+		listener     publicListenerConfig
+		host         string
+		remoteAddr   string
+		wantHost     string
+		wantPort     string
+		wantProto    string
+		wantClientIP string
+	}{
+		{
+			name:         "http listener strips trailing dot and uses configured port",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP, Port: 8080},
+			host:         "app.example.:444",
+			remoteAddr:   "192.0.2.10:5555",
+			wantHost:     "app.example",
+			wantPort:     "8080",
+			wantProto:    "http",
+			wantClientIP: "192.0.2.10",
+		},
+		{
+			name:         "https listener uses configured port without TLS state",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTPS, Port: 8443},
+			host:         "app.example:444",
+			remoteAddr:   "192.0.2.11:5555",
+			wantHost:     "app.example",
+			wantPort:     "8443",
+			wantProto:    "https",
+			wantClientIP: "192.0.2.11",
+		},
+		{
+			name:         "normal host falls back to default http port",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+			host:         "app.example",
+			remoteAddr:   "192.0.2.12:5555",
+			wantHost:     "app.example",
+			wantPort:     "80",
+			wantProto:    "http",
+			wantClientIP: "192.0.2.12",
+		},
+		{
+			name:         "ipv6 host",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+			host:         "[2001:db8::1]:8443",
+			remoteAddr:   "[2001:db8::2]:5555",
+			wantHost:     "2001:db8::1",
+			wantPort:     "80",
+			wantProto:    "http",
+			wantClientIP: "2001:db8::2",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			inReq := httptest.NewRequest(http.MethodGet, "http://app.example/assets/app.txt", nil)
+			inReq.Host = tc.host
+			inReq.RemoteAddr = tc.remoteAddr
+			outReq := httptest.NewRequest(http.MethodGet, "http://upstream.example/assets/app.txt", nil)
+			installAttackerForwardingHeaders(outReq.Header)
+
+			applyTrustedForwardedHeaders(outReq, inReq, tc.listener)
+
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-Host", tc.wantHost)
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-Port", tc.wantPort)
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-Proto", tc.wantProto)
+			assertForwardedHeader(t, outReq.Header, "X-Forwarded-For", tc.wantClientIP)
+			assertForwardedHeader(t, outReq.Header, "X-Real-IP", tc.wantClientIP)
+			assertForwardedHeader(t, outReq.Header, "Forwarded", "")
+			assertNoAttackerForwardingValues(t, outReq.Header)
+		})
+	}
+}
+
+func TestPublicProxyForwardsCanonicalHostAndConfiguredPort(t *testing.T) {
+	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTP, 8080)
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.:444/assets/app.txt", nil)
+	req.Host = "app.example.:444"
+	installAttackerForwardingHeaders(req.Header)
+
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	headers := <-captured
+	assertForwardedHeader(t, headers, "X-Forwarded-Host", "app.example")
+	assertForwardedHeader(t, headers, "X-Forwarded-Port", "8080")
+	assertForwardedHeader(t, headers, "X-Forwarded-Proto", "http")
+	assertNoAttackerForwardingValues(t, headers)
+}
+
+func TestPublicProxyForwardsHTTPSListenerDefaultPort(t *testing.T) {
+	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTPS, 0)
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.:444/assets/app.txt", nil)
+	req.Host = "app.example.:444"
+
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	headers := <-captured
+	assertForwardedHeader(t, headers, "X-Forwarded-Host", "app.example")
+	assertForwardedHeader(t, headers, "X-Forwarded-Port", "443")
+	assertForwardedHeader(t, headers, "X-Forwarded-Proto", "https")
+}
+
+func TestPublicRequestPathClassification(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		edit func(*http.Request)
+		want publicPathIssueSet
+	}{
+		{
+			name: "encoded dot inside segment allowed",
+			raw:  "http://app.example/files/v1%2e2/readme",
+		},
+		{
+			name: "encoded dot segment rejected",
+			raw:  "http://app.example/files/%2e/readme",
+			want: publicPathIssueSet{DecodedDotSegment: true},
+		},
+		{
+			name: "encoded dot dot segment rejected",
+			raw:  "http://app.example/files/%2e%2e/admin",
+			want: publicPathIssueSet{DecodedDotSegment: true},
+		},
+		{
+			name: "mixed case encoded dot dot segment rejected",
+			raw:  "http://app.example/files/%2E%2E/admin",
+			want: publicPathIssueSet{DecodedDotSegment: true},
+		},
+		{
+			name: "raw backslash rejected",
+			raw:  "http://app.example/files/a.txt",
+			edit: func(r *http.Request) {
+				r.RequestURI = `/files/a\b.txt`
+			},
+			want: publicPathIssueSet{RawBackslash: true},
+		},
+		{
+			name: "encoded slash classified",
+			raw:  "http://app.example/files/a%2fb.txt",
+			want: publicPathIssueSet{EncodedSlash: true},
+		},
+		{
+			name: "mixed case encoded slash classified",
+			raw:  "http://app.example/files/a%2Fb.txt",
+			want: publicPathIssueSet{EncodedSlash: true},
+		},
+		{
+			name: "encoded backslash classified",
+			raw:  "http://app.example/files/a%5cb.txt",
+			want: publicPathIssueSet{EncodedBackslash: true},
+		},
+		{
+			name: "mixed case encoded backslash classified",
+			raw:  "http://app.example/files/a%5Cb.txt",
+			want: publicPathIssueSet{EncodedBackslash: true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.raw, nil)
+			if tt.edit != nil {
+				tt.edit(req)
+			}
+			if got := classifyPublicRequestPath(req); got != tt.want {
+				t.Fatalf("issues = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPublicProxyStrictRouteRejectsInvalidPathBeforePolicyAndRoute(t *testing.T) {
+	wafRule := testWafRule(1, publicWafActionBlock)
+	app, handler, hits := newTestPublicPathProxy(t, "/public", []publicWafRuleConfig{wafRule})
+
+	app.PublicWAF.reconcile(app.publicSnapshot)
+
+	for _, target := range []string{
+		"http://app.example/public/%2e%2e/admin",
+		"http://app.example/public/%2E%2E/admin",
+		"http://app.example/public/%2fadmin",
+		"http://app.example/public/%2Fadmin",
+		"http://app.example/public/%5cadmin",
+		"http://app.example/public/%5Cadmin",
+		"http://app.example/public/../admin",
+		"http://app.example/public/./admin",
+	} {
+		t.Run(target, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler(rec, httptest.NewRequest(http.MethodGet, target, nil))
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+			}
+			if got := hits.Load(); got != 0 {
+				t.Fatalf("upstream hits = %d, want 0", got)
+			}
+		})
+	}
+}
+
+func TestPublicProxyCompatibilityRouteAllowsEncodedSeparators(t *testing.T) {
+	_, handler, hits, lastPath := newTestPublicPathProxyWithMode(t, "/api", nil, publicRoutePathSecurityModeAllowEncodedSeparators)
+
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "http://app.example/api/v4/projects/group%2Fsubgroup%2Fproject", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("upstream hits = %d, want 1", got)
+	}
+	if got := lastPath.Load().(string); got != "/api/v4/projects/group%2Fsubgroup%2Fproject" {
+		t.Fatalf("upstream escaped path = %q, want encoded slash preserved", got)
+	}
+}
+
+func TestPublicProxyCompatibilityRouteStillRejectsGloballyInvalidPath(t *testing.T) {
+	_, handler, hits, _ := newTestPublicPathProxyWithMode(t, "/public", nil, publicRoutePathSecurityModeAllowEncodedSeparators)
+
+	for _, target := range []string{
+		"http://app.example/public/%2e%2e/admin",
+		"http://app.example/public/%2E%2E/admin",
+	} {
+		t.Run(target, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler(rec, httptest.NewRequest(http.MethodGet, target, nil))
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+			}
+			if got := hits.Load(); got != 0 {
+				t.Fatalf("upstream hits = %d, want 0", got)
+			}
+		})
+	}
+
+	rawBackslash := httptest.NewRequest(http.MethodGet, "http://app.example/public/file.txt", nil)
+	rawBackslash.RequestURI = `/public/a\b.txt`
+	rec := httptest.NewRecorder()
+	handler(rec, rawBackslash)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("raw backslash status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+	if got := hits.Load(); got != 0 {
+		t.Fatalf("upstream hits = %d, want 0", got)
+	}
+}
+
+func TestPublicProxyAllowsEncodedDotInsideSegment(t *testing.T) {
+	_, handler, hits := newTestPublicPathProxy(t, "/assets", nil)
+
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "http://app.example/assets/v1%2e2/app.txt", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("upstream hits = %d, want 1", got)
+	}
+}
+
+func TestPublicProxyAllowsSafeEncodedNonSeparatorPath(t *testing.T) {
+	_, handler, hits := newTestPublicPathProxy(t, "/assets", nil)
+
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "http://app.example/assets/a%20b.txt", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("upstream hits = %d, want 1", got)
+	}
+}
+
+func TestPublicProxyPlainSafePathStillWorks(t *testing.T) {
+	_, handler, hits := newTestPublicPathProxy(t, "/assets", nil)
+
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodGet, "http://app.example/assets/app.js", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusOK)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("upstream hits = %d, want 1", got)
+	}
+}
+
+func TestPublicProxyNoRouteUsesStrictEncodedSeparatorPolicy(t *testing.T) {
+	app := NewApp(nil, nil)
+	app.publicSnapshot = &publicProxySnapshot{
+		Listeners:        map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
+		RoutesByListener: map[int64][]publicRouteConfig{1: {}},
+		WafCookieSecret:  []byte("test-secret"),
+	}
+	handler := app.publicProxyHandler(1)
+
+	safe := httptest.NewRecorder()
+	handler(safe, httptest.NewRequest(http.MethodGet, "http://app.example/missing", nil))
+	if safe.Code != http.StatusNotFound {
+		t.Fatalf("safe no-route status = %d, want %d", safe.Code, http.StatusNotFound)
+	}
+
+	encoded := httptest.NewRecorder()
+	handler(encoded, httptest.NewRequest(http.MethodGet, "http://app.example/missing%2Fpath", nil))
+	if encoded.Code != http.StatusBadRequest {
+		t.Fatalf("encoded no-route status = %d, want %d", encoded.Code, http.StatusBadRequest)
+	}
+}
+
+func TestPublicProxyEarlyRoutePathMatchDoesNotAdvanceLoadBalancer(t *testing.T) {
+	var firstHits atomic.Int64
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		firstHits.Add(1)
+		_, _ = w.Write([]byte("first"))
+	}))
+	defer first.Close()
+	var secondHits atomic.Int64
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		secondHits.Add(1)
+		_, _ = w.Write([]byte("second"))
+	}))
+	defer second.Close()
+
+	firstURL, err := url.Parse(first.URL)
+	if err != nil {
+		t.Fatalf("parse first URL: %v", err)
+	}
+	secondURL, err := url.Parse(second.URL)
+	if err != nil {
+		t.Fatalf("parse second URL: %v", err)
+	}
+	targets := []publicRouteTargetConfig{
+		{ID: 20, RouteID: 10, Name: "first", Enabled: true, TargetType: publicRouteTargetTypeProxy, Transport: publicRouteTargetTransportDirect, ParsedURL: firstURL},
+		{ID: 21, RouteID: 10, Name: "second", Position: 1, Enabled: true, TargetType: publicRouteTargetTypeProxy, Transport: publicRouteTargetTransportDirect, ParsedURL: secondURL},
+	}
+	route := publicRouteConfig{
+		ID:                  10,
+		Enabled:             true,
+		PathPrefix:          "/",
+		Action:              publicRouteActionForward,
+		TargetLoadBalancing: publicRouteTargetLoadBalancingRoundRobin,
+		PathSecurityMode:    publicRoutePathSecurityModeStrict,
+		Targets:             targets,
+	}
+	wafRule := testWafRule(1, publicWafActionBlock)
+	wafRule.Match = mustPublicPolicyMatchCEL(t, `path_prefix(path, "/blocked")`)
+	wafRule.Fingerprint = publicWafRuleFingerprint(wafRule)
+	app := NewApp(nil, nil)
+	app.publicSnapshot = &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {route},
+		},
+		RouteTargets: map[int64]publicRouteTargetConfig{
+			20: targets[0],
+			21: targets[1],
+		},
+		WafRules:        []publicWafRuleConfig{wafRule},
+		WafCookieSecret: []byte("test-secret"),
+	}
+	app.PublicWAF.reconcile(app.publicSnapshot)
+	handler := app.publicProxyHandler(1)
+
+	blocked := httptest.NewRecorder()
+	handler(blocked, httptest.NewRequest(http.MethodGet, "http://app.example/blocked", nil))
+	if blocked.Code != http.StatusForbidden {
+		t.Fatalf("blocked status = %d, want %d", blocked.Code, http.StatusForbidden)
+	}
+	if firstHits.Load() != 0 || secondHits.Load() != 0 {
+		t.Fatalf("blocked request reached targets: first=%d second=%d", firstHits.Load(), secondHits.Load())
+	}
+
+	allowed := httptest.NewRecorder()
+	handler(allowed, httptest.NewRequest(http.MethodGet, "http://app.example/allowed", nil))
+	if allowed.Code != http.StatusOK || allowed.Body.String() != "first" {
+		t.Fatalf("allowed response = status %d body %q, want first target", allowed.Code, allowed.Body.String())
+	}
+	if firstHits.Load() != 1 || secondHits.Load() != 0 {
+		t.Fatalf("target hits after allowed request: first=%d second=%d, want first=1 second=0", firstHits.Load(), secondHits.Load())
+	}
+}
+
+func TestPublicProxyACMEChallengeExactLiteralPathStillWorks(t *testing.T) {
+	app := NewApp(nil, nil)
+	app.PublicACME = &publicACMEManager{httpChallenges: make(map[string]string)}
+	cleanup := app.PublicACME.SetHTTPChallenge("/.well-known/acme-challenge/token", "response")
+	defer cleanup()
+
+	rec := httptest.NewRecorder()
+	app.publicProxyHandler(1)(rec, httptest.NewRequest(http.MethodGet, "http://app.example/.well-known/acme-challenge/token", nil))
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "response" {
+		t.Fatalf("ACME response = status %d body %q, want 200 response", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPublicProxyWAFReservedExactLiteralPathStillHandled(t *testing.T) {
+	app := NewApp(nil, nil)
+
+	rec := httptest.NewRecorder()
+	app.publicProxyHandler(1)(rec, httptest.NewRequest(http.MethodPost, "http://app.example"+publicWafCaptchaVerifyPath, nil))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("WAF reserved response status = %d body=%q, want %d", rec.Code, rec.Body.String(), http.StatusBadRequest)
 	}
 }
 
@@ -173,5 +593,126 @@ func TestRedirectLocationPreservesSafePathSuffix(t *testing.T) {
 	}
 	if location != "/target/users" {
 		t.Fatalf("location = %q, want %q", location, "/target/users")
+	}
+}
+
+func newTestPublicPathProxy(t *testing.T, pathPrefix string, wafRules []publicWafRuleConfig) (*App, http.HandlerFunc, *atomic.Int64) {
+	app, handler, hits, _ := newTestPublicPathProxyWithMode(t, pathPrefix, wafRules, publicRoutePathSecurityModeStrict)
+	return app, handler, hits
+}
+
+func newTestPublicPathProxyWithMode(t *testing.T, pathPrefix string, wafRules []publicWafRuleConfig, pathSecurityMode string) (*App, http.HandlerFunc, *atomic.Int64, *atomic.Value) {
+	t.Helper()
+	var hits atomic.Int64
+	var lastPath atomic.Value
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		lastPath.Store(r.URL.EscapedPath())
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	target := publicRouteTargetConfig{
+		ID:         20,
+		RouteID:    10,
+		Name:       "upstream",
+		Enabled:    true,
+		TargetType: publicRouteTargetTypeProxy,
+		Transport:  publicRouteTargetTransportDirect,
+		ParsedURL:  origin,
+	}
+	route := publicRouteConfig{
+		ID:               10,
+		Enabled:          true,
+		PathPrefix:       pathPrefix,
+		Action:           publicRouteActionForward,
+		PathSecurityMode: pathSecurityMode,
+		Targets:          []publicRouteTargetConfig{target},
+	}
+	app := NewApp(nil, nil)
+	app.publicSnapshot = &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {route},
+		},
+		RouteTargets:    map[int64]publicRouteTargetConfig{target.ID: target},
+		WafRules:        wafRules,
+		WafCookieSecret: []byte("test-secret"),
+	}
+	return app, app.publicProxyHandler(1), &hits, &lastPath
+}
+
+func newTestForwardedHeaderProxy(t *testing.T, listenerProtocol string, listenerPort int64) (http.HandlerFunc, <-chan http.Header) {
+	t.Helper()
+	captured := make(chan http.Header, 1)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured <- r.Header.Clone()
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	target := publicRouteTargetConfig{
+		ID:         20,
+		RouteID:    10,
+		Name:       "upstream",
+		Enabled:    true,
+		TargetType: publicRouteTargetTypeProxy,
+		Transport:  publicRouteTargetTransportDirect,
+		ParsedURL:  origin,
+	}
+	route := publicRouteConfig{
+		ID:               10,
+		Enabled:          true,
+		HostPattern:      "app.example",
+		PathPrefix:       "/assets",
+		Action:           publicRouteActionForward,
+		PathSecurityMode: publicRoutePathSecurityModeStrict,
+		Targets:          []publicRouteTargetConfig{target},
+	}
+	app := NewApp(nil, nil)
+	app.publicSnapshot = &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: listenerProtocol, Port: listenerPort, Enabled: true}},
+		RoutesByListener: map[int64][]publicRouteConfig{
+			1: {route},
+		},
+		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
+	}
+	return app.publicProxyHandler(1), captured
+}
+
+func installAttackerForwardingHeaders(header http.Header) {
+	header.Set("Forwarded", "for=1.2.3.4")
+	header.Set("X-Forwarded-For", "1.2.3.4")
+	header.Set("X-Forwarded-Host", "attacker.example")
+	header.Set("X-Forwarded-Proto", "https")
+	header.Set("X-Forwarded-Port", "9999")
+	header.Set("X-Real-IP", "1.2.3.4")
+}
+
+func assertForwardedHeader(t *testing.T, header http.Header, name string, want string) {
+	t.Helper()
+	if got := header.Get(name); got != want {
+		t.Fatalf("%s = %q, want %q", name, got, want)
+	}
+}
+
+func assertNoAttackerForwardingValues(t *testing.T, header http.Header) {
+	t.Helper()
+	for _, value := range []string{"attacker.example", "9999", "1.2.3.4"} {
+		for name, values := range header {
+			for _, got := range values {
+				if got == value {
+					t.Fatalf("attacker forwarding value %q remained in header %s", value, name)
+				}
+			}
+		}
 	}
 }

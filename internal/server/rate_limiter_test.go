@@ -5,12 +5,14 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/db"
 )
 
 func TestPublicRateLimiterAlgorithms(t *testing.T) {
@@ -215,6 +217,155 @@ func TestPublicRateLimitValidationRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestUnsafeForwardingKeyPartHeader(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{name: "Forwarded", want: true},
+		{name: "forwarded", want: true},
+		{name: "X-Forwarded-For", want: true},
+		{name: "x-forwarded-for", want: true},
+		{name: "X-Real-IP", want: true},
+		{name: "x-real-ip", want: true},
+		{name: "X-FoRwArDeD-PoRt", want: true},
+		{name: "CF-Connecting-IP", want: true},
+		{name: "X-Plan", want: false},
+		{name: "X-User", want: false},
+	}
+	for _, tt := range tests {
+		if got := unsafeForwardingKeyPartHeader(tt.name); got != tt.want {
+			t.Fatalf("unsafeForwardingKeyPartHeader(%q) = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestPublicRateLimitValidationRejectsUnsafeForwardingHeaderKeyParts(t *testing.T) {
+	for _, header := range []string{
+		"Forwarded",
+		"X-Forwarded-For",
+		"X-Forwarded-Host",
+		"X-Forwarded-Proto",
+		"X-Forwarded-Port",
+		"x-real-ip",
+		"Client-IP",
+		"True-Client-IP",
+		"CF-Connecting-IP",
+		"Fastly-Client-IP",
+		"X-Client-IP",
+		"X-Cluster-Client-IP",
+	} {
+		_, err := validatePublicRateLimitRuleInput(
+			"unsafe-key",
+			100,
+			true,
+			p2pstreamv1.PublicRateLimitAlgorithm_PUBLIC_RATE_LIMIT_ALGORITHM_FIXED_WINDOW,
+			10,
+			1000,
+			0,
+			[]*p2pstreamv1.PublicRateLimitKeyPart{{
+				Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+				Name:   header,
+			}},
+			429,
+			"",
+			p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+			0,
+			"",
+			nil,
+			nil,
+		)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("header %q: expected invalid argument, got %v", header, err)
+		}
+		if !strings.Contains(err.Error(), "rate limit header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+			t.Fatalf("header %q: unexpected error %v", header, err)
+		}
+	}
+}
+
+func TestPublicRateLimitValidationAllowsApplicationHeaderKeyPart(t *testing.T) {
+	params, err := validatePublicRateLimitRuleInput(
+		"safe-key",
+		100,
+		true,
+		p2pstreamv1.PublicRateLimitAlgorithm_PUBLIC_RATE_LIMIT_ALGORITHM_FIXED_WINDOW,
+		10,
+		1000,
+		0,
+		[]*p2pstreamv1.PublicRateLimitKeyPart{{
+			Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+			Name:   "x-plan",
+		}},
+		429,
+		"",
+		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+		0,
+		"",
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("validate application header key part: %v", err)
+	}
+	if !strings.Contains(params.KeyPartsJSON, `"name":"X-Plan"`) {
+		t.Fatalf("key parts json = %q, want canonical X-Plan", params.KeyPartsJSON)
+	}
+
+	params, err = validatePublicRateLimitRuleInput(
+		"default-key",
+		100,
+		true,
+		p2pstreamv1.PublicRateLimitAlgorithm_PUBLIC_RATE_LIMIT_ALGORITHM_FIXED_WINDOW,
+		10,
+		1000,
+		0,
+		nil,
+		429,
+		"",
+		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+		0,
+		"",
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("validate default remote IP key part: %v", err)
+	}
+	if !strings.Contains(params.KeyPartsJSON, `"source":"remote_ip"`) {
+		t.Fatalf("key parts json = %q, want remote_ip", params.KeyPartsJSON)
+	}
+}
+
+func TestPublicRateLimitStoredRuleRejectsUnsafeForwardingHeaderKeyPart(t *testing.T) {
+	_, err := publicRateLimitRuleRowToConfig(db.PublicRateLimitRule{
+		Name:         "stored-unsafe",
+		KeyPartsJson: `[{"source":"header","name":"x-forwarded-for"}]`,
+	})
+	if err == nil {
+		t.Fatal("expected stored unsafe forwarding header key part to be rejected")
+	}
+	if !strings.Contains(err.Error(), "rate limit header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+		t.Fatalf("unexpected stored-row error: %v", err)
+	}
+}
+
+func TestPublicRateLimitRemoteIPKeyUsesRemoteAddr(t *testing.T) {
+	rule := testRateLimitRule(publicRateLimitAlgorithmFixedWindow, 10, 1000, 0)
+	rule.KeyParts = []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceRemoteIP}}
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	req := testRateLimitRequest("GET", "http://example.com/api", "198.51.100.9:1234")
+	req.Header.Set("X-Forwarded-For", "203.0.113.9")
+
+	values := rule.keyValues(listener, req)
+	if !rateLimitTestValuesContain(values, "198.51.100.9") {
+		t.Fatalf("key values = %#v, want remote addr IP", values)
+	}
+	if rateLimitTestValuesContain(values, "203.0.113.9") {
+		t.Fatalf("key values = %#v, used spoofed X-Forwarded-For", values)
+	}
+}
+
 func TestPublicRateLimitResponseUsesGeneratedHeaders(t *testing.T) {
 	rule := testRateLimitRule(publicRateLimitAlgorithmFixedWindow, 1, 1000, 0)
 	rule.ResponseHeaders = []publicRateLimitResponseHeaderConfig{
@@ -325,4 +476,13 @@ func testRateLimitRequest(method string, target string, remoteAddr string) *http
 	req := httptest.NewRequest(method, target, nil)
 	req.RemoteAddr = remoteAddr
 	return req
+}
+
+func rateLimitTestValuesContain(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }

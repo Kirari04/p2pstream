@@ -103,6 +103,14 @@ func (a *App) GetSetupState(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.GetSetupStateRequest],
 ) (*connect.Response[p2pstreamv1.GetSetupStateResponse], error) {
+	return a.authService().getSetupStateRPC(ctx, req)
+}
+
+func (s *authService) getSetupStateRPC(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.GetSetupStateRequest],
+) (*connect.Response[p2pstreamv1.GetSetupStateResponse], error) {
+	a := s.app
 	_ = req
 
 	state, err := a.getSetupState(ctx)
@@ -116,6 +124,14 @@ func (a *App) SetupAdmin(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.SetupAdminRequest],
 ) (*connect.Response[p2pstreamv1.SetupAdminResponse], error) {
+	return a.authService().setupAdmin(ctx, req)
+}
+
+func (s *authService) setupAdmin(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.SetupAdminRequest],
+) (*connect.Response[p2pstreamv1.SetupAdminResponse], error) {
+	a := s.app
 	if a.DB == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for setup"))
 	}
@@ -123,13 +139,13 @@ func (a *App) SetupAdmin(
 	a.setupMu.Lock()
 	defer a.setupMu.Unlock()
 
-	tx, err := a.DB.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	defer tx.Rollback()
 
-	qtx := a.DB.WithTx(tx)
+	qtx := s.db.WithTx(tx)
 	count, err := qtx.CountUsers(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -179,6 +195,11 @@ func (a *App) SetupAdmin(
 }
 
 func (a *App) initializeSetupToken(ctx context.Context) {
+	a.authService().initializeSetupToken(ctx)
+}
+
+func (s *authService) initializeSetupToken(ctx context.Context) {
+	a := s.app
 	if a == nil || a.DB == nil {
 		return
 	}
@@ -186,7 +207,7 @@ func (a *App) initializeSetupToken(ctx context.Context) {
 		a.setupTokenHash = hashSetupToken(token)
 		return
 	}
-	count, err := a.DB.CountUsers(ctx)
+	count, err := s.db.CountUsers(ctx)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to inspect setup state for setup token initialization")
 		return
@@ -204,6 +225,11 @@ func (a *App) initializeSetupToken(ctx context.Context) {
 }
 
 func (a *App) LogGeneratedSetupToken(baseURL string) {
+	a.authService().logGeneratedSetupToken(baseURL)
+}
+
+func (s *authService) logGeneratedSetupToken(baseURL string) {
+	a := s.app
 	if a == nil || a.generatedSetupToken == "" {
 		return
 	}
@@ -224,6 +250,11 @@ func setupURLWithToken(baseURL string, token string) string {
 }
 
 func (a *App) validSetupToken(token string) bool {
+	return a.authService().validSetupToken(token)
+}
+
+func (s *authService) validSetupToken(token string) bool {
+	a := s.app
 	token = strings.TrimSpace(token)
 	if a == nil || a.setupTokenHash == "" || token == "" {
 		return false
@@ -250,6 +281,14 @@ func (a *App) Login(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.LoginRequest],
 ) (*connect.Response[p2pstreamv1.LoginResponse], error) {
+	return a.authService().login(ctx, req)
+}
+
+func (s *authService) login(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.LoginRequest],
+) (*connect.Response[p2pstreamv1.LoginResponse], error) {
+	a := s.app
 	if a.DB == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for login"))
 	}
@@ -257,29 +296,29 @@ func (a *App) Login(
 	username := authutil.NormalizeUsername(req.Msg.Username)
 	throttleKey := loginThrottleKey(req.Peer().Addr, username)
 	now := time.Now()
-	if retryAfter := a.LoginThrottle.retryAfter(throttleKey, now); retryAfter > 0 {
+	if retryAfter := s.throttle.retryAfter(throttleKey, now); retryAfter > 0 {
 		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("too many failed login attempts; try again later"))
 	}
-	user, err := a.DB.GetUserByUsername(ctx, username)
+	user, err := s.db.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			a.LoginThrottle.recordFailure(throttleKey, now)
+			s.throttle.recordFailure(throttleKey, now)
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if err := authutil.ComparePasswordHash(user.PasswordHash, req.Msg.Password); err != nil {
-		a.LoginThrottle.recordFailure(throttleKey, now)
+		s.throttle.recordFailure(throttleKey, now)
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 	}
-	a.LoginThrottle.recordSuccess(throttleKey)
+	s.throttle.recordSuccess(throttleKey)
 
 	token, tokenHash, err := newSessionToken()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	expiresAt := time.Now().Add(sessionDuration)
-	if _, err := a.DB.CreateSession(ctx, db.CreateSessionParams{
+	if _, err := s.db.CreateSession(ctx, db.CreateSessionParams{
 		UserID:    user.ID,
 		TokenHash: tokenHash,
 		ExpiresAt: expiresAt,
@@ -296,11 +335,19 @@ func (a *App) Logout(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.LogoutRequest],
 ) (*connect.Response[p2pstreamv1.LogoutResponse], error) {
-	user, err := a.requireUser(ctx, req.Header())
+	return a.authService().logout(ctx, req)
+}
+
+func (s *authService) logout(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.LogoutRequest],
+) (*connect.Response[p2pstreamv1.LogoutResponse], error) {
+	a := s.app
+	user, err := s.requireUser(ctx, req.Header())
 	if err != nil {
 		return nil, err
 	}
-	if err := a.DB.RevokeSessionByTokenHash(ctx, user.TokenHash); err != nil {
+	if err := s.db.RevokeSessionByTokenHash(ctx, user.TokenHash); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -313,7 +360,14 @@ func (a *App) GetCurrentUser(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.GetCurrentUserRequest],
 ) (*connect.Response[p2pstreamv1.GetCurrentUserResponse], error) {
-	user, err := a.requireUser(ctx, req.Header())
+	return a.authService().getCurrentUser(ctx, req)
+}
+
+func (s *authService) getCurrentUser(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.GetCurrentUserRequest],
+) (*connect.Response[p2pstreamv1.GetCurrentUserResponse], error) {
+	user, err := s.requireUser(ctx, req.Header())
 	if err != nil {
 		return nil, err
 	}
@@ -328,11 +382,16 @@ func (a *App) GetCurrentUser(
 }
 
 func (a *App) getSetupState(ctx context.Context) (*p2pstreamv1.GetSetupStateResponse, error) {
+	return a.authService().getSetupState(ctx)
+}
+
+func (s *authService) getSetupState(ctx context.Context) (*p2pstreamv1.GetSetupStateResponse, error) {
+	a := s.app
 	if a.DB == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for setup"))
 	}
 
-	count, err := a.DB.CountUsers(ctx)
+	count, err := s.db.CountUsers(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -353,18 +412,28 @@ func (a *App) getSetupState(ctx context.Context) (*p2pstreamv1.GetSetupStateResp
 }
 
 func (a *App) setupAvailable(now time.Time) bool {
+	return a.authService().setupAvailable(now)
+}
+
+func (s *authService) setupAvailable(now time.Time) bool {
+	a := s.app
 	expiresAt := a.StartedAt.Add(setupWindow)
 	return now.Before(expiresAt) || now.Equal(expiresAt)
 }
 
 func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticatedUser, error) {
+	return a.authService().requireUser(ctx, header)
+}
+
+func (s *authService) requireUser(ctx context.Context, header http.Header) (*authenticatedUser, error) {
+	a := s.app
 	if a.DB == nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authentication is unavailable"))
 	}
 
 	if accessToken := managementAccessTokenFromHeader(header); accessToken != "" {
 		tokenHash := hashManagementAccessToken(accessToken)
-		row, err := a.DB.GetActiveManagementAccessTokenByHash(ctx, tokenHash)
+		row, err := s.db.GetActiveManagementAccessTokenByHash(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
@@ -374,7 +443,7 @@ func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticat
 		if row.ExpiresAt.Valid && !row.ExpiresAt.Time.After(time.Now()) {
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
 		}
-		if err := a.DB.TouchManagementAccessToken(ctx, row.ID); err != nil {
+		if err := s.db.TouchManagementAccessToken(ctx, row.ID); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		return &authenticatedUser{
@@ -391,7 +460,7 @@ func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticat
 	}
 
 	tokenHash := hashSessionToken(token)
-	session, err := a.DB.GetActiveSessionByTokenHash(ctx, tokenHash)
+	session, err := s.db.GetActiveSessionByTokenHash(ctx, tokenHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("login required"))
@@ -399,7 +468,7 @@ func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticat
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if session.LastSeenAt.IsZero() || time.Since(session.LastSeenAt) >= sessionTouchInterval {
-		if err := a.DB.TouchSession(ctx, session.SessionID); err != nil {
+		if err := s.db.TouchSession(ctx, session.SessionID); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
@@ -414,7 +483,11 @@ func (a *App) requireUser(ctx context.Context, header http.Header) (*authenticat
 }
 
 func (a *App) requireAdmin(ctx context.Context, header http.Header) (*authenticatedUser, error) {
-	user, err := a.requireUser(ctx, header)
+	return a.authService().requireAdmin(ctx, header)
+}
+
+func (s *authService) requireAdmin(ctx context.Context, header http.Header) (*authenticatedUser, error) {
+	user, err := s.requireUser(ctx, header)
 	if err != nil {
 		return nil, err
 	}
@@ -448,6 +521,11 @@ func hashSessionToken(token string) string {
 }
 
 func (a *App) sessionCookie(token string, expiresAt time.Time) *http.Cookie {
+	return a.authService().sessionCookie(token, expiresAt)
+}
+
+func (s *authService) sessionCookie(token string, expiresAt time.Time) *http.Cookie {
+	a := s.app
 	return &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
@@ -460,6 +538,11 @@ func (a *App) sessionCookie(token string, expiresAt time.Time) *http.Cookie {
 }
 
 func (a *App) clearSessionCookie() *http.Cookie {
+	return a.authService().clearSessionCookie()
+}
+
+func (s *authService) clearSessionCookie() *http.Cookie {
+	a := s.app
 	return &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
@@ -473,6 +556,11 @@ func (a *App) clearSessionCookie() *http.Cookie {
 }
 
 func (a *App) secureCookies() bool {
+	return a.authService().secureCookies()
+}
+
+func (s *authService) secureCookies() bool {
+	a := s.app
 	return a.Config != nil && (a.Config.ManagementTLSEnabled || a.Config.Env == "production" || a.Config.ManagementCookieSecure)
 }
 
