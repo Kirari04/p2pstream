@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NSelect, NSkeleton, useMessage, useNotification } from "naive-ui";
-import { computed, onBeforeUnmount, onMounted, provide } from "vue";
+import { computed, onMounted, provide } from "vue";
 import { useRoute } from "vue-router";
 import { managementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -173,9 +173,6 @@ onMounted(() => {
   void bootstrap();
 });
 
-onBeforeUnmount(() => {
-  stopAutoRefresh();
-});
 </script>
 
 <template>
