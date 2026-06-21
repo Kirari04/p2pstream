@@ -87,6 +87,7 @@ func (t *loginThrottle) evictOldestUnlockedEntryLocked(now time.Time) bool {
 	var oldestKey string
 	var oldestStart time.Time
 	for key, entry := range t.entries {
+		// recordFailure prunes before eviction; keep these checks defensive for callers that do not.
 		if entry == nil {
 			delete(t.entries, key)
 			return true
