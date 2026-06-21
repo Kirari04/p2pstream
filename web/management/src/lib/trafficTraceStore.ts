@@ -426,15 +426,15 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
 }
 
 export function requestStatusClass(request: Pick<TraceRequest, "stage" | "statusCode">): string {
-  if (request.stage === TrafficTraceStage.FAILED) return "text-red-400";
-  if (request.stage === TrafficTraceStage.WAF_BLOCKED) return "text-red-400";
-  if (request.stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || request.stage === TrafficTraceStage.WAF_WAITING_ROOM) return "text-amber-400";
-  if (request.stage === TrafficTraceStage.RATE_LIMITED) return "text-amber-400";
+  if (request.stage === TrafficTraceStage.FAILED) return "trace-status--error";
+  if (request.stage === TrafficTraceStage.WAF_BLOCKED) return "trace-status--error";
+  if (request.stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || request.stage === TrafficTraceStage.WAF_WAITING_ROOM) return "trace-status--warning";
+  if (request.stage === TrafficTraceStage.RATE_LIMITED) return "trace-status--warning";
   const status = Number(request.statusCode);
-  if (status >= 500) return "text-red-400";
-  if (status >= 400) return "text-amber-400";
-  if (status >= 200) return "text-green-400";
-  return "text-[#888]";
+  if (status >= 500) return "trace-status--error";
+  if (status >= 400) return "trace-status--warning";
+  if (status >= 200) return "trace-status--success";
+  return "trace-status--muted";
 }
 
 export function traceFlowLabel(request: TraceRequest): string {

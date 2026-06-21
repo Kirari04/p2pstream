@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { computed, ref } from "vue";
+import { NButton, NTag } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicResponseTemplateEditorModal from "@/components/editors/PublicResponseTemplateEditorModal.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import { naiveTagType } from "@/lib/naiveUi";
 import {
   PublicResponseBodyMode,
   PublicResponseTemplateKind,
@@ -24,7 +21,7 @@ const managementClient = useManagementClient();
 
 const { publicProxyConfig, isBusy, runManagementAction } = useManagementContext();
 const editor = ref<InstanceType<typeof PublicResponseTemplateEditorModal> | null>(null);
-const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
+const { confirm } = useConfirmDialog();
 
 const templates = computed(() => [...(publicProxyConfig.value?.responseTemplates ?? [])].sort((a, b) => {
   const kindOrder = kindRank(a.kind) - kindRank(b.kind);
@@ -37,6 +34,27 @@ const summaryCards = computed(() => [
   { label: "Captcha", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.WAF_CAPTCHA_PAGE).length.toString(), detail: "{{ .captcha_element_html }} required" },
   { label: "Waiting Room", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE).length.toString(), detail: "queue placeholders required" },
 ]);
+const templateUsageCounts = computed(() => {
+  const counts = new Map<string, number>();
+  const config = publicProxyConfig.value;
+  if (!config) return counts;
+  const increment = (id: bigint) => {
+    const key = id.toString();
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  };
+  for (const target of config.routeTargets) {
+    if (target.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE) increment(target.staticResponseTemplateId);
+  }
+  for (const rule of config.rateLimitRules) {
+    if (rule.responseBodyMode === PublicResponseBodyMode.TEMPLATE) increment(rule.responseBodyTemplateId);
+  }
+  for (const rule of config.wafRules) {
+    if (rule.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE) increment(rule.blockResponseTemplateId);
+    if (rule.captchaPageTemplateId) increment(rule.captchaPageTemplateId);
+    if (rule.waitingRoomPageTemplateId) increment(rule.waitingRoomPageTemplateId);
+  }
+  return counts;
+});
 
 function kindRank(kind: PublicResponseTemplateKind): number {
   switch (kind) {
@@ -76,18 +94,7 @@ function requiredPlaceholderLabel(kind: PublicResponseTemplateKind): string {
 }
 
 function usageCount(template: PublicResponseTemplate): number {
-  const config = publicProxyConfig.value;
-  if (!config) return 0;
-  const id = template.id;
-  let count = 0;
-  count += config.routeTargets.filter((target) => target.staticResponseBodyMode === PublicResponseBodyMode.TEMPLATE && target.staticResponseTemplateId === id).length;
-  count += config.rateLimitRules.filter((rule) => rule.responseBodyMode === PublicResponseBodyMode.TEMPLATE && rule.responseBodyTemplateId === id).length;
-  count += config.wafRules.filter((rule) => (
-    (rule.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE && rule.blockResponseTemplateId === id) ||
-    rule.captchaPageTemplateId === id ||
-    rule.waitingRoomPageTemplateId === id
-  )).length;
-  return count;
+  return templateUsageCounts.value.get(template.id.toString()) ?? 0;
 }
 
 function formatUpdatedAt(template: PublicResponseTemplate): string {
@@ -116,54 +123,61 @@ async function deleteTemplate(template: PublicResponseTemplate) {
 </script>
 
 <template>
-  <div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div class="stack-xl">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
-        <h3 class="mb-2 text-xl font-bold">Response Templates</h3>
-        <p class="text-sm text-[#888]">Reusable static bodies and validated WAF HTML pages.</p>
+        <h3 class="margin-bottom-sm copy-xl weight-bold">Response Templates</h3>
+        <p class="copy-sm muted-text">Reusable static bodies and validated WAF HTML pages.</p>
       </div>
-      <Button label="Add Template" @click="openCreate()">
-        <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-      </Button>
+      <NButton type="primary" @click="openCreate()">
+        <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+        Add Template
+      </NButton>
     </div>
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
+    <section class="layout-grid space-lg mq-sm-cols-two mq-xl-cols-four">
+      <div v-for="card in summaryCards" :key="card.label" class="surface-card pad-lg">
+        <p class="copy-xs weight-semibold label-case letter-widest muted-text">{{ card.label }}</p>
+        <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ card.value }}</p>
+        <p class="margin-top-xs copy-xs muted-text">{{ card.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4">
-        <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Templates</h4>
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg">
+        <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Templates</h4>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="template in templates" :key="template.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ template.name }}</p>
-              <Tag :value="kindLabel(template.kind)" severity="info" />
-              <Tag :value="`${usageCount(template).toString()} uses`" :severity="usageCount(template) ? 'warn' : 'info'" />
+      <div class="divided-list">
+        <div
+          v-for="template in templates"
+          :key="template.id.toString()"
+          :data-testid="`template-row-${template.id.toString()}`"
+          class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto"
+        >
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero wrap-items align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ template.name }}</p>
+              <NTag size="small" :bordered="false" type="info">{{ kindLabel(template.kind) }}</NTag>
+              <NTag size="small" :bordered="false" :type="naiveTagType(usageCount(template) ? 'warn' : 'info')">{{ usageCount(template).toString() }} uses</NTag>
             </div>
-            <p class="mt-1 truncate text-xs text-[#888]">{{ template.description || template.contentType || "No description" }}</p>
-            <p class="mt-1 truncate font-mono text-xs text-[#666]">Required: {{ requiredPlaceholderLabel(template.kind) }} / updated {{ formatUpdatedAt(template) }}</p>
+            <p class="margin-top-xs clip-text copy-xs muted-text">{{ template.description || template.contentType || "No description" }}</p>
+            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">Required: {{ requiredPlaceholderLabel(template.kind) }} / updated {{ formatUpdatedAt(template) }}</p>
           </div>
-          <div class="flex gap-2 lg:justify-end">
-            <SecondaryButton size="small" aria-label="Edit template" title="Edit template" @click="openEdit(template)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
+          <div class="layout-row space-sm mq-lg-end">
+            <NButton secondary size="small" aria-label="Edit template" title="Edit template" @click="openEdit(template)">
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+            </NButton>
             <DisabledHint :disabled="usageCount(template) > 0 || isBusy" :reason="usageCount(template) > 0 ? 'Remove all references before deleting this template.' : ''">
-              <DangerButton
+              <NButton
+                type="error"
                 size="small"
                 aria-label="Delete template"
                 title="Delete template"
                 :disabled="usageCount(template) > 0 || isBusy"
                 @click="deleteTemplate(template)"
               >
-                <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-              </DangerButton>
+                <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+              </NButton>
             </DisabledHint>
           </div>
         </div>
@@ -177,13 +191,12 @@ async function deleteTemplate(template: PublicResponseTemplate) {
       </div>
     </section>
 
-    <section class="grid gap-3 sm:grid-cols-3">
-      <SecondaryButton label="New Generic Body" @click="openCreate(PublicResponseTemplateKind.GENERIC_BODY)" />
-      <SecondaryButton label="New Captcha Page" @click="openCreate(PublicResponseTemplateKind.WAF_CAPTCHA_PAGE)" />
-      <SecondaryButton label="New Waiting Room" @click="openCreate(PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE)" />
+    <section class="layout-grid space-md mq-sm-cols-three">
+      <NButton secondary @click="openCreate(PublicResponseTemplateKind.GENERIC_BODY)">New Generic Body</NButton>
+      <NButton secondary @click="openCreate(PublicResponseTemplateKind.WAF_CAPTCHA_PAGE)">New Captcha Page</NButton>
+      <NButton secondary @click="openCreate(PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE)">New Waiting Room</NButton>
     </section>
 
     <PublicResponseTemplateEditorModal ref="editor" />
-    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
   </div>
 </template>

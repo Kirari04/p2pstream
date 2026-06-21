@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from "vue";
-import type { ComputedRef } from "vue";
-import BanIcon from "@primevue/icons/ban";
-import CheckIcon from "@primevue/icons/check";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import RefreshIcon from "@primevue/icons/refresh";
-import TimesCircleIcon from "@primevue/icons/timescircle";
-import TrashIcon from "@primevue/icons/trash";
+import { computed, h, inject, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { NAlert, NButton, NCheckbox, NDataTable, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
+import { Ban as BanIcon } from "@lucide/vue";
+import { Check as CheckIcon } from "@lucide/vue";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { CircleX as TimesCircleIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
+import { dashboardKey, isBusyKey, publicProxyConfigKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { AGENT_ID_SYSTEM_LABEL_KEY, userAgentLabelPairs } from "@/lib/agentLabels";
 import {
@@ -32,29 +34,40 @@ import {
   recentDisconnectCount,
 } from "@/lib/dashboardStats";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import { modalCardStyle } from "@/lib/naiveUi";
 import type {
   Agent,
   AgentConnectionSession,
   AgentUptimeSummary,
-  GetDashboardResponse,
-  GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
+const route = useRoute();
+const router = useRouter();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
+const agentSections = [
+  {
+    key: "fleet",
+    label: "Fleet",
+    path: "/agent",
+    description: "Fleet state, availability, selectors, and agent lifecycle actions.",
+  },
+  {
+    key: "activity",
+    label: "Activity",
+    path: "/agent/activity",
+    description: "Runtime pressure, process metrics, and recent connection sessions.",
+  },
+] as const;
 
-const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
-const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+type AgentSectionKey = typeof agentSections[number]["key"];
 
-const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
+const dashboard = inject(dashboardKey, computed(() => null));
+const publicProxyConfig = inject(publicProxyConfigKey, computed(() => null));
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
+
+const { confirm } = useConfirmDialog();
 const status = computed(() => dashboard?.value?.status ?? null);
 const config = computed(() => publicProxyConfig?.value ?? null);
 const agents = computed(() => publicProxyConfig?.value?.agents ?? []);
@@ -65,14 +78,78 @@ const uptimeSummaries = computed(() => dashboard?.value?.agentUptimeSummaries ??
 const uptimeByAgentId = computed(() => agentUptimeSummaryById(uptimeSummaries.value));
 const recentAgentConnections = computed(() => dashboard?.value?.recentAgentConnections ?? []);
 const enabledAgents = computed(() => agents.value.filter((agent) => agent.enabled).length);
+const totalAgents = computed(() => agents.value.length);
+const disabledAgents = computed(() => Math.max(0, totalAgents.value - enabledAgents.value));
 const connectedAgentCount = computed(() => uptimeSummaries.value.length
   ? uptimeSummaries.value.filter((summary) => summary.connected).length
   : agents.value.filter((agent) => agent.connected).length);
+const offlineEnabledAgents = computed(() => Math.max(0, enabledAgents.value - connectedAgentCount.value));
 const activeAgentRequests = computed(() => agents.value.reduce((sum, agent) => sum + Number(agent.activeRequests || 0n), 0));
 const fleetUptime = computed(() => fleetUptimePercent(uptimeSummaries.value));
 const longestCurrentUptimeMillis = computed(() => Math.max(0, ...uptimeSummaries.value.map((summary) => Number(summary.currentUptimeMillis || 0n))));
 const recentDisconnects = computed(() => recentDisconnectCount(recentAgentConnections.value, dashboard?.value?.generatedAtUnixMillis ?? BigInt(Date.now())));
 const retentionDaysLabel = computed(() => `${(dashboard?.value?.retentionDays ?? 30n).toString()}d`);
+const connectedAgentPercent = computed(() => {
+  if (!enabledAgents.value) return 0;
+  return Math.round((connectedAgentCount.value / enabledAgents.value) * 100);
+});
+const connectedAgentPercentStyle = computed(() => ({
+  width: `${Math.min(100, Math.max(0, connectedAgentPercent.value))}%`,
+}));
+const fleetStatusType = computed<"success" | "warning" | "error" | "default">(() => {
+  if (!totalAgents.value) return "default";
+  if (connectedAgentCount.value === enabledAgents.value && enabledAgents.value > 0) return "success";
+  if (connectedAgentCount.value === 0 && enabledAgents.value > 0) return "error";
+  return "warning";
+});
+const fleetStatusLabel = computed(() => {
+  if (!totalAgents.value) return "No agents";
+  if (connectedAgentCount.value === enabledAgents.value && enabledAgents.value > 0) return "Healthy";
+  if (connectedAgentCount.value === 0 && enabledAgents.value > 0) return "Disconnected";
+  return "Degraded";
+});
+const fleetSummary = computed(() => {
+  if (!totalAgents.value) return "Create an agent to connect private upstreams to this proxy.";
+  if (!enabledAgents.value) return `${totalAgents.value} registered, all disabled.`;
+  if (!offlineEnabledAgents.value) return `${connectedAgentPercent.value}% of enabled agents are connected.`;
+  return `${offlineEnabledAgents.value} enabled agent${offlineEnabledAgents.value === 1 ? "" : "s"} offline.`;
+});
+const runtimeMetrics = computed(() => [
+  {
+    label: "Memory sys",
+    value: `${bigIntLabel(status.value?.latestAgentStats?.memorySysMb)} MB`,
+    detail: "latest sample",
+  },
+  {
+    label: "Goroutines",
+    value: bigIntLabel(status.value?.latestAgentStats?.numGoroutine),
+    detail: "latest sample",
+  },
+  {
+    label: "Active requests",
+    value: activeAgentRequests.value.toString(),
+    detail: "across agents",
+  },
+  {
+    label: "Avg memory",
+    value: `${bigIntLabel(oneHourWindow.value?.agentAvgMemoryMb)} MB`,
+    detail: "1h window",
+  },
+  {
+    label: "Max memory",
+    value: `${bigIntLabel(dayWindow.value?.agentMaxMemoryMb)} MB`,
+    detail: "24h window",
+  },
+  {
+    label: "Max goroutines",
+    value: bigIntLabel(dayWindow.value?.agentMaxGoroutines),
+    detail: "24h window",
+  },
+]);
+const activeAgentSection = computed<AgentSectionKey>(() => normalizeAgentSection(route.params.section));
+const activeAgentSectionMeta = computed(() =>
+  agentSections.find((section) => section.key === activeAgentSection.value) ?? agentSections[0],
+);
 
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rotateAgentToConfirm = ref<Agent | null>(null);
@@ -96,6 +173,8 @@ const uninstallCopyLabel = ref("Copy");
 let setupCopyReset: number | undefined;
 let uninstallCopyReset: number | undefined;
 
+const sessionPagination = { pageSize: 12 };
+
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
 const managementUsesTLS = computed(() => normalizedManagementUrl.value.toLowerCase().startsWith("https://"));
@@ -103,6 +182,11 @@ const agentClientCertificateRequired = computed(() => Boolean(managementSecurity
 const setupIsRotation = computed(() => setupContext.value === "rotate");
 const setupModalTitle = computed(() => setupIsRotation.value ? "Agent Reinstall" : "Agent Setup");
 const setupLinuxTabLabel = computed(() => setupIsRotation.value ? "Linux reinstall" : "Linux install");
+const setupTabOptions = computed<Array<{ value: "install" | "docker" | "cli"; label: string }>>(() => [
+  { value: "install", label: setupLinuxTabLabel.value },
+  { value: "docker", label: "Docker Compose" },
+  { value: "cli", label: "CLI" },
+]);
 const embeddedManagementCAPEMBase64 = computed(() => {
   const pem = managementSecurity.value?.managementCaPem ?? "";
   if (!pem || !managementUsesTLS.value) return "";
@@ -132,6 +216,177 @@ const uninstallSnippet = computed(() => {
   if (uninstallSnippetError.value) return "";
   return buildUninstallSnippet();
 });
+
+function normalizeAgentSection(value: unknown): AgentSectionKey {
+  const section = Array.isArray(value) ? value[0] : value;
+  return section === "activity" ? "activity" : "fleet";
+}
+
+async function selectAgentSection(value: string | number) {
+  const section = agentSections.find((item) => item.key === value);
+  if (!section || section.key === activeAgentSection.value) return;
+  await router.push(section.path);
+}
+
+const agentColumns = computed<DataTableColumns<Agent>>(() => [
+  {
+    title: "Agent",
+    key: "agent",
+    minWidth: 340,
+    render: (agent) => h("div", { class: "agent-cell" }, [
+      h("div", { class: "agent-cell__header" }, [
+        h("span", { class: "agent-cell__name" }, agent.name),
+        !agent.enabled ? h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Disabled" }) : null,
+      ]),
+      h("p", { class: "agent-cell__id mono-text" }, agent.publicId),
+      h("div", { class: "agent-cell__labels" }, [
+        ...agentUserLabels(agent).map((label) => h(
+          NTag,
+          { key: label.id, size: "small", bordered: true, class: "mono-text" },
+          { default: () => `${label.key}=${label.value}` },
+        )),
+        !agentUserLabels(agent).length ? h("span", { class: "copy-xs muted-text" }, "No user labels") : null,
+      ]),
+      h("div", { class: "agent-selector" }, [
+        h("span", { class: "agent-selector__label" }, "Selector"),
+        h("code", { class: "agent-selector__value mono-text" }, exactAgentSelector(agent)),
+      ]),
+    ]),
+  },
+  {
+    title: "State",
+    key: "state",
+    width: 190,
+    render: (agent) => h("div", { class: "agent-state-cell" }, [
+      h("div", { class: "agent-state-cell__status" }, [
+        h("span", { class: ["agent-state-dot", agentConnected(agent) ? "agent-state-dot--connected" : "agent-state-dot--offline"] }),
+        h("span", { class: "weight-semibold base-text" }, agentConnected(agent) ? "Connected" : "Offline"),
+      ]),
+      h("p", { class: "margin-top-xs mono-text copy-xs muted-text" }, currentAgentDuration(agent)),
+      h("p", { class: "copy-xs muted-text" }, currentAgentDurationKind(agent)),
+    ]),
+  },
+  {
+    title: "Reliability",
+    key: "reliability",
+    width: 230,
+    render: (agent) => h("div", { class: "agent-compact-stack" }, [
+      h("p", { class: "agent-metric-line" }, [
+        h("span", { class: "muted-text" }, "Uptime"),
+        h("strong", { class: "mono-text base-text" }, agentUptimePercentLabel(agent)),
+      ]),
+      h("p", { class: "agent-metric-line" }, [
+        h("span", { class: "muted-text" }, "Connections"),
+        h("strong", { class: "mono-text base-text" }, agentConnectionCounts(agent)),
+      ]),
+      h("p", { class: "agent-subline mono-text muted-text" }, `Last up ${formatDate(agentLastConnected(agent))}`),
+      h("p", { class: "agent-subline mono-text muted-text" }, `Last down ${formatDate(agentLastDisconnected(agent))}`),
+    ]),
+  },
+  {
+    title: "Runtime",
+    key: "runtime",
+    width: 210,
+    render: (agent) => h("div", { class: "agent-compact-stack" }, [
+      h("p", { class: "agent-metric-line" }, [
+        h("span", { class: "muted-text" }, "Active"),
+        h("strong", { class: "mono-text base-text" }, agent.activeRequests.toString()),
+      ]),
+      ...(agent.latestStats
+        ? [
+            h("p", { class: "agent-metric-line" }, [
+              h("span", { class: "muted-text" }, "Memory"),
+              h("strong", { class: "mono-text base-text" }, `${bigIntLabel(agent.latestStats.memorySysMb)} MB`),
+            ]),
+            h("p", { class: "agent-metric-line" }, [
+              h("span", { class: "muted-text" }, "Goroutines"),
+              h("strong", { class: "mono-text base-text" }, bigIntLabel(agent.latestStats.numGoroutine)),
+            ]),
+          ]
+        : [h("p", { class: "copy-xs muted-text" }, "No runtime sample")]),
+    ]),
+  },
+  {
+    title: "Actions",
+    key: "actions",
+    width: 230,
+    align: "right",
+    render: (agent) => h("div", { class: "agent-row-actions" }, [
+      h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
+        default: () => h(NButton, {
+          secondary: true,
+          circle: true,
+          size: "small",
+          "aria-label": agent.enabled ? "Disable agent" : "Enable agent",
+          title: agent.enabled ? "Disable agent" : "Enable agent",
+          disabled: Boolean(busyDisabledReason.value),
+          onClick: () => void setAgentEnabled(agent, !agent.enabled),
+        }, { icon: () => agent.enabled ? h(BanIcon, { class: "icon-sm" }) : h(CheckIcon, { class: "icon-sm" }) }),
+      }),
+      h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
+        default: () => h(NButton, {
+          secondary: true,
+          circle: true,
+          size: "small",
+          "aria-label": "Rotate token",
+          title: "Rotate token",
+          disabled: Boolean(busyDisabledReason.value),
+          onClick: () => rotateAgentToken(agent),
+        }, { icon: () => h(RefreshIcon, { class: "icon-sm" }) }),
+      }),
+      h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
+        default: () => h(NButton, {
+          secondary: true,
+          circle: true,
+          size: "small",
+          "aria-label": "Edit agent",
+          title: "Edit agent",
+          disabled: Boolean(busyDisabledReason.value),
+          onClick: () => editAgent(agent),
+        }, { icon: () => h(PencilIcon, { class: "icon-sm" }) }),
+      }),
+      h(NButton, {
+        secondary: true,
+        circle: true,
+        size: "small",
+        "aria-label": "Show uninstall command",
+        title: "Show uninstall command",
+        onClick: () => openUninstallModal(agent),
+      }, { icon: () => h(TimesCircleIcon, { class: "icon-sm" }) }),
+      h(DisabledHint, { disabled: Boolean(deleteAgentDisabledReason(agent)), reason: deleteAgentDisabledReason(agent) }, {
+        default: () => h(NButton, {
+          type: "error",
+          circle: true,
+          size: "small",
+          "aria-label": "Delete agent",
+          title: "Delete agent",
+          disabled: Boolean(deleteAgentDisabledReason(agent)),
+          onClick: () => void deleteAgent(agent),
+        }, { icon: () => h(TrashIcon, { class: "icon-sm" }) }),
+      }),
+    ]),
+  },
+]);
+const sessionColumns = computed<DataTableColumns<AgentConnectionSession>>(() => [
+  {
+    title: "Agent",
+    key: "agent",
+    minWidth: 220,
+    render: (session) => h("div", [
+      h("p", { class: "weight-medium base-text" }, sessionAgentLabel(session)),
+      sessionAgentDetail(session) ? h("p", { class: "mono-text copy-xs muted-text" }, sessionAgentDetail(session)) : null,
+    ]),
+  },
+  { title: "Started", key: "started", width: 190, render: (session) => h("span", { class: "mono-text copy-xs" }, formatDate(session.connectedAtUnixMillis)) },
+  { title: "Ended", key: "ended", width: 190, render: (session) => h("span", { class: "mono-text copy-xs" }, session.active ? "-" : formatDate(session.disconnectedAtUnixMillis)) },
+  { title: "Duration", key: "duration", width: 150, render: (session) => h("span", { class: "mono-text copy-xs" }, formatLongDuration(session.durationMillis)) },
+  {
+    title: "State",
+    key: "state",
+    width: 120,
+    render: (session) => h(NTag, { size: "small", bordered: false, type: session.active ? "success" : "default" }, { default: () => session.active ? "Active" : "Closed" }),
+  },
+]);
 
 function buildSetupSnippet(): string {
   if (!issuedAgent.value) return "";
@@ -238,6 +493,32 @@ function openUninstallModal(agent: Agent) {
 function closeUninstallModal() {
   uninstallAgent.value = null;
   uninstallCopyLabel.value = "Copy";
+}
+
+function handleRotateModalUpdate(show: boolean) {
+  if (!show) closeRotateAgentModal();
+}
+
+function handleUninstallModalUpdate(show: boolean) {
+  if (!show) closeUninstallModal();
+}
+
+function handleSetupModalUpdate(show: boolean) {
+  if (!show) clearIssuedToken();
+}
+
+function agentRowKey(agent: Agent): string {
+  return agent.id.toString();
+}
+
+function agentRowProps(agent: Agent): Record<string, string> {
+  return {
+    "data-testid": `agent-row-${agent.publicId}`,
+  };
+}
+
+function sessionRowKey(session: AgentConnectionSession): string {
+  return session.id.toString();
 }
 
 function deleteAgentDisabledReason(agent: Agent): string {
@@ -439,217 +720,143 @@ async function copyUninstallSnippet() {
 </script>
 
 <template>
-  <div v-if="dashboard && status" class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div>
-        <h3 class="text-xl font-bold mb-2">Agents</h3>
-        <p class="text-[#888] text-sm">Registered agents, connection state, and recent runtime metrics.</p>
+  <div v-if="dashboard && status" class="agent-page stack-xl">
+    <div class="agent-page__header">
+      <div class="min-width-zero">
+        <div class="agent-title-row">
+          <h3 class="copy-xl weight-bold">Agents</h3>
+          <NTag size="small" :bordered="false" :type="fleetStatusType">{{ fleetStatusLabel }}</NTag>
+        </div>
+        <p class="muted-text copy-sm">{{ activeAgentSectionMeta.description }}</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-        <SecondaryButton size="small" label="Add Agent" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+        <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
+          <template #icon><PlusIcon class="icon-sm" /></template>
+          Add Agent
+        </NButton>
       </DisabledHint>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Connected Agents</p>
-        <span class="vercel-card-value">{{ connectedAgentCount }}/{{ enabledAgents }}</span>
-        <p class="mt-2 text-xs text-[#888]">connected / enabled</p>
-      </div>
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Fleet Uptime</p>
-        <span class="vercel-card-value">{{ formatPercent(fleetUptime) }}</span>
-        <p class="mt-2 text-xs text-[#888]">{{ retentionDaysLabel }} retention</p>
-      </div>
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Longest Current Uptime</p>
-        <span class="vercel-card-value">{{ formatLongDuration(longestCurrentUptimeMillis) }}</span>
-        <p class="mt-2 text-xs text-[#888]">connected sessions</p>
-      </div>
-      <div class="vercel-card p-5">
-        <p class="vercel-card-title">Recent Disconnects</p>
-        <span class="vercel-card-value">{{ recentDisconnects }}</span>
-        <p class="mt-2 text-xs text-[#888]">last 24h</p>
-      </div>
-    </div>
+    <NTabs
+      class="agent-section-tabs"
+      type="line"
+      :value="activeAgentSection"
+      @update:value="selectAgentSection"
+    >
+      <NTab
+        v-for="section in agentSections"
+        :key="section.key"
+        :name="section.key"
+        :tab="section.label"
+      />
+    </NTabs>
 
-    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Memory Usage (Sys)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(status.latestAgentStats?.memorySysMb) }} MB</span>
+    <section v-if="activeAgentSection === 'fleet'" class="surface-card agent-overview">
+      <div class="agent-overview__main">
+        <div class="agent-overview__heading">
+          <p class="stat-label">Fleet connection</p>
+          <strong>{{ connectedAgentCount }}/{{ enabledAgents }}</strong>
+        </div>
+        <div class="agent-connection-meter" aria-hidden="true">
+          <span :style="connectedAgentPercentStyle"></span>
+        </div>
+        <p class="copy-sm muted-text">{{ fleetSummary }}</p>
+        <div class="agent-overview__tags">
+          <NTag size="small" :bordered="false" type="info">{{ totalAgents }} registered</NTag>
+          <NTag size="small" :bordered="false" type="success">{{ enabledAgents }} enabled</NTag>
+          <NTag v-if="disabledAgents" size="small" :bordered="false" type="warning">{{ disabledAgents }} disabled</NTag>
+        </div>
       </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Goroutines</p>
-        <span class="vercel-card-value">{{ bigIntLabel(status.latestAgentStats?.numGoroutine) }}</span>
-      </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Active Requests</p>
-        <span class="vercel-card-value">{{ activeAgentRequests }}</span>
-      </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Avg Memory (1h)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(oneHourWindow?.agentAvgMemoryMb) }} MB</span>
-      </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Max Memory (24h)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(dayWindow?.agentMaxMemoryMb) }} MB</span>
-      </div>
-      <div class="vercel-card p-6">
-        <p class="vercel-card-title">Max Goroutines (24h)</p>
-        <span class="vercel-card-value">{{ bigIntLabel(dayWindow?.agentMaxGoroutines) }}</span>
-      </div>
-    </div>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4">
-        <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Registered Agents</h4>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[1180px] text-sm">
-          <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
-            <tr>
-              <th class="px-5 py-3">Agent</th>
-              <th class="px-5 py-3">State</th>
-              <th class="px-5 py-3">Current</th>
-              <th class="px-5 py-3">Uptime</th>
-              <th class="px-5 py-3">Last Connected</th>
-              <th class="px-5 py-3">Last Disconnected</th>
-              <th class="px-5 py-3">Active Requests</th>
-              <th class="px-5 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="agent in agents" :key="agent.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
-              <td class="px-5 py-4">
-                <p class="font-medium text-white">{{ agent.name }}</p>
-                <p class="font-mono text-xs text-[#888]">{{ agent.publicId }}</p>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <span
-                    v-for="label in agentUserLabels(agent)"
-                    :key="label.id"
-                    class="rounded border border-[#333] bg-[#101010] px-2 py-0.5 font-mono text-[11px] text-[#d4d4d8]"
-                  >
-                    {{ label.key }}={{ label.value }}
-                  </span>
-                  <span v-if="!agentUserLabels(agent).length" class="text-xs text-[#666]">No user labels</span>
-                </div>
-                <code class="mt-1 block break-all font-mono text-[11px] text-[#666]">{{ exactAgentSelector(agent) }}</code>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex items-center gap-2">
-                  <Tag :value="agentConnected(agent) ? 'Connected' : 'Offline'" :severity="agentConnected(agent) ? 'success' : 'warn'" />
-                  <Tag v-if="!agent.enabled" value="Disabled" severity="warn" />
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">{{ currentAgentDuration(agent) }}</p>
-                <p class="mt-1 text-xs text-[#666]">{{ currentAgentDurationKind(agent) }}</p>
-              </td>
-              <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">{{ agentUptimePercentLabel(agent) }}</p>
-                <p class="mt-1 text-xs text-[#666]">connections {{ agentConnectionCounts(agent) }}</p>
-              </td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(agentLastConnected(agent)) }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(agentLastDisconnected(agent)) }}</td>
-              <td class="px-5 py-4">
-                <p class="font-mono text-xs text-[#d4d4d8]">{{ agent.activeRequests.toString() }}</p>
-                <p v-if="agent.latestStats" class="mt-1 font-mono text-xs text-[#666]">
-                  {{ bigIntLabel(agent.latestStats.memorySysMb) }} MB / {{ bigIntLabel(agent.latestStats.numGoroutine) }} goroutines
-                </p>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex justify-end gap-2">
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton
-                      size="small"
-                      :aria-label="agent.enabled ? 'Disable agent' : 'Enable agent'"
-                      :title="agent.enabled ? 'Disable agent' : 'Enable agent'"
-                      :disabled="Boolean(busyDisabledReason)"
-                      @click="setAgentEnabled(agent, !agent.enabled)"
-                    >
-                      <template #icon>
-                        <BanIcon v-if="agent.enabled" class="h-3.5 w-3.5" />
-                        <CheckIcon v-else class="h-3.5 w-3.5" />
-                      </template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton size="small" aria-label="Rotate token" title="Rotate token" :disabled="Boolean(busyDisabledReason)" @click="rotateAgentToken(agent)">
-                      <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-                    <SecondaryButton size="small" aria-label="Edit agent" title="Edit agent" :disabled="Boolean(busyDisabledReason)" @click="editAgent(agent)">
-                      <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-                    </SecondaryButton>
-                  </DisabledHint>
-                  <SecondaryButton size="small" aria-label="Show uninstall command" title="Show uninstall command" @click="openUninstallModal(agent)">
-                    <template #icon><TimesCircleIcon class="h-3.5 w-3.5" /></template>
-                  </SecondaryButton>
-                  <DisabledHint :disabled="Boolean(deleteAgentDisabledReason(agent))" :reason="deleteAgentDisabledReason(agent)">
-                    <DangerButton size="small" aria-label="Delete agent" title="Delete agent" :disabled="Boolean(deleteAgentDisabledReason(agent))" @click="deleteAgent(agent)">
-                      <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-                    </DangerButton>
-                  </DisabledHint>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!agents.length">
-              <td colspan="8">
-                <EmptyState
-                  title="No agents registered"
-                  description="Agents forward traffic to services behind NAT or firewalls by connecting outbound to this proxy."
-                  action-label="Add Agent"
-                  @action="openAddAgentModal"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="agent-overview__metrics">
+        <div class="agent-overview__metric">
+          <span>Fleet uptime</span>
+          <strong>{{ formatPercent(fleetUptime) }}</strong>
+          <small>{{ retentionDaysLabel }} retention</small>
+        </div>
+        <div class="agent-overview__metric">
+          <span>Longest live session</span>
+          <strong>{{ formatLongDuration(longestCurrentUptimeMillis) }}</strong>
+          <small>current uptime</small>
+        </div>
+        <div class="agent-overview__metric">
+          <span>Recent disconnects</span>
+          <strong :class="recentDisconnects ? 'warning-text' : 'base-text'">{{ recentDisconnects }}</strong>
+          <small>last 24h</small>
+        </div>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4">
-        <h4 class="text-sm font-semibold text-[#888] uppercase tracking-widest">Recent Connection Sessions</h4>
+    <section v-if="activeAgentSection === 'activity'" class="surface-card agent-runtime-card">
+      <div class="agent-section-header">
+        <div>
+          <h4>Runtime pressure</h4>
+          <p>Latest agent process stats plus rolling dashboard windows.</p>
+        </div>
+        <NTag size="small" :bordered="false" type="default">{{ activeAgentRequests }} active requests</NTag>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[860px] text-sm">
-          <thead class="border-b border-[#333] text-left text-xs uppercase tracking-wider text-[#888]">
-            <tr>
-              <th class="px-5 py-3">Agent</th>
-              <th class="px-5 py-3">Started</th>
-              <th class="px-5 py-3">Ended</th>
-              <th class="px-5 py-3">Duration</th>
-              <th class="px-5 py-3">State</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="session in recentAgentConnections" :key="session.id.toString()" class="border-b border-[#1f1f1f] last:border-0">
-              <td class="px-5 py-4">
-                <p class="font-medium text-white">{{ sessionAgentLabel(session) }}</p>
-                <p v-if="sessionAgentDetail(session)" class="font-mono text-xs text-[#888]">{{ sessionAgentDetail(session) }}</p>
-              </td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatDate(session.connectedAtUnixMillis) }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ session.active ? "-" : formatDate(session.disconnectedAtUnixMillis) }}</td>
-              <td class="px-5 py-4 font-mono text-xs text-[#d4d4d8]">{{ formatLongDuration(session.durationMillis) }}</td>
-              <td class="px-5 py-4">
-                <Tag :value="session.active ? 'Active' : 'Closed'" :severity="session.active ? 'success' : 'secondary'" />
-              </td>
-            </tr>
-            <tr v-if="!recentAgentConnections.length">
-              <td colspan="5">
-                <EmptyState
-                  title="No connection sessions"
-                  description="Agent connection sessions will appear after registered agents connect to management."
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="agent-runtime-grid">
+        <div v-for="metric in runtimeMetrics" :key="metric.label" class="agent-runtime-metric">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.detail }}</small>
+        </div>
       </div>
+    </section>
+
+    <section v-if="activeAgentSection === 'fleet'" class="surface-card hide-overflow agent-table-card">
+      <div class="agent-section-header agent-section-header--table">
+        <div>
+          <h4>Registered agents</h4>
+          <p>Connection state, selector labels, uptime, and host runtime samples.</p>
+        </div>
+        <NTag size="small" :bordered="false" type="default">{{ totalAgents }} total</NTag>
+      </div>
+      <NDataTable
+        v-if="agents.length"
+        :columns="agentColumns"
+        :data="agents"
+        :row-key="agentRowKey"
+        :row-props="agentRowProps"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="1080"
+        size="small"
+      />
+      <EmptyState
+        v-else
+        title="No agents registered"
+        description="Agents forward traffic to services behind NAT or firewalls by connecting outbound to this proxy."
+        action-label="Add Agent"
+        @action="openAddAgentModal"
+      />
+    </section>
+
+    <section v-if="activeAgentSection === 'activity'" class="surface-card hide-overflow agent-table-card">
+      <div class="agent-section-header agent-section-header--table">
+        <div>
+          <h4>Recent connection sessions</h4>
+          <p>Connection lifetime history retained for {{ retentionDaysLabel }}.</p>
+        </div>
+        <NTag size="small" :bordered="false" type="default">{{ recentAgentConnections.length }} sessions</NTag>
+      </div>
+      <NDataTable
+        v-if="recentAgentConnections.length"
+        :columns="sessionColumns"
+        :data="recentAgentConnections"
+        :row-key="sessionRowKey"
+        :pagination="sessionPagination"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="860"
+        size="small"
+      />
+      <EmptyState
+        v-else
+        title="No connection sessions"
+        description="Agent connection sessions will appear after registered agents connect to management."
+      />
     </section>
 
     <AgentEditorModal
@@ -658,187 +865,540 @@ async function copyUninstallSnippet() {
       allow-create
       @created-agent="handleAgentCreated"
     />
-    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
 
-    <Modal :model-value="Boolean(rotateAgentToConfirm)" title="Rotate Agent Token" max-width="34rem" @update:model-value="closeRotateAgentModal">
-      <div v-if="rotateAgentToConfirm" class="grid gap-5">
-        <div class="grid gap-2">
-          <p class="text-sm text-white">Rotate the token for {{ rotateAgentToConfirm.name }}?</p>
-          <p class="text-sm leading-6 text-[#888]">
+    <NModal
+      :show="Boolean(rotateAgentToConfirm)"
+      preset="card"
+      title="Rotate Agent Token"
+      :style="modalCardStyle('34rem')"
+      :bordered="false"
+      @update:show="handleRotateModalUpdate"
+    >
+      <div v-if="rotateAgentToConfirm" class="layout-grid space-xl">
+        <div class="layout-grid space-sm">
+          <p class="copy-sm base-text">Rotate the token for {{ rotateAgentToConfirm.name }}?</p>
+          <p class="copy-sm line-relaxed muted-text">
             The new token will be shown once. The active agent connection will be disconnected immediately. In-flight requests through this agent may fail, and future connections and stats reports must use the new token.
           </p>
         </div>
-        <div class="rounded-md border border-[#333] bg-[#0b0b0b] p-3">
-          <span class="mb-1 block text-xs font-medium uppercase tracking-wider text-[#888]">Agent ID</span>
-          <code class="block overflow-x-auto font-mono text-xs text-white">{{ rotateAgentToConfirm.publicId }}</code>
+        <div class="round-md framed frame-standard muted-bg pad-md">
+          <span class="margin-bottom-xs flow-box copy-xs weight-medium label-case letter-wide muted-text">Agent ID</span>
+          <code class="flow-box scroll-x mono-text copy-xs base-text">{{ rotateAgentToConfirm.publicId }}</code>
         </div>
-        <div class="flex justify-end gap-3">
+        <div class="layout-row align-end-row space-md">
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-            <SecondaryButton type="button" label="Cancel" :disabled="Boolean(busyDisabledReason)" @click="closeRotateAgentModal" />
+            <NButton secondary attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="closeRotateAgentModal">Cancel</NButton>
           </DisabledHint>
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-            <DangerButton type="button" label="Rotate Token" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken" />
+            <NButton type="error" attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken">Rotate Token</NButton>
           </DisabledHint>
         </div>
       </div>
-    </Modal>
+    </NModal>
 
-    <Modal :model-value="Boolean(uninstallAgent)" title="Agent Uninstall" max-width="46rem" @update:model-value="closeUninstallModal">
-      <div v-if="uninstallAgent" class="grid gap-5">
-        <div class="grid gap-3 md:grid-cols-2">
-          <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent</span>
-            <span class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-sm text-white">{{ uninstallAgent.name }}</span>
+    <NModal
+      :show="Boolean(uninstallAgent)"
+      preset="card"
+      title="Agent Uninstall"
+      :style="modalCardStyle('46rem')"
+      :bordered="false"
+      @update:show="handleUninstallModalUpdate"
+    >
+      <div v-if="uninstallAgent" class="layout-grid space-xl">
+        <div class="layout-grid space-md mq-md-cols-two">
+          <div class="layout-grid space-xs">
+            <span class="copy-xs weight-medium label-case letter-wide muted-text">Agent</span>
+            <span class="round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-sm base-text">{{ uninstallAgent.name }}</span>
           </div>
-          <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent ID</span>
-            <code class="overflow-x-auto rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 font-mono text-xs text-white">{{ uninstallAgent.publicId }}</code>
+          <div class="layout-grid space-xs">
+            <span class="copy-xs weight-medium label-case letter-wide muted-text">Agent ID</span>
+            <code class="scroll-x round-md framed frame-standard muted-bg pad-x-md pad-y-sm mono-text copy-xs base-text">{{ uninstallAgent.publicId }}</code>
           </div>
         </div>
 
-        <div class="rounded-md border border-[#5f3b1d] bg-[#160d05] p-3 text-xs leading-5 text-[#f5c28b]">
-          <p class="font-semibold uppercase tracking-wider">Remote host full purge</p>
-          <p class="mt-1 text-[#c79866]">
+        <div class="warning-panel pad-md copy-xs line-normal">
+          <p class="weight-semibold label-case letter-wide">Remote host full purge</p>
+          <p class="margin-top-xs deemphasized">
             Run this command on the Linux host where the shell installer was used. It stops and removes the systemd service, deletes the config directory and binary, and removes the p2pstream service user and group.
           </p>
-          <p class="mt-2 text-[#c79866]">
+          <p class="margin-top-sm deemphasized">
             This does not delete the management agent record. Delete or disable the agent here after the host is removed.
           </p>
         </div>
 
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           GitHub Repository
-          <input v-model="uninstallReleaseRepository" class="vercel-input text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+          <NInput v-model:value="uninstallReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
         </label>
 
-        <p v-if="uninstallSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ uninstallSnippetError }}</p>
-        <pre v-else class="max-h-[260px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ uninstallSnippet }}</code></pre>
+        <p v-if="uninstallSnippetError" class="error-panel pad-md copy-xs line-normal">{{ uninstallSnippetError }}</p>
+        <pre v-else class="max-height-sm scroll-any round-md framed frame-standard muted-bg pad-lg copy-xs line-normal base-text"><code>{{ uninstallSnippet }}</code></pre>
 
-        <div class="flex justify-end gap-3">
-          <SecondaryButton type="button" :label="uninstallCopyLabel" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet" />
-          <Button label="Done" @click="closeUninstallModal" />
+        <div class="layout-row align-end-row space-md">
+          <NButton secondary attr-type="button" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet">{{ uninstallCopyLabel }}</NButton>
+          <NButton type="primary" attr-type="button" @click="closeUninstallModal">Done</NButton>
         </div>
       </div>
-    </Modal>
+    </NModal>
 
-    <Modal :model-value="Boolean(issuedToken && issuedAgent)" :title="setupModalTitle" max-width="48rem" @update:model-value="clearIssuedToken">
-      <div v-if="issuedAgent" class="grid gap-5">
-        <div class="grid gap-3 md:grid-cols-2">
-          <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Agent</span>
-            <span class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-sm text-white">{{ issuedAgent.name }}</span>
+    <NModal
+      :show="Boolean(issuedToken && issuedAgent)"
+      preset="card"
+      :title="setupModalTitle"
+      :style="modalCardStyle('48rem')"
+      :bordered="false"
+      @update:show="handleSetupModalUpdate"
+    >
+      <div v-if="issuedAgent" class="layout-grid space-xl">
+        <div class="layout-grid space-md mq-md-cols-two">
+          <div class="layout-grid space-xs">
+            <span class="copy-xs weight-medium label-case letter-wide muted-text">Agent</span>
+            <span class="round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-sm base-text">{{ issuedAgent.name }}</span>
           </div>
-          <div class="grid gap-1.5">
-            <span class="text-xs font-medium uppercase tracking-wider text-[#888]">Generated ID</span>
-            <code class="overflow-x-auto rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 font-mono text-xs text-white">{{ issuedAgent.publicId }}</code>
+          <div class="layout-grid space-xs">
+            <span class="copy-xs weight-medium label-case letter-wide muted-text">Generated ID</span>
+            <code class="scroll-x round-md framed frame-standard muted-bg pad-x-md pad-y-sm mono-text copy-xs base-text">{{ issuedAgent.publicId }}</code>
           </div>
         </div>
 
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <NAlert type="warning" :show-icon="false">
+          This token is shown once. Store it before closing this dialog.
+        </NAlert>
+
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           One-Time Token
-          <code class="block break-all rounded-md border border-[#333] bg-[#0b0b0b] p-3 font-mono text-xs text-white">{{ issuedToken }}</code>
+          <code class="flow-box wrap-anywhere round-md framed frame-standard muted-bg pad-md mono-text copy-xs base-text">{{ issuedToken }}</code>
         </label>
 
-        <div v-if="setupIsRotation" class="rounded-md border border-[#29465f] bg-[#07111c] p-3 text-xs leading-5 text-[#9cccf5]">
-          <p class="font-semibold uppercase tracking-wider">Existing Linux agent</p>
-          <p class="mt-1 text-[#7ba8cf]">
+        <div v-if="setupIsRotation" class="round-md framed frame-standard muted-bg pad-md copy-xs line-normal base-text">
+          <p class="weight-semibold label-case letter-wide">Existing Linux agent</p>
+          <p class="margin-top-xs muted-text">
             Run the Linux reinstall command on the existing agent host. It rewrites the agent environment, refreshes embedded management CA material, and restarts p2pstream-agent.
           </p>
         </div>
 
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <div class="layout-grid space-md mq-md-cols-two">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Management URL
-            <input v-model="setupManagementUrl" class="vercel-input text-sm normal-case tracking-normal" required />
+            <NInput v-model:value="setupManagementUrl" size="small" required />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             GitHub Repository
-            <input v-model="setupReleaseRepository" class="vercel-input text-sm normal-case tracking-normal" placeholder="Kirari04/p2pstream" required />
+            <NInput v-model:value="setupReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Release Version
-            <input v-model="setupReleaseVersion" class="vercel-input text-sm normal-case tracking-normal" placeholder="latest, staging, or vX.Y.Z" required />
+            <NInput v-model:value="setupReleaseVersion" size="small" placeholder="latest, staging, or vX.Y.Z" required />
           </label>
-          <label v-if="setupTab === 'docker'" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="setupTab === 'docker'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Docker Image
-            <input
-              v-model="setupDockerImage"
-              class="vercel-input text-sm normal-case tracking-normal"
+            <NInput
+              v-model:value="setupDockerImage"
+              size="small"
               required
-              @input="setupDockerImageTouched = true"
+              @update:value="setupDockerImageTouched = true"
             />
           </label>
         </div>
 
-        <div v-if="!managementUsesTLS" class="rounded-md border border-[#5f3b1d] bg-[#160d05] p-3 text-xs leading-5 text-[#f5c28b]">
-          <p class="font-semibold uppercase tracking-wider">Insecure management URL</p>
-          <p class="mt-1 text-[#c79866]">Agents reject HTTP management URLs by default. Enable the override only for isolated local development.</p>
-          <label class="mt-3 flex items-center gap-2 text-[#f5c28b]">
-            <input v-model="setupAllowInsecureManagement" type="checkbox" />
+        <div v-if="!managementUsesTLS" class="warning-panel pad-md copy-xs line-normal">
+          <p class="weight-semibold label-case letter-wide">Insecure management URL</p>
+          <p class="margin-top-xs deemphasized">Agents reject HTTP management URLs by default. Enable the override only for isolated local development.</p>
+          <NCheckbox v-model:checked="setupAllowInsecureManagement" class="margin-top-md">
             Allow insecure agent management connection
-          </label>
+          </NCheckbox>
         </div>
 
-        <div v-if="managementUsesTLS" class="grid gap-3 md:grid-cols-3">
-          <label v-if="!embeddedManagementCAPEMBase64" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <div v-if="managementUsesTLS" class="layout-grid space-md mq-md-cols-three">
+          <label v-if="!embeddedManagementCAPEMBase64" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Management CA file
-            <input
-              v-model="setupManagementCAFile"
-              class="vercel-input text-sm normal-case tracking-normal"
-              placeholder="/etc/p2pstream/management-ca.pem"
-            />
+            <NInput v-model:value="setupManagementCAFile" size="small" placeholder="/etc/p2pstream/management-ca.pem" />
           </label>
-          <div v-else class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <div v-else class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Management CA
-            <div class="rounded-md border border-[#333] bg-[#0b0b0b] px-3 py-2 text-xs normal-case leading-5 tracking-normal text-[#d4d4d8]">
+            <div class="round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-xs normal-text line-normal letter-normal base-text">
               Embedded pinned CA from this management server
             </div>
           </div>
-          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="agentClientCertificateRequired" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Agent Certificate
-            <input v-model="setupAgentTLSCertFile" class="vercel-input text-sm normal-case tracking-normal" required />
+            <NInput v-model:value="setupAgentTLSCertFile" size="small" required />
           </label>
-          <label v-if="agentClientCertificateRequired" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label v-if="agentClientCertificateRequired" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Agent Key
-            <input v-model="setupAgentTLSKeyFile" class="vercel-input text-sm normal-case tracking-normal" required />
+            <NInput v-model:value="setupAgentTLSKeyFile" size="small" required />
           </label>
         </div>
 
-        <div class="flex flex-wrap gap-2" role="tablist" aria-label="Agent setup format">
-          <button
-            type="button"
-            class="rounded-md border px-3 py-2 text-sm transition"
-            :class="setupTab === 'install' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
-            @click="setupTab = 'install'"
-          >
-            {{ setupLinuxTabLabel }}
-          </button>
-          <button
-            type="button"
-            class="rounded-md border px-3 py-2 text-sm transition"
-            :class="setupTab === 'docker' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
-            @click="setupTab = 'docker'"
-          >
-            Docker Compose
-          </button>
-          <button
-            type="button"
-            class="rounded-md border px-3 py-2 text-sm transition"
-            :class="setupTab === 'cli' ? 'border-white bg-white text-black' : 'border-[#333] bg-[#0b0b0b] text-[#d4d4d8] hover:border-[#555] hover:text-white'"
-            @click="setupTab = 'cli'"
-          >
-            CLI
-          </button>
-        </div>
+        <NTabs
+          class="agent-setup-tabs"
+          type="segment"
+          size="small"
+          :value="setupTab"
+          @update:value="(value) => setupTab = value as 'install' | 'docker' | 'cli'"
+        >
+          <NTab
+            v-for="tab in setupTabOptions"
+            :key="tab.value"
+            :name="tab.value"
+            :tab="tab.label"
+          />
+        </NTabs>
 
-        <p v-if="setupSnippetError" class="rounded-md border border-[#5f1d1d] bg-[#160505] p-3 text-xs leading-5 text-[#f5a3a3]">{{ setupSnippetError }}</p>
-        <pre v-else class="max-h-[360px] overflow-auto rounded-md border border-[#333] bg-[#050505] p-4 text-xs leading-5 text-white"><code>{{ setupSnippet }}</code></pre>
+        <p v-if="setupSnippetError" class="error-panel pad-md copy-xs line-normal">{{ setupSnippetError }}</p>
+        <pre v-else class="max-height-md scroll-any round-md framed frame-standard muted-bg pad-lg copy-xs line-normal base-text"><code>{{ setupSnippet }}</code></pre>
 
-        <div class="flex justify-end gap-3">
-          <SecondaryButton type="button" :label="setupCopyLabel" :disabled="Boolean(setupSnippetError)" @click="copySetupSnippet" />
-          <Button label="Done" @click="clearIssuedToken" />
+        <div class="layout-row align-end-row space-md">
+          <NButton secondary attr-type="button" :disabled="Boolean(setupSnippetError)" @click="copySetupSnippet">{{ setupCopyLabel }}</NButton>
+          <NButton type="primary" attr-type="button" @click="clearIssuedToken">Done</NButton>
         </div>
       </div>
-    </Modal>
+    </NModal>
   </div>
 </template>
+
+<style>
+.agent-page__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.agent-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.agent-section-tabs {
+  min-width: 0;
+}
+
+.agent-section-tabs .n-tabs-nav {
+  margin-bottom: 0;
+}
+
+.agent-overview {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.agent-overview__main {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.agent-overview__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.agent-overview__heading strong {
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.agent-connection-meter {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--app-panel-muted);
+}
+
+.agent-connection-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--app-accent), var(--app-success));
+  transition: width 180ms ease;
+}
+
+.agent-overview__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.agent-overview__metrics {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 6px;
+}
+
+.agent-overview__metric {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+.agent-overview__metric + .agent-overview__metric {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.agent-overview__metric span,
+.agent-runtime-metric span {
+  color: var(--app-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-overview__metric strong,
+.agent-runtime-metric strong {
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.agent-overview__metric small,
+.agent-runtime-metric small {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+.agent-runtime-card,
+.agent-table-card {
+  overflow: hidden;
+}
+
+.agent-section-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--app-border);
+  padding: 1rem 1.25rem;
+}
+
+.agent-section-header h4 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.agent-section-header p {
+  margin: 0.25rem 0 0;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.agent-runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agent-runtime-metric {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 1rem;
+}
+
+.agent-runtime-metric:nth-child(odd) {
+  border-right: 1px solid var(--app-border-subtle);
+}
+
+.agent-cell {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.agent-cell__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.agent-cell__name {
+  min-width: 0;
+  color: var(--app-text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.agent-cell__id {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.agent-cell__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.agent-selector {
+  display: grid;
+  gap: 0.2rem;
+  max-width: 100%;
+  border-left: 2px solid var(--app-border);
+  padding-left: 0.55rem;
+}
+
+.agent-selector__label {
+  color: var(--app-text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-selector__value {
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+
+.agent-state-cell {
+  min-width: 0;
+}
+
+.agent-state-cell__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.agent-state-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-border) 50%, transparent);
+}
+
+.agent-state-dot--connected {
+  background: var(--app-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-success) 18%, transparent);
+}
+
+.agent-state-dot--offline {
+  background: var(--app-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-warning) 18%, transparent);
+}
+
+.agent-compact-stack {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.agent-metric-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.agent-metric-line strong {
+  font-weight: 700;
+  text-align: right;
+}
+
+.agent-subline {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.agent-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.agent-setup-tabs {
+  max-width: 100%;
+}
+
+.agent-setup-tabs .n-tabs-nav {
+  width: min(100%, 32rem);
+}
+
+@media (min-width: 640px) {
+  .agent-page__header,
+  .agent-section-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .agent-overview__metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .agent-overview__metric + .agent-overview__metric {
+    border-top: 0;
+    border-left: 1px solid var(--app-border-subtle);
+  }
+
+  .agent-runtime-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .agent-runtime-metric {
+    border-right: 1px solid var(--app-border-subtle);
+  }
+
+  .agent-runtime-metric:nth-child(3n) {
+    border-right: 0;
+  }
+}
+
+@media (min-width: 960px) {
+  .agent-overview {
+    grid-template-columns: minmax(18rem, 0.9fr) minmax(0, 1.4fr);
+    align-items: stretch;
+    padding: 1.25rem;
+  }
+
+  .agent-overview__metrics {
+    align-self: stretch;
+  }
+
+  .agent-runtime-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .agent-runtime-metric {
+    border-right: 1px solid var(--app-border-subtle);
+  }
+
+  .agent-runtime-metric:nth-child(3n) {
+    border-right: 1px solid var(--app-border-subtle);
+  }
+
+  .agent-runtime-metric:nth-child(6n) {
+    border-right: 0;
+  }
+}
+</style>

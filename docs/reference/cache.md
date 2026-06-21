@@ -23,8 +23,8 @@ Cache rules run after route/target selection and before forwarding a cache miss 
 | `cache_status_codes` | `200`, `203`, `204`, `301`, `308` | Statuses that may be stored. |
 | `max_object_bytes` | `104857600` | Maximum stored response size. |
 | `add_cache_status_header` | false unless enabled | Adds `X-p2pstream-Cache`. |
-| `allow_cookie_requests` | `false` | Allows matching requests with `Cookie` headers to use cache; cookie values are ignored and never stored. |
-| `allow_cookie_requests_acknowledged` | `false` | Required when creating or updating a rule that enables `allow_cookie_requests`. |
+| `allow_cookie_requests` | `false` | Legacy/deprecated. Cookie-bearing requests always bypass shared cache; this field may still appear for compatibility but has no runtime effect. |
+| `allow_cookie_requests_acknowledged` | `false` | Legacy acknowledgement field retained for compatibility with `allow_cookie_requests`. |
 
 Storage defaults:
 
@@ -39,13 +39,17 @@ Storage defaults:
 
 ## Validation Rules
 
-p2pstream always bypasses cache for requests with `Authorization`, non-GET/HEAD methods, request bodies, `Range`, and upgrades.
+p2pstream always bypasses cache for requests with `Authorization`, `Cookie`, non-GET/HEAD methods, request bodies, `Range`, and upgrades.
 
-Requests with `Cookie` bypass by default unless the matching rule enables `allow_cookie_requests`. New or updated rules must also acknowledge that Cookie is not part of the cache key. Use that only for precise public static asset rules.
+`allow_cookie_requests` is retained for API and database compatibility, but Cookie-bearing requests never use shared cache lookup or storage. Do not rely on this field for cache behavior.
 
-p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, including parameterized directives such as `private="Set-Cookie"`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, disallowed status codes, or bodies larger than the rule limit.
+Requests containing encoded path separators on routes that enable `allow_encoded_separators` path security always bypass shared cache. Compatibility routes can preserve encoded separators for upstreams that require them, but those ambiguous request targets are not used for shared cache lookup or storage.
 
-Configured Vary headers cannot be `Cookie`, `Authorization`, or `Set-Cookie`.
+p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, including parameterized directives such as `private="Set-Cookie"`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, generated forwarding-header Vary values, disallowed status codes, or bodies larger than the rule limit.
+
+Configured Vary headers cannot be `Cookie`, `Authorization`, `Set-Cookie`, `Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or `X-Real-IP`.
+
+Public cache entries are keyed on p2pstream's canonical request identity. Generated forwarding headers are rebuilt before upstream forwarding and are not valid shared-cache Vary dimensions.
 
 Cache rule matches inspect only request data through CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
 
@@ -67,13 +71,14 @@ Request order:
 
 1. ACME HTTP challenge bypass
 2. Reserved WAF endpoints
-3. WAF evaluation
-4. Rate limits
-5. Traffic shaper selection
-6. Route/target resolution
-7. Cache rule evaluation and lookup
-8. Cache hit response, or upstream forwarding and cache store
-9. Final response
+3. Route-only path security match
+4. WAF evaluation
+5. Rate limits
+6. Traffic shaper selection
+7. Route/target resolution
+8. Cache rule evaluation and lookup
+9. Cache hit response, or upstream forwarding and cache store
+10. Final response
 
 Cache hits still consume rate-limit buckets and still use traffic shaping. Redirect routes and static targets are not cached. `HEAD` requests can be served from a cached `GET` object, but `HEAD` does not create a new cache object.
 
@@ -110,7 +115,7 @@ Host: app.example.com
 Path prefix: /_nuxt/
 Path suffixes: .js, .css, .png, .webp, .svg, .woff2
 TTL mode: Origin TTL
-Cache requests with Cookie headers: On only if those assets are public
+Cookie requests: always bypass shared cache
 ```
 
 ## Related Tasks

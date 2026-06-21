@@ -460,6 +460,143 @@ func TestPublicWafCaptchaVerifyThrottlesBeforeProviderCall(t *testing.T) {
 	}
 }
 
+func TestPublicWafReservedCaptchaVerifyRateLimitedBeforeProviderCall(t *testing.T) {
+	app, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	app.PublicWAF.captchaVerifyLimiter = nil
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+	form := captchaVerifyForm(rule.ID, "/private", challenge, "bad-token")
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		handler(resp, newCaptchaVerifyRequest("example.com", form))
+		if resp.Code != http.StatusForbidden {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusForbidden)
+		}
+	}
+	if got := calls.Load(); got != publicWafReservedEndpointIPLimit {
+		t.Fatalf("provider calls = %d, want %d", got, publicWafReservedEndpointIPLimit)
+	}
+
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if retryAfter := resp.Header().Get("Retry-After"); retryAfter == "" {
+		t.Fatal("missing Retry-After on reserved endpoint rate limit")
+	}
+	if got := calls.Load(); got != publicWafReservedEndpointIPLimit {
+		t.Fatalf("provider calls after reserved throttle = %d, want %d", got, publicWafReservedEndpointIPLimit)
+	}
+}
+
+func TestPublicWafReservedCaptchaVerifyMalformedRequestsRateLimitedBeforeParse(t *testing.T) {
+	_, handler, _, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		req := malformedCaptchaVerifyRequest("example.com")
+		handler(resp, req)
+		if resp.Code != http.StatusBadRequest {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusBadRequest)
+		}
+	}
+
+	resp := httptest.NewRecorder()
+	handler(resp, malformedCaptchaVerifyRequest("example.com"))
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if retryAfter := resp.Header().Get("Retry-After"); retryAfter == "" {
+		t.Fatal("missing Retry-After on malformed reserved endpoint rate limit")
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafReservedLimiterUsesRemoteAddrNotForwardedFor(t *testing.T) {
+	_, handler, _, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		req := malformedCaptchaVerifyRequest("example.com")
+		req.Header.Set("X-Forwarded-For", "203.0.113."+strconv.Itoa(i+1))
+		handler(resp, req)
+		if resp.Code != http.StatusBadRequest {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusBadRequest)
+		}
+	}
+
+	resp := httptest.NewRecorder()
+	req := malformedCaptchaVerifyRequest("example.com")
+	req.Header.Set("X-Forwarded-For", "203.0.113.200")
+	handler(resp, req)
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+}
+
+func TestPublicWafReservedWaitingRoomStatusRateLimited(t *testing.T) {
+	app := NewApp(nil, nil)
+	rule := testWafRule(1, publicWafActionWaitingRoom)
+	snap := testWafSnapshot(rule, nil)
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+	handler := app.publicProxyHandler(1)
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		handler(resp, newWaitingRoomStatusRequest("example.com", rule.ID))
+		if resp.Code != http.StatusServiceUnavailable {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusServiceUnavailable)
+		}
+	}
+
+	resp := httptest.NewRecorder()
+	handler(resp, newWaitingRoomStatusRequest("example.com", rule.ID))
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if retryAfter := resp.Header().Get("Retry-After"); retryAfter == "" {
+		t.Fatal("missing Retry-After on waiting-room reserved endpoint rate limit")
+	}
+}
+
+func TestPublicWafReservedWaitingRoomStatusSkipsAggregatePathLimit(t *testing.T) {
+	limiter := newPublicWafReservedEndpointLimiter()
+	now := time.Unix(100, 0)
+	for i := 0; i < publicWafReservedEndpointPathLimit+1; i++ {
+		retryAfter, allowed := limiter.allow(1, publicWafWaitingRoomStatusPath, "client-"+strconv.Itoa(i), now)
+		if !allowed {
+			t.Fatalf("status poll %d was aggregate limited with retryAfter=%v", i+1, retryAfter)
+		}
+	}
+
+	entryLimiter := newPublicWafReservedEndpointLimiter()
+	for i := 0; i < publicWafReservedEndpointPathLimit; i++ {
+		retryAfter, allowed := entryLimiter.allow(1, publicWafWaitingRoomPath, "client-"+strconv.Itoa(i), now)
+		if !allowed {
+			t.Fatalf("entry request %d was limited early with retryAfter=%v", i+1, retryAfter)
+		}
+	}
+	retryAfter, allowed := entryLimiter.allow(1, publicWafWaitingRoomPath, "client-over-limit", now)
+	if allowed {
+		t.Fatal("waiting-room entry path was not aggregate limited")
+	}
+	if retryAfter <= 0 {
+		t.Fatalf("entry path retryAfter = %v, want positive duration", retryAfter)
+	}
+}
+
 func TestPublicWafCaptchaVerifySuccessSetsCookieAndRedirects(t *testing.T) {
 	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -586,7 +723,7 @@ func TestPublicWafWaitingRoomStatusSanitizesUnsafeReturnRedirect(t *testing.T) {
 	app.PublicWAF.reconcile(snap)
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com"+publicWafWaitingRoomStatusPath+"?rule_id=1&return_to=%2F%2Fevil.example%2Fprivate", nil)
-	req.AddCookie(app.PublicWAF.signedRuleCookie(rule.ID, publicWafAdmissionCookieKind, "session", time.Minute, time.Now(), snap.Listeners[1], req))
+	req.AddCookie(app.PublicWAF.signedRuleCookie(rule, snap.Listeners[1], req, publicWafAdmissionCookieKind, "session", time.Minute, time.Now()))
 	resp := httptest.NewRecorder()
 
 	decision := app.servePublicWAFWaitingRoomStatus(resp, req, 1)
@@ -601,7 +738,8 @@ func TestPublicWafWaitingRoomStatusSanitizesUnsafeReturnRedirect(t *testing.T) {
 
 func TestPublicWafCaptchaPassCookieAllowsRequest(t *testing.T) {
 	waf := newPublicWAF()
-	snap := testWafSnapshot(testWafRule(1, publicWafActionCaptcha), nil)
+	rule := testWafRule(1, publicWafActionCaptcha)
+	snap := testWafSnapshot(rule, nil)
 	snap.WafCaptchaProviders[1] = publicWafCaptchaProviderConfig{
 		ID:           1,
 		Name:         "turnstile",
@@ -622,9 +760,121 @@ func TestPublicWafCaptchaPassCookieAllowsRequest(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
-	req.AddCookie(waf.signedRuleCookie(1, publicWafCaptchaCookieKind, "", time.Minute, now, snap.Listeners[1], req))
+	req.AddCookie(waf.signedRuleCookie(rule, snap.Listeners[1], req, publicWafCaptchaCookieKind, "", time.Minute, now))
 	if _, allowed := waf.evaluate(snap, snap.Listeners[1], req, now.Add(time.Second), nil); !allowed {
 		t.Fatal("request with valid captcha cookie was not allowed")
+	}
+}
+
+func TestPublicWafCaptchaPassCookieAcceptedForSameScope(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionCaptcha, publicWafCaptchaCookieKind, "")
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req.AddCookie(cookie)
+
+	if !waf.validRuleCookieLocked(req, rule, listener, publicWafCaptchaCookieKind, now.Add(time.Second)) {
+		t.Fatal("captcha pass cookie for same listener, host, and rule fingerprint was rejected")
+	}
+}
+
+func TestPublicWafCaptchaPassCookieRejectsDifferentHost(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionCaptcha, publicWafCaptchaCookieKind, "")
+	req := httptest.NewRequest(http.MethodGet, "http://other.example/", nil)
+	req.AddCookie(cookie)
+
+	if waf.validRuleCookieLocked(req, rule, listener, publicWafCaptchaCookieKind, now.Add(time.Second)) {
+		t.Fatal("captcha pass cookie for another host was accepted")
+	}
+}
+
+func TestPublicWafCaptchaPassCookieRejectsDifferentListener(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionCaptcha, publicWafCaptchaCookieKind, "")
+	otherListener := listener
+	otherListener.ID = 2
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req.AddCookie(cookie)
+
+	if waf.validRuleCookieLocked(req, rule, otherListener, publicWafCaptchaCookieKind, now.Add(time.Second)) {
+		t.Fatal("captcha pass cookie for another listener was accepted")
+	}
+}
+
+func TestPublicWafCaptchaPassCookieRejectsChangedRuleFingerprint(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionCaptcha, publicWafCaptchaCookieKind, "")
+	changedRule := rule
+	changedRule.Fingerprint = "changed-" + rule.Fingerprint
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req.AddCookie(cookie)
+
+	if waf.validRuleCookieLocked(req, changedRule, listener, publicWafCaptchaCookieKind, now.Add(time.Second)) {
+		t.Fatal("captcha pass cookie for a changed rule fingerprint was accepted")
+	}
+}
+
+func TestPublicWafWaitingRoomAdmissionRejectsDifferentHost(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionWaitingRoom, publicWafAdmissionCookieKind, "session")
+	req := httptest.NewRequest(http.MethodGet, "http://other.example/", nil)
+	req.AddCookie(cookie)
+
+	if waf.validRuleCookieLocked(req, rule, listener, publicWafAdmissionCookieKind, now.Add(time.Second)) {
+		t.Fatal("waiting-room admission cookie for another host was accepted")
+	}
+}
+
+func TestPublicWafWaitingRoomAdmissionRejectsDifferentListener(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionWaitingRoom, publicWafAdmissionCookieKind, "session")
+	otherListener := listener
+	otherListener.ID = 2
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req.AddCookie(cookie)
+
+	if waf.validRuleCookieLocked(req, rule, otherListener, publicWafAdmissionCookieKind, now.Add(time.Second)) {
+		t.Fatal("waiting-room admission cookie for another listener was accepted")
+	}
+}
+
+func TestPublicWafWaitingRoomAdmissionRejectsChangedRuleFingerprint(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionWaitingRoom, publicWafAdmissionCookieKind, "session")
+	changedRule := rule
+	changedRule.Fingerprint = "changed-" + rule.Fingerprint
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req.AddCookie(cookie)
+
+	if waf.validRuleCookieLocked(req, changedRule, listener, publicWafAdmissionCookieKind, now.Add(time.Second)) {
+		t.Fatal("waiting-room admission cookie for a changed rule fingerprint was accepted")
+	}
+}
+
+func TestPublicWafWaitingRoomQueueCookieRejectsDifferentHost(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionWaitingRoom, publicWafQueueCookieKind, "session")
+	req := httptest.NewRequest(http.MethodGet, "http://other.example/", nil)
+	req.AddCookie(cookie)
+
+	if _, ok := waf.queueCookiePayloadLocked(req, rule, listener, now.Add(time.Second)); ok {
+		t.Fatal("waiting-room queue cookie for another host was accepted")
+	}
+}
+
+func TestPublicWafWaitingRoomQueueCookieRejectsDifferentListener(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionWaitingRoom, publicWafQueueCookieKind, "session")
+	otherListener := listener
+	otherListener.ID = 2
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req.AddCookie(cookie)
+
+	if _, ok := waf.queueCookiePayloadLocked(req, rule, otherListener, now.Add(time.Second)); ok {
+		t.Fatal("waiting-room queue cookie for another listener was accepted")
+	}
+}
+
+func TestPublicWafWaitingRoomQueueCookieRejectsChangedRuleFingerprint(t *testing.T) {
+	waf, rule, listener, now, _, cookie := newScopedWafCookieForTest(t, publicWafActionWaitingRoom, publicWafQueueCookieKind, "session")
+	changedRule := rule
+	changedRule.Fingerprint = "changed-" + rule.Fingerprint
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	req.AddCookie(cookie)
+
+	if _, ok := waf.queueCookiePayloadLocked(req, changedRule, listener, now.Add(time.Second)); ok {
+		t.Fatal("waiting-room queue cookie for a changed rule fingerprint was accepted")
 	}
 }
 
@@ -696,8 +946,8 @@ func TestPublicProxyCaptchaPassStillHitsRateLimit(t *testing.T) {
 		t.Fatalf("request without captcha pass status = %d, want WAF captcha status %d", noPassResp.Code, http.StatusForbidden)
 	}
 
-	passCookie := app.PublicWAF.signedRuleCookie(wafRule.ID, publicWafCaptchaCookieKind, "", time.Minute, time.Now(), snap.Listeners[1], nil)
 	firstReq := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	passCookie := app.PublicWAF.signedRuleCookie(wafRule, snap.Listeners[1], firstReq, publicWafCaptchaCookieKind, "", time.Minute, time.Now())
 	firstReq.AddCookie(passCookie)
 	firstResp := httptest.NewRecorder()
 	handler(firstResp, firstReq)
@@ -717,15 +967,16 @@ func TestPublicProxyCaptchaPassStillHitsRateLimit(t *testing.T) {
 func TestPublicWafSignedCookiesRejectExpiredAndForgedValues(t *testing.T) {
 	waf := newPublicWAF()
 	waf.storeCookieSecret([]byte("test-secret"))
+	rule := testWafRule(7, publicWafActionCaptcha)
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
 	now := time.Unix(100, 0)
-	cookie := waf.signedRuleCookie(7, publicWafCaptchaCookieKind, "", time.Minute, now, publicListenerConfig{Protocol: publicListenerProtocolHTTP}, nil)
-
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	cookie := waf.signedRuleCookie(rule, listener, req, publicWafCaptchaCookieKind, "", time.Minute, now)
 	req.AddCookie(cookie)
-	if !waf.validRuleCookieLocked(req, 7, publicWafCaptchaCookieKind, now.Add(time.Second)) {
+	if !waf.validRuleCookieLocked(req, rule, listener, publicWafCaptchaCookieKind, now.Add(time.Second)) {
 		t.Fatal("valid signed cookie was rejected")
 	}
-	if waf.validRuleCookieLocked(req, 7, publicWafCaptchaCookieKind, now.Add(2*time.Minute)) {
+	if waf.validRuleCookieLocked(req, rule, listener, publicWafCaptchaCookieKind, now.Add(2*time.Minute)) {
 		t.Fatal("expired signed cookie was accepted")
 	}
 
@@ -733,10 +984,13 @@ func TestPublicWafSignedCookiesRejectExpiredAndForgedValues(t *testing.T) {
 	forged.Value += "x"
 	forgedReq := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
 	forgedReq.AddCookie(&forged)
-	if waf.validRuleCookieLocked(forgedReq, 7, publicWafCaptchaCookieKind, now.Add(time.Second)) {
+	if waf.validRuleCookieLocked(forgedReq, rule, listener, publicWafCaptchaCookieKind, now.Add(time.Second)) {
 		t.Fatal("forged signed cookie was accepted")
 	}
-	if waf.validRuleCookieLocked(req, 8, publicWafCaptchaCookieKind, now.Add(time.Second)) {
+	otherRule := rule
+	otherRule.ID = 8
+	otherRule.Fingerprint = publicWafRuleFingerprint(otherRule)
+	if waf.validRuleCookieLocked(req, otherRule, listener, publicWafCaptchaCookieKind, now.Add(time.Second)) {
 		t.Fatal("cookie signed for another rule was accepted")
 	}
 }
@@ -784,14 +1038,14 @@ func TestPublicWafCookieSecretConcurrentReconcileAndSigning(t *testing.T) {
 			}
 			waf.verifyCaptchaChallenge(challenge, now)
 
-			cookie := waf.signedRuleCookie(rule.ID, publicWafCaptchaCookieKind, "", time.Minute, now, listener, req)
+			cookie := waf.signedRuleCookie(rule, listener, req, publicWafCaptchaCookieKind, "", time.Minute, now)
 			if cookie == nil || cookie.Value == "" {
 				errCh <- "empty signed WAF cookie"
 				return
 			}
 			cookieReq := httptest.NewRequest(http.MethodGet, "http://example.com/protected?x=1", nil)
 			cookieReq.AddCookie(cookie)
-			waf.validRuleCookieLocked(cookieReq, rule.ID, publicWafCaptchaCookieKind, now)
+			waf.validRuleCookieLocked(cookieReq, rule, listener, publicWafCaptchaCookieKind, now)
 		}
 	}
 	go signAndVerify()
@@ -1057,18 +1311,103 @@ func TestPublicWafValidationRequiresEnabledCaptchaProvider(t *testing.T) {
 	}
 }
 
+func TestPublicWafValidationRejectsUnsafeForwardingHeaderKeyParts(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	for _, header := range []string{"X-Forwarded-For", "x-real-ip", "CF-Connecting-IP"} {
+		_, err := app.validatePublicWafRuleInput(
+			context.Background(),
+			"unsafe-key",
+			100,
+			true,
+			p2pstreamv1.PublicWafRuleAction_PUBLIC_WAF_RULE_ACTION_BLOCK,
+			p2pstreamv1.PublicWafActivationMode_PUBLIC_WAF_ACTIVATION_MODE_ALWAYS,
+			[]*p2pstreamv1.PublicRateLimitKeyPart{{
+				Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+				Name:   header,
+			}},
+			0,
+			0,
+			nil,
+			nil,
+			0,
+			"",
+			p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+			0,
+			0,
+			0,
+			"",
+			nil,
+			nil,
+		)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("header %q: expected invalid argument, got %v", header, err)
+		}
+		if !strings.Contains(err.Error(), "rate limit header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+			t.Fatalf("header %q: unexpected error %v", header, err)
+		}
+	}
+}
+
+func TestPublicWafValidationAllowsApplicationHeaderKeyPart(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	params, err := app.validatePublicWafRuleInput(
+		context.Background(),
+		"safe-key",
+		100,
+		true,
+		p2pstreamv1.PublicWafRuleAction_PUBLIC_WAF_RULE_ACTION_BLOCK,
+		p2pstreamv1.PublicWafActivationMode_PUBLIC_WAF_ACTIVATION_MODE_ALWAYS,
+		[]*p2pstreamv1.PublicRateLimitKeyPart{{
+			Source: p2pstreamv1.PublicRateLimitKeySource_PUBLIC_RATE_LIMIT_KEY_SOURCE_HEADER,
+			Name:   "x-plan",
+		}},
+		0,
+		0,
+		nil,
+		nil,
+		0,
+		"",
+		p2pstreamv1.PublicResponseBodyMode_PUBLIC_RESPONSE_BODY_MODE_INLINE,
+		0,
+		0,
+		0,
+		"",
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("validate application header key part: %v", err)
+	}
+	if !strings.Contains(params.KeyPartsJSON, `"name":"X-Plan"`) {
+		t.Fatalf("key parts json = %q, want canonical X-Plan", params.KeyPartsJSON)
+	}
+}
+
+func TestPublicWafStoredRuleRejectsUnsafeForwardingHeaderKeyPart(t *testing.T) {
+	_, err := publicWafRuleRowToConfig(db.PublicWafRule{
+		Name:         "stored-unsafe",
+		KeyPartsJson: `[{"source":"header","name":"x-forwarded-for"}]`,
+	})
+	if err == nil {
+		t.Fatal("expected stored unsafe forwarding header key part to be rejected")
+	}
+	if !strings.Contains(err.Error(), "rate limit header key part must not use forwarding or client IP headers; use REMOTE_IP") {
+		t.Fatalf("unexpected stored-row error: %v", err)
+	}
+}
+
 func TestPublicWafTriggerValidationPreservesDisabledSignals(t *testing.T) {
 	cfg, err := validatePublicWafTriggers(&p2pstreamv1.PublicWafTriggerConfig{
-		RequestWindowMillis:    10000,
-		MinimumRequestRate:     0,
-		TrafficSpikeMultiplier: 0,
-		ProxyActiveRequests:    0,
-		RouteTargetActiveRequests:  0,
-		AgentActiveRequests:    0,
-		ServerCpuPercent:       0,
-		AgentCpuPercent:        0,
-		MinimumActiveMillis:    30000,
-		QuietPeriodMillis:      60000,
+		RequestWindowMillis:       10000,
+		MinimumRequestRate:        0,
+		TrafficSpikeMultiplier:    0,
+		ProxyActiveRequests:       0,
+		RouteTargetActiveRequests: 0,
+		AgentActiveRequests:       0,
+		ServerCpuPercent:          0,
+		AgentCpuPercent:           0,
+		MinimumActiveMillis:       30000,
+		QuietPeriodMillis:         60000,
 	})
 	if err != nil {
 		t.Fatalf("validate triggers: %v", err)
@@ -1134,6 +1473,19 @@ func newCaptchaVerifyRequest(host string, form url.Values) *http.Request {
 	return req
 }
 
+func malformedCaptchaVerifyRequest(host string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "http://"+host+publicWafCaptchaVerifyPath, strings.NewReader("%"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "198.51.100.9:12345"
+	return req
+}
+
+func newWaitingRoomStatusRequest(host string, ruleID int64) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "http://"+host+publicWafWaitingRoomStatusPath+"?rule_id="+strconv.FormatInt(ruleID, 10), nil)
+	req.RemoteAddr = "198.51.100.9:12345"
+	return req
+}
+
 func testCaptchaChallenge(t *testing.T, app *App, rule publicWafRuleConfig, host string, returnTo string) string {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, "http://"+host+returnTo, nil)
@@ -1173,6 +1525,18 @@ func testWafSnapshot(rule publicWafRuleConfig, providers map[int64]publicWafCapt
 		snap.WafCaptchaProviders = map[int64]publicWafCaptchaProviderConfig{}
 	}
 	return snap
+}
+
+func newScopedWafCookieForTest(t *testing.T, action string, kind string, sessionID string) (*publicWAF, publicWafRuleConfig, publicListenerConfig, time.Time, *http.Request, *http.Cookie) {
+	t.Helper()
+	waf := newPublicWAF()
+	waf.storeCookieSecret([]byte("test-secret"))
+	rule := testWafRule(1, action)
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	now := time.Unix(100, 0)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	cookie := waf.signedRuleCookie(rule, listener, req, kind, sessionID, time.Minute, now)
+	return waf, rule, listener, now, req, cookie
 }
 
 func testWafRule(id int64, action string) publicWafRuleConfig {

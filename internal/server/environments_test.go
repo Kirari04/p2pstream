@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -391,6 +393,195 @@ func TestEnvironmentRequiresHTTPSAndTrustedCertificateBeforeProxy(t *testing.T) 
 	setupReq.Header().Set("Cookie", localHeader.Get("Cookie"))
 	if _, err := proxyClient.GetSetupState(ctx, setupReq); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("disallowed proxy method error code = %s, want permission_denied: %v", connect.CodeOf(err), err)
+	}
+}
+
+func TestEnvironmentProxyDoesNotFollowRedirectOrLeakToken(t *testing.T) {
+	tests := []struct {
+		name     string
+		location func(remoteURL string, attackerURL string) string
+	}{
+		{
+			name: "cross-origin-http",
+			location: func(_ string, attackerURL string) string {
+				return attackerURL + "/capture"
+			},
+		},
+		{
+			name: "same-origin",
+			location: func(remoteURL string, _ string) string {
+				return remoteURL + "/redirected"
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			remoteToken, _, err := newManagementAccessToken()
+			if err != nil {
+				t.Fatalf("remote token: %v", err)
+			}
+			var attackerHits atomic.Int32
+			attackerAuth := make(chan string, 4)
+			attackerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				attackerHits.Add(1)
+				attackerAuth <- r.Header.Get("Authorization")
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer attackerServer.Close()
+
+			var remoteHits atomic.Int32
+			remoteAuth := make(chan string, 4)
+			var remoteServer *httptest.Server
+			remoteServer = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				remoteHits.Add(1)
+				remoteAuth <- r.Header.Get("Authorization")
+				http.Redirect(w, r, tc.location(remoteServer.URL, attackerServer.URL), http.StatusFound)
+			}))
+			defer remoteServer.Close()
+
+			localApp := NewApp(&config.Config{}, newServerTestDB(t))
+			localHeader := createTestAdminSession(t, localApp)
+			createReq := connect.NewRequest(&p2pstreamv1.CreateEnvironmentRequest{
+				Name:                        "redirect-env",
+				ManagementUrl:               remoteServer.URL,
+				Transport:                   p2pstreamv1.EnvironmentTransport_ENVIRONMENT_TRANSPORT_DIRECT,
+				AccessToken:                 remoteToken,
+				ResponseHeaderTimeoutMillis: 10000,
+				Enabled:                     true,
+			})
+			createReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+			createResp, err := localApp.CreateEnvironment(ctx, createReq)
+			if err != nil {
+				t.Fatalf("create environment: %v", err)
+			}
+
+			discoverReq := connect.NewRequest(&p2pstreamv1.DiscoverEnvironmentCertificateRequest{Id: createResp.Msg.Environment.Id})
+			discoverReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+			discoverResp, err := localApp.DiscoverEnvironmentCertificate(ctx, discoverReq)
+			if err != nil {
+				t.Fatalf("discover certificate: %v", err)
+			}
+			trustReq := connect.NewRequest(&p2pstreamv1.TrustEnvironmentCertificateRequest{
+				Id:                createResp.Msg.Environment.Id,
+				Sha256Fingerprint: discoverResp.Msg.Certificate.Sha256Fingerprint,
+			})
+			trustReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+			if _, err := localApp.TrustEnvironmentCertificate(ctx, trustReq); err != nil {
+				t.Fatalf("trust certificate: %v", err)
+			}
+
+			localMux := http.NewServeMux()
+			localApp.RegisterManagementRoutes(localMux)
+			localServer := httptest.NewServer(localMux)
+			defer localServer.Close()
+			client := localServer.Client()
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+			proxyURL := localServer.URL + "/environments/" + strconv.FormatInt(createResp.Msg.Environment.Id, 10) + "/p2pstream.v1.AgentManagementService/GetStatus"
+			proxyReq, err := http.NewRequestWithContext(ctx, http.MethodPost, proxyURL, strings.NewReader("{}"))
+			if err != nil {
+				t.Fatalf("build proxy request: %v", err)
+			}
+			proxyReq.Header.Set("Cookie", localHeader.Get("Cookie"))
+			proxyReq.Header.Set("Content-Type", "application/json")
+			proxyReq.Header.Set("Connect-Protocol-Version", "1")
+
+			resp, err := client.Do(proxyReq)
+			if err != nil {
+				t.Fatalf("environment proxy request: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusFound {
+				t.Fatalf("proxy status = %d, want %d", resp.StatusCode, http.StatusFound)
+			}
+			if got, want := resp.Header.Get("Location"), tc.location(remoteServer.URL, attackerServer.URL); got != want {
+				t.Fatalf("Location = %q, want %q", got, want)
+			}
+			if got := remoteHits.Load(); got != 1 {
+				t.Fatalf("remote hits = %d, want 1", got)
+			}
+			select {
+			case got := <-remoteAuth:
+				if want := "Bearer " + remoteToken; got != want {
+					t.Fatalf("remote Authorization = %q, want %q", got, want)
+				}
+			default:
+				t.Fatal("remote did not record Authorization")
+			}
+			if got := attackerHits.Load(); got != 0 {
+				select {
+				case leaked := <-attackerAuth:
+					t.Fatalf("attacker received %d request(s), Authorization %q", got, leaked)
+				default:
+					t.Fatalf("attacker received %d request(s)", got)
+				}
+			}
+		})
+	}
+}
+
+type captureEnvironmentRoundTripper struct {
+	req *http.Request
+}
+
+func (rt *captureEnvironmentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.req = req
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     make(http.Header),
+		Body:       http.NoBody,
+		Request:    req,
+	}, nil
+}
+
+func TestEnvironmentAuthRoundTripperBindsAuthorizationToOrigin(t *testing.T) {
+	tests := []struct {
+		name     string
+		target   string
+		wantAuth string
+	}{
+		{name: "matching origin", target: "https://env.example:8443/rpc", wantAuth: "Bearer p2pat_secret"},
+		{name: "matching origin case insensitive", target: "https://ENV.example:8443/rpc", wantAuth: "Bearer p2pat_secret"},
+		{name: "wrong scheme", target: "http://env.example:8443/rpc", wantAuth: ""},
+		{name: "wrong host", target: "https://other.example:8443/rpc", wantAuth: ""},
+		{name: "wrong port", target: "https://env.example/rpc", wantAuth: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			capture := &captureEnvironmentRoundTripper{}
+			rt := environmentAuthRoundTripper{
+				token:  "p2pat_secret",
+				scheme: "https",
+				host:   "env.example:8443",
+				next:   capture,
+			}
+			req, err := http.NewRequest(http.MethodPost, tc.target, nil)
+			if err != nil {
+				t.Fatalf("build request: %v", err)
+			}
+			req.Header.Set("Cookie", "sid=caller")
+			req.Header.Set("Authorization", "Bearer caller-supplied")
+			resp, err := rt.RoundTrip(req)
+			if err != nil {
+				t.Fatalf("round trip: %v", err)
+			}
+			if resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			if capture.req == nil {
+				t.Fatal("round tripper did not receive request")
+			}
+			if got := capture.req.Header.Get("Authorization"); got != tc.wantAuth {
+				t.Fatalf("Authorization = %q, want %q", got, tc.wantAuth)
+			}
+			if got := capture.req.Header.Get("Cookie"); got != "" {
+				t.Fatalf("Cookie = %q, want stripped", got)
+			}
+		})
 	}
 }
 

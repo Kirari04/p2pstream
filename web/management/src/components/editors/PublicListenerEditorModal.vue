@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import type { ComputedRef } from "vue";
+import { NButton, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
+import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import Button from "@/volt/Button.vue";
-import Modal from "@/volt/Modal.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
+import { modalCardStyle } from "@/lib/naiveUi";
 import {
   PublicListenerProtocol,
   type GetPublicProxyConfigResponse,
@@ -14,7 +13,6 @@ import {
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -24,13 +22,16 @@ const emit = defineEmits<{
   (event: "saved"): void;
 }>();
 
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const isOpen = ref(false);
 const listeners = computed(() => props.config?.listeners ?? []);
 const listenerSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
+  const port = listenerForm.port;
+  if (port === null || !Number.isInteger(port)) return "Enter a listener port.";
+  if (port < 1 || port > 65535) return "Listener port must be between 1 and 65535.";
   return "";
 });
 
@@ -38,10 +39,14 @@ const listenerForm = reactive({
   id: "",
   name: "",
   bindAddress: "",
-  port: 80,
+  port: 80 as number | null,
   protocol: PublicListenerProtocol.HTTP,
   enabled: true,
 });
+const protocolOptions = [
+  { label: "HTTP", value: PublicListenerProtocol.HTTP },
+  { label: "HTTPS", value: PublicListenerProtocol.HTTPS },
+];
 
 function resetForm() {
   listenerForm.id = "";
@@ -81,10 +86,14 @@ async function run(action: () => Promise<void>): Promise<boolean> {
 
 async function submitListener() {
   const ok = await run(async () => {
+    const port = listenerForm.port;
+    if (port === null || !Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error("Listener port must be between 1 and 65535.");
+    }
     const payload = {
       name: listenerForm.name,
       bindAddress: listenerForm.bindAddress,
-      port: BigInt(listenerForm.port),
+      port: BigInt(port),
       protocol: listenerForm.protocol,
       enabled: listenerForm.enabled,
     };
@@ -104,44 +113,49 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <Modal v-model="isOpen" :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'" max-width="36rem">
-    <form @submit.prevent="submitListener" class="grid gap-4 sm:grid-cols-2">
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+  <NModal
+    v-model:show="isOpen"
+    preset="card"
+    :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+    :style="modalCardStyle('36rem')"
+    :bordered="false"
+    size="huge"
+  >
+    <form @submit.prevent="submitListener" class="layout-grid max-modal-height space-lg scroll-y pad-right-xs mq-sm-cols-two">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Name
-        <input v-model="listenerForm.name" class="vercel-input text-sm normal-case tracking-normal" required />
+        <NInput v-model:value="listenerForm.name" size="small" required />
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Bind address
-        <input v-model="listenerForm.bindAddress" class="vercel-input text-sm normal-case tracking-normal" placeholder="0.0.0.0" />
-        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Leave empty to bind on all interfaces.</p>
+        <NInput v-model:value="listenerForm.bindAddress" size="small" placeholder="0.0.0.0" />
+        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Leave empty to bind on all interfaces.</p>
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Port
-        <input v-model.number="listenerForm.port" class="vercel-input text-sm normal-case tracking-normal" type="number" min="1" max="65535" required />
-        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Ports below 1024 may require elevated privileges.</p>
+        <NInputNumber v-model:value="listenerForm.port" size="small" :min="1" :max="65535" required />
+        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Ports below 1024 may require elevated privileges.</p>
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Protocol
-        <select v-model="listenerForm.protocol" class="vercel-input text-sm normal-case tracking-normal">
-          <option :value="PublicListenerProtocol.HTTP">HTTP</option>
-          <option :value="PublicListenerProtocol.HTTPS">HTTPS</option>
-        </select>
-        <p class="text-xs font-normal normal-case tracking-normal text-[#666]">Choose HTTPS to enable TLS termination.</p>
+        <NSelect v-model:value="listenerForm.protocol" size="small" :options="protocolOptions" />
+        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Choose HTTPS to enable TLS termination.</p>
       </label>
-      <label class="flex items-center gap-2 text-sm text-[#d4d4d8] sm:col-span-2 mt-2">
-        <input v-model="listenerForm.enabled" type="checkbox" />
+      <NCheckbox v-model:checked="listenerForm.enabled" class="margin-top-sm mq-sm-span-two">
         Enabled
-      </label>
-      <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
-        <SecondaryButton type="button" label="Cancel" @click="close" />
+      </NCheckbox>
+      <div class="mq-sm-span-two margin-top-lg layout-row align-end-row space-md">
+        <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(listenerSubmitDisabledReason)" :reason="listenerSubmitDisabledReason">
-          <Button
-                       :label="listenerForm.id ? 'Save Changes' : 'Create Listener'"
-            type="submit"
+          <NButton
+            type="primary"
+            attr-type="submit"
             :disabled="Boolean(listenerSubmitDisabledReason)"
-          />
+          >
+            {{ listenerForm.id ? 'Save Changes' : 'Create Listener' }}
+          </NButton>
         </DisabledHint>
       </div>
     </form>
-  </Modal>
+  </NModal>
 </template>

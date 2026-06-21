@@ -93,6 +93,12 @@ enum PublicRouteRedirectTargetMode {
   PUBLIC_ROUTE_REDIRECT_TARGET_MODE_ABSOLUTE_URL = 3;
 }
 
+enum PublicRoutePathSecurityMode {
+  PUBLIC_ROUTE_PATH_SECURITY_MODE_UNSPECIFIED = 0;
+  PUBLIC_ROUTE_PATH_SECURITY_MODE_STRICT = 1;
+  PUBLIC_ROUTE_PATH_SECURITY_MODE_ALLOW_ENCODED_SEPARATORS = 2;
+}
+
 enum PublicRateLimitAlgorithm {
   PUBLIC_RATE_LIMIT_ALGORITHM_UNSPECIFIED = 0;
   PUBLIC_RATE_LIMIT_ALGORITHM_FIXED_WINDOW = 1;
@@ -466,6 +472,7 @@ message PublicRoute {
   PublicRouteTargetLoadBalancing target_load_balancing = 19;
   bool is_default = 20;
   repeated PublicRouteTarget targets = 21;
+  PublicRoutePathSecurityMode path_security_mode = 22;
 }
 
 message PublicTlsCertificate {
@@ -1080,6 +1087,7 @@ message CreatePublicRouteRequest {
   PublicRouteTargetLoadBalancing target_load_balancing = 19;
   bool is_default = 20;
   repeated PublicRouteTarget targets = 21;
+  PublicRoutePathSecurityMode path_security_mode = 22;
 }
 
 message CreatePublicRouteResponse {
@@ -1105,6 +1113,7 @@ message UpdatePublicRouteRequest {
   PublicRouteTargetLoadBalancing target_load_balancing = 19;
   bool is_default = 20;
   repeated PublicRouteTarget targets = 21;
+  PublicRoutePathSecurityMode path_security_mode = 22;
 }
 
 message UpdatePublicRouteResponse {

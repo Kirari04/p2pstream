@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import PencilIcon from "@primevue/icons/pencil";
-import PlusIcon from "@primevue/icons/plus";
-import TrashIcon from "@primevue/icons/trash";
+import { useRoute, useRouter } from "vue-router";
+import { Pencil as PencilIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
+import { Trash2 as TrashIcon } from "@lucide/vue";
+import { NButton, NCheckbox, NInputNumber, NTabPane, NTabs, NTag } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
@@ -33,13 +34,22 @@ import {
   wafProviderLabel,
   wafRuleSummary,
 } from "@/lib/publicProxyLabels";
-import Button from "@/volt/Button.vue";
-import DangerButton from "@/volt/DangerButton.vue";
-import SecondaryButton from "@/volt/SecondaryButton.vue";
-import Tag from "@/volt/Tag.vue";
+import { naiveTagType } from "@/lib/naiveUi";
 import type { PublicWafCaptchaProvider } from "@/gen/proto/p2pstream/v1/management_pb";
 
+const policySectionKeys = ["rate-limits", "waf", "cache", "traffic-shaper"] as const;
+type PolicySectionKey = typeof policySectionKeys[number];
+type PolicySectionSummary = {
+  key: PolicySectionKey;
+  label: string;
+  value: string;
+  detail: string;
+  description: string;
+};
+
 const managementClient = useManagementClient();
+const route = useRoute();
+const router = useRouter();
 
 const {
   dashboard,
@@ -61,7 +71,7 @@ const enabledCacheRules = computed(() => cacheRules.value.filter((rule) => rule.
 const enabledTrafficShapers = computed(() => trafficShaperRules.value.filter((rule) => rule.enabled).length);
 
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
-const { state: confirmState, confirm, handleConfirm: onConfirm, handleCancel: onCancel } = useConfirmDialog();
+const { confirm } = useConfirmDialog();
 
 const cacheSettingsForm = reactive({
   enabled: true,
@@ -72,12 +82,40 @@ const cacheSettingsForm = reactive({
   cleanupIntervalSeconds: 60,
 });
 
-const summaryCards = computed(() => [
-  { label: "Rate Limits", value: enabledRateLimitRules.value.toString(), detail: `${rateLimitRules.value.length.toString()} total rules` },
-  { label: "WAF", value: enabledWafRules.value.toString(), detail: `${wafCaptchaProviders.value.length.toString()} captcha providers` },
-  { label: "Cache", value: enabledCacheRules.value.toString(), detail: cacheSettingsForm.enabled ? "storage enabled" : "storage disabled" },
-  { label: "Traffic Shapers", value: enabledTrafficShapers.value.toString(), detail: `${trafficShaperRules.value.length.toString()} total shapers` },
+const policySections = computed<PolicySectionSummary[]>(() => [
+  {
+    key: "rate-limits",
+    label: "Rate Limits",
+    value: enabledRateLimitRules.value.toString(),
+    detail: `${rateLimitRules.value.length.toString()} total rules`,
+    description: "Throttle traffic based on request rate per client or route.",
+  },
+  {
+    key: "waf",
+    label: "WAF",
+    value: enabledWafRules.value.toString(),
+    detail: `${wafCaptchaProviders.value.length.toString()} captcha providers`,
+    description: "Block, challenge, or queue matching application traffic before it reaches routes.",
+  },
+  {
+    key: "cache",
+    label: "Cache",
+    value: enabledCacheRules.value.toString(),
+    detail: cacheSettingsForm.enabled ? "storage enabled" : "storage disabled",
+    description: "Cache public static files on the proxy after routing while keeping WAF, rate limits, and shaping active.",
+  },
+  {
+    key: "traffic-shaper",
+    label: "Traffic Shaper",
+    value: enabledTrafficShapers.value.toString(),
+    detail: `${trafficShaperRules.value.length.toString()} total shapers`,
+    description: "Limit bandwidth consumption per request or client.",
+  },
 ]);
+const activePolicySection = computed<PolicySectionKey>(() => normalizePolicySection(route.params.section));
+const activePolicyMeta = computed(() => (
+  policySections.value.find((section) => section.key === activePolicySection.value) ?? policySections.value[0]
+));
 
 const cacheSettingsDisabledReason = computed(() => {
   if (isBusy.value) return BUSY_REASON;
@@ -102,6 +140,17 @@ watch(cacheSettings, (settings) => {
 async function run(action: () => Promise<void>) {
   if (!runManagementAction) return;
   await runManagementAction(action);
+}
+
+function normalizePolicySection(value: unknown): PolicySectionKey {
+  const section = Array.isArray(value) ? value[0] : value;
+  return policySectionKeys.includes(section as PolicySectionKey) ? section as PolicySectionKey : "rate-limits";
+}
+
+async function selectPolicySection(value: string | number) {
+  const section = normalizePolicySection(value);
+  if (section === activePolicySection.value) return;
+  await router.push(`/policies/${section}`);
 }
 
 function openAddRateLimitRuleModal() {
@@ -202,51 +251,59 @@ async function deleteTrafficShaperRule(id: bigint) {
 </script>
 
 <template>
-  <div v-if="dashboard" class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div>
-        <h3 class="mb-2 text-xl font-bold">Traffic Policy</h3>
-        <p class="text-sm text-[#888]">Rate limits, WAF rules, cache behavior, and bandwidth shaping.</p>
+  <div v-if="dashboard" class="stack-xl">
+    <div class="page-toolbar policy-toolbar">
+      <div class="page-toolbar__body">
+        <h3 class="margin-bottom-sm copy-xl weight-bold">Traffic Policy</h3>
+        <p class="copy-sm muted-text">{{ activePolicyMeta.description }}</p>
       </div>
     </div>
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="card in summaryCards" :key="card.label" class="vercel-card p-4">
-        <p class="text-xs font-semibold uppercase tracking-widest text-[#666]">{{ card.label }}</p>
-        <p class="mt-2 text-2xl font-semibold text-white">{{ card.value }}</p>
-        <p class="mt-1 text-xs text-[#777]">{{ card.detail }}</p>
+    <section class="summary-grid summary-grid--four policy-summary-grid" aria-label="Policy type summary">
+      <div
+        v-for="section in policySections"
+        :key="section.key"
+        class="surface-card pad-lg policy-summary-card"
+        :class="{ 'policy-summary-card--active': section.key === activePolicySection }"
+      >
+        <p class="copy-xs weight-semibold label-case letter-widest muted-text">{{ section.label }}</p>
+        <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ section.value }}</p>
+        <p class="margin-top-xs copy-xs muted-text">{{ section.detail }}</p>
       </div>
     </section>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+    <NTabs class="policy-tabs" type="line" animated :value="activePolicySection" @update:value="selectPolicySection">
+      <NTabPane name="rate-limits" :tab="`Rate Limits (${enabledRateLimitRules})`">
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Rate Limits</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Throttle traffic based on request rate per client or route.</p>
+          <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Rate Limits</h4>
+          <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Throttle traffic based on request rate per client or route.</p>
         </div>
-        <SecondaryButton size="small" label="Add Rule" @click="openAddRateLimitRuleModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+        <NButton secondary size="small" @click="openAddRateLimitRuleModal">
+          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+          Add Rule
+        </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="rule in rateLimitRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
-              <Tag :value="rateLimitAlgorithmLabel(rule.algorithm)" severity="info" />
-              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
-              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
+      <div class="divided-list">
+        <div v-for="rule in rateLimitRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero wrap-items align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
+              <NTag size="small" :bordered="false" type="info">{{ rateLimitAlgorithmLabel(rule.algorithm) }}</NTag>
+              <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
+              <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ rateLimitRuleSummary(rule) }} / key {{ rateLimitKeySummary(rule) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ publicPolicyMatchSummary(rule) }} / response {{ rule.responseStatusCode.toString() }}</p>
+            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ rateLimitRuleSummary(rule) }} / key {{ rateLimitKeySummary(rule) }}</p>
+            <p class="margin-top-xs clip-text copy-xs muted-text">{{ publicPolicyMatchSummary(rule) }} / response {{ rule.responseStatusCode.toString() }}</p>
           </div>
-          <div class="flex gap-2 lg:justify-end">
-            <SecondaryButton size="small" aria-label="Edit rate-limit rule" title="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete rate-limit rule" title="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+          <div class="layout-row space-sm mq-lg-end">
+            <NButton secondary size="small" aria-label="Edit rate-limit rule" title="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete rate-limit rule" title="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            </NButton>
           </div>
         </div>
         <EmptyState
@@ -258,61 +315,65 @@ async function deleteTrafficShaperRule(id: bigint) {
         />
       </div>
     </section>
+      </NTabPane>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <NTabPane name="waf" :tab="`WAF (${enabledWafRules})`">
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">WAF</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Block, challenge, or queue matching application traffic before it reaches routes.</p>
+          <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">WAF</h4>
+          <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Block, challenge, or queue matching application traffic before it reaches routes.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <SecondaryButton size="small" label="Add Provider" @click="openAddWafCaptchaProviderModal">
-            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-          </SecondaryButton>
-          <SecondaryButton size="small" label="Add Rule" @click="openAddWafRuleModal">
-            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-          </SecondaryButton>
+        <div class="layout-row wrap-items space-sm">
+          <NButton secondary size="small" @click="openAddWafCaptchaProviderModal">
+            <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+            Add Provider
+          </NButton>
+          <NButton secondary size="small" @click="openAddWafRuleModal">
+            <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+            Add Rule
+          </NButton>
         </div>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="provider in wafCaptchaProviders" :key="`provider-${provider.id.toString()}`" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ provider.name }}</p>
-              <Tag :value="wafProviderLabel(provider.providerType)" severity="info" />
-              <Tag :value="provider.secretKeySet ? 'Secret saved' : 'Secret missing'" :severity="provider.secretKeySet ? 'success' : 'danger'" />
-              <Tag v-if="!provider.enabled" value="Disabled" severity="warn" />
+      <div class="divided-list">
+        <div v-for="provider in wafCaptchaProviders" :key="`provider-${provider.id.toString()}`" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero wrap-items align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ provider.name }}</p>
+              <NTag size="small" :bordered="false" type="info">{{ wafProviderLabel(provider.providerType) }}</NTag>
+              <NTag size="small" :bordered="false" :type="naiveTagType(provider.secretKeySet ? 'success' : 'danger')">{{ provider.secretKeySet ? 'Secret saved' : 'Secret missing' }}</NTag>
+              <NTag v-if="!provider.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ provider.siteKey }}</p>
+            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ provider.siteKey }}</p>
           </div>
-          <div class="flex gap-2 lg:justify-end">
-            <SecondaryButton size="small" aria-label="Edit captcha provider" title="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete captcha provider" title="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+          <div class="layout-row space-sm mq-lg-end">
+            <NButton secondary size="small" aria-label="Edit captcha provider" title="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete captcha provider" title="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            </NButton>
           </div>
         </div>
-        <div v-for="rule in wafRules" :key="`rule-${rule.id.toString()}`" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
-              <Tag :value="wafActionLabel(rule.action)" severity="info" />
-              <Tag :value="wafActivationLabel(rule.activationMode)" severity="info" />
-              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
-              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
+        <div v-for="rule in wafRules" :key="`rule-${rule.id.toString()}`" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero wrap-items align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
+              <NTag size="small" :bordered="false" type="info">{{ wafActionLabel(rule.action) }}</NTag>
+              <NTag size="small" :bordered="false" type="info">{{ wafActivationLabel(rule.activationMode) }}</NTag>
+              <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
+              <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ wafRuleSummary(rule, wafCaptchaProviders) }} / key {{ rateLimitKeySummary(rule) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ publicPolicyMatchSummary(rule) }}</p>
+            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ wafRuleSummary(rule, wafCaptchaProviders) }} / key {{ rateLimitKeySummary(rule) }}</p>
+            <p class="margin-top-xs clip-text copy-xs muted-text">{{ publicPolicyMatchSummary(rule) }}</p>
           </div>
-          <div class="flex gap-2 lg:justify-end">
-            <SecondaryButton size="small" aria-label="Edit WAF rule" title="Edit WAF rule" @click="editWafRule(rule.id)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete WAF rule" title="Delete WAF rule" @click="deleteWafRule(rule.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+          <div class="layout-row space-sm mq-lg-end">
+            <NButton secondary size="small" aria-label="Edit WAF rule" title="Edit WAF rule" @click="editWafRule(rule.id)">
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete WAF rule" title="Delete WAF rule" @click="deleteWafRule(rule.id)">
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            </NButton>
           </div>
         </div>
         <EmptyState
@@ -324,80 +385,85 @@ async function deleteTrafficShaperRule(id: bigint) {
         />
       </div>
     </section>
+      </NTabPane>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <NTabPane name="cache" :tab="`Cache (${enabledCacheRules})`">
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Cache</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Cache public static files on the proxy after routing while keeping WAF, rate limits, and shaping active.</p>
+          <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Cache</h4>
+          <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Cache public static files on the proxy after routing while keeping WAF, rate limits, and shaping active.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <SecondaryButton size="small" label="Purge All" @click="purgeAllCache">
-            <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-          </SecondaryButton>
-          <SecondaryButton size="small" label="Add Rule" @click="openAddCacheRuleModal">
-            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-          </SecondaryButton>
+        <div class="layout-row wrap-items space-sm">
+          <NButton secondary size="small" @click="purgeAllCache">
+            <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            Purge All
+          </NButton>
+          <NButton secondary size="small" @click="openAddCacheRuleModal">
+            <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+            Add Rule
+          </NButton>
         </div>
       </div>
-      <div class="grid gap-4 border-b border-[#222] bg-[#050505] px-5 py-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="layout-grid space-lg divider-bottom frame-standard muted-bg pad-x-xl pad-y-lg">
+        <div class="layout-row wrap-items align-center spread-items space-md">
           <div>
-            <h5 class="text-xs font-semibold uppercase tracking-widest text-[#888]">Cache Settings</h5>
-            <p class="mt-1 text-xs text-[#666]">Bodies are stored under the configured public cache directory; metadata stays in SQLite.</p>
+            <h5 class="copy-xs weight-semibold label-case letter-widest muted-text">Cache Settings</h5>
+            <p class="margin-top-xs copy-xs muted-text">Bodies are stored under the configured public cache directory; metadata stays in SQLite.</p>
           </div>
-          <label class="flex items-center gap-2 text-sm text-[#d4d4d8]">
-            <input v-model="cacheSettingsForm.enabled" type="checkbox" />
+          <NCheckbox v-model:checked="cacheSettingsForm.enabled">
             Enabled
-          </label>
+          </NCheckbox>
         </div>
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+        <div class="layout-grid space-md mq-sm-cols-two mq-xl-cols-five">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Disk MiB
-            <input v-model.number="cacheSettingsForm.maxDiskMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="cacheSettingsForm.maxDiskMiB" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Memory MiB
-            <input v-model.number="cacheSettingsForm.maxMemoryMiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="cacheSettingsForm.maxMemoryMiB" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Hot object KiB
-            <input v-model.number="cacheSettingsForm.hotObjectKiB" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="cacheSettingsForm.hotObjectKiB" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Max entries
-            <input v-model.number="cacheSettingsForm.maxEntries" type="number" min="1" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="cacheSettingsForm.maxEntries" size="small" :min="1" />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[#888]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Cleanup seconds
-            <input v-model.number="cacheSettingsForm.cleanupIntervalSeconds" type="number" min="1" max="3600" class="vercel-input text-sm normal-case tracking-normal" />
+            <NInputNumber v-model:value="cacheSettingsForm.cleanupIntervalSeconds" size="small" :min="1" :max="3600" />
           </label>
         </div>
-        <div class="flex justify-end">
-          <Button size="small" label="Save Settings" :disabled="Boolean(cacheSettingsDisabledReason)" :title="cacheSettingsDisabledReason" @click="saveCacheSettings" />
+        <div class="layout-row align-end-row">
+          <NButton type="primary" size="small" :disabled="Boolean(cacheSettingsDisabledReason)" :title="cacheSettingsDisabledReason" @click="saveCacheSettings">
+            Save Settings
+          </NButton>
         </div>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="rule in cacheRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
-              <Tag :value="cacheTtlModeLabel(rule.ttlMode)" severity="info" />
-              <Tag :value="cacheScopeLabel(rule.scope)" severity="info" />
-              <Tag :value="rule.allowCookieRequests ? 'Cookies allowed' : 'Cookies blocked'" :severity="rule.allowCookieRequests ? 'warn' : 'info'" />
-              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
-              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
+      <div class="divided-list">
+        <div v-for="rule in cacheRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero wrap-items align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
+              <NTag size="small" :bordered="false" type="info">{{ cacheTtlModeLabel(rule.ttlMode) }}</NTag>
+              <NTag size="small" :bordered="false" type="info">{{ cacheScopeLabel(rule.scope) }}</NTag>
+              <NTag size="small" :bordered="false" :type="naiveTagType(rule.allowCookieRequests ? 'warn' : 'info')">{{ rule.allowCookieRequests ? 'Cookies allowed' : 'Cookies blocked' }}</NTag>
+              <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
+              <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ cacheRuleSummary(rule) }} / {{ cacheQueryModeLabel(rule.queryMode) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ cacheRuleMatchSummary(rule) }}</p>
+            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ cacheRuleSummary(rule) }} / {{ cacheQueryModeLabel(rule.queryMode) }}</p>
+            <p class="margin-top-xs clip-text copy-xs muted-text">{{ cacheRuleMatchSummary(rule) }}</p>
           </div>
-          <div class="flex gap-2 lg:justify-end">
-            <SecondaryButton size="small" aria-label="Edit cache rule" title="Edit cache rule" @click="editCacheRule(rule.id)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete cache rule" title="Delete cache rule" @click="deleteCacheRule(rule.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+          <div class="layout-row space-sm mq-lg-end">
+            <NButton secondary size="small" aria-label="Edit cache rule" title="Edit cache rule" @click="editCacheRule(rule.id)">
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete cache rule" title="Delete cache rule" @click="deleteCacheRule(rule.id)">
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            </NButton>
           </div>
         </div>
         <EmptyState
@@ -409,36 +475,39 @@ async function deleteTrafficShaperRule(id: bigint) {
         />
       </div>
     </section>
+      </NTabPane>
 
-    <section class="vercel-card overflow-hidden">
-      <div class="border-b border-[#333] px-5 py-4 flex items-center justify-between gap-4">
+      <NTabPane name="traffic-shaper" :tab="`Traffic Shaper (${enabledTrafficShapers})`">
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-[#888]">Traffic Shaper</h4>
-          <p class="mt-0.5 text-xs text-[#666] normal-case tracking-normal">Limit bandwidth consumption per request or client.</p>
+          <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Traffic Shaper</h4>
+          <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Limit bandwidth consumption per request or client.</p>
         </div>
-        <SecondaryButton size="small" label="Add Shaper" @click="openAddTrafficShaperRuleModal">
-          <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
-        </SecondaryButton>
+        <NButton secondary size="small" @click="openAddTrafficShaperRuleModal">
+          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+          Add Shaper
+        </NButton>
       </div>
-      <div class="divide-y divide-[#1f1f1f]">
-        <div v-for="rule in trafficShaperRules" :key="rule.id.toString()" class="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_auto]">
-          <div class="min-w-0">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <p class="truncate text-sm font-medium text-white">{{ rule.name }}</p>
-              <Tag :value="trafficShaperScopeLabel(rule.budgetScope)" severity="info" />
-              <Tag v-if="!rule.enabled" value="Disabled" severity="warn" />
-              <Tag :value="`P${rule.priority.toString()}`" severity="info" />
+      <div class="divided-list">
+        <div v-for="rule in trafficShaperRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+          <div class="min-width-zero">
+            <div class="layout-row min-width-zero wrap-items align-center space-sm">
+              <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
+              <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
+              <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
+              <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
             </div>
-            <p class="mt-1 truncate font-mono text-xs text-[#888]">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</p>
-            <p class="mt-1 truncate text-xs text-[#666]">{{ publicPolicyMatchSummary(rule) }} / key {{ trafficShaperKeySummary(rule) }}</p>
+            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</p>
+            <p class="margin-top-xs clip-text copy-xs muted-text">{{ publicPolicyMatchSummary(rule) }} / key {{ trafficShaperKeySummary(rule) }}</p>
           </div>
-          <div class="flex gap-2 lg:justify-end">
-            <SecondaryButton size="small" aria-label="Edit traffic-shaper rule" title="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">
-              <template #icon><PencilIcon class="h-3.5 w-3.5" /></template>
-            </SecondaryButton>
-            <DangerButton size="small" aria-label="Delete traffic-shaper rule" title="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
-            </DangerButton>
+          <div class="layout-row space-sm mq-lg-end">
+            <NButton secondary size="small" aria-label="Edit traffic-shaper rule" title="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">
+              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+            </NButton>
+            <NButton type="error" size="small" aria-label="Delete traffic-shaper rule" title="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            </NButton>
           </div>
         </div>
         <EmptyState
@@ -450,8 +519,53 @@ async function deleteTrafficShaperRule(id: bigint) {
         />
       </div>
     </section>
+      </NTabPane>
+    </NTabs>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
-    <ConfirmDialog :state="confirmState" @confirm="onConfirm" @cancel="onCancel" />
   </div>
 </template>
+
+<style scoped>
+.policy-summary-card {
+  min-height: 7rem;
+  padding: 0.875rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.policy-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.policy-summary-card--active {
+  border-color: var(--app-accent);
+  box-shadow: inset 0 0 0 1px var(--app-accent-soft);
+}
+
+.policy-summary-card--active .base-text {
+  color: var(--app-accent);
+}
+
+.policy-tabs {
+  min-width: 0;
+}
+
+.policy-tabs :deep(.n-tabs-nav) {
+  margin-bottom: 1rem;
+}
+
+.policy-tabs :deep(.n-tab-pane) {
+  padding-top: 0.25rem;
+}
+
+@media (min-width: 900px) {
+  .policy-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .policy-summary-card {
+    min-height: 0;
+    padding: 1rem;
+  }
+}
+</style>

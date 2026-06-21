@@ -12,7 +12,7 @@ Routing matters when publishing multiple hostnames on one listener, adding path-
 
 ## Runtime Behavior
 
-Routes are evaluated after WAF, rate limits, and traffic shapers. Cache rules run after route/target selection and can serve eligible proxy assets without contacting the origin.
+Routes are evaluated after WAF, rate limits, and traffic shapers. p2pstream also performs an earlier route-only match to apply the route's path security mode; this does not select a target or advance load-balancer state. Cache rules run after route/target selection and can serve eligible proxy assets without contacting the origin.
 
 A route must include at least one of:
 
@@ -37,6 +37,12 @@ If no enabled target is available for a matched forward route, p2pstream returns
 
 Redirect status codes must be `301`, `302`, `307`, or `308`.
 
+## Path Security Modes
+
+Routes default to strict path security. Strict routes reject encoded path separators such as `%2F` and `%5C` before WAF, rate limits, traffic shapers, cache, and forwarding. Public listeners also reject decoded `.` and `..` path segments and raw literal backslashes.
+
+Use **Allow encoded separators** only for routes whose upstream requires encoded separators in path identifiers, for example GitLab project paths. Those requests keep the encoded separator form for the upstream, but shared cache bypasses them. WAF, rate-limit, and traffic-shaper path rules still evaluate p2pstream's decoded request path, so keep route-specific policy simple when enabling this compatibility mode.
+
 | Redirect mode | Target example | Behavior |
 | --- | --- | --- |
 | Same host path | `/new` | Redirects to a path on the same request host. |
@@ -59,6 +65,7 @@ Redirect status codes must be `301`, `302`, `307`, or `308`.
 - Expecting the listener default route to run when an enabled matching route exists but no target is available.
 - Forgetting wildcard host patterns do not match the apex host.
 - Expecting captcha or waiting-room redirects to replay request bodies.
+- Enabling encoded separator compatibility on broad fallback routes instead of limiting it to the upstream that needs it.
 
 ## Related Links
 

@@ -1,25 +1,7 @@
 <script setup lang="ts">
 import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
-import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
-
-type AgentNodeStatus = {
-  state: "connected" | "offline" | "disabled" | "unknown";
-  label: string;
-};
-type CacheNodeStatus = {
-  label: string;
-  tone: "hit" | "miss" | "bypass" | "stored" | "lookup" | "neutral";
-};
-
-type TrafficNodeData = {
-  label: string;
-  subLabel: string;
-  kind: "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "target" | "redirect" | "agent" | "upstream" | "response";
-  editTargets: TrafficFlowEditTarget[];
-  agentStatus?: AgentNodeStatus;
-  cacheStatus?: CacheNodeStatus;
-};
+import type { TrafficNodeData } from "@/lib/trafficFlowModel";
 
 defineProps<NodeProps<TrafficNodeData>>();
 </script>
@@ -62,11 +44,11 @@ defineProps<NodeProps<TrafficNodeData>>();
   position: relative;
   width: 152px;
   height: 58px;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #050505;
+  background: var(--app-panel-muted);
   padding: 9px 12px;
-  color: #ededed;
+  color: var(--app-text);
   box-shadow: 0 8px 22px rgb(0 0 0 / 26%);
   transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
@@ -76,70 +58,70 @@ defineProps<NodeProps<TrafficNodeData>>();
 }
 
 .traffic-flow-node-clickable:hover {
-  border-color: #e4e4e7;
-  background: #0a0a0a;
+  border-color: var(--app-border);
+  background: var(--app-panel);
   box-shadow: 0 10px 26px rgb(0 0 0 / 34%);
 }
 
 .traffic-flow-node-ingress,
 .traffic-flow-node-response {
-  border-color: #d4d4d8;
+  border-color: var(--app-border);
 }
 
 .traffic-flow-node-agent {
-  border-color: #2563eb;
+  border-color: var(--app-accent);
 }
 
 .traffic-flow-node-upstream {
-  border-color: #0f766e;
+  border-color: var(--app-success);
 }
 
 .traffic-flow-node-route {
-  border-color: #52525b;
+  border-color: var(--app-border);
 }
 
 .traffic-flow-node-rate-limit {
-  border-color: #f59e0b;
+  border-color: var(--app-warning);
 }
 
 .traffic-flow-node-waf {
-  border-color: #fb7185;
+  border-color: var(--app-error);
 }
 
 .traffic-flow-node-traffic-shaper {
-  border-color: #38bdf8;
+  border-color: var(--app-accent);
 }
 
 .traffic-flow-node-cache {
-  border-color: #2dd4bf;
+  border-color: var(--app-accent);
   background:
     linear-gradient(135deg, rgb(45 212 191 / 8%), transparent 42%),
-    #050505;
+    var(--app-panel-muted);
 }
 
 .traffic-flow-node-cache-hit,
 .traffic-flow-node-cache-stored {
-  border-color: #34d399;
+  border-color: var(--app-success);
   box-shadow: 0 8px 22px rgb(0 0 0 / 26%), 0 0 20px rgb(52 211 153 / 13%);
 }
 
 .traffic-flow-node-cache-miss,
 .traffic-flow-node-cache-lookup {
-  border-color: #38bdf8;
+  border-color: var(--app-accent);
   box-shadow: 0 8px 22px rgb(0 0 0 / 26%), 0 0 20px rgb(56 189 248 / 12%);
 }
 
 .traffic-flow-node-cache-bypass {
-  border-color: #71717a;
-  background: #050505;
+  border-color: var(--app-text-muted);
+  background: var(--app-panel-muted);
 }
 
 .traffic-flow-node-target {
-  border-color: #71717a;
+  border-color: var(--app-text-muted);
 }
 
 .traffic-flow-node-redirect {
-  border-color: #0f766e;
+  border-color: var(--app-success);
 }
 
 .node-label,
@@ -170,7 +152,7 @@ defineProps<NodeProps<TrafficNodeData>>();
 
 .node-sub-label {
   flex: 1 1 auto;
-  color: #888;
+  color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.66rem;
   line-height: 1.2;
@@ -209,19 +191,19 @@ defineProps<NodeProps<TrafficNodeData>>();
 }
 
 .node-status-connected {
-  color: #22c55e;
+  color: var(--app-success);
 }
 
 .node-status-offline {
-  color: #f59e0b;
+  color: var(--app-warning);
 }
 
 .node-status-disabled {
-  color: #a1a1aa;
+  color: var(--app-text-muted);
 }
 
 .node-status-unknown {
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 
 .node-cache-badge {
@@ -233,7 +215,7 @@ defineProps<NodeProps<TrafficNodeData>>();
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 1px 5px;
-  background: rgb(0 0 0 / 52%);
+  background: color-mix(in srgb, var(--app-panel) 88%, transparent);
   font-family: var(--font-mono);
   font-size: 0.54rem;
   font-weight: 750;
@@ -244,17 +226,17 @@ defineProps<NodeProps<TrafficNodeData>>();
 
 .node-cache-badge-hit,
 .node-cache-badge-stored {
-  color: #34d399;
+  color: var(--app-success);
 }
 
 .node-cache-badge-miss,
 .node-cache-badge-lookup {
-  color: #38bdf8;
+  color: var(--app-accent);
 }
 
 .node-cache-badge-bypass,
 .node-cache-badge-neutral {
-  color: #a1a1aa;
+  color: var(--app-text-muted);
 }
 
 :deep(.traffic-handle) {

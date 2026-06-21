@@ -93,7 +93,7 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Cause | Fix |
 | --- | --- |
 | No matching certificate mapping | Add a mapping for the exact host or wildcard in **TLS**. |
-| ACME certificate not ready | Check certificate status and last error. |
+| ACME certificate not ready | Check certificate status, last attempt, last error, and next renewal or retry time in **TLS**. |
 | Request SNI mismatch | Test with the real hostname, not the IP address. |
 | Listener not restarted | Stop/start the listener or wait for automatic restart after certificate issuance. |
 
@@ -112,6 +112,8 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | DNS-01 | Cloudflare zone ID and API token must be valid and enabled. |
 | Wildcard | Use DNS-01; HTTP-01 and TLS-ALPN-01 do not support wildcard issuance. |
 | CA | Test with staging before production. |
+
+ACME renewal logs use `component=public_acme`. Filter those entries and inspect `cert_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `next_renewal_at`, and `retry_at`. A successful attempt logs `ACME certificate renewal succeeded`; a failed attempt logs `ACME certificate renewal failed` with the failed stage and retry time. Failed renewals retry automatically after 1 hour.
 
 ## Route Does Not Match
 
@@ -184,7 +186,7 @@ The target response-header timeout limits only the wait for first upstream heade
 
 | Cause | Fix |
 | --- | --- |
-| p2pstream sees one proxy IP | Add better key parts or place p2pstream at the edge. |
+| p2pstream sees one proxy IP | Place p2pstream at the edge, use `REMOTE_IP` when it reflects the client, or add host/path/method/application-header key parts. Do not key on client-supplied forwarding headers. |
 | Rule too broad | Add host/path/method matchers. |
 | Priority conflict | Move specific rules to lower priority numbers. |
 
@@ -196,7 +198,7 @@ The target response-header timeout limits only the wait for first upstream heade
 | Priority conflict | Lower priority numbers win. Adjust priorities or matches. |
 | Captcha provider unavailable | Confirm the provider is enabled and site key/secret key match upstream configuration. |
 | Waiting room stays active | Check trigger thresholds, active request counts, server CPU, and agent CPU in the dashboard. Use `0` to disable an automatic signal. |
-| All clients share one queue identity | Add key parts that identify visitors better than remote IP when behind another proxy. |
+| All clients share one queue identity | Use `REMOTE_IP` when p2pstream sees the client address, or use trusted application-header key parts. Avoid client-controlled forwarding headers; trusted-proxy parsing is not available yet. |
 | Large form or upload must be retried | Captcha and waiting-room admission use `303` redirects and do not replay request bodies. |
 
 ## Trace Stream Reconnects

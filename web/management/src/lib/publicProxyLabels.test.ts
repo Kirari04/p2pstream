@@ -20,6 +20,7 @@ import {
   healthTraceSourceLabel,
   healthTraceTargetLabel,
   healthTraceTransitionSummary,
+  tlsCertificateLastAttemptSummary,
   tlsCertificateRenewalSummary,
   tlsCertificateValiditySummary,
 } from "@/lib/publicProxyLabels";
@@ -44,14 +45,44 @@ describe("publicProxyLabels", () => {
     expect(tlsCertificateValiditySummary(cert)).toBe(`Valid until ${formatUnixMillis(cert.expiresAtUnixMillis)}`);
   });
 
-  test("formats ACME renewal separately from validity", () => {
+  test("formats ready ACME next renewal separately from validity", () => {
     const cert = tlsCertificate({
       source: PublicTlsCertificateSource.ACME,
       nextRenewalAtUnixMillis: BigInt(Date.UTC(2026, 11, 1)),
     });
 
-    expect(tlsCertificateRenewalSummary(cert)).toBe(`Renews ${formatUnixMillis(cert.nextRenewalAtUnixMillis)}`);
+    expect(tlsCertificateRenewalSummary(cert)).toBe(`Next renewal ${formatUnixMillis(cert.nextRenewalAtUnixMillis)}`);
     expect(tlsCertificateRenewalSummary(tlsCertificate())).toBe("");
+  });
+
+  test("formats in-progress ACME renewal state", () => {
+    const cert = tlsCertificate({
+      source: PublicTlsCertificateSource.ACME,
+      status: PublicTlsCertificateStatus.RENEWING,
+      lastRenewalAttemptAtUnixMillis: BigInt(Date.UTC(2026, 5, 20, 8, 30)),
+    });
+
+    expect(tlsCertificateRenewalSummary(cert)).toBe(`Renewal started ${formatUnixMillis(cert.lastRenewalAttemptAtUnixMillis)}`);
+  });
+
+  test("formats errored ACME retry schedule", () => {
+    const cert = tlsCertificate({
+      source: PublicTlsCertificateSource.ACME,
+      status: PublicTlsCertificateStatus.ERROR,
+      nextRenewalAtUnixMillis: BigInt(Date.UTC(2026, 5, 20, 9, 30)),
+    });
+
+    expect(tlsCertificateRenewalSummary(cert)).toBe(`Retry scheduled ${formatUnixMillis(cert.nextRenewalAtUnixMillis)}`);
+  });
+
+  test("formats ACME last attempt separately", () => {
+    const cert = tlsCertificate({
+      source: PublicTlsCertificateSource.ACME,
+      lastRenewalAttemptAtUnixMillis: BigInt(Date.UTC(2026, 5, 20, 8, 30)),
+    });
+
+    expect(tlsCertificateLastAttemptSummary(cert)).toBe(`Last attempt ${formatUnixMillis(cert.lastRenewalAttemptAtUnixMillis)}`);
+    expect(tlsCertificateLastAttemptSummary(tlsCertificate())).toBe("");
   });
 
   test("formats health trace labels and summaries", () => {

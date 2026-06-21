@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, h, onMounted, ref, watch } from "vue";
+import { NAlert, NButton, NButtonGroup, NDataTable, NEmpty, NSelect } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import type {
   DashboardDiagnosticsSample,
@@ -21,6 +23,10 @@ type WindowLabel = "5m" | "1h" | "24h" | "30d";
 const managementClient = useManagementClient();
 const windowLabels: WindowLabel[] = ["5m", "1h", "24h", "30d"];
 const sampleOptions = [25, 50, 100];
+const sampleSelectOptions = sampleOptions.map((option) => ({
+  label: `${option.toString()} samples`,
+  value: option,
+}));
 
 const selectedWindowLabel = ref<WindowLabel>("1h");
 const sampleLimit = ref(25);
@@ -31,6 +37,18 @@ let requestSequence = 0;
 
 const outcome = computed(() => diagnostics.value?.outcome);
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
+const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
+const recentSampleRowKeys = computed(() => {
+  const keys = new WeakMap<DashboardDiagnosticsSample, string>();
+  const seen = new Map<string, number>();
+  for (const sample of recentSamples.value) {
+    const baseKey = sampleRowBaseKey(sample);
+    const occurrence = seen.get(baseKey) ?? 0;
+    seen.set(baseKey, occurrence + 1);
+    keys.set(sample, `${baseKey}-${occurrence.toString()}`);
+  }
+  return keys;
+});
 const maxStatusRequests = computed(() => Math.max(1, ...statusCodes.value.map((row) => toNumber(row.requests))));
 const dimensionSections = computed(() => [
   { title: "Error kinds", rows: diagnostics.value?.errorKinds ?? [], empty: "No proxy failures in this window." },
@@ -38,6 +56,87 @@ const dimensionSections = computed(() => [
   { title: "Routes", rows: diagnostics.value?.problemRoutes ?? [], empty: "No problem routes in this window." },
   { title: "Route targets", rows: diagnostics.value?.problemRouteTargets ?? [], empty: "No problem targets in this window." },
   { title: "Agents", rows: diagnostics.value?.problemAgents ?? [], empty: "No problem agents in this window." },
+]);
+const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() => [
+  {
+    title: "Time",
+    key: "time",
+    width: 150,
+    render: (sample) => formatSampleTime(sample.occurredAtUnixMillis),
+  },
+  {
+    title: "Request",
+    key: "request",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: sampleContext,
+  },
+  {
+    title: "Path prefix",
+    key: "pathPrefix",
+    width: 160,
+    ellipsis: { tooltip: true },
+    render: (sample) => formatPathPrefix(sample.pathPrefix),
+  },
+  {
+    title: "Status",
+    key: "status",
+    width: 100,
+    render: (sample) => h("span", { class: ["status-pill", `tone-${statusTone(sample.statusCode)}`] }, sampleStatusLabel(sample)),
+  },
+  {
+    title: "Error kind",
+    key: "errorKind",
+    width: 160,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.errorKind || "-",
+  },
+  {
+    title: "Listener",
+    key: "listener",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.listenerLabel || "-",
+  },
+  {
+    title: "Route",
+    key: "route",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.routeLabel || "-",
+  },
+  {
+    title: "Target",
+    key: "target",
+    width: 160,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.routeTargetLabel || "-",
+  },
+  {
+    title: "Agent",
+    key: "agent",
+    width: 150,
+    ellipsis: { tooltip: true },
+    render: (sample) => sample.agentLabel || "-",
+  },
+  {
+    title: "Duration",
+    key: "duration",
+    width: 110,
+    render: (sample) => formatDuration(sample.durationMs),
+  },
+  {
+    title: "Down",
+    key: "down",
+    width: 100,
+    render: (sample) => formatBytes(sample.responseBytes),
+  },
+  {
+    title: "Up",
+    key: "up",
+    width: 100,
+    render: (sample) => formatBytes(sample.requestBytes),
+  },
 ]);
 
 async function loadDiagnostics() {
@@ -115,6 +214,28 @@ function toNumber(value: bigint | number): number {
   const max = BigInt(Number.MAX_SAFE_INTEGER);
   return Number(value > max ? max : value);
 }
+
+function sampleRowBaseKey(sample: DashboardDiagnosticsSample): string {
+  return [
+    sample.occurredAtUnixMillis.toString(),
+    sample.method,
+    sample.host,
+    sample.pathPrefix,
+    sample.statusCode.toString(),
+    sample.errorKind,
+    sample.listenerLabel,
+    sample.routeLabel,
+    sample.routeTargetLabel,
+    sample.agentLabel,
+    sample.durationMs.toString(),
+    sample.requestBytes.toString(),
+    sample.responseBytes.toString(),
+  ].join("|");
+}
+
+function sampleRowKey(sample: DashboardDiagnosticsSample): string {
+  return recentSampleRowKeys.value.get(sample) ?? sampleRowBaseKey(sample);
+}
 </script>
 
 <template>
@@ -125,26 +246,24 @@ function toNumber(value: bigint | number): number {
         <p>Proxy outcomes, response distribution, failure dimensions, and recent problem samples.</p>
       </div>
       <div class="header-controls">
-        <div class="window-tabs" role="tablist" aria-label="Diagnostics window">
-          <button
+        <NButtonGroup class="window-tabs" role="tablist" aria-label="Diagnostics window" size="small">
+          <NButton
             v-for="label in windowLabels"
             :key="label"
-            type="button"
+            attr-type="button"
             role="tab"
             :aria-selected="selectedWindowLabel === label"
-            :class="{ active: selectedWindowLabel === label }"
+            :type="selectedWindowLabel === label ? 'primary' : 'default'"
             @click="selectedWindowLabel = label"
           >
             {{ label }}
-          </button>
-        </div>
-        <select v-model.number="sampleLimit" class="sample-select" aria-label="Sample limit">
-          <option v-for="option in sampleOptions" :key="option" :value="option">{{ option }} samples</option>
-        </select>
+          </NButton>
+        </NButtonGroup>
+        <NSelect v-model:value="sampleLimit" class="sample-select" size="small" aria-label="Sample limit" :options="sampleSelectOptions" />
       </div>
     </section>
 
-    <section v-if="error" class="diagnostics-error">{{ error }}</section>
+    <NAlert v-if="error" type="error" :show-icon="false">{{ error }}</NAlert>
 
     <section class="summary-strip" :class="{ loading: isLoading }">
       <div class="summary-item">
@@ -198,7 +317,7 @@ function toNumber(value: bigint | number): number {
           </div>
         </div>
       </div>
-      <div v-else class="empty-state">No status codes in this window.</div>
+      <NEmpty v-else size="small" description="No status codes in this window." />
     </section>
 
     <section class="breakdown-grid">
@@ -216,58 +335,30 @@ function toNumber(value: bigint | number): number {
             </div>
           </div>
         </div>
-        <div v-else class="empty-state compact">{{ section.empty }}</div>
+        <NEmpty v-else size="small" class="panel-empty panel-empty--compact" :description="section.empty" />
       </div>
     </section>
 
-    <section class="diagnostics-panel">
+    <section class="diagnostics-panel diagnostics-panel--table">
       <div class="panel-heading">
         <div>
           <h4>Recent Samples</h4>
           <p>Newest non-success responses and proxy/internal failures.</p>
         </div>
       </div>
-      <div class="table-scroll">
-        <table class="samples-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Request</th>
-              <th>Path prefix</th>
-              <th>Status</th>
-              <th>Error kind</th>
-              <th>Listener</th>
-              <th>Route</th>
-              <th>Target</th>
-              <th>Agent</th>
-              <th>Duration</th>
-              <th>Down</th>
-              <th>Up</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="sample in diagnostics?.recentSamples ?? []" :key="`${sample.occurredAtUnixMillis.toString()}-${sample.statusCode.toString()}-${sample.errorKind}`">
-              <td>{{ formatSampleTime(sample.occurredAtUnixMillis) }}</td>
-              <td class="name-cell" :title="sampleContext(sample)">{{ sampleContext(sample) }}</td>
-              <td class="name-cell" :title="formatPathPrefix(sample.pathPrefix)">{{ formatPathPrefix(sample.pathPrefix) }}</td>
-              <td>
-                <span class="status-pill" :class="`tone-${statusTone(sample.statusCode)}`">{{ sampleStatusLabel(sample) }}</span>
-              </td>
-              <td class="name-cell" :title="sample.errorKind || '-'">{{ sample.errorKind || "-" }}</td>
-              <td class="name-cell" :title="sample.listenerLabel || '-'">{{ sample.listenerLabel || "-" }}</td>
-              <td class="name-cell" :title="sample.routeLabel || '-'">{{ sample.routeLabel || "-" }}</td>
-              <td class="name-cell" :title="sample.routeTargetLabel || '-'">{{ sample.routeTargetLabel || "-" }}</td>
-              <td class="name-cell" :title="sample.agentLabel || '-'">{{ sample.agentLabel || "-" }}</td>
-              <td>{{ formatDuration(sample.durationMs) }}</td>
-              <td>{{ formatBytes(sample.responseBytes) }}</td>
-              <td>{{ formatBytes(sample.requestBytes) }}</td>
-            </tr>
-            <tr v-if="!(diagnostics?.recentSamples ?? []).length">
-              <td colspan="12" class="empty-row">No recent problem samples in this window.</td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-if="recentSamples.length" class="diagnostics-table-shell">
+        <NDataTable
+          :columns="sampleColumns"
+          :data="recentSamples"
+          :row-key="sampleRowKey"
+          :pagination="false"
+          :bordered="false"
+          :single-line="false"
+          :scroll-x="1530"
+          size="small"
+        />
       </div>
+      <NEmpty v-else size="small" description="No recent problem samples in this window." />
     </section>
   </div>
 </template>
@@ -279,14 +370,18 @@ function toNumber(value: bigint | number): number {
 }
 
 .diagnostics-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  justify-content: space-between;
   gap: 1rem;
 }
 
+.diagnostics-header > div:first-child {
+  min-width: 0;
+}
+
 .diagnostics-header h3 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -294,67 +389,33 @@ function toNumber(value: bigint | number): number {
 
 .diagnostics-header p,
 .panel-heading p {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.82rem;
 }
 
 .header-controls {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: end;
+  display: grid;
+  grid-template-columns: auto 14rem;
+  align-items: center;
   gap: 0.5rem;
+  justify-content: end;
 }
 
 .window-tabs {
-  display: inline-grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid #333;
-  border-radius: 6px;
-  background: #050505;
-  padding: 0.2rem;
+  min-width: 15rem;
 }
 
-.window-tabs button {
+.window-tabs :deep(.n-button) {
   min-width: 0;
   height: 2rem;
-  border-radius: 4px;
-  color: #888;
   font-size: 0.78rem;
   font-weight: 650;
   letter-spacing: 0;
   padding: 0 0.75rem;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.window-tabs button:hover {
-  background: #111;
-  color: #fff;
-}
-
-.window-tabs button.active {
-  background: #fff;
-  color: #000;
 }
 
 .sample-select {
-  height: 2.4rem;
-  border: 1px solid #333;
-  border-radius: 6px;
-  background: #050505;
-  color: #ededed;
-  font-size: 0.8rem;
-  outline: none;
-  padding: 0 0.6rem;
-}
-
-.diagnostics-error {
-  border: 1px solid rgb(239 68 68 / 45%);
-  border-radius: 6px;
-  background: #000;
-  color: #fca5a5;
-  font-size: 0.85rem;
-  padding: 0.85rem 1rem;
+  width: 14rem;
 }
 
 .summary-strip,
@@ -374,9 +435,9 @@ function toNumber(value: bigint | number): number {
 .summary-item,
 .diagnostics-panel {
   min-width: 0;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #000;
+  background: var(--app-panel-muted);
 }
 
 .summary-item {
@@ -386,7 +447,7 @@ function toNumber(value: bigint | number): number {
 }
 
 .summary-item span {
-  color: #888;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -394,14 +455,14 @@ function toNumber(value: bigint | number): number {
 }
 
 .summary-item strong {
-  color: #fff;
+  color: var(--app-text);
   font-size: 1.25rem;
   font-weight: 700;
 }
 
 .summary-item small {
   overflow: hidden;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -411,6 +472,10 @@ function toNumber(value: bigint | number): number {
   display: grid;
   gap: 1rem;
   padding: 1rem;
+}
+
+.diagnostics-panel--table {
+  overflow: hidden;
 }
 
 .panel-heading {
@@ -425,7 +490,7 @@ function toNumber(value: bigint | number): number {
 }
 
 .panel-heading h4 {
-  color: #fff;
+  color: var(--app-text);
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -442,7 +507,7 @@ function toNumber(value: bigint | number): number {
   grid-template-columns: 8rem minmax(10rem, 1fr);
   gap: 0.55rem 0.75rem;
   align-items: center;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding-top: 0.65rem;
 }
 
@@ -454,7 +519,7 @@ function toNumber(value: bigint | number): number {
 }
 
 .status-label strong {
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.9rem;
   font-weight: 700;
 }
@@ -462,9 +527,9 @@ function toNumber(value: bigint | number): number {
 .status-bar-track {
   overflow: hidden;
   height: 0.65rem;
-  border: 1px solid #222;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #050505;
+  background: var(--app-panel-muted);
 }
 
 .status-bar {
@@ -477,7 +542,7 @@ function toNumber(value: bigint | number): number {
   grid-column: 2;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.74rem;
 }
 
@@ -494,42 +559,42 @@ function toNumber(value: bigint | number): number {
   height: 1.45rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #080808;
-  color: #d4d4d8;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
   font-size: 0.72rem;
   font-weight: 750;
 }
 
 .tone-success {
-  background: #22c55e;
-  border-color: #22c55e;
-  color: #03130a;
+  background: var(--app-success);
+  border-color: var(--app-success);
+  color: white;
 }
 
 .tone-redirect {
-  background: #38bdf8;
-  border-color: #38bdf8;
-  color: #03111a;
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+  color: white;
 }
 
 .tone-client-error {
-  background: #f59e0b;
-  border-color: #f59e0b;
-  color: #1f1300;
+  background: var(--app-warning);
+  border-color: var(--app-warning);
+  color: white;
 }
 
 .tone-server-error {
-  background: #ef4444;
-  border-color: #ef4444;
-  color: #210505;
+  background: var(--app-error);
+  border-color: var(--app-error);
+  color: white;
 }
 
 .tone-neutral {
-  background: #d4d4d8;
-  border-color: #d4d4d8;
-  color: #09090b;
+  background: var(--app-border-subtle);
+  border-color: var(--app-border);
+  color: var(--app-text);
 }
 
 .breakdown-grid {
@@ -539,14 +604,14 @@ function toNumber(value: bigint | number): number {
 .dimension-row {
   display: grid;
   gap: 0.35rem;
-  border-top: 1px solid #222;
+  border-top: 1px solid var(--app-border);
   padding-top: 0.55rem;
 }
 
 .dimension-name {
   min-width: 0;
   overflow: hidden;
-  color: #ededed;
+  color: var(--app-text);
   font-size: 0.82rem;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -557,7 +622,7 @@ function toNumber(value: bigint | number): number {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
-  color: #777;
+  color: var(--app-text-muted);
   font-size: 0.72rem;
 }
 
@@ -567,79 +632,19 @@ function toNumber(value: bigint | number): number {
   white-space: nowrap;
 }
 
-.table-scroll {
+.diagnostics-table-shell {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   overflow-x: auto;
 }
 
-.samples-table {
-  width: 100%;
-  min-width: 1120px;
-  border-collapse: collapse;
-  font-size: 0.78rem;
+.diagnostics-table-shell :deep(.n-data-table) {
+  min-width: 0;
 }
 
-.samples-table th,
-.samples-table td {
-  border-top: 1px solid #222;
-  padding: 0.65rem 0.5rem;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.samples-table th {
-  color: #777;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.samples-table td {
-  color: #d4d4d8;
-}
-
-.samples-table th:first-child,
-.samples-table td:first-child,
-.samples-table th:nth-child(2),
-.samples-table td:nth-child(2),
-.samples-table th:nth-child(3),
-.samples-table td:nth-child(3),
-.samples-table th:nth-child(5),
-.samples-table td:nth-child(5),
-.samples-table th:nth-child(6),
-.samples-table td:nth-child(6),
-.samples-table th:nth-child(7),
-.samples-table td:nth-child(7),
-.samples-table th:nth-child(8),
-.samples-table td:nth-child(8),
-.samples-table th:nth-child(9),
-.samples-table td:nth-child(9) {
-  text-align: left;
-}
-
-.name-cell {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.empty-state,
-.empty-row {
-  color: #777;
-  font-size: 0.82rem;
-}
-
-.empty-state {
-  border-top: 1px solid #222;
-  padding-top: 0.7rem;
-}
-
-.empty-state.compact {
-  font-size: 0.78rem;
-}
-
-.empty-row {
-  text-align: center !important;
+.panel-empty {
+  align-self: start;
 }
 
 @media (min-width: 640px) {
@@ -664,17 +669,19 @@ function toNumber(value: bigint | number): number {
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 860px) {
   .diagnostics-header {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .header-controls {
+    grid-template-columns: 1fr;
     justify-content: stretch;
   }
 
   .window-tabs {
+    min-width: 0;
     width: 100%;
   }
 

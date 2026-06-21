@@ -72,7 +72,7 @@ test.describe("docs screenshots", () => {
       upstream = await startFixtureUpstream();
 
       await page.goto(`/?setup_token=${encodeURIComponent(setupToken)}`);
-      await expect(page.getByRole("heading", { name: "Setup Admin" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Setup Admin", exact: true })).toBeVisible();
       await capture(page, "first_login_setup_admin.png");
 
       await authenticate(page, appBaseURL, {
@@ -84,7 +84,7 @@ test.describe("docs screenshots", () => {
       });
 
       await logOut(page);
-      await expect(page.getByRole("heading", { name: "Login" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Login", exact: true })).toBeVisible();
       await capture(page, "login_page.png");
 
       await authenticate(page, appBaseURL, {
@@ -279,7 +279,7 @@ async function openFirstButton(page: Page, buttonName: string, modalTitle: strin
 
 async function openRoute(page: Page, routeText: string) {
   await page.getByText(routeText).first().scrollIntoViewIfNeeded();
-  const routeRow = page.locator(".grid").filter({
+  const routeRow = page.locator('[data-testid^="route-row-"]').filter({
     hasText: routeText,
     has: page.getByRole("button", { name: "Edit route" }),
   }).first();
@@ -290,7 +290,7 @@ async function openRoute(page: Page, routeText: string) {
 
 async function openTemplate(page: Page, templateName: string) {
   await page.getByText(templateName).first().scrollIntoViewIfNeeded();
-  const templateRow = page.locator(".grid").filter({
+  const templateRow = page.locator('[data-testid^="template-row-"]').filter({
     hasText: templateName,
     has: page.getByRole("button", { name: "Edit template" }),
   }).first();
@@ -301,7 +301,7 @@ async function openTemplate(page: Page, templateName: string) {
 
 async function openTlsMapping(page: Page, hostname: string) {
   await page.getByText(hostname).first().scrollIntoViewIfNeeded();
-  const tlsRow = page.locator(".grid").filter({
+  const tlsRow = page.locator('[data-testid^="tls-row-"]').filter({
     hasText: hostname,
     has: page.getByRole("button", { name: "Edit TLS mapping" }),
   }).first();
@@ -311,12 +311,11 @@ async function openTlsMapping(page: Page, hostname: string) {
 }
 
 async function openTraceDetails(page: Page) {
-  const detailsButton = page.getByRole("button", { name: /Open trace details/i }).first();
-  if (await detailsButton.isVisible().catch(() => false)) {
-    await detailsButton.click();
-  } else {
-    const traceRow = page.locator("tbody tr").filter({ hasText: "app.example.test" }).first();
+  const traceRow = page.locator("tbody tr").filter({ hasText: "app.example.test" }).first();
+  if (await traceRow.isVisible().catch(() => false)) {
     await traceRow.click();
+  } else {
+    await page.getByRole("button", { name: /Open trace details/i }).first().click({ force: true });
   }
   await expect(page.getByText("Trace details")).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);

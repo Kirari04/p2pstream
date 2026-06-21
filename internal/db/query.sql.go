@@ -681,10 +681,11 @@ INSERT INTO public_routes (
     redirect_status_code,
     redirect_preserve_path_suffix,
     redirect_preserve_query,
+    path_security_mode,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
 `
 
 type CreatePublicRouteParams struct {
@@ -700,6 +701,7 @@ type CreatePublicRouteParams struct {
 	RedirectStatusCode         int64  `json:"redirect_status_code"`
 	RedirectPreservePathSuffix int64  `json:"redirect_preserve_path_suffix"`
 	RedirectPreserveQuery      int64  `json:"redirect_preserve_query"`
+	PathSecurityMode           string `json:"path_security_mode"`
 	Enabled                    int64  `json:"enabled"`
 }
 
@@ -717,6 +719,7 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		arg.RedirectStatusCode,
 		arg.RedirectPreservePathSuffix,
 		arg.RedirectPreserveQuery,
+		arg.PathSecurityMode,
 		arg.Enabled,
 	)
 	var i PublicRoute
@@ -734,6 +737,7 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.RedirectStatusCode,
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
+		&i.PathSecurityMode,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -2537,7 +2541,7 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 }
 
 const getPublicRoute = `-- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?
 `
@@ -2559,6 +2563,7 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.RedirectStatusCode,
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
+		&i.PathSecurityMode,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -4803,7 +4808,7 @@ func (q *Queries) ListPublicRouteTargetsByRoute(ctx context.Context, routeID int
 }
 
 const listPublicRoutes = `-- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC
 `
@@ -4831,6 +4836,7 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 			&i.RedirectStatusCode,
 			&i.RedirectPreservePathSuffix,
 			&i.RedirectPreserveQuery,
+			&i.PathSecurityMode,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -6814,10 +6820,11 @@ SET listener_id = ?,
     redirect_status_code = ?,
     redirect_preserve_path_suffix = ?,
     redirect_preserve_query = ?,
+    path_security_mode = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, enabled, created_at, updated_at
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
 `
 
 type UpdatePublicRouteParams struct {
@@ -6833,6 +6840,7 @@ type UpdatePublicRouteParams struct {
 	RedirectStatusCode         int64  `json:"redirect_status_code"`
 	RedirectPreservePathSuffix int64  `json:"redirect_preserve_path_suffix"`
 	RedirectPreserveQuery      int64  `json:"redirect_preserve_query"`
+	PathSecurityMode           string `json:"path_security_mode"`
 	Enabled                    int64  `json:"enabled"`
 	ID                         int64  `json:"id"`
 }
@@ -6851,6 +6859,7 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		arg.RedirectStatusCode,
 		arg.RedirectPreservePathSuffix,
 		arg.RedirectPreserveQuery,
+		arg.PathSecurityMode,
 		arg.Enabled,
 		arg.ID,
 	)
@@ -6869,6 +6878,7 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.RedirectStatusCode,
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
+		&i.PathSecurityMode,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -7145,6 +7155,58 @@ func (q *Queries) UpdatePublicTlsCertificateIssueState(ctx context.Context, arg 
 		arg.LastError,
 		arg.IssuedAt,
 		arg.ExpiresAt,
+		arg.NextRenewalAt,
+		arg.LastRenewalAttemptAt,
+		arg.ID,
+	)
+	var i PublicTlsCertificate
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.CertPath,
+		&i.KeyPath,
+		&i.Enabled,
+		&i.Source,
+		&i.AcmeChallengeType,
+		&i.AcmeCa,
+		&i.AcmeEmail,
+		&i.DnsCredentialID,
+		&i.Status,
+		&i.LastError,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.NextRenewalAt,
+		&i.LastRenewalAttemptAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicTlsCertificateRenewalStatus = `-- name: UpdatePublicTlsCertificateRenewalStatus :one
+UPDATE public_tls_certificates
+SET status = ?,
+    last_error = ?,
+    next_renewal_at = ?,
+    last_renewal_attempt_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, acme_challenge_type, acme_ca, acme_email, dns_credential_id, status, last_error, issued_at, expires_at, next_renewal_at, last_renewal_attempt_at, created_at, updated_at
+`
+
+type UpdatePublicTlsCertificateRenewalStatusParams struct {
+	Status               string       `json:"status"`
+	LastError            string       `json:"last_error"`
+	NextRenewalAt        sql.NullTime `json:"next_renewal_at"`
+	LastRenewalAttemptAt sql.NullTime `json:"last_renewal_attempt_at"`
+	ID                   int64        `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTlsCertificateRenewalStatus(ctx context.Context, arg UpdatePublicTlsCertificateRenewalStatusParams) (PublicTlsCertificate, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTlsCertificateRenewalStatus,
+		arg.Status,
+		arg.LastError,
 		arg.NextRenewalAt,
 		arg.LastRenewalAttemptAt,
 		arg.ID,
