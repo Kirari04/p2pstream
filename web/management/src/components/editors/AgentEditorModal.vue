@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import type { ComputedRef } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import { NButton, NCheckbox, NEmpty, NInput, NModal, NTag } from "naive-ui";
+import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import {
@@ -19,7 +19,6 @@ import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -31,8 +30,8 @@ const emit = defineEmits<{
   (event: "saved"): void;
 }>();
 
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const isOpen = ref(false);
 const agents = computed(() => props.config?.agents ?? []);
