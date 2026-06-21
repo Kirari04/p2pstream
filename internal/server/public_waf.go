@@ -172,16 +172,17 @@ type publicWafRuleMutationInput struct {
 }
 
 type publicWAF struct {
-	mu                   sync.Mutex
-	rules                map[int64]*publicWafRuleRuntime
-	cookieSecret         atomic.Value // stores immutable []byte
-	proxyActiveRequests  atomic.Int64
-	captchaHTTPClient    *http.Client
-	captchaVerifyLimiter *publicWafCaptchaVerifyLimiter
-	captchaVerifySlots   chan struct{}
-	cpuSampler           *sysmetrics.ProcessCPUSampler
-	lastCPUSampleAt      time.Time
-	lastCPUPercent       float64
+	mu                      sync.Mutex
+	rules                   map[int64]*publicWafRuleRuntime
+	cookieSecret            atomic.Value // stores immutable []byte
+	proxyActiveRequests     atomic.Int64
+	captchaHTTPClient       *http.Client
+	captchaVerifyLimiter    *publicWafCaptchaVerifyLimiter
+	reservedEndpointLimiter *publicWafReservedEndpointLimiter
+	captchaVerifySlots      chan struct{}
+	cpuSampler              *sysmetrics.ProcessCPUSampler
+	lastCPUSampleAt         time.Time
+	lastCPUPercent          float64
 }
 
 type publicWafRuleRuntime struct {
@@ -216,11 +217,12 @@ type publicWafDecision struct {
 
 func newPublicWAF() *publicWAF {
 	return &publicWAF{
-		rules:                make(map[int64]*publicWafRuleRuntime),
-		captchaHTTPClient:    &http.Client{Timeout: publicWafChallengeTimeoutSeconds * time.Second},
-		captchaVerifyLimiter: newPublicWafCaptchaVerifyLimiter(),
-		captchaVerifySlots:   make(chan struct{}, publicWafCaptchaVerifyMaxConcurrentCalls),
-		cpuSampler:           sysmetrics.NewProcessCPUSampler(),
+		rules:                   make(map[int64]*publicWafRuleRuntime),
+		captchaHTTPClient:       &http.Client{Timeout: publicWafChallengeTimeoutSeconds * time.Second},
+		captchaVerifyLimiter:    newPublicWafCaptchaVerifyLimiter(),
+		reservedEndpointLimiter: newPublicWafReservedEndpointLimiter(),
+		captchaVerifySlots:      make(chan struct{}, publicWafCaptchaVerifyMaxConcurrentCalls),
+		cpuSampler:              sysmetrics.NewProcessCPUSampler(),
 	}
 }
 

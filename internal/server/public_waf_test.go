@@ -460,6 +460,143 @@ func TestPublicWafCaptchaVerifyThrottlesBeforeProviderCall(t *testing.T) {
 	}
 }
 
+func TestPublicWafReservedCaptchaVerifyRateLimitedBeforeProviderCall(t *testing.T) {
+	app, handler, rule, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+	app.PublicWAF.captchaVerifyLimiter = nil
+	challenge := testCaptchaChallenge(t, app, rule, "example.com", "/private")
+	form := captchaVerifyForm(rule.ID, "/private", challenge, "bad-token")
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		handler(resp, newCaptchaVerifyRequest("example.com", form))
+		if resp.Code != http.StatusForbidden {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusForbidden)
+		}
+	}
+	if got := calls.Load(); got != publicWafReservedEndpointIPLimit {
+		t.Fatalf("provider calls = %d, want %d", got, publicWafReservedEndpointIPLimit)
+	}
+
+	resp := httptest.NewRecorder()
+	handler(resp, newCaptchaVerifyRequest("example.com", form))
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if retryAfter := resp.Header().Get("Retry-After"); retryAfter == "" {
+		t.Fatal("missing Retry-After on reserved endpoint rate limit")
+	}
+	if got := calls.Load(); got != publicWafReservedEndpointIPLimit {
+		t.Fatalf("provider calls after reserved throttle = %d, want %d", got, publicWafReservedEndpointIPLimit)
+	}
+}
+
+func TestPublicWafReservedCaptchaVerifyMalformedRequestsRateLimitedBeforeParse(t *testing.T) {
+	_, handler, _, calls := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		req := malformedCaptchaVerifyRequest("example.com")
+		handler(resp, req)
+		if resp.Code != http.StatusBadRequest {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusBadRequest)
+		}
+	}
+
+	resp := httptest.NewRecorder()
+	handler(resp, malformedCaptchaVerifyRequest("example.com"))
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if retryAfter := resp.Header().Get("Retry-After"); retryAfter == "" {
+		t.Fatal("missing Retry-After on malformed reserved endpoint rate limit")
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("provider calls = %d, want 0", got)
+	}
+}
+
+func TestPublicWafReservedLimiterUsesRemoteAddrNotForwardedFor(t *testing.T) {
+	_, handler, _, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	})
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		req := malformedCaptchaVerifyRequest("example.com")
+		req.Header.Set("X-Forwarded-For", "203.0.113."+strconv.Itoa(i+1))
+		handler(resp, req)
+		if resp.Code != http.StatusBadRequest {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusBadRequest)
+		}
+	}
+
+	resp := httptest.NewRecorder()
+	req := malformedCaptchaVerifyRequest("example.com")
+	req.Header.Set("X-Forwarded-For", "203.0.113.200")
+	handler(resp, req)
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+}
+
+func TestPublicWafReservedWaitingRoomStatusRateLimited(t *testing.T) {
+	app := NewApp(nil, nil)
+	rule := testWafRule(1, publicWafActionWaitingRoom)
+	snap := testWafSnapshot(rule, nil)
+	app.proxyMu.Lock()
+	app.publicSnapshot = snap
+	app.proxyMu.Unlock()
+	app.PublicWAF.reconcile(snap)
+	handler := app.publicProxyHandler(1)
+
+	for i := 0; i < publicWafReservedEndpointIPLimit; i++ {
+		resp := httptest.NewRecorder()
+		handler(resp, newWaitingRoomStatusRequest("example.com", rule.ID))
+		if resp.Code != http.StatusServiceUnavailable {
+			t.Fatalf("attempt %d status = %d, want %d", i+1, resp.Code, http.StatusServiceUnavailable)
+		}
+	}
+
+	resp := httptest.NewRecorder()
+	handler(resp, newWaitingRoomStatusRequest("example.com", rule.ID))
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("throttled status = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if retryAfter := resp.Header().Get("Retry-After"); retryAfter == "" {
+		t.Fatal("missing Retry-After on waiting-room reserved endpoint rate limit")
+	}
+}
+
+func TestPublicWafReservedWaitingRoomStatusSkipsAggregatePathLimit(t *testing.T) {
+	limiter := newPublicWafReservedEndpointLimiter()
+	now := time.Unix(100, 0)
+	for i := 0; i < publicWafReservedEndpointPathLimit+1; i++ {
+		retryAfter, allowed := limiter.allow(1, publicWafWaitingRoomStatusPath, "client-"+strconv.Itoa(i), now)
+		if !allowed {
+			t.Fatalf("status poll %d was aggregate limited with retryAfter=%v", i+1, retryAfter)
+		}
+	}
+
+	entryLimiter := newPublicWafReservedEndpointLimiter()
+	for i := 0; i < publicWafReservedEndpointPathLimit; i++ {
+		retryAfter, allowed := entryLimiter.allow(1, publicWafWaitingRoomPath, "client-"+strconv.Itoa(i), now)
+		if !allowed {
+			t.Fatalf("entry request %d was limited early with retryAfter=%v", i+1, retryAfter)
+		}
+	}
+	retryAfter, allowed := entryLimiter.allow(1, publicWafWaitingRoomPath, "client-over-limit", now)
+	if allowed {
+		t.Fatal("waiting-room entry path was not aggregate limited")
+	}
+	if retryAfter <= 0 {
+		t.Fatalf("entry path retryAfter = %v, want positive duration", retryAfter)
+	}
+}
+
 func TestPublicWafCaptchaVerifySuccessSetsCookieAndRedirects(t *testing.T) {
 	app, handler, rule, _ := newTestCaptchaVerifyApp(t, func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -1332,6 +1469,19 @@ func captchaVerifyForm(ruleID int64, returnTo string, challenge string, token st
 func newCaptchaVerifyRequest(host string, form url.Values) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "http://"+host+publicWafCaptchaVerifyPath, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "198.51.100.9:12345"
+	return req
+}
+
+func malformedCaptchaVerifyRequest(host string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "http://"+host+publicWafCaptchaVerifyPath, strings.NewReader("%"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "198.51.100.9:12345"
+	return req
+}
+
+func newWaitingRoomStatusRequest(host string, ruleID int64) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "http://"+host+publicWafWaitingRoomStatusPath+"?rule_id="+strconv.FormatInt(ruleID, 10), nil)
 	req.RemoteAddr = "198.51.100.9:12345"
 	return req
 }

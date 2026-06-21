@@ -49,6 +49,12 @@ const (
 	publicWafCaptchaVerifyIdleTTL            = 15 * time.Minute
 	publicWafCaptchaVerifyPruneInterval      = time.Minute
 	publicWafCaptchaVerifyMaxConcurrentCalls = 32
+	publicWafReservedEndpointWindow          = time.Minute
+	publicWafReservedEndpointIPLimit         = 60
+	publicWafReservedEndpointPathLimit       = 1200
+	publicWafReservedEndpointMaxKeys         = publicWafCaptchaVerifyMaxKeys
+	publicWafReservedEndpointIdleTTL         = publicWafCaptchaVerifyIdleTTL
+	publicWafReservedEndpointPruneInterval   = publicWafCaptchaVerifyPruneInterval
 )
 
 var publicWafCaptchaVerifyEndpoints = map[string]string{
@@ -70,6 +76,9 @@ func (a *App) servePublicWAFReserved(w http.ResponseWriter, r *http.Request, lis
 	if !isPublicWAFReservedPath(r.URL.Path) {
 		return publicWafDecision{}, false
 	}
+	if decision, limited := a.rateLimitPublicWAFReservedEndpoint(w, r, listenerID); limited {
+		return decision, true
+	}
 	switch r.URL.Path {
 	case publicWafCaptchaVerifyPath:
 		return a.servePublicWAFCaptchaVerify(w, r, listenerID), true
@@ -79,6 +88,42 @@ func (a *App) servePublicWAFReserved(w http.ResponseWriter, r *http.Request, lis
 		http.NotFound(w, r)
 		return publicWafDecision{StatusCode: http.StatusNotFound, ErrorKind: "waf_reserved_not_found"}, true
 	}
+}
+
+func (a *App) rateLimitPublicWAFReservedEndpoint(w http.ResponseWriter, r *http.Request, listenerID int64) (publicWafDecision, bool) {
+	if a == nil || a.PublicWAF == nil || a.PublicWAF.reservedEndpointLimiter == nil {
+		return publicWafDecision{}, false
+	}
+	path := ""
+	if r != nil && r.URL != nil {
+		path = r.URL.Path
+	}
+	retryAfter, allowed := a.PublicWAF.reservedEndpointLimiter.allow(listenerID, path, remoteIPForRateLimit(r), time.Now())
+	if allowed {
+		return publicWafDecision{}, false
+	}
+	decision := publicWafReservedRateLimitDecision(listenerID, path, retryAfter)
+	w.Header().Set("Retry-After", captchaRetryAfterSeconds(retryAfter))
+	http.Error(w, "WAF reserved endpoint rate limit exceeded", http.StatusTooManyRequests)
+	return decision, true
+}
+
+func publicWafReservedRateLimitDecision(listenerID int64, path string, retryAfter time.Duration) publicWafDecision {
+	decision := publicWafDecision{
+		Listener:   publicListenerConfig{ID: listenerID},
+		StatusCode: http.StatusTooManyRequests,
+		ErrorKind:  "waf_reserved_rate_limited",
+		RetryAfter: retryAfter,
+	}
+	switch path {
+	case publicWafCaptchaVerifyPath:
+		decision.Action = publicWafActionCaptcha
+		decision.ChallengeKind = publicWafActionCaptcha
+	case publicWafWaitingRoomPath, publicWafWaitingRoomStatusPath:
+		decision.Action = publicWafActionWaitingRoom
+		decision.ChallengeKind = publicWafActionWaitingRoom
+	}
+	return decision
 }
 
 func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request, listenerID int64) publicWafDecision {
