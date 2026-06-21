@@ -23,11 +23,11 @@ import {
   targetKey,
   TrafficRequestPathCache,
 } from "@/lib/trafficFlowLayout";
-import { buildTrafficFlowDiagramLayout } from "@/lib/trafficFlowDiagramLayout";
+import { buildTrafficFlowGraph } from "@/lib/trafficFlowGraph";
 import { newTraceRequest } from "@/lib/trafficTraceStore";
 import type { TraceRequest } from "@/types/trafficTrace";
 
-describe("trafficFlowDiagramLayout", () => {
+describe("trafficFlowGraph", () => {
   test("generates listener, route, and target nodes from config", () => {
     const config = configWith({
       listeners: [listener()],
@@ -170,7 +170,7 @@ describe("trafficFlowDiagramLayout", () => {
 function buildLayout(config: GetPublicProxyConfigResponse, requests: TraceRequest[]) {
   const index = createTrafficFlowConfigIndex(config);
   const cache = new TrafficRequestPathCache();
-  return buildTrafficFlowDiagramLayout({
+  return buildTrafficFlowGraph({
     config,
     requests,
     configIndex: index,

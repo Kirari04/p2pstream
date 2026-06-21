@@ -44,7 +44,7 @@ export type DiagramEdge = {
   route: DiagramEdgeRoute;
 };
 
-export type TrafficFlowDiagramLayout = {
+export type TrafficFlowGraph = {
   nodes: DiagramNode[];
   nodeByKey: Map<string, DiagramNode>;
   edges: DiagramEdge[];

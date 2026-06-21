@@ -44,7 +44,7 @@ import {
   type DiagramNodeInput,
   type EdgeRouteGeometry,
   type Point,
-  type TrafficFlowDiagramLayout,
+  type TrafficFlowGraph,
   type TrafficNodeKind,
   type VisualTokenCacheTone,
 } from "@/lib/trafficFlowModel";
@@ -61,12 +61,12 @@ import {
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRequest } from "@/types/trafficTrace";
 
-export function buildTrafficFlowDiagramLayout(input: {
+export function buildTrafficFlowGraph(input: {
   config: GetPublicProxyConfigResponse | null;
   requests: readonly TraceRequest[];
   configIndex: TrafficFlowConfigIndex;
   requestPath: (request: TraceRequest) => TrafficRequestPathCacheEntry;
-}): TrafficFlowDiagramLayout {
+}): TrafficFlowGraph {
   const nodes = new Map<string, Omit<DiagramNode, "x" | "y">>();
   const edges: DiagramEdge[] = [];
 
@@ -324,7 +324,7 @@ export function buildTrafficFlowDiagramLayout(input: {
   return { nodes: positioned, nodeByKey, edges: uniqueEdges };
 }
 
-export function buildTrafficFlowEdgeRoutes(layout: TrafficFlowDiagramLayout): Map<string, EdgeRouteGeometry> {
+export function buildTrafficFlowEdgeRoutes(layout: TrafficFlowGraph): Map<string, EdgeRouteGeometry> {
   const routes = new Map<string, EdgeRouteGeometry>();
   for (const edge of layout.edges) {
     const sourceNode = layout.nodeByKey.get(edge.from);
@@ -581,7 +581,7 @@ function buildDefaultBezierRoute(edge: DiagramEdge, source: Point, target: Point
   ]);
 }
 
-function bypassBoundsForEdge(layout: TrafficFlowDiagramLayout, edge: DiagramEdge): Bounds | null {
+function bypassBoundsForEdge(layout: TrafficFlowGraph, edge: DiagramEdge): Bounds | null {
   if (edge.route === "agent-bypass") {
     return boundsForNodes(layout.nodes.filter((node) => node.kind === "agent" && node.key !== edge.from && node.key !== edge.to));
   }

@@ -21,7 +21,7 @@ import {
   type TrafficRequestPathCacheEntry,
 } from "@/lib/trafficFlowLayout";
 import {
-  buildTrafficFlowDiagramLayout,
+  buildTrafficFlowGraph,
   buildTrafficFlowEdgeRoutes,
   cacheStatusForTone,
   cacheTonePriority,
@@ -29,7 +29,7 @@ import {
   nodeBounds,
   pointInsideBounds,
   routeToMotionPoints,
-} from "@/lib/trafficFlowDiagramLayout";
+} from "@/lib/trafficFlowGraph";
 import {
   activeVisualTokens,
   advanceVisualToken,
@@ -107,7 +107,7 @@ let rafId: number | null = null;
 let didInitialFit = false;
 let frameStressState = resetFrameStressState();
 
-const layout = computed(() => buildTrafficFlowDiagramLayout({
+const layout = computed(() => buildTrafficFlowGraph({
   config: props.config,
   requests: props.requests,
   configIndex: configIndex.value,

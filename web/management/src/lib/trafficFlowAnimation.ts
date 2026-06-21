@@ -1,5 +1,5 @@
 import { isTerminalTraceRequest, requestUsesCacheNode, type TrafficFlowConfigIndex, type TrafficRequestPathCacheEntry } from "@/lib/trafficFlowLayout";
-import { cacheToneForRequest } from "@/lib/trafficFlowDiagramLayout";
+import { cacheToneForRequest } from "@/lib/trafficFlowGraph";
 import {
   BASE_PLAYBACK_MS,
   COMPLETION_FADE_MS,
@@ -82,6 +82,7 @@ export function createVisualToken(input: {
   };
 }
 
+// Mutates input.token in place; this runs in the animation hot path.
 export function updateVisualToken(input: {
   token: VisualToken;
   request: TraceRequest;
@@ -102,6 +103,7 @@ export function updateVisualToken(input: {
   input.token.cacheTone = cacheToneForRequest(input.request);
 }
 
+// Mutates token in place; callers should not treat this helper as pure.
 export function advanceVisualToken(token: VisualToken, now: number) {
   if (token.finishedAt !== null) {
     token.updatedAt = now;
