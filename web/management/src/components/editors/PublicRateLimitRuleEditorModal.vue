@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import type { ComputedRef } from "vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
+import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicRateLimitPreview from "@/components/editors/PublicRateLimitPreview.vue";
@@ -27,7 +27,6 @@ import {
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type KeyPartForm = {
   source: PublicRateLimitKeySource;
   name: string;
@@ -45,8 +44,8 @@ const emit = defineEmits<{
   (event: "saved"): void;
 }>();
 
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const isOpen = ref(false);
 const rules = computed(() => props.config?.rateLimitRules ?? []);
