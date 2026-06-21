@@ -35,6 +35,17 @@ func protoRouteRedirectTargetModeFromString(mode string) p2pstreamv1.PublicRoute
 	}
 }
 
+func protoRoutePathSecurityModeFromString(mode string) p2pstreamv1.PublicRoutePathSecurityMode {
+	switch normalizePublicRoutePathSecurityMode(mode) {
+	case publicRoutePathSecurityModeAllowEncodedSeparators:
+		return p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_ALLOW_ENCODED_SEPARATORS
+	case publicRoutePathSecurityModeStrict:
+		return p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_STRICT
+	default:
+		return p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_UNSPECIFIED
+	}
+}
+
 func protoLoadBalancingFromString(loadBalancing string) p2pstreamv1.PublicRouteTargetLoadBalancing {
 	switch normalizePublicRouteTargetLoadBalancing(loadBalancing) {
 	case publicRouteTargetLoadBalancingWeightedRoundRobin:
@@ -427,6 +438,7 @@ func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, up
 		RedirectStatusCode:         route.RedirectStatusCode,
 		RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
 		RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
+		PathSecurityMode:           protoRoutePathSecurityModeFromString(route.PathSecurityMode),
 	}
 }
 

@@ -21,6 +21,7 @@ import {
   PublicRouteTargetLoadBalancing,
   PublicResponseBodyMode,
   PublicRouteAction,
+  PublicRoutePathSecurityMode,
   PublicRouteRedirectTargetMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
@@ -87,6 +88,10 @@ const redirectTargetModeOptions = [
   { label: "External origin", value: PublicRouteRedirectTargetMode.EXTERNAL_ORIGIN_KEEP_PATH },
   { label: "Absolute URL", value: PublicRouteRedirectTargetMode.ABSOLUTE_URL },
 ];
+const pathSecurityModeOptions = [
+  { label: "Strict", value: PublicRoutePathSecurityMode.STRICT },
+  { label: "Allow encoded separators", value: PublicRoutePathSecurityMode.ALLOW_ENCODED_SEPARATORS },
+];
 const targetTransportOptions = [
   { label: "Direct", value: PublicRouteTargetTransport.DIRECT },
   { label: "Agent", value: PublicRouteTargetTransport.AGENT },
@@ -112,6 +117,7 @@ const routeForm = reactive({
   priority: 100,
   hostPattern: "",
   pathPrefix: "",
+  pathSecurityMode: PublicRoutePathSecurityMode.STRICT,
   targetLoadBalancing: PublicRouteTargetLoadBalancing.ROUND_ROBIN,
   isDefault: false,
   targets: [] as TargetForm[],
@@ -185,6 +191,7 @@ function resetForm() {
   routeForm.priority = 100;
   routeForm.hostPattern = "";
   routeForm.pathPrefix = "";
+  routeForm.pathSecurityMode = PublicRoutePathSecurityMode.STRICT;
   routeForm.targetLoadBalancing = PublicRouteTargetLoadBalancing.ROUND_ROBIN;
   routeForm.isDefault = false;
   routeForm.targets = [defaultTarget(0)];
@@ -226,6 +233,7 @@ function populateRouteForm(route: PublicRoute, mode: "edit" | "clone") {
   routeForm.priority = Number(route.priority);
   routeForm.hostPattern = route.hostPattern;
   routeForm.pathPrefix = route.pathPrefix;
+  routeForm.pathSecurityMode = route.pathSecurityMode || PublicRoutePathSecurityMode.STRICT;
   routeForm.targetLoadBalancing = route.targetLoadBalancing || PublicRouteTargetLoadBalancing.ROUND_ROBIN;
   routeForm.isDefault = route.isDefault;
   routeForm.targets = action === PublicRouteAction.REDIRECT ? [] : route.targets.map(targetFormFromProto);
@@ -394,6 +402,7 @@ async function submitRoute() {
       priority: BigInt(routeForm.priority),
       hostPattern: routeForm.hostPattern,
       pathPrefix: routeForm.pathPrefix,
+      pathSecurityMode: routeForm.pathSecurityMode,
       action: routeForm.action,
       targetLoadBalancing: isRedirect ? PublicRouteTargetLoadBalancing.ROUND_ROBIN : routeForm.targetLoadBalancing,
       isDefault: routeForm.isDefault,
@@ -468,6 +477,11 @@ defineExpose({ openCreate, openEdit, openClone, close });
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Path prefix
           <NInput v-model:value="routeForm.pathPrefix" size="small" placeholder="/" />
+        </label>
+        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          Path security
+          <NSelect v-model:value="routeForm.pathSecurityMode" size="small" :options="pathSecurityModeOptions" />
+          <span class="normal-case tracking-normal">Compatibility mode is for upstreams that require encoded / or \ path identifiers.</span>
         </label>
         <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
           Target balancing

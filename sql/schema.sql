@@ -201,6 +201,7 @@ CREATE TABLE IF NOT EXISTS public_routes (
     redirect_status_code INTEGER NOT NULL DEFAULT 302,
     redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
     redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+    path_security_mode TEXT NOT NULL DEFAULT 'strict',
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

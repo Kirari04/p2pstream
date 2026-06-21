@@ -32,14 +32,17 @@ Understand the architecture when choosing between direct targets and agent targe
 Direct target flow:
 
 1. A client connects to a public listener.
-2. ACME HTTP challenges and reserved WAF endpoints are handled before normal policy evaluation.
-3. WAF rules may block, require captcha, or place the visitor in a waiting room.
-4. Rate limit rules run before route resolution.
-5. A traffic shaper may wrap upload/download body streams.
-6. The router selects a route target, or a listener default route target if no explicit route matches.
-7. Cache rules can serve eligible proxy assets after route/target selection.
-8. The server forwards directly to the upstream origin or returns a redirect/static response.
-9. Observability records status, duration, policy IDs, listener/route/target IDs, agent ID, and byte counts.
+2. Globally invalid paths, ACME HTTP challenges, and reserved WAF endpoints are handled before normal policy evaluation.
+3. p2pstream performs a route-only match to enforce the matched route's path security mode.
+4. WAF rules may block, require captcha, or place the visitor in a waiting room.
+5. Rate limit rules run before route resolution.
+6. A traffic shaper may wrap upload/download body streams.
+7. The router selects a route target, or a listener default route target if no explicit route matches.
+8. Cache rules can serve eligible proxy assets after route/target selection.
+9. The server forwards directly to the upstream origin or returns a redirect/static response.
+10. Observability records status, duration, policy IDs, listener/route/target IDs, agent ID, and byte counts.
+
+The early route-only match is used for path security mode, including strict rejection of encoded path separators by default. Target selection and load-balancer state changes still happen later, after WAF, rate limits, and traffic shapers.
 
 Agent target flow:
 

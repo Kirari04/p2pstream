@@ -12,6 +12,7 @@ import (
 )
 
 // defaultWelcomeBody is embedded seed content and is not mutated at runtime.
+//
 //go:embed templates/default_welcome.html
 var defaultWelcomeBody string
 
@@ -69,6 +70,7 @@ func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 			RedirectStatusCode:         defaultRedirectStatusCode,
 			RedirectPreservePathSuffix: 1,
 			RedirectPreserveQuery:      1,
+			PathSecurityMode:           publicRoutePathSecurityModeStrict,
 			Enabled:                    1,
 		})
 		if err != nil {

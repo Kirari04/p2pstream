@@ -186,7 +186,7 @@ The target response-header timeout limits only the wait for first upstream heade
 
 | Cause | Fix |
 | --- | --- |
-| p2pstream sees one proxy IP | Add better key parts or place p2pstream at the edge. |
+| p2pstream sees one proxy IP | Place p2pstream at the edge, use `REMOTE_IP` when it reflects the client, or add host/path/method/application-header key parts. Do not key on client-supplied forwarding headers. |
 | Rule too broad | Add host/path/method matchers. |
 | Priority conflict | Move specific rules to lower priority numbers. |
 
@@ -198,7 +198,7 @@ The target response-header timeout limits only the wait for first upstream heade
 | Priority conflict | Lower priority numbers win. Adjust priorities or matches. |
 | Captcha provider unavailable | Confirm the provider is enabled and site key/secret key match upstream configuration. |
 | Waiting room stays active | Check trigger thresholds, active request counts, server CPU, and agent CPU in the dashboard. Use `0` to disable an automatic signal. |
-| All clients share one queue identity | Add key parts that identify visitors better than remote IP when behind another proxy. |
+| All clients share one queue identity | Use `REMOTE_IP` when p2pstream sees the client address, or use trusted application-header key parts. Avoid client-controlled forwarding headers; trusted-proxy parsing is not available yet. |
 | Large form or upload must be retried | Captcha and waiting-room admission use `303` redirects and do not replay request bodies. |
 
 ## Trace Stream Reconnects

@@ -333,6 +333,7 @@ func (a *App) validatePublicRouteInput(
 	redirectStatusCode int64,
 	redirectPreservePathSuffix bool,
 	redirectPreserveQuery bool,
+	pathSecurityMode p2pstreamv1.PublicRoutePathSecurityMode,
 ) (db.UpdatePublicRouteParams, []publicRouteTargetMutationInput, error) {
 	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
 		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
@@ -351,6 +352,10 @@ func (a *App) validatePublicRouteInput(
 		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("path prefix must start with /"))
 	}
 	actionString, err := routeActionStringFromProto(action)
+	if err != nil {
+		return db.UpdatePublicRouteParams{}, nil, err
+	}
+	pathSecurityModeString, err := routePathSecurityModeStringFromProto(pathSecurityMode)
 	if err != nil {
 		return db.UpdatePublicRouteParams{}, nil, err
 	}
@@ -401,6 +406,7 @@ func (a *App) validatePublicRouteInput(
 		RedirectStatusCode:         redirectStatusCode,
 		RedirectPreservePathSuffix: boolInt(redirectPreservePathSuffix),
 		RedirectPreserveQuery:      boolInt(redirectPreserveQuery),
+		PathSecurityMode:           pathSecurityModeString,
 		Enabled:                    boolInt(enabled),
 	}, routeTargets, nil
 }
@@ -814,6 +820,29 @@ func normalizePublicRouteRedirectTargetMode(mode string) string {
 		return publicRouteRedirectTargetModeAbsoluteURL
 	default:
 		return strings.TrimSpace(strings.ToLower(mode))
+	}
+}
+
+func normalizePublicRoutePathSecurityMode(mode string) string {
+	switch strings.TrimSpace(strings.ToLower(mode)) {
+	case "", publicRoutePathSecurityModeStrict:
+		return publicRoutePathSecurityModeStrict
+	case publicRoutePathSecurityModeAllowEncodedSeparators:
+		return publicRoutePathSecurityModeAllowEncodedSeparators
+	default:
+		return strings.TrimSpace(strings.ToLower(mode))
+	}
+}
+
+func routePathSecurityModeStringFromProto(mode p2pstreamv1.PublicRoutePathSecurityMode) (string, error) {
+	switch mode {
+	case p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_UNSPECIFIED,
+		p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_STRICT:
+		return publicRoutePathSecurityModeStrict, nil
+	case p2pstreamv1.PublicRoutePathSecurityMode_PUBLIC_ROUTE_PATH_SECURITY_MODE_ALLOW_ENCODED_SEPARATORS:
+		return publicRoutePathSecurityModeAllowEncodedSeparators, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("route path security mode must be strict or allow encoded separators"))
 	}
 }
 

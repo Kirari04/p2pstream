@@ -40,8 +40,10 @@ var disallowedEnvironmentProxyMethods = map[string]struct{}{
 }
 
 type environmentAuthRoundTripper struct {
-	token string
-	next  http.RoundTripper
+	token  string
+	scheme string
+	host   string
+	next   http.RoundTripper
 }
 
 type environmentAgentRoundTripper struct {
@@ -131,12 +133,27 @@ func environmentProxyMethod(procedurePath string) (string, bool) {
 	return method, true
 }
 
+func environmentManagementOrigin(rawURL string) (string, string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", "", errors.New("environment management URL must be an absolute HTTPS URL")
+	}
+	if !strings.EqualFold(parsed.Scheme, "https") {
+		return "", "", errors.New("environment management URL must use HTTPS")
+	}
+	return "https", parsed.Host, nil
+}
+
 func (a *App) environmentHTTPClient(row db.Environment) (*http.Client, error) {
 	if row.Enabled == 0 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("environment is disabled"))
 	}
 	if err := ensureEnvironmentTrusted(row); err != nil {
 		return nil, err
+	}
+	scheme, host, err := environmentManagementOrigin(row.ManagementUrl)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	var rt http.RoundTripper
 	if row.Transport == environmentTransportAgent {
@@ -155,14 +172,24 @@ func (a *App) environmentHTTPClient(row db.Environment) (*http.Client, error) {
 		transport.ResponseHeaderTimeout = environmentResponseHeaderTimeout(row)
 		rt = transport
 	}
-	return &http.Client{Transport: environmentAuthRoundTripper{token: row.AccessToken, next: rt}}, nil
+	return &http.Client{
+		Transport:     environmentAuthRoundTripper{token: row.AccessToken, scheme: scheme, host: host, next: rt},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
+	}, nil
 }
 
 func (rt environmentAuthRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	clone := req.Clone(req.Context())
 	clone.Header.Del("Cookie")
-	clone.Header.Set("Authorization", "Bearer "+rt.token)
-	return rt.next.RoundTrip(clone)
+	clone.Header.Del("Authorization")
+	if clone.URL != nil && strings.EqualFold(clone.URL.Scheme, rt.scheme) && strings.EqualFold(clone.URL.Host, rt.host) {
+		clone.Header.Set("Authorization", "Bearer "+rt.token)
+	}
+	next := rt.next
+	if next == nil {
+		next = http.DefaultTransport
+	}
+	return next.RoundTrip(clone)
 }
 
 func (rt environmentAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {

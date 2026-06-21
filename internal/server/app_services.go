@@ -19,6 +19,7 @@ type appServices struct {
 	agentTransports *agentTransportPool
 	dashboardCache  *dashboardResponseCache
 	loginThrottle   *loginThrottle
+	agentAuthLocks  *agentAuthLockMap
 }
 
 func newAppServices(cfg *config.Config, app *App) appServices {
@@ -34,6 +35,7 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 		agentTransports: newAgentTransportPool(),
 		dashboardCache:  newDashboardResponseCache(),
 		loginThrottle:   newLoginThrottle(cfg.LoginThrottleMaxKeys),
+		agentAuthLocks:  newAgentAuthLockMap(),
 	}
 	services.agentHub.onDisconnect = func(conn *AgentConn) {
 		if app != nil && app.AgentTransports != nil {
@@ -65,4 +67,5 @@ func (a *App) applyServices(services appServices) {
 	a.AgentTransports = services.agentTransports
 	a.DashboardCache = services.dashboardCache
 	a.LoginThrottle = services.loginThrottle
+	a.agentAuthLocks = services.agentAuthLocks
 }

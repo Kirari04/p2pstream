@@ -156,6 +156,9 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 		t.Fatalf("public_listeners still has default_backend_id in %v", listenerColumns)
 	}
 	routeColumns := tableColumns(t, database, "public_routes")
+	if !containsString(routeColumns, "path_security_mode") {
+		t.Fatalf("public_routes missing path_security_mode in %v", routeColumns)
+	}
 	for _, column := range []string{"backend_id", "fallback_backend_id", "load_balancing"} {
 		if containsString(routeColumns, column) {
 			t.Fatalf("public_routes still has %s in %v", column, routeColumns)

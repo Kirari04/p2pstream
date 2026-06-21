@@ -324,6 +324,7 @@ func (s *publicConfigService) createPublicRoute(
 		req.Msg.RedirectStatusCode,
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
+		req.Msg.PathSecurityMode,
 	)
 	if err != nil {
 		return nil, err
@@ -370,6 +371,7 @@ func (s *publicConfigService) updatePublicRoute(
 		req.Msg.RedirectStatusCode,
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
+		req.Msg.PathSecurityMode,
 	)
 	if err != nil {
 		return nil, err
@@ -411,6 +413,7 @@ func (a *App) createPublicRouteWithTargets(
 		RedirectStatusCode:         params.RedirectStatusCode,
 		RedirectPreservePathSuffix: params.RedirectPreservePathSuffix,
 		RedirectPreserveQuery:      params.RedirectPreserveQuery,
+		PathSecurityMode:           params.PathSecurityMode,
 		Enabled:                    params.Enabled,
 	})
 	if err != nil {

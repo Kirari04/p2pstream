@@ -227,6 +227,7 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		redirect_status_code INTEGER NOT NULL DEFAULT 302,
 		redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
 		redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+		path_security_mode TEXT NOT NULL DEFAULT 'strict',
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -566,6 +567,7 @@ func (db *DB) migrateLegacyPublicRoutes() error {
 	if err := db.execLegacyAlterStatements(
 		`ALTER TABLE public_routes ADD COLUMN target_load_balancing TEXT NOT NULL DEFAULT 'round_robin'`,
 		`ALTER TABLE public_routes ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_routes ADD COLUMN path_security_mode TEXT NOT NULL DEFAULT 'strict'`,
 	); err != nil {
 		return err
 	}
@@ -1696,6 +1698,7 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			redirect_status_code INTEGER NOT NULL DEFAULT 302,
 			redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
 			redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+			path_security_mode TEXT NOT NULL DEFAULT 'strict',
 			enabled INTEGER NOT NULL DEFAULT 1,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -1709,6 +1712,10 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			return name
 		}
 		return fallback
+	}
+	pathSecurityModeExpr := "'strict'"
+	if _, ok := columns["path_security_mode"]; ok {
+		pathSecurityModeExpr = "COALESCE(path_security_mode, 'strict')"
 	}
 	copySQL := fmt.Sprintf(`
 		INSERT INTO public_routes_new (
@@ -1728,6 +1735,7 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			redirect_status_code,
 			redirect_preserve_path_suffix,
 			redirect_preserve_query,
+			path_security_mode,
 			enabled,
 			created_at,
 			updated_at
@@ -1739,6 +1747,7 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 			host_pattern,
 			path_prefix,
 			backend_id,
+			%s,
 			%s,
 			%s,
 			%s,
@@ -1764,6 +1773,7 @@ func (db *DB) migratePublicRoutesRedirectSchema() error {
 		columnExpr("redirect_status_code", "302"),
 		columnExpr("redirect_preserve_path_suffix", "1"),
 		columnExpr("redirect_preserve_query", "1"),
+		pathSecurityModeExpr,
 	)
 	if _, err := tx.Exec(copySQL); err != nil {
 		return err
@@ -2584,6 +2594,7 @@ func (db *DB) migrateDropLegacyPublicBackendConfig() error {
 				redirect_status_code INTEGER NOT NULL DEFAULT 302,
 				redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
 				redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
+				path_security_mode TEXT NOT NULL DEFAULT 'strict',
 				enabled INTEGER NOT NULL DEFAULT 1,
 				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 				updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -2596,6 +2607,10 @@ func (db *DB) migrateDropLegacyPublicBackendConfig() error {
 				return name
 			}
 			return fallback
+		}
+		pathSecurityModeExpr := "'strict'"
+		if sqliteColumnExists(routeColumns, "path_security_mode") {
+			pathSecurityModeExpr = "COALESCE(path_security_mode, 'strict')"
 		}
 		copyRoutesSQL := fmt.Sprintf(`
 			INSERT INTO public_routes_new (
@@ -2612,6 +2627,7 @@ func (db *DB) migrateDropLegacyPublicBackendConfig() error {
 				redirect_status_code,
 				redirect_preserve_path_suffix,
 				redirect_preserve_query,
+				path_security_mode,
 				enabled,
 				created_at,
 				updated_at
@@ -2622,6 +2638,7 @@ func (db *DB) migrateDropLegacyPublicBackendConfig() error {
 				priority,
 				host_pattern,
 				path_prefix,
+				%s,
 				%s,
 				%s,
 				%s,
@@ -2643,6 +2660,7 @@ func (db *DB) migrateDropLegacyPublicBackendConfig() error {
 			columnExpr("redirect_status_code", "302"),
 			columnExpr("redirect_preserve_path_suffix", "1"),
 			columnExpr("redirect_preserve_query", "1"),
+			pathSecurityModeExpr,
 		)
 		if _, err := tx.Exec(copyRoutesSQL); err != nil {
 			return err

@@ -172,6 +172,9 @@ func (a *App) RotateAgentToken(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	unlock := a.lockAgentAuth(req.Msg.Id)
+	defer unlock()
+
 	agent, err := a.DB.UpdateAgentToken(ctx, db.UpdateAgentTokenParams{
 		ID:        req.Msg.Id,
 		TokenHash: tokenHash,

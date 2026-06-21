@@ -496,7 +496,7 @@ func validatePublicTrafficShaperRuleInput(
 	}
 	keyPartConfig := []publicRateLimitKeyPartConfig(nil)
 	if scope == publicTrafficShaperBudgetScopePerKey {
-		keyPartConfig, err = validateRateLimitKeyParts(keyParts)
+		keyPartConfig, err = validateRateLimitClientIdentityKeyParts(keyParts)
 		if err != nil {
 			return publicTrafficShaperRuleMutationInput{}, trafficShaperValidationError(err)
 		}
@@ -566,8 +566,12 @@ func publicTrafficShaperRuleRowToConfig(row db.PublicTrafficShaperRule) (publicT
 	}
 	if rule.BudgetScope == publicTrafficShaperBudgetScopePerRequest {
 		rule.KeyParts = nil
-	} else if len(rule.KeyParts) == 0 {
-		rule.KeyParts = []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceRemoteIP}}
+	} else {
+		keyParts, err := validateStoredRateLimitClientIdentityKeyParts(rule.KeyParts)
+		if err != nil {
+			return publicTrafficShaperRuleConfig{}, trafficShaperValidationError(err)
+		}
+		rule.KeyParts = keyParts
 	}
 	rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
 	return rule, nil

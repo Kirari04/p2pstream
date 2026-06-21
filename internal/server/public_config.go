@@ -38,6 +38,8 @@ const (
 	publicRouteRedirectTargetModeSameHostPath                 = "same_host_path"
 	publicRouteRedirectTargetModeExternalOriginKeepPath       = "external_origin_keep_path"
 	publicRouteRedirectTargetModeAbsoluteURL                  = "absolute_url"
+	publicRoutePathSecurityModeStrict                         = "strict"
+	publicRoutePathSecurityModeAllowEncodedSeparators         = "allow_encoded_separators"
 	publicRateLimitAlgorithmFixedWindow                       = "fixed_window"
 	publicRateLimitAlgorithmSlidingWindow                     = "sliding_window"
 	publicRateLimitAlgorithmTokenBucket                       = "token_bucket"

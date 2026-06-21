@@ -67,7 +67,7 @@ Review:
 | --- | --- |
 | Browser UI returns `404` | `MANAGEMENT_UI_DISABLED=true` intentionally disables only the browser UI. |
 | Agents fail after restore | Restore the old management CA or update agent CA material. |
-| Everyone hits one rate-limit bucket | A front proxy may hide client IPs; change key parts. |
+| Everyone hits one rate-limit bucket | A front proxy may hide client IPs; place p2pstream at the edge, use `REMOTE_IP` when possible, or use only trusted application headers. Do not key on client-supplied forwarding headers. |
 | WAF does not stop network saturation | WAF is HTTP-layer only; use upstream DDoS/network protection. |
 
 ## Next Steps

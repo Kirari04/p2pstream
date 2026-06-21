@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -147,6 +148,7 @@ type publicRouteConfig struct {
 	RedirectStatusCode         int64
 	RedirectPreservePathSuffix bool
 	RedirectPreserveQuery      bool
+	PathSecurityMode           string
 	Enabled                    bool
 }
 
@@ -211,6 +213,14 @@ type publicRouteResolution struct {
 	CacheKeyDigest                      string
 	RouteLoadBalancing                  string
 	RouteFallbackSelected               bool
+}
+
+type publicRouteMatch struct {
+	Snapshot     *publicProxySnapshot
+	Listener     publicListenerConfig
+	Route        publicRouteConfig
+	DefaultRoute bool
+	Err          error
 }
 
 type proxyRequestObservability struct {
@@ -499,7 +509,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(proxyReq *httputil.ProxyRequest) {
 			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
-			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In)
+			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In, resolution.Listener)
 			if shaper != nil {
 				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
 			}
@@ -970,7 +980,7 @@ func applyUpstreamTargetRequestConfig(req *http.Request, target publicRouteTarge
 	}
 }
 
-func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request) {
+func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, listener publicListenerConfig) {
 	if outReq == nil {
 		return
 	}
@@ -992,17 +1002,12 @@ func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request) {
 		outReq.Header.Set("X-Forwarded-For", clientIP)
 		outReq.Header.Set("X-Real-IP", clientIP)
 	}
-	if inReq.Host != "" {
-		outReq.Header.Set("X-Forwarded-Host", inReq.Host)
+	if host := normalizeRequestHost(inReq.Host); host != "" {
+		outReq.Header.Set("X-Forwarded-Host", host)
 	}
-	proto := "http"
-	if inReq.TLS != nil {
-		proto = "https"
-	}
+	proto := forwardedProtoForPublicListener(listener)
 	outReq.Header.Set("X-Forwarded-Proto", proto)
-	if port := forwardedPort(inReq.Host, proto); port != "" {
-		outReq.Header.Set("X-Forwarded-Port", port)
-	}
+	outReq.Header.Set("X-Forwarded-Port", forwardedPortForPublicListener(listener, proto))
 }
 
 func remoteAddrIP(remoteAddr string) string {
@@ -1013,31 +1018,48 @@ func remoteAddrIP(remoteAddr string) string {
 	return strings.TrimSpace(remoteAddr)
 }
 
-func forwardedPort(host string, proto string) string {
-	if _, port, err := net.SplitHostPort(host); err == nil {
-		return port
+func forwardedProtoForPublicListener(listener publicListenerConfig) string {
+	if listener.Protocol == publicListenerProtocolHTTPS {
+		return "https"
 	}
-	switch proto {
-	case "https":
+	return "http"
+}
+
+func forwardedPortForProto(proto string) string {
+	if proto == "https" {
 		return "443"
-	default:
-		return "80"
 	}
+	return "80"
+}
+
+func forwardedPortForPublicListener(listener publicListenerConfig, proto string) string {
+	if listener.Port > 0 {
+		return strconv.FormatInt(listener.Port, 10)
+	}
+	return forwardedPortForProto(proto)
 }
 
 func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRouteResolution, error) {
+	match, err := a.matchPublicRoute(listenerID, r)
+	if err != nil {
+		return publicRouteResolution{}, err
+	}
+	return a.resolvePublicRouteFromMatch(match)
+}
+
+func (a *App) matchPublicRoute(listenerID int64, r *http.Request) (publicRouteMatch, error) {
 	host := normalizeRequestHost(r.Host)
 
 	a.proxyMu.Lock()
 	snap := a.publicSnapshot
 	a.proxyMu.Unlock()
 	if snap == nil {
-		return publicRouteResolution{}, errors.New("public proxy config is not loaded")
+		return publicRouteMatch{}, errors.New("public proxy config is not loaded")
 	}
 
 	listener, ok := snap.Listeners[listenerID]
 	if !ok {
-		return publicRouteResolution{}, errors.New("listener not found")
+		return publicRouteMatch{}, errors.New("listener not found")
 	}
 
 	var matchedRoute publicRouteConfig
@@ -1064,12 +1086,29 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 	isDefaultRoute := false
 	if matchedRoute.ID == 0 {
 		if defaultRoute.ID == 0 {
-			return publicRouteResolution{}, errNoPublicRouteAvailable
+			return publicRouteMatch{}, errNoPublicRouteAvailable
 		}
 		matchedRoute = defaultRoute
 		isDefaultRoute = true
 	}
 
+	return publicRouteMatch{
+		Snapshot:     snap,
+		Listener:     listener,
+		Route:        matchedRoute,
+		DefaultRoute: isDefaultRoute,
+	}, nil
+}
+
+func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteResolution, error) {
+	if match.Err != nil {
+		return publicRouteResolution{}, match.Err
+	}
+	if match.Snapshot == nil {
+		return publicRouteResolution{}, errors.New("public proxy config is not loaded")
+	}
+	matchedRoute := match.Route
+	listener := match.Listener
 	routeID := sql.NullInt64{Int64: matchedRoute.ID, Valid: true}
 	action := normalizePublicRouteAction(matchedRoute.Action)
 	if action == publicRouteActionRedirect {
@@ -1077,12 +1116,12 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 			Listener:     listener,
 			Route:        matchedRoute,
 			Action:       publicRouteActionRedirect,
-			DefaultRoute: isDefaultRoute,
-			ListenerID:   sql.NullInt64{Int64: listenerID, Valid: true},
+			DefaultRoute: match.DefaultRoute,
+			ListenerID:   sql.NullInt64{Int64: listener.ID, Valid: true},
 			RouteID:      routeID,
 		}, nil
 	}
-	target, agent, ok := a.selectRouteTarget(*snap, matchedRoute)
+	target, agent, ok := a.selectRouteTarget(*match.Snapshot, matchedRoute)
 	if !ok {
 		return publicRouteResolution{}, errNoRouteTargetAvailable
 	}
@@ -1093,8 +1132,8 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 		Listener:           listener,
 		Route:              matchedRoute,
 		Action:             publicRouteActionForward,
-		DefaultRoute:       isDefaultRoute,
-		ListenerID:         sql.NullInt64{Int64: listenerID, Valid: true},
+		DefaultRoute:       match.DefaultRoute,
+		ListenerID:         sql.NullInt64{Int64: listener.ID, Valid: true},
 		RouteID:            routeID,
 		RouteTargetID:      sql.NullInt64{Int64: target.ID, Valid: target.ID != 0},
 		RouteLoadBalancing: matchedRoute.TargetLoadBalancing,

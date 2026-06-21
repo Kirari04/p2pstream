@@ -329,6 +329,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			RedirectStatusCode:         route.RedirectStatusCode,
 			RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
 			RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
+			PathSecurityMode:           normalizePublicRoutePathSecurityMode(route.PathSecurityMode),
 			Enabled:                    route.Enabled != 0,
 		})
 	}
