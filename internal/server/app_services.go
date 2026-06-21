@@ -12,6 +12,7 @@ type appServices struct {
 	publicWAF       *publicWAF
 	publicCache     *publicProxyCache
 	publicACME      *publicACMEManager
+	publicConfig    *publicConfigService
 	agentTransports *agentTransportPool
 	dashboardCache  *dashboardResponseCache
 	loginThrottle   *loginThrottle
@@ -37,6 +38,7 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 		}
 	}
 	services.publicACME = newPublicACMEManager(app)
+	services.publicConfig = newPublicConfigService(app, app.DB, services.targetHealth, services.publicACME, appPublicConfigRuntime{app: app})
 	return services
 }
 
@@ -50,6 +52,7 @@ func (a *App) applyServices(services appServices) {
 	a.PublicWAF = services.publicWAF
 	a.PublicCache = services.publicCache
 	a.PublicACME = services.publicACME
+	a.publicConfig = services.publicConfig
 	a.AgentTransports = services.agentTransports
 	a.DashboardCache = services.dashboardCache
 	a.LoginThrottle = services.loginThrottle

@@ -53,6 +53,7 @@ type App struct {
 	PublicWAF       *publicWAF
 	PublicCache     *publicProxyCache
 	PublicACME      *publicACMEManager
+	publicConfig    *publicConfigService
 	AgentTransports *agentTransportPool
 	DashboardCache  *dashboardResponseCache
 	LoginThrottle   *loginThrottle

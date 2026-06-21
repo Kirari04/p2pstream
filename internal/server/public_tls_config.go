@@ -27,6 +27,14 @@ func (a *App) CreatePublicTlsDnsCredential(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().CreatePublicTlsDnsCredential(ctx, req)
+}
+
+func (s *publicConfigService) CreatePublicTlsDnsCredential(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.CreatePublicTlsDnsCredentialRequest],
+) (*connect.Response[p2pstreamv1.CreatePublicTlsDnsCredentialResponse], error) {
+	a := s.app
 	params, err := a.validatePublicTLSDNSCredentialInput(
 		req.Msg.Name,
 		req.Msg.Provider,
@@ -39,7 +47,7 @@ func (a *App) CreatePublicTlsDnsCredential(
 	if err != nil {
 		return nil, err
 	}
-	credential, err := a.DB.CreatePublicTlsDnsCredential(ctx, db.CreatePublicTlsDnsCredentialParams{
+	credential, err := s.db.CreatePublicTlsDnsCredential(ctx, db.CreatePublicTlsDnsCredentialParams{
 		Name:             params.Name,
 		Provider:         params.Provider,
 		CloudflareZoneID: params.CloudflareZoneID,
@@ -59,7 +67,15 @@ func (a *App) UpdatePublicTlsDnsCredential(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	existing, err := a.DB.GetPublicTlsDnsCredential(ctx, req.Msg.Id)
+	return a.publicConfigService().UpdatePublicTlsDnsCredential(ctx, req)
+}
+
+func (s *publicConfigService) UpdatePublicTlsDnsCredential(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.UpdatePublicTlsDnsCredentialRequest],
+) (*connect.Response[p2pstreamv1.UpdatePublicTlsDnsCredentialResponse], error) {
+	a := s.app
+	existing, err := s.db.GetPublicTlsDnsCredential(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -76,7 +92,7 @@ func (a *App) UpdatePublicTlsDnsCredential(
 		return nil, err
 	}
 	params.ID = req.Msg.Id
-	credential, err := a.DB.UpdatePublicTlsDnsCredential(ctx, params)
+	credential, err := s.db.UpdatePublicTlsDnsCredential(ctx, params)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -93,7 +109,15 @@ func (a *App) DeletePublicTlsDnsCredential(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	if err := a.DB.DeletePublicTlsDnsCredential(ctx, req.Msg.Id); err != nil {
+	return a.publicConfigService().DeletePublicTlsDnsCredential(ctx, req)
+}
+
+func (s *publicConfigService) DeletePublicTlsDnsCredential(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.DeletePublicTlsDnsCredentialRequest],
+) (*connect.Response[p2pstreamv1.DeletePublicTlsDnsCredentialResponse], error) {
+	a := s.app
+	if err := s.db.DeletePublicTlsDnsCredential(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
@@ -109,6 +133,14 @@ func (a *App) CreatePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	return a.publicConfigService().CreatePublicTlsCertificate(ctx, req)
+}
+
+func (s *publicConfigService) CreatePublicTlsCertificate(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.CreatePublicTlsCertificateRequest],
+) (*connect.Response[p2pstreamv1.CreatePublicTlsCertificateResponse], error) {
+	a := s.app
 	params, material, err := a.validatePublicTLSCertificateInput(
 		ctx,
 		req.Msg.ListenerId,
@@ -136,7 +168,7 @@ func (a *App) CreatePublicTlsCertificate(
 	if material.Replace {
 		cert, err = a.createUploadedPublicTLSCertificate(ctx, params, material.CertPEM, material.KeyPEM)
 	} else {
-		cert, err = a.DB.CreatePublicTlsCertificate(ctx, publicTLSCertificateCreateParams(params))
+		cert, err = s.db.CreatePublicTlsCertificate(ctx, publicTLSCertificateCreateParams(params))
 	}
 	if err != nil {
 		return nil, publicDBError(err)
@@ -156,7 +188,15 @@ func (a *App) UpdatePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	existing, err := a.DB.GetPublicTlsCertificate(ctx, req.Msg.Id)
+	return a.publicConfigService().UpdatePublicTlsCertificate(ctx, req)
+}
+
+func (s *publicConfigService) UpdatePublicTlsCertificate(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.UpdatePublicTlsCertificateRequest],
+) (*connect.Response[p2pstreamv1.UpdatePublicTlsCertificateResponse], error) {
+	a := s.app
+	existing, err := s.db.GetPublicTlsCertificate(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -196,7 +236,7 @@ func (a *App) UpdatePublicTlsCertificate(
 	if material.Replace {
 		cert, err = a.updateUploadedPublicTLSCertificate(ctx, params, material.CertPEM, material.KeyPEM)
 	} else {
-		cert, err = a.DB.UpdatePublicTlsCertificate(ctx, publicTLSCertificateUpdateParams(params))
+		cert, err = s.db.UpdatePublicTlsCertificate(ctx, publicTLSCertificateUpdateParams(params))
 	}
 	if err != nil {
 		return nil, publicDBError(err)
@@ -219,11 +259,19 @@ func (a *App) DeletePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	cert, err := a.DB.GetPublicTlsCertificate(ctx, req.Msg.Id)
+	return a.publicConfigService().DeletePublicTlsCertificate(ctx, req)
+}
+
+func (s *publicConfigService) DeletePublicTlsCertificate(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.DeletePublicTlsCertificateRequest],
+) (*connect.Response[p2pstreamv1.DeletePublicTlsCertificateResponse], error) {
+	a := s.app
+	cert, err := s.db.GetPublicTlsCertificate(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if err := a.DB.DeletePublicTlsCertificate(ctx, req.Msg.Id); err != nil {
+	if err := s.db.DeletePublicTlsCertificate(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
@@ -240,14 +288,22 @@ func (a *App) RenewPublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	cert, err := a.DB.GetPublicTlsCertificate(ctx, req.Msg.Id)
+	return a.publicConfigService().RenewPublicTlsCertificate(ctx, req)
+}
+
+func (s *publicConfigService) RenewPublicTlsCertificate(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.RenewPublicTlsCertificateRequest],
+) (*connect.Response[p2pstreamv1.RenewPublicTlsCertificateResponse], error) {
+	a := s.app
+	cert, err := s.db.GetPublicTlsCertificate(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
 	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("only ACME certificates can be renewed"))
 	}
-	cert, err = a.DB.UpdatePublicTlsCertificateRenewalStatus(ctx, db.UpdatePublicTlsCertificateRenewalStatusParams{
+	cert, err = s.db.UpdatePublicTlsCertificateRenewalStatus(ctx, db.UpdatePublicTlsCertificateRenewalStatusParams{
 		ID:                   cert.ID,
 		Status:               publicTLSCertificateStatusRenewing,
 		LastError:            "",
