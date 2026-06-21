@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -319,6 +321,124 @@ func TestRotateAgentTokenClosesTunnelConnection(t *testing.T) {
 	waitForAgentHubConnection(t, app, agent.ID, true)
 }
 
+func TestAgentTunnelRechecksTokenBeforeRegisteringAfterRotation(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
+	header := createTestAdminSession(t, app)
+	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-reauth-rotation", "Reauth Rotation", "old-token")
+	mux := http.NewServeMux()
+	app.RegisterManagementRoutes(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	initialAuthDone := make(chan struct{})
+	releaseFinalAuth := make(chan struct{})
+	var hookOnce sync.Once
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() {
+		close(releaseFinalAuth)
+	})
+	app.agentTunnelBeforeFinalAuth = func(row db.Agent) {
+		if row.ID != agent.ID {
+			return
+		}
+		hookOnce.Do(func() {
+			close(initialAuthDone)
+			<-releaseFinalAuth
+		})
+	}
+
+	type dialResult struct {
+		session *yamux.Session
+		conn    net.Conn
+		err     error
+	}
+	dialDone := make(chan dialResult, 1)
+	go func() {
+		session, conn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "old-token")
+		dialDone <- dialResult{session: session, conn: conn, err: err}
+	}()
+
+	select {
+	case <-initialAuthDone:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for tunnel initial auth")
+	}
+
+	rotateResp := rotateAgentTokenForTest(t, app, header, agent.ID)
+	releaseOnce.Do(func() {
+		close(releaseFinalAuth)
+	})
+
+	var result dialResult
+	select {
+	case result = <-dialDone:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for old-token tunnel result")
+	}
+	if result.session != nil {
+		result.session.Close()
+	}
+	if result.conn != nil {
+		result.conn.Close()
+	}
+	if result.err == nil {
+		t.Fatal("old-token tunnel registered after rotation")
+	}
+	if !strings.Contains(result.err.Error(), "401") {
+		t.Fatalf("old-token tunnel error = %v, want status 401", result.err)
+	}
+	if got := app.AgentHub.connectedByID(agent.ID); got != nil {
+		t.Fatalf("old-token tunnel registered in hub = %#v", got)
+	}
+
+	newSession, newConn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, rotateResp.Msg.Token)
+	if err != nil {
+		t.Fatalf("new token did not connect after rotation: %v", err)
+	}
+	defer newConn.Close()
+	defer newSession.Close()
+	waitForAgentHubConnection(t, app, agent.ID, true)
+}
+
+func TestAgentTunnelFinalAuthLockReleasedAfterHijackFailure(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
+	header := createTestAdminSession(t, app)
+	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-hijack-failure", "Hijack Failure", "token")
+
+	req := httptest.NewRequest(http.MethodGet, tunnel.BootstrapPath, nil)
+	req.Header.Set("X-P2PStream-Agent-ID", agent.PublicID)
+	req.Header.Set("Authorization", "Bearer token")
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", tunnel.UpgradeToken)
+	req.Header.Set(tunnel.TunnelVersionHeader, "1")
+	rw := &failingHijackResponseWriter{}
+
+	app.agentTunnelHandler(rw, req)
+
+	if got := app.AgentHub.connectedByID(agent.ID); got != nil {
+		t.Fatalf("agent registered after hijack failure = %#v", got)
+	}
+
+	rotateDone := make(chan error, 1)
+	go func() {
+		rotateReq := connect.NewRequest(&p2pstreamv1.RotateAgentTokenRequest{Id: agent.ID})
+		rotateReq.Header().Set("Cookie", header.Get("Cookie"))
+		_, err := app.RotateAgentToken(context.Background(), rotateReq)
+		rotateDone <- err
+	}()
+
+	select {
+	case err := <-rotateDone:
+		if err != nil {
+			t.Fatalf("rotate token after hijack failure: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("rotation blocked after failed tunnel hijack")
+	}
+}
+
 func TestAgentTunnelRejectsMissingUpgrade(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
@@ -544,4 +664,29 @@ func waitForConnectionDisconnected(t *testing.T, database *db.DB, connID int64) 
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("connection %d disconnected_at was not set", connID)
+}
+
+type failingHijackResponseWriter struct {
+	header http.Header
+	status int
+	body   strings.Builder
+}
+
+func (w *failingHijackResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+
+func (w *failingHijackResponseWriter) WriteHeader(status int) {
+	w.status = status
+}
+
+func (w *failingHijackResponseWriter) Write(p []byte) (int, error) {
+	return w.body.Write(p)
+}
+
+func (w *failingHijackResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return nil, nil, errors.New("hijack failed")
 }
