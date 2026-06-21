@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -1006,7 +1007,7 @@ func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, lis
 	}
 	proto := forwardedProtoForPublicListener(listener)
 	outReq.Header.Set("X-Forwarded-Proto", proto)
-	outReq.Header.Set("X-Forwarded-Port", forwardedPortForProto(proto))
+	outReq.Header.Set("X-Forwarded-Port", forwardedPortForPublicListener(listener, proto))
 }
 
 func remoteAddrIP(remoteAddr string) string {
@@ -1029,6 +1030,13 @@ func forwardedPortForProto(proto string) string {
 		return "443"
 	}
 	return "80"
+}
+
+func forwardedPortForPublicListener(listener publicListenerConfig, proto string) string {
+	if listener.Port > 0 {
+		return strconv.FormatInt(listener.Port, 10)
+	}
+	return forwardedPortForProto(proto)
 }
 
 func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRouteResolution, error) {

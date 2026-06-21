@@ -77,27 +77,27 @@ func TestApplyTrustedForwardedHeadersCanonicalizesHostAndPort(t *testing.T) {
 		wantClientIP string
 	}{
 		{
-			name:         "http listener strips trailing dot and attacker port",
-			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+			name:         "http listener strips trailing dot and uses configured port",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP, Port: 8080},
 			host:         "app.example.:444",
 			remoteAddr:   "192.0.2.10:5555",
 			wantHost:     "app.example",
-			wantPort:     "80",
+			wantPort:     "8080",
 			wantProto:    "http",
 			wantClientIP: "192.0.2.10",
 		},
 		{
-			name:         "https listener uses default port without TLS state",
-			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTPS},
+			name:         "https listener uses configured port without TLS state",
+			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTPS, Port: 8443},
 			host:         "app.example:444",
 			remoteAddr:   "192.0.2.11:5555",
 			wantHost:     "app.example",
-			wantPort:     "443",
+			wantPort:     "8443",
 			wantProto:    "https",
 			wantClientIP: "192.0.2.11",
 		},
 		{
-			name:         "normal host",
+			name:         "normal host falls back to default http port",
 			listener:     publicListenerConfig{Protocol: publicListenerProtocolHTTP},
 			host:         "app.example",
 			remoteAddr:   "192.0.2.12:5555",
@@ -138,8 +138,8 @@ func TestApplyTrustedForwardedHeadersCanonicalizesHostAndPort(t *testing.T) {
 	}
 }
 
-func TestPublicProxyForwardsCanonicalHostAndDefaultPort(t *testing.T) {
-	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTP)
+func TestPublicProxyForwardsCanonicalHostAndConfiguredPort(t *testing.T) {
+	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTP, 8080)
 	req := httptest.NewRequest(http.MethodGet, "http://app.example.:444/assets/app.txt", nil)
 	req.Host = "app.example.:444"
 	installAttackerForwardingHeaders(req.Header)
@@ -152,13 +152,13 @@ func TestPublicProxyForwardsCanonicalHostAndDefaultPort(t *testing.T) {
 	}
 	headers := <-captured
 	assertForwardedHeader(t, headers, "X-Forwarded-Host", "app.example")
-	assertForwardedHeader(t, headers, "X-Forwarded-Port", "80")
+	assertForwardedHeader(t, headers, "X-Forwarded-Port", "8080")
 	assertForwardedHeader(t, headers, "X-Forwarded-Proto", "http")
 	assertNoAttackerForwardingValues(t, headers)
 }
 
 func TestPublicProxyForwardsHTTPSListenerDefaultPort(t *testing.T) {
-	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTPS)
+	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTPS, 0)
 	req := httptest.NewRequest(http.MethodGet, "http://app.example.:444/assets/app.txt", nil)
 	req.Host = "app.example.:444"
 
@@ -646,7 +646,7 @@ func newTestPublicPathProxyWithMode(t *testing.T, pathPrefix string, wafRules []
 	return app, app.publicProxyHandler(1), &hits, &lastPath
 }
 
-func newTestForwardedHeaderProxy(t *testing.T, listenerProtocol string) (http.HandlerFunc, <-chan http.Header) {
+func newTestForwardedHeaderProxy(t *testing.T, listenerProtocol string, listenerPort int64) (http.HandlerFunc, <-chan http.Header) {
 	t.Helper()
 	captured := make(chan http.Header, 1)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -679,7 +679,7 @@ func newTestForwardedHeaderProxy(t *testing.T, listenerProtocol string) (http.Ha
 	}
 	app := NewApp(nil, nil)
 	app.publicSnapshot = &publicProxySnapshot{
-		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: listenerProtocol, Enabled: true}},
+		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: listenerProtocol, Port: listenerPort, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
 		},
