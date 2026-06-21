@@ -51,17 +51,17 @@ function removeDisabledReason(): string {
 </script>
 
 <template>
-  <section class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
-    <div class="flex items-center justify-between gap-3">
-      <h4 class="text-sm font-semibold text-[var(--app-text)]">Key parts</h4>
+  <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+    <div class="layout-row align-center spread-items space-md">
+      <h4 class="copy-sm weight-semibold base-text">Key parts</h4>
       <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason || ''">
         <NButton secondary size="small" :disabled="Boolean(disabledReason)" @click="addKeyPart">
           Add Key
         </NButton>
       </DisabledHint>
     </div>
-    <div class="grid gap-2">
-      <div v-for="(part, index) in keyParts" :key="index" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+    <div class="layout-grid space-sm">
+      <div v-for="(part, index) in keyParts" :key="index" class="layout-grid space-sm mq-sm-two-auto">
         <NSelect v-model:value="part.source" size="small" :options="keySourceOptions" :disabled="Boolean(disabledReason)" />
         <DisabledHint full-width :disabled="Boolean(disabledReason || keyPartNameDisabledReason(part.source))" :reason="disabledReason || keyPartNameDisabledReason(part.source)">
           <NInput
@@ -81,7 +81,7 @@ function removeDisabledReason(): string {
             :disabled="Boolean(removeDisabledReason())"
             @click="removeKeyPart(index)"
           >
-            <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
           </NButton>
         </DisabledHint>
       </div>

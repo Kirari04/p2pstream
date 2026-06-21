@@ -453,37 +453,37 @@ defineExpose({ openCreate, openEdit, openClone, close });
     :bordered="false"
     size="huge"
   >
-    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitRoute">
-      <section class="grid gap-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRoute">
+      <section class="layout-grid space-lg mq-sm-cols-four">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Listener
           <NSelect v-model:value="routeForm.listenerId" size="small" :options="listenerOptions" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Action
           <NSelect v-model:value="routeForm.action" size="small" :options="routeActionOptions" />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
           <NInputNumber v-model:value="routeForm.priority" size="small" required />
         </label>
-        <NCheckbox v-model:checked="routeForm.enabled" class="self-end">
+        <NCheckbox v-model:checked="routeForm.enabled" class="self-align-end">
           Enabled
         </NCheckbox>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Host pattern
           <NInput v-model:value="routeForm.hostPattern" size="small" placeholder="*.example.com" />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Path prefix
           <NInput v-model:value="routeForm.pathPrefix" size="small" placeholder="/" />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Path security
           <NSelect v-model:value="routeForm.pathSecurityMode" size="small" :options="pathSecurityModeOptions" />
-          <span class="normal-case tracking-normal">Compatibility mode is for upstreams that require encoded / or \ path identifiers.</span>
+          <span class="normal-text letter-normal">Compatibility mode is for upstreams that require encoded / or \ path identifiers.</span>
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Target balancing
           <NSelect
             v-model:value="routeForm.targetLoadBalancing"
@@ -492,21 +492,21 @@ defineExpose({ openCreate, openEdit, openClone, close });
             :disabled="routeIsRedirect"
           />
         </label>
-        <NCheckbox v-model:checked="routeForm.isDefault" class="self-end">
+        <NCheckbox v-model:checked="routeForm.isDefault" class="self-align-end">
           Default route
         </NCheckbox>
       </section>
 
-      <section v-if="routeIsRedirect" class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4 sm:grid-cols-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <section v-if="routeIsRedirect" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg mq-sm-cols-four">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Mode
           <NSelect v-model:value="routeForm.redirectTargetMode" size="small" :options="redirectTargetModeOptions" />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Target
           <NInput v-model:value="routeForm.redirectTarget" size="small" :placeholder="redirectTargetPlaceholder(routeForm.redirectTargetMode)" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Status
           <NInputNumber v-model:value="routeForm.redirectStatusCode" size="small" :min="300" :max="399" />
         </label>
@@ -518,39 +518,39 @@ defineExpose({ openCreate, openEdit, openClone, close });
         </NCheckbox>
       </section>
 
-      <section v-else class="grid gap-4">
-        <div class="flex items-center justify-between gap-3">
-          <h4 class="text-sm font-semibold text-[var(--app-text)]">Targets</h4>
+      <section v-else class="layout-grid space-lg">
+        <div class="layout-row align-center spread-items space-md">
+          <h4 class="copy-sm weight-semibold base-text">Targets</h4>
           <NButton secondary size="small" attr-type="button" @click="addTarget">
-            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+            <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
             Add Target
           </NButton>
         </div>
 
-        <div v-for="(target, index) in routeForm.targets" :key="`${target.id || 'new'}-${index}`" data-testid="route-target-row" class="grid gap-4 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
-          <div class="flex items-start justify-between gap-3">
-            <div class="grid flex-1 gap-4 sm:grid-cols-4">
-              <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div v-for="(target, index) in routeForm.targets" :key="`${target.id || 'new'}-${index}`" data-testid="route-target-row" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+          <div class="layout-row align-start spread-items space-md">
+            <div class="layout-grid grow-fill space-lg mq-sm-cols-four">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Name
                 <NInput v-model:value="target.name" size="small" required />
               </label>
-              <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Type
                 <NSelect v-model:value="target.targetType" size="small" :options="targetTypeOptions" />
               </label>
-              <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Priority group
                 <NInputNumber v-model:value="target.priorityGroup" size="small" :min="0" />
               </label>
-              <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Weight
                 <NInputNumber v-model:value="target.weight" size="small" :min="1" />
               </label>
-              <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-2">
+              <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
                 URL
                 <NInput v-model:value="target.url" size="small" placeholder="http://upstream:9000" required />
               </label>
-              <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+              <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Transport
                 <NSelect
                   v-model:value="target.transport"
@@ -559,18 +559,18 @@ defineExpose({ openCreate, openEdit, openClone, close });
                   aria-label="Transport"
                 />
               </label>
-              <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+              <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Header timeout ms
                 <NInputNumber v-model:value="target.responseHeaderTimeoutMillis" size="small" :min="1" />
               </label>
-              <div v-if="target.targetType === PublicRouteTargetType.PROXY && target.transport === PublicRouteTargetTransport.AGENT" class="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-3 sm:col-span-4">
-                <div class="flex flex-wrap items-start justify-between gap-3">
+              <div v-if="target.targetType === PublicRouteTargetType.PROXY && target.transport === PublicRouteTargetTransport.AGENT" class="layout-grid space-md round-md framed frame-standard muted-bg pad-md mq-sm-span-four">
+                <div class="layout-row wrap-items align-start spread-items space-md">
                   <div>
-                    <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Agent selector</p>
-                    <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">All selector labels must match the same enabled agent.</p>
+                    <p class="copy-xs weight-medium label-case letter-wide muted-text">Agent selector</p>
+                    <p class="margin-top-xs copy-xs line-normal muted-text">All selector labels must match the same enabled agent.</p>
                   </div>
-                  <div class="grid gap-1.5">
-                    <span class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">Match exact agent</span>
+                  <div class="layout-grid space-xs">
+                    <span class="copy-xs weight-medium label-case letter-wide muted-text">Match exact agent</span>
                     <NSelect
                       :value="exactSelectorValue(target)"
                       :options="exactAgentOptions"
@@ -582,9 +582,9 @@ defineExpose({ openCreate, openEdit, openClone, close });
                     />
                   </div>
                 </div>
-                <div class="grid gap-2">
-                  <div v-for="(selector, selectorIndex) in target.selectorLabels" :key="selector.id" data-testid="target-selector-row" class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                    <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+                <div class="layout-grid space-sm">
+                  <div v-for="(selector, selectorIndex) in target.selectorLabels" :key="selector.id" data-testid="target-selector-row" class="layout-grid space-sm mq-sm-two-auto">
+                    <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                       Selector key
                       <NInput
                         v-model:value="selector.key"
@@ -594,7 +594,7 @@ defineExpose({ openCreate, openEdit, openClone, close });
                         :input-props="targetSelectorKeyInputProps"
                       />
                     </label>
-                    <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+                    <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                       Selector value
                       <NInput
                         v-model:value="selector.value"
@@ -608,39 +608,39 @@ defineExpose({ openCreate, openEdit, openClone, close });
                       size="small"
                       aria-label="Remove selector label"
                       title="Remove selector label"
-                      class="self-end"
+                      class="self-align-end"
                       attr-type="button"
                       @click="removeSelectorLabel(target, selectorIndex)"
                     >
-                      <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+                      <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
                     </NButton>
                   </div>
                 </div>
-                <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="layout-row wrap-items align-center spread-items space-md">
                   <NButton secondary size="small" attr-type="button" @click="addSelectorLabel(target)">
-                    <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+                    <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
                     Add Selector
                   </NButton>
-                  <div data-testid="selector-match-preview" class="text-right text-xs leading-5">
-                    <p :class="matchingAgents(target).length ? 'text-[var(--app-text)]' : 'text-[var(--app-warning)]'">
+                  <div data-testid="selector-match-preview" class="align-right-text copy-xs line-normal">
+                    <p :class="matchingAgents(target).length ? 'base-text' : 'warning-text'">
                       Matches {{ matchingAgents(target).length }} enabled agents; {{ connectedMatchingAgents(target).length }} connected.
                     </p>
-                    <p v-if="matchingAgents(target).length" class="text-[var(--app-text-muted)]">
+                    <p v-if="matchingAgents(target).length" class="muted-text">
                       {{ matchingAgents(target).slice(0, 3).map((agent) => agentDisplayName(agent.id)).join(", ") }}
                       <span v-if="matchingAgents(target).length > 3">+{{ matchingAgents(target).length - 3 }} more</span>
                     </p>
-                    <p v-else class="text-[var(--app-warning)] opacity-80">No enabled agents currently match this selector.</p>
+                    <p v-else class="warning-text deemphasized">No enabled agents currently match this selector.</p>
                   </div>
                 </div>
               </div>
               <NCheckbox v-if="target.targetType === PublicRouteTargetType.PROXY" v-model:checked="target.tlsSkipVerify">
                 Skip TLS verify
               </NCheckbox>
-              <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+              <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Status
                 <NInputNumber v-model:value="target.staticStatusCode" size="small" :min="100" :max="599" />
               </label>
-              <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)] sm:col-span-3">
+              <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-three">
                 Body
                 <NInput v-model:value="target.staticResponseBody" type="textarea" size="small" :autosize="{ minRows: 3, maxRows: 8 }" />
               </label>
@@ -649,13 +649,13 @@ defineExpose({ openCreate, openEdit, openClone, close });
               </NCheckbox>
             </div>
             <NButton type="error" size="small" aria-label="Remove target" title="Remove target" attr-type="button" @click="removeTarget(index)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
             </NButton>
           </div>
         </div>
       </section>
 
-      <div class="mt-2 flex justify-end gap-3">
+      <div class="margin-top-sm layout-row align-end-row space-md">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="routeSubmitDisabled" :reason="routeSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="routeSubmitDisabled">

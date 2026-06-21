@@ -454,22 +454,22 @@ function clamp(value: number, min: number, max: number): number {
     aria-label="Rate limit behavior preview"
   >
     <div class="rate-preview-header">
-      <div class="min-w-0">
+      <div class="min-width-zero">
         <p class="rate-preview-title">{{ algorithmLabel }}</p>
         <p class="rate-preview-subtitle">{{ meterLabel }} / {{ rateLabel }}</p>
       </div>
       <div class="rate-preview-stats">
         <div>
           <span>Allowed</span>
-          <strong class="text-green-400">{{ allowedLabel }}</strong>
+          <strong class="success-text">{{ allowedLabel }}</strong>
         </div>
         <div>
           <span>Rejected</span>
-          <strong class="text-red-400">{{ rejectedLabel }}</strong>
+          <strong class="error-text">{{ rejectedLabel }}</strong>
         </div>
         <div>
           <span>Remaining</span>
-          <strong class="text-[var(--app-text)]">{{ remainingLabel }}</strong>
+          <strong class="base-text">{{ remainingLabel }}</strong>
         </div>
       </div>
     </div>

@@ -125,15 +125,15 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
         Not
       </NCheckbox>
       <NButton secondary size="small" @click="addCondition(group)">
-        <PlusIcon class="h-3.5 w-3.5" />
+        <PlusIcon class="icon-sm icon-sm" />
         <span>Condition</span>
       </NButton>
       <NButton secondary size="small" @click="addGroup(group)">
-        <PlusIcon class="h-3.5 w-3.5" />
+        <PlusIcon class="icon-sm icon-sm" />
         <span>Group</span>
       </NButton>
       <NButton v-if="!root" type="error" size="small" aria-label="Remove group" title="Remove group" @click="emit('remove')">
-        <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+        <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
       </NButton>
     </div>
 
@@ -173,7 +173,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
           Not
         </NCheckbox>
         <NButton type="error" size="small" aria-label="Remove condition" title="Remove condition" @click="removeCondition(group, index)">
-          <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+          <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
         </NButton>
       </div>
     </div>

@@ -181,21 +181,21 @@ defineExpose({ openCreate, openEdit, close });
     :bordered="false"
     size="huge"
   >
-    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submit">
-      <section class="grid gap-4 md:grid-cols-[1fr_14rem]">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submit">
+      <section class="layout-grid space-lg response-template-form-grid">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Kind
           <NSelect :value="form.kind" size="small" :options="kindOptions" @update:value="applyKind(Number($event) as PublicResponseTemplateKind)" />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Description
           <NInput v-model:value="form.description" size="small" />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Content type
           <NInput v-model:value="form.contentType" size="small" />
         </label>
@@ -203,7 +203,7 @@ defineExpose({ openCreate, openEdit, close });
 
       <HtmlTemplateEditor v-model="form.body" :kind="form.kind" :content-type="form.contentType" />
 
-      <div class="flex justify-end gap-3">
+      <div class="layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason">
           <NButton type="primary" attr-type="submit" :disabled="Boolean(disabledReason)">

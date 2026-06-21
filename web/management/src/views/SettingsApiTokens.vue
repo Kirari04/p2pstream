@@ -66,13 +66,13 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
     title: "Expires",
     key: "expires",
     width: 180,
-    render: (token) => h("span", { class: "font-mono text-xs" }, formatDate(token.expiresAtUnixMillis)),
+    render: (token) => h("span", { class: "mono-text copy-xs" }, formatDate(token.expiresAtUnixMillis)),
   },
   {
     title: "Last Used",
     key: "lastUsed",
     width: 180,
-    render: (token) => h("span", { class: "font-mono text-xs" }, formatDate(token.lastUsedAtUnixMillis)),
+    render: (token) => h("span", { class: "mono-text copy-xs" }, formatDate(token.lastUsedAtUnixMillis)),
   },
   {
     title: "Status",
@@ -103,7 +103,7 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
             disabled: Boolean(actionDisabledReason.value),
             onClick: () => void deleteToken(token),
           },
-          { icon: () => h(TrashIcon, { class: "h-3.5 w-3.5" }) },
+          { icon: () => h(TrashIcon, { class: "icon-sm" }) },
         ),
       },
     ),
@@ -263,11 +263,11 @@ function handleIssuedTokenModalUpdate(show: boolean) {
 </script>
 
 <template>
-  <div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div class="stack-xl">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
-        <h4 class="mb-2 text-lg font-semibold text-[var(--app-text)]">API Tokens</h4>
-        <p class="text-sm text-[var(--app-text-muted)]">Admin API credentials for {{ selectedEnvironmentLabel }}.</p>
+        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">API Tokens</h4>
+        <p class="copy-sm muted-text">Admin API credentials for {{ selectedEnvironmentLabel }}.</p>
       </div>
       <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
         <NButton
@@ -279,23 +279,23 @@ function handleIssuedTokenModalUpdate(show: boolean) {
           :loading="isLoading"
           @click="refreshTokens"
         >
-          <template #icon><RefreshIcon class="h-3.5 w-3.5" /></template>
+          <template #icon><RefreshIcon class="icon-sm icon-sm" /></template>
         </NButton>
       </DisabledHint>
     </div>
 
-    <div v-if="selectedEnvironmentBlocked" class="rounded-md border border-amber-900/60 bg-[var(--app-panel)] p-4 text-sm text-amber-300">
+    <div v-if="selectedEnvironmentBlocked" class="round-md framed warning-border panel-bg pad-lg copy-sm warning-text">
       {{ selectedEnvironmentBlocked }}
     </div>
-    <div v-if="operationError" class="rounded-md border border-red-900/60 bg-[var(--app-panel)] p-4 text-sm text-red-400">
+    <div v-if="operationError" class="round-md framed error-border panel-bg pad-lg copy-sm error-text">
       {{ operationError }}
     </div>
 
-    <section class="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
-      <div class="app-card p-5">
-        <h5 class="mb-4 text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">Create API Token</h5>
-        <form class="grid gap-4" @submit.prevent="createToken">
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+    <section class="layout-grid space-2xl settings-token-grid">
+      <div class="surface-card pad-xl">
+        <h5 class="margin-bottom-lg copy-sm weight-semibold label-case letter-widest muted-text">Create API Token</h5>
+        <form class="layout-grid space-lg" @submit.prevent="createToken">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Name
             <NInput
               v-model:value="tokenForm.name"
@@ -304,7 +304,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
               :disabled="Boolean(actionDisabledReason)"
             />
           </label>
-          <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Expires
             <NDatePicker
               v-model:value="tokenForm.expiresAtUnixMillis"
@@ -325,9 +325,9 @@ function handleIssuedTokenModalUpdate(show: boolean) {
         </form>
       </div>
 
-      <div class="app-card overflow-hidden">
-        <div class="border-b border-[var(--app-border)] px-5 py-4">
-          <h5 class="text-sm font-semibold uppercase tracking-widest text-[var(--app-text-muted)]">API Tokens</h5>
+      <div class="surface-card hide-overflow">
+        <div class="divider-bottom frame-standard pad-x-xl pad-y-lg">
+          <h5 class="copy-sm weight-semibold label-case letter-widest muted-text">API Tokens</h5>
         </div>
         <NDataTable
           :columns="tokenColumns"
@@ -350,24 +350,24 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       :bordered="false"
       @update:show="handleIssuedTokenModalUpdate"
     >
-      <div class="space-y-4">
-        <div class="rounded-md border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
-          <div class="mb-2">
-            <p class="text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">One-Time Token</p>
+      <div class="stack-md">
+        <div class="round-md framed frame-standard muted-bg pad-lg">
+          <div class="margin-bottom-sm">
+            <p class="copy-xs weight-medium label-case letter-wide muted-text">One-Time Token</p>
           </div>
           <code
-            class="block min-h-12 break-all rounded-md border border-[var(--app-border)] bg-[var(--app-panel)] p-3 font-mono text-xs leading-6 text-[var(--app-text)]"
+            class="flow-box min-code-height wrap-anywhere round-md framed frame-standard panel-bg pad-md mono-text copy-xs line-relaxed base-text"
           >
             <template v-if="isIssuedTokenVisible">
               {{ issuedToken }}
             </template>
             <template v-else>
-              <span>{{ issuedTokenVisiblePrefix }}</span><span class="inline-block select-none text-[var(--app-text-muted)] blur-[4px]" aria-hidden="true">{{ issuedTokenBlurredRemainder }}</span>
+              <span>{{ issuedTokenVisiblePrefix }}</span><span class="inline-block no-select muted-text secret-blur" aria-hidden="true">{{ issuedTokenBlurredRemainder }}</span>
             </template>
           </code>
         </div>
 
-        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div class="layout-row layout-column-reverse space-md mq-sm-row mq-sm-end">
           <NButton secondary attr-type="button" @click="clearIssuedToken">Done</NButton>
           <NButton
             secondary
@@ -376,8 +376,8 @@ function handleIssuedTokenModalUpdate(show: boolean) {
             @click="isIssuedTokenVisible = !isIssuedTokenVisible"
           >
             <template #icon>
-              <EyeSlashIcon v-if="isIssuedTokenVisible" class="h-3.5 w-3.5" />
-              <EyeIcon v-else class="h-3.5 w-3.5" />
+              <EyeSlashIcon v-if="isIssuedTokenVisible" class="icon-sm icon-sm" />
+              <EyeIcon v-else class="icon-sm icon-sm" />
             </template>
             {{ isIssuedTokenVisible ? 'Hide' : 'Reveal' }}
           </NButton>

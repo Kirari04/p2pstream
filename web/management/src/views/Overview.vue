@@ -276,7 +276,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 
       <div class="metric-card">
         <p class="metric-kicker">Success</p>
-        <div class="metric-value text-green-300">{{ formatPercent(successRate(selectedWindow)) }}</div>
+        <div class="metric-value success-text">{{ formatPercent(successRate(selectedWindow)) }}</div>
         <p class="metric-subline">{{ formatNumber(nonSuccessRequests(selectedWindow)) }} non-success / {{ formatNumber(proxyFailureRequests(selectedWindow)) }} proxy failures</p>
       </div>
 
@@ -377,7 +377,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
             <p>Selected window plus last-hour error kinds.</p>
           </div>
           <div class="panel-actions">
-            <router-link to="/diagnostics" class="diagnostics-link">View diagnostics</router-link>
+            <router-link to="/monitor/diagnostics" class="diagnostics-link">View diagnostics</router-link>
             <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
               {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
             </span>

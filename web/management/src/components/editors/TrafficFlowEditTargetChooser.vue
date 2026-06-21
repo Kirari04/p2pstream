@@ -55,8 +55,8 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
     :bordered="false"
     @update:show="emit('update:modelValue', $event)"
   >
-    <div class="grid gap-4">
-      <div class="grid gap-2">
+    <div class="layout-grid space-lg">
+      <div class="layout-grid space-sm">
         <NButton
           v-for="target in request?.targets ?? []"
           :key="`${target.kind}:${target.id}`"
@@ -64,11 +64,11 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
           class="target-choice"
           @click="selectTarget(target)"
         >
-          <span class="text-sm font-medium text-[var(--app-text)]">{{ target.label }}</span>
-          <span class="font-mono text-xs text-[var(--app-text-muted)]">{{ kindLabel(target.kind) }} #{{ target.id }}{{ target.subLabel ? ` / ${target.subLabel}` : "" }}</span>
+          <span class="copy-sm weight-medium base-text">{{ target.label }}</span>
+          <span class="mono-text copy-xs muted-text">{{ kindLabel(target.kind) }} #{{ target.id }}{{ target.subLabel ? ` / ${target.subLabel}` : "" }}</span>
         </NButton>
       </div>
-      <div class="flex justify-end">
+      <div class="layout-row align-end-row">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
       </div>
     </div>

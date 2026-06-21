@@ -147,54 +147,54 @@ defineExpose({ openCreate, openEdit, close });
     :bordered="false"
     size="huge"
   >
-    <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1">
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+    <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="layout-grid max-modal-height space-xl scroll-y pad-right-xs">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Name
         <NInput v-model:value="agentForm.name" size="small" required />
       </label>
       <NCheckbox v-model:checked="agentForm.enabled">
         Enabled
       </NCheckbox>
-      <section data-testid="agent-user-labels" class="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
-        <div class="flex items-center justify-between gap-3">
+      <section data-testid="agent-user-labels" class="layout-grid space-md round-lg framed frame-standard muted-bg pad-lg">
+        <div class="layout-row align-center spread-items space-md">
           <div>
-            <h4 class="text-sm font-semibold text-[var(--app-text)]">User Labels</h4>
-            <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">Use labels such as site=home-lab or role=app to select agents from route targets.</p>
+            <h4 class="copy-sm weight-semibold base-text">User Labels</h4>
+            <p class="margin-top-xs copy-xs line-normal muted-text">Use labels such as site=home-lab or role=app to select agents from route targets.</p>
           </div>
           <NButton secondary size="small" @click="addLabel">
-            <template #icon><PlusIcon class="h-3.5 w-3.5" /></template>
+            <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
             Add Label
           </NButton>
         </div>
-        <div v-if="agentForm.labels.length" class="grid gap-2">
-          <div v-for="(label, index) in agentForm.labels" :key="label.id" data-testid="agent-label-row" class="grid gap-3 rounded-md border border-[var(--app-border-subtle)] bg-[var(--app-panel)] p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <div v-if="agentForm.labels.length" class="layout-grid space-sm">
+          <div v-for="(label, index) in agentForm.labels" :key="label.id" data-testid="agent-label-row" class="layout-grid space-md round-md framed frame-subtle panel-bg pad-md mq-sm-two-auto mq-sm-align-end">
+            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               Key
               <NInput v-model:value="label.key" data-testid="agent-label-key" size="small" placeholder="site" required />
             </label>
-            <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               Value
               <NInput v-model:value="label.value" data-testid="agent-label-value" size="small" placeholder="home-lab" />
             </label>
-            <NButton type="error" secondary size="small" aria-label="Remove label" title="Remove label" class="self-end" @click="removeLabel(index)">
-              <template #icon><TrashIcon class="h-3.5 w-3.5" /></template>
+            <NButton type="error" secondary size="small" aria-label="Remove label" title="Remove label" class="self-align-end" @click="removeLabel(index)">
+              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
             </NButton>
           </div>
         </div>
-        <NEmpty v-else size="small" description="No user labels configured" class="rounded-md border border-dashed border-[var(--app-border)] bg-[var(--app-panel)] px-3 py-3" />
+        <NEmpty v-else size="small" description="No user labels configured" class="round-md framed dashed-border frame-standard panel-bg pad-x-md pad-y-md" />
       </section>
-      <section v-if="agentForm.systemLabels.length" data-testid="agent-system-labels" class="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-muted)] p-4">
+      <section v-if="agentForm.systemLabels.length" data-testid="agent-system-labels" class="layout-grid space-md round-lg framed frame-standard muted-bg pad-lg">
         <div>
-          <h4 class="text-sm font-semibold text-[var(--app-text)]">System Labels</h4>
-          <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">System labels are read-only and can be used for exact-agent target selectors.</p>
+          <h4 class="copy-sm weight-semibold base-text">System Labels</h4>
+          <p class="margin-top-xs copy-xs line-normal muted-text">System labels are read-only and can be used for exact-agent target selectors.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <NTag v-for="label in agentForm.systemLabels" :key="label.id" data-testid="agent-system-label" size="small" :bordered="true" class="font-mono">
+        <div class="layout-row wrap-items space-sm">
+          <NTag v-for="label in agentForm.systemLabels" :key="label.id" data-testid="agent-system-label" size="small" :bordered="true" class="mono-text">
             {{ label.key }}={{ label.value }}
           </NTag>
         </div>
       </section>
-      <div class="mt-4 flex justify-end gap-3">
+      <div class="margin-top-lg layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(agentSubmitDisabledReason)" :reason="agentSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="Boolean(agentSubmitDisabledReason)">

@@ -121,30 +121,30 @@ defineExpose({ openCreate, openEdit, close });
     :bordered="false"
     size="huge"
   >
-    <form @submit.prevent="submitListener" class="grid max-h-[calc(100vh-9rem)] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+    <form @submit.prevent="submitListener" class="layout-grid max-modal-height space-lg scroll-y pad-right-xs mq-sm-cols-two">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Name
         <NInput v-model:value="listenerForm.name" size="small" required />
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Bind address
         <NInput v-model:value="listenerForm.bindAddress" size="small" placeholder="0.0.0.0" />
-        <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Leave empty to bind on all interfaces.</p>
+        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Leave empty to bind on all interfaces.</p>
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Port
         <NInputNumber v-model:value="listenerForm.port" size="small" :min="1" :max="65535" required />
-        <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Ports below 1024 may require elevated privileges.</p>
+        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Ports below 1024 may require elevated privileges.</p>
       </label>
-      <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Protocol
         <NSelect v-model:value="listenerForm.protocol" size="small" :options="protocolOptions" />
-        <p class="text-xs font-normal normal-case tracking-normal text-[var(--app-text-muted)]">Choose HTTPS to enable TLS termination.</p>
+        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Choose HTTPS to enable TLS termination.</p>
       </label>
-      <NCheckbox v-model:checked="listenerForm.enabled" class="mt-2 sm:col-span-2">
+      <NCheckbox v-model:checked="listenerForm.enabled" class="margin-top-sm mq-sm-span-two">
         Enabled
       </NCheckbox>
-      <div class="sm:col-span-2 mt-4 flex justify-end gap-3">
+      <div class="mq-sm-span-two margin-top-lg layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(listenerSubmitDisabledReason)" :reason="listenerSubmitDisabledReason">
           <NButton

@@ -96,6 +96,7 @@ const { fitView, viewport } = useVueFlow(FLOW_ID);
 const configIndex = computed(() => createTrafficFlowConfigIndex(props.config));
 const requestPathCache = new TrafficRequestPathCache();
 const tokenMotionPlanCache = new Map<string, MotionPlan>();
+const flowShellRef = ref<HTMLElement | null>(null);
 const visualTokens = ref<VisualToken[]>([]);
 const cacheStorePulses = ref<CacheStorePulse[]>([]);
 const rafNow = ref(typeof performance === "undefined" ? Date.now() : performance.now());
@@ -106,6 +107,8 @@ const seenCacheStorePulseRequestIds = new Set<string>();
 let rafId: number | null = null;
 let didInitialFit = false;
 let frameStressState = resetFrameStressState();
+let resizeObserver: ResizeObserver | null = null;
+let resizeFitTimer: number | null = null;
 
 const layout = computed(() => buildTrafficFlowGraph({
   config: props.config,
@@ -312,7 +315,6 @@ watch(
   () => {
     requestPathCache.clear();
     tokenMotionPlanCache.clear();
-    void nextTick(() => fitDiagram(180));
   },
   { flush: "post" },
 );
@@ -333,10 +335,25 @@ watch(
 
 onMounted(() => {
   document.addEventListener("visibilitychange", handleVisibilityChange);
+  if (typeof ResizeObserver !== "undefined" && flowShellRef.value) {
+    resizeObserver = new ResizeObserver(scheduleDiagramFit);
+    resizeObserver.observe(flowShellRef.value);
+  } else {
+    window.addEventListener("resize", scheduleDiagramFit);
+  }
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("visibilitychange", handleVisibilityChange);
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+  } else {
+    window.removeEventListener("resize", scheduleDiagramFit);
+  }
+  if (resizeFitTimer !== null) {
+    window.clearTimeout(resizeFitTimer);
+    resizeFitTimer = null;
+  }
   stopAnimationLoop();
 });
 
@@ -568,6 +585,17 @@ function fitDiagram(duration = 240) {
   void fitView({ padding: 0.18, duration, maxZoom: 1.1 });
 }
 
+function scheduleDiagramFit() {
+  if (!flowNodes.value.length) return;
+  if (resizeFitTimer !== null) {
+    window.clearTimeout(resizeFitTimer);
+  }
+  resizeFitTimer = window.setTimeout(() => {
+    resizeFitTimer = null;
+    void nextTick(() => fitDiagram(160));
+  }, 80);
+}
+
 function handleNodeClick(event: NodeMouseEvent) {
   const data = event.node.data as TrafficNodeData | undefined;
   const targets = data?.editTargets ?? [];
@@ -599,7 +627,7 @@ function clamp(value: number, min: number, max: number): number {
 </script>
 
 <template>
-  <div class="traffic-flow-shell" :class="{ 'traffic-flow-stressed': isAnimationStressed }">
+  <div ref="flowShellRef" class="traffic-flow-shell" :class="{ 'traffic-flow-stressed': isAnimationStressed }">
     <div class="flow-status">
       <span>{{ visualTokens.length }} rendered</span>
       <span v-if="skippedVisualizations" class="flow-overflow">+{{ skippedVisualizations }} not rendered</span>
@@ -620,7 +648,7 @@ function clamp(value: number, min: number, max: number): number {
       :zoom-on-scroll="true"
       :zoom-on-pinch="true"
       :zoom-on-double-click="false"
-      :min-zoom="0.35"
+      :min-zoom="0.16"
       :max-zoom="1.4"
       :fit-view-on-init="true"
       :delete-key-code="null"

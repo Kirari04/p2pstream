@@ -135,24 +135,24 @@ defineExpose({ openCreate, openEdit, close });
     :bordered="false"
     size="huge"
   >
-    <form class="grid max-h-[calc(100vh-9rem)] gap-5 overflow-y-auto pr-1" @submit.prevent="submitProvider">
-      <section class="grid gap-4 sm:grid-cols-2">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitProvider">
+      <section class="layout-grid space-lg mq-sm-cols-two">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Provider
           <NSelect v-model:value="form.providerType" size="small" :options="providerOptions" />
         </label>
       </section>
 
-      <section class="grid gap-4">
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+      <section class="layout-grid space-lg">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Site key
           <NInput v-model:value="form.siteKey" size="small" autocomplete="off" required />
         </label>
-        <label class="grid gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--app-text-muted)]">
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Secret key
           <NInput
             v-model:value="form.secretKey"
@@ -167,7 +167,7 @@ defineExpose({ openCreate, openEdit, close });
         </NCheckbox>
       </section>
 
-      <div class="flex justify-end gap-3">
+      <div class="layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(submitDisabledReason)" :reason="submitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
