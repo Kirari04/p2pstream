@@ -524,8 +524,6 @@ func (db *DB) migrateLegacyObservability() error {
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id ON proxy_request_events (route_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id ON proxy_request_events (agent_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != ''`,
-		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id ON proxy_request_events (waf_rule_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_cache_rule_id ON proxy_request_events (cache_rule_id)`,
 	)
 }
 
@@ -995,6 +993,7 @@ func (db *DB) execLegacyStatements(statements ...string) error {
 
 func (db *DB) execLegacyAlterStatements(statements ...string) error {
 	for _, stmt := range statements {
+		// SQLite has no ADD COLUMN IF NOT EXISTS; legacy migrations stay idempotent by ignoring that specific error.
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
 		}
