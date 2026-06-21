@@ -38,7 +38,7 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 		}
 	}
 	services.publicACME = newPublicACMEManager(app)
-	services.publicConfig = newPublicConfigService(app, app.DB, services.targetHealth, services.publicACME, appPublicConfigRuntime{app: app})
+	services.publicConfig = newPublicConfigService(app, app.DB, services.targetHealth, appPublicConfigRuntime{app: app})
 	return services
 }
 

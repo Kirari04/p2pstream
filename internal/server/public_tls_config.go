@@ -27,10 +27,10 @@ func (a *App) CreatePublicTlsDnsCredential(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().CreatePublicTlsDnsCredential(ctx, req)
+	return a.publicConfigService().createPublicTlsDnsCredential(ctx, req)
 }
 
-func (s *publicConfigService) CreatePublicTlsDnsCredential(
+func (s *publicConfigService) createPublicTlsDnsCredential(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.CreatePublicTlsDnsCredentialRequest],
 ) (*connect.Response[p2pstreamv1.CreatePublicTlsDnsCredentialResponse], error) {
@@ -67,10 +67,10 @@ func (a *App) UpdatePublicTlsDnsCredential(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().UpdatePublicTlsDnsCredential(ctx, req)
+	return a.publicConfigService().updatePublicTlsDnsCredential(ctx, req)
 }
 
-func (s *publicConfigService) UpdatePublicTlsDnsCredential(
+func (s *publicConfigService) updatePublicTlsDnsCredential(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.UpdatePublicTlsDnsCredentialRequest],
 ) (*connect.Response[p2pstreamv1.UpdatePublicTlsDnsCredentialResponse], error) {
@@ -109,10 +109,10 @@ func (a *App) DeletePublicTlsDnsCredential(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().DeletePublicTlsDnsCredential(ctx, req)
+	return a.publicConfigService().deletePublicTlsDnsCredential(ctx, req)
 }
 
-func (s *publicConfigService) DeletePublicTlsDnsCredential(
+func (s *publicConfigService) deletePublicTlsDnsCredential(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.DeletePublicTlsDnsCredentialRequest],
 ) (*connect.Response[p2pstreamv1.DeletePublicTlsDnsCredentialResponse], error) {
@@ -133,10 +133,10 @@ func (a *App) CreatePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().CreatePublicTlsCertificate(ctx, req)
+	return a.publicConfigService().createPublicTlsCertificate(ctx, req)
 }
 
-func (s *publicConfigService) CreatePublicTlsCertificate(
+func (s *publicConfigService) createPublicTlsCertificate(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.CreatePublicTlsCertificateRequest],
 ) (*connect.Response[p2pstreamv1.CreatePublicTlsCertificateResponse], error) {
@@ -188,10 +188,10 @@ func (a *App) UpdatePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().UpdatePublicTlsCertificate(ctx, req)
+	return a.publicConfigService().updatePublicTlsCertificate(ctx, req)
 }
 
-func (s *publicConfigService) UpdatePublicTlsCertificate(
+func (s *publicConfigService) updatePublicTlsCertificate(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.UpdatePublicTlsCertificateRequest],
 ) (*connect.Response[p2pstreamv1.UpdatePublicTlsCertificateResponse], error) {
@@ -259,10 +259,10 @@ func (a *App) DeletePublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().DeletePublicTlsCertificate(ctx, req)
+	return a.publicConfigService().deletePublicTlsCertificate(ctx, req)
 }
 
-func (s *publicConfigService) DeletePublicTlsCertificate(
+func (s *publicConfigService) deletePublicTlsCertificate(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.DeletePublicTlsCertificateRequest],
 ) (*connect.Response[p2pstreamv1.DeletePublicTlsCertificateResponse], error) {
@@ -288,10 +288,10 @@ func (a *App) RenewPublicTlsCertificate(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().RenewPublicTlsCertificate(ctx, req)
+	return a.publicConfigService().renewPublicTlsCertificate(ctx, req)
 }
 
-func (s *publicConfigService) RenewPublicTlsCertificate(
+func (s *publicConfigService) renewPublicTlsCertificate(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.RenewPublicTlsCertificateRequest],
 ) (*connect.Response[p2pstreamv1.RenewPublicTlsCertificateResponse], error) {

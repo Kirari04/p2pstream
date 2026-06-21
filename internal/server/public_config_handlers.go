@@ -17,10 +17,10 @@ func (a *App) GetPublicProxyConfig(
 	if _, err := a.requireUser(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().GetPublicProxyConfig(ctx, req)
+	return a.publicConfigService().getPublicProxyConfig(ctx, req)
 }
 
-func (s *publicConfigService) GetPublicProxyConfig(
+func (s *publicConfigService) getPublicProxyConfig(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.GetPublicProxyConfigRequest],
 ) (*connect.Response[p2pstreamv1.GetPublicProxyConfigResponse], error) {
@@ -39,10 +39,10 @@ func (a *App) ListPublicRouteTargetHealthTraces(
 	if _, err := a.requireUser(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().ListPublicRouteTargetHealthTraces(ctx, req)
+	return a.publicConfigService().listPublicRouteTargetHealthTraces(ctx, req)
 }
 
-func (s *publicConfigService) ListPublicRouteTargetHealthTraces(
+func (s *publicConfigService) listPublicRouteTargetHealthTraces(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.ListPublicRouteTargetHealthTracesRequest],
 ) (*connect.Response[p2pstreamv1.ListPublicRouteTargetHealthTracesResponse], error) {
@@ -72,10 +72,10 @@ func (a *App) CreatePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().CreatePublicListener(ctx, req)
+	return a.publicConfigService().createPublicListener(ctx, req)
 }
 
-func (s *publicConfigService) CreatePublicListener(
+func (s *publicConfigService) createPublicListener(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.CreatePublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.CreatePublicListenerResponse], error) {
@@ -112,10 +112,10 @@ func (a *App) UpdatePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().UpdatePublicListener(ctx, req)
+	return a.publicConfigService().updatePublicListener(ctx, req)
 }
 
-func (s *publicConfigService) UpdatePublicListener(
+func (s *publicConfigService) updatePublicListener(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.UpdatePublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.UpdatePublicListenerResponse], error) {
@@ -147,10 +147,10 @@ func (a *App) DeletePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().DeletePublicListener(ctx, req)
+	return a.publicConfigService().deletePublicListener(ctx, req)
 }
 
-func (s *publicConfigService) DeletePublicListener(
+func (s *publicConfigService) deletePublicListener(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.DeletePublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.DeletePublicListenerResponse], error) {
@@ -180,10 +180,10 @@ func (a *App) EnablePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().EnablePublicListener(ctx, req)
+	return a.publicConfigService().enablePublicListener(ctx, req)
 }
 
-func (s *publicConfigService) EnablePublicListener(
+func (s *publicConfigService) enablePublicListener(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.EnablePublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.EnablePublicListenerResponse], error) {
@@ -217,10 +217,10 @@ func (a *App) DisablePublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().DisablePublicListener(ctx, req)
+	return a.publicConfigService().disablePublicListener(ctx, req)
 }
 
-func (s *publicConfigService) DisablePublicListener(
+func (s *publicConfigService) disablePublicListener(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.DisablePublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.DisablePublicListenerResponse], error) {
@@ -250,10 +250,10 @@ func (a *App) StartPublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().StartPublicListener(ctx, req)
+	return a.publicConfigService().startPublicListener(ctx, req)
 }
 
-func (s *publicConfigService) StartPublicListener(
+func (s *publicConfigService) startPublicListener(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.StartPublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.StartPublicListenerResponse], error) {
@@ -275,10 +275,10 @@ func (a *App) StopPublicListener(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().StopPublicListener(ctx, req)
+	return a.publicConfigService().stopPublicListener(ctx, req)
 }
 
-func (s *publicConfigService) StopPublicListener(
+func (s *publicConfigService) stopPublicListener(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.StopPublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.StopPublicListenerResponse], error) {
@@ -300,10 +300,10 @@ func (a *App) CreatePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().CreatePublicRoute(ctx, req)
+	return a.publicConfigService().createPublicRoute(ctx, req)
 }
 
-func (s *publicConfigService) CreatePublicRoute(
+func (s *publicConfigService) createPublicRoute(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.CreatePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.CreatePublicRouteResponse], error) {
@@ -346,10 +346,10 @@ func (a *App) UpdatePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().UpdatePublicRoute(ctx, req)
+	return a.publicConfigService().updatePublicRoute(ctx, req)
 }
 
-func (s *publicConfigService) UpdatePublicRoute(
+func (s *publicConfigService) updatePublicRoute(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.UpdatePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.UpdatePublicRouteResponse], error) {
@@ -503,10 +503,10 @@ func (a *App) DeletePublicRoute(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	return a.publicConfigService().DeletePublicRoute(ctx, req)
+	return a.publicConfigService().deletePublicRoute(ctx, req)
 }
 
-func (s *publicConfigService) DeletePublicRoute(
+func (s *publicConfigService) deletePublicRoute(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.DeletePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.DeletePublicRouteResponse], error) {

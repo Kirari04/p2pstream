@@ -24,28 +24,26 @@ type publicConfigService struct {
 	app          *App
 	db           *db.DB
 	targetHealth *publicRouteTargetHealthMonitor
-	acme         *publicACMEManager
 	runtime      publicConfigRuntime
 }
 
-func newPublicConfigService(app *App, database *db.DB, targetHealth *publicRouteTargetHealthMonitor, acme *publicACMEManager, runtime publicConfigRuntime) *publicConfigService {
+func newPublicConfigService(app *App, database *db.DB, targetHealth *publicRouteTargetHealthMonitor, runtime publicConfigRuntime) *publicConfigService {
 	return &publicConfigService{
 		app:          app,
 		db:           database,
 		targetHealth: targetHealth,
-		acme:         acme,
 		runtime:      runtime,
 	}
 }
 
 func (a *App) publicConfigService() *publicConfigService {
 	if a == nil {
-		return newPublicConfigService(nil, nil, nil, nil, nil)
+		return newPublicConfigService(nil, nil, nil, nil)
 	}
 	if a.publicConfig != nil {
 		return a.publicConfig
 	}
-	a.publicConfig = newPublicConfigService(a, a.DB, a.TargetHealth, a.PublicACME, appPublicConfigRuntime{app: a})
+	a.publicConfig = newPublicConfigService(a, a.DB, a.TargetHealth, appPublicConfigRuntime{app: a})
 	return a.publicConfig
 }
 
