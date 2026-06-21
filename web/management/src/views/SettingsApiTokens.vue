@@ -6,19 +6,25 @@ import { Trash2 as TrashIcon } from "@lucide/vue";
 import { NButton, NCheckbox, NDataTable, NDatePicker, NInput, NModal, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref, watch } from "vue";
-import type { ComputedRef } from "vue";
+import {
+  isBusyKey,
+  selectedEnvironmentBlockedKey,
+  selectedEnvironmentIdKey,
+  selectedEnvironmentLabelKey,
+} from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
 import type { ManagementAccessToken } from "@/gen/proto/p2pstream/v1/management_pb";
+import { messageFromError } from "@/lib/errors";
 
 const managementClient = useManagementClient();
-const isBusy = inject<ComputedRef<boolean>>("isBusy", computed(() => false));
-const selectedEnvironmentId = inject<ComputedRef<string>>("selectedEnvironmentId", computed(() => "0"));
-const selectedEnvironmentLabel = inject<ComputedRef<string>>("selectedEnvironmentLabel", computed(() => "Local"));
-const selectedEnvironmentBlocked = inject<ComputedRef<string>>("selectedEnvironmentBlocked", computed(() => ""));
+const isBusy = inject(isBusyKey, computed(() => false));
+const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
+const selectedEnvironmentLabel = inject(selectedEnvironmentLabelKey, computed(() => "Local"));
+const selectedEnvironmentBlocked = inject(selectedEnvironmentBlockedKey, computed(() => ""));
 const revokeTokenDialog = useConfirmDialog();
 
 const tokens = ref<ManagementAccessToken[]>([]);
@@ -246,9 +252,6 @@ function formatDate(value: bigint | undefined): string {
   return new Date(Number(value)).toLocaleString();
 }
 
-function messageFromError(err: unknown): string {
-  return err instanceof Error ? err.message : "Request failed";
-}
 
 function tokenRowKey(token: ManagementAccessToken): string {
   return token.id.toString();
