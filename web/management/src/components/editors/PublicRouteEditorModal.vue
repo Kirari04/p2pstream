@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref, watch } from "vue";
-import type { ComputedRef, InputHTMLAttributes } from "vue";
+import type { InputHTMLAttributes } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import { NButton, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
+import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import {
@@ -30,7 +31,6 @@ import {
 
 const managementClient = useManagementClient();
 
-type Runner = (action: () => Promise<void>) => Promise<boolean>;
 type RouteFormMode = "create" | "edit" | "clone";
 type TargetForm = {
   id: string;
@@ -56,8 +56,8 @@ const emit = defineEmits<{
   (event: "saved"): void;
 }>();
 
-const runManagementAction = inject<Runner>("runManagementAction");
-const isBusy = inject<ComputedRef<boolean>>("isBusy");
+const runManagementAction = inject(runManagementActionKey);
+const isBusy = inject(isBusyKey, computed(() => false));
 
 const isOpen = ref(false);
 const routeFormMode = ref<RouteFormMode>("create");

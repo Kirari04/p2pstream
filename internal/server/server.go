@@ -56,6 +56,7 @@ type App struct {
 	publicConfig          *publicConfigService
 	proxyRuntime          *proxyRuntime
 	observabilityRecorder *observabilityRecorder
+	auth                  *authService
 	AgentTransports       *agentTransportPool
 	DashboardCache        *dashboardResponseCache
 	LoginThrottle         *loginThrottle

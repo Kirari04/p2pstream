@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
-import type { ComputedRef } from "vue";
 import { NButton, NButtonGroup, NDataTable } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
+import { dashboardKey, publicProxyConfigKey } from "@/composables/managementContextKeys";
 import {
   ProxyState,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
   type DashboardProxyDimensionSummary,
   type DashboardTrafficBucket,
-  type GetDashboardResponse,
-  type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   bytesPerSecond,
@@ -35,8 +33,8 @@ import {
 
 type HotspotTab = "listeners" | "targets" | "routes" | "agents";
 
-const dashboard = inject<ComputedRef<GetDashboardResponse | null>>("dashboard");
-const publicProxyConfig = inject<ComputedRef<GetPublicProxyConfigResponse | null>>("publicProxyConfig");
+const dashboard = inject(dashboardKey, computed(() => null));
+const publicProxyConfig = inject(publicProxyConfigKey, computed(() => null));
 
 const selectedWindowLabel = ref("1h");
 const activeHotspotTab = ref<HotspotTab>("listeners");
