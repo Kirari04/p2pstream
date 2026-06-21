@@ -589,6 +589,10 @@ func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error)
 			return publicWafRuleConfig{}, err
 		}
 	}
+	keyParts, err = validateStoredRateLimitClientIdentityKeyParts(keyParts)
+	if err != nil {
+		return publicWafRuleConfig{}, err
+	}
 	var blockHeaders []publicRateLimitResponseHeaderConfig
 	if strings.TrimSpace(row.BlockResponseHeadersJson) != "" {
 		if err := json.Unmarshal([]byte(row.BlockResponseHeadersJson), &blockHeaders); err != nil {
@@ -910,7 +914,7 @@ func (a *App) validatePublicWafRuleInput(
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
-	keyPartConfig, err := validateRateLimitKeyParts(keyParts)
+	keyPartConfig, err := validateRateLimitClientIdentityKeyParts(keyParts)
 	if err != nil {
 		return publicWafRuleMutationInput{}, err
 	}
