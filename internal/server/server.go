@@ -41,19 +41,26 @@ type App struct {
 	LatestAgentStats   atomic.Pointer[stats.AgentStats]
 	latestAgentStatsMu sync.RWMutex
 	latestAgentStats   map[int64]stats.AgentStats
-	AgentHub           *agentHub
-	LoadBalancers      *loadBalancerRegistry
-	TargetHealth       *publicRouteTargetHealthMonitor
-	TrafficTracer      *trafficTracer
-	RateLimiter        *publicRateLimiter
-	TrafficShaper      *publicTrafficShaper
-	PublicWAF          *publicWAF
-	PublicCache        *publicProxyCache
-	PublicACME         *publicACMEManager
-	AgentTransports    *agentTransportPool
-	DashboardCache     *dashboardResponseCache
-	LoginThrottle      *loginThrottle
-	agentAuthLocks     *agentAuthLockMap
+
+	// These service fields remain public for package tests during the extraction stack.
+	// New construction should go through appServices so they can become private later.
+	AgentHub              *agentHub
+	LoadBalancers         *loadBalancerRegistry
+	TargetHealth          *publicRouteTargetHealthMonitor
+	TrafficTracer         *trafficTracer
+	RateLimiter           *publicRateLimiter
+	TrafficShaper         *publicTrafficShaper
+	PublicWAF             *publicWAF
+	PublicCache           *publicProxyCache
+	PublicACME            *publicACMEManager
+	publicConfig          *publicConfigService
+	proxyRuntime          *proxyRuntime
+	observabilityRecorder *observabilityRecorder
+	auth                  *authService
+	AgentTransports       *agentTransportPool
+	DashboardCache        *dashboardResponseCache
+	LoginThrottle         *loginThrottle
+	agentAuthLocks        *agentAuthLockMap
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -119,28 +126,11 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		Config:              cfg,
 		DB:                  database,
 		StartedAt:           time.Now(),
-		AgentHub:            newAgentHub(),
-		LoadBalancers:       newLoadBalancerRegistry(),
-		TargetHealth:        newPublicRouteTargetHealthMonitor(),
-		TrafficTracer:       newTrafficTracer(),
-		RateLimiter:         newPublicRateLimiter(),
-		TrafficShaper:       newPublicTrafficShaper(),
-		PublicWAF:           newPublicWAF(),
-		PublicCache:         newPublicProxyCache(cfg.PublicCacheDir),
-		AgentTransports:     newAgentTransportPool(),
-		DashboardCache:      newDashboardResponseCache(),
-		LoginThrottle:       newLoginThrottle(cfg.LoginThrottleMaxKeys),
-		agentAuthLocks:      newAgentAuthLockMap(),
 		latestAgentStats:    make(map[int64]stats.AgentStats),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
-	app.AgentHub.onDisconnect = func(conn *AgentConn) {
-		if app.AgentTransports != nil {
-			app.AgentTransports.closeAgent(conn.AgentID)
-		}
-	}
-	app.PublicACME = newPublicACMEManager(app)
+	app.applyServices(newAppServices(cfg, app))
 	if database != nil {
 		app.closeStaleAgentConnections(context.Background(), time.Now().UTC())
 		app.initializeSetupToken(context.Background())

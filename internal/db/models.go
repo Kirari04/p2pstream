@@ -115,8 +115,8 @@ type ProxyRequestEvent struct {
 	Host          string        `json:"host"`
 	PathPrefix    string        `json:"path_prefix"`
 	ListenerID    sql.NullInt64 `json:"listener_id"`
-	RouteID       sql.NullInt64 `json:"route_id"`
 	RouteTargetID sql.NullInt64 `json:"route_target_id"`
+	RouteID       sql.NullInt64 `json:"route_id"`
 	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
 	WafAction     string        `json:"waf_action"`
 	AgentID       sql.NullInt64 `json:"agent_id"`
@@ -168,8 +168,8 @@ type ProxyRequestStatusRollupMinute struct {
 type ProxyRequestTupleRollupMinute struct {
 	BucketUnixMillis int64     `json:"bucket_unix_millis"`
 	ListenerID       int64     `json:"listener_id"`
-	RouteID          int64     `json:"route_id"`
 	RouteTargetID    int64     `json:"route_target_id"`
+	RouteID          int64     `json:"route_id"`
 	AgentID          int64     `json:"agent_id"`
 	ErrorKind        string    `json:"error_kind"`
 	StatusClass      int64     `json:"status_class"`

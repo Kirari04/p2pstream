@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS proxy_request_events (
     host TEXT NOT NULL DEFAULT '',
     path_prefix TEXT NOT NULL DEFAULT '',
     listener_id INTEGER,
-    route_id INTEGER,
     route_target_id INTEGER,
+    route_id INTEGER,
     waf_rule_id INTEGER,
     waf_action TEXT NOT NULL DEFAULT '',
     agent_id INTEGER REFERENCES agents(id),
@@ -80,8 +80,8 @@ CREATE TABLE IF NOT EXISTS proxy_request_rollup_minutes (
 CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
     bucket_unix_millis INTEGER NOT NULL,
     listener_id INTEGER NOT NULL DEFAULT 0,
-    route_id INTEGER NOT NULL DEFAULT 0,
     route_target_id INTEGER NOT NULL DEFAULT 0,
+    route_id INTEGER NOT NULL DEFAULT 0,
     agent_id INTEGER NOT NULL DEFAULT 0,
     error_kind TEXT NOT NULL DEFAULT '',
     status_class INTEGER NOT NULL DEFAULT 0,
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
     response_bytes INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (bucket_unix_millis, listener_id, route_id, route_target_id, agent_id, error_kind, status_class)
+    PRIMARY KEY (bucket_unix_millis, listener_id, route_target_id, route_id, agent_id, error_kind, status_class)
 );
 
 CREATE TABLE IF NOT EXISTS proxy_request_status_rollup_minutes (
@@ -533,6 +533,9 @@ ON public_routes (listener_id, priority, id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener
 ON public_routes (listener_id)
 WHERE is_default = 1;
+
+CREATE INDEX IF NOT EXISTS idx_public_response_templates_kind
+ON public_response_templates (kind, name);
 
 CREATE INDEX IF NOT EXISTS idx_public_agent_labels_key_value
 ON public_agent_labels (key, value);
