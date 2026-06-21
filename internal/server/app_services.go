@@ -41,7 +41,6 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 }
 
 func (a *App) applyServices(services appServices) {
-	a.services = services
 	a.AgentHub = services.agentHub
 	a.LoadBalancers = services.loadBalancers
 	a.TargetHealth = services.targetHealth

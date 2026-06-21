@@ -44,7 +44,6 @@ type App struct {
 
 	// These service fields remain public for package tests during the extraction stack.
 	// New construction should go through appServices so they can become private later.
-	services        appServices
 	AgentHub        *agentHub
 	LoadBalancers   *loadBalancerRegistry
 	TargetHealth    *publicRouteTargetHealthMonitor
