@@ -25,6 +25,19 @@ Traffic-shaper path matching and `path` key parts use p2pstream's decoded reques
 
 Key parts still identify the per-key budget. They can use remote IP, host, method, path, protocol, header, cookie, and query parameter values.
 
+For `per_key` shaping, `REMOTE_IP` is the only built-in client-IP identity source. `HEADER` key parts remain supported for application headers such as `X-Plan`, but forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, and `X-Forwarded-Port` are rejected. `per_request` shaping ignores key parts.
+
+Before upgrading from an older version that allowed arbitrary header key parts, inspect stored per-key shapers:
+
+```sql
+SELECT id, name, key_parts_json
+FROM public_traffic_shaper_rules
+WHERE lower(key_parts_json) LIKE '%forwarded%'
+   OR lower(key_parts_json) LIKE '%x-real-ip%'
+   OR lower(key_parts_json) LIKE '%client-ip%'
+   OR lower(key_parts_json) LIKE '%connecting-ip%';
+```
+
 Byte rates and exempt bytes must be non-negative. Use realistic rates so operational debugging remains clear.
 
 <figure class="doc-screenshot">
