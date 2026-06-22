@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 
 	"p2pstream/internal/db"
+	secretspkg "p2pstream/internal/secrets"
 )
 
 const environmentProxyPrefix = "/environments/"
@@ -172,8 +173,12 @@ func (a *App) environmentHTTPClient(row db.Environment) (*http.Client, error) {
 		transport.ResponseHeaderTimeout = environmentResponseHeaderTimeout(row)
 		rt = transport
 	}
+	accessToken, _, err := a.decryptSecret(secretspkg.PurposeEnvironmentAccessToken, row.ID, row.AccessToken)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	return &http.Client{
-		Transport:     environmentAuthRoundTripper{token: row.AccessToken, scheme: scheme, host: host, next: rt},
+		Transport:     environmentAuthRoundTripper{token: accessToken, scheme: scheme, host: host, next: rt},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
 	}, nil
 }

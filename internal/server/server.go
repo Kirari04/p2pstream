@@ -19,6 +19,7 @@ import (
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/managementui"
+	"p2pstream/internal/secrets"
 	"p2pstream/internal/tunnel"
 	"p2pstream/stats"
 )
@@ -60,7 +61,9 @@ type App struct {
 	AgentTransports       *agentTransportPool
 	DashboardCache        *dashboardResponseCache
 	LoginThrottle         *loginThrottle
+	Secrets               *secrets.Service
 	agentAuthLocks        *agentAuthLockMap
+	secretStoreError      error
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -130,6 +133,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 	}
+	app.Secrets, app.secretStoreError = newSecretService(cfg)
 	app.applyServices(newAppServices(cfg, app))
 	if database != nil {
 		app.closeStaleAgentConnections(context.Background(), time.Now().UTC())

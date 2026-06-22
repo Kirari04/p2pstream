@@ -98,6 +98,7 @@ When switching environments, traffic tracing reconnects to the selected environm
 
 - Environment access tokens grant admin access to the target p2pstream instance.
 - Environment access tokens are stored by the control-plane instance because it must replay them to proxy unattended management requests.
+- Enable `SECRETS_ENCRYPTION_KEY` on the control-plane instance to encrypt stored remote-environment access tokens in SQLite.
 - HTTPS is required for every remote environment.
 - Environment certificate verification is pinned and hostname-checked, not skipped.
 - Certificate discovery never sends access tokens.

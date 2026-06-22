@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	secretspkg "p2pstream/internal/secrets"
 )
 
 func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPublicProxyConfigResponse, error) {
@@ -193,7 +194,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	return publicConfigRows{
+	rows := publicConfigRows{
 		Agents:                     agents,
 		AgentLabels:                agentLabels,
 		Listeners:                  listeners,
@@ -211,7 +212,69 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		CacheSettings:              cacheSettings,
 		CacheRules:                 cacheRules,
 		ResponseTemplates:          responseTemplates,
-	}, nil
+	}
+	if err := a.decryptPublicConfigRows(&rows); err != nil {
+		return publicConfigRows{}, err
+	}
+	return rows, nil
+}
+
+func (a *App) decryptPublicConfigRows(rows *publicConfigRows) error {
+	if rows == nil {
+		return nil
+	}
+	for idx := range rows.RouteTargets {
+		target := &rows.RouteTargets[idx]
+		if target.UpstreamBasicAuthPassword == "" {
+			continue
+		}
+		password, _, err := a.decryptSecret(secretspkg.PurposePublicRouteTargetBasicAuthPassword, target.ID, target.UpstreamBasicAuthPassword)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("decrypt route target basic auth password: %w", err))
+		}
+		target.UpstreamBasicAuthPassword = password
+	}
+	for idx := range rows.RouteTargetUpstreamHeaders {
+		header := &rows.RouteTargetUpstreamHeaders[idx]
+		if header.Value == "" || (header.Sensitive == 0 && !isForcedSensitiveUpstreamHeader(header.Name)) {
+			continue
+		}
+		value, _, err := a.decryptSecret(secretspkg.PurposePublicRouteTargetSensitiveHeader, header.ID, header.Value)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("decrypt route target upstream header: %w", err))
+		}
+		header.Value = value
+	}
+	for idx := range rows.TLSDNSCredentials {
+		credential := &rows.TLSDNSCredentials[idx]
+		if credential.ApiToken == "" {
+			continue
+		}
+		apiToken, _, err := a.decryptSecret(secretspkg.PurposePublicTLSDNSCredentialAPIToken, credential.ID, credential.ApiToken)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("decrypt TLS DNS credential token: %w", err))
+		}
+		credential.ApiToken = apiToken
+	}
+	for idx := range rows.WafCaptchaProviders {
+		provider := &rows.WafCaptchaProviders[idx]
+		if provider.SecretKey == "" {
+			continue
+		}
+		secretKey, _, err := a.decryptSecret(secretspkg.PurposePublicWAFCaptchaProviderSecretKey, provider.ID, provider.SecretKey)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("decrypt WAF captcha provider secret: %w", err))
+		}
+		provider.SecretKey = secretKey
+	}
+	if rows.WafSettings.CookieSigningSecret != "" {
+		secret, _, err := a.decryptSecret(secretspkg.PurposePublicWAFCookieSigningSecret, publicWAFSettingsSingletonID, rows.WafSettings.CookieSigningSecret)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("decrypt WAF cookie signing secret: %w", err))
+		}
+		rows.WafSettings.CookieSigningSecret = secret
+	}
+	return nil
 }
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {

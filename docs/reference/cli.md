@@ -53,6 +53,8 @@ p2pstream agent [flags]
 
 `p2pstream server` reads `.env` and environment variables, starts management on `MANAGEMENT_PORT`, starts public listeners from SQLite configuration, and starts ACME scheduling when available.
 
+The server command also reads `SECRETS_ENCRYPTION_KEY`, `SECRETS_ENCRYPTION_KEY_ID`, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` before registering listeners. If encrypted database rows cannot be decrypted, startup fails.
+
 `users reset-password` updates the configured SQLite database directly and revokes active sessions for that user. Run it where the same `CONFIG_DIR` or `DATABASE_URL` is available.
 
 If no management URL is provided to the agent, it guesses `https://<local-route-ip>:8081`; production agents should use an explicit URL from the Agent Setup dialog.
@@ -64,6 +66,7 @@ Server:
 ```bash
 CONFIG_DIR=/var/lib/p2pstream \
 MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
+SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key \
 p2pstream server
 ```
 

@@ -167,6 +167,53 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 	})
 }
 
+func TestLoadValidatesSecretsEncryptionConfig(t *testing.T) {
+	t.Run("valid current key", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_KEY", "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA")
+		t.Setenv("SECRETS_ENCRYPTION_KEY_ID", "primary")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.SecretsEncryptionKeyID != "primary" {
+			t.Fatalf("SecretsEncryptionKeyID = %q, want primary", cfg.SecretsEncryptionKeyID)
+		}
+	})
+
+	t.Run("required without key rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_REQUIRED", "true")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected required secrets encryption without key to fail")
+		}
+	})
+
+	t.Run("invalid key rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_KEY", "not-a-32-byte-key")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected invalid secrets encryption key to fail")
+		}
+	})
+
+	t.Run("previous key requires current key", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PREVIOUS_KEYS", "old:AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected previous key without current key to fail")
+		}
+	})
+}
+
 func TestLoadMigratesLegacyDefaultDatabase(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")
@@ -342,6 +389,10 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "MANAGEMENT_SETUP_TOKEN")
 	unsetEnv(t, "OBSERVABILITY_MAX_ROWS")
 	unsetEnv(t, "LOGIN_THROTTLE_MAX_KEYS")
+	unsetEnv(t, "SECRETS_ENCRYPTION_KEY")
+	unsetEnv(t, "SECRETS_ENCRYPTION_KEY_ID")
+	unsetEnv(t, "SECRETS_ENCRYPTION_PREVIOUS_KEYS")
+	unsetEnv(t, "SECRETS_ENCRYPTION_REQUIRED")
 	return workDir
 }
 

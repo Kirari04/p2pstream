@@ -19,6 +19,7 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	secretspkg "p2pstream/internal/secrets"
 )
 
 func (a *App) CreatePublicTlsDnsCredential(
@@ -48,14 +49,32 @@ func (s *publicConfigService) createPublicTlsDnsCredential(
 	if err != nil {
 		return nil, err
 	}
-	credential, err := s.db.CreatePublicTlsDnsCredential(ctx, db.CreatePublicTlsDnsCredentialParams{
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	defer tx.Rollback()
+	qtx := s.db.WithTx(tx)
+	credential, err := qtx.CreatePublicTlsDnsCredential(ctx, db.CreatePublicTlsDnsCredentialParams{
 		Name:             params.Name,
 		Provider:         params.Provider,
 		CloudflareZoneID: params.CloudflareZoneID,
-		ApiToken:         params.ApiToken,
+		ApiToken:         "",
 		Enabled:          params.Enabled,
 	})
 	if err != nil {
+		return nil, publicDBError(err)
+	}
+	params.ID = credential.ID
+	params.ApiToken, err = a.encryptSecret(secretspkg.PurposePublicTLSDNSCredentialAPIToken, credential.ID, params.ApiToken)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	credential, err = qtx.UpdatePublicTlsDnsCredential(ctx, params)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
@@ -87,6 +106,12 @@ func (s *publicConfigService) updatePublicTlsDnsCredential(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	if existing.ApiToken != "" {
+		existing.ApiToken, _, err = a.decryptSecret(secretspkg.PurposePublicTLSDNSCredentialAPIToken, existing.ID, existing.ApiToken)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
 	params, err := a.validatePublicTLSDNSCredentialInput(
 		req.Msg.Name,
 		req.Msg.Provider,
@@ -100,6 +125,10 @@ func (s *publicConfigService) updatePublicTlsDnsCredential(
 		return nil, err
 	}
 	params.ID = req.Msg.Id
+	params.ApiToken, err = a.encryptSecret(secretspkg.PurposePublicTLSDNSCredentialAPIToken, req.Msg.Id, params.ApiToken)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	credential, err := s.db.UpdatePublicTlsDnsCredential(ctx, params)
 	if err != nil {
 		return nil, publicDBError(err)

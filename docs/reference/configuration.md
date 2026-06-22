@@ -37,8 +37,32 @@ Set these on the server process via `.env` or environment. They control manageme
 | `OBSERVABILITY_RETENTION_DAYS`   | `30`                         | Retention window for recorded observability data.                                            |
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Maximum in-memory login throttle keys; active blocks are retained until expiry.              |
+| `SECRETS_ENCRYPTION_KEY`         | empty                        | Optional 32-byte base64/base64url key used directly to encrypt stored upstream/API credentials. |
+| `SECRETS_ENCRYPTION_KEY_ID`      | derived                      | Optional stable identifier stored with encrypted secret metadata.                             |
+| `SECRETS_ENCRYPTION_PREVIOUS_KEYS` | empty                      | Comma-separated `key_id:key` entries used to decrypt and rewrap old encrypted secrets.        |
+| `SECRETS_ENCRYPTION_REQUIRED`    | `false`                      | Reject plaintext stored secrets during startup when set to `true`.                           |
 
 If every login throttle slot is occupied by an active block, new failed-login keys are not tracked until a blocked key expires or a login succeeds for an existing key.
+
+### Secrets Encryption
+
+`SECRETS_ENCRYPTION_KEY` enables versioned direct AES-256-GCM encryption for stored upstream credentials, sensitive upstream request headers, TLS DNS provider tokens, WAF captcha secrets, WAF cookie signing material, and remote-environment access tokens. Existing plaintext rows are encrypted during server startup before listeners are registered while `SECRETS_ENCRYPTION_REQUIRED=false`.
+
+This setting protects secret values stored in SQLite. It is not KEK/DEK envelope encryption: the configured key encrypts secret values directly and is parsed from process configuration at startup. Runtime components still decrypt those values into process memory when they need to proxy requests, issue certificates, verify WAF challenges, or call remote environments. Certificate private-key files under `CONFIG_DIR/certs` remain file-backed and depend on host, volume, and backup access controls.
+
+Generate a key with one of:
+
+```bash
+openssl rand -base64 32
+```
+
+```bash
+openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+```
+
+Set `SECRETS_ENCRYPTION_REQUIRED=true` after the first successful migration when you want startup to fail if any stored secret is still plaintext. If encrypted rows already exist and no matching key is configured, startup fails because the database contents cannot be safely decrypted.
+
+For rotation, restart the server with the new key as `SECRETS_ENCRYPTION_KEY`, keep the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and let startup rewrap stored secrets to the current key before listeners are registered. During that startup window both keys must be configured; after a successful rewrap, remove the previous key on a later restart. `SECRETS_ENCRYPTION_KEY_ID` should be stable for the lifetime of a key; when omitted, p2pstream derives one from the key. Previous entries use `key_id:key`; if the key ID contains `:`, the last `:` separates the key ID from the key value.
 
 ### Agent Variables
 
@@ -77,6 +101,9 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_PUBLIC_URL` must be absolute and must use `https`, unless management TLS is off and insecure HTTP is explicitly allowed.
 - `MANAGEMENT_BIND_ADDRESS` defaults to all interfaces so agents and remote clients can connect. Set it to `127.0.0.1` only for local-only management or when a local reverse proxy fronts management.
 - Bootstrap agent ID, name, and token must all be set together.
+- `SECRETS_ENCRYPTION_KEY` must decode to exactly 32 bytes as base64 or base64url.
+- `SECRETS_ENCRYPTION_REQUIRED=true` requires `SECRETS_ENCRYPTION_KEY`.
+- `SECRETS_ENCRYPTION_PREVIOUS_KEYS` requires `SECRETS_ENCRYPTION_KEY`; every entry must be `key_id:key`, and key IDs must be unique.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
 
@@ -94,6 +121,9 @@ Compose `.env`:
 MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
 MANAGEMENT_BIND_ADDRESS=0.0.0.0
 MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
+SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key
+SECRETS_ENCRYPTION_KEY_ID=primary-2026-06
+SECRETS_ENCRYPTION_REQUIRED=true
 P2PSTREAM_HTTP_PORT=80
 P2PSTREAM_HTTPS_PORT=443
 P2PSTREAM_MANAGEMENT_PORT=8081
@@ -108,6 +138,9 @@ CONFIG_DIR=/var/lib/p2pstream
 MANAGEMENT_BIND_ADDRESS=0.0.0.0
 MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
 ENV=production
+SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key
+SECRETS_ENCRYPTION_KEY_ID=primary-2026-06
+SECRETS_ENCRYPTION_REQUIRED=true
 ```
 
 ## Related Tasks

@@ -40,6 +40,9 @@ Use this advanced path for a systemd-managed host install, custom networking, or
    ```bash
    sudo env CONFIG_DIR=/var/lib/p2pstream \
      MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
+     SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key \
+     SECRETS_ENCRYPTION_KEY_ID=primary-2026-06 \
+     SECRETS_ENCRYPTION_REQUIRED=true \
      /usr/local/bin/p2pstream server
    ```
 
@@ -52,6 +55,8 @@ Use this advanced path for a systemd-managed host install, custom networking, or
 ## Runtime Effects
 
 `p2pstream server` reads `.env` and environment variables, starts management on `MANAGEMENT_PORT` default `8081`, loads public listeners from SQLite, and stores generated files under `CONFIG_DIR` when `DATABASE_URL` is unset.
+
+Set `SECRETS_ENCRYPTION_KEY` in production to encrypt stored upstream/API credentials in SQLite. Store that key outside `CONFIG_DIR`; it is required for restore and key rotation. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds, then switch it to `true`.
 
 The same binary also includes the agent command:
 
@@ -109,6 +114,7 @@ https://proxy.example.com:8081/.well-known/p2pstream/source
 | --- | --- |
 | Cannot bind `80` or `443` | Run with enough privileges, grant capabilities, or use high ports. |
 | Data disappears after restart | Ensure `CONFIG_DIR` points to persistent storage. |
+| Server fails to initialize secret storage | Restore the matching `SECRETS_ENCRYPTION_KEY` or configure the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. |
 | Browser warns about management TLS | Trust the generated CA or provide trusted management TLS. |
 | Agents cannot verify management | Pass the generated management CA to the agent. |
 

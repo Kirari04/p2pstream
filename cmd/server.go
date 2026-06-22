@@ -38,6 +38,9 @@ var serverCmd = &cobra.Command{
 
 		app := server.NewApp(cfg, database)
 		defer app.CloseAgentTransports()
+		if err := app.InitializeSecretStorage(context.Background()); err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize secret storage")
+		}
 
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()
