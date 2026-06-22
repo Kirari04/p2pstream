@@ -73,7 +73,7 @@ Use this page after the quickstart when you need to change ports, understand wha
    SECRETS_ENCRYPTION_REQUIRED=true
    ```
 
-   Generate the key with `p2pstream secrets generate-key` and store it outside the Docker volume in your deployment secret manager. If your secret manager mounts files, set `SECRETS_ENCRYPTION_KEY_FILE` instead of `SECRETS_ENCRYPTION_KEY`; the mounted file must be `0400` or `0600`. For external key custody, use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with `SECRETS_ENCRYPTION_VAULT_ADDR`, `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`, and `SECRETS_ENCRYPTION_VAULT_KEY` instead of the direct key variables. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
+   Generate the key with `p2pstream secrets generate-key` and store it outside the Docker volume in your deployment secret manager. If your secret manager mounts files, set `SECRETS_ENCRYPTION_KEY_FILE` instead of `SECRETS_ENCRYPTION_KEY`; the mounted file must be `0400` or `0600`. For external key custody, use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with `SECRETS_ENCRYPTION_VAULT_ADDR`, `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`, and `SECRETS_ENCRYPTION_VAULT_KEY` instead of the direct key variables. The Vault Transit key must be created with `derived=true`, for example `vault write transit/keys/p2pstream type=aes256-gcm96 derived=true`. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
 
 5. Override host ports only when the defaults are not usable:
 

@@ -61,6 +61,13 @@ Stored-secret encryption covers upstream credentials, sensitive upstream request
 
 `SECRETS_ENCRYPTION_PROVIDER=vault-transit` enables KEK/DEK envelope encryption. p2pstream asks Vault Transit for a plaintext 256-bit data key and a Vault-wrapped copy of that data key, encrypts the secret locally with AES-256-GCM, stores the ciphertext plus wrapped data key in SQLite, and later asks Vault Transit to unwrap only that data key. Vault key rotation can rewrap the stored data key without rewriting the secret ciphertext. Use a Vault Transit key backed by your normal Vault custody model, such as managed/HSM-backed keys where available.
 
+Create the Transit key with key derivation enabled. p2pstream passes the row-bound secret AAD as Vault `context` on data-key, decrypt, and rewrap calls, so a non-derived Transit key is rejected during startup or CLI provider checks:
+
+```bash
+vault secrets enable transit
+vault write transit/keys/p2pstream type=aes256-gcm96 derived=true
+```
+
 The Vault provider uses the Transit data-key, decrypt, key-read, and rewrap APIs documented by HashiCorp: <https://developer.hashicorp.com/vault/api-docs/secret/transit>.
 
 Runtime components still decrypt those values into process memory when they need to proxy requests, issue certificates, verify WAF challenges, or call remote environments. Certificate private-key files under `CONFIG_DIR/certs` remain file-backed and depend on host, volume, and backup access controls.
@@ -88,6 +95,8 @@ For direct-key rotation, configure the new key as `SECRETS_ENCRYPTION_KEY` or `S
 To migrate from direct mode to Vault Transit, set `SECRETS_ENCRYPTION_PROVIDER=vault-transit`, configure Vault, and put the old direct key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. Run `p2pstream secrets rewrap --dry-run`, then `p2pstream secrets rewrap --yes` or restart the server. After status shows no rows with the old direct key ID, remove `SECRETS_ENCRYPTION_PREVIOUS_KEYS`.
 
 For Vault Transit key rotation within the same Transit key name, rotate the key in Vault and run `p2pstream secrets rewrap --dry-run`. Rows whose wrapped data key uses an older Vault key version are reported as rewrap-needed. `p2pstream secrets rewrap --yes` updates the wrapped data key through Vault Transit and preserves the secret ciphertext.
+
+Vault Transit is a startup and configuration-reload dependency. p2pstream checks the provider before registering listeners and unwraps stored DEKs when loading configuration snapshots. Steady-state proxy traffic uses the cached in-memory snapshot, but a Vault outage or slow Vault responses can delay startup or a new snapshot reload. There is no in-process DEK cache in this release.
 
 ### Agent Variables
 
@@ -133,6 +142,7 @@ Set these as environment variables before running the Linux agent installer scri
 - In direct mode, `SECRETS_ENCRYPTION_REQUIRED=true` and `SECRETS_ENCRYPTION_PREVIOUS_KEYS` require a current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`.
 - In Vault Transit mode, do not set `SECRETS_ENCRYPTION_KEY`, `SECRETS_ENCRYPTION_KEY_FILE`, or `SECRETS_ENCRYPTION_KEY_ID`; use `SECRETS_ENCRYPTION_PREVIOUS_KEYS` only for decrypting old direct-mode rows during migration.
 - Vault Transit mode requires `SECRETS_ENCRYPTION_VAULT_ADDR`, `SECRETS_ENCRYPTION_VAULT_KEY`, and exactly one of `SECRETS_ENCRYPTION_VAULT_TOKEN` or `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`.
+- The configured Vault Transit key must be created with `derived=true`.
 - `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` must be a regular non-empty file with no group/other permission bits. Use `0400` or `0600`.
 - `SECRETS_ENCRYPTION_VAULT_ADDR` must use `https`, except loopback `http` endpoints for local Vault development or tests.
 - `SECRETS_ENCRYPTION_PREVIOUS_KEYS` entries must be `key_id:key`, and key IDs must be unique.

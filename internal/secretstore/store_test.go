@@ -302,7 +302,12 @@ func (f *secretStoreFakeVault) handleKey(w http.ResponseWriter, r *http.Request)
 	if !f.authorized(w, r) {
 		return
 	}
-	writeSecretStoreVaultJSON(w, map[string]interface{}{"data": map[string]int{"latest_version": 1}})
+	writeSecretStoreVaultJSON(w, map[string]interface{}{
+		"data": map[string]interface{}{
+			"latest_version": 1,
+			"derived":        true,
+		},
+	})
 }
 
 func (f *secretStoreFakeVault) handleDataKey(w http.ResponseWriter, r *http.Request) {

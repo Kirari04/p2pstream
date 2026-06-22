@@ -39,6 +39,8 @@ type VaultTransitProvider struct {
 	timeout   time.Duration
 	client    *http.Client
 
+	// Cached for the process lifetime. Intentional: Vault KEK rotation is an
+	// explicit operator workflow, and CLI rewrap/status commands are short-lived.
 	mu                    sync.Mutex
 	latestVersion         int
 	latestVersionResolved bool
@@ -200,11 +202,15 @@ func (v *VaultTransitProvider) latestKeyVersion(ctx context.Context) (int, error
 
 	var response struct {
 		Data struct {
-			LatestVersion int `json:"latest_version"`
+			LatestVersion int  `json:"latest_version"`
+			Derived       bool `json:"derived"`
 		} `json:"data"`
 	}
 	if err := v.doJSON(ctx, http.MethodGet, v.transitPath("keys"), nil, &response); err != nil {
 		return 0, err
+	}
+	if !response.Data.Derived {
+		return 0, errors.New("Vault Transit key must be created with derived=true")
 	}
 	if response.Data.LatestVersion <= 0 {
 		return 0, errors.New("Vault Transit key has no latest version")

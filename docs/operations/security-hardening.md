@@ -35,7 +35,8 @@ Use this before exposing management beyond a private network, after adding agent
    - After the first successful encrypted startup, set `SECRETS_ENCRYPTION_REQUIRED=true` so startup fails instead of accepting plaintext stored secrets.
    - For direct mode, store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets unrecoverable.
    - Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount a key file. The file must be `0400` or `0600`; otherwise protect process environments, systemd environment files, Docker inspect output, crash dumps, and child processes that can expose `SECRETS_ENCRYPTION_KEY`.
-   - For Vault Transit mode, prefer `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` with `0400` or `0600` permissions, use HTTPS Vault addresses, and grant only Transit permissions needed to read the configured key, generate data keys, decrypt wrapped data keys, and rewrap them.
+   - For Vault Transit mode, create the Transit key with `derived=true`, prefer `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` with `0400` or `0600` permissions, use HTTPS Vault addresses, and grant only Transit permissions needed to read the configured key, generate data keys, decrypt wrapped data keys, and rewrap them.
+   - Treat Vault Transit as a startup and configuration-reload dependency. Steady-state proxy traffic uses the cached in-memory snapshot, but startup and new snapshot reloads need Vault to unwrap stored DEKs. This release does not cache unwrapped DEKs across reloads.
    - Treat live process memory as sensitive. p2pstream decrypts stored secrets in memory when runtime components need to use them.
    - Keep filesystem and backup access restricted even with database secret encryption enabled; TLS private-key files under `/data/certs` are protected by filesystem permissions, not by stored-secret encryption.
    - Protect database backups as secrets; encrypted backups still contain operational state, sessions, certificates, and metadata.
@@ -76,7 +77,7 @@ Review:
 | --- | --- |
 | Browser UI returns `404` | `MANAGEMENT_UI_DISABLED=true` intentionally disables only the browser UI. |
 | Agents fail after restore | Restore the old management CA or update agent CA material. |
-| Server fails with encrypted secret key errors | Restore the matching direct key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, include the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` during direct-to-Vault migration, or restore Vault Transit availability and token permissions. |
+| Server fails with encrypted secret key errors | Restore the matching direct key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, include the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` during direct-to-Vault migration, or restore Vault Transit availability, `derived=true` key configuration, and token permissions. |
 | Everyone hits one rate-limit bucket | A front proxy may hide client IPs; place p2pstream at the edge, use `REMOTE_IP` when possible, or use only trusted application headers. Do not key on client-supplied forwarding headers. |
 | WAF does not stop network saturation | WAF is HTTP-layer only; use upstream DDoS/network protection. |
 

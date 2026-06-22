@@ -140,6 +140,17 @@ func TestVaultTransitWrappedDataKeyRewrap(t *testing.T) {
 	}
 }
 
+func TestVaultTransitCheckRequiresDerivedKey(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	vault.setDerived(false)
+	service := testVaultTransitService(t, vault)
+
+	err := service.Check(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "derived=true") {
+		t.Fatalf("Check() error = %v, want derived=true requirement", err)
+	}
+}
+
 func TestInspectReportsEncryptedMetadata(t *testing.T) {
 	service := testService(t, "current")
 	stored, err := service.Encrypt(PurposePublicWAFCookieSigningSecret, 1, "cookie-secret")
@@ -389,6 +400,7 @@ type fakeVaultTransit struct {
 	token   string
 	mu      sync.Mutex
 	latest  int
+	derived bool
 	counter int
 	keys    map[string][]byte
 }
@@ -396,10 +408,11 @@ type fakeVaultTransit struct {
 func newFakeVaultTransit(t *testing.T) *fakeVaultTransit {
 	t.Helper()
 	fake := &fakeVaultTransit{
-		t:      t,
-		token:  "test-token",
-		latest: 1,
-		keys:   make(map[string][]byte),
+		t:       t,
+		token:   "test-token",
+		latest:  1,
+		derived: true,
+		keys:    make(map[string][]byte),
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/transit/keys/p2pstream", fake.handleKey)
@@ -417,14 +430,26 @@ func (f *fakeVaultTransit) setLatestVersion(version int) {
 	f.latest = version
 }
 
+func (f *fakeVaultTransit) setDerived(derived bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.derived = derived
+}
+
 func (f *fakeVaultTransit) handleKey(w http.ResponseWriter, r *http.Request) {
 	if !f.authorized(w, r) {
 		return
 	}
 	f.mu.Lock()
 	latest := f.latest
+	derived := f.derived
 	f.mu.Unlock()
-	writeVaultJSON(w, map[string]interface{}{"data": map[string]int{"latest_version": latest}})
+	writeVaultJSON(w, map[string]interface{}{
+		"data": map[string]interface{}{
+			"latest_version": latest,
+			"derived":        derived,
+		},
+	})
 }
 
 func (f *fakeVaultTransit) handleDataKey(w http.ResponseWriter, r *http.Request) {
