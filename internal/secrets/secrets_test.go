@@ -1,8 +1,14 @@
 package secrets
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -49,6 +55,102 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 	}
 }
 
+func TestVaultTransitEnvelopeRoundTrip(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitService(t, vault)
+
+	stored, err := service.EncryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, "top-secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	if !IsEncrypted(stored) {
+		t.Fatalf("stored value is not encrypted: %q", stored)
+	}
+	if strings.Contains(stored, "top-secret") {
+		t.Fatalf("stored value leaked plaintext: %q", stored)
+	}
+
+	meta, err := Inspect(stored)
+	if err != nil {
+		t.Fatalf("Inspect() error = %v", err)
+	}
+	if meta.State != StateEncrypted ||
+		meta.Version != envelopeVersionV2 ||
+		meta.Provider != ProviderVaultTransit ||
+		meta.KeyID != "vault-transit:transit/p2pstream" ||
+		meta.WrapAlgorithm != wrapAlgVaultTransitDEK {
+		t.Fatalf("Inspect() = %+v, want Vault Transit v2 metadata", meta)
+	}
+
+	got, state, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, stored)
+	if err != nil {
+		t.Fatalf("DecryptContext() error = %v", err)
+	}
+	if state != StateEncrypted || got != "top-secret" {
+		t.Fatalf("DecryptContext() = %q/%v, want top-secret/encrypted", got, state)
+	}
+	if _, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 43, stored); err == nil {
+		t.Fatal("expected wrong owner to fail")
+	}
+	needsRewrap, err := service.NeedsRewrapContext(context.Background(), stored)
+	if err != nil {
+		t.Fatalf("NeedsRewrapContext() error = %v", err)
+	}
+	if needsRewrap {
+		t.Fatal("fresh Vault Transit envelope should not need rewrap")
+	}
+}
+
+func TestVaultTransitWrappedDataKeyRewrap(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitService(t, vault)
+	stored, err := service.EncryptContext(context.Background(), PurposeEnvironmentAccessToken, 7, "p2pat_secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	vault.setLatestVersion(2)
+
+	needsRewrap, err := service.NeedsRewrapContext(context.Background(), stored)
+	if err != nil {
+		t.Fatalf("NeedsRewrapContext() error = %v", err)
+	}
+	if !needsRewrap {
+		t.Fatal("expected old Vault key version to need rewrap")
+	}
+	rewrapped, err := service.RewrapContext(context.Background(), PurposeEnvironmentAccessToken, 7, stored)
+	if err != nil {
+		t.Fatalf("RewrapContext() error = %v", err)
+	}
+	if rewrapped == stored {
+		t.Fatal("RewrapContext() returned unchanged envelope")
+	}
+	env, err := parseEnvelope(rewrapped)
+	if err != nil {
+		t.Fatalf("parseEnvelope(rewrapped) error = %v", err)
+	}
+	if version := vaultCiphertextVersion(env.EncryptedDataKey); version != 2 {
+		t.Fatalf("rewrapped data key version = %d, want 2", version)
+	}
+	got, _, err := service.DecryptContext(context.Background(), PurposeEnvironmentAccessToken, 7, rewrapped)
+	if err != nil {
+		t.Fatalf("DecryptContext(rewrapped) error = %v", err)
+	}
+	if got != "p2pat_secret" {
+		t.Fatalf("DecryptContext(rewrapped) = %q, want p2pat_secret", got)
+	}
+}
+
+func TestVaultTransitCheckRequiresDerivedKey(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	vault.setDerived(false)
+	service := testVaultTransitService(t, vault)
+
+	err := service.Check(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "derived=true") {
+		t.Fatalf("Check() error = %v, want derived=true requirement", err)
+	}
+}
+
 func TestInspectReportsEncryptedMetadata(t *testing.T) {
 	service := testService(t, "current")
 	stored, err := service.Encrypt(PurposePublicWAFCookieSigningSecret, 1, "cookie-secret")
@@ -59,7 +161,7 @@ func TestInspectReportsEncryptedMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Inspect() error = %v", err)
 	}
-	if meta.State != StateEncrypted || meta.KeyID != "current" || meta.Version != envelopeVersion || meta.Algorithm != envelopeAlg {
+	if meta.State != StateEncrypted || meta.KeyID != "current" || meta.Version != envelopeVersionV1 || meta.Algorithm != envelopeAlg {
 		t.Fatalf("Inspect() = %+v, want encrypted metadata for current key", meta)
 	}
 
@@ -165,6 +267,44 @@ func TestPreviousKeyDecryptsAndNeedsRewrap(t *testing.T) {
 	}
 }
 
+func TestVaultTransitDecryptsDirectPreviousKeyAndNeedsRewrap(t *testing.T) {
+	oldKey := keyText(1)
+	oldService, err := NewService(KeyConfig{CurrentKey: oldKey, CurrentKeyID: "old", AllowPlaintext: true})
+	if err != nil {
+		t.Fatalf("old NewService() error = %v", err)
+	}
+	stored, err := oldService.Encrypt(PurposePublicWAFCaptchaProviderSecretKey, 7, "captcha-secret")
+	if err != nil {
+		t.Fatalf("Encrypt() error = %v", err)
+	}
+
+	vault := newFakeVaultTransit(t)
+	newService, err := NewService(KeyConfig{
+		PreviousKeys:   "old:" + oldKey,
+		AllowPlaintext: true,
+		Provider:       ProviderVaultTransit,
+		VaultTransit: VaultTransitConfig{
+			Address:   vault.server.URL,
+			Token:     vault.token,
+			MountPath: "transit",
+			KeyName:   "p2pstream",
+		},
+	})
+	if err != nil {
+		t.Fatalf("new NewService() error = %v", err)
+	}
+	got, _, err := newService.Decrypt(PurposePublicWAFCaptchaProviderSecretKey, 7, stored)
+	if err != nil {
+		t.Fatalf("Decrypt() error = %v", err)
+	}
+	if got != "captcha-secret" {
+		t.Fatalf("plaintext = %q, want captcha-secret", got)
+	}
+	if !newService.NeedsRewrap(stored) {
+		t.Fatal("expected direct v1 envelope to need Vault rewrap")
+	}
+}
+
 func TestPreviousKeyAcceptsDefaultKeyID(t *testing.T) {
 	oldKey := keyText(1)
 	newKey := keyText(2)
@@ -252,4 +392,185 @@ func keyText(seed byte) string {
 		key[i] = seed + byte(i)
 	}
 	return base64.RawURLEncoding.EncodeToString(key)
+}
+
+type fakeVaultTransit struct {
+	t       *testing.T
+	server  *httptest.Server
+	token   string
+	mu      sync.Mutex
+	latest  int
+	derived bool
+	counter int
+	keys    map[string][]byte
+}
+
+func newFakeVaultTransit(t *testing.T) *fakeVaultTransit {
+	t.Helper()
+	fake := &fakeVaultTransit{
+		t:       t,
+		token:   "test-token",
+		latest:  1,
+		derived: true,
+		keys:    make(map[string][]byte),
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/transit/keys/p2pstream", fake.handleKey)
+	mux.HandleFunc("/v1/transit/datakey/plaintext/p2pstream", fake.handleDataKey)
+	mux.HandleFunc("/v1/transit/decrypt/p2pstream", fake.handleDecrypt)
+	mux.HandleFunc("/v1/transit/rewrap/p2pstream", fake.handleRewrap)
+	fake.server = httptest.NewServer(mux)
+	t.Cleanup(fake.server.Close)
+	return fake
+}
+
+func (f *fakeVaultTransit) setLatestVersion(version int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.latest = version
+}
+
+func (f *fakeVaultTransit) setDerived(derived bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.derived = derived
+}
+
+func (f *fakeVaultTransit) handleKey(w http.ResponseWriter, r *http.Request) {
+	if !f.authorized(w, r) {
+		return
+	}
+	f.mu.Lock()
+	latest := f.latest
+	derived := f.derived
+	f.mu.Unlock()
+	writeVaultJSON(w, map[string]interface{}{
+		"data": map[string]interface{}{
+			"latest_version": latest,
+			"derived":        derived,
+		},
+	})
+}
+
+func (f *fakeVaultTransit) handleDataKey(w http.ResponseWriter, r *http.Request) {
+	if !f.authorized(w, r) {
+		return
+	}
+	var body map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if body["context"] == "" || fmt.Sprint(body["bits"]) != "256" {
+		http.Error(w, "invalid datakey request", http.StatusBadRequest)
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.counter++
+	key := make([]byte, keySize)
+	for i := range key {
+		key[i] = byte(f.counter + i)
+	}
+	wrapped := fmt.Sprintf("vault:v%d:%s", f.latest, base64.RawURLEncoding.EncodeToString(key))
+	f.keys[wrapped] = cloneBytes(key)
+	writeVaultJSON(w, map[string]interface{}{
+		"data": map[string]string{
+			"plaintext":  base64.StdEncoding.EncodeToString(key),
+			"ciphertext": wrapped,
+		},
+	})
+}
+
+func (f *fakeVaultTransit) handleDecrypt(w http.ResponseWriter, r *http.Request) {
+	if !f.authorized(w, r) {
+		return
+	}
+	var body struct {
+		Ciphertext string `json:"ciphertext"`
+		Context    string `json:"context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if body.Context == "" {
+		http.Error(w, "missing context", http.StatusBadRequest)
+		return
+	}
+	f.mu.Lock()
+	key := cloneBytes(f.keys[body.Ciphertext])
+	f.mu.Unlock()
+	if len(key) != keySize {
+		writeVaultError(w, http.StatusBadRequest, "ciphertext is invalid")
+		return
+	}
+	writeVaultJSON(w, map[string]interface{}{
+		"data": map[string]string{"plaintext": base64.StdEncoding.EncodeToString(key)},
+	})
+}
+
+func (f *fakeVaultTransit) handleRewrap(w http.ResponseWriter, r *http.Request) {
+	if !f.authorized(w, r) {
+		return
+	}
+	var body struct {
+		Ciphertext string `json:"ciphertext"`
+		Context    string `json:"context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if body.Context == "" {
+		http.Error(w, "missing context", http.StatusBadRequest)
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := cloneBytes(f.keys[body.Ciphertext])
+	if len(key) != keySize {
+		writeVaultError(w, http.StatusBadRequest, "ciphertext is invalid")
+		return
+	}
+	wrapped := fmt.Sprintf("vault:v%d:%s", f.latest, base64.RawURLEncoding.EncodeToString(key))
+	f.keys[wrapped] = key
+	writeVaultJSON(w, map[string]interface{}{"data": map[string]string{"ciphertext": wrapped}})
+}
+
+func (f *fakeVaultTransit) authorized(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header.Get("X-Vault-Token") != f.token {
+		writeVaultError(w, http.StatusForbidden, "permission denied")
+		return false
+	}
+	return true
+}
+
+func writeVaultJSON(w http.ResponseWriter, value interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(value)
+}
+
+func writeVaultError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string][]string{"errors": []string{message}})
+}
+
+func testVaultTransitService(t *testing.T, vault *fakeVaultTransit) *Service {
+	t.Helper()
+	service, err := NewService(KeyConfig{
+		AllowPlaintext: true,
+		Provider:       ProviderVaultTransit,
+		VaultTransit: VaultTransitConfig{
+			Address:   vault.server.URL,
+			Token:     vault.token,
+			MountPath: "transit",
+			KeyName:   "p2pstream",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	return service
 }

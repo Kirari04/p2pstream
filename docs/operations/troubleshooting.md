@@ -51,9 +51,12 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 
 | Cause | Fix |
 | --- | --- |
-| Invalid secrets-encryption key | The current key from `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` must decode to exactly 32 bytes as base64 or base64url. Generate one with `p2pstream secrets generate-key`. |
+| Invalid secrets-encryption provider | Set `SECRETS_ENCRYPTION_PROVIDER` to `direct` or `vault-transit`. Vault settings are rejected unless the provider is `vault-transit`. |
+| Invalid secrets-encryption key | In direct mode, the current key from `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` must decode to exactly 32 bytes as base64 or base64url. Generate one with `p2pstream secrets generate-key`. |
 | Secrets-encryption key file rejected | Ensure `SECRETS_ENCRYPTION_KEY_FILE` is a regular file with no group/other permissions. Use `chmod 600` or `chmod 400`. |
-| Encrypted database rows but no key | Restore the same current key used when the rows were encrypted, then run `p2pstream secrets status`. |
+| Vault token file rejected | Ensure `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` is a regular non-empty file with no group/other permissions. Use `chmod 600` or `chmod 400`. |
+| Vault Transit unavailable | Check `SECRETS_ENCRYPTION_VAULT_ADDR`, HTTPS trust, namespace, token, mount, key name, `derived=true` key configuration, and Transit permissions. Startup fails closed while the provider cannot be checked. |
+| Encrypted database rows but no key or provider | Restore the same direct key or Vault Transit provider used when the rows were encrypted, then run `p2pstream secrets status`. |
 | Missing previous key during rotation | Add the old key to `SECRETS_ENCRYPTION_PREVIOUS_KEYS` as `key_id:key`, run `p2pstream secrets rewrap --dry-run`, and keep it until status shows no rewrap-needed rows. |
 | Plaintext row with required mode | Disable `SECRETS_ENCRYPTION_REQUIRED` for the first migration startup, or inspect with `p2pstream secrets status` and remove the unexpected plaintext row after confirming it was not injected. |
 | Encrypted secret authentication failed | Confirm the database and key material came from the same backup set; copied ciphertext from another row, wrong key material, or corruption will fail closed. |

@@ -267,6 +267,95 @@ func TestLoadValidatesSecretsEncryptionConfig(t *testing.T) {
 			t.Fatal("expected previous key without current key to fail")
 		}
 	})
+
+	t.Run("valid Vault Transit provider with token file", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		tokenFile := filepath.Join(workDir, "vault.token")
+		if err := os.WriteFile(tokenFile, []byte("vault-token\n"), 0600); err != nil {
+			t.Fatalf("write token file: %v", err)
+		}
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PROVIDER", "vault-transit")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "https://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN_FILE", tokenFile)
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+		t.Setenv("SECRETS_ENCRYPTION_REQUIRED", "true")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.SecretsEncryptionProvider != "vault-transit" {
+			t.Fatalf("SecretsEncryptionProvider = %q, want vault-transit", cfg.SecretsEncryptionProvider)
+		}
+		if cfg.SecretsVaultToken != "vault-token" {
+			t.Fatalf("SecretsVaultToken = %q, want token file contents", cfg.SecretsVaultToken)
+		}
+	})
+
+	t.Run("Vault settings require Vault provider", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "https://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN", "vault-token")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+
+		err := func() error {
+			_, err := Load()
+			return err
+		}()
+		if err == nil || !strings.Contains(err.Error(), "require SECRETS_ENCRYPTION_PROVIDER=vault-transit") {
+			t.Fatalf("Load() error = %v, want provider mismatch failure", err)
+		}
+	})
+
+	t.Run("Vault mode rejects direct current key material", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PROVIDER", "vault-transit")
+		t.Setenv("SECRETS_ENCRYPTION_KEY", "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "https://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN", "vault-token")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected Vault provider with direct current key to fail")
+		}
+	})
+
+	t.Run("Vault token file rejects group or other permissions", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		tokenFile := filepath.Join(workDir, "vault.token")
+		if err := os.WriteFile(tokenFile, []byte("vault-token"), 0644); err != nil {
+			t.Fatalf("write token file: %v", err)
+		}
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PROVIDER", "vault-transit")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "https://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN_FILE", tokenFile)
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+
+		err := func() error {
+			_, err := Load()
+			return err
+		}()
+		if err == nil || !strings.Contains(err.Error(), "SECRETS_ENCRYPTION_VAULT_TOKEN_FILE") || !strings.Contains(err.Error(), "allow group/other access") {
+			t.Fatalf("Load() error = %v, want token file permission failure", err)
+		}
+	})
+
+	t.Run("Vault address rejects non-loopback http", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PROVIDER", "vault-transit")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "http://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN", "vault-token")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected non-loopback http Vault address to fail")
+		}
+	})
 }
 
 func TestLoadMigratesLegacyDefaultDatabase(t *testing.T) {
