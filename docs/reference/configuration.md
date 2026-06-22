@@ -38,6 +38,7 @@ Set these on the server process via `.env` or environment. They control manageme
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Maximum in-memory login throttle keys; active blocks are retained until expiry.              |
 | `SECRETS_ENCRYPTION_KEY`         | empty                        | Optional 32-byte base64/base64url key used directly to encrypt stored upstream/API credentials. |
+| `SECRETS_ENCRYPTION_KEY_FILE`    | empty                        | Optional `0400`/`0600` file containing the current encryption key. Use instead of `SECRETS_ENCRYPTION_KEY`. |
 | `SECRETS_ENCRYPTION_KEY_ID`      | derived                      | Optional stable identifier stored with encrypted secret metadata.                             |
 | `SECRETS_ENCRYPTION_PREVIOUS_KEYS` | empty                      | Comma-separated `key_id:key` entries used to decrypt and rewrap old encrypted secrets.        |
 | `SECRETS_ENCRYPTION_REQUIRED`    | `false`                      | Reject plaintext stored secrets during startup when set to `true`.                           |
@@ -46,11 +47,15 @@ If every login throttle slot is occupied by an active block, new failed-login ke
 
 ### Secrets Encryption
 
-`SECRETS_ENCRYPTION_KEY` enables versioned direct AES-256-GCM encryption for stored upstream credentials, sensitive upstream request headers, TLS DNS provider tokens, WAF captcha secrets, WAF cookie signing material, and remote-environment access tokens. Existing plaintext rows are encrypted during server startup before listeners are registered while `SECRETS_ENCRYPTION_REQUIRED=false`.
+`SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` enables versioned direct AES-256-GCM encryption for stored upstream credentials, sensitive upstream request headers, TLS DNS provider tokens, WAF captcha secrets, WAF cookie signing material, and remote-environment access tokens. Existing plaintext rows are encrypted during server startup before listeners are registered while `SECRETS_ENCRYPTION_REQUIRED=false`.
 
-This setting protects secret values stored in SQLite. It is not KEK/DEK envelope encryption: the configured key encrypts secret values directly and is parsed from process configuration at startup. Runtime components still decrypt those values into process memory when they need to proxy requests, issue certificates, verify WAF challenges, or call remote environments. Certificate private-key files under `CONFIG_DIR/certs` remain file-backed and depend on host, volume, and backup access controls.
+This setting protects secret values stored in SQLite. It is not KEK/DEK envelope encryption: the configured key encrypts secret values directly and is parsed from process configuration at startup. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount the key as a regular file with no group/other permissions, such as `0400` or `0600`; this avoids putting the key in the process environment. Runtime components still decrypt those values into process memory when they need to proxy requests, issue certificates, verify WAF challenges, or call remote environments. Certificate private-key files under `CONFIG_DIR/certs` remain file-backed and depend on host, volume, and backup access controls.
 
 Generate a key with one of:
+
+```bash
+p2pstream secrets generate-key
+```
 
 ```bash
 openssl rand -base64 32
@@ -62,7 +67,9 @@ openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 
 Set `SECRETS_ENCRYPTION_REQUIRED=true` after the first successful migration when you want startup to fail if any stored secret is still plaintext. If encrypted rows already exist and no matching key is configured, startup fails because the database contents cannot be safely decrypted.
 
-For rotation, restart the server with the new key as `SECRETS_ENCRYPTION_KEY`, keep the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and let startup rewrap stored secrets to the current key before listeners are registered. During that startup window both keys must be configured; after a successful rewrap, remove the previous key on a later restart. `SECRETS_ENCRYPTION_KEY_ID` should be stable for the lifetime of a key; when omitted, p2pstream derives one from the key. Previous entries use `key_id:key`; if the key ID contains `:`, the last `:` separates the key ID from the key value.
+Use `p2pstream secrets status` to inspect encrypted state without printing secret values. Use `p2pstream secrets rewrap --dry-run` before a rotation or required-mode change to confirm how many rows would be encrypted or rewrapped. `p2pstream secrets rewrap --yes` writes directly to SQLite; run it during a maintenance window or before starting the server. Server startup still performs the same reconciliation before listeners are registered.
+
+For rotation, configure the new key as `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, keep the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and run `p2pstream secrets rewrap --dry-run`. Then either run `p2pstream secrets rewrap --yes` during a maintenance window or restart the server and let startup rewrap stored secrets to the current key before listeners are registered. During that window both keys must be configured. After `p2pstream secrets status` shows no rows needing rewrap for the previous key, remove the previous key on a later restart. `SECRETS_ENCRYPTION_KEY_ID` should be stable for the lifetime of a key; when omitted, p2pstream derives one from the key. Previous entries use `key_id:key`; if the key ID contains `:`, the last `:` separates the key ID from the key value.
 
 ### Agent Variables
 
@@ -102,8 +109,10 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_BIND_ADDRESS` defaults to all interfaces so agents and remote clients can connect. Set it to `127.0.0.1` only for local-only management or when a local reverse proxy fronts management.
 - Bootstrap agent ID, name, and token must all be set together.
 - `SECRETS_ENCRYPTION_KEY` must decode to exactly 32 bytes as base64 or base64url.
-- `SECRETS_ENCRYPTION_REQUIRED=true` requires `SECRETS_ENCRYPTION_KEY`.
-- `SECRETS_ENCRYPTION_PREVIOUS_KEYS` requires `SECRETS_ENCRYPTION_KEY`; every entry must be `key_id:key`, and key IDs must be unique.
+- Set only one of `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`.
+- `SECRETS_ENCRYPTION_KEY_FILE` must be a regular file, contain a non-empty 32-byte base64/base64url key, and have no group/other permission bits. Use `0400` or `0600`.
+- `SECRETS_ENCRYPTION_REQUIRED=true` requires a current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`.
+- `SECRETS_ENCRYPTION_PREVIOUS_KEYS` requires a current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`; every entry must be `key_id:key`, and key IDs must be unique.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
 
@@ -122,6 +131,7 @@ MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
 MANAGEMENT_BIND_ADDRESS=0.0.0.0
 MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
 SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key
+# Or use SECRETS_ENCRYPTION_KEY_FILE=/run/secrets/p2pstream-secrets-key
 SECRETS_ENCRYPTION_KEY_ID=primary-2026-06
 SECRETS_ENCRYPTION_REQUIRED=true
 P2PSTREAM_HTTP_PORT=80
@@ -139,6 +149,7 @@ MANAGEMENT_BIND_ADDRESS=0.0.0.0
 MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
 ENV=production
 SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key
+# Or use SECRETS_ENCRYPTION_KEY_FILE=/etc/p2pstream/secrets-encryption.key
 SECRETS_ENCRYPTION_KEY_ID=primary-2026-06
 SECRETS_ENCRYPTION_REQUIRED=true
 ```

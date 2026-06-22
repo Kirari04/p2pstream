@@ -43,7 +43,7 @@ Agent targets use label selectors. A selector matches enabled agents whose label
 
 Proxy targets have an upstream response-header timeout. The default is `60000` milliseconds. It controls how long p2pstream waits for upstream response headers; it does not limit response streaming after headers arrive.
 
-Enable `SECRETS_ENCRYPTION_KEY` to encrypt stored upstream basic-auth passwords and sensitive upstream request headers in SQLite.
+Enable stored secrets encryption to encrypt upstream basic-auth passwords and sensitive upstream request headers in SQLite.
 
 Direct and agent targets enforce HTTP timeout and origin TLS policy from the server transport. For agent targets, the selected agent carries a raw TCP stream over Yamux, but the server still owns HTTP semantics and TLS verification. `tls_skip_verify` disables server-side origin verification and should only be used for controlled internal services.
 

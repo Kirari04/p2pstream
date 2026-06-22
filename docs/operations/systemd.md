@@ -29,6 +29,7 @@ Use systemd when you install the release binary directly on a host, or when mana
    MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081
    ENV=production
    SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key
+   # Or use SECRETS_ENCRYPTION_KEY_FILE=/etc/p2pstream/secrets-encryption.key
    SECRETS_ENCRYPTION_KEY_ID=primary-2026-06
    SECRETS_ENCRYPTION_REQUIRED=true
    ```
@@ -62,7 +63,7 @@ Use systemd when you install the release binary directly on a host, or when mana
 
 Root is required when binding privileged ports such as `80` or `443`. If you only use high ports, run as a dedicated user and adjust ownership of `/var/lib/p2pstream`.
 
-Generate `SECRETS_ENCRYPTION_KEY` with `openssl rand -base64 32` and keep it in a deployment secret manager or another backup path outside `/var/lib/p2pstream`. A restored encrypted database requires the same key material. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds, then switch it to `true`.
+Generate `SECRETS_ENCRYPTION_KEY` with `p2pstream secrets generate-key` and keep it in a deployment secret manager or another backup path outside `/var/lib/p2pstream`. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when the key can be mounted as a root-readable `0400` or `0600` secret file. A restored encrypted database requires the same key material. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
 
 ## Agent Service
 
@@ -134,7 +135,7 @@ sudo systemctl status p2pstream-agent
 | Symptom | Check |
 | --- | --- |
 | Server cannot bind low ports | Run as root or use capabilities/high ports. |
-| Server fails to initialize secret storage | Restore the matching `SECRETS_ENCRYPTION_KEY` or configure the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. |
+| Server fails to initialize secret storage | Restore the matching current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, or configure the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. |
 | Agent fails after token rotation | Run the generated Linux reinstall command on the existing agent host. |
 | Uninstall refuses to run | Set `P2PSTREAM_UNINSTALL_CONFIRM=full-purge`; unsafe paths are intentionally rejected. |
 

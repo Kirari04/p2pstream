@@ -133,8 +133,18 @@ func TestInitializeSecretStorageRequiredRejectsPlaintextWithKey(t *testing.T) {
 	}, database)
 
 	err := app.InitializeSecretStorage(ctx)
-	if err == nil || !strings.Contains(err.Error(), "is plaintext but secrets encryption is required") {
+	if err == nil || !strings.Contains(err.Error(), "plaintext but secrets encryption is required") {
 		t.Fatalf("InitializeSecretStorage() error = %v, want required plaintext failure", err)
+	}
+}
+
+func TestInitializeSecretStorageAllowsNilDatabase(t *testing.T) {
+	app := NewApp(&config.Config{
+		SecretsEncryptionKey:   testSecretsEncryptionKey(),
+		SecretsEncryptionKeyID: "test-key",
+	}, nil)
+	if err := app.InitializeSecretStorage(context.Background()); err != nil {
+		t.Fatalf("InitializeSecretStorage() error = %v, want nil", err)
 	}
 }
 
@@ -252,7 +262,7 @@ func TestInitializeSecretStorageFailsEncryptedRowsWithoutKey(t *testing.T) {
 
 	app := NewApp(nil, database)
 	err = app.InitializeSecretStorage(ctx)
-	if err == nil || !strings.Contains(err.Error(), "SECRETS_ENCRYPTION_KEY is not configured") {
+	if err == nil || !strings.Contains(err.Error(), "encrypted stored secrets require a current secrets encryption key") {
 		t.Fatalf("InitializeSecretStorage() error = %v, want missing key failure", err)
 	}
 }

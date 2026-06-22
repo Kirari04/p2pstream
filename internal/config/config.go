@@ -49,6 +49,7 @@ type Config struct {
 	ObservabilityMaxRows        int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
 	LoginThrottleMaxKeys        int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
 	SecretsEncryptionKey        string `env:"SECRETS_ENCRYPTION_KEY"`
+	SecretsEncryptionKeyFile    string `env:"SECRETS_ENCRYPTION_KEY_FILE"`
 	SecretsEncryptionKeyID      string `env:"SECRETS_ENCRYPTION_KEY_ID"`
 	SecretsEncryptionPrevious   string `env:"SECRETS_ENCRYPTION_PREVIOUS_KEYS"`
 	SecretsEncryptionRequired   bool   `env:"SECRETS_ENCRYPTION_REQUIRED" envDefault:"false"`
@@ -167,8 +168,32 @@ func validateManagementTLSConfig(cfg *Config) error {
 
 func validateSecretsEncryptionConfig(cfg *Config) error {
 	cfg.SecretsEncryptionKey = strings.TrimSpace(cfg.SecretsEncryptionKey)
+	cfg.SecretsEncryptionKeyFile = strings.TrimSpace(cfg.SecretsEncryptionKeyFile)
 	cfg.SecretsEncryptionKeyID = strings.TrimSpace(cfg.SecretsEncryptionKeyID)
 	cfg.SecretsEncryptionPrevious = strings.TrimSpace(cfg.SecretsEncryptionPrevious)
+	if cfg.SecretsEncryptionKey != "" && cfg.SecretsEncryptionKeyFile != "" {
+		return errors.New("set only one of SECRETS_ENCRYPTION_KEY or SECRETS_ENCRYPTION_KEY_FILE")
+	}
+	if cfg.SecretsEncryptionKeyFile != "" {
+		keyInfo, err := os.Stat(cfg.SecretsEncryptionKeyFile)
+		if err != nil {
+			return fmt.Errorf("stat SECRETS_ENCRYPTION_KEY_FILE %q: %w", cfg.SecretsEncryptionKeyFile, err)
+		}
+		if !keyInfo.Mode().IsRegular() {
+			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q must be a regular file", cfg.SecretsEncryptionKeyFile)
+		}
+		if keyInfo.Mode().Perm()&0o077 != 0 {
+			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q permissions %#o allow group/other access; set mode 0400 or 0600", cfg.SecretsEncryptionKeyFile, keyInfo.Mode().Perm())
+		}
+		keyBytes, err := os.ReadFile(cfg.SecretsEncryptionKeyFile)
+		if err != nil {
+			return fmt.Errorf("read SECRETS_ENCRYPTION_KEY_FILE %q: %w", cfg.SecretsEncryptionKeyFile, err)
+		}
+		cfg.SecretsEncryptionKey = strings.TrimSpace(string(keyBytes))
+		if cfg.SecretsEncryptionKey == "" {
+			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q is empty", cfg.SecretsEncryptionKeyFile)
+		}
+	}
 	_, err := secrets.NewKeyring(secrets.KeyConfig{
 		CurrentKey:   cfg.SecretsEncryptionKey,
 		CurrentKeyID: cfg.SecretsEncryptionKeyID,

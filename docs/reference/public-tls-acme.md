@@ -51,7 +51,7 @@ The management UI shows certificate validity when metadata is stored or the cert
 
 Server logs for ACME use `component=public_acme`. Renewal entries include fields such as `cert_id`, `listener_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `expires_at`, `next_renewal_at`, and `retry_at`. Challenge tokens, DNS TXT values, DNS API tokens, and private key material are not logged.
 
-Cloudflare DNS API tokens are stored server-side for DNS-01 renewals. Enable `SECRETS_ENCRYPTION_KEY` to encrypt those tokens in SQLite.
+Cloudflare DNS API tokens are stored server-side for DNS-01 renewals. Enable stored secrets encryption to encrypt those tokens in SQLite.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing certificate mappings, ACME challenge type, status, renewal time, and DNS credentials">

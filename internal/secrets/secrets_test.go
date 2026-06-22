@@ -6,6 +6,23 @@ import (
 	"testing"
 )
 
+func TestGenerateKeyProducesUsableKeyAndDefaultID(t *testing.T) {
+	key, keyID, err := GenerateKey()
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	raw, err := ParseKey(key)
+	if err != nil {
+		t.Fatalf("ParseKey(generated) error = %v", err)
+	}
+	if len(raw) != keySize {
+		t.Fatalf("generated key length = %d, want %d", len(raw), keySize)
+	}
+	if keyID != DefaultKeyID(raw) {
+		t.Fatalf("generated key ID = %q, want %q", keyID, DefaultKeyID(raw))
+	}
+}
+
 func TestEncryptDecryptRoundTrip(t *testing.T) {
 	service := testService(t, "current")
 
@@ -29,6 +46,29 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 	}
 	if got != "top-secret" {
 		t.Fatalf("plaintext = %q, want top-secret", got)
+	}
+}
+
+func TestInspectReportsEncryptedMetadata(t *testing.T) {
+	service := testService(t, "current")
+	stored, err := service.Encrypt(PurposePublicWAFCookieSigningSecret, 1, "cookie-secret")
+	if err != nil {
+		t.Fatalf("Encrypt() error = %v", err)
+	}
+	meta, err := Inspect(stored)
+	if err != nil {
+		t.Fatalf("Inspect() error = %v", err)
+	}
+	if meta.State != StateEncrypted || meta.KeyID != "current" || meta.Version != envelopeVersion || meta.Algorithm != envelopeAlg {
+		t.Fatalf("Inspect() = %+v, want encrypted metadata for current key", meta)
+	}
+
+	plain, err := Inspect("legacy-secret")
+	if err != nil {
+		t.Fatalf("Inspect(plaintext) error = %v", err)
+	}
+	if plain.State != StatePlaintext {
+		t.Fatalf("Inspect(plaintext).State = %v, want plaintext", plain.State)
 	}
 }
 

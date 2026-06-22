@@ -29,6 +29,7 @@ Use this page after the quickstart when you need to change ports, understand wha
          MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
          MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
          SECRETS_ENCRYPTION_KEY: "${SECRETS_ENCRYPTION_KEY:-}"
+         SECRETS_ENCRYPTION_KEY_FILE: "${SECRETS_ENCRYPTION_KEY_FILE:-}"
          SECRETS_ENCRYPTION_KEY_ID: "${SECRETS_ENCRYPTION_KEY_ID:-}"
          SECRETS_ENCRYPTION_PREVIOUS_KEYS: "${SECRETS_ENCRYPTION_PREVIOUS_KEYS:-}"
          SECRETS_ENCRYPTION_REQUIRED: "${SECRETS_ENCRYPTION_REQUIRED:-false}"
@@ -64,7 +65,7 @@ Use this page after the quickstart when you need to change ports, understand wha
    SECRETS_ENCRYPTION_REQUIRED=true
    ```
 
-   Generate the key with `openssl rand -base64 32` and store it outside the Docker volume in your deployment secret manager. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds, then switch it to `true`.
+   Generate the key with `p2pstream secrets generate-key` and store it outside the Docker volume in your deployment secret manager. If your secret manager mounts files, set `SECRETS_ENCRYPTION_KEY_FILE` instead of `SECRETS_ENCRYPTION_KEY`; the mounted file must be `0400` or `0600`. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
 
 5. Override host ports only when the defaults are not usable:
 
@@ -90,7 +91,7 @@ Use this page after the quickstart when you need to change ports, understand wha
 | `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent tunnel listener bind inside the container. Agents connect to this port for request forwarding. |
 | `MANAGEMENT_PUBLIC_URL` | Controls generated links, agent snippets, and management certificate naming. |
 | `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and the agent Yamux tunnel remain available. |
-| `SECRETS_ENCRYPTION_KEY` | Encrypts stored upstream/API credentials in SQLite and rewrites existing plaintext rows on startup while required mode is off. |
+| `SECRETS_ENCRYPTION_KEY` / `SECRETS_ENCRYPTION_KEY_FILE` | Encrypts stored upstream/API credentials in SQLite and rewrites existing plaintext rows on startup while required mode is off. Use only one current-key source. |
 | `SECRETS_ENCRYPTION_REQUIRED=true` | Makes startup fail if a stored secret is plaintext or if encrypted rows cannot be decrypted with the configured key. |
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 

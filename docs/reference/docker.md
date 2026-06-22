@@ -48,7 +48,7 @@ ports:
   - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
 ```
 
-The root Compose file also passes `SECRETS_ENCRYPTION_KEY`, `SECRETS_ENCRYPTION_KEY_ID`, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` from `.env` into the server container when configured.
+The root Compose file also passes `SECRETS_ENCRYPTION_KEY`, `SECRETS_ENCRYPTION_KEY_FILE`, `SECRETS_ENCRYPTION_KEY_ID`, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` from `.env` into the server container when configured. Set only one of `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`.
 
 ## Validation Rules
 
