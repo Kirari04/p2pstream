@@ -32,7 +32,7 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
    | Enabled | On |
 
    The API token is stored server-side and later shown as set, not echoed back in full.
-   Enable `SECRETS_ENCRYPTION_KEY` on the server to encrypt stored DNS API tokens in SQLite.
+   Enable stored secrets encryption on the server to encrypt stored DNS API tokens in SQLite.
 
    <figure class="doc-screenshot">
      <img src="../assets/new/tls_dns_credential_modal.png" alt="p2pstream DNS credential editor showing Cloudflare zone ID and saved secret state">

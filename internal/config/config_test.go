@@ -183,6 +183,43 @@ func TestLoadValidatesSecretsEncryptionConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("valid key file", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		keyFile := filepath.Join(workDir, "secrets.key")
+		if err := os.WriteFile(keyFile, []byte("AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA\n"), 0600); err != nil {
+			t.Fatalf("write key file: %v", err)
+		}
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_KEY_FILE", keyFile)
+		t.Setenv("SECRETS_ENCRYPTION_KEY_ID", "file-key")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.SecretsEncryptionKey != "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA" {
+			t.Fatalf("SecretsEncryptionKey = %q, want key file contents", cfg.SecretsEncryptionKey)
+		}
+		if cfg.SecretsEncryptionKeyFile != keyFile {
+			t.Fatalf("SecretsEncryptionKeyFile = %q, want %q", cfg.SecretsEncryptionKeyFile, keyFile)
+		}
+	})
+
+	t.Run("key and key file are mutually exclusive", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		keyFile := filepath.Join(workDir, "secrets.key")
+		if err := os.WriteFile(keyFile, []byte("AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"), 0600); err != nil {
+			t.Fatalf("write key file: %v", err)
+		}
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_KEY", "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA")
+		t.Setenv("SECRETS_ENCRYPTION_KEY_FILE", keyFile)
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected setting key and key file together to fail")
+		}
+	})
+
 	t.Run("required without key rejected", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
@@ -390,6 +427,7 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "OBSERVABILITY_MAX_ROWS")
 	unsetEnv(t, "LOGIN_THROTTLE_MAX_KEYS")
 	unsetEnv(t, "SECRETS_ENCRYPTION_KEY")
+	unsetEnv(t, "SECRETS_ENCRYPTION_KEY_FILE")
 	unsetEnv(t, "SECRETS_ENCRYPTION_KEY_ID")
 	unsetEnv(t, "SECRETS_ENCRYPTION_PREVIOUS_KEYS")
 	unsetEnv(t, "SECRETS_ENCRYPTION_REQUIRED")

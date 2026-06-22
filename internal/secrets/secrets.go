@@ -68,6 +68,21 @@ type envelope struct {
 	Ciphertext string `json:"ct"`
 }
 
+type Metadata struct {
+	State     State
+	Version   int
+	Algorithm string
+	KeyID     string
+}
+
+func GenerateKey() (string, string, error) {
+	key := make([]byte, keySize)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return "", "", fmt.Errorf("generate secrets encryption key: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(key), DefaultKeyID(key), nil
+}
+
 func NewService(cfg KeyConfig) (*Service, error) {
 	keyring, err := NewKeyring(cfg)
 	if err != nil {
@@ -88,10 +103,10 @@ func NewKeyring(cfg KeyConfig) (*Keyring, error) {
 	previousKeysText := strings.TrimSpace(cfg.PreviousKeys)
 	if currentKeyText == "" {
 		if cfg.Required {
-			return nil, errors.New("SECRETS_ENCRYPTION_REQUIRED=true requires SECRETS_ENCRYPTION_KEY")
+			return nil, errors.New("SECRETS_ENCRYPTION_REQUIRED=true requires a secrets encryption key")
 		}
 		if previousKeysText != "" {
-			return nil, errors.New("SECRETS_ENCRYPTION_PREVIOUS_KEYS requires SECRETS_ENCRYPTION_KEY")
+			return nil, errors.New("SECRETS_ENCRYPTION_PREVIOUS_KEYS requires a current secrets encryption key")
 		}
 		return nil, nil
 	}
@@ -175,6 +190,21 @@ func (s *Service) Enabled() bool {
 	return s != nil && s.keyring != nil && len(s.keyring.current) == keySize
 }
 
+func (s *Service) CurrentKeyID() string {
+	if !s.Enabled() {
+		return ""
+	}
+	return s.keyring.currentID
+}
+
+func (s *Service) HasKeyID(keyID string) bool {
+	if s == nil || s.keyring == nil {
+		return false
+	}
+	key := s.keyring.keys[keyID]
+	return len(key) == keySize
+}
+
 func (s *Service) Required() bool {
 	return s != nil && s.keyring != nil && s.keyring.required
 }
@@ -228,7 +258,7 @@ func (s *Service) Decrypt(purpose Purpose, ownerID int64, stored string) (string
 		return "", StatePlaintext, errors.New("plaintext secret is not allowed when secrets encryption is required")
 	}
 	if s == nil || s.keyring == nil {
-		return "", StateEncrypted, errors.New("encrypted secret cannot be decrypted without SECRETS_ENCRYPTION_KEY")
+		return "", StateEncrypted, errors.New("encrypted secret cannot be decrypted without a secrets encryption key")
 	}
 	env, err := parseEnvelope(stored)
 	if err != nil {
@@ -270,6 +300,22 @@ func (s *Service) NeedsRewrap(stored string) bool {
 		return false
 	}
 	return env.KeyID != s.keyring.currentID || env.Algorithm != envelopeAlg || env.Version != envelopeVersion
+}
+
+func Inspect(stored string) (Metadata, error) {
+	if stored == "" || !IsEncrypted(stored) {
+		return Metadata{State: StatePlaintext}, nil
+	}
+	env, err := parseEnvelope(stored)
+	if err != nil {
+		return Metadata{State: StateEncrypted}, err
+	}
+	return Metadata{
+		State:     StateEncrypted,
+		Version:   env.Version,
+		Algorithm: env.Algorithm,
+		KeyID:     env.KeyID,
+	}, nil
 }
 
 func parseEnvelope(stored string) (envelope, error) {
