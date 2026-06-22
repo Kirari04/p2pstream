@@ -24,6 +24,8 @@ Rules are ordered by priority, then ID. The first enabled matching rule wins. Ma
 
 p2pstream supports Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox providers. Captcha verification uses the provider `siteverify` endpoint with a 3 second timeout. On success, p2pstream sets a signed `p2pstream_waf_<rule_id>` pass cookie and redirects with `303 See Other`.
 
+Enable `SECRETS_ENCRYPTION_KEY` to encrypt stored captcha provider secret keys and WAF cookie signing material in SQLite.
+
 Custom captcha pages must include <code v-pre>{{ .captcha_element_html }}</code> so the server-generated challenge form is present.
 
 Waiting room state is in memory. Queue and admission state are also stored in signed cookies. New visitors enter FIFO order; when capacity and rate allow, p2pstream sets an admission cookie and redirects with `303 See Other`; otherwise it returns a branded `503` waiting-room page with `Retry-After`.

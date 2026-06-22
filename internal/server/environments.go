@@ -14,6 +14,7 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 	"p2pstream/internal/db"
+	secretspkg "p2pstream/internal/secrets"
 )
 
 const (
@@ -67,16 +68,43 @@ func (a *App) CreateEnvironment(
 	if err != nil {
 		return nil, err
 	}
-	row, err := a.DB.CreateEnvironment(ctx, db.CreateEnvironmentParams{
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	defer tx.Rollback()
+	qtx := a.DB.WithTx(tx)
+	accessToken := input.AccessToken
+	row, err := qtx.CreateEnvironment(ctx, db.CreateEnvironmentParams{
 		Name:                        input.Name,
 		ManagementUrl:               input.ManagementURL,
 		Transport:                   input.Transport,
 		AgentID:                     input.AgentID,
-		AccessToken:                 input.AccessToken,
+		AccessToken:                 "",
 		ResponseHeaderTimeoutMillis: input.ResponseHeaderTimeoutMillis,
 		Enabled:                     input.Enabled,
 	})
 	if err != nil {
+		return nil, publicDBError(err)
+	}
+	encryptedAccessToken, err := a.encryptSecret(secretspkg.PurposeEnvironmentAccessToken, row.ID, accessToken)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	row, err = qtx.UpdateEnvironment(ctx, db.UpdateEnvironmentParams{
+		ID:                          row.ID,
+		Name:                        input.Name,
+		ManagementUrl:               input.ManagementURL,
+		Transport:                   input.Transport,
+		AgentID:                     input.AgentID,
+		AccessToken:                 encryptedAccessToken,
+		ResponseHeaderTimeoutMillis: input.ResponseHeaderTimeoutMillis,
+		Enabled:                     input.Enabled,
+	})
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
 	}
 	return connect.NewResponse(&p2pstreamv1.CreateEnvironmentResponse{Environment: a.environmentToProto(ctx, row)}), nil
@@ -93,9 +121,19 @@ func (a *App) UpdateEnvironment(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	if existing.AccessToken != "" {
+		existing.AccessToken, _, err = a.decryptSecret(secretspkg.PurposeEnvironmentAccessToken, existing.ID, existing.AccessToken)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
 	input, err := a.validateEnvironmentInput(ctx, req.Msg.Name, req.Msg.ManagementUrl, req.Msg.Transport, req.Msg.AgentId, req.Msg.AccessToken, req.Msg.ResponseHeaderTimeoutMillis, req.Msg.Enabled, &existing)
 	if err != nil {
 		return nil, err
+	}
+	accessToken, err := a.encryptSecret(secretspkg.PurposeEnvironmentAccessToken, input.ID, input.AccessToken)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	row, err := a.DB.UpdateEnvironment(ctx, db.UpdateEnvironmentParams{
 		ID:                          input.ID,
@@ -103,7 +141,7 @@ func (a *App) UpdateEnvironment(
 		ManagementUrl:               input.ManagementURL,
 		Transport:                   input.Transport,
 		AgentID:                     input.AgentID,
-		AccessToken:                 input.AccessToken,
+		AccessToken:                 accessToken,
 		ResponseHeaderTimeoutMillis: input.ResponseHeaderTimeoutMillis,
 		Enabled:                     input.Enabled,
 	})

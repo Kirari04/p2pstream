@@ -27,6 +27,7 @@ SQLite is opened with WAL journal mode, synchronous normal, busy timeout `10000`
 ## Validation Rules
 
 - Backups should include `p2pstream.db`, `p2pstream.db-wal`, and `p2pstream.db-shm`.
+- When `SECRETS_ENCRYPTION_KEY` is enabled, back up the key material separately; database files alone cannot recover encrypted secret values.
 - Do not edit the database by hand while the server is running.
 - If `DATABASE_URL` is empty, p2pstream creates `CONFIG_DIR` and the certs directory with `0700` permissions.
 
@@ -46,6 +47,8 @@ Conceptual table groups:
 | Observability | `proxy_request_events` |
 
 Upgrades migrate old public backend configuration into route targets and then drop the old backend config tables. `public_waf_settings` stores the cookie signing secret used for WAF pass, admission, and queue cookies. `proxy_request_events` includes WAF, cache, route, route target, agent, byte, status, and duration fields. The route-target-only migration resets proxy request events and proxy rollups instead of retaining legacy backend IDs. `agent_stats` includes reported agent CPU percentage for dashboard summaries and automatic WAF activation, and agent stats history is not reset by that proxy observability migration.
+
+With `SECRETS_ENCRYPTION_KEY` enabled, secret-bearing columns store `p2penc:v1:` encrypted values with version, algorithm, key ID, nonce, and ciphertext metadata instead of plaintext. This covers route target basic-auth passwords, sensitive upstream request headers, TLS DNS API tokens, WAF captcha provider secrets, WAF cookie signing material, and remote-environment access tokens. The server decrypts them only after startup validates the configured key.
 
 ## Examples
 

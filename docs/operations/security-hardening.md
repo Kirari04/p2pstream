@@ -30,7 +30,13 @@ Use this before exposing management beyond a private network, after adding agent
    - Back up the full `CONFIG_DIR`.
    - Restrict host, volume, and backup access to trusted administrators.
    - Treat database write access as administrative access, because the local CLI can reset management credentials.
-   - Protect database backups as secrets; the SQLite database includes operational tokens and upstream credentials.
+   - Enable `SECRETS_ENCRYPTION_KEY` to encrypt stored upstream/API credentials in SQLite.
+   - After the first successful encrypted startup, set `SECRETS_ENCRYPTION_REQUIRED=true` so startup fails instead of accepting plaintext stored secrets.
+   - Store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets unrecoverable.
+   - Protect access to process environments, systemd environment files, Docker inspect output, crash dumps, and child processes. The current key provider reads `SECRETS_ENCRYPTION_KEY` from process configuration, not from KMS or HSM.
+   - Treat live process memory as sensitive. p2pstream decrypts stored secrets in memory when runtime components need to use them.
+   - Keep filesystem and backup access restricted even with database secret encryption enabled; TLS private-key files under `/data/certs` are protected by filesystem permissions, not by `SECRETS_ENCRYPTION_KEY`.
+   - Protect database backups as secrets; encrypted backups still contain operational state, sessions, certificates, and metadata.
 
 3. Harden agents:
 
@@ -57,6 +63,7 @@ Review:
 - Management is HTTPS.
 - Management exposure is intentional and firewall/VPN rules match that decision.
 - First-admin setup token handling is documented for operators.
+- Secrets encryption is enabled, required mode is active after migration, and key material is backed up outside `/data`.
 - `MANAGEMENT_PUBLIC_URL` is correct.
 - Unused listeners and agents are disabled or deleted.
 - Tracing is disabled after troubleshooting.
@@ -67,6 +74,7 @@ Review:
 | --- | --- |
 | Browser UI returns `404` | `MANAGEMENT_UI_DISABLED=true` intentionally disables only the browser UI. |
 | Agents fail after restore | Restore the old management CA or update agent CA material. |
+| Server fails with encrypted secret key errors | Restore the matching `SECRETS_ENCRYPTION_KEY` or include the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` during rotation. |
 | Everyone hits one rate-limit bucket | A front proxy may hide client IPs; place p2pstream at the edge, use `REMOTE_IP` when possible, or use only trusted application headers. Do not key on client-supplied forwarding headers. |
 | WAF does not stop network saturation | WAF is HTTP-layer only; use upstream DDoS/network protection. |
 

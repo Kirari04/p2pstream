@@ -11,6 +11,7 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 - Shell access to the Docker host or binary install host.
 - Enough storage for the SQLite database, WAL files, certificates, ACME state, and cache metadata.
 - A maintenance window if you want the simplest consistent SQLite backup.
+- Access to the configured `SECRETS_ENCRYPTION_KEY` when stored secrets encryption is enabled.
 
 ## Steps
 
@@ -24,6 +25,8 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
    ```
 
    The database stores proxy config, users, sessions, agent registry, TLS metadata, and observability. The cert directory stores management TLS and public TLS material.
+
+   If `SECRETS_ENCRYPTION_KEY` is enabled, back up the key material separately in your deployment secret manager. Do not rely on the `/data` backup to contain it; losing the key makes encrypted upstream credentials, DNS provider tokens, WAF secrets, and remote-environment tokens unrecoverable.
 
 2. For the safest simple Compose backup, stop the service, copy the volume, then start it again:
 
@@ -60,6 +63,7 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 5. Start p2pstream with the restored volume:
 
    ```bash
+   # Ensure SECRETS_ENCRYPTION_KEY matches the restored database when encryption is enabled.
    docker compose up -d
    ```
 
@@ -78,6 +82,7 @@ After restore:
 | Symptom | Check |
 | --- | --- |
 | Agents fail TLS after restore | Restore `/data/certs/management` or update each agent with the new CA. |
+| Server fails to initialize secret storage | Restore the matching `SECRETS_ENCRYPTION_KEY`; during key rotation, provide the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. |
 | Public TLS mappings are missing | Confirm `/data/certs/` and SQLite were restored together. |
 | Login state changed | Sessions are stored in SQLite and depend on the restored database. |
 | Cache files missing | Cache can refill; SQLite and certs are more critical than cached bodies. |

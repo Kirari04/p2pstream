@@ -25,6 +25,7 @@ import (
 
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	secretspkg "p2pstream/internal/secrets"
 )
 
 const (
@@ -540,6 +541,12 @@ func (m *publicACMEManager) issueConfig(ctx context.Context, cert db.PublicTlsCe
 		}
 		if credential.Enabled == 0 {
 			return cfg, errors.New("DNS credential is disabled")
+		}
+		if credential.ApiToken != "" {
+			credential.ApiToken, _, err = m.app.decryptSecret(secretspkg.PurposePublicTLSDNSCredentialAPIToken, credential.ID, credential.ApiToken)
+			if err != nil {
+				return cfg, err
+			}
 		}
 		cfg.DNSCredential = &credential
 	}

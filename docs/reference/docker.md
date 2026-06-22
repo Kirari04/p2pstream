@@ -48,6 +48,8 @@ ports:
   - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
 ```
 
+The root Compose file also passes `SECRETS_ENCRYPTION_KEY`, `SECRETS_ENCRYPTION_KEY_ID`, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` from `.env` into the server container when configured.
+
 ## Validation Rules
 
 - Docker only publishes what Compose maps; creating a listener in the UI does not create a new host mapping.
@@ -60,6 +62,8 @@ ports:
 ## Runtime Effects
 
 The runtime image creates a non-root `p2pstream` user and grants the binary `cap_net_bind_service` so it can bind low ports. State is stored in `/data`, including SQLite, generated certificates, ACME material, and default public cache storage.
+
+Encrypted database secret rows depend on key material supplied through environment variables, not on files stored in `/data`. Preserve that key material during upgrades, host moves, and disaster recovery.
 
 `MANAGEMENT_UI_DISABLED=true` stops serving the browser UI from the management listener. The ConnectRPC API and agent Yamux tunnel remain available.
 

@@ -47,6 +47,16 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Firewall | Allow the management port from your admin network. |
 | Browser UI disabled | If `MANAGEMENT_UI_DISABLED=true`, the browser UI intentionally returns `404`; APIs and the agent Yamux tunnel remain available. |
 
+## Server Fails During Startup
+
+| Cause | Fix |
+| --- | --- |
+| Invalid secrets-encryption key | `SECRETS_ENCRYPTION_KEY` must decode to exactly 32 bytes as base64 or base64url. Generate one with `openssl rand -base64 32`. |
+| Encrypted database rows but no key | Restore the same `SECRETS_ENCRYPTION_KEY` used when the rows were encrypted. |
+| Missing previous key during rotation | Add the old key to `SECRETS_ENCRYPTION_PREVIOUS_KEYS` as `key_id:key`, restart, and keep it until startup rewraps old rows. |
+| Plaintext row with required mode | Disable `SECRETS_ENCRYPTION_REQUIRED` for the first migration startup, or remove the unexpected plaintext row after confirming it was not injected. |
+| Encrypted secret authentication failed | Confirm the database and key material came from the same backup set; copied ciphertext from another row, wrong key material, or corruption will fail closed. |
+
 ## Browser Certificate Warning
 
 | Cause | Fix |

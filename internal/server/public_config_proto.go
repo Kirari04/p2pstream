@@ -341,7 +341,7 @@ func publicRouteTargetUpstreamHeadersToProto(headers []db.PublicRouteTargetUpstr
 	resp := make([]*p2pstreamv1.PublicRouteTargetUpstreamHeader, 0, len(headers))
 	for _, header := range headers {
 		value := header.Value
-		sensitive := header.Sensitive != 0
+		sensitive := header.Sensitive != 0 || isForcedSensitiveUpstreamHeader(header.Name)
 		if sensitive {
 			value = ""
 		}

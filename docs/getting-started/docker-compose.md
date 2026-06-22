@@ -28,6 +28,10 @@ Use this page after the quickstart when you need to change ports, understand wha
          MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
          MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
          MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
+         SECRETS_ENCRYPTION_KEY: "${SECRETS_ENCRYPTION_KEY:-}"
+         SECRETS_ENCRYPTION_KEY_ID: "${SECRETS_ENCRYPTION_KEY_ID:-}"
+         SECRETS_ENCRYPTION_PREVIOUS_KEYS: "${SECRETS_ENCRYPTION_PREVIOUS_KEYS:-}"
+         SECRETS_ENCRYPTION_REQUIRED: "${SECRETS_ENCRYPTION_REQUIRED:-false}"
        ports:
          - "${P2PSTREAM_HTTP_PORT:-80}:80"
          - "${P2PSTREAM_HTTPS_PORT:-443}:443"
@@ -52,7 +56,17 @@ Use this page after the quickstart when you need to change ports, understand wha
    MANAGEMENT_TLS_EXTRA_HOSTS=proxy.example.com,192.0.2.10
    ```
 
-4. Override host ports only when the defaults are not usable:
+4. Enable stored secret encryption for production deployments:
+
+   ```dotenv
+   SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key
+   SECRETS_ENCRYPTION_KEY_ID=primary-2026-06
+   SECRETS_ENCRYPTION_REQUIRED=true
+   ```
+
+   Generate the key with `openssl rand -base64 32` and store it outside the Docker volume in your deployment secret manager. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds, then switch it to `true`.
+
+5. Override host ports only when the defaults are not usable:
 
    ```dotenv
    P2PSTREAM_HTTP_PORT=8080
@@ -61,7 +75,7 @@ Use this page after the quickstart when you need to change ports, understand wha
    MANAGEMENT_PUBLIC_URL=https://proxy.example.com:9443
    ```
 
-5. Start or update the container:
+6. Start or update the container:
 
    ```bash
    docker compose up -d
@@ -76,6 +90,8 @@ Use this page after the quickstart when you need to change ports, understand wha
 | `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent tunnel listener bind inside the container. Agents connect to this port for request forwarding. |
 | `MANAGEMENT_PUBLIC_URL` | Controls generated links, agent snippets, and management certificate naming. |
 | `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and the agent Yamux tunnel remain available. |
+| `SECRETS_ENCRYPTION_KEY` | Encrypts stored upstream/API credentials in SQLite and rewrites existing plaintext rows on startup while required mode is off. |
+| `SECRETS_ENCRYPTION_REQUIRED=true` | Makes startup fail if a stored secret is plaintext or if encrypted rows cannot be decrypted with the configured key. |
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 
 :::warning New listeners must be published explicitly

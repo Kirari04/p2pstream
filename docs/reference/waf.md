@@ -62,7 +62,7 @@ Automatic activation defaults:
 
 ## Validation Rules
 
-Captcha providers are created under **Traffic Policy -> WAF** and support Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and not sent back to the UI after creation. Captcha rules require an enabled provider.
+Captcha providers are created under **Traffic Policy -> WAF** and support Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and not sent back to the UI after creation. Enable `SECRETS_ENCRYPTION_KEY` to encrypt captcha provider secrets and WAF cookie signing material in SQLite. Captcha rules require an enabled provider.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider editor showing provider type, site key, secret key saved state, and enabled state">

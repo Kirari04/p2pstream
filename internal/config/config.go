@@ -11,6 +11,8 @@ import (
 
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
+
+	"p2pstream/internal/secrets"
 )
 
 const (
@@ -46,6 +48,10 @@ type Config struct {
 	ObservabilityRetentionDays  int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
 	ObservabilityMaxRows        int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
 	LoginThrottleMaxKeys        int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
+	SecretsEncryptionKey        string `env:"SECRETS_ENCRYPTION_KEY"`
+	SecretsEncryptionKeyID      string `env:"SECRETS_ENCRYPTION_KEY_ID"`
+	SecretsEncryptionPrevious   string `env:"SECRETS_ENCRYPTION_PREVIOUS_KEYS"`
+	SecretsEncryptionRequired   bool   `env:"SECRETS_ENCRYPTION_REQUIRED" envDefault:"false"`
 
 	CertsDir                        string `env:"-"`
 	ManagementTLSEnabled            bool   `env:"-"`
@@ -68,6 +74,9 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 	if err := validateManagementTLSConfig(cfg); err != nil {
+		return nil, err
+	}
+	if err := validateSecretsEncryptionConfig(cfg); err != nil {
 		return nil, err
 	}
 
@@ -152,6 +161,22 @@ func validateManagementTLSConfig(cfg *Config) error {
 		if parsed.Scheme != "https" && !(parsed.Scheme == "http" && cfg.ManagementTLSMode == "off" && cfg.ManagementAllowInsecureHTTP) {
 			return errors.New("MANAGEMENT_PUBLIC_URL must use https unless MANAGEMENT_TLS_MODE=off and MANAGEMENT_ALLOW_INSECURE_HTTP=true")
 		}
+	}
+	return nil
+}
+
+func validateSecretsEncryptionConfig(cfg *Config) error {
+	cfg.SecretsEncryptionKey = strings.TrimSpace(cfg.SecretsEncryptionKey)
+	cfg.SecretsEncryptionKeyID = strings.TrimSpace(cfg.SecretsEncryptionKeyID)
+	cfg.SecretsEncryptionPrevious = strings.TrimSpace(cfg.SecretsEncryptionPrevious)
+	_, err := secrets.NewKeyring(secrets.KeyConfig{
+		CurrentKey:   cfg.SecretsEncryptionKey,
+		CurrentKeyID: cfg.SecretsEncryptionKeyID,
+		PreviousKeys: cfg.SecretsEncryptionPrevious,
+		Required:     cfg.SecretsEncryptionRequired,
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }

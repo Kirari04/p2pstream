@@ -3,11 +3,13 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"connectrpc.com/connect"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/db"
+	secretspkg "p2pstream/internal/secrets"
 )
 
 func (a *App) GetPublicProxyConfig(
@@ -405,7 +407,11 @@ func (a *App) existingPublicRouteTargetSecrets(ctx context.Context, routeID int6
 	}
 	for _, target := range targets {
 		if target.UpstreamBasicAuthEnabled != 0 && target.UpstreamBasicAuthPassword != "" {
-			secrets.BasicAuthPasswords[target.ID] = target.UpstreamBasicAuthPassword
+			password, _, err := a.decryptSecret(secretspkg.PurposePublicRouteTargetBasicAuthPassword, target.ID, target.UpstreamBasicAuthPassword)
+			if err != nil {
+				return existingPublicRouteTargetSecrets{}, err
+			}
+			secrets.BasicAuthPasswords[target.ID] = password
 		}
 		headers, err := a.DB.ListPublicRouteTargetUpstreamHeadersByTarget(ctx, target.ID)
 		if err != nil {
@@ -415,10 +421,14 @@ func (a *App) existingPublicRouteTargetSecrets(ctx context.Context, routeID int6
 			if header.Sensitive == 0 && !isForcedSensitiveUpstreamHeader(header.Name) {
 				continue
 			}
+			value, _, err := a.decryptSecret(secretspkg.PurposePublicRouteTargetSensitiveHeader, header.ID, header.Value)
+			if err != nil {
+				return existingPublicRouteTargetSecrets{}, err
+			}
 			secrets.UpstreamHeaders[header.ID] = existingSensitiveUpstreamHeaderValue{
 				TargetID: header.TargetID,
 				Name:     header.Name,
-				Value:    header.Value,
+				Value:    value,
 			}
 		}
 	}
@@ -456,7 +466,7 @@ func (a *App) createPublicRouteWithTargets(
 	if err != nil {
 		return db.PublicRoute{}, nil, err
 	}
-	storedTargets, err := insertPublicRouteTargets(ctx, qtx, route.ID, targets)
+	storedTargets, err := a.insertPublicRouteTargets(ctx, qtx, tx, route.ID, targets)
 	if err != nil {
 		return db.PublicRoute{}, nil, err
 	}
@@ -485,7 +495,7 @@ func (a *App) updatePublicRouteWithTargets(
 	if err := qtx.DeletePublicRouteTargets(ctx, params.ID); err != nil {
 		return db.PublicRoute{}, nil, err
 	}
-	storedTargets, err := insertPublicRouteTargets(ctx, qtx, params.ID, targets)
+	storedTargets, err := a.insertPublicRouteTargets(ctx, qtx, tx, params.ID, targets)
 	if err != nil {
 		return db.PublicRoute{}, nil, err
 	}
@@ -495,9 +505,10 @@ func (a *App) updatePublicRouteWithTargets(
 	return route, storedTargets, nil
 }
 
-func insertPublicRouteTargets(
+func (a *App) insertPublicRouteTargets(
 	ctx context.Context,
 	queries *db.Queries,
+	exec db.DBTX,
 	routeID int64,
 	targets []publicRouteTargetMutationInput,
 ) ([]db.PublicRouteTarget, error) {
@@ -506,19 +517,50 @@ func insertPublicRouteTargets(
 		params := target.Params
 		params.RouteID = routeID
 		params.Position = int64(idx)
+		basicAuthPassword := params.UpstreamBasicAuthPassword
+		params.UpstreamBasicAuthPassword = ""
 		stored, err := queries.CreatePublicRouteTarget(ctx, params)
 		if err != nil {
 			return nil, err
 		}
+		if basicAuthPassword != "" {
+			encrypted, err := a.encryptSecret(secretspkg.PurposePublicRouteTargetBasicAuthPassword, stored.ID, basicAuthPassword)
+			if err != nil {
+				return nil, err
+			}
+			params.UpstreamBasicAuthPassword = encrypted
+			stored, err = queries.UpdatePublicRouteTarget(ctx, updatePublicRouteTargetParamsFromCreate(stored.ID, params))
+			if err != nil {
+				return nil, err
+			}
+		}
 		for headerIdx, header := range target.UpstreamHeaders {
-			if _, err := queries.CreatePublicRouteTargetUpstreamHeader(ctx, db.CreatePublicRouteTargetUpstreamHeaderParams{
+			value := header.Value
+			if header.Sensitive != 0 {
+				value = ""
+			}
+			storedHeader, err := queries.CreatePublicRouteTargetUpstreamHeader(ctx, db.CreatePublicRouteTargetUpstreamHeaderParams{
 				TargetID:  stored.ID,
 				Position:  int64(headerIdx),
 				Name:      header.Name,
-				Value:     header.Value,
+				Value:     value,
 				Sensitive: header.Sensitive,
-			}); err != nil {
+			})
+			if err != nil {
 				return nil, err
+			}
+			if header.Sensitive != 0 {
+				encrypted, err := a.encryptSecret(secretspkg.PurposePublicRouteTargetSensitiveHeader, storedHeader.ID, header.Value)
+				if err != nil {
+					return nil, err
+				}
+				result, err := exec.ExecContext(ctx, `UPDATE public_route_target_upstream_headers SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, encrypted, storedHeader.ID)
+				if err != nil {
+					return nil, err
+				}
+				if affected, err := result.RowsAffected(); err == nil && affected != 1 {
+					return nil, fmt.Errorf("update upstream request header %d affected %d rows", storedHeader.ID, affected)
+				}
 			}
 		}
 		for headerIdx, header := range target.ResponseHeaders {
@@ -534,6 +576,41 @@ func insertPublicRouteTargets(
 		storedTargets = append(storedTargets, stored)
 	}
 	return storedTargets, nil
+}
+
+func updatePublicRouteTargetParamsFromCreate(id int64, params db.CreatePublicRouteTargetParams) db.UpdatePublicRouteTargetParams {
+	return db.UpdatePublicRouteTargetParams{
+		ID:                                  id,
+		RouteID:                             params.RouteID,
+		Name:                                params.Name,
+		Position:                            params.Position,
+		PriorityGroup:                       params.PriorityGroup,
+		Weight:                              params.Weight,
+		Enabled:                             params.Enabled,
+		TargetType:                          params.TargetType,
+		Url:                                 params.Url,
+		Transport:                           params.Transport,
+		AgentSelectorJson:                   params.AgentSelectorJson,
+		AgentLoadBalancing:                  params.AgentLoadBalancing,
+		TlsSkipVerify:                       params.TlsSkipVerify,
+		UpstreamBasicAuthEnabled:            params.UpstreamBasicAuthEnabled,
+		UpstreamBasicAuthUsername:           params.UpstreamBasicAuthUsername,
+		UpstreamBasicAuthPassword:           params.UpstreamBasicAuthPassword,
+		UpstreamResponseHeaderTimeoutMillis: params.UpstreamResponseHeaderTimeoutMillis,
+		HealthCheckEnabled:                  params.HealthCheckEnabled,
+		HealthCheckMethod:                   params.HealthCheckMethod,
+		HealthCheckPath:                     params.HealthCheckPath,
+		HealthCheckIntervalMillis:           params.HealthCheckIntervalMillis,
+		HealthCheckTimeoutMillis:            params.HealthCheckTimeoutMillis,
+		HealthCheckHealthyThreshold:         params.HealthCheckHealthyThreshold,
+		HealthCheckUnhealthyThreshold:       params.HealthCheckUnhealthyThreshold,
+		HealthCheckExpectedStatusMin:        params.HealthCheckExpectedStatusMin,
+		HealthCheckExpectedStatusMax:        params.HealthCheckExpectedStatusMax,
+		StaticStatusCode:                    params.StaticStatusCode,
+		StaticResponseBody:                  params.StaticResponseBody,
+		StaticResponseBodyMode:              params.StaticResponseBodyMode,
+		StaticResponseTemplateID:            params.StaticResponseTemplateID,
+	}
 }
 
 func (a *App) DeletePublicRoute(

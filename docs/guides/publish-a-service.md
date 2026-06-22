@@ -57,6 +57,7 @@ Example:
    | Enabled | On |
 
    If the upstream needs custom headers, use target upstream request headers. If it needs HTTP basic auth, use target upstream basic auth instead of manually adding `Authorization`.
+   Enable `SECRETS_ENCRYPTION_KEY` on the server to encrypt stored upstream basic-auth passwords and sensitive upstream request headers in SQLite.
 
    <figure class="doc-screenshot">
      <img src="../assets/new/proxy_direct_route_modal.png" alt="p2pstream route editor showing a direct proxy target for an app route">
