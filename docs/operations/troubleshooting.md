@@ -52,6 +52,7 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Cause | Fix |
 | --- | --- |
 | Invalid secrets-encryption key | The current key from `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` must decode to exactly 32 bytes as base64 or base64url. Generate one with `p2pstream secrets generate-key`. |
+| Secrets-encryption key file rejected | Ensure `SECRETS_ENCRYPTION_KEY_FILE` is a regular file with no group/other permissions. Use `chmod 600` or `chmod 400`. |
 | Encrypted database rows but no key | Restore the same current key used when the rows were encrypted, then run `p2pstream secrets status`. |
 | Missing previous key during rotation | Add the old key to `SECRETS_ENCRYPTION_PREVIOUS_KEYS` as `key_id:key`, run `p2pstream secrets rewrap --dry-run`, and keep it until status shows no rewrap-needed rows. |
 | Plaintext row with required mode | Disable `SECRETS_ENCRYPTION_REQUIRED` for the first migration startup, or inspect with `p2pstream secrets status` and remove the unexpected plaintext row after confirming it was not injected. |

@@ -63,7 +63,7 @@ Use systemd when you install the release binary directly on a host, or when mana
 
 Root is required when binding privileged ports such as `80` or `443`. If you only use high ports, run as a dedicated user and adjust ownership of `/var/lib/p2pstream`.
 
-Generate `SECRETS_ENCRYPTION_KEY` with `p2pstream secrets generate-key` and keep it in a deployment secret manager or another backup path outside `/var/lib/p2pstream`. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when the key can be mounted as a root-readable secret file. A restored encrypted database requires the same key material. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
+Generate `SECRETS_ENCRYPTION_KEY` with `p2pstream secrets generate-key` and keep it in a deployment secret manager or another backup path outside `/var/lib/p2pstream`. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when the key can be mounted as a root-readable `0400` or `0600` secret file. A restored encrypted database requires the same key material. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
 
 ## Agent Service
 

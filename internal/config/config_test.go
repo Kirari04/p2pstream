@@ -220,6 +220,24 @@ func TestLoadValidatesSecretsEncryptionConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("key file rejects group or other permissions", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		keyFile := filepath.Join(workDir, "secrets.key")
+		if err := os.WriteFile(keyFile, []byte("AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"), 0644); err != nil {
+			t.Fatalf("write key file: %v", err)
+		}
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_KEY_FILE", keyFile)
+
+		err := func() error {
+			_, err := Load()
+			return err
+		}()
+		if err == nil || !strings.Contains(err.Error(), "allow group/other access") {
+			t.Fatalf("Load() error = %v, want key file permission failure", err)
+		}
+	})
+
 	t.Run("required without key rejected", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))

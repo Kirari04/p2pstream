@@ -175,6 +175,16 @@ func validateSecretsEncryptionConfig(cfg *Config) error {
 		return errors.New("set only one of SECRETS_ENCRYPTION_KEY or SECRETS_ENCRYPTION_KEY_FILE")
 	}
 	if cfg.SecretsEncryptionKeyFile != "" {
+		keyInfo, err := os.Stat(cfg.SecretsEncryptionKeyFile)
+		if err != nil {
+			return fmt.Errorf("stat SECRETS_ENCRYPTION_KEY_FILE %q: %w", cfg.SecretsEncryptionKeyFile, err)
+		}
+		if !keyInfo.Mode().IsRegular() {
+			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q must be a regular file", cfg.SecretsEncryptionKeyFile)
+		}
+		if keyInfo.Mode().Perm()&0o077 != 0 {
+			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q permissions %#o allow group/other access; set mode 0400 or 0600", cfg.SecretsEncryptionKeyFile, keyInfo.Mode().Perm())
+		}
 		keyBytes, err := os.ReadFile(cfg.SecretsEncryptionKeyFile)
 		if err != nil {
 			return fmt.Errorf("read SECRETS_ENCRYPTION_KEY_FILE %q: %w", cfg.SecretsEncryptionKeyFile, err)

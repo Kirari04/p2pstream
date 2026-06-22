@@ -34,7 +34,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Run `p2pstream secrets status` and `p2pstream secrets rewrap --dry-run` against the same `CONFIG_DIR` before enabling required mode or removing previous keys.
    - After the first successful encrypted startup, set `SECRETS_ENCRYPTION_REQUIRED=true` so startup fails instead of accepting plaintext stored secrets.
    - Store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets unrecoverable.
-   - Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount a key file; otherwise protect process environments, systemd environment files, Docker inspect output, crash dumps, and child processes that can expose `SECRETS_ENCRYPTION_KEY`.
+   - Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount a key file. The file must be `0400` or `0600`; otherwise protect process environments, systemd environment files, Docker inspect output, crash dumps, and child processes that can expose `SECRETS_ENCRYPTION_KEY`.
    - Treat live process memory as sensitive. p2pstream decrypts stored secrets in memory when runtime components need to use them.
    - Keep filesystem and backup access restricted even with database secret encryption enabled; TLS private-key files under `/data/certs` are protected by filesystem permissions, not by stored-secret encryption.
    - Protect database backups as secrets; encrypted backups still contain operational state, sessions, certificates, and metadata.
