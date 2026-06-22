@@ -3,7 +3,6 @@ import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NModal, NSelect, NSkeleton, useMessage, useNotification } from "naive-ui";
 import { computed, onMounted, provide } from "vue";
 import { useRoute } from "vue-router";
-import { managementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 import {
@@ -51,6 +50,7 @@ const {
   selectedEnvironmentLabel,
   selectedEnvironmentBlocked,
   environmentSelectOptions,
+  managementClient,
   isRefreshing,
   loadEnvironments,
   loadDashboard,

@@ -33,6 +33,36 @@ import {
 const managementClient = useManagementClient();
 
 type RouteFormMode = "create" | "edit" | "clone";
+type UpstreamHeaderForm = {
+  id: string;
+  targetId: string;
+  name: string;
+  value: string;
+  sensitive: boolean;
+  valueSet: boolean;
+  position: number;
+};
+type BasicAuthForm = {
+  enabled: boolean;
+  username: string;
+  password: string;
+  passwordSet: boolean;
+};
+type HealthCheckForm = {
+  enabled: boolean;
+  method: string;
+  path: string;
+  intervalMillis: number;
+  timeoutMillis: number;
+  healthyThreshold: number;
+  unhealthyThreshold: number;
+  expectedStatusMin: number;
+  expectedStatusMax: number;
+};
+type ResponseHeaderForm = {
+  name: string;
+  value: string;
+};
 type TargetForm = {
   id: string;
   name: string;
@@ -43,10 +73,17 @@ type TargetForm = {
   selectorLabels: SelectorLabelRow[];
   priorityGroup: number;
   weight: number;
+  agentLoadBalancing: PublicRouteTargetLoadBalancing;
   tlsSkipVerify: boolean;
   responseHeaderTimeoutMillis: number;
+  upstreamRequestHeaders: UpstreamHeaderForm[];
+  upstreamBasicAuth: BasicAuthForm;
+  healthCheck: HealthCheckForm;
   staticStatusCode: number;
+  staticResponseHeaders: ResponseHeaderForm[];
   staticResponseBody: string;
+  staticResponseBodyMode: PublicResponseBodyMode;
+  staticResponseTemplateId: string;
 };
 
 const props = defineProps<{
@@ -109,6 +146,24 @@ const exactAgentOptions = computed(() => [
     value: agent.publicId,
   })),
 ]);
+
+function defaultBasicAuthForm(): BasicAuthForm {
+  return { enabled: false, username: "", password: "", passwordSet: false };
+}
+
+function defaultHealthCheckForm(): HealthCheckForm {
+  return {
+    enabled: false,
+    method: "GET",
+    path: "/",
+    intervalMillis: 10000,
+    timeoutMillis: 2000,
+    healthyThreshold: 2,
+    unhealthyThreshold: 2,
+    expectedStatusMin: 200,
+    expectedStatusMax: 399,
+  };
+}
 
 const routeForm = reactive({
   id: "",
@@ -177,10 +232,17 @@ function defaultTarget(index = routeForm.targets.length): TargetForm {
     selectorLabels: [newSelectorRow()],
     priorityGroup: 0,
     weight: 100,
+    agentLoadBalancing: PublicRouteTargetLoadBalancing.ROUND_ROBIN,
     tlsSkipVerify: false,
     responseHeaderTimeoutMillis: 60000,
+    upstreamRequestHeaders: [],
+    upstreamBasicAuth: defaultBasicAuthForm(),
+    healthCheck: defaultHealthCheckForm(),
     staticStatusCode: 200,
+    staticResponseHeaders: [],
     staticResponseBody: "",
+    staticResponseBodyMode: PublicResponseBodyMode.INLINE,
+    staticResponseTemplateId: "0",
   };
 }
 
@@ -203,11 +265,54 @@ function resetForm() {
   routeForm.enabled = true;
 }
 
-function targetFormFromProto(target: PublicRouteTarget): TargetForm {
+function upstreamHeadersFromProto(target: PublicRouteTarget, mode: "edit" | "clone"): UpstreamHeaderForm[] {
+  const preserveSecretReferences = mode === "edit";
+  return target.upstreamRequestHeaders
+    .filter((header) => preserveSecretReferences || header.valueSet || header.value !== "")
+    .map((header, index) => ({
+      id: preserveSecretReferences ? header.id.toString() : "",
+      targetId: preserveSecretReferences ? header.targetId.toString() : "",
+      name: header.name,
+      value: header.value,
+      sensitive: header.sensitive,
+      valueSet: preserveSecretReferences ? header.valueSet : header.value !== "",
+      position: Number(header.position || BigInt(index)),
+    }));
+}
+
+function basicAuthFromProto(target: PublicRouteTarget, mode: "edit" | "clone"): BasicAuthForm {
+  const auth = target.upstreamBasicAuth;
+  if (!auth?.enabled) return defaultBasicAuthForm();
+  if (mode === "clone" && auth.password === "" && auth.passwordSet) return defaultBasicAuthForm();
+  return {
+    enabled: auth.enabled,
+    username: auth.username,
+    password: auth.password,
+    passwordSet: auth.passwordSet || auth.password !== "",
+  };
+}
+
+function healthCheckFromProto(target: PublicRouteTarget): HealthCheckForm {
+  const check = target.healthCheck;
+  if (!check) return defaultHealthCheckForm();
+  return {
+    enabled: check.enabled,
+    method: check.method || "GET",
+    path: check.path || "/",
+    intervalMillis: Number(check.intervalMillis || 10000n),
+    timeoutMillis: Number(check.timeoutMillis || 2000n),
+    healthyThreshold: Number(check.healthyThreshold || 2n),
+    unhealthyThreshold: Number(check.unhealthyThreshold || 2n),
+    expectedStatusMin: Number(check.expectedStatusMin || 200n),
+    expectedStatusMax: Number(check.expectedStatusMax || 399n),
+  };
+}
+
+function targetFormFromProto(target: PublicRouteTarget, mode: "edit" | "clone"): TargetForm {
   const labels = target.agentSelector?.matchLabels ?? {};
   const selectorLabels = selectorRowsFromLabels(labels);
   return {
-    id: target.id.toString(),
+    id: mode === "clone" ? "" : target.id.toString(),
     name: target.name,
     enabled: target.enabled,
     targetType: target.targetType || PublicRouteTargetType.PROXY,
@@ -216,10 +321,17 @@ function targetFormFromProto(target: PublicRouteTarget): TargetForm {
     selectorLabels: selectorLabels.length ? selectorLabels.map(cloneSelectorRow) : [newSelectorRow()],
     priorityGroup: Number(target.priorityGroup || 0n),
     weight: Number(target.weight || 100n),
+    agentLoadBalancing: target.agentLoadBalancing || PublicRouteTargetLoadBalancing.ROUND_ROBIN,
     tlsSkipVerify: target.tlsSkipVerify,
     responseHeaderTimeoutMillis: Number(target.upstreamResponseHeaderTimeoutMillis || 60000n),
+    upstreamRequestHeaders: upstreamHeadersFromProto(target, mode),
+    upstreamBasicAuth: basicAuthFromProto(target, mode),
+    healthCheck: healthCheckFromProto(target),
     staticStatusCode: Number(target.staticStatusCode || 200n),
+    staticResponseHeaders: target.staticResponseHeaders.map((header) => ({ name: header.name, value: header.value })),
     staticResponseBody: target.staticResponseBody,
+    staticResponseBodyMode: target.staticResponseBodyMode || PublicResponseBodyMode.INLINE,
+    staticResponseTemplateId: (target.staticResponseTemplateId || 0n).toString(),
   };
 }
 
@@ -236,7 +348,7 @@ function populateRouteForm(route: PublicRoute, mode: "edit" | "clone") {
   routeForm.pathSecurityMode = route.pathSecurityMode || PublicRoutePathSecurityMode.STRICT;
   routeForm.targetLoadBalancing = route.targetLoadBalancing || PublicRouteTargetLoadBalancing.ROUND_ROBIN;
   routeForm.isDefault = route.isDefault;
-  routeForm.targets = action === PublicRouteAction.REDIRECT ? [] : route.targets.map(targetFormFromProto);
+  routeForm.targets = action === PublicRouteAction.REDIRECT ? [] : route.targets.map((target) => targetFormFromProto(target, mode));
   if (action !== PublicRouteAction.REDIRECT && !routeForm.targets.length) routeForm.targets = [defaultTarget(0)];
   routeForm.redirectTargetMode = route.redirectTargetMode || PublicRouteRedirectTargetMode.SAME_HOST_PATH;
   routeForm.redirectTarget = route.redirectTarget;
@@ -291,6 +403,41 @@ function selectorPayload(target: TargetForm): { matchLabels: Record<string, stri
   return { matchLabels: selectorRowsToRecord(target.selectorLabels) };
 }
 
+function upstreamHeaderPayload(header: UpstreamHeaderForm, index: number) {
+  return {
+    id: BigInt(header.id || "0"),
+    targetId: BigInt(header.targetId || "0"),
+    name: header.name,
+    value: header.value,
+    sensitive: header.sensitive,
+    valueSet: header.valueSet || header.value !== "",
+    position: BigInt(index),
+  };
+}
+
+function basicAuthPayload(auth: BasicAuthForm) {
+  return {
+    enabled: auth.enabled,
+    username: auth.username,
+    password: auth.password,
+    passwordSet: auth.passwordSet || auth.password !== "",
+  };
+}
+
+function healthCheckPayload(check: HealthCheckForm) {
+  return {
+    enabled: check.enabled,
+    method: check.method || "GET",
+    path: check.path || "/",
+    intervalMillis: BigInt(Math.max(1, check.intervalMillis || 10000)),
+    timeoutMillis: BigInt(Math.max(1, check.timeoutMillis || 2000)),
+    healthyThreshold: BigInt(Math.max(1, check.healthyThreshold || 2)),
+    unhealthyThreshold: BigInt(Math.max(1, check.unhealthyThreshold || 2)),
+    expectedStatusMin: BigInt(Math.max(100, check.expectedStatusMin || 200)),
+    expectedStatusMax: BigInt(Math.max(100, check.expectedStatusMax || 399)),
+  };
+}
+
 function targetPayload(target: TargetForm, index: number) {
   const isStatic = target.targetType === PublicRouteTargetType.STATIC;
   return {
@@ -304,27 +451,17 @@ function targetPayload(target: TargetForm, index: number) {
     url: isStatic ? "" : target.url.trim(),
     transport: isStatic ? PublicRouteTargetTransport.DIRECT : target.transport,
     agentSelector: selectorPayload(target),
-    agentLoadBalancing: PublicRouteTargetLoadBalancing.ROUND_ROBIN,
+    agentLoadBalancing: isStatic ? PublicRouteTargetLoadBalancing.ROUND_ROBIN : target.agentLoadBalancing,
     tlsSkipVerify: !isStatic && target.tlsSkipVerify,
     upstreamResponseHeaderTimeoutMillis: BigInt(Math.max(1, target.responseHeaderTimeoutMillis || 60000)),
-    upstreamRequestHeaders: [],
-    upstreamBasicAuth: { enabled: false, username: "", password: "", passwordSet: false },
-    healthCheck: {
-      enabled: false,
-      method: "GET",
-      path: "/",
-      intervalMillis: 10000n,
-      timeoutMillis: 2000n,
-      healthyThreshold: 2n,
-      unhealthyThreshold: 2n,
-      expectedStatusMin: 200n,
-      expectedStatusMax: 399n,
-    },
+    upstreamRequestHeaders: isStatic ? [] : target.upstreamRequestHeaders.map(upstreamHeaderPayload),
+    upstreamBasicAuth: isStatic ? defaultBasicAuthForm() : basicAuthPayload(target.upstreamBasicAuth),
+    healthCheck: isStatic ? healthCheckPayload(defaultHealthCheckForm()) : healthCheckPayload(target.healthCheck),
     staticStatusCode: BigInt(isStatic ? target.staticStatusCode || 200 : 200),
-    staticResponseHeaders: [],
+    staticResponseHeaders: isStatic ? target.staticResponseHeaders.map((header) => ({ name: header.name, value: header.value })) : [],
     staticResponseBody: isStatic ? target.staticResponseBody : "",
-    staticResponseBodyMode: PublicResponseBodyMode.INLINE,
-    staticResponseTemplateId: 0n,
+    staticResponseBodyMode: isStatic ? target.staticResponseBodyMode : PublicResponseBodyMode.INLINE,
+    staticResponseTemplateId: BigInt(isStatic ? target.staticResponseTemplateId || "0" : "0"),
   };
 }
 

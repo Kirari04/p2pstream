@@ -864,12 +864,13 @@ func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfi
 		if target.PriorityGroup != lowestPriorityGroup || !a.targetEligibleForRoute(snap, target) {
 			continue
 		}
+		// Active request counts are local to this proxy process; least-active balancing is per-process.
 		candidates = append(candidates, routeTargetCandidate{
 			Target:         target,
 			TargetID:       target.ID,
 			Position:       target.Position,
 			Weight:         target.Weight,
-			ActiveRequests: 0,
+			ActiveRequests: a.TargetHealth.activeRequests(target.ID),
 		})
 	}
 	if len(candidates) == 0 {

@@ -49,6 +49,7 @@ func TestHandlerFallsBackToIndexForSPARoute(t *testing.T) {
 	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
 
 	req := httptest.NewRequest(http.MethodGet, "/settings", nil)
+	req.Header.Set("Accept", "text/html")
 	rec := httptest.NewRecorder()
 
 	NewHandler("", distDir).ServeHTTP(rec, req)
@@ -58,6 +59,42 @@ func TestHandlerFallsBackToIndexForSPARoute(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "app shell") {
 		t.Fatalf("expected index fallback, got %q", rec.Body.String())
+	}
+}
+
+func TestHandlerReturnsNotFoundForMissingAsset(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/missing.js", nil)
+	req.Header.Set("Accept", "*/*")
+	rec := httptest.NewRecorder()
+
+	NewHandler("", distDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "app shell") {
+		t.Fatalf("missing asset fell back to index: %q", rec.Body.String())
+	}
+}
+
+func TestHandlerReturnsNotFoundForNonHTMLSPARouteRequest(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+
+	req := httptest.NewRequest(http.MethodGet, "/settings", nil)
+	req.Header.Set("Accept", "application/json")
+	rec := httptest.NewRecorder()
+
+	NewHandler("", distDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "app shell") {
+		t.Fatalf("non-HTML request fell back to index: %q", rec.Body.String())
 	}
 }
 
@@ -83,15 +120,15 @@ func TestHandlerDoesNotServeTraversalOutsideDist(t *testing.T) {
 
 			NewHandler("", distDir).ServeHTTP(rec, req)
 
-			if rec.Code != http.StatusOK {
-				t.Fatalf("expected status 200, got %d", rec.Code)
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("expected status 404, got %d", rec.Code)
 			}
 			body := rec.Body.String()
 			if strings.Contains(body, "outside-secret") {
 				t.Fatalf("served file outside dist for %q: %q", target, body)
 			}
-			if !strings.Contains(body, "app shell") {
-				t.Fatalf("expected index fallback for %q, got %q", target, body)
+			if strings.Contains(body, "app shell") {
+				t.Fatalf("traversal path fell back to index for %q: %q", target, body)
 			}
 		})
 	}

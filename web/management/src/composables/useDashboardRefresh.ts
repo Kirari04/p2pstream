@@ -1,5 +1,10 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from "vue";
-import { localManagementClient, managementClient, setActiveManagementClientBase } from "@/api/managementClient";
+import {
+  createManagementClient,
+  createRoutedManagementClient,
+  localManagementClient,
+  type ManagementClient,
+} from "@/api/managementClient";
 import { messageFromError } from "@/lib/errors";
 import {
   EnvironmentTrustState,
@@ -25,6 +30,7 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
   const isRefreshing = ref(false);
   const pendingDashboardReload = ref(false);
   const refreshTimer = ref<number | null>(null);
+  const remoteManagementClients = new Map<string, ManagementClient>();
 
   const environmentOptions = computed(() => [
     { id: "0", name: "Local", enabled: true, trustState: EnvironmentTrustState.TRUSTED },
@@ -38,19 +44,41 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
   const environmentSelectOptions = computed(() => environmentOptions.value.map((environment) => ({
     label: `${environment.name}${environment.enabled ? "" : " (disabled)"}`,
     value: environment.id,
+    disabled: environment.id !== "0" && (environment.trustState !== EnvironmentTrustState.TRUSTED || !environment.enabled),
   })));
   const selectedRemoteEnvironment = computed(() => {
     if (selectedEnvironmentId.value === "0") return null;
     return environments.value.find((environment) => environment.id.toString() === selectedEnvironmentId.value) ?? null;
   });
-  const selectedEnvironmentLabel = computed(() => selectedRemoteEnvironment.value?.name ?? "Local");
+  const selectedEnvironmentLabel = computed(() => {
+    if (selectedEnvironmentId.value === "0") return "Local";
+    return selectedRemoteEnvironment.value?.name ?? "Unavailable environment";
+  });
   const selectedEnvironmentBlocked = computed(() => {
+    if (selectedEnvironmentId.value !== "0" && !selectedRemoteEnvironment.value) {
+      return "Selected environment is no longer available.";
+    }
     const environment = selectedRemoteEnvironment.value;
     if (!environment) return "";
     if (!environment.enabled) return "Environment is disabled.";
     if (environment.trustState !== EnvironmentTrustState.TRUSTED) return "Environment certificate must be trusted before management requests can run.";
     return "";
   });
+  const selectedManagementClient = computed(() => {
+    const environment = selectedRemoteEnvironment.value;
+    if (!environment) return localManagementClient;
+    const baseUrl = remoteEnvironmentBaseUrl(environment.id);
+    let client = remoteManagementClients.get(baseUrl);
+    if (!client) {
+      client = createManagementClient(baseUrl);
+      remoteManagementClients.set(baseUrl, client);
+    }
+    return client;
+  });
+  const managementClient = createRoutedManagementClient(
+    () => selectedManagementClient.value,
+    () => selectedEnvironmentBlocked.value,
+  );
 
   function loadSelectedEnvironmentId(): string {
     try {
@@ -68,26 +96,35 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
     }
   }
 
+  function remoteEnvironmentBaseUrl(environmentId: bigint | string): string {
+    return `${window.location.origin}/environments/${environmentId.toString()}`;
+  }
+
+  function pruneRemoteManagementClients() {
+    const activeBaseUrls = new Set(environments.value.map((environment) => remoteEnvironmentBaseUrl(environment.id)));
+    for (const baseUrl of remoteManagementClients.keys()) {
+      if (!activeBaseUrls.has(baseUrl)) {
+        remoteManagementClients.delete(baseUrl);
+      }
+    }
+  }
+
   async function loadEnvironments() {
     if (!currentUser.value) {
       environments.value = [];
+      remoteManagementClients.clear();
       selectedEnvironmentId.value = "0";
       return;
     }
     const resp = await localManagementClient.listEnvironments({});
     environments.value = resp.environments;
-    if (selectedEnvironmentId.value !== "0" && !environments.value.some((environment) => environment.id.toString() === selectedEnvironmentId.value && environment.enabled)) {
+    pruneRemoteManagementClients();
+    if (selectedEnvironmentId.value !== "0" && !environments.value.some((environment) => environment.id.toString() === selectedEnvironmentId.value)) {
       selectedEnvironmentId.value = "0";
     }
   }
 
-  function syncSelectedEnvironmentClient() {
-    const environment = selectedRemoteEnvironment.value;
-    if (!environment) {
-      setActiveManagementClientBase(window.location.origin);
-    } else {
-      setActiveManagementClientBase(`${window.location.origin}/environments/${environment.id.toString()}`);
-    }
+  function syncSelectedEnvironmentSelection() {
     persistSelectedEnvironmentId();
   }
 
@@ -100,8 +137,9 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
     stopAutoRefresh();
     clearDashboardState();
     environments.value = [];
+    remoteManagementClients.clear();
     selectedEnvironmentId.value = "0";
-    syncSelectedEnvironmentClient();
+    syncSelectedEnvironmentSelection();
   }
 
   async function loadDashboard() {
@@ -112,20 +150,27 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
     isRefreshing.value = true;
     error.value = null;
     const loadEnvironmentId = selectedEnvironmentId.value;
+    const loadBlockedReason = selectedEnvironmentBlocked.value;
+    if (loadBlockedReason) {
+      clearDashboardState();
+      pendingDashboardReload.value = false;
+      isRefreshing.value = false;
+      return;
+    }
+    const loadClient = selectedManagementClient.value;
     try {
-      syncSelectedEnvironmentClient();
       const [dashboardResp, publicProxyResp] = await Promise.all([
-        managementClient.getDashboard({}),
-        managementClient.getPublicProxyConfig({}),
+        loadClient.getDashboard({}),
+        loadClient.getPublicProxyConfig({}),
       ]);
-      if (loadEnvironmentId !== selectedEnvironmentId.value) {
+      if (loadEnvironmentId !== selectedEnvironmentId.value || loadBlockedReason !== selectedEnvironmentBlocked.value) {
         pendingDashboardReload.value = true;
         return;
       }
       dashboard.value = dashboardResp;
       publicProxyConfig.value = publicProxyResp;
     } catch (err) {
-      if (loadEnvironmentId === selectedEnvironmentId.value) {
+      if (loadEnvironmentId === selectedEnvironmentId.value && loadBlockedReason === selectedEnvironmentBlocked.value) {
         error.value = messageFromError(err);
       } else {
         pendingDashboardReload.value = true;
@@ -143,7 +188,7 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
     stopAutoRefresh();
     if (!currentUser.value) return;
     refreshTimer.value = window.setInterval(() => {
-      if (!currentUser.value || isBusy.value || isRefreshing.value) return;
+      if (!currentUser.value || selectedEnvironmentBlocked.value || isBusy.value || isRefreshing.value) return;
       void loadDashboard();
     }, 5000);
   }
@@ -159,15 +204,16 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
 
   async function loadAuthenticatedData() {
     await loadEnvironments();
-    syncSelectedEnvironmentClient();
+    syncSelectedEnvironmentSelection();
     await loadDashboard();
     startAutoRefresh();
   }
 
-  watch(selectedEnvironmentId, () => {
-    syncSelectedEnvironmentClient();
+  watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
+    syncSelectedEnvironmentSelection();
     if (!currentUser.value) return;
     clearDashboardState();
+    if (selectedEnvironmentBlocked.value) return;
     if (isLoading.value) {
       pendingDashboardReload.value = true;
       return;
@@ -183,6 +229,7 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
     selectedEnvironmentLabel,
     selectedEnvironmentBlocked,
     environmentSelectOptions,
+    managementClient,
     isRefreshing,
     loadEnvironments,
     loadDashboard,

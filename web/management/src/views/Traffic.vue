@@ -2,7 +2,7 @@
 import { computed, h, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { NAlert, NButton, NCheckbox, NDataTable, NRadioButton, NRadioGroup, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
-import { dashboardKey, publicProxyConfigKey, selectedEnvironmentIdKey } from "@/composables/managementContextKeys";
+import { dashboardKey, publicProxyConfigKey, selectedEnvironmentBlockedKey, selectedEnvironmentIdKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
@@ -23,6 +23,7 @@ const managementClient = useManagementClient();
 const dashboard = inject(dashboardKey, computed(() => null));
 const publicProxyConfig = inject(publicProxyConfigKey, computed(() => null));
 const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
+const selectedEnvironmentBlocked = inject(selectedEnvironmentBlockedKey, computed(() => ""));
 
 const config = computed(() => publicProxyConfig?.value ?? null);
 
@@ -116,6 +117,7 @@ const streamStateTagType = computed(() => {
 });
 
 async function loadTraceSettings(loadVersion: number) {
+  if (selectedEnvironmentBlocked.value) return;
   try {
     const resp = await managementClient.getTrafficTraceSettings({});
     if (loadVersion !== traceSettingsLoadVersion) return;
@@ -140,7 +142,7 @@ async function setTraceLevel(level: TrafficTraceLevel) {
 }
 
 async function updateTraceSettings(enabled: boolean, level: TrafficTraceLevel) {
-  if (isTraceBusy.value) return;
+  if (isTraceBusy.value || selectedEnvironmentBlocked.value) return;
   isTraceBusy.value = true;
   streamError.value = "";
   try {
@@ -169,7 +171,7 @@ function applyTraceSettings(settings: TrafficTraceSettings | null) {
 }
 
 function startTraceStream() {
-  if (streamController || !traceSettings.value?.enabled) return;
+  if (streamController || !traceSettings.value?.enabled || selectedEnvironmentBlocked.value) return;
   clearRetryTimer();
   streamController = new AbortController();
   streamState.value = "connecting";
@@ -324,16 +326,19 @@ function streamStateLabel(): string {
 onMounted(() => {
   window.addEventListener("pagehide", handlePageHide);
   traceSettingsLoadVersion += 1;
-  void loadTraceSettings(traceSettingsLoadVersion);
+  if (!selectedEnvironmentBlocked.value) {
+    void loadTraceSettings(traceSettingsLoadVersion);
+  }
 });
 
-watch(selectedEnvironmentId, () => {
+watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
   traceSettingsLoadVersion += 1;
   stopTraceStream("idle");
   traceStore.clear();
   selectedRequestId.value = null;
   traceSettings.value = null;
   streamError.value = "";
+  if (selectedEnvironmentBlocked.value) return;
   void loadTraceSettings(traceSettingsLoadVersion);
 });
 
