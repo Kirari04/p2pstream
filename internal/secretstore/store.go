@@ -3,6 +3,7 @@ package secretstore
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -103,6 +104,7 @@ type PurposeStatus struct {
 type Status struct {
 	Purposes      []PurposeStatus `json:"purposes"`
 	CurrentKeyID  string          `json:"current_key_id,omitempty"`
+	Provider      string          `json:"provider,omitempty"`
 	EncryptionOn  bool            `json:"encryption_enabled"`
 	Required      bool            `json:"required"`
 	Total         int             `json:"total"`
@@ -143,14 +145,15 @@ type ReconcileResult struct {
 }
 
 type rowClassification struct {
-	Plaintext    string
-	PlaintextRow bool
-	NeedsRewrap  bool
-	MissingKey   bool
-	Invalid      bool
-	DecryptFail  bool
-	KeyID        string
-	Error        string
+	Plaintext       string
+	PlaintextRow    bool
+	NeedsRewrap     bool
+	PlaintextRewrap bool
+	MissingKey      bool
+	Invalid         bool
+	DecryptFail     bool
+	KeyID           string
+	Error           string
 }
 
 func New(database *sql.DB, service *secrets.Service) *Store {
@@ -169,6 +172,7 @@ func (s *Store) Status(ctx context.Context, batchSize int) (Status, error) {
 	}
 	if s.Secrets != nil {
 		status.CurrentKeyID = s.Secrets.CurrentKeyID()
+		status.Provider = s.Secrets.Provider()
 	}
 	for _, field := range Fields {
 		purposeStatus := PurposeStatus{
@@ -178,7 +182,7 @@ func (s *Store) Status(ctx context.Context, batchSize int) (Status, error) {
 			Errors:  make(map[string]int),
 		}
 		if err := s.scanRows(ctx, field, batchSize, func(row Row) error {
-			classification := s.classifyRow(field, row)
+			classification := s.classifyRow(ctx, field, row)
 			addClassification(&purposeStatus, classification)
 			return nil
 		}); err != nil {
@@ -256,13 +260,13 @@ func (s *Store) reconcileField(ctx context.Context, field Field, batchSize int) 
 		for _, row := range rows {
 			lastID = row.ID
 			result.Scanned++
-			classification := s.classifyRow(field, row)
+			classification := s.classifyRow(ctx, field, row)
 			if err := unsafeClassificationError(field, row, classification); err != nil {
 				_ = tx.Rollback()
 				return result, err
 			}
-			if classification.PlaintextRow || classification.NeedsRewrap {
-				encrypted, err := s.Secrets.Encrypt(field.Purpose, row.OwnerID, classification.Plaintext)
+			if classification.PlaintextRow {
+				encrypted, err := s.Secrets.EncryptContext(ctx, field.Purpose, row.OwnerID, classification.Plaintext)
 				if err != nil {
 					_ = tx.Rollback()
 					return result, fmt.Errorf("encrypt %s %d: %w", field.Name, row.ID, err)
@@ -271,11 +275,29 @@ func (s *Store) reconcileField(ctx context.Context, field Field, batchSize int) 
 					_ = tx.Rollback()
 					return result, fmt.Errorf("update %s %d: %w", field.Name, row.ID, err)
 				}
-				if classification.PlaintextRow {
-					result.Encrypted++
+				result.Encrypted++
+				continue
+			}
+			if classification.NeedsRewrap {
+				var encrypted string
+				var err error
+				if classification.PlaintextRewrap {
+					encrypted, err = s.Secrets.EncryptContext(ctx, field.Purpose, row.OwnerID, classification.Plaintext)
 				} else {
-					result.Rewrapped++
+					encrypted, err = s.Secrets.RewrapContext(ctx, field.Purpose, row.OwnerID, row.Value)
+					if errors.Is(err, secrets.ErrPlaintextRewrapRequired) {
+						encrypted, err = s.Secrets.EncryptContext(ctx, field.Purpose, row.OwnerID, classification.Plaintext)
+					}
 				}
+				if err != nil {
+					_ = tx.Rollback()
+					return result, fmt.Errorf("rewrap %s %d: %w", field.Name, row.ID, err)
+				}
+				if _, err := tx.ExecContext(ctx, updateSQL(field), encrypted, row.ID); err != nil {
+					_ = tx.Rollback()
+					return result, fmt.Errorf("update %s %d: %w", field.Name, row.ID, err)
+				}
+				result.Rewrapped++
 				continue
 			}
 			result.Unchanged++
@@ -322,7 +344,7 @@ func (s *Store) scanRows(ctx context.Context, field Field, batchSize int, fn fun
 	}
 }
 
-func (s *Store) classifyRow(field Field, row Row) rowClassification {
+func (s *Store) classifyRow(ctx context.Context, field Field, row Row) rowClassification {
 	meta, err := secrets.Inspect(row.Value)
 	if err != nil {
 		return rowClassification{Invalid: true, Error: err.Error()}
@@ -331,21 +353,28 @@ func (s *Store) classifyRow(field Field, row Row) rowClassification {
 		return rowClassification{Plaintext: row.Value, PlaintextRow: true}
 	}
 	classification := rowClassification{KeyID: meta.KeyID}
-	if s.Secrets == nil || !s.Secrets.Enabled() || !s.Secrets.HasKeyID(meta.KeyID) {
+	if s.Secrets == nil || !s.Secrets.Enabled() || !s.Secrets.CanDecrypt(meta) {
 		classification.MissingKey = true
 		return classification
 	}
-	plaintext, _, err := s.Secrets.Decrypt(field.Purpose, row.OwnerID, row.Value)
+	plaintext, _, err := s.Secrets.DecryptContext(ctx, field.Purpose, row.OwnerID, row.Value)
 	if err == nil {
+		needsRewrap, rewrapErr := s.Secrets.NeedsRewrapContext(ctx, row.Value)
+		if rewrapErr != nil {
+			classification.DecryptFail = true
+			classification.Error = rewrapErr.Error()
+			return classification
+		}
 		classification.Plaintext = plaintext
-		classification.NeedsRewrap = s.Secrets.NeedsRewrap(row.Value)
+		classification.NeedsRewrap = needsRewrap
 		return classification
 	}
 	if row.LegacyOwnerID.Valid && row.LegacyOwnerID.Int64 != row.OwnerID {
-		plaintext, _, legacyErr := s.Secrets.Decrypt(field.Purpose, row.LegacyOwnerID.Int64, row.Value)
+		plaintext, _, legacyErr := s.Secrets.DecryptContext(ctx, field.Purpose, row.LegacyOwnerID.Int64, row.Value)
 		if legacyErr == nil {
 			classification.Plaintext = plaintext
 			classification.NeedsRewrap = true
+			classification.PlaintextRewrap = true
 			return classification
 		}
 	}

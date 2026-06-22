@@ -3,8 +3,13 @@ package secretstore
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"p2pstream/internal/db"
@@ -163,6 +168,98 @@ func TestReconcileRewrapsLegacyTargetScopedHeaderAAD(t *testing.T) {
 	}
 }
 
+func TestReconcileMigratesDirectRowsToVaultTransitEnvelope(t *testing.T) {
+	ctx := context.Background()
+	database := newSecretStoreTestDB(t)
+	oldKey := secretStoreTestKey(1)
+	oldService := newSecretStoreTestService(t, oldKey, "old", "", false)
+	oldToken, err := oldService.Encrypt(secrets.PurposeEnvironmentAccessToken, 100, "p2pat_old")
+	if err != nil {
+		t.Fatalf("encrypt old environment token: %v", err)
+	}
+	insertEnvironmentSecret(t, database, 100, "remote-old", oldToken)
+
+	vault := newSecretStoreFakeVault(t)
+	vaultService, err := secrets.NewService(secrets.KeyConfig{
+		PreviousKeys:   "old:" + oldKey,
+		AllowPlaintext: true,
+		Provider:       secrets.ProviderVaultTransit,
+		VaultTransit: secrets.VaultTransitConfig{
+			Address:   vault.server.URL,
+			Token:     vault.token,
+			MountPath: "transit",
+			KeyName:   "p2pstream",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewService(Vault) error = %v", err)
+	}
+
+	store := New(database.DB, vaultService)
+	status, err := store.Status(ctx, 1)
+	if err != nil {
+		t.Fatalf("Status() error = %v", err)
+	}
+	if status.NeedsRewrap != 1 || status.Current != 0 || status.CurrentKeyID != "vault-transit:transit/p2pstream" {
+		t.Fatalf("Status() = %+v, want direct row needing Vault rewrap", status)
+	}
+
+	result, err := store.Reconcile(ctx, ReconcileOptions{BatchSize: 1})
+	if err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if result.Rewrapped != 1 || result.Encrypted != 0 {
+		t.Fatalf("Reconcile() = %+v, want one rewrapped row", result)
+	}
+	stored := rawEnvironmentSecret(t, database, 100)
+	meta, err := secrets.Inspect(stored)
+	if err != nil {
+		t.Fatalf("Inspect(reconciled) error = %v", err)
+	}
+	if meta.Version != 2 || meta.Provider != secrets.ProviderVaultTransit {
+		t.Fatalf("Inspect(reconciled) = %+v, want Vault Transit v2 envelope", meta)
+	}
+	assertDecrypts(t, vaultService, secrets.PurposeEnvironmentAccessToken, 100, stored, "p2pat_old")
+}
+
+func TestReconcileRewrapsVaultLegacyTargetScopedHeaderAADWithoutProviderRewrap(t *testing.T) {
+	ctx := context.Background()
+	database := newSecretStoreTestDB(t)
+	vault := newSecretStoreFakeVault(t)
+	service, err := secrets.NewService(secrets.KeyConfig{
+		AllowPlaintext: true,
+		Provider:       secrets.ProviderVaultTransit,
+		VaultTransit: secrets.VaultTransitConfig{
+			Address:   vault.server.URL,
+			Token:     vault.token,
+			MountPath: "transit",
+			KeyName:   "p2pstream",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewService(Vault) error = %v", err)
+	}
+	legacy, err := service.EncryptContext(ctx, secrets.PurposePublicRouteTargetSensitiveHeader, 20, "session=vault-legacy")
+	if err != nil {
+		t.Fatalf("encrypt legacy header: %v", err)
+	}
+	insertRouteHeaderSecret(t, database, 20, 30, legacy)
+
+	store := New(database.DB, service)
+	result, err := store.Reconcile(ctx, ReconcileOptions{BatchSize: 1})
+	if err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if result.Rewrapped != 1 {
+		t.Fatalf("Reconcile().Rewrapped = %d, want 1", result.Rewrapped)
+	}
+	stored := rawHeaderSecret(t, database, 30)
+	assertDecrypts(t, service, secrets.PurposePublicRouteTargetSensitiveHeader, 30, stored, "session=vault-legacy")
+	if _, _, err := service.DecryptContext(ctx, secrets.PurposePublicRouteTargetSensitiveHeader, 20, stored); err == nil {
+		t.Fatal("expected rewrapped Vault header to reject legacy target-scoped AAD")
+	}
+}
+
 func TestReconcileRejectsPlaintextWhenRequired(t *testing.T) {
 	ctx := context.Background()
 	database := newSecretStoreTestDB(t)
@@ -176,6 +273,107 @@ func TestReconcileRejectsPlaintextWhenRequired(t *testing.T) {
 	if got := rawWAFSettingsSecret(t, database); got != "cookie-secret" {
 		t.Fatalf("required-mode failure mutated plaintext row = %q", got)
 	}
+}
+
+type secretStoreFakeVault struct {
+	server  *httptest.Server
+	token   string
+	mu      sync.Mutex
+	counter int
+	keys    map[string][]byte
+}
+
+func newSecretStoreFakeVault(t *testing.T) *secretStoreFakeVault {
+	t.Helper()
+	fake := &secretStoreFakeVault{
+		token: "test-token",
+		keys:  make(map[string][]byte),
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/transit/keys/p2pstream", fake.handleKey)
+	mux.HandleFunc("/v1/transit/datakey/plaintext/p2pstream", fake.handleDataKey)
+	mux.HandleFunc("/v1/transit/decrypt/p2pstream", fake.handleDecrypt)
+	fake.server = httptest.NewServer(mux)
+	t.Cleanup(fake.server.Close)
+	return fake
+}
+
+func (f *secretStoreFakeVault) handleKey(w http.ResponseWriter, r *http.Request) {
+	if !f.authorized(w, r) {
+		return
+	}
+	writeSecretStoreVaultJSON(w, map[string]interface{}{"data": map[string]int{"latest_version": 1}})
+}
+
+func (f *secretStoreFakeVault) handleDataKey(w http.ResponseWriter, r *http.Request) {
+	if !f.authorized(w, r) {
+		return
+	}
+	var body map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if body["context"] == "" {
+		http.Error(w, "missing context", http.StatusBadRequest)
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.counter++
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(f.counter + i)
+	}
+	wrapped := fmt.Sprintf("vault:v1:%s", base64.RawURLEncoding.EncodeToString(key))
+	f.keys[wrapped] = append([]byte(nil), key...)
+	writeSecretStoreVaultJSON(w, map[string]interface{}{
+		"data": map[string]string{
+			"plaintext":  base64.StdEncoding.EncodeToString(key),
+			"ciphertext": wrapped,
+		},
+	})
+}
+
+func (f *secretStoreFakeVault) handleDecrypt(w http.ResponseWriter, r *http.Request) {
+	if !f.authorized(w, r) {
+		return
+	}
+	var body struct {
+		Ciphertext string `json:"ciphertext"`
+		Context    string `json:"context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if body.Context == "" {
+		http.Error(w, "missing context", http.StatusBadRequest)
+		return
+	}
+	f.mu.Lock()
+	key := append([]byte(nil), f.keys[body.Ciphertext]...)
+	f.mu.Unlock()
+	if len(key) != 32 {
+		http.Error(w, "ciphertext is invalid", http.StatusBadRequest)
+		return
+	}
+	writeSecretStoreVaultJSON(w, map[string]interface{}{
+		"data": map[string]string{"plaintext": base64.StdEncoding.EncodeToString(key)},
+	})
+}
+
+func (f *secretStoreFakeVault) authorized(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header.Get("X-Vault-Token") != f.token {
+		http.Error(w, "permission denied", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+func writeSecretStoreVaultJSON(w http.ResponseWriter, value interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(value)
 }
 
 func newSecretStoreTestDB(t *testing.T) *db.DB {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
@@ -23,36 +24,44 @@ const (
 )
 
 type Config struct {
-	ManagementPort              string `env:"MANAGEMENT_PORT" envDefault:"8081"`
-	ManagementBindAddress       string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
-	ConfigDir                   string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
-	DatabaseURL                 string `env:"DATABASE_URL"`
-	Env                         string `env:"ENV" envDefault:"development"` // development or production
-	ManagementUIDisabled        bool   `env:"MANAGEMENT_UI_DISABLED" envDefault:"false"`
-	ManagementUIDevProxy        string `env:"MANAGEMENT_UI_DEV_PROXY"`
-	ManagementUIDistDir         string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
-	ManagementCookieSecure      bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
-	ManagementTLSCertFile       string `env:"MANAGEMENT_TLS_CERT_FILE"`
-	ManagementTLSKeyFile        string `env:"MANAGEMENT_TLS_KEY_FILE"`
-	ManagementTLSClientCAFile   string `env:"MANAGEMENT_TLS_CLIENT_CA_FILE"`
-	ManagementTLSMode           string `env:"MANAGEMENT_TLS_MODE" envDefault:"auto"`
-	ManagementAllowInsecureHTTP bool   `env:"MANAGEMENT_ALLOW_INSECURE_HTTP" envDefault:"false"`
-	ManagementPublicURL         string `env:"MANAGEMENT_PUBLIC_URL"`
-	ManagementSetupToken        string `env:"MANAGEMENT_SETUP_TOKEN"`
-	ManagementAdvertiseHost     string `env:"MANAGEMENT_ADVERTISE_HOST"`
-	ManagementTLSExtraHosts     string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
-	PublicCacheDir              string `env:"PUBLIC_CACHE_DIR"`
-	BootstrapAgentID            string `env:"BOOTSTRAP_AGENT_ID"`
-	BootstrapAgentName          string `env:"BOOTSTRAP_AGENT_NAME"`
-	BootstrapAgentToken         string `env:"BOOTSTRAP_AGENT_TOKEN"`
-	ObservabilityRetentionDays  int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
-	ObservabilityMaxRows        int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
-	LoginThrottleMaxKeys        int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
-	SecretsEncryptionKey        string `env:"SECRETS_ENCRYPTION_KEY"`
-	SecretsEncryptionKeyFile    string `env:"SECRETS_ENCRYPTION_KEY_FILE"`
-	SecretsEncryptionKeyID      string `env:"SECRETS_ENCRYPTION_KEY_ID"`
-	SecretsEncryptionPrevious   string `env:"SECRETS_ENCRYPTION_PREVIOUS_KEYS"`
-	SecretsEncryptionRequired   bool   `env:"SECRETS_ENCRYPTION_REQUIRED" envDefault:"false"`
+	ManagementPort              string        `env:"MANAGEMENT_PORT" envDefault:"8081"`
+	ManagementBindAddress       string        `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
+	ConfigDir                   string        `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
+	DatabaseURL                 string        `env:"DATABASE_URL"`
+	Env                         string        `env:"ENV" envDefault:"development"` // development or production
+	ManagementUIDisabled        bool          `env:"MANAGEMENT_UI_DISABLED" envDefault:"false"`
+	ManagementUIDevProxy        string        `env:"MANAGEMENT_UI_DEV_PROXY"`
+	ManagementUIDistDir         string        `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
+	ManagementCookieSecure      bool          `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
+	ManagementTLSCertFile       string        `env:"MANAGEMENT_TLS_CERT_FILE"`
+	ManagementTLSKeyFile        string        `env:"MANAGEMENT_TLS_KEY_FILE"`
+	ManagementTLSClientCAFile   string        `env:"MANAGEMENT_TLS_CLIENT_CA_FILE"`
+	ManagementTLSMode           string        `env:"MANAGEMENT_TLS_MODE" envDefault:"auto"`
+	ManagementAllowInsecureHTTP bool          `env:"MANAGEMENT_ALLOW_INSECURE_HTTP" envDefault:"false"`
+	ManagementPublicURL         string        `env:"MANAGEMENT_PUBLIC_URL"`
+	ManagementSetupToken        string        `env:"MANAGEMENT_SETUP_TOKEN"`
+	ManagementAdvertiseHost     string        `env:"MANAGEMENT_ADVERTISE_HOST"`
+	ManagementTLSExtraHosts     string        `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
+	PublicCacheDir              string        `env:"PUBLIC_CACHE_DIR"`
+	BootstrapAgentID            string        `env:"BOOTSTRAP_AGENT_ID"`
+	BootstrapAgentName          string        `env:"BOOTSTRAP_AGENT_NAME"`
+	BootstrapAgentToken         string        `env:"BOOTSTRAP_AGENT_TOKEN"`
+	ObservabilityRetentionDays  int           `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
+	ObservabilityMaxRows        int64         `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
+	LoginThrottleMaxKeys        int           `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
+	SecretsEncryptionKey        string        `env:"SECRETS_ENCRYPTION_KEY"`
+	SecretsEncryptionKeyFile    string        `env:"SECRETS_ENCRYPTION_KEY_FILE"`
+	SecretsEncryptionKeyID      string        `env:"SECRETS_ENCRYPTION_KEY_ID"`
+	SecretsEncryptionPrevious   string        `env:"SECRETS_ENCRYPTION_PREVIOUS_KEYS"`
+	SecretsEncryptionRequired   bool          `env:"SECRETS_ENCRYPTION_REQUIRED" envDefault:"false"`
+	SecretsEncryptionProvider   string        `env:"SECRETS_ENCRYPTION_PROVIDER" envDefault:"direct"`
+	SecretsVaultAddress         string        `env:"SECRETS_ENCRYPTION_VAULT_ADDR"`
+	SecretsVaultToken           string        `env:"SECRETS_ENCRYPTION_VAULT_TOKEN"`
+	SecretsVaultTokenFile       string        `env:"SECRETS_ENCRYPTION_VAULT_TOKEN_FILE"`
+	SecretsVaultMount           string        `env:"SECRETS_ENCRYPTION_VAULT_MOUNT" envDefault:"transit"`
+	SecretsVaultKey             string        `env:"SECRETS_ENCRYPTION_VAULT_KEY"`
+	SecretsVaultNamespace       string        `env:"SECRETS_ENCRYPTION_VAULT_NAMESPACE"`
+	SecretsVaultTimeout         time.Duration `env:"SECRETS_ENCRYPTION_VAULT_TIMEOUT" envDefault:"5s"`
 
 	CertsDir                        string `env:"-"`
 	ManagementTLSEnabled            bool   `env:"-"`
@@ -171,39 +180,105 @@ func validateSecretsEncryptionConfig(cfg *Config) error {
 	cfg.SecretsEncryptionKeyFile = strings.TrimSpace(cfg.SecretsEncryptionKeyFile)
 	cfg.SecretsEncryptionKeyID = strings.TrimSpace(cfg.SecretsEncryptionKeyID)
 	cfg.SecretsEncryptionPrevious = strings.TrimSpace(cfg.SecretsEncryptionPrevious)
+	cfg.SecretsEncryptionProvider = strings.ToLower(strings.TrimSpace(cfg.SecretsEncryptionProvider))
+	if cfg.SecretsEncryptionProvider == "" {
+		cfg.SecretsEncryptionProvider = secrets.ProviderDirect
+	}
+	cfg.SecretsVaultAddress = strings.TrimSpace(cfg.SecretsVaultAddress)
+	cfg.SecretsVaultToken = strings.TrimSpace(cfg.SecretsVaultToken)
+	cfg.SecretsVaultTokenFile = strings.TrimSpace(cfg.SecretsVaultTokenFile)
+	cfg.SecretsVaultMount = strings.TrimSpace(cfg.SecretsVaultMount)
+	cfg.SecretsVaultKey = strings.TrimSpace(cfg.SecretsVaultKey)
+	cfg.SecretsVaultNamespace = strings.TrimSpace(cfg.SecretsVaultNamespace)
 	if cfg.SecretsEncryptionKey != "" && cfg.SecretsEncryptionKeyFile != "" {
 		return errors.New("set only one of SECRETS_ENCRYPTION_KEY or SECRETS_ENCRYPTION_KEY_FILE")
 	}
-	if cfg.SecretsEncryptionKeyFile != "" {
-		keyInfo, err := os.Stat(cfg.SecretsEncryptionKeyFile)
-		if err != nil {
-			return fmt.Errorf("stat SECRETS_ENCRYPTION_KEY_FILE %q: %w", cfg.SecretsEncryptionKeyFile, err)
-		}
-		if !keyInfo.Mode().IsRegular() {
-			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q must be a regular file", cfg.SecretsEncryptionKeyFile)
-		}
-		if keyInfo.Mode().Perm()&0o077 != 0 {
-			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q permissions %#o allow group/other access; set mode 0400 or 0600", cfg.SecretsEncryptionKeyFile, keyInfo.Mode().Perm())
-		}
-		keyBytes, err := os.ReadFile(cfg.SecretsEncryptionKeyFile)
-		if err != nil {
-			return fmt.Errorf("read SECRETS_ENCRYPTION_KEY_FILE %q: %w", cfg.SecretsEncryptionKeyFile, err)
-		}
-		cfg.SecretsEncryptionKey = strings.TrimSpace(string(keyBytes))
-		if cfg.SecretsEncryptionKey == "" {
-			return fmt.Errorf("SECRETS_ENCRYPTION_KEY_FILE %q is empty", cfg.SecretsEncryptionKeyFile)
-		}
+	if cfg.SecretsVaultToken != "" && cfg.SecretsVaultTokenFile != "" {
+		return errors.New("set only one of SECRETS_ENCRYPTION_VAULT_TOKEN or SECRETS_ENCRYPTION_VAULT_TOKEN_FILE")
 	}
-	_, err := secrets.NewKeyring(secrets.KeyConfig{
-		CurrentKey:   cfg.SecretsEncryptionKey,
-		CurrentKeyID: cfg.SecretsEncryptionKeyID,
-		PreviousKeys: cfg.SecretsEncryptionPrevious,
-		Required:     cfg.SecretsEncryptionRequired,
-	})
-	if err != nil {
-		return err
+	if cfg.SecretsEncryptionKeyFile != "" {
+		key, err := readStrictSecretFile("SECRETS_ENCRYPTION_KEY_FILE", cfg.SecretsEncryptionKeyFile)
+		if err != nil {
+			return err
+		}
+		cfg.SecretsEncryptionKey = key
+	}
+	if cfg.SecretsVaultTokenFile != "" {
+		token, err := readStrictSecretFile("SECRETS_ENCRYPTION_VAULT_TOKEN_FILE", cfg.SecretsVaultTokenFile)
+		if err != nil {
+			return err
+		}
+		cfg.SecretsVaultToken = token
+	}
+	switch cfg.SecretsEncryptionProvider {
+	case secrets.ProviderDirect:
+		if hasVaultEncryptionConfig(cfg) {
+			return errors.New("Vault secrets encryption settings require SECRETS_ENCRYPTION_PROVIDER=vault-transit")
+		}
+		_, err := secrets.NewKeyring(secrets.KeyConfig{
+			CurrentKey:   cfg.SecretsEncryptionKey,
+			CurrentKeyID: cfg.SecretsEncryptionKeyID,
+			PreviousKeys: cfg.SecretsEncryptionPrevious,
+			Required:     cfg.SecretsEncryptionRequired,
+		})
+		if err != nil {
+			return err
+		}
+	case secrets.ProviderVaultTransit:
+		if cfg.SecretsEncryptionKey != "" || cfg.SecretsEncryptionKeyFile != "" || cfg.SecretsEncryptionKeyID != "" {
+			return errors.New("SECRETS_ENCRYPTION_PROVIDER=vault-transit does not use SECRETS_ENCRYPTION_KEY, SECRETS_ENCRYPTION_KEY_FILE, or SECRETS_ENCRYPTION_KEY_ID")
+		}
+		_, err := secrets.NewService(secrets.KeyConfig{
+			PreviousKeys: cfg.SecretsEncryptionPrevious,
+			Required:     cfg.SecretsEncryptionRequired,
+			Provider:     secrets.ProviderVaultTransit,
+			VaultTransit: secrets.VaultTransitConfig{
+				Address:   cfg.SecretsVaultAddress,
+				Token:     cfg.SecretsVaultToken,
+				MountPath: cfg.SecretsVaultMount,
+				KeyName:   cfg.SecretsVaultKey,
+				Namespace: cfg.SecretsVaultNamespace,
+				Timeout:   cfg.SecretsVaultTimeout,
+			},
+		})
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("SECRETS_ENCRYPTION_PROVIDER must be %q or %q", secrets.ProviderDirect, secrets.ProviderVaultTransit)
 	}
 	return nil
+}
+
+func readStrictSecretFile(envName, path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("stat %s %q: %w", envName, path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%s %q must be a regular file", envName, path)
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		return "", fmt.Errorf("%s %q permissions %#o allow group/other access; set mode 0400 or 0600", envName, path, info.Mode().Perm())
+	}
+	value, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read %s %q: %w", envName, path, err)
+	}
+	trimmed := strings.TrimSpace(string(value))
+	if trimmed == "" {
+		return "", fmt.Errorf("%s %q is empty", envName, path)
+	}
+	return trimmed, nil
+}
+
+func hasVaultEncryptionConfig(cfg *Config) bool {
+	return cfg.SecretsVaultAddress != "" ||
+		cfg.SecretsVaultToken != "" ||
+		cfg.SecretsVaultTokenFile != "" ||
+		cfg.SecretsVaultKey != "" ||
+		cfg.SecretsVaultNamespace != "" ||
+		cfg.SecretsVaultMount != "" && cfg.SecretsVaultMount != "transit"
 }
 
 func prepareConfigDir(configDir, certsDir string) error {

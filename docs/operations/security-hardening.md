@@ -30,11 +30,12 @@ Use this before exposing management beyond a private network, after adding agent
    - Back up the full `CONFIG_DIR`.
    - Restrict host, volume, and backup access to trusted administrators.
    - Treat database write access as administrative access, because the local CLI can reset management credentials.
-   - Enable `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` to encrypt stored upstream/API credentials in SQLite.
+   - Enable stored-secret encryption for upstream/API credentials in SQLite. Use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with Vault Transit for external KEK custody, or `SECRETS_ENCRYPTION_KEY_FILE` for the local direct-key mode.
    - Run `p2pstream secrets status` and `p2pstream secrets rewrap --dry-run` against the same `CONFIG_DIR` before enabling required mode or removing previous keys.
    - After the first successful encrypted startup, set `SECRETS_ENCRYPTION_REQUIRED=true` so startup fails instead of accepting plaintext stored secrets.
-   - Store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets unrecoverable.
+   - For direct mode, store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets unrecoverable.
    - Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount a key file. The file must be `0400` or `0600`; otherwise protect process environments, systemd environment files, Docker inspect output, crash dumps, and child processes that can expose `SECRETS_ENCRYPTION_KEY`.
+   - For Vault Transit mode, prefer `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` with `0400` or `0600` permissions, use HTTPS Vault addresses, and grant only Transit permissions needed to read the configured key, generate data keys, decrypt wrapped data keys, and rewrap them.
    - Treat live process memory as sensitive. p2pstream decrypts stored secrets in memory when runtime components need to use them.
    - Keep filesystem and backup access restricted even with database secret encryption enabled; TLS private-key files under `/data/certs` are protected by filesystem permissions, not by stored-secret encryption.
    - Protect database backups as secrets; encrypted backups still contain operational state, sessions, certificates, and metadata.
@@ -64,7 +65,7 @@ Review:
 - Management is HTTPS.
 - Management exposure is intentional and firewall/VPN rules match that decision.
 - First-admin setup token handling is documented for operators.
-- Secrets encryption is enabled, `p2pstream secrets status` shows no plaintext or rewrap-needed rows, required mode is active after migration, and key material is backed up outside `/data`.
+- Secrets encryption is enabled, `p2pstream secrets status` shows no plaintext or rewrap-needed rows, required mode is active after migration, and direct key material or Vault recovery procedures are backed up outside `/data`.
 - `MANAGEMENT_PUBLIC_URL` is correct.
 - Unused listeners and agents are disabled or deleted.
 - Tracing is disabled after troubleshooting.
@@ -75,7 +76,7 @@ Review:
 | --- | --- |
 | Browser UI returns `404` | `MANAGEMENT_UI_DISABLED=true` intentionally disables only the browser UI. |
 | Agents fail after restore | Restore the old management CA or update agent CA material. |
-| Server fails with encrypted secret key errors | Restore the matching current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, or include the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` during rotation. |
+| Server fails with encrypted secret key errors | Restore the matching direct key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, include the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` during direct-to-Vault migration, or restore Vault Transit availability and token permissions. |
 | Everyone hits one rate-limit bucket | A front proxy may hide client IPs; place p2pstream at the edge, use `REMOTE_IP` when possible, or use only trusted application headers. Do not key on client-supplied forwarding headers. |
 | WAF does not stop network saturation | WAF is HTTP-layer only; use upstream DDoS/network protection. |
 

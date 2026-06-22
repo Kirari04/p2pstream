@@ -9,7 +9,7 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
 ## Prerequisites
 
 - A current backup of `CONFIG_DIR`, `/data` in Compose.
-- Backed-up key material from `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` if stored secret encryption is enabled.
+- Backed-up direct key material, or tested Vault Transit recovery/access, if stored secret encryption is enabled.
 - The same `p2pstream-data` volume or binary install data directory will remain mounted.
 - Optional: a pinned image tag for repeatable deployments.
 - Avoid `staging` for production upgrades unless you are intentionally validating the next release candidate.
@@ -30,7 +30,7 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
    docker compose logs -f p2pstream
    ```
 
-   When a current secrets-encryption key is configured, startup validates encrypted database secrets before listeners are registered. Existing plaintext rows are encrypted while `SECRETS_ENCRYPTION_REQUIRED=false`. With required mode enabled, plaintext rows fail startup. Rows encrypted with a key listed in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` are rewrapped to the current key during the restart; keep previous keys configured until that startup succeeds.
+   When stored-secret encryption is configured, startup validates encrypted database secrets before listeners are registered. Existing plaintext rows are encrypted while `SECRETS_ENCRYPTION_REQUIRED=false`. With required mode enabled, plaintext rows fail startup. Rows encrypted with a direct key listed in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` are rewrapped to the current direct key or Vault Transit provider during the restart; keep previous keys configured until that startup succeeds. In Vault Transit mode, startup also fails closed if Vault is unavailable or the token lacks the required Transit permissions.
 
    To inspect this before restart or before removing a previous key, run the CLI against the same `CONFIG_DIR` or `DATABASE_URL`:
 
@@ -99,7 +99,7 @@ After upgrade:
 | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Container restarts repeatedly                      | Read `docker compose logs -f p2pstream`.                                             |
 | Agent does not reconnect after transport upgrade     | Upgrade server and agents to matching versions; old WebSocket agents are incompatible. |
-| Startup fails while initializing secret storage     | Restore the matching current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, or include the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` during rotation. |
+| Startup fails while initializing secret storage     | Restore the matching direct key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, include the old direct key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` during rotation or migration, or restore Vault Transit availability and token permissions. |
 | Public listener missing                            | Confirm the same `/data` volume is mounted.                                          |
 | Rollback needed                                    | Switch `compose.yaml` back to the previous image tag and run `docker compose up -d`. |
 

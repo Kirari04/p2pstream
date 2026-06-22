@@ -21,6 +21,15 @@ func newSecretService(cfg *config.Config) (*secrets.Service, error) {
 		PreviousKeys:   cfg.SecretsEncryptionPrevious,
 		Required:       cfg.SecretsEncryptionRequired,
 		AllowPlaintext: !cfg.SecretsEncryptionRequired,
+		Provider:       cfg.SecretsEncryptionProvider,
+		VaultTransit: secrets.VaultTransitConfig{
+			Address:   cfg.SecretsVaultAddress,
+			Token:     cfg.SecretsVaultToken,
+			MountPath: cfg.SecretsVaultMount,
+			KeyName:   cfg.SecretsVaultKey,
+			Namespace: cfg.SecretsVaultNamespace,
+			Timeout:   cfg.SecretsVaultTimeout,
+		},
 	})
 }
 
@@ -36,6 +45,9 @@ func (a *App) InitializeSecretStorage(ctx context.Context) error {
 	}
 	if a.DB == nil {
 		return nil
+	}
+	if err := a.Secrets.Check(ctx); err != nil {
+		return fmt.Errorf("check secrets encryption provider: %w", err)
 	}
 	result, err := secretstore.New(a.DB.DB, a.Secrets).Reconcile(ctx, secretstore.ReconcileOptions{})
 	if err != nil {

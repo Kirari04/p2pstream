@@ -34,6 +34,17 @@ Use systemd when you install the release binary directly on a host, or when mana
    SECRETS_ENCRYPTION_REQUIRED=true
    ```
 
+   For Vault Transit instead of direct local-key mode:
+
+   ```ini
+   SECRETS_ENCRYPTION_PROVIDER=vault-transit
+   SECRETS_ENCRYPTION_VAULT_ADDR=https://vault.example.com
+   SECRETS_ENCRYPTION_VAULT_TOKEN_FILE=/etc/p2pstream/vault-token
+   SECRETS_ENCRYPTION_VAULT_MOUNT=transit
+   SECRETS_ENCRYPTION_VAULT_KEY=p2pstream
+   SECRETS_ENCRYPTION_REQUIRED=true
+   ```
+
 3. Create `/etc/systemd/system/p2pstream.service`:
 
    ```ini
@@ -63,7 +74,7 @@ Use systemd when you install the release binary directly on a host, or when mana
 
 Root is required when binding privileged ports such as `80` or `443`. If you only use high ports, run as a dedicated user and adjust ownership of `/var/lib/p2pstream`.
 
-Generate `SECRETS_ENCRYPTION_KEY` with `p2pstream secrets generate-key` and keep it in a deployment secret manager or another backup path outside `/var/lib/p2pstream`. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when the key can be mounted as a root-readable `0400` or `0600` secret file. A restored encrypted database requires the same key material. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
+For direct mode, generate `SECRETS_ENCRYPTION_KEY` with `p2pstream secrets generate-key` and keep it in a deployment secret manager or another backup path outside `/var/lib/p2pstream`. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when the key can be mounted as a root-readable `0400` or `0600` secret file. For Vault Transit mode, keep the Vault token file `0400` or `0600`, use HTTPS Vault addresses, and preserve Vault recovery/access procedures. A restored encrypted database requires the same direct key material or Vault Transit key and permissions. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
 
 ## Agent Service
 
@@ -135,7 +146,7 @@ sudo systemctl status p2pstream-agent
 | Symptom | Check |
 | --- | --- |
 | Server cannot bind low ports | Run as root or use capabilities/high ports. |
-| Server fails to initialize secret storage | Restore the matching current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, or configure the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. |
+| Server fails to initialize secret storage | Restore the matching direct key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, configure the old direct key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, or restore Vault Transit availability and token permissions. |
 | Agent fails after token rotation | Run the generated Linux reinstall command on the existing agent host. |
 | Uninstall refuses to run | Set `P2PSTREAM_UNINSTALL_CONFIRM=full-purge`; unsafe paths are intentionally rejected. |
 
