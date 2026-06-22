@@ -60,14 +60,14 @@ func TestPublicRouteTargetUpstreamConfigAPIValidationAndReadback(t *testing.T) {
 		t.Fatalf("unexpected masked basic auth readback: %+v", got)
 	}
 	assertUpstreamHeaderProto(t, created, "X-Visible", "visible", false, true)
-	assertUpstreamHeaderProto(t, created, "Cookie", "", true, true)
-	assertUpstreamHeaderProto(t, created, "X-Secret", "", true, true)
+	assertUpstreamHeaderProto(t, created, "Cookie", "", true, false)
+	assertUpstreamHeaderProto(t, created, "X-Secret", "", true, false)
 
 	cfg = getPublicProxyConfig(t, client, cookie)
 	readBack := publicRouteTargetByName(t, cfg, "upstream-api")
 	assertUpstreamHeaderProto(t, readBack, "X-Visible", "visible", false, true)
-	assertUpstreamHeaderProto(t, readBack, "Cookie", "", true, true)
-	assertUpstreamHeaderProto(t, readBack, "X-Secret", "", true, true)
+	assertUpstreamHeaderProto(t, readBack, "Cookie", "", true, false)
+	assertUpstreamHeaderProto(t, readBack, "X-Secret", "", true, false)
 	if readBack.GetUpstreamBasicAuth().GetPassword() != "" || !readBack.GetUpstreamBasicAuth().GetPasswordSet() {
 		t.Fatalf("expected masked saved basic auth password in config, got %+v", readBack.GetUpstreamBasicAuth())
 	}

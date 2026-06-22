@@ -325,6 +325,7 @@ func (s *publicConfigService) createPublicRoute(
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
 		req.Msg.PathSecurityMode,
+		existingPublicRouteTargetSecrets{},
 	)
 	if err != nil {
 		return nil, err
@@ -355,6 +356,10 @@ func (s *publicConfigService) updatePublicRoute(
 	req *connect.Request[p2pstreamv1.UpdatePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.UpdatePublicRouteResponse], error) {
 	a := s.app
+	existingSecrets, err := a.existingPublicRouteTargetSecrets(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
 	params, routeTargets, err := a.validatePublicRouteInput(
 		ctx,
 		req.Msg.ListenerId,
@@ -372,6 +377,7 @@ func (s *publicConfigService) updatePublicRoute(
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
 		req.Msg.PathSecurityMode,
+		existingSecrets,
 	)
 	if err != nil {
 		return nil, err
@@ -386,6 +392,37 @@ func (s *publicConfigService) updatePublicRoute(
 	}
 	upstreamHeaders, responseHeaders := a.publicRouteTargetHeaderMaps(ctx)
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicRouteResponse{Route: publicRouteToProto(route, storedTargets, upstreamHeaders, responseHeaders, s.targetHealth)}), nil
+}
+
+func (a *App) existingPublicRouteTargetSecrets(ctx context.Context, routeID int64) (existingPublicRouteTargetSecrets, error) {
+	targets, err := a.DB.ListPublicRouteTargetsByRoute(ctx, routeID)
+	if err != nil {
+		return existingPublicRouteTargetSecrets{}, err
+	}
+	secrets := existingPublicRouteTargetSecrets{
+		UpstreamHeaders:    make(map[int64]existingSensitiveUpstreamHeaderValue),
+		BasicAuthPasswords: make(map[int64]string),
+	}
+	for _, target := range targets {
+		if target.UpstreamBasicAuthEnabled != 0 && target.UpstreamBasicAuthPassword != "" {
+			secrets.BasicAuthPasswords[target.ID] = target.UpstreamBasicAuthPassword
+		}
+		headers, err := a.DB.ListPublicRouteTargetUpstreamHeadersByTarget(ctx, target.ID)
+		if err != nil {
+			return existingPublicRouteTargetSecrets{}, err
+		}
+		for _, header := range headers {
+			if header.Sensitive == 0 && !isForcedSensitiveUpstreamHeader(header.Name) {
+				continue
+			}
+			secrets.UpstreamHeaders[header.ID] = existingSensitiveUpstreamHeaderValue{
+				TargetID: header.TargetID,
+				Name:     header.Name,
+				Value:    header.Value,
+			}
+		}
+	}
+	return secrets, nil
 }
 
 func (a *App) createPublicRouteWithTargets(

@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
@@ -56,6 +57,13 @@ func (s *publicConfigService) createPublicTlsDnsCredential(
 	})
 	if err != nil {
 		return nil, publicDBError(err)
+	}
+	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
+		log.Warn().
+			Err(err).
+			Int64("credential_id", credential.ID).
+			Str("credential", credential.Name).
+			Msg("Failed to refresh public proxy after TLS DNS credential create")
 	}
 	return connect.NewResponse(&p2pstreamv1.CreatePublicTlsDnsCredentialResponse{Credential: publicTLSDNSCredentialToProto(credential)}), nil
 }
@@ -312,6 +320,10 @@ func (s *publicConfigService) renewPublicTlsCertificate(
 	})
 	if err != nil {
 		return nil, publicDBError(err)
+	}
+	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
+		publicACMELogCertificate(log.Warn().Err(err), cert, publicACMETriggerManual, publicACMEStageRefreshProxySnapshot).
+			Msg("Failed to refresh public proxy after ACME certificate manual renewal")
 	}
 	a.queuePublicACMECertificateIssue(cert, publicACMETriggerManual)
 	return connect.NewResponse(&p2pstreamv1.RenewPublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil

@@ -570,6 +570,12 @@ func (m *publicACMEManager) markIssueFailed(ctx context.Context, cert db.PublicT
 			Time("attempt_at", attemptAt).
 			Time("retry_at", retryAt).
 			Msg("Failed to record ACME certificate issue error")
+		return
+	}
+	if err := m.app.refreshPublicProxySnapshot(ctx); err != nil {
+		publicACMELogCertificate(log.Warn().Err(err), cert, trigger, publicACMEStageRefreshProxySnapshot).
+			Time("attempt_at", attemptAt).
+			Msg("Failed to refresh public proxy after ACME issue failure")
 	}
 }
 

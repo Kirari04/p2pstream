@@ -484,6 +484,46 @@ func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 	}
 }
 
+func TestRouteTargetLeastActiveUsesTargetHealthCounters(t *testing.T) {
+	app := NewApp(nil, nil)
+	busy := publicRouteTargetConfig{
+		ID:            91,
+		Enabled:       true,
+		TargetType:    publicRouteTargetTypeStatic,
+		Position:      0,
+		Weight:        1,
+		PriorityGroup: 0,
+	}
+	idle := publicRouteTargetConfig{
+		ID:            92,
+		Enabled:       true,
+		TargetType:    publicRouteTargetTypeStatic,
+		Position:      1,
+		Weight:        1,
+		PriorityGroup: 0,
+	}
+	route := publicRouteConfig{
+		ID:                  91,
+		Enabled:             true,
+		Action:              publicRouteActionForward,
+		TargetLoadBalancing: publicRouteTargetLoadBalancingLeastActiveRequests,
+		Targets:             []publicRouteTargetConfig{busy, idle},
+	}
+	snap := publicProxySnapshot{
+		RouteTargets: map[int64]publicRouteTargetConfig{
+			busy.ID: busy,
+			idle.ID: idle,
+		},
+	}
+	done := app.TargetHealth.beginRequest(busy.ID)
+	t.Cleanup(done)
+
+	selected, _, ok := app.selectRouteTarget(snap, route)
+	if !ok || selected.ID != idle.ID {
+		t.Fatalf("route target selection = target=%d ok=%v, want idle target %d", selected.ID, ok, idle.ID)
+	}
+}
+
 func TestAgentPassiveFailureAppliesWhenHealthCheckEnabled(t *testing.T) {
 	app, backend := testAgentPoolApp(t)
 	app.TargetHealth.markAgentPassiveFailure(backend.ID, 1, nil)

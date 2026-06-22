@@ -120,7 +120,11 @@ func normalizePublicRouteTargetUpstreamResponseHeaderTimeoutMillis(timeoutMillis
 	return timeoutMillis
 }
 
-func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstreamv1.PublicRouteTarget) ([]publicRouteTargetMutationInput, error) {
+func (a *App) validatePublicRouteTargets(
+	ctx context.Context,
+	targets []*p2pstreamv1.PublicRouteTarget,
+	existingSecrets existingPublicRouteTargetSecrets,
+) ([]publicRouteTargetMutationInput, error) {
 	if len(targets) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("forwarding route requires at least one target"))
 	}
@@ -197,11 +201,11 @@ func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstre
 			} else {
 				params.AgentSelectorJson = "{}"
 			}
-			upstreamHeaders, err = validatePublicRouteTargetUpstreamHeaders(target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled)
+			upstreamHeaders, err = validatePublicRouteTargetUpstreamHeaders(target.Id, target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled, existingSecrets)
 			if err != nil {
 				return nil, err
 			}
-			authEnabled, authUsername, authPassword, err := validatePublicRouteTargetBasicAuth(target.UpstreamBasicAuth)
+			authEnabled, authUsername, authPassword, err := validatePublicRouteTargetBasicAuth(target.Id, target.UpstreamBasicAuth, existingSecrets)
 			if err != nil {
 				return nil, err
 			}
@@ -334,6 +338,7 @@ func (a *App) validatePublicRouteInput(
 	redirectPreservePathSuffix bool,
 	redirectPreserveQuery bool,
 	pathSecurityMode p2pstreamv1.PublicRoutePathSecurityMode,
+	existingSecrets existingPublicRouteTargetSecrets,
 ) (db.UpdatePublicRouteParams, []publicRouteTargetMutationInput, error) {
 	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
 		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
@@ -371,7 +376,7 @@ func (a *App) validatePublicRouteInput(
 		if err != nil {
 			return db.UpdatePublicRouteParams{}, nil, err
 		}
-		routeTargets, err = a.validatePublicRouteTargets(ctx, targets)
+		routeTargets, err = a.validatePublicRouteTargets(ctx, targets, existingSecrets)
 		if err != nil {
 			return db.UpdatePublicRouteParams{}, nil, err
 		}
@@ -463,8 +468,10 @@ func validatePublicStaticHeaders(headers []*p2pstreamv1.PublicHeader) ([]publicR
 }
 
 func validatePublicRouteTargetUpstreamHeaders(
+	targetID int64,
 	headers []*p2pstreamv1.PublicRouteTargetUpstreamHeader,
 	basicAuthEnabled bool,
+	existingSecrets existingPublicRouteTargetSecrets,
 ) ([]publicRouteTargetUpstreamHeaderInput, error) {
 	resp := make([]publicRouteTargetUpstreamHeaderInput, 0, len(headers))
 	seen := make(map[string]struct{}, len(headers))
@@ -493,8 +500,12 @@ func validatePublicRouteTargetUpstreamHeaders(
 
 		sensitive := header.Sensitive || isForcedSensitiveUpstreamHeader(name)
 		value := header.Value
-		if sensitive && !header.ValueSet {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sensitive upstream request header %q requires a value", name))
+		if sensitive && value == "" {
+			if existingValue, ok := existingSensitiveUpstreamHeaderValueForUpdate(existingSecrets, header.Id, targetID, name); ok {
+				value = existingValue
+			} else {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sensitive upstream request header %q requires a value", name))
+			}
 		}
 		if err := validateUpstreamHeaderValue(name, value); err != nil {
 			return nil, err
@@ -509,7 +520,27 @@ func validatePublicRouteTargetUpstreamHeaders(
 	return resp, nil
 }
 
-func validatePublicRouteTargetBasicAuth(auth *p2pstreamv1.PublicRouteTargetBasicAuth) (int64, string, string, error) {
+func existingSensitiveUpstreamHeaderValueForUpdate(
+	existingSecrets existingPublicRouteTargetSecrets,
+	headerID int64,
+	targetID int64,
+	name string,
+) (string, bool) {
+	if headerID <= 0 || targetID <= 0 || existingSecrets.UpstreamHeaders == nil {
+		return "", false
+	}
+	existing, ok := existingSecrets.UpstreamHeaders[headerID]
+	if !ok || existing.TargetID != targetID || !strings.EqualFold(existing.Name, name) {
+		return "", false
+	}
+	return existing.Value, true
+}
+
+func validatePublicRouteTargetBasicAuth(
+	targetID int64,
+	auth *p2pstreamv1.PublicRouteTargetBasicAuth,
+	existingSecrets existingPublicRouteTargetSecrets,
+) (int64, string, string, error) {
 	if auth == nil || !auth.Enabled {
 		return 0, "", "", nil
 	}
@@ -525,8 +556,12 @@ func validatePublicRouteTargetBasicAuth(auth *p2pstreamv1.PublicRouteTargetBasic
 	}
 
 	password := auth.Password
-	if !auth.PasswordSet || password == "" {
-		return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password is required"))
+	if password == "" {
+		if existingPassword, ok := existingSecrets.BasicAuthPasswords[targetID]; ok && targetID > 0 {
+			password = existingPassword
+		} else {
+			return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password is required"))
+		}
 	}
 	if strings.ContainsAny(password, "\r\n") || !utf8.ValidString(password) {
 		return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password must be valid UTF-8 without CR or LF"))
