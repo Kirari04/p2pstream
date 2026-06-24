@@ -81,7 +81,7 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	}
 	defer func() { _ = database.Close() }()
 
-	for _, table := range []string{"agents", "public_agent_labels", "public_route_targets", "public_route_target_upstream_headers", "public_route_target_response_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "proxy_request_status_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
+	for _, table := range []string{"agents", "public_agent_labels", "public_route_targets", "public_route_target_upstream_headers", "public_route_target_response_headers", "public_waf_captcha_providers", "public_waf_rules", "public_waf_settings", "public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "proxy_request_status_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state", "secret_encryption_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -400,7 +400,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 			t.Fatalf("expected %s after migration", index)
 		}
 	}
-	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "proxy_request_status_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state"} {
+	for _, table := range []string{"public_cache_settings", "public_cache_rules", "public_cache_entries", "proxy_request_rollup_minutes", "proxy_request_tuple_rollup_minutes", "proxy_request_status_rollup_minutes", "agent_stat_rollup_minutes", "observability_rollup_state", "secret_encryption_state"} {
 		var name string
 		if err := database.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 			t.Fatalf("expected migrated table %s: %v", table, err)

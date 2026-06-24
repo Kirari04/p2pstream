@@ -39,6 +39,8 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
    p2pstream secrets rewrap --dry-run
    ```
 
+   `p2pstream secrets status` includes the last successful startup or `secrets rewrap --yes` reconciliation marker when one exists. Use the live scan counts, not only the last marker, to decide whether previous keys can be removed.
+
    If you want explicit operator-controlled reconciliation instead of startup reconciliation, stop the server for a maintenance window and run:
 
    ```bash

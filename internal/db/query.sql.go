@@ -2804,6 +2804,52 @@ func (q *Queries) GetPublicWafSettings(ctx context.Context) (PublicWafSetting, e
 	return i, err
 }
 
+const getSecretEncryptionState = `-- name: GetSecretEncryptionState :one
+SELECT
+    id,
+    schema_version,
+    provider,
+    current_key_id,
+    encryption_enabled,
+    encryption_required,
+    database_scanned,
+    database_encrypted,
+    database_rewrapped,
+    database_unchanged,
+    private_key_files_scanned,
+    private_key_files_encrypted,
+    private_key_files_rewrapped,
+    private_key_files_unchanged,
+    last_reconciled_at,
+    updated_at
+FROM secret_encryption_state
+WHERE id = 1
+`
+
+func (q *Queries) GetSecretEncryptionState(ctx context.Context) (SecretEncryptionState, error) {
+	row := q.db.QueryRowContext(ctx, getSecretEncryptionState)
+	var i SecretEncryptionState
+	err := row.Scan(
+		&i.ID,
+		&i.SchemaVersion,
+		&i.Provider,
+		&i.CurrentKeyID,
+		&i.EncryptionEnabled,
+		&i.EncryptionRequired,
+		&i.DatabaseScanned,
+		&i.DatabaseEncrypted,
+		&i.DatabaseRewrapped,
+		&i.DatabaseUnchanged,
+		&i.PrivateKeyFilesScanned,
+		&i.PrivateKeyFilesEncrypted,
+		&i.PrivateKeyFilesRewrapped,
+		&i.PrivateKeyFilesUnchanged,
+		&i.LastReconciledAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, password_hash, role, created_at, updated_at, disabled_at
 FROM users
@@ -8079,6 +8125,114 @@ func (q *Queries) UpsertPublicWafSettings(ctx context.Context, cookieSigningSecr
 		&i.ID,
 		&i.CookieSigningSecret,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertSecretEncryptionState = `-- name: UpsertSecretEncryptionState :one
+INSERT INTO secret_encryption_state (
+    id,
+    schema_version,
+    provider,
+    current_key_id,
+    encryption_enabled,
+    encryption_required,
+    database_scanned,
+    database_encrypted,
+    database_rewrapped,
+    database_unchanged,
+    private_key_files_scanned,
+    private_key_files_encrypted,
+    private_key_files_rewrapped,
+    private_key_files_unchanged
+) VALUES (
+    1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(id) DO UPDATE SET
+    schema_version = excluded.schema_version,
+    provider = excluded.provider,
+    current_key_id = excluded.current_key_id,
+    encryption_enabled = excluded.encryption_enabled,
+    encryption_required = excluded.encryption_required,
+    database_scanned = excluded.database_scanned,
+    database_encrypted = excluded.database_encrypted,
+    database_rewrapped = excluded.database_rewrapped,
+    database_unchanged = excluded.database_unchanged,
+    private_key_files_scanned = excluded.private_key_files_scanned,
+    private_key_files_encrypted = excluded.private_key_files_encrypted,
+    private_key_files_rewrapped = excluded.private_key_files_rewrapped,
+    private_key_files_unchanged = excluded.private_key_files_unchanged,
+    last_reconciled_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING
+    id,
+    schema_version,
+    provider,
+    current_key_id,
+    encryption_enabled,
+    encryption_required,
+    database_scanned,
+    database_encrypted,
+    database_rewrapped,
+    database_unchanged,
+    private_key_files_scanned,
+    private_key_files_encrypted,
+    private_key_files_rewrapped,
+    private_key_files_unchanged,
+    last_reconciled_at,
+    updated_at
+`
+
+type UpsertSecretEncryptionStateParams struct {
+	SchemaVersion            int64  `json:"schema_version"`
+	Provider                 string `json:"provider"`
+	CurrentKeyID             string `json:"current_key_id"`
+	EncryptionEnabled        int64  `json:"encryption_enabled"`
+	EncryptionRequired       int64  `json:"encryption_required"`
+	DatabaseScanned          int64  `json:"database_scanned"`
+	DatabaseEncrypted        int64  `json:"database_encrypted"`
+	DatabaseRewrapped        int64  `json:"database_rewrapped"`
+	DatabaseUnchanged        int64  `json:"database_unchanged"`
+	PrivateKeyFilesScanned   int64  `json:"private_key_files_scanned"`
+	PrivateKeyFilesEncrypted int64  `json:"private_key_files_encrypted"`
+	PrivateKeyFilesRewrapped int64  `json:"private_key_files_rewrapped"`
+	PrivateKeyFilesUnchanged int64  `json:"private_key_files_unchanged"`
+}
+
+func (q *Queries) UpsertSecretEncryptionState(ctx context.Context, arg UpsertSecretEncryptionStateParams) (SecretEncryptionState, error) {
+	row := q.db.QueryRowContext(ctx, upsertSecretEncryptionState,
+		arg.SchemaVersion,
+		arg.Provider,
+		arg.CurrentKeyID,
+		arg.EncryptionEnabled,
+		arg.EncryptionRequired,
+		arg.DatabaseScanned,
+		arg.DatabaseEncrypted,
+		arg.DatabaseRewrapped,
+		arg.DatabaseUnchanged,
+		arg.PrivateKeyFilesScanned,
+		arg.PrivateKeyFilesEncrypted,
+		arg.PrivateKeyFilesRewrapped,
+		arg.PrivateKeyFilesUnchanged,
+	)
+	var i SecretEncryptionState
+	err := row.Scan(
+		&i.ID,
+		&i.SchemaVersion,
+		&i.Provider,
+		&i.CurrentKeyID,
+		&i.EncryptionEnabled,
+		&i.EncryptionRequired,
+		&i.DatabaseScanned,
+		&i.DatabaseEncrypted,
+		&i.DatabaseRewrapped,
+		&i.DatabaseUnchanged,
+		&i.PrivateKeyFilesScanned,
+		&i.PrivateKeyFilesEncrypted,
+		&i.PrivateKeyFilesRewrapped,
+		&i.PrivateKeyFilesUnchanged,
+		&i.LastReconciledAt,
 		&i.UpdatedAt,
 	)
 	return i, err

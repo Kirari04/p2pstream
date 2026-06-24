@@ -9,6 +9,7 @@ import (
 	"p2pstream/internal/config"
 	"p2pstream/internal/secretfiles"
 	"p2pstream/internal/secrets"
+	"p2pstream/internal/secretstate"
 	"p2pstream/internal/secretstore"
 )
 
@@ -61,6 +62,9 @@ func (a *App) InitializeSecretStorage(ctx context.Context) error {
 	fileResult, err := secretfiles.Reconcile(ctx, a.Secrets, fileSpecs, secretfiles.ReconcileOptions{})
 	if err != nil {
 		return err
+	}
+	if _, err := secretstate.Record(ctx, a.DB, a.Secrets, result, fileResult); err != nil {
+		return fmt.Errorf("record secret storage reconciliation state: %w", err)
 	}
 	migrated := result.Encrypted + result.Rewrapped
 	if migrated > 0 {

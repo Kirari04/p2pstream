@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ import (
 	"p2pstream/internal/db"
 	"p2pstream/internal/secretfiles"
 	"p2pstream/internal/secrets"
+	"p2pstream/internal/secretstate"
 	"p2pstream/internal/secretstore"
 )
 
@@ -39,6 +41,11 @@ type secretsRewrapOptions struct {
 	DryRun      bool
 	Yes         bool
 	Stdout      io.Writer
+}
+
+type secretsStatusOutput struct {
+	secretstore.Status
+	LastReconciliation *secretstate.Snapshot `json:"last_reconciliation,omitempty"`
 }
 
 var secretsCmd = &cobra.Command{
@@ -175,11 +182,19 @@ func runSecretsStatus(ctx context.Context, opts secretsStatusOptions) error {
 		return err
 	}
 	addFileStatus(&status, fileStatus)
+	lastReconciliation, err := secretstate.Get(ctx, database)
+	if err != nil {
+		return fmt.Errorf("read secret encryption state: %w", err)
+	}
+	output := secretsStatusOutput{
+		Status:             status,
+		LastReconciliation: lastReconciliation,
+	}
 	switch format {
 	case "table":
-		return writeSecretsStatusTable(stdout, status)
+		return writeSecretsStatusTable(stdout, output)
 	case "json":
-		return writeJSON(stdout, status)
+		return writeJSON(stdout, output)
 	default:
 		return fmt.Errorf("unsupported format %q; use table or json", opts.Format)
 	}
@@ -224,6 +239,11 @@ func runSecretsRewrap(ctx context.Context, opts secretsRewrapOptions) error {
 	fileResult, err := secretfiles.Reconcile(ctx, service, fileSpecs, secretfiles.ReconcileOptions{DryRun: opts.DryRun})
 	if err != nil {
 		return err
+	}
+	if !opts.DryRun {
+		if _, err := secretstate.Record(ctx, database, service, result, fileResult); err != nil {
+			return fmt.Errorf("record secret encryption state: %w", err)
+		}
 	}
 	addFileReconcileResult(&result, fileResult)
 	switch format {
@@ -275,7 +295,8 @@ func openSecretsStore(databaseURL string) (*config.Config, *db.DB, *secrets.Serv
 	return cfg, database, service, nil
 }
 
-func writeSecretsStatusTable(stdout io.Writer, status secretstore.Status) error {
+func writeSecretsStatusTable(stdout io.Writer, output secretsStatusOutput) error {
+	status := output.Status
 	fmt.Fprintf(stdout, "Encryption enabled:\t%t\n", status.EncryptionOn)
 	if status.Provider != "" {
 		fmt.Fprintf(stdout, "Provider:\t%s\n", status.Provider)
@@ -308,6 +329,36 @@ func writeSecretsStatusTable(stdout io.Writer, status secretstore.Status) error 
 		status.MissingKey,
 		status.Invalid,
 		status.DecryptFailed,
+	)
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	return writeSecretReconciliationStateTable(stdout, output.LastReconciliation)
+}
+
+func writeSecretReconciliationStateTable(stdout io.Writer, state *secretstate.Snapshot) error {
+	fmt.Fprintln(stdout)
+	if state == nil {
+		fmt.Fprintln(stdout, "Last reconciliation:\tnone")
+		return nil
+	}
+	tw := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "Last reconciliation:\t%s\n", state.LastReconciledAt.Format(time.RFC3339))
+	fmt.Fprintf(tw, "Recorded provider:\t%s\n", state.Provider)
+	fmt.Fprintf(tw, "Recorded key ID:\t%s\n", state.CurrentKeyID)
+	fmt.Fprintf(tw, "Recorded enabled:\t%t\n", state.EncryptionEnabled)
+	fmt.Fprintf(tw, "Recorded required:\t%t\n", state.EncryptionRequired)
+	fmt.Fprintf(tw, "Database counts:\tscanned=%d encrypted=%d rewrapped=%d unchanged=%d\n",
+		state.DatabaseScanned,
+		state.DatabaseEncrypted,
+		state.DatabaseRewrapped,
+		state.DatabaseUnchanged,
+	)
+	fmt.Fprintf(tw, "Private key file counts:\tscanned=%d encrypted=%d rewrapped=%d unchanged=%d\n",
+		state.PrivateKeyFilesScanned,
+		state.PrivateKeyFilesEncrypted,
+		state.PrivateKeyFilesRewrapped,
+		state.PrivateKeyFilesUnchanged,
 	)
 	return tw.Flush()
 }

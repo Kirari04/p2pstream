@@ -2177,3 +2177,77 @@ DELETE FROM public_cache_entries
 WHERE (? = '' OR host = ?)
   AND (? = '' OR path LIKE ? || '%')
 RETURNING key_digest, body_path, size_bytes;
+
+-- name: GetSecretEncryptionState :one
+SELECT
+    id,
+    schema_version,
+    provider,
+    current_key_id,
+    encryption_enabled,
+    encryption_required,
+    database_scanned,
+    database_encrypted,
+    database_rewrapped,
+    database_unchanged,
+    private_key_files_scanned,
+    private_key_files_encrypted,
+    private_key_files_rewrapped,
+    private_key_files_unchanged,
+    last_reconciled_at,
+    updated_at
+FROM secret_encryption_state
+WHERE id = 1;
+
+-- name: UpsertSecretEncryptionState :one
+INSERT INTO secret_encryption_state (
+    id,
+    schema_version,
+    provider,
+    current_key_id,
+    encryption_enabled,
+    encryption_required,
+    database_scanned,
+    database_encrypted,
+    database_rewrapped,
+    database_unchanged,
+    private_key_files_scanned,
+    private_key_files_encrypted,
+    private_key_files_rewrapped,
+    private_key_files_unchanged
+) VALUES (
+    1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(id) DO UPDATE SET
+    schema_version = excluded.schema_version,
+    provider = excluded.provider,
+    current_key_id = excluded.current_key_id,
+    encryption_enabled = excluded.encryption_enabled,
+    encryption_required = excluded.encryption_required,
+    database_scanned = excluded.database_scanned,
+    database_encrypted = excluded.database_encrypted,
+    database_rewrapped = excluded.database_rewrapped,
+    database_unchanged = excluded.database_unchanged,
+    private_key_files_scanned = excluded.private_key_files_scanned,
+    private_key_files_encrypted = excluded.private_key_files_encrypted,
+    private_key_files_rewrapped = excluded.private_key_files_rewrapped,
+    private_key_files_unchanged = excluded.private_key_files_unchanged,
+    last_reconciled_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING
+    id,
+    schema_version,
+    provider,
+    current_key_id,
+    encryption_enabled,
+    encryption_required,
+    database_scanned,
+    database_encrypted,
+    database_rewrapped,
+    database_unchanged,
+    private_key_files_scanned,
+    private_key_files_encrypted,
+    private_key_files_rewrapped,
+    private_key_files_unchanged,
+    last_reconciled_at,
+    updated_at;

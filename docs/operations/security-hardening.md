@@ -31,7 +31,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Restrict host, volume, and backup access to trusted administrators.
    - Treat database write access as administrative access, because the local CLI can reset management credentials.
    - Enable stored-secret encryption for upstream/API credentials in SQLite and app-owned private-key files under `/data/certs`. Use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with Vault Transit for external KEK custody, or `SECRETS_ENCRYPTION_KEY_FILE` for the local direct-key mode.
-   - Run `p2pstream secrets status` and `p2pstream secrets rewrap --dry-run` against the same `CONFIG_DIR` before enabling required mode or removing previous keys.
+   - Run `p2pstream secrets status` and `p2pstream secrets rewrap --dry-run` against the same `CONFIG_DIR` before enabling required mode or removing previous keys. `secrets status` reports both live scan counts and the last successful startup or `secrets rewrap --yes` reconciliation marker when one exists.
    - After the first successful encrypted startup, set `SECRETS_ENCRYPTION_REQUIRED=true` so startup fails instead of accepting plaintext stored secrets.
    - For direct mode, store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets and app-owned private-key files unrecoverable.
    - Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount a key file. The file must be `0400` or `0600`; otherwise protect process environments, systemd environment files, Docker inspect output, crash dumps, and child processes that can expose `SECRETS_ENCRYPTION_KEY`.
