@@ -15,7 +15,7 @@ RUN bun install --frozen-lockfile
 COPY web/management/ ./
 RUN bun run build
 
-FROM golang:1.25.10-bookworm AS backend
+FROM golang:1.26.0-bookworm AS backend
 WORKDIR /src
 ARG VERSION
 ARG COMMIT
@@ -28,7 +28,7 @@ RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=$
 FROM scratch AS binary
 COPY --from=backend /out/p2pstream /p2pstream
 
-FROM golang:1.25.10-bookworm AS test-base
+FROM golang:1.26.0-bookworm AS test-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
@@ -61,7 +61,7 @@ RUN go test -race ./...
 
 FROM test-base AS smoke
 
-FROM golang:1.25.10-bookworm AS smoke-upstream-build
+FROM golang:1.26.0-bookworm AS smoke-upstream-build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
