@@ -1,11 +1,15 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
@@ -138,6 +142,41 @@ func TestInitializeSecretStorageRequiredRejectsPlaintextWithKey(t *testing.T) {
 	}
 }
 
+func TestInitializeSecretStorageLogsAuditSummaryWithoutSecrets(t *testing.T) {
+	ctx := context.Background()
+	database := newServerTestDB(t)
+	if _, err := database.UpsertPublicWafSettings(ctx, "cookie-secret"); err != nil {
+		t.Fatalf("upsert WAF settings: %v", err)
+	}
+	app := NewApp(&config.Config{
+		SecretsEncryptionKey:   testSecretsEncryptionKey(),
+		SecretsEncryptionKeyID: "test-key",
+	}, database)
+
+	logs := captureSecretStorageLogs(t, func() {
+		if err := app.InitializeSecretStorage(ctx); err != nil {
+			t.Fatalf("InitializeSecretStorage() error = %v", err)
+		}
+	})
+	rawLogs, _ := json.Marshal(logs)
+	if strings.Contains(string(rawLogs), "cookie-secret") {
+		t.Fatalf("secret storage logs leaked plaintext: %s", rawLogs)
+	}
+	entry := findSecretStorageLogEntry(t, logs, "Secret storage initialized")
+	if entry["encryption_enabled"] != true ||
+		entry["encryption_required"] != false ||
+		entry["provider"] != secretspkg.ProviderDirect ||
+		entry["current_key_id"] != "test-key" {
+		t.Fatalf("unexpected secret storage metadata log: %+v", entry)
+	}
+	if entry["database_scanned"] != float64(1) ||
+		entry["database_encrypted"] != float64(1) ||
+		entry["database_rewrapped"] != float64(0) ||
+		entry["private_key_files_scanned"] != float64(0) {
+		t.Fatalf("unexpected secret storage count log: %+v", entry)
+	}
+}
+
 func TestInitializeSecretStorageAllowsNilDatabase(t *testing.T) {
 	app := NewApp(&config.Config{
 		SecretsEncryptionKey:   testSecretsEncryptionKey(),
@@ -146,6 +185,46 @@ func TestInitializeSecretStorageAllowsNilDatabase(t *testing.T) {
 	if err := app.InitializeSecretStorage(context.Background()); err != nil {
 		t.Fatalf("InitializeSecretStorage() error = %v, want nil", err)
 	}
+}
+
+func captureSecretStorageLogs(t *testing.T, fn func()) []map[string]any {
+	t.Helper()
+	var buf bytes.Buffer
+	previousLogger := log.Logger
+	previousLevel := zerolog.GlobalLevel()
+	log.Logger = zerolog.New(&buf)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	t.Cleanup(func() {
+		log.Logger = previousLogger
+		zerolog.SetGlobalLevel(previousLevel)
+	})
+
+	fn()
+
+	rawLines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	entries := make([]map[string]any, 0, len(rawLines))
+	for _, line := range rawLines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var entry map[string]any
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			t.Fatalf("parse log line %q: %v", line, err)
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+func findSecretStorageLogEntry(t *testing.T, entries []map[string]any, message string) map[string]any {
+	t.Helper()
+	for _, entry := range entries {
+		if entry["message"] == message {
+			return entry
+		}
+	}
+	t.Fatalf("missing log entry %q in %+v", message, entries)
+	return nil
 }
 
 func TestInitializeSecretStorageRewrapsLegacyTargetScopedHeaderEnvelope(t *testing.T) {
