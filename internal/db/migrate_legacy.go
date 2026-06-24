@@ -34,6 +34,7 @@ func (db *DB) runLegacyCompatibilityMigrations() error {
 		{name: "public backend route targets", run: db.migrateLegacyPublicBackendsToRouteTargets},
 		{name: "public policy indexes", run: db.migrateLegacyPublicPolicyIndexes},
 		{name: "policy match JSON", run: db.migrateLegacyPolicyMatchJSON},
+		{name: "secret encryption state", run: db.migrateSecretEncryptionState},
 	}
 	for _, step := range steps {
 		if err := step.run(); err != nil {
@@ -1302,6 +1303,30 @@ func (db *DB) migrateLegacyPolicyMatchJSON() error {
 		}
 	}
 	return nil
+}
+
+func (db *DB) migrateSecretEncryptionState() error {
+	_, err := db.Exec(`
+	CREATE TABLE IF NOT EXISTS secret_encryption_state (
+		id INTEGER PRIMARY KEY CHECK (id = 1),
+		schema_version INTEGER NOT NULL,
+		provider TEXT NOT NULL,
+		current_key_id TEXT NOT NULL,
+		encryption_enabled INTEGER NOT NULL,
+		encryption_required INTEGER NOT NULL,
+		database_scanned INTEGER NOT NULL DEFAULT 0,
+		database_encrypted INTEGER NOT NULL DEFAULT 0,
+		database_rewrapped INTEGER NOT NULL DEFAULT 0,
+		database_unchanged INTEGER NOT NULL DEFAULT 0,
+		private_key_files_scanned INTEGER NOT NULL DEFAULT 0,
+		private_key_files_encrypted INTEGER NOT NULL DEFAULT 0,
+		private_key_files_rewrapped INTEGER NOT NULL DEFAULT 0,
+		private_key_files_unchanged INTEGER NOT NULL DEFAULT 0,
+		last_reconciled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	`)
+	return err
 }
 
 func (db *DB) migrateLegacyPolicyMatchJSONTable(table string) error {

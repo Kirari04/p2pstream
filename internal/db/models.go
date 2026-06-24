@@ -477,6 +477,25 @@ type PublicWafSetting struct {
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
+type SecretEncryptionState struct {
+	ID                       int64     `json:"id"`
+	SchemaVersion            int64     `json:"schema_version"`
+	Provider                 string    `json:"provider"`
+	CurrentKeyID             string    `json:"current_key_id"`
+	EncryptionEnabled        int64     `json:"encryption_enabled"`
+	EncryptionRequired       int64     `json:"encryption_required"`
+	DatabaseScanned          int64     `json:"database_scanned"`
+	DatabaseEncrypted        int64     `json:"database_encrypted"`
+	DatabaseRewrapped        int64     `json:"database_rewrapped"`
+	DatabaseUnchanged        int64     `json:"database_unchanged"`
+	PrivateKeyFilesScanned   int64     `json:"private_key_files_scanned"`
+	PrivateKeyFilesEncrypted int64     `json:"private_key_files_encrypted"`
+	PrivateKeyFilesRewrapped int64     `json:"private_key_files_rewrapped"`
+	PrivateKeyFilesUnchanged int64     `json:"private_key_files_unchanged"`
+	LastReconciledAt         time.Time `json:"last_reconciled_at"`
+	UpdatedAt                time.Time `json:"updated_at"`
+}
+
 type Session struct {
 	ID         int64        `json:"id"`
 	UserID     int64        `json:"user_id"`

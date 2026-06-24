@@ -3,8 +3,10 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -106,6 +108,7 @@ func TestSecretsRewrapDryRunAndYes(t *testing.T) {
 	if !dryRun.DryRun || dryRun.WouldEncrypt != 1 || dryRun.Encrypted != 0 {
 		t.Fatalf("dry-run result = %+v, want would_encrypt=1 and no writes", dryRun)
 	}
+	assertNoSecretEncryptionState(t, database)
 
 	var rewrapOut bytes.Buffer
 	if err := runSecretsRewrap(context.Background(), secretsRewrapOptions{
@@ -126,6 +129,53 @@ func TestSecretsRewrapDryRunAndYes(t *testing.T) {
 	}
 	if result.Encrypted != 1 || result.Rewrapped != 0 {
 		t.Fatalf("rewrap result = %+v, want encrypted=1", result)
+	}
+	state := mustGetSecretEncryptionState(t, database)
+	if state.SchemaVersion != 1 ||
+		state.Provider != secrets.ProviderDirect ||
+		state.CurrentKeyID != "current" ||
+		state.EncryptionEnabled != 1 ||
+		state.EncryptionRequired != 0 ||
+		state.DatabaseScanned != 1 ||
+		state.DatabaseEncrypted != 1 ||
+		state.PrivateKeyFilesScanned != 0 {
+		t.Fatalf("secret encryption state = %+v, want DB encryption record", state)
+	}
+	var statusOut bytes.Buffer
+	if err := runSecretsStatus(context.Background(), secretsStatusOptions{
+		DatabaseURL: dbPath,
+		Format:      "json",
+		BatchSize:   1,
+		Stdout:      &statusOut,
+	}); err != nil {
+		t.Fatalf("status after rewrap: %v", err)
+	}
+	if strings.Contains(statusOut.String(), "cookie-secret") {
+		t.Fatalf("status output leaked secret value: %q", statusOut.String())
+	}
+	var status secretsStatusOutput
+	if err := json.Unmarshal(statusOut.Bytes(), &status); err != nil {
+		t.Fatalf("unmarshal status output: %v", err)
+	}
+	if status.LastReconciliation == nil ||
+		!status.LastReconciliation.EncryptionEnabled ||
+		status.LastReconciliation.CurrentKeyID != "current" ||
+		status.LastReconciliation.DatabaseEncrypted != 1 {
+		t.Fatalf("last_reconciliation = %+v, want recorded rewrap", status.LastReconciliation)
+	}
+	var statusTableOut bytes.Buffer
+	if err := runSecretsStatus(context.Background(), secretsStatusOptions{
+		DatabaseURL: dbPath,
+		Format:      "table",
+		BatchSize:   1,
+		Stdout:      &statusTableOut,
+	}); err != nil {
+		t.Fatalf("status table after rewrap: %v", err)
+	}
+	if table := statusTableOut.String(); !strings.Contains(table, "Last reconciliation:") ||
+		!strings.Contains(table, "Database counts:") ||
+		strings.Contains(table, "cookie-secret") {
+		t.Fatalf("status table output = %q, want reconciliation section without secret value", table)
 	}
 	stored := rawSecretsCommandWAFSecret(t, database)
 	if !secrets.IsEncrypted(stored) {
@@ -221,6 +271,14 @@ func TestSecretsStatusAndRewrapIncludePrivateKeyFiles(t *testing.T) {
 	if result.Encrypted != 1 {
 		t.Fatalf("rewrap result = %+v, want one encrypted key file", result)
 	}
+	state := mustGetSecretEncryptionState(t, database)
+	if state.DatabaseScanned != 0 ||
+		state.PrivateKeyFilesScanned != 1 ||
+		state.PrivateKeyFilesEncrypted != 1 ||
+		state.PrivateKeyFilesRewrapped != 0 ||
+		state.PrivateKeyFilesUnchanged != 0 {
+		t.Fatalf("secret encryption state = %+v, want private key file counts", state)
+	}
 	stored, err := os.ReadFile(keyPath)
 	if err != nil {
 		t.Fatalf("read encrypted key: %v", err)
@@ -243,6 +301,38 @@ func TestSecretsStatusAndRewrapIncludePrivateKeyFiles(t *testing.T) {
 	if got != privateKeyPEM {
 		t.Fatalf("decrypted key = %q, want original PEM", got)
 	}
+}
+
+func TestSecretsRewrapDoesNotRecordStateWhenFileReconcileFails(t *testing.T) {
+	dbPath := emptySecretsCommandDB(t)
+	database := openSecretsCommandDB(t, dbPath)
+	insertSecretsCommandWAFSecret(t, database, "cookie-secret")
+	configDir := configureSecretsCommandEnv(t, secretsCommandTestKey(1), "current", "", false)
+	keyPath := filepath.Join(configDir, "certs", "public-listener-12", "tls-34.key.pem")
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0700); err != nil {
+		t.Fatalf("create key dir: %v", err)
+	}
+	if err := os.WriteFile(keyPath, []byte(secrets.EnvelopePrefix+"not-base64"), 0600); err != nil {
+		t.Fatalf("write invalid private key envelope: %v", err)
+	}
+	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_listeners (id, name, port, protocol, enabled) VALUES (12, 'https', 443, 'https', 1)`); err != nil {
+		t.Fatalf("insert public listener: %v", err)
+	}
+	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_tls_certificates (id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, status) VALUES (34, 12, 'cmd.example.com', '', ?, 1, 'manual', 'ready')`, keyPath); err != nil {
+		t.Fatalf("insert public TLS certificate: %v", err)
+	}
+
+	err := runSecretsRewrap(context.Background(), secretsRewrapOptions{
+		DatabaseURL: dbPath,
+		Format:      "json",
+		BatchSize:   1,
+		Yes:         true,
+		Stdout:      io.Discard,
+	})
+	if err == nil || !strings.Contains(err.Error(), "private key files cannot be safely reconciled") {
+		t.Fatalf("rewrap error = %v, want private key reconciliation failure", err)
+	}
+	assertNoSecretEncryptionState(t, database)
 }
 
 func emptySecretsCommandDB(t *testing.T) string {
@@ -284,6 +374,22 @@ func rawSecretsCommandWAFSecret(t *testing.T, database *db.DB) string {
 		t.Fatalf("query WAF settings: %v", err)
 	}
 	return value
+}
+
+func mustGetSecretEncryptionState(t *testing.T, database *db.DB) db.SecretEncryptionState {
+	t.Helper()
+	state, err := database.GetSecretEncryptionState(context.Background())
+	if err != nil {
+		t.Fatalf("get secret encryption state: %v", err)
+	}
+	return state
+}
+
+func assertNoSecretEncryptionState(t *testing.T, database *db.DB) {
+	t.Helper()
+	if _, err := database.GetSecretEncryptionState(context.Background()); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("secret encryption state error = %v, want sql.ErrNoRows", err)
+	}
 }
 
 func configureSecretsCommandEnv(t *testing.T, key, keyID, previousKeys string, required bool) string {

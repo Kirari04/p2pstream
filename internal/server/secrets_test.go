@@ -3,7 +3,9 @@ package server
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -174,6 +176,66 @@ func TestInitializeSecretStorageLogsAuditSummaryWithoutSecrets(t *testing.T) {
 		entry["database_rewrapped"] != float64(0) ||
 		entry["private_key_files_scanned"] != float64(0) {
 		t.Fatalf("unexpected secret storage count log: %+v", entry)
+	}
+}
+
+func TestInitializeSecretStorageRecordsReconciliationState(t *testing.T) {
+	ctx := context.Background()
+	database := newServerTestDB(t)
+	if _, err := database.UpsertPublicWafSettings(ctx, "cookie-secret"); err != nil {
+		t.Fatalf("upsert WAF settings: %v", err)
+	}
+	app := NewApp(&config.Config{
+		SecretsEncryptionKey:   testSecretsEncryptionKey(),
+		SecretsEncryptionKeyID: "test-key",
+	}, database)
+
+	if err := app.InitializeSecretStorage(ctx); err != nil {
+		t.Fatalf("InitializeSecretStorage() error = %v", err)
+	}
+
+	state, err := database.GetSecretEncryptionState(ctx)
+	if err != nil {
+		t.Fatalf("get secret encryption state: %v", err)
+	}
+	if state.SchemaVersion != 1 ||
+		state.Provider != secretspkg.ProviderDirect ||
+		state.CurrentKeyID != "test-key" ||
+		state.EncryptionEnabled != 1 ||
+		state.EncryptionRequired != 0 {
+		t.Fatalf("unexpected secret encryption state metadata: %+v", state)
+	}
+	if state.DatabaseScanned != 1 ||
+		state.DatabaseEncrypted != 1 ||
+		state.DatabaseRewrapped != 0 ||
+		state.DatabaseUnchanged != 0 ||
+		state.PrivateKeyFilesScanned != 0 {
+		t.Fatalf("unexpected secret encryption state counts: %+v", state)
+	}
+	rawState, _ := json.Marshal(state)
+	if strings.Contains(string(rawState), "cookie-secret") {
+		t.Fatalf("secret encryption state leaked plaintext: %s", rawState)
+	}
+}
+
+func TestInitializeSecretStorageFailureDoesNotRecordReconciliationState(t *testing.T) {
+	ctx := context.Background()
+	database := newServerTestDB(t)
+	if _, err := database.UpsertPublicWafSettings(ctx, "cookie-secret"); err != nil {
+		t.Fatalf("upsert WAF settings: %v", err)
+	}
+	app := NewApp(&config.Config{
+		SecretsEncryptionKey:      testSecretsEncryptionKey(),
+		SecretsEncryptionKeyID:    "test-key",
+		SecretsEncryptionRequired: true,
+	}, database)
+
+	err := app.InitializeSecretStorage(ctx)
+	if err == nil || !strings.Contains(err.Error(), "plaintext but secrets encryption is required") {
+		t.Fatalf("InitializeSecretStorage() error = %v, want required plaintext failure", err)
+	}
+	if _, err := database.GetSecretEncryptionState(ctx); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("secret encryption state error = %v, want sql.ErrNoRows", err)
 	}
 }
 

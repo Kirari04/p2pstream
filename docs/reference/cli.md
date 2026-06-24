@@ -68,7 +68,7 @@ p2pstream agent [flags]
 - Use only one password source: prompt, `--password-env`, or `--password-file`.
 - `secrets rewrap` requires either `--dry-run` or `--yes`.
 - `secrets rewrap --yes` requires a current direct key from `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, or `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with valid Vault settings.
-- `secrets status` and `secrets rewrap` print counts, provider, and key IDs, not plaintext secret values.
+- `secrets status` and `secrets rewrap` print counts, provider, key IDs, and last successful reconciliation metadata, not plaintext secret values.
 - `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
 
@@ -78,7 +78,7 @@ p2pstream agent [flags]
 
 The server command also reads `SECRETS_ENCRYPTION_PROVIDER`, the direct-key settings, the Vault Transit settings, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` before registering listeners. If encrypted database rows or app-owned private-key files cannot be decrypted, or the configured provider cannot be reached, startup fails.
 
-`secrets status` opens the same SQLite database, scans app-owned private-key files under `CONFIG_DIR/certs`, and reports plaintext, current-key, rewrap-needed, missing-key, invalid, and decrypt-failed counts by secret purpose. It does not print plaintext secret values or private-key material. `secrets rewrap --dry-run` performs the same preflight without writing. `secrets rewrap --yes` writes directly to SQLite and app-owned key files, so run it during a maintenance window or before starting the server when you want explicit operator-controlled rewrap instead of startup reconciliation.
+`secrets status` opens the same SQLite database, scans app-owned private-key files under `CONFIG_DIR/certs`, and reports plaintext, current-key, rewrap-needed, missing-key, invalid, and decrypt-failed counts by secret purpose. It also reports the last successful startup or `secrets rewrap --yes` reconciliation, including provider, key ID, timestamp, and aggregate database/file counts. It does not print plaintext secret values or private-key material. `secrets rewrap --dry-run` performs the same preflight without writing. `secrets rewrap --yes` writes directly to SQLite and app-owned key files, then records a successful reconciliation only after both domains complete, so run it during a maintenance window or before starting the server when you want explicit operator-controlled rewrap instead of startup reconciliation.
 
 `users reset-password` updates the configured SQLite database directly and revokes active sessions for that user. Run it where the same `CONFIG_DIR` or `DATABASE_URL` is available.
 

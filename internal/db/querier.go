@@ -99,6 +99,7 @@ type Querier interface {
 	GetPublicWafCaptchaProvider(ctx context.Context, id int64) (PublicWafCaptchaProvider, error)
 	GetPublicWafRule(ctx context.Context, id int64) (PublicWafRule, error)
 	GetPublicWafSettings(ctx context.Context) (PublicWafSetting, error)
+	GetSecretEncryptionState(ctx context.Context) (SecretEncryptionState, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	InsertAgentStat(ctx context.Context, arg InsertAgentStatParams) error
@@ -202,6 +203,7 @@ type Querier interface {
 	UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCacheEntryParams) (PublicCacheEntry, error)
 	UpsertPublicCacheSettingsDefaults(ctx context.Context) (PublicCacheSetting, error)
 	UpsertPublicWafSettings(ctx context.Context, cookieSigningSecret string) (PublicWafSetting, error)
+	UpsertSecretEncryptionState(ctx context.Context, arg UpsertSecretEncryptionStateParams) (SecretEncryptionState, error)
 }
 
 var _ Querier = (*Queries)(nil)
