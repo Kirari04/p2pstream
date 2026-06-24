@@ -76,6 +76,20 @@ func (a *App) InitializeSecretStorage(ctx context.Context) error {
 			Int("private_keys_rewrapped", fileResult.Rewrapped).
 			Msg("Reconciled app-owned private key files")
 	}
+	log.Info().
+		Bool("encryption_enabled", a.Secrets.Enabled()).
+		Bool("encryption_required", a.Secrets.Required()).
+		Str("provider", a.Secrets.Provider()).
+		Str("current_key_id", a.Secrets.CurrentKeyID()).
+		Int("database_scanned", result.Scanned).
+		Int("database_encrypted", result.Encrypted).
+		Int("database_rewrapped", result.Rewrapped).
+		Int("database_unchanged", result.Unchanged).
+		Int("private_key_files_scanned", fileResult.Scanned).
+		Int("private_key_files_encrypted", fileResult.Encrypted).
+		Int("private_key_files_rewrapped", fileResult.Rewrapped).
+		Int("private_key_files_unchanged", fileResult.Unchanged).
+		Msg("Secret storage initialized")
 	return nil
 }
 
