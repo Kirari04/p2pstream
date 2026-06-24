@@ -188,6 +188,45 @@ func TestDecryptRejectsWrongPurposeOrOwner(t *testing.T) {
 	}
 }
 
+func TestFilePurposeRoundTripsAndRejectsWrongBinding(t *testing.T) {
+	service := testService(t, "current")
+	purposes := []Purpose{
+		PurposeFileManagementTLSCAKey,
+		PurposeFileManagementTLSServerKey,
+		PurposeFilePublicTLSPrivateKey,
+		PurposeFileACMEAccountKey,
+	}
+	for i, purpose := range purposes {
+		t.Run(string(purpose), func(t *testing.T) {
+			ownerID := int64(100 + i)
+			stored, err := service.Encrypt(purpose, ownerID, "private-key-pem")
+			if err != nil {
+				t.Fatalf("Encrypt() error = %v", err)
+			}
+			if !IsEncrypted(stored) || strings.Contains(stored, "private-key-pem") {
+				t.Fatalf("stored value was not encrypted: %q", stored)
+			}
+			got, _, err := service.Decrypt(purpose, ownerID, stored)
+			if err != nil {
+				t.Fatalf("Decrypt() error = %v", err)
+			}
+			if got != "private-key-pem" {
+				t.Fatalf("Decrypt() = %q, want private-key-pem", got)
+			}
+			otherPurpose := PurposeEnvironmentAccessToken
+			if purpose == otherPurpose {
+				otherPurpose = PurposePublicRouteTargetBasicAuthPassword
+			}
+			if _, _, err := service.Decrypt(otherPurpose, ownerID, stored); err == nil {
+				t.Fatal("expected wrong purpose to fail")
+			}
+			if _, _, err := service.Decrypt(purpose, ownerID+1, stored); err == nil {
+				t.Fatal("expected wrong owner to fail")
+			}
+		})
+	}
+}
+
 func TestDecryptRequiresConfiguredKey(t *testing.T) {
 	service := testService(t, "current")
 	stored, err := service.Encrypt(PurposeEnvironmentAccessToken, 1, "p2pat_secret")

@@ -21,7 +21,7 @@ ${CONFIG_DIR}/certs/management/server.crt.pem
 ${CONFIG_DIR}/certs/management/server.key.pem
 ```
 
-The generated CA and server certificate are valid for 10 years. The server certificate is regenerated if the hostname set no longer matches.
+The generated CA and server certificate are valid for 10 years. Certificate files remain plaintext PEM. Auto-generated private-key files are encrypted at rest when stored-secret encryption is configured; provided-mode key files remain operator-owned and are not rewritten. The server certificate is regenerated if the hostname set no longer matches.
 
 ## Validation Rules
 

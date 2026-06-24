@@ -24,9 +24,9 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
    /data/certs/
    ```
 
-   The database stores proxy config, users, sessions, agent registry, TLS metadata, and observability. The cert directory stores management TLS and public TLS material.
+   The database stores proxy config, users, sessions, agent registry, TLS metadata, and observability. The cert directory stores management TLS, public TLS material, and ACME account keys.
 
-   If stored secrets encryption is enabled, back up direct key material separately or document/test Vault Transit recovery separately. Do not rely on the `/data` backup to contain key custody; losing the direct key or Vault access makes encrypted upstream credentials, DNS provider tokens, WAF secrets, and remote-environment tokens unrecoverable.
+   If stored secrets encryption is enabled, back up direct key material separately or document/test Vault Transit recovery separately. Do not rely on the `/data` backup to contain key custody; losing the direct key or Vault access makes encrypted upstream credentials, DNS provider tokens, WAF secrets, remote-environment tokens, and app-owned private-key files unrecoverable.
 
 2. For the safest simple Compose backup, stop the service, copy the volume, then start it again:
 
@@ -63,7 +63,7 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 5. Start p2pstream with the restored volume:
 
    ```bash
-   # Ensure the direct key or Vault Transit provider matches the restored database when encryption is enabled.
+   # Ensure the direct key or Vault Transit provider matches the restored database and certs when encryption is enabled.
    docker compose up -d
    ```
 
@@ -76,7 +76,7 @@ After restore:
 3. Confirm TLS certificate mappings are ready.
 4. Confirm agents reconnect.
 5. Send a test request through each important public hostname.
-6. If stored secrets encryption is enabled, run `p2pstream secrets status` against the restored configuration and confirm there are no missing-key or decrypt-failed rows.
+6. If stored secrets encryption is enabled, run `p2pstream secrets status` against the restored configuration and confirm there are no missing-key or decrypt-failed rows or files.
 
 ## Troubleshooting
 

@@ -73,7 +73,7 @@ Use this page after the quickstart when you need to change ports, understand wha
    SECRETS_ENCRYPTION_REQUIRED=true
    ```
 
-   Generate the key with `p2pstream secrets generate-key` and store it outside the Docker volume in your deployment secret manager. If your secret manager mounts files, set `SECRETS_ENCRYPTION_KEY_FILE` instead of `SECRETS_ENCRYPTION_KEY`; the mounted file must be `0400` or `0600`. For external key custody, use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with `SECRETS_ENCRYPTION_VAULT_ADDR`, `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`, and `SECRETS_ENCRYPTION_VAULT_KEY` instead of the direct key variables. The Vault Transit key must be created with `derived=true`, for example `vault write transit/keys/p2pstream type=aes256-gcm96 derived=true`. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
+   Generate the key with `p2pstream secrets generate-key` and store it outside the Docker volume in your deployment secret manager. Stored-secret encryption protects database secrets and app-owned private-key files under `/data/certs`, so the key or Vault access must be recoverable after restore. If your secret manager mounts files, set `SECRETS_ENCRYPTION_KEY_FILE` instead of `SECRETS_ENCRYPTION_KEY`; the mounted file must be `0400` or `0600`. For external key custody, use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with `SECRETS_ENCRYPTION_VAULT_ADDR`, `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`, and `SECRETS_ENCRYPTION_VAULT_KEY` instead of the direct key variables. The Vault Transit key must be created with `derived=true`, for example `vault write transit/keys/p2pstream type=aes256-gcm96 derived=true`. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
 
 5. Override host ports only when the defaults are not usable:
 
@@ -102,7 +102,7 @@ Use this page after the quickstart when you need to change ports, understand wha
 | `SECRETS_ENCRYPTION_PROVIDER` | Selects `direct` local-key encryption or `vault-transit` KEK/DEK envelope encryption. |
 | `SECRETS_ENCRYPTION_KEY` / `SECRETS_ENCRYPTION_KEY_FILE` | Direct-mode current key. Use only one current-key source. |
 | `SECRETS_ENCRYPTION_VAULT_*` | Vault Transit address, token source, mount, key, namespace, and timeout for external key custody. |
-| `SECRETS_ENCRYPTION_REQUIRED=true` | Makes startup fail if a stored secret is plaintext or if encrypted rows cannot be decrypted with the configured key or provider. |
+| `SECRETS_ENCRYPTION_REQUIRED=true` | Makes startup fail if a stored secret is plaintext or if encrypted rows/files cannot be decrypted with the configured key or provider. |
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 
 :::warning New listeners must be published explicitly

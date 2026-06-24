@@ -43,7 +43,9 @@ Statuses:
 
 ## Runtime Effects
 
-Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after 1 hour.
+Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. Certificate files remain plaintext PEM so they can be inspected and backed up normally. App-owned private-key files are encrypted at rest when stored-secret encryption is configured; explicit manual file paths outside the app-managed cert layout remain operator-owned and are not rewritten.
+
+ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after 1 hour. ACME account keys under `${CONFIG_DIR}/certs/acme/accounts/` are also app-owned private-key files and use the same stored-secret encryption settings.
 
 For ready ACME certificates, `next_renewal_at` is the next planned renewal time. For failed ACME certificates, `next_renewal_at` is the next automatic retry time. While a renewal is running, the next schedule is cleared until the attempt succeeds or fails.
 
@@ -51,7 +53,7 @@ The management UI shows certificate validity when metadata is stored or the cert
 
 Server logs for ACME use `component=public_acme`. Renewal entries include fields such as `cert_id`, `listener_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `expires_at`, `next_renewal_at`, and `retry_at`. Challenge tokens, DNS TXT values, DNS API tokens, and private key material are not logged.
 
-Cloudflare DNS API tokens are stored server-side for DNS-01 renewals. Enable stored secrets encryption to encrypt those tokens in SQLite.
+Cloudflare DNS API tokens are stored server-side for DNS-01 renewals. Enable stored secrets encryption to encrypt those tokens in SQLite and app-owned TLS private keys under `CONFIG_DIR/certs`.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing certificate mappings, ACME challenge type, status, renewal time, and DNS credentials">

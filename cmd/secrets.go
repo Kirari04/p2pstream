@@ -15,6 +15,7 @@ import (
 
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	"p2pstream/internal/secretfiles"
 	"p2pstream/internal/secrets"
 	"p2pstream/internal/secretstore"
 )
@@ -79,7 +80,7 @@ var secretsStatusCmd = &cobra.Command{
 
 var secretsRewrapCmd = &cobra.Command{
 	Use:           "rewrap",
-	Short:         "Encrypt plaintext rows and rewrap old key IDs to the current key",
+	Short:         "Encrypt plaintext secrets and rewrap old key IDs to the current key",
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -152,7 +153,7 @@ func runSecretsStatus(ctx context.Context, opts secretsStatusOptions) error {
 	}
 	format := normalizeSecretsFormat(opts.Format, "table")
 
-	database, service, err := openSecretsStore(opts.DatabaseURL)
+	cfg, database, service, err := openSecretsStore(opts.DatabaseURL)
 	if err != nil {
 		return err
 	}
@@ -165,6 +166,15 @@ func runSecretsStatus(ctx context.Context, opts secretsStatusOptions) error {
 	if err != nil {
 		return err
 	}
+	fileSpecs, err := secretfiles.Inventory(ctx, cfg, database.DB)
+	if err != nil {
+		return err
+	}
+	fileStatus, err := secretfiles.StatusFiles(ctx, service, fileSpecs)
+	if err != nil {
+		return err
+	}
+	addFileStatus(&status, fileStatus)
 	switch format {
 	case "table":
 		return writeSecretsStatusTable(stdout, status)
@@ -188,7 +198,7 @@ func runSecretsRewrap(ctx context.Context, opts secretsRewrapOptions) error {
 		return errors.New("secrets rewrap requires --dry-run or --yes")
 	}
 
-	database, service, err := openSecretsStore(opts.DatabaseURL)
+	cfg, database, service, err := openSecretsStore(opts.DatabaseURL)
 	if err != nil {
 		return err
 	}
@@ -207,6 +217,15 @@ func runSecretsRewrap(ctx context.Context, opts secretsRewrapOptions) error {
 	if err != nil {
 		return err
 	}
+	fileSpecs, err := secretfiles.Inventory(ctx, cfg, database.DB)
+	if err != nil {
+		return err
+	}
+	fileResult, err := secretfiles.Reconcile(ctx, service, fileSpecs, secretfiles.ReconcileOptions{DryRun: opts.DryRun})
+	if err != nil {
+		return err
+	}
+	addFileReconcileResult(&result, fileResult)
 	switch format {
 	case "table":
 		return writeSecretsRewrapTable(stdout, result)
@@ -217,10 +236,10 @@ func runSecretsRewrap(ctx context.Context, opts secretsRewrapOptions) error {
 	}
 }
 
-func openSecretsStore(databaseURL string) (*db.DB, *secrets.Service, error) {
+func openSecretsStore(databaseURL string) (*config.Config, *db.DB, *secrets.Service, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load config: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to load config: %w", err)
 	}
 	databaseURL = strings.TrimSpace(databaseURL)
 	if databaseURL != "" {
@@ -243,7 +262,7 @@ func openSecretsStore(databaseURL string) (*db.DB, *secrets.Service, error) {
 		},
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	previousLogLevel := zerolog.GlobalLevel()
@@ -251,9 +270,9 @@ func openSecretsStore(databaseURL string) (*db.DB, *secrets.Service, error) {
 	database, err := db.Open(cfg.DatabaseURL)
 	zerolog.SetGlobalLevel(previousLogLevel)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	return database, service, nil
+	return cfg, database, service, nil
 }
 
 func writeSecretsStatusTable(stdout io.Writer, status secretstore.Status) error {
@@ -295,7 +314,7 @@ func writeSecretsStatusTable(stdout io.Writer, status secretstore.Status) error 
 
 func writeSecretsRewrapTable(stdout io.Writer, result secretstore.ReconcileResult) error {
 	if result.DryRun {
-		fmt.Fprintln(stdout, "Dry run: no database rows were changed.")
+		fmt.Fprintln(stdout, "Dry run: no stored secrets were changed.")
 	} else {
 		fmt.Fprintln(stdout, "Rewrap complete.")
 	}
@@ -323,6 +342,62 @@ func writeSecretsRewrapTable(stdout io.Writer, result secretstore.ReconcileResul
 		result.Unchanged,
 	)
 	return tw.Flush()
+}
+
+func addFileStatus(status *secretstore.Status, fileStatus secretfiles.Status) {
+	if status == nil {
+		return
+	}
+	for _, purpose := range fileStatus.Purposes {
+		converted := secretstore.PurposeStatus{
+			Name:          purpose.Name,
+			Purpose:       purpose.Purpose,
+			Total:         purpose.Total,
+			Plaintext:     purpose.Plaintext,
+			Encrypted:     purpose.Encrypted,
+			Current:       purpose.Current,
+			NeedsRewrap:   purpose.NeedsRewrap,
+			MissingKey:    purpose.MissingKey,
+			Invalid:       purpose.Invalid,
+			DecryptFailed: purpose.DecryptFailed,
+			KeyIDs:        purpose.KeyIDs,
+			Errors:        purpose.Errors,
+		}
+		status.Purposes = append(status.Purposes, converted)
+		status.Total += converted.Total
+		status.Plaintext += converted.Plaintext
+		status.Encrypted += converted.Encrypted
+		status.Current += converted.Current
+		status.NeedsRewrap += converted.NeedsRewrap
+		status.MissingKey += converted.MissingKey
+		status.Invalid += converted.Invalid
+		status.DecryptFailed += converted.DecryptFailed
+	}
+}
+
+func addFileReconcileResult(result *secretstore.ReconcileResult, fileResult secretfiles.ReconcileResult) {
+	if result == nil {
+		return
+	}
+	for _, purpose := range fileResult.Purposes {
+		converted := secretstore.PurposeReconcileResult{
+			Name:         purpose.Name,
+			Purpose:      purpose.Purpose,
+			Scanned:      purpose.Scanned,
+			WouldEncrypt: purpose.WouldEncrypt,
+			WouldRewrap:  purpose.WouldRewrap,
+			Encrypted:    purpose.Encrypted,
+			Rewrapped:    purpose.Rewrapped,
+			Unchanged:    purpose.Unchanged,
+		}
+		result.Purposes = append(result.Purposes, converted)
+		result.Scanned += converted.Scanned
+		result.WouldEncrypt += converted.WouldEncrypt
+		result.WouldRewrap += converted.WouldRewrap
+		result.Encrypted += converted.Encrypted
+		result.Rewrapped += converted.Rewrapped
+		result.Unchanged += converted.Unchanged
+	}
 }
 
 func writeJSON(stdout io.Writer, value interface{}) error {

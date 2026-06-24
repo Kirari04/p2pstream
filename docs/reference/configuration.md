@@ -38,7 +38,7 @@ Set these on the server process via `.env` or environment. They control manageme
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Maximum in-memory login throttle keys; active blocks are retained until expiry.              |
 | `SECRETS_ENCRYPTION_PROVIDER`    | `direct`                     | Stored-secret encryption provider: `direct` or `vault-transit`.                              |
-| `SECRETS_ENCRYPTION_KEY`         | empty                        | Optional 32-byte base64/base64url key used directly to encrypt stored upstream/API credentials. |
+| `SECRETS_ENCRYPTION_KEY`         | empty                        | Optional 32-byte base64/base64url key used directly to encrypt stored secrets.                 |
 | `SECRETS_ENCRYPTION_KEY_FILE`    | empty                        | Optional `0400`/`0600` file containing the current encryption key. Use instead of `SECRETS_ENCRYPTION_KEY`. |
 | `SECRETS_ENCRYPTION_KEY_ID`      | derived                      | Optional stable identifier stored with encrypted secret metadata.                             |
 | `SECRETS_ENCRYPTION_PREVIOUS_KEYS` | empty                      | Comma-separated `key_id:key` entries used to decrypt and rewrap old encrypted secrets.        |
@@ -55,11 +55,13 @@ If every login throttle slot is occupied by an active block, new failed-login ke
 
 ### Secrets Encryption
 
-Stored-secret encryption covers upstream credentials, sensitive upstream request headers, TLS DNS provider tokens, WAF captcha secrets, WAF cookie signing material, and remote-environment access tokens. Existing plaintext rows are encrypted during server startup before listeners are registered while `SECRETS_ENCRYPTION_REQUIRED=false`.
+Stored-secret encryption covers upstream credentials, sensitive upstream request headers, TLS DNS provider tokens, WAF captcha secrets, WAF cookie signing material, remote-environment access tokens, and app-owned private-key files under `${CONFIG_DIR}/certs`. App-owned key files include auto management TLS keys, uploaded/generated public TLS keys, and ACME account keys. Operator-provided key files such as `MANAGEMENT_TLS_KEY_FILE`, `AGENT_TLS_KEY_FILE`, and manual public TLS file paths outside the app-managed cert layout are not rewritten.
 
-`SECRETS_ENCRYPTION_PROVIDER=direct` is the local compatibility mode. `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` is used directly as the AES-256-GCM key for secret values stored in SQLite. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount the key as a regular file with no group/other permissions, such as `0400` or `0600`; this avoids putting the key in the process environment.
+Existing plaintext database rows are encrypted during server startup before listeners are registered while `SECRETS_ENCRYPTION_REQUIRED=false`. Existing plaintext app-owned private-key files are encrypted in place when a current encryption key or provider is configured; if required mode is enabled and a key file cannot be encrypted or decrypted, startup fails before listeners are registered.
 
-`SECRETS_ENCRYPTION_PROVIDER=vault-transit` enables KEK/DEK envelope encryption. p2pstream asks Vault Transit for a plaintext 256-bit data key and a Vault-wrapped copy of that data key, encrypts the secret locally with AES-256-GCM, stores the ciphertext plus wrapped data key in SQLite, and later asks Vault Transit to unwrap only that data key. Vault key rotation can rewrap the stored data key without rewriting the secret ciphertext. Use a Vault Transit key backed by your normal Vault custody model, such as managed/HSM-backed keys where available.
+`SECRETS_ENCRYPTION_PROVIDER=direct` is the local compatibility mode. `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` is used directly as the AES-256-GCM key for secret values stored in SQLite and app-owned key files. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount the key as a regular file with no group/other permissions, such as `0400` or `0600`; this avoids putting the key in the process environment.
+
+`SECRETS_ENCRYPTION_PROVIDER=vault-transit` enables KEK/DEK envelope encryption. p2pstream asks Vault Transit for a plaintext 256-bit data key and a Vault-wrapped copy of that data key, encrypts the secret locally with AES-256-GCM, stores the ciphertext plus wrapped data key in SQLite or the app-owned key file, and later asks Vault Transit to unwrap only that data key. Vault key rotation can rewrap the stored data key without rewriting the secret ciphertext. Use a Vault Transit key backed by your normal Vault custody model, such as managed/HSM-backed keys where available.
 
 Create the Transit key with key derivation enabled. p2pstream passes the row-bound secret AAD as Vault `context` on data-key, decrypt, and rewrap calls, so a non-derived Transit key is rejected during startup or CLI provider checks:
 
@@ -70,7 +72,7 @@ vault write transit/keys/p2pstream type=aes256-gcm96 derived=true
 
 The Vault provider uses the Transit data-key, decrypt, key-read, and rewrap APIs documented by HashiCorp: <https://developer.hashicorp.com/vault/api-docs/secret/transit>.
 
-Runtime components still decrypt those values into process memory when they need to proxy requests, issue certificates, verify WAF challenges, or call remote environments. Certificate private-key files under `CONFIG_DIR/certs` remain file-backed and depend on host, volume, and backup access controls.
+Runtime components still decrypt those values into process memory when they need to proxy requests, load TLS certificates, issue certificates, verify WAF challenges, or call remote environments. Keep host, volume, and backup access restricted because encrypted files still contain operational metadata and are recoverable by anyone with the matching direct key or Vault Transit access.
 
 Generate a key with one of:
 
@@ -86,13 +88,13 @@ openssl rand -base64 32
 openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 ```
 
-Set `SECRETS_ENCRYPTION_REQUIRED=true` after the first successful migration when you want startup to fail if any stored secret is still plaintext. If encrypted rows already exist and no matching key is configured, startup fails because the database contents cannot be safely decrypted.
+Set `SECRETS_ENCRYPTION_REQUIRED=true` after the first successful migration when you want startup to fail if any stored secret is still plaintext or cannot be decrypted. If encrypted rows or app-owned key files already exist and no matching key is configured, startup fails because the stored contents cannot be safely decrypted.
 
-Use `p2pstream secrets status` to inspect encrypted state without printing secret values. Use `p2pstream secrets rewrap --dry-run` before a rotation, provider migration, or required-mode change to confirm how many rows would be encrypted or rewrapped. `p2pstream secrets rewrap --yes` writes directly to SQLite; run it during a maintenance window or before starting the server. Server startup still performs the same reconciliation before listeners are registered.
+Use `p2pstream secrets status` to inspect encrypted state without printing secret values. Use `p2pstream secrets rewrap --dry-run` before a rotation, provider migration, or required-mode change to confirm how many database rows and app-owned key files would be encrypted or rewrapped. `p2pstream secrets rewrap --yes` writes directly to SQLite and app-owned key files; run it during a maintenance window or before starting the server. Server startup still performs the same reconciliation before listeners are registered.
 
-For direct-key rotation, configure the new key as `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, keep the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and run `p2pstream secrets rewrap --dry-run`. Then either run `p2pstream secrets rewrap --yes` during a maintenance window or restart the server and let startup rewrap stored secrets to the current key before listeners are registered. During that window both keys must be configured. After `p2pstream secrets status` shows no rows needing rewrap for the previous key, remove the previous key on a later restart. `SECRETS_ENCRYPTION_KEY_ID` should be stable for the lifetime of a key; when omitted, p2pstream derives one from the key. Previous entries use `key_id:key`; if the key ID contains `:`, the last `:` separates the key ID from the key value.
+For direct-key rotation, configure the new key as `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, keep the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and run `p2pstream secrets rewrap --dry-run`. Then either run `p2pstream secrets rewrap --yes` during a maintenance window or restart the server and let startup rewrap stored secrets to the current key before listeners are registered. During that window both keys must be configured. After `p2pstream secrets status` shows no rows or files needing rewrap for the previous key, remove the previous key on a later restart. `SECRETS_ENCRYPTION_KEY_ID` should be stable for the lifetime of a key; when omitted, p2pstream derives one from the key. Previous entries use `key_id:key`; if the key ID contains `:`, the last `:` separates the key ID from the key value.
 
-To migrate from direct mode to Vault Transit, set `SECRETS_ENCRYPTION_PROVIDER=vault-transit`, configure Vault, and put the old direct key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. Run `p2pstream secrets rewrap --dry-run`, then `p2pstream secrets rewrap --yes` or restart the server. After status shows no rows with the old direct key ID, remove `SECRETS_ENCRYPTION_PREVIOUS_KEYS`.
+To migrate from direct mode to Vault Transit, set `SECRETS_ENCRYPTION_PROVIDER=vault-transit`, configure Vault, and put the old direct key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`. Run `p2pstream secrets rewrap --dry-run`, then `p2pstream secrets rewrap --yes` or restart the server. After status shows no rows or files with the old direct key ID, remove `SECRETS_ENCRYPTION_PREVIOUS_KEYS`.
 
 For Vault Transit key rotation within the same Transit key name, rotate the key in Vault and run `p2pstream secrets rewrap --dry-run`. Rows whose wrapped data key uses an older Vault key version are reported as rewrap-needed. `p2pstream secrets rewrap --yes` updates the wrapped data key through Vault Transit and preserves the secret ciphertext.
 
@@ -140,7 +142,7 @@ Set these as environment variables before running the Linux agent installer scri
 - Set only one of `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`.
 - `SECRETS_ENCRYPTION_KEY_FILE` must be a regular file, contain a non-empty 32-byte base64/base64url key, and have no group/other permission bits. Use `0400` or `0600`.
 - In direct mode, `SECRETS_ENCRYPTION_REQUIRED=true` and `SECRETS_ENCRYPTION_PREVIOUS_KEYS` require a current key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`.
-- In Vault Transit mode, do not set `SECRETS_ENCRYPTION_KEY`, `SECRETS_ENCRYPTION_KEY_FILE`, or `SECRETS_ENCRYPTION_KEY_ID`; use `SECRETS_ENCRYPTION_PREVIOUS_KEYS` only for decrypting old direct-mode rows during migration.
+- In Vault Transit mode, do not set `SECRETS_ENCRYPTION_KEY`, `SECRETS_ENCRYPTION_KEY_FILE`, or `SECRETS_ENCRYPTION_KEY_ID`; use `SECRETS_ENCRYPTION_PREVIOUS_KEYS` only for decrypting old direct-mode rows and app-owned key files during migration.
 - Vault Transit mode requires `SECRETS_ENCRYPTION_VAULT_ADDR`, `SECRETS_ENCRYPTION_VAULT_KEY`, and exactly one of `SECRETS_ENCRYPTION_VAULT_TOKEN` or `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`.
 - The configured Vault Transit key must be created with `derived=true`.
 - `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` must be a regular non-empty file with no group/other permission bits. Use `0400` or `0600`.

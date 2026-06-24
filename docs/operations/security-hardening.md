@@ -30,15 +30,15 @@ Use this before exposing management beyond a private network, after adding agent
    - Back up the full `CONFIG_DIR`.
    - Restrict host, volume, and backup access to trusted administrators.
    - Treat database write access as administrative access, because the local CLI can reset management credentials.
-   - Enable stored-secret encryption for upstream/API credentials in SQLite. Use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with Vault Transit for external KEK custody, or `SECRETS_ENCRYPTION_KEY_FILE` for the local direct-key mode.
+   - Enable stored-secret encryption for upstream/API credentials in SQLite and app-owned private-key files under `/data/certs`. Use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with Vault Transit for external KEK custody, or `SECRETS_ENCRYPTION_KEY_FILE` for the local direct-key mode.
    - Run `p2pstream secrets status` and `p2pstream secrets rewrap --dry-run` against the same `CONFIG_DIR` before enabling required mode or removing previous keys.
    - After the first successful encrypted startup, set `SECRETS_ENCRYPTION_REQUIRED=true` so startup fails instead of accepting plaintext stored secrets.
-   - For direct mode, store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets unrecoverable.
+   - For direct mode, store the secrets-encryption key outside `/data` in your deployment secret manager. Losing it makes encrypted database secrets and app-owned private-key files unrecoverable.
    - Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount a key file. The file must be `0400` or `0600`; otherwise protect process environments, systemd environment files, Docker inspect output, crash dumps, and child processes that can expose `SECRETS_ENCRYPTION_KEY`.
    - For Vault Transit mode, create the Transit key with `derived=true`, prefer `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` with `0400` or `0600` permissions, use HTTPS Vault addresses, and grant only Transit permissions needed to read the configured key, generate data keys, decrypt wrapped data keys, and rewrap them.
    - Treat Vault Transit as a startup and configuration-reload dependency. Steady-state proxy traffic uses the cached in-memory snapshot, but startup and new snapshot reloads need Vault to unwrap stored DEKs. This release does not cache unwrapped DEKs across reloads.
-   - Treat live process memory as sensitive. p2pstream decrypts stored secrets in memory when runtime components need to use them.
-   - Keep filesystem and backup access restricted even with database secret encryption enabled; TLS private-key files under `/data/certs` are protected by filesystem permissions, not by stored-secret encryption.
+   - Treat live process memory as sensitive. p2pstream decrypts stored secrets and private keys in memory when runtime components need to use them.
+   - Keep filesystem and backup access restricted even with stored-secret encryption enabled. Encrypted key files still contain operational metadata and can be recovered by anyone with the matching direct key or Vault Transit access.
    - Protect database backups as secrets; encrypted backups still contain operational state, sessions, certificates, and metadata.
 
 3. Harden agents:
@@ -54,7 +54,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Use ACME or trusted manual certificates for public hostnames.
    - Avoid relying on fallback self-signed public HTTPS certificates.
    - Avoid target `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
-   - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
+   - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore. If stored-secret encryption is enabled, restore the matching direct key or Vault Transit access before startup.
 
 5. Scope WAF, rate-limit, shaper, and cache rules by host/path/method so broad policies do not catch unrelated traffic.
 
@@ -66,7 +66,7 @@ Review:
 - Management is HTTPS.
 - Management exposure is intentional and firewall/VPN rules match that decision.
 - First-admin setup token handling is documented for operators.
-- Secrets encryption is enabled, `p2pstream secrets status` shows no plaintext or rewrap-needed rows, required mode is active after migration, and direct key material or Vault recovery procedures are backed up outside `/data`.
+- Secrets encryption is enabled, `p2pstream secrets status` shows no plaintext or rewrap-needed rows or files, required mode is active after migration, and direct key material or Vault recovery procedures are backed up outside `/data`.
 - `MANAGEMENT_PUBLIC_URL` is correct.
 - Unused listeners and agents are disabled or deleted.
 - Tracing is disabled after troubleshooting.

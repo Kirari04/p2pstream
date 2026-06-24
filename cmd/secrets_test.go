@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -147,6 +148,103 @@ func TestSecretsRewrapDryRunAndYes(t *testing.T) {
 	}
 }
 
+func TestSecretsStatusAndRewrapIncludePrivateKeyFiles(t *testing.T) {
+	dbPath := emptySecretsCommandDB(t)
+	database := openSecretsCommandDB(t, dbPath)
+	configDir := configureSecretsCommandEnv(t, secretsCommandTestKey(1), "current", "", false)
+	keyPath := filepath.Join(configDir, "certs", "public-listener-12", "tls-34.key.pem")
+	if err := os.MkdirAll(filepath.Dir(keyPath), 0700); err != nil {
+		t.Fatalf("create key dir: %v", err)
+	}
+	privateKeyPEM := "-----BEGIN PRIVATE KEY-----\ncmd-test-key\n-----END PRIVATE KEY-----\n"
+	if err := os.WriteFile(keyPath, []byte(privateKeyPEM), 0600); err != nil {
+		t.Fatalf("write private key: %v", err)
+	}
+	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_listeners (id, name, port, protocol, enabled) VALUES (12, 'https', 443, 'https', 1)`); err != nil {
+		t.Fatalf("insert public listener: %v", err)
+	}
+	if _, err := database.ExecContext(context.Background(), `INSERT INTO public_tls_certificates (id, listener_id, hostname_pattern, cert_path, key_path, enabled, source, status) VALUES (34, 12, 'cmd.example.com', '', ?, 1, 'manual', 'ready')`, keyPath); err != nil {
+		t.Fatalf("insert public TLS certificate: %v", err)
+	}
+
+	var statusOut bytes.Buffer
+	if err := runSecretsStatus(context.Background(), secretsStatusOptions{
+		DatabaseURL: dbPath,
+		Format:      "json",
+		BatchSize:   1,
+		Stdout:      &statusOut,
+	}); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	if strings.Contains(statusOut.String(), "PRIVATE KEY") || strings.Contains(statusOut.String(), "cmd-test-key") {
+		t.Fatalf("status output leaked key material: %q", statusOut.String())
+	}
+	var status secretstore.Status
+	if err := json.Unmarshal(statusOut.Bytes(), &status); err != nil {
+		t.Fatalf("unmarshal status: %v", err)
+	}
+	if status.Total != 1 || status.Plaintext != 1 {
+		t.Fatalf("status = %+v, want one plaintext private key file", status)
+	}
+
+	var dryRunOut bytes.Buffer
+	if err := runSecretsRewrap(context.Background(), secretsRewrapOptions{
+		DatabaseURL: dbPath,
+		Format:      "json",
+		BatchSize:   1,
+		DryRun:      true,
+		Stdout:      &dryRunOut,
+	}); err != nil {
+		t.Fatalf("rewrap dry-run: %v", err)
+	}
+	if got, err := os.ReadFile(keyPath); err != nil || string(got) != privateKeyPEM {
+		t.Fatalf("dry-run key file = %q/%v, want unchanged plaintext", got, err)
+	}
+
+	var rewrapOut bytes.Buffer
+	if err := runSecretsRewrap(context.Background(), secretsRewrapOptions{
+		DatabaseURL: dbPath,
+		Format:      "json",
+		BatchSize:   1,
+		Yes:         true,
+		Stdout:      &rewrapOut,
+	}); err != nil {
+		t.Fatalf("rewrap --yes: %v", err)
+	}
+	if strings.Contains(rewrapOut.String(), "PRIVATE KEY") || strings.Contains(rewrapOut.String(), "cmd-test-key") {
+		t.Fatalf("rewrap output leaked key material: %q", rewrapOut.String())
+	}
+	var result secretstore.ReconcileResult
+	if err := json.Unmarshal(rewrapOut.Bytes(), &result); err != nil {
+		t.Fatalf("unmarshal rewrap result: %v", err)
+	}
+	if result.Encrypted != 1 {
+		t.Fatalf("rewrap result = %+v, want one encrypted key file", result)
+	}
+	stored, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatalf("read encrypted key: %v", err)
+	}
+	if !secrets.IsEncrypted(string(stored)) || strings.Contains(string(stored), "PRIVATE KEY") {
+		t.Fatalf("private key file was not encrypted: %q", stored)
+	}
+	service, err := secrets.NewService(secrets.KeyConfig{
+		CurrentKey:     secretsCommandTestKey(1),
+		CurrentKeyID:   "current",
+		AllowPlaintext: true,
+	})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	got, _, err := service.Decrypt(secrets.PurposeFilePublicTLSPrivateKey, 34, string(stored))
+	if err != nil {
+		t.Fatalf("decrypt key file: %v", err)
+	}
+	if got != privateKeyPEM {
+		t.Fatalf("decrypted key = %q, want original PEM", got)
+	}
+}
+
 func emptySecretsCommandDB(t *testing.T) string {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "p2pstream-secrets-test.db")
@@ -188,9 +286,10 @@ func rawSecretsCommandWAFSecret(t *testing.T, database *db.DB) string {
 	return value
 }
 
-func configureSecretsCommandEnv(t *testing.T, key, keyID, previousKeys string, required bool) {
+func configureSecretsCommandEnv(t *testing.T, key, keyID, previousKeys string, required bool) string {
 	t.Helper()
-	t.Setenv("CONFIG_DIR", t.TempDir())
+	configDir := t.TempDir()
+	t.Setenv("CONFIG_DIR", configDir)
 	t.Setenv("SECRETS_ENCRYPTION_KEY", key)
 	t.Setenv("SECRETS_ENCRYPTION_KEY_ID", keyID)
 	t.Setenv("SECRETS_ENCRYPTION_PREVIOUS_KEYS", previousKeys)
@@ -199,6 +298,7 @@ func configureSecretsCommandEnv(t *testing.T, key, keyID, previousKeys string, r
 	} else {
 		t.Setenv("SECRETS_ENCRYPTION_REQUIRED", "false")
 	}
+	return configDir
 }
 
 func secretsCommandTestKey(seed byte) string {

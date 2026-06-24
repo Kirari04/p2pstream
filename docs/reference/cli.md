@@ -37,10 +37,10 @@ p2pstream secrets rewrap [flags]
 | `secrets generate-key` | `--format` | `env` or `json`; defaults to `env`. |
 | `secrets status` | `--database-url` | Override `DATABASE_URL` for this operation. |
 | `secrets status` | `--format` | `table` or `json`; defaults to `table`. |
-| `secrets status` | `--batch-size` | Rows to scan per database batch. |
+| `secrets status` | `--batch-size` | Rows to scan per database batch; app-owned key files are scanned separately. |
 | `secrets rewrap` | `--database-url` | Override `DATABASE_URL` for this operation. |
 | `secrets rewrap` | `--format` | `table` or `json`; defaults to `table`. |
-| `secrets rewrap` | `--batch-size` | Rows to scan or update per database batch. |
+| `secrets rewrap` | `--batch-size` | Rows to scan or update per database batch; app-owned key files are scanned separately. |
 | `secrets rewrap` | `--dry-run` | Report planned encryption and rewrap changes without writing. |
 | `secrets rewrap` | `--yes` | Confirm writing encryption or rewrap changes. |
 
@@ -76,9 +76,9 @@ p2pstream agent [flags]
 
 `p2pstream server` reads `.env` and environment variables, starts management on `MANAGEMENT_PORT`, starts public listeners from SQLite configuration, and starts ACME scheduling when available.
 
-The server command also reads `SECRETS_ENCRYPTION_PROVIDER`, the direct-key settings, the Vault Transit settings, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` before registering listeners. If encrypted database rows cannot be decrypted or the configured provider cannot be reached, startup fails.
+The server command also reads `SECRETS_ENCRYPTION_PROVIDER`, the direct-key settings, the Vault Transit settings, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` before registering listeners. If encrypted database rows or app-owned private-key files cannot be decrypted, or the configured provider cannot be reached, startup fails.
 
-`secrets status` opens the same SQLite database and reports plaintext, current-key, rewrap-needed, missing-key, invalid, and decrypt-failed counts by secret purpose. `secrets rewrap --dry-run` performs the same preflight without writing. `secrets rewrap --yes` writes directly to SQLite, so run it during a maintenance window or before starting the server when you want explicit operator-controlled rewrap instead of startup reconciliation.
+`secrets status` opens the same SQLite database, scans app-owned private-key files under `CONFIG_DIR/certs`, and reports plaintext, current-key, rewrap-needed, missing-key, invalid, and decrypt-failed counts by secret purpose. It does not print plaintext secret values or private-key material. `secrets rewrap --dry-run` performs the same preflight without writing. `secrets rewrap --yes` writes directly to SQLite and app-owned key files, so run it during a maintenance window or before starting the server when you want explicit operator-controlled rewrap instead of startup reconciliation.
 
 `users reset-password` updates the configured SQLite database directly and revokes active sessions for that user. Run it where the same `CONFIG_DIR` or `DATABASE_URL` is available.
 

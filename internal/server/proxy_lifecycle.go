@@ -201,7 +201,7 @@ func (a *App) startPublicListenerFromSnapshot(listener publicListenerConfig, sna
 	var srv *http.Server
 	var serve func(net.Listener) error
 	if listener.Protocol == publicListenerProtocolHTTPS {
-		tlsConfig, err := newPublicTLSConfig(listener.ID, snap, a.PublicACME)
+		tlsConfig, err := newPublicTLSConfigWithApp(context.Background(), a, listener.ID, snap, a.PublicACME)
 		if err != nil {
 			a.setPublicListenerError(listener.ID, err)
 			return a.getPublicListenerStatus(listener.ID), nil

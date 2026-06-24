@@ -39,6 +39,10 @@ const (
 	PurposePublicWAFCaptchaProviderSecretKey  Purpose = "public_waf_captcha_provider.secret_key"
 	PurposePublicWAFCookieSigningSecret       Purpose = "public_waf_settings.cookie_signing_secret"
 	PurposeEnvironmentAccessToken             Purpose = "environment.access_token"
+	PurposeFileManagementTLSCAKey             Purpose = "file.management_tls.ca_key"
+	PurposeFileManagementTLSServerKey         Purpose = "file.management_tls.server_key"
+	PurposeFilePublicTLSPrivateKey            Purpose = "file.public_tls.private_key"
+	PurposeFileACMEAccountKey                 Purpose = "file.acme.account_key"
 )
 
 type State int
