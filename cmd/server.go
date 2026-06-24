@@ -47,7 +47,7 @@ var serverCmd = &cobra.Command{
 		app.RegisterManagementRoutes(mgmtMux)
 		mgmtHandler := server.ManagementClientCertificateMiddleware(mgmtMux)
 
-		mgmtTLSConfig, managementTLS, err := server.NewManagementTLSConfig(cfg)
+		mgmtTLSConfig, managementTLS, err := server.NewManagementTLSConfigWithSecrets(context.Background(), cfg, app.Secrets)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize management TLS")
 		}

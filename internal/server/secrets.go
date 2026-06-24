@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"p2pstream/internal/config"
+	"p2pstream/internal/secretfiles"
 	"p2pstream/internal/secrets"
 	"p2pstream/internal/secretstore"
 )
@@ -53,12 +54,27 @@ func (a *App) InitializeSecretStorage(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	fileSpecs, err := secretfiles.Inventory(ctx, a.Config, a.DB.DB)
+	if err != nil {
+		return err
+	}
+	fileResult, err := secretfiles.Reconcile(ctx, a.Secrets, fileSpecs, secretfiles.ReconcileOptions{})
+	if err != nil {
+		return err
+	}
 	migrated := result.Encrypted + result.Rewrapped
 	if migrated > 0 {
 		log.Info().
 			Int("secrets_encrypted", result.Encrypted).
 			Int("secrets_rewrapped", result.Rewrapped).
 			Msg("Reconciled stored database secrets")
+	}
+	fileMigrated := fileResult.Encrypted + fileResult.Rewrapped
+	if fileMigrated > 0 {
+		log.Info().
+			Int("private_keys_encrypted", fileResult.Encrypted).
+			Int("private_keys_rewrapped", fileResult.Rewrapped).
+			Msg("Reconciled app-owned private key files")
 	}
 	return nil
 }

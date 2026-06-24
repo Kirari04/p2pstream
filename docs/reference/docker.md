@@ -63,7 +63,7 @@ The root Compose file also passes `SECRETS_ENCRYPTION_PROVIDER`, direct-key sett
 
 The runtime image creates a non-root `p2pstream` user and grants the binary `cap_net_bind_service` so it can bind low ports. State is stored in `/data`, including SQLite, generated certificates, ACME material, and default public cache storage.
 
-Encrypted database secret rows depend on the configured direct key material or Vault Transit key and token, not on files stored in `/data`. Preserve direct keys or Vault recovery/access procedures during upgrades, host moves, and disaster recovery.
+Encrypted database secrets and app-owned private-key files under `/data/certs` depend on the configured direct key material or Vault Transit key and token. Preserve direct keys or Vault recovery/access procedures during upgrades, host moves, and disaster recovery.
 
 `MANAGEMENT_UI_DISABLED=true` stops serving the browser UI from the management listener. The ConnectRPC API and agent Yamux tunnel remain available.
 

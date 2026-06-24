@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/mail"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -19,6 +20,7 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	"p2pstream/internal/secretfiles"
 	secretspkg "p2pstream/internal/secrets"
 )
 
@@ -446,7 +448,24 @@ func (a *App) writePublicTLSCertificateFiles(listenerID, mappingID int64, certPE
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
-	return cfg.WritePublicTLSCertificateFiles(listenerID, mappingID, certPEM, keyPEM)
+	certPath, keyPath := cfg.PublicTLSCertificatePaths(listenerID, mappingID)
+	dir := filepath.Dir(certPath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", "", fmt.Errorf("failed to create TLS certificate directory %q: %w", dir, err)
+	}
+	if err := os.Chmod(dir, 0700); err != nil {
+		return "", "", fmt.Errorf("failed to set permissions on TLS certificate directory %q: %w", dir, err)
+	}
+	if err := os.WriteFile(certPath, certPEM, 0600); err != nil {
+		return "", "", fmt.Errorf("failed to write TLS certificate %q: %w", certPath, err)
+	}
+	if err := os.Chmod(certPath, 0600); err != nil {
+		return "", "", fmt.Errorf("failed to set permissions on TLS certificate %q: %w", certPath, err)
+	}
+	if err := secretfiles.WritePrivateKey(context.Background(), a.Secrets, secretspkg.PurposeFilePublicTLSPrivateKey, mappingID, keyPath, keyPEM); err != nil {
+		return "", "", fmt.Errorf("failed to write TLS private key %q: %w", keyPath, err)
+	}
+	return certPath, keyPath, nil
 }
 
 func (a *App) validatePublicTLSCertificateInput(

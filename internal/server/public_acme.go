@@ -25,6 +25,7 @@ import (
 
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	"p2pstream/internal/secretfiles"
 	secretspkg "p2pstream/internal/secrets"
 )
 
@@ -208,7 +209,7 @@ func newPublicACMEManager(app *App) *publicACMEManager {
 	}
 	return &publicACMEManager{
 		app:            app,
-		issuer:         publicRealACMEIssuer{cfg: app.Config},
+		issuer:         publicRealACMEIssuer{cfg: app.Config, secrets: app.Secrets},
 		inFlight:       make(map[int64]struct{}),
 		httpChallenges: make(map[string]string),
 		tlsChallenges:  make(map[string]*tls.Certificate),
@@ -462,7 +463,7 @@ func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, 
 		}
 	}
 
-	certPath, keyPath, err := m.config().WritePublicTLSCertificateFiles(cert.ListenerID, cert.ID, result.CertPEM, result.KeyPEM)
+	certPath, keyPath, err := m.app.writePublicTLSCertificateFiles(cert.ListenerID, cert.ID, result.CertPEM, result.KeyPEM)
 	if err != nil {
 		m.markIssueFailed(ctx, cert, trigger, attemptAt, publicACMEStageWrap(publicACMEStageWriteCertificate, err))
 		return
@@ -594,11 +595,12 @@ func (m *publicACMEManager) config() *config.Config {
 }
 
 type publicRealACMEIssuer struct {
-	cfg *config.Config
+	cfg     *config.Config
+	secrets *secretspkg.Service
 }
 
 func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallengeStore, cfg publicACMEIssueConfig) (publicACMEIssueResult, error) {
-	accountKey, accountKeyCreated, err := loadOrCreateACMEAccountKey(i.cfg, cfg.CA, cfg.Email)
+	accountKey, accountKeyCreated, err := loadOrCreateACMEAccountKey(ctx, i.cfg, i.secrets, cfg.CA, cfg.Email)
 	if err != nil {
 		return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageAccountKey, err)
 	}
@@ -792,9 +794,12 @@ func acmeDirectoryURL(ca string) string {
 	return publicACMEProductionDirectory
 }
 
-func loadOrCreateACMEAccountKey(cfg *config.Config, ca string, email string) (*ecdsa.PrivateKey, bool, error) {
+func loadOrCreateACMEAccountKey(ctx context.Context, cfg *config.Config, service *secretspkg.Service, ca string, email string) (*ecdsa.PrivateKey, bool, error) {
 	path := acmeAccountKeyPath(cfg, ca, email)
-	pemBytes, err := os.ReadFile(path)
+	normalizedCA := normalizePublicACMECA(ca)
+	accountName := safeACMEAccountName(email)
+	spec := secretfiles.ACMEAccountKeySpec(normalizedCA, accountName, path)
+	pemBytes, _, err := secretfiles.ReadPrivateKey(ctx, service, spec.Purpose, spec.OwnerID, spec.Path)
 	if err == nil {
 		key, err := parseACMEAccountKey(pemBytes)
 		return key, false, err
@@ -810,10 +815,7 @@ func loadOrCreateACMEAccountKey(cfg *config.Config, ca string, email string) (*e
 	if err != nil {
 		return nil, false, err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return nil, false, err
-	}
-	if err := os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0600); err != nil {
+	if err := secretfiles.WritePrivateKey(ctx, service, spec.Purpose, spec.OwnerID, spec.Path, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})); err != nil {
 		return nil, false, err
 	}
 	return key, true, nil

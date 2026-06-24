@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -16,6 +17,8 @@ import (
 	"time"
 
 	"golang.org/x/crypto/acme"
+
+	"p2pstream/internal/secretfiles"
 )
 
 type publicTLSSelector struct {
@@ -32,6 +35,10 @@ type publicWildcardCertificate struct {
 }
 
 func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) (*tls.Config, error) {
+	return newPublicTLSConfigWithApp(context.Background(), nil, listenerID, snap, acmeManager)
+}
+
+func newPublicTLSConfigWithApp(ctx context.Context, app *App, listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) (*tls.Config, error) {
 	selector := &publicTLSSelector{
 		exact: make(map[string]*tls.Certificate),
 		acme:  acmeManager,
@@ -41,7 +48,7 @@ func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot, acmeManager
 		if !certConfig.Enabled {
 			continue
 		}
-		cert, err := tls.LoadX509KeyPair(certConfig.CertPath, certConfig.KeyPath)
+		cert, err := loadPublicTLSCertificate(ctx, app, certConfig)
 		if err != nil {
 			if certConfig.Source == publicTLSCertificateSourceACME && (errors.Is(err, os.ErrNotExist) || certConfig.CertPath == "" || certConfig.KeyPath == "") {
 				continue
@@ -75,6 +82,21 @@ func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot, acmeManager
 		NextProtos:     []string{acme.ALPNProto, "h2", "http/1.1"},
 		GetCertificate: selector.GetCertificate,
 	}, nil
+}
+
+func loadPublicTLSCertificate(ctx context.Context, app *App, certConfig publicTLSCertificateConfig) (tls.Certificate, error) {
+	if app == nil || app.Config == nil || !secretfiles.IsManagedPublicTLSKeyPath(app.Config, certConfig.ListenerID, certConfig.ID, certConfig.KeyPath) {
+		return tls.LoadX509KeyPair(certConfig.CertPath, certConfig.KeyPath)
+	}
+	certPEM, err := os.ReadFile(certConfig.CertPath)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	keyPEM, _, err := secretfiles.ReadPrivateKey(ctx, app.Secrets, secretfiles.PublicTLSKeySpec("public TLS private key", certConfig.ID, certConfig.KeyPath).Purpose, certConfig.ID, certConfig.KeyPath)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	return tls.X509KeyPair(certPEM, keyPEM)
 }
 
 func (s *publicTLSSelector) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {

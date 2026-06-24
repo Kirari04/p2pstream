@@ -30,7 +30,7 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
    docker compose logs -f p2pstream
    ```
 
-   When stored-secret encryption is configured, startup validates encrypted database secrets before listeners are registered. Existing plaintext rows are encrypted while `SECRETS_ENCRYPTION_REQUIRED=false`. With required mode enabled, plaintext rows fail startup. Rows encrypted with a direct key listed in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` are rewrapped to the current direct key or Vault Transit provider during the restart; keep previous keys configured until that startup succeeds. In Vault Transit mode, startup also fails closed if Vault is unavailable or the token lacks the required Transit permissions.
+   When stored-secret encryption is configured, startup validates encrypted database secrets and app-owned private-key files before listeners are registered. Existing plaintext database rows are encrypted while `SECRETS_ENCRYPTION_REQUIRED=false`; app-owned plaintext private-key files are encrypted whenever a current key or provider is configured. With required mode enabled, startup fails if plaintext or encrypted stored secrets cannot be reconciled. Values encrypted with a direct key listed in `SECRETS_ENCRYPTION_PREVIOUS_KEYS` are rewrapped to the current direct key or Vault Transit provider during the restart; keep previous keys configured until that startup succeeds. In Vault Transit mode, startup also fails closed if Vault is unavailable or the token lacks the required Transit permissions.
 
    To inspect this before restart or before removing a previous key, run the CLI against the same `CONFIG_DIR` or `DATABASE_URL`:
 

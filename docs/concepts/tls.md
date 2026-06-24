@@ -57,7 +57,7 @@ If no configured certificate matches a public hostname, the HTTPS listener can s
 - Setting `MANAGEMENT_PUBLIC_URL` to a URL agents cannot reach.
 - Forgetting `MANAGEMENT_TLS_EXTRA_HOSTS` for auto-generated certificate names.
 - Using HTTP-01/TLS-ALPN-01 for wildcard certificates.
-- Restoring without `/data/certs/management` and breaking existing agent trust.
+- Restoring without `/data/certs/management` and breaking existing agent trust. If stored-secret encryption is enabled, restore the matching direct key or Vault Transit access before startup.
 
 ## Related Links
 

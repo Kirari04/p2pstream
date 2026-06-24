@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	"p2pstream/internal/secrets"
 )
 
 type fakeACMEIssuer struct {
@@ -53,7 +55,12 @@ func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 	}
 
 	configDir := t.TempDir()
-	app := NewApp(&config.Config{ConfigDir: configDir, CertsDir: filepath.Join(configDir, "certs")}, database)
+	app := NewApp(&config.Config{
+		ConfigDir:              configDir,
+		CertsDir:               filepath.Join(configDir, "certs"),
+		SecretsEncryptionKey:   testSecretsEncryptionKey(),
+		SecretsEncryptionKeyID: "current",
+	}, database)
 	app.PublicACME.issuer = fakeACMEIssuer{certPEM: certPEM, keyPEM: keyPEM}
 	cert, err := database.CreatePublicTlsCertificate(context.Background(), db.CreatePublicTlsCertificateParams{
 		ListenerID:        listener.ID,
@@ -84,7 +91,31 @@ func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMERenewBefore))
 	}
 	assertServerFileBytes(t, updated.CertPath, certPEM)
-	assertServerFileBytes(t, updated.KeyPath, keyPEM)
+	assertEncryptedServerFileBytes(t, app, updated.KeyPath, secrets.PurposeFilePublicTLSPrivateKey, updated.ID, keyPEM)
+
+	tlsConfig, err := newPublicTLSConfigWithApp(context.Background(), app, listener.ID, &publicProxySnapshot{
+		CertsByListener: map[int64][]publicTLSCertificateConfig{
+			listener.ID: {{
+				ID:              updated.ID,
+				ListenerID:      listener.ID,
+				HostnamePattern: "acme.example.com",
+				CertPath:        updated.CertPath,
+				KeyPath:         updated.KeyPath,
+				Source:          publicTLSCertificateSourceACME,
+				Enabled:         true,
+			}},
+		},
+	}, app.PublicACME)
+	if err != nil {
+		t.Fatalf("newPublicTLSConfigWithApp() error = %v", err)
+	}
+	served, err := tlsConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "acme.example.com"})
+	if err != nil {
+		t.Fatalf("GetCertificate() error = %v", err)
+	}
+	if served == nil || len(served.Certificate) == 0 {
+		t.Fatal("expected encrypted ACME certificate to load")
+	}
 
 	entry := findACMELogEntry(t, logs, "ACME certificate renewal succeeded")
 	if entry["component"] != publicACMELogComponent ||
@@ -147,6 +178,53 @@ func TestPublicACMEManagerFailureKeepsExistingCertificateFiles(t *testing.T) {
 	}
 	if _, ok := entry["retry_at"]; !ok {
 		t.Fatalf("failure log missing retry_at: %+v", entry)
+	}
+}
+
+func TestLoadOrCreateACMEAccountKeyEncryptsAndReloads(t *testing.T) {
+	ctx := context.Background()
+	configDir := t.TempDir()
+	cfg := &config.Config{ConfigDir: configDir, CertsDir: filepath.Join(configDir, "certs")}
+	service, err := secrets.NewService(secrets.KeyConfig{
+		CurrentKey:     testSecretsEncryptionKey(),
+		CurrentKeyID:   "current",
+		AllowPlaintext: true,
+	})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+
+	key, created, err := loadOrCreateACMEAccountKey(ctx, cfg, service, publicACMECAStaging, "Admin+TLS@example.com")
+	if err != nil {
+		t.Fatalf("loadOrCreateACMEAccountKey(create) error = %v", err)
+	}
+	if !created {
+		t.Fatal("expected account key to be created")
+	}
+	path := acmeAccountKeyPath(cfg, publicACMECAStaging, "Admin+TLS@example.com")
+	assertEncryptedServerFile(t, path)
+
+	loaded, created, err := loadOrCreateACMEAccountKey(ctx, cfg, service, publicACMECAStaging, "Admin+TLS@example.com")
+	if err != nil {
+		t.Fatalf("loadOrCreateACMEAccountKey(load) error = %v", err)
+	}
+	if created {
+		t.Fatal("expected encrypted account key to be loaded")
+	}
+	if key.D.Cmp(loaded.D) != 0 {
+		t.Fatal("loaded account key did not match created key")
+	}
+
+	wrongService, err := secrets.NewService(secrets.KeyConfig{
+		CurrentKey:     serverTestSecretsKey(9),
+		CurrentKeyID:   "current",
+		AllowPlaintext: true,
+	})
+	if err != nil {
+		t.Fatalf("NewService(wrong) error = %v", err)
+	}
+	if _, _, err := loadOrCreateACMEAccountKey(ctx, cfg, wrongService, publicACMECAStaging, "Admin+TLS@example.com"); err == nil {
+		t.Fatal("expected wrong secrets key to fail")
 	}
 }
 
@@ -222,6 +300,103 @@ func TestPublicTLSConfigSkipsMissingManagedCertificateAndServesALPNChallenge(t *
 	if len(got.Certificate) == 0 || len(challengeCert.Certificate) == 0 || string(got.Certificate[0]) != string(challengeCert.Certificate[0]) {
 		t.Fatal("expected TLS-ALPN challenge certificate")
 	}
+}
+
+func TestPublicTLSConfigLoadsEncryptedManagedCertificateKey(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	configDir := t.TempDir()
+	app := NewApp(&config.Config{
+		ConfigDir:              configDir,
+		CertsDir:               filepath.Join(configDir, "certs"),
+		SecretsEncryptionKey:   testSecretsEncryptionKey(),
+		SecretsEncryptionKeyID: "current",
+	}, database)
+	certPEM, keyPEM, _, err := generatePublicSelfSignedCertificatePEM("manual.example.com", 24*time.Hour)
+	if err != nil {
+		t.Fatalf("generate certificate: %v", err)
+	}
+	cert, err := app.createUploadedPublicTLSCertificate(context.Background(), publicTLSCertificateMutationInput{
+		ListenerID:      listener.ID,
+		HostnamePattern: "manual.example.com",
+		Enabled:         1,
+		Source:          publicTLSCertificateSourceManual,
+		Status:          publicTLSCertificateStatusReady,
+	}, certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("create uploaded certificate: %v", err)
+	}
+	assertServerFileBytes(t, cert.CertPath, certPEM)
+	assertEncryptedServerFileBytes(t, app, cert.KeyPath, secrets.PurposeFilePublicTLSPrivateKey, cert.ID, keyPEM)
+
+	tlsConfig, err := newPublicTLSConfigWithApp(context.Background(), app, listener.ID, &publicProxySnapshot{
+		CertsByListener: map[int64][]publicTLSCertificateConfig{
+			listener.ID: {{
+				ID:              cert.ID,
+				ListenerID:      listener.ID,
+				HostnamePattern: "manual.example.com",
+				CertPath:        cert.CertPath,
+				KeyPath:         cert.KeyPath,
+				Source:          publicTLSCertificateSourceManual,
+				Enabled:         true,
+			}},
+		},
+	}, app.PublicACME)
+	if err != nil {
+		t.Fatalf("newPublicTLSConfigWithApp() error = %v", err)
+	}
+	if _, err := tlsConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "manual.example.com"}); err != nil {
+		t.Fatalf("GetCertificate() error = %v", err)
+	}
+}
+
+func TestPublicTLSConfigLeavesOperatorProvidedKeyPlaintext(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	configDir := t.TempDir()
+	app := NewApp(&config.Config{
+		ConfigDir:              configDir,
+		CertsDir:               filepath.Join(configDir, "certs"),
+		SecretsEncryptionKey:   testSecretsEncryptionKey(),
+		SecretsEncryptionKeyID: "current",
+	}, database)
+	certPEM, keyPEM, _, err := generatePublicSelfSignedCertificatePEM("external.example.com", 24*time.Hour)
+	if err != nil {
+		t.Fatalf("generate certificate: %v", err)
+	}
+	externalDir := filepath.Join(t.TempDir(), "external")
+	if err := os.MkdirAll(externalDir, 0700); err != nil {
+		t.Fatalf("create external dir: %v", err)
+	}
+	certPath := filepath.Join(externalDir, "external.crt.pem")
+	keyPath := filepath.Join(externalDir, "external.key.pem")
+	if err := os.WriteFile(certPath, certPEM, 0600); err != nil {
+		t.Fatalf("write external cert: %v", err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		t.Fatalf("write external key: %v", err)
+	}
+
+	tlsConfig, err := newPublicTLSConfigWithApp(context.Background(), app, listener.ID, &publicProxySnapshot{
+		CertsByListener: map[int64][]publicTLSCertificateConfig{
+			listener.ID: {{
+				ID:              99,
+				ListenerID:      listener.ID,
+				HostnamePattern: "external.example.com",
+				CertPath:        certPath,
+				KeyPath:         keyPath,
+				Source:          publicTLSCertificateSourceManual,
+				Enabled:         true,
+			}},
+		},
+	}, app.PublicACME)
+	if err != nil {
+		t.Fatalf("newPublicTLSConfigWithApp() error = %v", err)
+	}
+	if _, err := tlsConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "external.example.com"}); err != nil {
+		t.Fatalf("GetCertificate() error = %v", err)
+	}
+	assertServerFileBytes(t, keyPath, keyPEM)
 }
 
 func TestPublicTLSCertificateValidationAllowsWildcardOnlyForDNS01(t *testing.T) {
@@ -467,6 +642,41 @@ func assertServerFileBytes(t *testing.T, path string, want []byte) {
 	if string(got) != string(want) {
 		t.Fatalf("file %s contents mismatch", path)
 	}
+}
+
+func assertEncryptedServerFile(t *testing.T, path string) {
+	t.Helper()
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if !secrets.IsEncrypted(string(got)) || strings.Contains(string(got), "PRIVATE KEY") {
+		t.Fatalf("file %s is not encrypted private key material: %q", path, got)
+	}
+}
+
+func assertEncryptedServerFileBytes(t *testing.T, app *App, path string, purpose secrets.Purpose, ownerID int64, want []byte) {
+	t.Helper()
+	assertEncryptedServerFile(t, path)
+	stored, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	got, _, err := app.Secrets.Decrypt(purpose, ownerID, string(stored))
+	if err != nil {
+		t.Fatalf("decrypt %s: %v", path, err)
+	}
+	if got != string(want) {
+		t.Fatalf("decrypted file %s contents mismatch", path)
+	}
+}
+
+func serverTestSecretsKey(seed byte) string {
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = seed + byte(i)
+	}
+	return base64.RawURLEncoding.EncodeToString(key)
 }
 
 func sqlNullTime(value time.Time) sql.NullTime {
