@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestGenerateKeyProducesUsableKeyAndDefaultID(t *testing.T) {
@@ -98,6 +99,203 @@ func TestVaultTransitEnvelopeRoundTrip(t *testing.T) {
 	}
 	if needsRewrap {
 		t.Fatal("fresh Vault Transit envelope should not need rewrap")
+	}
+}
+
+func TestVaultTransitDEKCacheDisabledByDefault(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitService(t, vault)
+	stored, err := service.EncryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, "top-secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	vault.resetDecryptCount()
+
+	for i := 0; i < 2; i++ {
+		got, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, stored)
+		if err != nil {
+			t.Fatalf("DecryptContext(%d) error = %v", i, err)
+		}
+		if got != "top-secret" {
+			t.Fatalf("DecryptContext(%d) = %q, want top-secret", i, got)
+		}
+	}
+	if got := vault.decryptCount(); got != 2 {
+		t.Fatalf("Vault decrypt count = %d, want 2 with cache disabled", got)
+	}
+}
+
+func TestVaultTransitDEKCacheHitAndAADIsolation(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitServiceWithCache(t, vault, 8, time.Minute, nil)
+	stored, err := service.EncryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, "top-secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	vault.resetDecryptCount()
+
+	for i := 0; i < 2; i++ {
+		got, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, stored)
+		if err != nil {
+			t.Fatalf("DecryptContext(%d) error = %v", i, err)
+		}
+		if got != "top-secret" {
+			t.Fatalf("DecryptContext(%d) = %q, want top-secret", i, got)
+		}
+	}
+	if got := vault.decryptCount(); got != 1 {
+		t.Fatalf("Vault decrypt count = %d, want 1 cache hit", got)
+	}
+	if _, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 43, stored); err == nil {
+		t.Fatal("expected wrong owner to fail")
+	}
+	if got := vault.decryptCount(); got != 2 {
+		t.Fatalf("Vault decrypt count after wrong owner = %d, want 2", got)
+	}
+}
+
+func TestVaultTransitDEKCacheTTLExpiry(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	now := time.Unix(1700000000, 0)
+	service := testVaultTransitServiceWithCache(t, vault, 8, time.Minute, func() time.Time { return now })
+	stored, err := service.EncryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, "top-secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	vault.resetDecryptCount()
+
+	if _, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, stored); err != nil {
+		t.Fatalf("DecryptContext(first) error = %v", err)
+	}
+	now = now.Add(time.Minute + time.Nanosecond)
+	if _, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, stored); err != nil {
+		t.Fatalf("DecryptContext(expired) error = %v", err)
+	}
+	if got := vault.decryptCount(); got != 2 {
+		t.Fatalf("Vault decrypt count = %d, want 2 after TTL expiry", got)
+	}
+}
+
+func TestVaultTransitDEKCacheMaxEntriesEvictsLRU(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitServiceWithCache(t, vault, 1, time.Minute, nil)
+	first, err := service.EncryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, "first")
+	if err != nil {
+		t.Fatalf("EncryptContext(first) error = %v", err)
+	}
+	second, err := service.EncryptContext(context.Background(), PurposeEnvironmentAccessToken, 7, "second")
+	if err != nil {
+		t.Fatalf("EncryptContext(second) error = %v", err)
+	}
+	vault.resetDecryptCount()
+
+	if _, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, first); err != nil {
+		t.Fatalf("DecryptContext(first) error = %v", err)
+	}
+	if _, _, err := service.DecryptContext(context.Background(), PurposeEnvironmentAccessToken, 7, second); err != nil {
+		t.Fatalf("DecryptContext(second) error = %v", err)
+	}
+	if _, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, first); err != nil {
+		t.Fatalf("DecryptContext(first again) error = %v", err)
+	}
+	if got := vault.decryptCount(); got != 3 {
+		t.Fatalf("Vault decrypt count = %d, want 3 after max-entry eviction", got)
+	}
+}
+
+func TestVaultTransitDEKCacheDeduplicatesConcurrentMiss(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitServiceWithCache(t, vault, 8, time.Minute, nil)
+	stored, err := service.EncryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, "top-secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	release := make(chan struct{})
+	started := make(chan struct{})
+	vault.blockDecrypts(release, started)
+	vault.resetDecryptCount()
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, stored)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if got != "top-secret" {
+				errs <- fmt.Errorf("DecryptContext() = %q, want top-secret", got)
+			}
+		}()
+	}
+	<-started
+	if got := vault.decryptCount(); got != 1 {
+		t.Fatalf("Vault decrypt count while first unwrap blocked = %d, want 1", got)
+	}
+	close(release)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := vault.decryptCount(); got != 1 {
+		t.Fatalf("Vault decrypt count = %d, want 1 after concurrent decrypts", got)
+	}
+}
+
+func TestVaultTransitDEKCacheDoesNotCacheProviderErrors(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitServiceWithCache(t, vault, 8, time.Minute, nil)
+	stored, err := service.EncryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, "top-secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	env, err := parseEnvelope(stored)
+	if err != nil {
+		t.Fatalf("parseEnvelope() error = %v", err)
+	}
+	env.EncryptedDataKey = "vault:v1:missing"
+	broken, err := marshalEnvelope(env)
+	if err != nil {
+		t.Fatalf("marshalEnvelope() error = %v", err)
+	}
+	vault.resetDecryptCount()
+
+	for i := 0; i < 2; i++ {
+		if _, _, err := service.DecryptContext(context.Background(), PurposePublicRouteTargetBasicAuthPassword, 42, broken); err == nil {
+			t.Fatalf("DecryptContext(%d) error = nil, want provider failure", i)
+		}
+	}
+	if got := vault.decryptCount(); got != 2 {
+		t.Fatalf("Vault decrypt count = %d, want 2 because failures are not cached", got)
+	}
+}
+
+func TestVaultTransitDEKCacheInvalidatesAfterRewrap(t *testing.T) {
+	vault := newFakeVaultTransit(t)
+	service := testVaultTransitServiceWithCache(t, vault, 8, time.Minute, nil)
+	stored, err := service.EncryptContext(context.Background(), PurposeEnvironmentAccessToken, 7, "p2pat_secret")
+	if err != nil {
+		t.Fatalf("EncryptContext() error = %v", err)
+	}
+	vault.resetDecryptCount()
+	if _, _, err := service.DecryptContext(context.Background(), PurposeEnvironmentAccessToken, 7, stored); err != nil {
+		t.Fatalf("DecryptContext(first) error = %v", err)
+	}
+	vault.setLatestVersion(2)
+	if _, err := service.RewrapContext(context.Background(), PurposeEnvironmentAccessToken, 7, stored); err != nil {
+		t.Fatalf("RewrapContext() error = %v", err)
+	}
+	if _, _, err := service.DecryptContext(context.Background(), PurposeEnvironmentAccessToken, 7, stored); err != nil {
+		t.Fatalf("DecryptContext(old after rewrap) error = %v", err)
+	}
+	if got := vault.decryptCount(); got != 2 {
+		t.Fatalf("Vault decrypt count = %d, want 2 after old DEK invalidation", got)
 	}
 }
 
@@ -434,14 +632,23 @@ func keyText(seed byte) string {
 }
 
 type fakeVaultTransit struct {
-	t       *testing.T
-	server  *httptest.Server
-	token   string
-	mu      sync.Mutex
-	latest  int
-	derived bool
-	counter int
-	keys    map[string][]byte
+	t                      *testing.T
+	server                 *httptest.Server
+	token                  string
+	mu                     sync.Mutex
+	latest                 int
+	derived                bool
+	dataKeyCounter         int
+	decryptCounter         int
+	keys                   map[string]fakeVaultTransitKey
+	decryptBlock           <-chan struct{}
+	decryptStarted         chan<- struct{}
+	decryptStartedSignaled bool
+}
+
+type fakeVaultTransitKey struct {
+	value   []byte
+	context string
 }
 
 func newFakeVaultTransit(t *testing.T) *fakeVaultTransit {
@@ -451,7 +658,7 @@ func newFakeVaultTransit(t *testing.T) *fakeVaultTransit {
 		token:   "test-token",
 		latest:  1,
 		derived: true,
-		keys:    make(map[string][]byte),
+		keys:    make(map[string]fakeVaultTransitKey),
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/transit/keys/p2pstream", fake.handleKey)
@@ -473,6 +680,26 @@ func (f *fakeVaultTransit) setDerived(derived bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.derived = derived
+}
+
+func (f *fakeVaultTransit) resetDecryptCount() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.decryptCounter = 0
+}
+
+func (f *fakeVaultTransit) decryptCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.decryptCounter
+}
+
+func (f *fakeVaultTransit) blockDecrypts(release <-chan struct{}, started chan<- struct{}) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.decryptBlock = release
+	f.decryptStarted = started
+	f.decryptStartedSignaled = false
 }
 
 func (f *fakeVaultTransit) handleKey(w http.ResponseWriter, r *http.Request) {
@@ -506,13 +733,13 @@ func (f *fakeVaultTransit) handleDataKey(w http.ResponseWriter, r *http.Request)
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.counter++
+	f.dataKeyCounter++
 	key := make([]byte, keySize)
 	for i := range key {
-		key[i] = byte(f.counter + i)
+		key[i] = byte(f.dataKeyCounter + i)
 	}
 	wrapped := fmt.Sprintf("vault:v%d:%s", f.latest, base64.RawURLEncoding.EncodeToString(key))
-	f.keys[wrapped] = cloneBytes(key)
+	f.keys[wrapped] = fakeVaultTransitKey{value: cloneBytes(key), context: fmt.Sprint(body["context"])}
 	writeVaultJSON(w, map[string]interface{}{
 		"data": map[string]string{
 			"plaintext":  base64.StdEncoding.EncodeToString(key),
@@ -538,9 +765,19 @@ func (f *fakeVaultTransit) handleDecrypt(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	f.mu.Lock()
-	key := cloneBytes(f.keys[body.Ciphertext])
+	f.decryptCounter++
+	if f.decryptStarted != nil && !f.decryptStartedSignaled {
+		close(f.decryptStarted)
+		f.decryptStartedSignaled = true
+	}
+	block := f.decryptBlock
+	record := f.keys[body.Ciphertext]
 	f.mu.Unlock()
-	if len(key) != keySize {
+	if block != nil {
+		<-block
+	}
+	key := cloneBytes(record.value)
+	if len(key) != keySize || record.context != body.Context {
 		writeVaultError(w, http.StatusBadRequest, "ciphertext is invalid")
 		return
 	}
@@ -567,13 +804,14 @@ func (f *fakeVaultTransit) handleRewrap(w http.ResponseWriter, r *http.Request) 
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	key := cloneBytes(f.keys[body.Ciphertext])
-	if len(key) != keySize {
+	record := f.keys[body.Ciphertext]
+	key := cloneBytes(record.value)
+	if len(key) != keySize || record.context != body.Context {
 		writeVaultError(w, http.StatusBadRequest, "ciphertext is invalid")
 		return
 	}
 	wrapped := fmt.Sprintf("vault:v%d:%s", f.latest, base64.RawURLEncoding.EncodeToString(key))
-	f.keys[wrapped] = key
+	f.keys[wrapped] = fakeVaultTransitKey{value: key, context: body.Context}
 	writeVaultJSON(w, map[string]interface{}{"data": map[string]string{"ciphertext": wrapped}})
 }
 
@@ -598,14 +836,22 @@ func writeVaultError(w http.ResponseWriter, status int, message string) {
 
 func testVaultTransitService(t *testing.T, vault *fakeVaultTransit) *Service {
 	t.Helper()
+	return testVaultTransitServiceWithCache(t, vault, 0, 0, nil)
+}
+
+func testVaultTransitServiceWithCache(t *testing.T, vault *fakeVaultTransit, maxEntries int, ttl time.Duration, now func() time.Time) *Service {
+	t.Helper()
 	service, err := NewService(KeyConfig{
 		AllowPlaintext: true,
 		Provider:       ProviderVaultTransit,
 		VaultTransit: VaultTransitConfig{
-			Address:   vault.server.URL,
-			Token:     vault.token,
-			MountPath: "transit",
-			KeyName:   "p2pstream",
+			Address:            vault.server.URL,
+			Token:              vault.token,
+			MountPath:          "transit",
+			KeyName:            "p2pstream",
+			DEKCacheMaxEntries: maxEntries,
+			DEKCacheTTL:        ttl,
+			Now:                now,
 		},
 	})
 	if err != nil {

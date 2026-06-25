@@ -291,6 +291,92 @@ func TestLoadValidatesSecretsEncryptionConfig(t *testing.T) {
 		if cfg.SecretsVaultToken != "vault-token" {
 			t.Fatalf("SecretsVaultToken = %q, want token file contents", cfg.SecretsVaultToken)
 		}
+		if cfg.SecretsVaultDEKCacheMaxEntries != 1024 {
+			t.Fatalf("SecretsVaultDEKCacheMaxEntries = %d, want 1024", cfg.SecretsVaultDEKCacheMaxEntries)
+		}
+		if cfg.SecretsVaultDEKCacheTTL.String() != "5m0s" {
+			t.Fatalf("SecretsVaultDEKCacheTTL = %s, want 5m0s", cfg.SecretsVaultDEKCacheTTL)
+		}
+	})
+
+	t.Run("Vault DEK cache can be disabled with both bounds zero", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PROVIDER", "vault-transit")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "https://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN", "vault-token")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES", "0")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL", "0s")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.SecretsVaultDEKCacheMaxEntries != 0 || cfg.SecretsVaultDEKCacheTTL != 0 {
+			t.Fatalf("Vault DEK cache = %d/%s, want disabled", cfg.SecretsVaultDEKCacheMaxEntries, cfg.SecretsVaultDEKCacheTTL)
+		}
+	})
+
+	t.Run("Vault DEK cache settings require Vault provider", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES", "64")
+
+		err := func() error {
+			_, err := Load()
+			return err
+		}()
+		if err == nil || !strings.Contains(err.Error(), "Vault DEK cache settings require SECRETS_ENCRYPTION_PROVIDER=vault-transit") {
+			t.Fatalf("Load() error = %v, want Vault DEK cache provider failure", err)
+		}
+	})
+
+	t.Run("direct provider allows Compose default Vault DEK cache pass-through", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES", "1024")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL", "5m")
+
+		if _, err := Load(); err != nil {
+			t.Fatalf("Load() error = %v, want direct provider to ignore default cache pass-through", err)
+		}
+	})
+
+	t.Run("Vault DEK cache requires both bounds enabled together", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PROVIDER", "vault-transit")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "https://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN", "vault-token")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES", "0")
+
+		err := func() error {
+			_, err := Load()
+			return err
+		}()
+		if err == nil || !strings.Contains(err.Error(), "must both be positive or both be zero") {
+			t.Fatalf("Load() error = %v, want mixed cache bound failure", err)
+		}
+	})
+
+	t.Run("Vault DEK cache rejects over-cap values", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SECRETS_ENCRYPTION_PROVIDER", "vault-transit")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_ADDR", "https://vault.example.com")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_TOKEN", "vault-token")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_KEY", "p2pstream")
+		t.Setenv("SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL", "2h")
+
+		err := func() error {
+			_, err := Load()
+			return err
+		}()
+		if err == nil || !strings.Contains(err.Error(), "SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL") {
+			t.Fatalf("Load() error = %v, want cache TTL cap failure", err)
+		}
 	})
 
 	t.Run("Vault settings require Vault provider", func(t *testing.T) {

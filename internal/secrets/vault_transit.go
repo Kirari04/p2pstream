@@ -3,6 +3,7 @@ package secrets
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -19,14 +20,17 @@ import (
 const defaultVaultTransitTimeout = 5 * time.Second
 
 type VaultTransitConfig struct {
-	Address   string
-	Token     string
-	MountPath string
-	KeyName   string
-	Namespace string
-	Timeout   time.Duration
+	Address            string
+	Token              string
+	MountPath          string
+	KeyName            string
+	Namespace          string
+	Timeout            time.Duration
+	DEKCacheMaxEntries int
+	DEKCacheTTL        time.Duration
 
 	HTTPClient *http.Client
+	Now        func() time.Time
 }
 
 type VaultTransitProvider struct {
@@ -44,6 +48,8 @@ type VaultTransitProvider struct {
 	mu                    sync.Mutex
 	latestVersion         int
 	latestVersionResolved bool
+
+	dekCache *vaultTransitDEKCache
 }
 
 func NewVaultTransitProvider(cfg VaultTransitConfig) (*VaultTransitProvider, error) {
@@ -91,6 +97,7 @@ func NewVaultTransitProvider(cfg VaultTransitConfig) (*VaultTransitProvider, err
 		namespace: strings.TrimSpace(cfg.Namespace),
 		timeout:   timeout,
 		client:    client,
+		dekCache:  newVaultTransitDEKCache(cfg.DEKCacheMaxEntries, cfg.DEKCacheTTL, cfg.Now),
 	}, nil
 }
 
@@ -134,13 +141,31 @@ func (v *VaultTransitProvider) GenerateDataKey(ctx context.Context, aad []byte) 
 }
 
 func (v *VaultTransitProvider) UnwrapDataKey(ctx context.Context, wrapped string, aad []byte) ([]byte, error) {
+	if v == nil {
+		return nil, errors.New("Vault Transit provider is not configured")
+	}
+	wrapped = strings.TrimSpace(wrapped)
+	if v.dekCache == nil {
+		return v.unwrapDataKeyFromVault(ctx, wrapped, aad)
+	}
+	key := unwrappedDEKCacheKey{
+		keyID:   v.keyID,
+		wrapped: wrapped,
+		aadHash: sha256.Sum256(aad),
+	}
+	return v.dekCache.getOrUnwrap(ctx, key, func() ([]byte, error) {
+		return v.unwrapDataKeyFromVault(ctx, wrapped, aad)
+	})
+}
+
+func (v *VaultTransitProvider) unwrapDataKeyFromVault(ctx context.Context, wrapped string, aad []byte) ([]byte, error) {
 	var response struct {
 		Data struct {
 			Plaintext string `json:"plaintext"`
 		} `json:"data"`
 	}
 	if err := v.doJSON(ctx, http.MethodPost, v.transitPath("decrypt"), map[string]interface{}{
-		"ciphertext": strings.TrimSpace(wrapped),
+		"ciphertext": wrapped,
 		"context":    base64.StdEncoding.EncodeToString(aad),
 	}, &response); err != nil {
 		return nil, err
@@ -165,7 +190,11 @@ func (v *VaultTransitProvider) NeedsRewrap(ctx context.Context, wrapped string) 
 	if err != nil {
 		return false, err
 	}
-	return latest > 0 && wrappedVersion < latest, nil
+	needsRewrap := latest > 0 && wrappedVersion < latest
+	if needsRewrap {
+		v.invalidateUnwrappedDEK(wrapped)
+	}
+	return needsRewrap, nil
 }
 
 func (v *VaultTransitProvider) RewrapDataKey(ctx context.Context, wrapped string, aad []byte) (string, error) {
@@ -183,7 +212,15 @@ func (v *VaultTransitProvider) RewrapDataKey(ctx context.Context, wrapped string
 	if strings.TrimSpace(response.Data.Ciphertext) == "" {
 		return "", errors.New("Vault returned empty rewrapped data key")
 	}
+	v.invalidateUnwrappedDEK(wrapped)
 	return response.Data.Ciphertext, nil
+}
+
+func (v *VaultTransitProvider) invalidateUnwrappedDEK(wrapped string) {
+	if v == nil || v.dekCache == nil {
+		return
+	}
+	v.dekCache.invalidateWrapped(strings.TrimSpace(wrapped))
 }
 
 func (v *VaultTransitProvider) Check(ctx context.Context) error {

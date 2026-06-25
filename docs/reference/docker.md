@@ -48,7 +48,7 @@ ports:
   - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
 ```
 
-The root Compose file also passes `SECRETS_ENCRYPTION_PROVIDER`, direct-key settings, Vault Transit settings, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` from `.env` into the server container when configured. Set only one of `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, and only one of `SECRETS_ENCRYPTION_VAULT_TOKEN` or `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`.
+The root Compose file also passes `SECRETS_ENCRYPTION_PROVIDER`, direct-key settings, Vault Transit settings, bounded Vault DEK-cache settings, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` from `.env` into the server container when configured. Set only one of `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, and only one of `SECRETS_ENCRYPTION_VAULT_TOKEN` or `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`.
 
 ## Validation Rules
 
