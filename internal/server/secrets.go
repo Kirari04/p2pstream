@@ -25,12 +25,14 @@ func newSecretService(cfg *config.Config) (*secrets.Service, error) {
 		AllowPlaintext: !cfg.SecretsEncryptionRequired,
 		Provider:       cfg.SecretsEncryptionProvider,
 		VaultTransit: secrets.VaultTransitConfig{
-			Address:   cfg.SecretsVaultAddress,
-			Token:     cfg.SecretsVaultToken,
-			MountPath: cfg.SecretsVaultMount,
-			KeyName:   cfg.SecretsVaultKey,
-			Namespace: cfg.SecretsVaultNamespace,
-			Timeout:   cfg.SecretsVaultTimeout,
+			Address:            cfg.SecretsVaultAddress,
+			Token:              cfg.SecretsVaultToken,
+			MountPath:          cfg.SecretsVaultMount,
+			KeyName:            cfg.SecretsVaultKey,
+			Namespace:          cfg.SecretsVaultNamespace,
+			Timeout:            cfg.SecretsVaultTimeout,
+			DEKCacheMaxEntries: cfg.SecretsVaultDEKCacheMaxEntries,
+			DEKCacheTTL:        cfg.SecretsVaultDEKCacheTTL,
 		},
 	})
 }

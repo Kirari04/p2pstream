@@ -41,6 +41,8 @@ Use this page after the quickstart when you need to change ports, understand wha
          SECRETS_ENCRYPTION_VAULT_KEY: "${SECRETS_ENCRYPTION_VAULT_KEY:-}"
          SECRETS_ENCRYPTION_VAULT_NAMESPACE: "${SECRETS_ENCRYPTION_VAULT_NAMESPACE:-}"
          SECRETS_ENCRYPTION_VAULT_TIMEOUT: "${SECRETS_ENCRYPTION_VAULT_TIMEOUT:-5s}"
+         SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES: "${SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES:-1024}"
+         SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL: "${SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL:-5m}"
        ports:
          - "${P2PSTREAM_HTTP_PORT:-80}:80"
          - "${P2PSTREAM_HTTPS_PORT:-443}:443"
@@ -101,7 +103,7 @@ Use this page after the quickstart when you need to change ports, understand wha
 | `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and the agent Yamux tunnel remain available. |
 | `SECRETS_ENCRYPTION_PROVIDER` | Selects `direct` local-key encryption or `vault-transit` KEK/DEK envelope encryption. |
 | `SECRETS_ENCRYPTION_KEY` / `SECRETS_ENCRYPTION_KEY_FILE` | Direct-mode current key. Use only one current-key source. |
-| `SECRETS_ENCRYPTION_VAULT_*` | Vault Transit address, token source, mount, key, namespace, and timeout for external key custody. |
+| `SECRETS_ENCRYPTION_VAULT_*` | Vault Transit address, token source, mount, key, namespace, timeout, and bounded DEK-cache settings for external key custody. |
 | `SECRETS_ENCRYPTION_REQUIRED=true` | Makes startup fail if a stored secret is plaintext or if encrypted rows/files cannot be decrypted with the configured key or provider. |
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 

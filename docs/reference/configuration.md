@@ -50,6 +50,8 @@ Set these on the server process via `.env` or environment. They control manageme
 | `SECRETS_ENCRYPTION_VAULT_KEY`   | empty                        | Vault Transit key name used to wrap per-secret data-encryption keys.                          |
 | `SECRETS_ENCRYPTION_VAULT_NAMESPACE` | empty                    | Optional Vault Enterprise namespace.                                                          |
 | `SECRETS_ENCRYPTION_VAULT_TIMEOUT` | `5s`                       | Per-request timeout for Vault Transit calls during startup, CLI status/rewrap, and writes.    |
+| `SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES` | `1024`      | Maximum unwrapped Vault DEKs retained in process memory. Set `0` with cache TTL `0s` to disable. |
+| `SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL` | `5m`              | Maximum age for cached unwrapped Vault DEKs. Set `0s` with max entries `0` to disable.        |
 
 If every login throttle slot is occupied by an active block, new failed-login keys are not tracked until a blocked key expires or a login succeeds for an existing key.
 
@@ -61,7 +63,7 @@ Existing plaintext database rows are encrypted during server startup before list
 
 `SECRETS_ENCRYPTION_PROVIDER=direct` is the local compatibility mode. `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE` is used directly as the AES-256-GCM key for secret values stored in SQLite and app-owned key files. Prefer `SECRETS_ENCRYPTION_KEY_FILE` when your deployment secret manager can mount the key as a regular file with no group/other permissions, such as `0400` or `0600`; this avoids putting the key in the process environment.
 
-`SECRETS_ENCRYPTION_PROVIDER=vault-transit` enables KEK/DEK envelope encryption. p2pstream asks Vault Transit for a plaintext 256-bit data key and a Vault-wrapped copy of that data key, encrypts the secret locally with AES-256-GCM, stores the ciphertext plus wrapped data key in SQLite or the app-owned key file, and later asks Vault Transit to unwrap only that data key. Vault key rotation can rewrap the stored data key without rewriting the secret ciphertext. Use a Vault Transit key backed by your normal Vault custody model, such as managed/HSM-backed keys where available.
+`SECRETS_ENCRYPTION_PROVIDER=vault-transit` enables KEK/DEK envelope encryption. p2pstream asks Vault Transit for a plaintext 256-bit data key and a Vault-wrapped copy of that data key, encrypts the secret locally with AES-256-GCM, stores the ciphertext plus wrapped data key in SQLite or the app-owned key file, and later asks Vault Transit to unwrap only that data key. Successful unwraps are cached in process memory by wrapped DEK and row-bound context for a bounded TTL so repeated configuration reloads can avoid repeated Transit decrypt calls. Vault key rotation can rewrap the stored data key without rewriting the secret ciphertext. Use a Vault Transit key backed by your normal Vault custody model, such as managed/HSM-backed keys where available.
 
 Create the Transit key with key derivation enabled. p2pstream passes the row-bound secret AAD as Vault `context` on data-key, decrypt, and rewrap calls, so a non-derived Transit key is rejected during startup or CLI provider checks:
 
@@ -98,7 +100,7 @@ To migrate from direct mode to Vault Transit, set `SECRETS_ENCRYPTION_PROVIDER=v
 
 For Vault Transit key rotation within the same Transit key name, rotate the key in Vault and run `p2pstream secrets rewrap --dry-run`. Rows whose wrapped data key uses an older Vault key version are reported as rewrap-needed. `p2pstream secrets rewrap --yes` updates the wrapped data key through Vault Transit and preserves the secret ciphertext.
 
-Vault Transit is a startup and configuration-reload dependency. p2pstream checks the provider before registering listeners and unwraps stored DEKs when loading configuration snapshots. Steady-state proxy traffic uses the cached in-memory snapshot, but a Vault outage or slow Vault responses can delay startup or a new snapshot reload. There is no in-process DEK cache in this release.
+Vault Transit remains a startup dependency. p2pstream checks the provider before registering listeners and unwraps stored DEKs when loading configuration snapshots. Steady-state proxy traffic uses the cached in-memory snapshot, and repeated reloads can reuse the bounded in-process DEK cache while entries remain valid. A cold cache, cache expiry, changed wrapped DEKs, or process restart still requires Vault availability.
 
 ### Agent Variables
 
@@ -147,6 +149,7 @@ Set these as environment variables before running the Linux agent installer scri
 - The configured Vault Transit key must be created with `derived=true`.
 - `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE` must be a regular non-empty file with no group/other permission bits. Use `0400` or `0600`.
 - `SECRETS_ENCRYPTION_VAULT_ADDR` must use `https`, except loopback `http` endpoints for local Vault development or tests.
+- Vault DEK cache max entries and TTL must both be positive or both be zero. Max entries must be at most `10000`; TTL must be at most `1h`.
 - `SECRETS_ENCRYPTION_PREVIOUS_KEYS` entries must be `key_id:key`, and key IDs must be unique.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.

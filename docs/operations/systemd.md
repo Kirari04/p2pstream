@@ -42,6 +42,8 @@ Use systemd when you install the release binary directly on a host, or when mana
    SECRETS_ENCRYPTION_VAULT_TOKEN_FILE=/etc/p2pstream/vault-token
    SECRETS_ENCRYPTION_VAULT_MOUNT=transit
    SECRETS_ENCRYPTION_VAULT_KEY=p2pstream
+   SECRETS_ENCRYPTION_VAULT_DEK_CACHE_MAX_ENTRIES=1024
+   SECRETS_ENCRYPTION_VAULT_DEK_CACHE_TTL=5m
    SECRETS_ENCRYPTION_REQUIRED=true
    ```
 
