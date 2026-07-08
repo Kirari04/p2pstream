@@ -13,6 +13,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/acme"
@@ -32,6 +33,71 @@ type publicWildcardCertificate struct {
 }
 
 func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) (*tls.Config, error) {
+	tlsConfig, _, err := newPublicTLSConfigWithSelectorStore(listenerID, snap, acmeManager)
+	return tlsConfig, err
+}
+
+func newPublicTLSConfigWithSelectorStore(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) (*tls.Config, *publicTLSSelectorStore, error) {
+	selector, err := newPublicTLSSelector(listenerID, snap, acmeManager, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	store := newPublicTLSSelectorStore(selector)
+	return &tls.Config{
+		MinVersion:     tls.VersionTLS12,
+		NextProtos:     []string{acme.ALPNProto, "h2", "http/1.1"},
+		GetCertificate: store.GetCertificate,
+	}, store, nil
+}
+
+type publicTLSSelectorStore struct {
+	selector atomic.Pointer[publicTLSSelector]
+}
+
+func newPublicTLSSelectorStore(selector *publicTLSSelector) *publicTLSSelectorStore {
+	store := &publicTLSSelectorStore{}
+	store.selector.Store(selector)
+	return store
+}
+
+func (s *publicTLSSelectorStore) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	if s == nil {
+		return nil, errors.New("public TLS selector store is not initialized")
+	}
+	selector := s.selector.Load()
+	if selector == nil {
+		return nil, errors.New("public TLS selector is not initialized")
+	}
+	return selector.GetCertificate(hello)
+}
+
+func (s *publicTLSSelectorStore) refresh(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) error {
+	if s == nil {
+		return errors.New("public TLS selector store is not initialized")
+	}
+	selector, err := newPublicTLSSelector(listenerID, snap, acmeManager, s.fallbackCertificate())
+	if err != nil {
+		return err
+	}
+	s.selector.Store(selector)
+	return nil
+}
+
+func (s *publicTLSSelectorStore) fallbackCertificate() *tls.Certificate {
+	if s == nil {
+		return nil
+	}
+	selector := s.selector.Load()
+	if selector == nil {
+		return nil
+	}
+	return selector.fallback
+}
+
+func newPublicTLSSelector(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager, fallback *tls.Certificate) (*publicTLSSelector, error) {
+	if snap == nil {
+		return nil, errors.New("public proxy snapshot is required")
+	}
 	selector := &publicTLSSelector{
 		exact: make(map[string]*tls.Certificate),
 		acme:  acmeManager,
@@ -64,17 +130,16 @@ func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot, acmeManager
 		return len(selector.wildcard[i].suffix) > len(selector.wildcard[j].suffix)
 	})
 
-	fallback, err := generateFallbackCertificate()
-	if err != nil {
-		return nil, err
+	if fallback == nil {
+		var err error
+		fallback, err = generateFallbackCertificate()
+		if err != nil {
+			return nil, err
+		}
 	}
 	selector.fallback = fallback
 
-	return &tls.Config{
-		MinVersion:     tls.VersionTLS12,
-		NextProtos:     []string{acme.ALPNProto, "h2", "http/1.1"},
-		GetCertificate: selector.GetCertificate,
-	}, nil
+	return selector, nil
 }
 
 func (s *publicTLSSelector) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {

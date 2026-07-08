@@ -67,6 +67,7 @@ func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyStatusLocked()
 	active := a.proxyServiceActive
 	a.proxyMu.Unlock()
+	a.refreshRunningPublicTLSSelectors(snap)
 	a.LoadBalancers.reconcile(snap)
 	if a.TargetHealth != nil {
 		a.TargetHealth.reconcile(a, snap, active)
@@ -444,15 +445,4 @@ func (a *App) reconcilePublicListenerAfterMutation(ctx context.Context, listener
 		return a.restartPublicListenerRuntime(ctx, listenerID)
 	}
 	return a.getPublicListenerStatus(listenerID), nil
-}
-
-func (a *App) restartTLSListenerIfActive(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
-	a.proxyMu.Lock()
-	runtime := a.publicListenerState[listenerID]
-	running := runtime != nil && runtime.Server != nil
-	a.proxyMu.Unlock()
-	if !running {
-		return a.getPublicListenerStatus(listenerID), nil
-	}
-	return a.restartPublicListenerRuntime(ctx, listenerID)
 }
