@@ -591,6 +591,136 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	if originHits != 1 {
 		t.Fatalf("origin hits = %d, want 1", originHits)
 	}
+
+	if secondDecision.Entry == nil {
+		t.Fatal("second decision missing cache entry")
+	}
+	if err := app.DB.DeletePublicCacheEntry(context.Background(), secondDecision.Entry.KeyDigest); err != nil {
+		t.Fatalf("delete warmed cache DB row: %v", err)
+	}
+	if err := os.Remove(secondDecision.Entry.BodyPath); err != nil {
+		t.Fatalf("remove warmed cache body: %v", err)
+	}
+	thirdReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt?v=1", nil)
+	thirdDecision := app.checkPublicCache(thirdReq, resolution)
+	if thirdDecision.Status != publicCacheStatusHit {
+		t.Fatalf("third warmed cache status = %q, want hit", thirdDecision.Status)
+	}
+	thirdRec := httptest.NewRecorder()
+	app.servePublicCacheHit(thirdRec, thirdReq, resolution, nil, nil, thirdDecision, proxyRequestObservability{})
+	if thirdRec.Code != http.StatusOK || thirdRec.Body.String() != "asset-v1" {
+		t.Fatalf("third warmed response = status %d body %q, want cached asset", thirdRec.Code, thirdRec.Body.String())
+	}
+}
+
+func TestPublicCacheStaleIndexedBodyFallsBackToMiss(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/stale.txt", nil)
+	app.proxyMu.Lock()
+	rule := app.publicSnapshot.CacheRules[0]
+	app.proxyMu.Unlock()
+	keyDigest := publicCacheKeyDigest(req, resolution, rule, "", nil)
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, []byte("stale-body"), 0600); err != nil {
+		t.Fatalf("write cache body: %v", err)
+	}
+	if _, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/stale.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len("stale-body")),
+		ExpiresAt:           time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	firstDecision := app.checkPublicCache(req, resolution)
+	if firstDecision.Status != publicCacheStatusHit {
+		t.Fatalf("first cache status = %q, want hit", firstDecision.Status)
+	}
+	if err := os.Remove(bodyPath); err != nil {
+		t.Fatalf("remove cache body: %v", err)
+	}
+	secondDecision := app.checkPublicCache(req, resolution)
+	if secondDecision.Status != publicCacheStatusHit {
+		t.Fatalf("second indexed status = %q, want hit before body preparation", secondDecision.Status)
+	}
+	if ok := app.preparePublicCacheHitBody(req, &secondDecision); ok {
+		t.Fatal("prepare cache hit body succeeded after body file was removed")
+	}
+	thirdDecision := app.checkPublicCache(req, resolution)
+	if thirdDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("third cache status = %q, want miss after stale entry invalidation", thirdDecision.Status)
+	}
+}
+
+func TestPublicCacheEmptyMissUsesWarmedIndex(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/later.txt", nil)
+	firstDecision := app.checkPublicCache(req, resolution)
+	if firstDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("first cache status = %q, want miss", firstDecision.Status)
+	}
+	app.proxyMu.Lock()
+	rule := app.publicSnapshot.CacheRules[0]
+	app.proxyMu.Unlock()
+	keyDigest := publicCacheKeyDigest(req, resolution, rule, "", nil)
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, []byte("later-body"), 0600); err != nil {
+		t.Fatalf("write cache body: %v", err)
+	}
+	entry, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/later.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len("later-body")),
+		ExpiresAt:           time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	secondDecision := app.checkPublicCache(req, resolution)
+	if secondDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("second warmed-empty cache status = %q, want miss", secondDecision.Status)
+	}
+	app.PublicCache.putIndexEntry(entry)
+	thirdDecision := app.checkPublicCache(req, resolution)
+	if thirdDecision.Status != publicCacheStatusHit {
+		t.Fatalf("third indexed cache status = %q, want hit", thirdDecision.Status)
+	}
 }
 
 func TestPublicCacheAgentBackendMissStoresThenHit(t *testing.T) {
@@ -740,7 +870,10 @@ func TestPublicCacheStoreReadCloserDoesNotRaceWithReconcile(t *testing.T) {
 			} else {
 				settings.MemoryHotObjectMaxBytes = defaultPublicCacheMemoryHotObjectBytes
 			}
-			app.PublicCache.reconcile(settings)
+			app.proxyMu.Lock()
+			rules := append([]publicCacheRuleConfig(nil), app.publicSnapshot.CacheRules...)
+			app.proxyMu.Unlock()
+			app.PublicCache.reconcile(settings, rules)
 		}
 	}()
 	defer func() {
@@ -886,7 +1019,7 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		CacheRules:    []publicCacheRuleConfig{rule},
 		RouteTargets:  map[int64]publicRouteTargetConfig{resolution.Target.ID: resolution.Target},
 	})
-	app.PublicCache.reconcile(defaultPublicCacheSettings())
+	app.PublicCache.reconcile(defaultPublicCacheSettings(), []publicCacheRuleConfig{rule})
 
 	return app, resolution, func() { database.Close() }
 }

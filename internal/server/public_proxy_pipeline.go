@@ -559,6 +559,11 @@ func cacheLookupStage(ctx *publicProxyContext) publicProxyStageResult {
 		return publicProxyStageContinue
 	}
 	decision := ctx.App.checkPublicCacheWithSnapshot(ctx.Snapshot, ctx.Request, ctx.Resolution)
+	if decision.Status == publicCacheStatusHit && !ctx.App.preparePublicCacheHitBody(ctx.Request, &decision) {
+		decision.Status = publicCacheStatusMiss
+		decision.Entry = nil
+		decision.HitBody = nil
+	}
 	applyCacheResolutionFields(&ctx.Resolution, decision)
 	if ctx.Trace != nil {
 		ctx.Trace.emit(

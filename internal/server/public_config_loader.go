@@ -81,7 +81,7 @@ func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 		a.PublicWAF.reconcile(snap)
 	}
 	if a.PublicCache != nil {
-		a.PublicCache.reconcile(snap.CacheSettings)
+		a.PublicCache.reconcile(snap.CacheSettings, snap.CacheRules)
 	}
 }
 
