@@ -78,7 +78,7 @@ func (p *agentTransportPool) publicRouteTargetTransport(app *App, agent *AgentCo
 		Kind:                        agentTransportKindRouteTarget,
 		AgentID:                     agent.AgentID,
 		RouteTargetID:               target.ID,
-		TargetOrigin:                target.URL,
+		TargetOrigin:                routeTargetTransportOrigin(target),
 		TLSSkipVerify:               target.TLSSkipVerify,
 		ResponseHeaderTimeoutMillis: int64(timeout / time.Millisecond),
 	}

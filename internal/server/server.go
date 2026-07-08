@@ -58,6 +58,7 @@ type App struct {
 	observabilityRecorder *observabilityRecorder
 	auth                  *authService
 	AgentTransports       *agentTransportPool
+	DirectTransports      *directTransportPool
 	DashboardCache        *dashboardResponseCache
 	LoginThrottle         *loginThrottle
 	agentAuthLocks        *agentAuthLockMap

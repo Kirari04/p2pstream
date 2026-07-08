@@ -50,11 +50,13 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 
 func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyMu.Lock()
+	previous := a.publicSnapshot
 	a.publicSnapshot = snap
 	a.ensureListenerStatesLocked(snap)
 	a.proxyStatusLocked()
 	active := a.proxyServiceActive
 	a.proxyMu.Unlock()
+	a.reconcileRouteTargetTransports(previous, snap)
 	a.LoadBalancers.reconcile(snap)
 	if a.TargetHealth != nil {
 		a.TargetHealth.reconcile(a, snap, active)
@@ -70,6 +72,41 @@ func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	}
 	if a.PublicCache != nil {
 		a.PublicCache.reconcile(snap.CacheSettings)
+	}
+}
+
+type routeTargetTransportSignature struct {
+	Transport                   string
+	TargetOrigin                string
+	TLSSkipVerify               bool
+	ResponseHeaderTimeoutMillis int64
+}
+
+func (a *App) reconcileRouteTargetTransports(previous *publicProxySnapshot, current *publicProxySnapshot) {
+	if previous == nil {
+		return
+	}
+	for targetID, previousTarget := range previous.RouteTargets {
+		currentTarget, ok := current.RouteTargets[targetID]
+		if ok && routeTargetTransportSignatureFor(previousTarget) == routeTargetTransportSignatureFor(currentTarget) {
+			continue
+		}
+		if a.DirectTransports != nil {
+			a.DirectTransports.closeRouteTarget(targetID)
+		}
+		if a.AgentTransports != nil {
+			a.AgentTransports.closeRouteTarget(targetID)
+		}
+	}
+}
+
+func routeTargetTransportSignatureFor(target publicRouteTargetConfig) routeTargetTransportSignature {
+	timeout := normalizeUpstreamResponseHeaderTimeout(target.UpstreamResponseHeaderTimeout)
+	return routeTargetTransportSignature{
+		Transport:                   target.Transport,
+		TargetOrigin:                routeTargetTransportOrigin(target),
+		TLSSkipVerify:               target.TLSSkipVerify,
+		ResponseHeaderTimeoutMillis: int64(timeout / time.Millisecond),
 	}
 }
 
