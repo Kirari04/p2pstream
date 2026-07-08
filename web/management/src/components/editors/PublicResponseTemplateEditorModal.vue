@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, inject, reactive, ref } from "vue";
+import { computed, defineAsyncComponent, inject, reactive, ref } from "vue";
 import { NButton, NInput, NModal, NSelect } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
-import HtmlTemplateEditor from "@/components/editors/HtmlTemplateEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { modalCardStyle } from "@/lib/naiveUi";
 import {
@@ -14,6 +13,7 @@ import {
 
 const managementClient = useManagementClient();
 
+const HtmlTemplateEditor = defineAsyncComponent(() => import("@/components/editors/HtmlTemplateEditor.vue"));
 
 const emit = defineEmits<{
   (event: "saved"): void;

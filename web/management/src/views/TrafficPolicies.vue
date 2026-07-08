@@ -3,11 +3,14 @@ import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
+import { Search as SearchIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NInputNumber, NTabPane, NTabs, NTag } from "naive-ui";
+import { NButton, NCheckbox, NInput, NInputNumber, NModal, NSelect, NTabPane, NTabs, NTag } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
+import TrafficPolicyExecutionOrderStrip from "@/components/traffic-policy/TrafficPolicyExecutionOrderStrip.vue";
+import TrafficPolicyRequestPlayground from "@/components/traffic-policy/TrafficPolicyRequestPlayground.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -25,6 +28,7 @@ import {
   rateLimitAlgorithmLabel,
   rateLimitKeySummary,
   rateLimitRuleSummary,
+  routeTargetName,
   trafficShaperBudgetSummary,
   trafficShaperKeySummary,
   trafficShaperRuleSummary,
@@ -34,8 +38,30 @@ import {
   wafProviderLabel,
   wafRuleSummary,
 } from "@/lib/publicProxyLabels";
-import { naiveTagType } from "@/lib/naiveUi";
-import type { PublicWafCaptchaProvider } from "@/gen/proto/p2pstream/v1/management_pb";
+import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import {
+  buildTrafficPolicyPlaygroundStages,
+  defaultTrafficPolicyPreviewForm,
+  runtimeOrderedCacheRules,
+  runtimeOrderedRateLimitRules,
+  runtimeOrderedTrafficShaperRules,
+  runtimeOrderedWafRules,
+  trafficPolicyPreviewFormToRequest,
+  trafficPolicyAttentionWarnings,
+  type TrafficPolicyAttentionWarning,
+  type TrafficPolicyKind,
+  type TrafficPolicyPlaygroundStage,
+  type TrafficPolicyPreviewForm,
+} from "@/lib/trafficPolicyWorkbench";
+import type {
+  PublicCacheRule,
+  PublicRateLimitRule,
+  PublicRoute,
+  PublicRouteTarget,
+  PublicTrafficShaperRule,
+  PublicWafCaptchaProvider,
+  PublicWafRule,
+} from "@/gen/proto/p2pstream/v1/management_pb";
 
 const policySectionKeys = ["rate-limits", "waf", "cache", "traffic-shaper"] as const;
 type PolicySectionKey = typeof policySectionKeys[number];
@@ -46,6 +72,7 @@ type PolicySectionSummary = {
   detail: string;
   description: string;
 };
+type PolicyFilterStatus = "all" | "enabled" | "disabled";
 
 const managementClient = useManagementClient();
 const route = useRoute();
@@ -59,18 +86,71 @@ const {
 } = useManagementContext();
 
 const config = computed(() => publicProxyConfig.value ?? null);
-const rateLimitRules = computed(() => config.value?.rateLimitRules ?? []);
-const cacheRules = computed(() => config.value?.cacheRules ?? []);
+const rateLimitRules = computed(() => runtimeOrderedRateLimitRules(config.value?.rateLimitRules ?? []));
+const cacheRules = computed(() => runtimeOrderedCacheRules(config.value?.cacheRules ?? []));
 const cacheSettings = computed(() => config.value?.cacheSettings ?? null);
-const wafRules = computed(() => config.value?.wafRules ?? []);
+const wafRules = computed(() => runtimeOrderedWafRules(config.value?.wafRules ?? []));
 const wafCaptchaProviders = computed(() => config.value?.wafCaptchaProviders ?? []);
-const trafficShaperRules = computed(() => config.value?.trafficShaperRules ?? []);
+const trafficShaperRules = computed(() => runtimeOrderedTrafficShaperRules(config.value?.trafficShaperRules ?? []));
 const enabledRateLimitRules = computed(() => rateLimitRules.value.filter((rule) => rule.enabled).length);
 const enabledWafRules = computed(() => wafRules.value.filter((rule) => rule.enabled).length);
 const enabledCacheRules = computed(() => cacheRules.value.filter((rule) => rule.enabled).length);
 const enabledTrafficShapers = computed(() => trafficShaperRules.value.filter((rule) => rule.enabled).length);
+const policyFilter = reactive({
+  text: "",
+  status: "all" as PolicyFilterStatus,
+});
+const policyFilterStatusOptions = [
+  { label: "All", value: "all" },
+  { label: "Enabled", value: "enabled" },
+  { label: "Disabled", value: "disabled" },
+];
+const previewForm = reactive<TrafficPolicyPreviewForm>(defaultTrafficPolicyPreviewForm());
+const previewRequest = computed(() => trafficPolicyPreviewFormToRequest(previewForm));
+const policyAttention = computed(() => trafficPolicyAttentionWarnings({
+  rateLimitRules: rateLimitRules.value,
+  trafficShaperRules: trafficShaperRules.value,
+  wafRules: wafRules.value,
+  wafCaptchaProviders: wafCaptchaProviders.value,
+  cacheSettings: cacheSettings.value ?? undefined,
+  cacheRules: cacheRules.value,
+}));
+const globalPolicyAttention = computed(() => policyAttention.value.filter((item) => item.ruleId === undefined && !item.ruleIds?.length));
+const executionStages = computed(() => [
+  { key: "precheck", label: "Path Checks", description: "reserved endpoints + route security", icon: "listener" as const },
+  { key: "waf", label: "WAF", description: "first matching enforceable rule", icon: "waf" as const, tags: countTags(enabledWafRules.value) },
+  { key: "rate-limit", label: "Rate Limits", description: "all matching request budgets", icon: "rate-limit" as const, tags: countTags(enabledRateLimitRules.value) },
+  { key: "traffic-shaper", label: "Traffic Shaper", description: "first matching bandwidth budget", icon: "traffic-shaper" as const, tags: countTags(enabledTrafficShapers.value) },
+  { key: "route", label: "Route / Target", description: "selected before cache", icon: "route" as const },
+  { key: "cache", label: "Cache", description: "first matching cacheable request", icon: "cache" as const, tags: countTags(enabledCacheRules.value) },
+  { key: "response", label: "Response", description: "upstream, cached, or terminal", icon: "response" as const },
+]);
+const playgroundStages = computed<TrafficPolicyPlaygroundStage[]>(() => buildTrafficPolicyPlaygroundStages({
+  rateLimitRules: rateLimitRules.value,
+  trafficShaperRules: trafficShaperRules.value,
+  wafRules: wafRules.value,
+  wafCaptchaProviders: wafCaptchaProviders.value,
+  cacheSettings: cacheSettings.value ?? undefined,
+  cacheRules: cacheRules.value,
+}, previewRequest.value));
+const filteredRateLimitRules = computed(() => filterPolicyRules(rateLimitRules.value, "rate-limit", rateLimitSearchText));
+const filteredWafRules = computed(() => filterPolicyRules(wafRules.value, "waf", wafSearchText));
+const filteredCacheRules = computed(() => filterPolicyRules(cacheRules.value, "cache", cacheSearchText));
+const filteredTrafficShaperRules = computed(() => filterPolicyRules(trafficShaperRules.value, "traffic-shaper", trafficShaperSearchText));
+const isPolicyFilterActive = computed(() => Boolean(policyFilter.text.trim()) || policyFilter.status !== "all");
+const previewRouteOptions = computed(() => (config.value?.routes ?? []).map((routeItem) => ({
+  label: routeOptionLabel(routeItem),
+  value: routeItem.id.toString(),
+})));
+const previewTargetOptions = computed(() => (config.value?.routeTargets ?? [])
+  .filter((target) => !previewForm.routeId || target.routeId.toString() === previewForm.routeId)
+  .map((target) => ({
+    label: targetOptionLabel(target),
+    value: target.id.toString(),
+  })));
 
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
+const isPreviewOpen = ref(false);
 const { confirm } = useConfirmDialog();
 
 const cacheSettingsForm = reactive({
@@ -137,6 +217,19 @@ watch(cacheSettings, (settings) => {
   cacheSettingsForm.cleanupIntervalSeconds = Math.max(1, Math.round(Number(settings?.cleanupIntervalMillis ?? 60000n) / 1000));
 }, { immediate: true });
 
+watch(() => previewForm.routeId, () => {
+  if (!previewForm.targetId) return;
+  if (!previewTargetBelongsToRoute(previewForm.targetId, previewForm.routeId)) {
+    previewForm.targetId = "";
+  }
+});
+
+watch(() => previewForm.targetId, (targetId) => {
+  if (!targetId || previewForm.routeId) return;
+  const target = findPreviewTarget(targetId);
+  if (target) previewForm.routeId = target.routeId.toString();
+});
+
 async function run(action: () => Promise<void>) {
   if (!runManagementAction) return;
   await runManagementAction(action);
@@ -151,6 +244,146 @@ async function selectPolicySection(value: string | number) {
   const section = normalizePolicySection(value);
   if (section === activePolicySection.value) return;
   await router.push(`/policies/${section}`);
+}
+
+function updateTrafficPolicyPreview(value: TrafficPolicyPreviewForm) {
+  Object.assign(previewForm, value);
+}
+
+function resetTrafficPolicyPreview() {
+  Object.assign(previewForm, defaultTrafficPolicyPreviewForm());
+}
+
+function countTags(count: number) {
+  return count ? [{ label: count.toString(), tone: "info" as const }] : [];
+}
+
+function filterPolicyRules<T extends { enabled: boolean; id: bigint }>(
+  rules: readonly T[],
+  kind: TrafficPolicyKind,
+  searchText: (rule: T) => string,
+): T[] {
+  const needle = policyFilter.text.trim().toLowerCase();
+  return rules.filter((rule) => {
+    if (policyFilter.status === "enabled" && !rule.enabled) return false;
+    if (policyFilter.status === "disabled" && rule.enabled) return false;
+    if (!needle) return true;
+    return searchText(rule).toLowerCase().includes(needle) ||
+      policyWarningsForRule(kind, rule.id).some((warning) => warningLabel(warning).toLowerCase().includes(needle));
+  });
+}
+
+function policyWarningsForRule(kind: TrafficPolicyKind, id: bigint): TrafficPolicyAttentionWarning[] {
+  return policyAttention.value.filter((warning) => warning.policyKind === kind && (
+    warning.ruleId === id || warning.ruleIds?.some((ruleId) => ruleId === id)
+  ));
+}
+
+function visiblePolicyWarningsForRule(kind: TrafficPolicyKind, id: bigint): TrafficPolicyAttentionWarning[] {
+  return policyWarningsForRule(kind, id).filter((warning) => (
+    warning.code !== "disabled-rule" &&
+    warning.code !== "cache-allows-cookie-requests"
+  ));
+}
+
+function warningLabel(warning: TrafficPolicyAttentionWarning): string {
+  switch (warning.code) {
+    case "duplicate-priority": return "Priority tie";
+    case "disabled-rule": return "Disabled";
+    case "any-request-rule": return "Any request";
+    case "captcha-provider-missing": return "Provider missing";
+    case "captcha-provider-disabled": return "Provider disabled";
+    case "captcha-provider-secret-missing": return "Provider secret missing";
+    case "cache-settings-disabled": return "Cache disabled";
+    case "cache-allows-cookie-requests": return "Legacy Cookie flag";
+    default: return warning.message;
+  }
+}
+
+function warningSeverity(warning: TrafficPolicyAttentionWarning): string {
+  switch (warning.code) {
+    case "captcha-provider-missing":
+    case "captcha-provider-disabled":
+    case "captcha-provider-secret-missing":
+      return "danger";
+    case "duplicate-priority":
+    case "any-request-rule":
+    case "cache-settings-disabled":
+    case "cache-allows-cookie-requests":
+      return "warning";
+    default:
+      return "info";
+  }
+}
+
+function rateLimitSearchText(rule: PublicRateLimitRule): string {
+  return [
+    rule.name,
+    rule.priority.toString(),
+    rule.enabled ? "enabled" : "disabled",
+    rateLimitAlgorithmLabel(rule.algorithm),
+    rateLimitRuleSummary(rule),
+    rateLimitKeySummary(rule),
+    publicPolicyMatchSummary(rule),
+    rule.responseStatusCode.toString(),
+  ].join(" ");
+}
+
+function wafSearchText(rule: PublicWafRule): string {
+  return [
+    rule.name,
+    rule.priority.toString(),
+    rule.enabled ? "enabled" : "disabled",
+    wafActionLabel(rule.action),
+    wafActivationLabel(rule.activationMode),
+    wafRuleSummary(rule, wafCaptchaProviders.value),
+    rateLimitKeySummary(rule),
+    publicPolicyMatchSummary(rule),
+  ].join(" ");
+}
+
+function cacheSearchText(rule: PublicCacheRule): string {
+  return [
+    rule.name,
+    rule.priority.toString(),
+    rule.enabled ? "enabled" : "disabled",
+    cacheTtlModeLabel(rule.ttlMode),
+    cacheScopeLabel(rule.scope),
+    cacheRuleSummary(rule),
+    cacheQueryModeLabel(rule.queryMode),
+    cacheRuleMatchSummary(rule),
+  ].join(" ");
+}
+
+function trafficShaperSearchText(rule: PublicTrafficShaperRule): string {
+  return [
+    rule.name,
+    rule.priority.toString(),
+    rule.enabled ? "enabled" : "disabled",
+    trafficShaperScopeLabel(rule.budgetScope),
+    trafficShaperRuleSummary(rule),
+    trafficShaperBudgetSummary(rule),
+    trafficShaperKeySummary(rule),
+    publicPolicyMatchSummary(rule),
+  ].join(" ");
+}
+
+function routeOptionLabel(routeItem: PublicRoute): string {
+  return `${routeItem.hostPattern || "*"}${routeItem.pathPrefix || "/"} / P${routeItem.priority.toString()}`;
+}
+
+function targetOptionLabel(target: PublicRouteTarget): string {
+  return `${routeTargetName(target)} / route ${target.routeId.toString()}`;
+}
+
+function findPreviewTarget(targetId: string): PublicRouteTarget | undefined {
+  return (config.value?.routeTargets ?? []).find((target) => target.id.toString() === targetId);
+}
+
+function previewTargetBelongsToRoute(targetId: string, routeId: string): boolean {
+  if (!routeId) return true;
+  const target = findPreviewTarget(targetId);
+  return Boolean(target && target.routeId.toString() === routeId);
 }
 
 function openAddRateLimitRuleModal() {
@@ -257,6 +490,12 @@ async function deleteTrafficShaperRule(id: bigint) {
         <h3 class="margin-bottom-sm copy-xl weight-bold">Traffic Policy</h3>
         <p class="copy-sm muted-text">{{ activePolicyMeta.description }}</p>
       </div>
+      <div class="page-toolbar__actions">
+        <NButton secondary size="small" @click="isPreviewOpen = true">
+          <template #icon><SearchIcon class="icon-sm" /></template>
+          Request Tester
+        </NButton>
+      </div>
     </div>
 
     <section class="summary-grid summary-grid--four policy-summary-grid" aria-label="Policy type summary">
@@ -270,6 +509,24 @@ async function deleteTrafficShaperRule(id: bigint) {
         <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ section.value }}</p>
         <p class="margin-top-xs copy-xs muted-text">{{ section.detail }}</p>
       </div>
+    </section>
+
+    <TrafficPolicyExecutionOrderStrip
+      :stages="executionStages"
+      description="Rules are shown in runtime order. Lower priorities run first, ties fall back to rule ID."
+    />
+
+    <section class="surface-card policy-filter-bar" aria-label="Traffic policy filters">
+      <label class="policy-filter-search">
+        <span class="copy-xs weight-semibold label-case letter-wide muted-text">Filter</span>
+        <NInput v-model:value="policyFilter.text" size="small" clearable placeholder="Rule name, match, priority, warning">
+          <template #prefix><SearchIcon class="icon-sm" /></template>
+        </NInput>
+      </label>
+      <label class="policy-filter-status">
+        <span class="copy-xs weight-semibold label-case letter-wide muted-text">State</span>
+        <NSelect v-model:value="policyFilter.status" size="small" :options="policyFilterStatusOptions" />
+      </label>
     </section>
 
     <NTabs class="policy-tabs" type="line" animated :value="activePolicySection" @update:value="selectPolicySection">
@@ -286,13 +543,22 @@ async function deleteTrafficShaperRule(id: bigint) {
         </NButton>
       </div>
       <div class="divided-list">
-        <div v-for="rule in rateLimitRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+        <div v-for="rule in filteredRateLimitRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
           <div class="min-width-zero">
             <div class="layout-row min-width-zero wrap-items align-center space-sm">
               <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ rateLimitAlgorithmLabel(rule.algorithm) }}</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
+              <NTag
+                v-for="warning in visiblePolicyWarningsForRule('rate-limit', rule.id)"
+                :key="warning.code"
+                size="small"
+                :bordered="false"
+                :type="naiveTagType(warningSeverity(warning))"
+              >
+                {{ warningLabel(warning) }}
+              </NTag>
             </div>
             <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ rateLimitRuleSummary(rule) }} / key {{ rateLimitKeySummary(rule) }}</p>
             <p class="margin-top-xs clip-text copy-xs muted-text">{{ publicPolicyMatchSummary(rule) }} / response {{ rule.responseStatusCode.toString() }}</p>
@@ -306,6 +572,11 @@ async function deleteTrafficShaperRule(id: bigint) {
             </NButton>
           </div>
         </div>
+        <EmptyState
+          v-if="rateLimitRules.length && !filteredRateLimitRules.length && isPolicyFilterActive"
+          title="No matching rate-limit rules"
+          description="Adjust the filter text or state selector."
+        />
         <EmptyState
           v-if="!rateLimitRules.length"
           title="No rate-limit rules configured"
@@ -355,7 +626,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             </NButton>
           </div>
         </div>
-        <div v-for="rule in wafRules" :key="`rule-${rule.id.toString()}`" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+        <div v-for="rule in filteredWafRules" :key="`rule-${rule.id.toString()}`" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
           <div class="min-width-zero">
             <div class="layout-row min-width-zero wrap-items align-center space-sm">
               <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
@@ -363,6 +634,15 @@ async function deleteTrafficShaperRule(id: bigint) {
               <NTag size="small" :bordered="false" type="info">{{ wafActivationLabel(rule.activationMode) }}</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
+              <NTag
+                v-for="warning in visiblePolicyWarningsForRule('waf', rule.id)"
+                :key="warning.code"
+                size="small"
+                :bordered="false"
+                :type="naiveTagType(warningSeverity(warning))"
+              >
+                {{ warningLabel(warning) }}
+              </NTag>
             </div>
             <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ wafRuleSummary(rule, wafCaptchaProviders) }} / key {{ rateLimitKeySummary(rule) }}</p>
             <p class="margin-top-xs clip-text copy-xs muted-text">{{ publicPolicyMatchSummary(rule) }}</p>
@@ -376,6 +656,11 @@ async function deleteTrafficShaperRule(id: bigint) {
             </NButton>
           </div>
         </div>
+        <EmptyState
+          v-if="wafRules.length && !filteredWafRules.length && isPolicyFilterActive"
+          title="No matching WAF rules"
+          description="Adjust the filter text or state selector."
+        />
         <EmptyState
           v-if="!wafRules.length && !wafCaptchaProviders.length"
           title="No WAF policy configured"
@@ -444,15 +729,24 @@ async function deleteTrafficShaperRule(id: bigint) {
         </div>
       </div>
       <div class="divided-list">
-        <div v-for="rule in cacheRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+        <div v-for="rule in filteredCacheRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
           <div class="min-width-zero">
             <div class="layout-row min-width-zero wrap-items align-center space-sm">
               <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ cacheTtlModeLabel(rule.ttlMode) }}</NTag>
               <NTag size="small" :bordered="false" type="info">{{ cacheScopeLabel(rule.scope) }}</NTag>
-              <NTag size="small" :bordered="false" :type="naiveTagType(rule.allowCookieRequests ? 'warn' : 'info')">{{ rule.allowCookieRequests ? 'Cookies allowed' : 'Cookies blocked' }}</NTag>
+              <NTag v-if="rule.allowCookieRequests" size="small" :bordered="false" type="warning">Legacy cookie flag</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
+              <NTag
+                v-for="warning in visiblePolicyWarningsForRule('cache', rule.id)"
+                :key="warning.code"
+                size="small"
+                :bordered="false"
+                :type="naiveTagType(warningSeverity(warning))"
+              >
+                {{ warningLabel(warning) }}
+              </NTag>
             </div>
             <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ cacheRuleSummary(rule) }} / {{ cacheQueryModeLabel(rule.queryMode) }}</p>
             <p class="margin-top-xs clip-text copy-xs muted-text">{{ cacheRuleMatchSummary(rule) }}</p>
@@ -467,9 +761,14 @@ async function deleteTrafficShaperRule(id: bigint) {
           </div>
         </div>
         <EmptyState
+          v-if="cacheRules.length && !filteredCacheRules.length && isPolicyFilterActive"
+          title="No matching cache rules"
+          description="Adjust the filter text or state selector."
+        />
+        <EmptyState
           v-if="!cacheRules.length"
           title="No cache rules configured"
-          description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Authorization requests are always bypassed; cookie requests require an explicit rule opt-in."
+          description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Authorization and Cookie requests always bypass shared cache."
           action-label="Add Rule"
           @action="openAddCacheRuleModal"
         />
@@ -490,13 +789,22 @@ async function deleteTrafficShaperRule(id: bigint) {
         </NButton>
       </div>
       <div class="divided-list">
-        <div v-for="rule in trafficShaperRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
+        <div v-for="rule in filteredTrafficShaperRules" :key="rule.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto">
           <div class="min-width-zero">
             <div class="layout-row min-width-zero wrap-items align-center space-sm">
               <p class="clip-text copy-sm weight-medium base-text">{{ rule.name }}</p>
               <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
               <NTag v-if="!rule.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
               <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
+              <NTag
+                v-for="warning in visiblePolicyWarningsForRule('traffic-shaper', rule.id)"
+                :key="warning.code"
+                size="small"
+                :bordered="false"
+                :type="naiveTagType(warningSeverity(warning))"
+              >
+                {{ warningLabel(warning) }}
+              </NTag>
             </div>
             <p class="margin-top-xs clip-text mono-text copy-xs muted-text">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</p>
             <p class="margin-top-xs clip-text copy-xs muted-text">{{ publicPolicyMatchSummary(rule) }} / key {{ trafficShaperKeySummary(rule) }}</p>
@@ -511,6 +819,11 @@ async function deleteTrafficShaperRule(id: bigint) {
           </div>
         </div>
         <EmptyState
+          v-if="trafficShaperRules.length && !filteredTrafficShaperRules.length && isPolicyFilterActive"
+          title="No matching traffic-shaper rules"
+          description="Adjust the filter text or state selector."
+        />
+        <EmptyState
           v-if="!trafficShaperRules.length"
           title="No traffic-shaper rules configured"
           description="Traffic shapers limit bandwidth consumption per request or client to prevent saturation."
@@ -523,6 +836,27 @@ async function deleteTrafficShaperRule(id: bigint) {
     </NTabs>
 
     <PublicProxyEditorHost ref="editorHost" :config="config" />
+
+    <NModal
+      v-model:show="isPreviewOpen"
+      preset="card"
+      title="Request Tester"
+      :style="modalCardStyle('76rem')"
+      :bordered="false"
+      size="huge"
+    >
+      <div class="policy-preview-modal-body">
+        <TrafficPolicyRequestPlayground
+          :model-value="previewForm"
+          :stages="playgroundStages"
+          :route-options="previewRouteOptions"
+          :target-options="previewTargetOptions"
+          :global-attention="globalPolicyAttention"
+          @update:model-value="updateTrafficPolicyPreview"
+          @reset="resetTrafficPolicyPreview"
+        />
+      </div>
+    </NModal>
   </div>
 </template>
 
@@ -558,6 +892,25 @@ async function deleteTrafficShaperRule(id: bigint) {
   padding-top: 0.25rem;
 }
 
+.policy-filter-bar {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+}
+
+.policy-filter-search,
+.policy-filter-status {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.policy-preview-modal-body {
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
 @media (min-width: 900px) {
   .policy-summary-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -566,6 +919,11 @@ async function deleteTrafficShaperRule(id: bigint) {
   .policy-summary-card {
     min-height: 0;
     padding: 1rem;
+  }
+
+  .policy-filter-bar {
+    grid-template-columns: minmax(0, 1fr) 12rem;
+    align-items: end;
   }
 }
 </style>

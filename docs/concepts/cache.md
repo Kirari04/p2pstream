@@ -26,7 +26,7 @@ Requests are never cached when they include:
 - WebSocket or other upgrade headers,
 - methods other than `GET` or `HEAD`.
 
-Requests with `Cookie` bypass cache by default. A cache rule can explicitly enable `allow_cookie_requests` for precise public asset matches, such as hashed JavaScript, CSS, images, or fonts. Cookie values are ignored for the cache key and are never stored.
+Requests with `Cookie` always bypass shared cache. The legacy `allow_cookie_requests` field may still appear in older configuration, but it is preserved only for compatibility and has no runtime effect.
 
 Responses are never cached when they include `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, a disallowed status code, or a body larger than the rule maximum object size.
 

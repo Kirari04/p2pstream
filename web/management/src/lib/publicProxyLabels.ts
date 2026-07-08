@@ -441,7 +441,7 @@ export function cacheRuleSummary(rule: PublicCacheRule): string {
   const ttl = durationMillisLabel(rule.ttlMillis);
   const statuses = rule.cacheStatusCodes.length ? rule.cacheStatusCodes.join(",") : "200,203,204,301,308";
   const maxMb = Math.max(1, Math.round(Number(rule.maxObjectBytes || 0n) / 1024 / 1024));
-  const cookies = rule.allowCookieRequests ? " / cookie requests" : "";
+  const cookies = rule.allowCookieRequests ? " / legacy cookie flag" : "";
   return `${cacheTtlModeLabel(rule.ttlMode)} ${ttl} / status ${statuses} / max ${maxMb.toString()} MiB${cookies}`;
 }
 
