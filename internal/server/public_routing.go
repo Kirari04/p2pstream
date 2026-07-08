@@ -605,7 +605,8 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			}
 		},
-		Transport: transport,
+		Transport:  transport,
+		BufferPool: a.reverseProxyBufferPool(),
 	}
 	proxy.ServeHTTP(w, r)
 }
