@@ -39,6 +39,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Disable or delete unused agents.
    - Use agent mTLS with `MANAGEMENT_TLS_CLIENT_CA_FILE` when token-only auth is not enough.
    - Keep `AGENT_ALLOW_INSECURE_MANAGEMENT` unset except for isolated development.
+   - Set `AGENT_ALLOW_TARGETS` or repeated `--allow-target` flags when an agent should expose only specific destinations. If unset, the agent trusts the management server to request any reachable `host:port`.
 
 4. Harden public TLS and upstreams:
 
@@ -59,6 +60,7 @@ Review:
 - First-admin setup token handling is documented for operators.
 - `MANAGEMENT_PUBLIC_URL` is correct.
 - Unused listeners and agents are disabled or deleted.
+- Agents that need a constrained blast radius have explicit target allowlists.
 - Tracing is disabled after troubleshooting.
 
 ## Troubleshooting

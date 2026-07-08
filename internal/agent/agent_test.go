@@ -62,7 +62,7 @@ func TestTunnelSessionRelaysTCPStream(t *testing.T) {
 	defer cancel()
 	serveDone := make(chan error, 1)
 	go func() {
-		serveDone <- serveTunnelSession(ctx, agentSession)
+		serveDone <- serveTunnelSession(ctx, agentSession, nil)
 	}()
 
 	stream, err := serverSession.Open()
@@ -119,7 +119,7 @@ func TestTunnelSessionReturnsDialFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		_ = serveTunnelSession(ctx, agentSession)
+		_ = serveTunnelSession(ctx, agentSession, nil)
 	}()
 
 	stream, err := serverSession.Open()
@@ -136,6 +136,89 @@ func TestTunnelSessionReturnsDialFailure(t *testing.T) {
 	}
 	if resp.OK || resp.ErrorKind != "dial_failed" {
 		t.Fatalf("open response = %+v, want dial_failed", resp)
+	}
+}
+
+func TestTunnelSessionDestinationAllowlistDeniesWithoutClosingSession(t *testing.T) {
+	resetAgentRequestCounters()
+	t.Cleanup(resetAgentRequestCounters)
+
+	upstream := startEchoListener(t)
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer agentSession.Close()
+	defer serverSession.Close()
+
+	policy, err := newAgentDestinationPolicy([]string{"127.0.0.1"})
+	if err != nil {
+		t.Fatalf("newAgentDestinationPolicy() error = %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		_ = serveTunnelSession(ctx, agentSession, policy)
+	}()
+
+	dialCalled := make(chan struct{}, 1)
+	restoreDial := replaceAgentTunnelDialContext(func(ctx context.Context, network string, address string) (net.Conn, error) {
+		dialCalled <- struct{}{}
+		return nil, context.Canceled
+	})
+	t.Cleanup(restoreDial)
+	denied, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open denied stream: %v", err)
+	}
+	if err := tunnel.WriteOpenRequest(denied, tunnel.NewOpenRequest("req-denied", "tcp", "127.0.0.2:8080")); err != nil {
+		t.Fatalf("write denied open request: %v", err)
+	}
+	resp, err := tunnel.ReadOpenResponse(denied)
+	if err != nil {
+		t.Fatalf("read denied open response: %v", err)
+	}
+	if resp.OK || resp.ErrorKind != "dial_forbidden" {
+		t.Fatalf("denied response = %+v, want dial_forbidden", resp)
+	}
+	select {
+	case <-dialCalled:
+		t.Fatal("dialer was called for forbidden destination")
+	default:
+	}
+	waitForAgentActiveRequests(t, 0)
+	denied.Close()
+	restoreDial()
+
+	allowed, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open allowed stream after denied stream: %v", err)
+	}
+	defer allowed.Close()
+	if err := tunnel.WriteOpenRequest(allowed, tunnel.NewOpenRequest("req-allowed", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatalf("write allowed open request: %v", err)
+	}
+	resp, err = tunnel.ReadOpenResponse(allowed)
+	if err != nil {
+		t.Fatalf("read allowed open response: %v", err)
+	}
+	if !resp.OK {
+		t.Fatalf("allowed response = %+v, want ok", resp)
+	}
+	if _, err := allowed.Write([]byte("ok")); err != nil {
+		t.Fatalf("write allowed stream: %v", err)
+	}
+	buf := make([]byte, 2)
+	if _, err := io.ReadFull(allowed, buf); err != nil {
+		t.Fatalf("read allowed echo: %v", err)
+	}
+	if string(buf) != "ok" {
+		t.Fatalf("allowed stream echo = %q, want ok", buf)
 	}
 }
 
@@ -160,7 +243,7 @@ func TestTunnelSessionOpenRequestReadDeadlineKeepsSessionUsable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		_ = serveTunnelSession(ctx, agentSession)
+		_ = serveTunnelSession(ctx, agentSession, nil)
 	}()
 
 	silent, err := serverSession.Open()
@@ -245,7 +328,7 @@ func TestTunnelSessionDialTimeoutReturnsDialTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		_ = serveTunnelSession(ctx, agentSession)
+		_ = serveTunnelSession(ctx, agentSession, nil)
 	}()
 
 	var dialNetwork string
@@ -323,7 +406,7 @@ func TestTunnelSessionInvalidOpenRequestKeepsSessionUsable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		_ = serveTunnelSession(ctx, agentSession)
+		_ = serveTunnelSession(ctx, agentSession, nil)
 	}()
 
 	unsupported, err := serverSession.Open()
@@ -399,7 +482,7 @@ func TestTunnelSessionReturnsWhenSessionCloses(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- serveTunnelSession(context.Background(), agentSession)
+		done <- serveTunnelSession(context.Background(), agentSession, nil)
 	}()
 	agentSession.Close()
 	select {

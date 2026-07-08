@@ -93,6 +93,9 @@ write_agent_env() {
     if [[ "${AGENT_ALLOW_INSECURE_MANAGEMENT:-}" == "true" ]]; then
       printf 'AGENT_ALLOW_INSECURE_MANAGEMENT="true"\n'
     fi
+    if [[ -n "${AGENT_ALLOW_TARGETS:-}" ]]; then
+      printf 'AGENT_ALLOW_TARGETS=%s\n' "$(systemd_env_value "$AGENT_ALLOW_TARGETS")"
+    fi
     printf 'AGENT_ID=%s\n' "$(systemd_env_value "$AGENT_ID")"
     printf 'AGENT_TOKEN=%s\n' "$(systemd_env_value "$AGENT_TOKEN")"
   } >"$tmp_file"

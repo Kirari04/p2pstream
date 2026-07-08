@@ -212,6 +212,7 @@ test_first_install() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "CA-one")" \
+    AGENT_ALLOW_TARGETS="myapp.internal:443,10.0.5.0/24:8080" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="token-one"
 
@@ -221,6 +222,7 @@ test_first_install() {
   assert_exists "${SYSTEMD_DIR}/p2pstream-agent.service"
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_URL=\"https://mgmt.example.test:8081\""
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_CA_FILE=\"${CONFIG_DIR}/management-ca.pem\""
+  assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS=\"myapp.internal:443,10.0.5.0/24:8080\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ID=\"agent-one\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"token-one\""
   assert_contains "${CONFIG_DIR}/management-ca.pem" "CA-one"

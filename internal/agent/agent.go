@@ -60,11 +60,16 @@ type Options struct {
 	TLSCertFile             string
 	TLSKeyFile              string
 	AllowInsecureManagement bool
+	AllowTargets            []string
 }
 
 // Run is the main entry point to start the agent loop
 func Run(opts Options) error {
 	if err := validateOptions(opts); err != nil {
+		return err
+	}
+	destinationPolicy, err := newAgentDestinationPolicy(opts.AllowTargets)
+	if err != nil {
 		return err
 	}
 	managementClient, err := managementHTTPClient(opts)
@@ -87,7 +92,7 @@ func Run(opts Options) error {
 		log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
 
 		connectedAt := time.Now()
-		err := connectAndServe(tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token)
+		err := connectAndServe(tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token, destinationPolicy)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
@@ -146,6 +151,9 @@ func validateOptions(opts Options) error {
 	}
 	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "" || strings.TrimSpace(opts.ManagementCAPEMBase64) != "") {
 		return fmt.Errorf("agent TLS files require an https management URL")
+	}
+	if _, err := newAgentDestinationPolicy(opts.AllowTargets); err != nil {
+		return err
 	}
 	return nil
 }
@@ -272,7 +280,7 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}, nil
 }
 
-func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string) error {
+func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -326,7 +334,7 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSession(ctx, session); err != nil {
+	if err := serveTunnelSession(ctx, session, destinationPolicy); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
@@ -334,7 +342,7 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 	return nil
 }
 
-func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
+func serveTunnelSession(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy) error {
 	for {
 		stream, err := session.Accept()
 		if err != nil {
@@ -345,11 +353,11 @@ func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
-		go handleTunnelStream(ctx, stream)
+		go handleTunnelStream(ctx, stream, destinationPolicy)
 	}
 }
 
-func handleTunnelStream(ctx context.Context, stream net.Conn) {
+func handleTunnelStream(ctx context.Context, stream net.Conn, destinationPolicy *agentDestinationPolicy) {
 	defer stream.Close()
 
 	setTunnelOpenRequestReadDeadline(stream)
@@ -375,7 +383,7 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 	activeRequests.Add(1)
 	defer activeRequests.Add(-1)
 
-	upstream, err := dialTunnelDestination(ctx, openReq.Network, openReq.Address)
+	upstream, err := dialTunnelDestination(ctx, openReq.Network, openReq.Address, destinationPolicy)
 	if err != nil {
 		kind := tunnelDialErrorKind(err)
 		reqInternalError.Add(1)
@@ -426,13 +434,28 @@ func clearTunnelOpenRequestReadDeadline(conn net.Conn) {
 	_ = conn.SetReadDeadline(time.Time{})
 }
 
-func dialTunnelDestination(ctx context.Context, network string, address string) (net.Conn, error) {
+func dialTunnelDestination(ctx context.Context, network string, address string, destinationPolicy *agentDestinationPolicy) (net.Conn, error) {
+	dialAddress := address
 	if agentTunnelDialTimeout <= 0 {
-		return agentTunnelDialNetwork(ctx, network, address)
+		if destinationPolicy != nil {
+			var err error
+			dialAddress, err = destinationPolicy.dialAddress(ctx, network, address)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return agentTunnelDialNetwork(ctx, network, dialAddress)
 	}
 	dialCtx, cancel := context.WithTimeout(ctx, agentTunnelDialTimeout)
 	defer cancel()
-	return agentTunnelDialNetwork(dialCtx, network, address)
+	if destinationPolicy != nil {
+		var err error
+		dialAddress, err = destinationPolicy.dialAddress(dialCtx, network, address)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return agentTunnelDialNetwork(dialCtx, network, dialAddress)
 }
 
 func dialTunnelNetwork(ctx context.Context, network string, address string) (net.Conn, error) {
@@ -445,6 +468,9 @@ func agentTunnelDialer() net.Dialer {
 }
 
 func tunnelDialErrorKind(err error) string {
+	if errors.Is(err, errAgentDestinationForbidden) {
+		return "dial_forbidden"
+	}
 	if isTimeoutError(err) {
 		return "dial_timeout"
 	}

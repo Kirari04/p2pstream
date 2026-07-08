@@ -41,6 +41,7 @@ p2pstream agent [flags]
 | `--tls-cert-file` | `AGENT_TLS_CERT_FILE` | Client certificate for management mTLS. |
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
+| `--allow-target` | `AGENT_ALLOW_TARGETS` | Opt-in destination allowlist entry. Repeat the flag, or separate env entries with commas/whitespace. |
 
 ## Validation Rules
 
@@ -48,6 +49,8 @@ p2pstream agent [flags]
 - Use only one password source: prompt, `--password-env`, or `--password-file`.
 - `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
+- When no `--allow-target` or `AGENT_ALLOW_TARGETS` entries are set, the agent keeps the legacy behavior and trusts the management server to choose any tunnel destination.
+- Allow target entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges, such as `myapp.internal:443`, `10.0.5.0/24:8080`, or `metrics.internal:9000-9010`. IPv6 entries with ports must use brackets, for example `[2001:db8::/64]:8443`.
 
 ## Runtime Effects
 
@@ -88,7 +91,9 @@ p2pstream agent \
   --management-url https://proxy.example.com:8081 \
   --management-ca-file /etc/p2pstream/management-ca.pem \
   --agent-id agent-abc123 \
-  --agent-token "$AGENT_TOKEN"
+  --agent-token "$AGENT_TOKEN" \
+  --allow-target myapp.internal:443 \
+  --allow-target 10.0.5.0/24:8080
 ```
 
 ## Related Tasks
