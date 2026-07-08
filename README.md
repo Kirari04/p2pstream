@@ -56,8 +56,6 @@ docker compose exec p2pstream p2pstream users reset-password admin
 
 Runtime state is stored in the named Docker volume `p2pstream-data`. It contains the SQLite database plus generated management, public TLS, and ACME material. Keep this volume during upgrades or server moves unless you intentionally want to reset the instance.
 
-For production, enable stored-secret encryption for upstream/API credentials in SQLite. Use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` for Vault Transit KEK/DEK custody, or `SECRETS_ENCRYPTION_KEY_FILE` / `SECRETS_ENCRYPTION_KEY` for direct local-key mode. Keep direct key material or Vault recovery/access procedures outside the Docker volume; encrypted database restores require the matching key or provider.
-
 ## Common Operations
 
 ```bash

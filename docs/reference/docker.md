@@ -48,8 +48,6 @@ ports:
   - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
 ```
 
-The root Compose file also passes `SECRETS_ENCRYPTION_PROVIDER`, direct-key settings, Vault Transit settings, `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, and `SECRETS_ENCRYPTION_REQUIRED` from `.env` into the server container when configured. Set only one of `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, and only one of `SECRETS_ENCRYPTION_VAULT_TOKEN` or `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`.
-
 ## Validation Rules
 
 - Docker only publishes what Compose maps; creating a listener in the UI does not create a new host mapping.
@@ -62,8 +60,6 @@ The root Compose file also passes `SECRETS_ENCRYPTION_PROVIDER`, direct-key sett
 ## Runtime Effects
 
 The runtime image creates a non-root `p2pstream` user and grants the binary `cap_net_bind_service` so it can bind low ports. State is stored in `/data`, including SQLite, generated certificates, ACME material, and default public cache storage.
-
-Encrypted database secret rows depend on the configured direct key material or Vault Transit key and token, not on files stored in `/data`. Preserve direct keys or Vault recovery/access procedures during upgrades, host moves, and disaster recovery.
 
 `MANAGEMENT_UI_DISABLED=true` stops serving the browser UI from the management listener. The ConnectRPC API and agent Yamux tunnel remain available.
 

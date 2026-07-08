@@ -40,14 +40,8 @@ Use this advanced path for a systemd-managed host install, custom networking, or
    ```bash
    sudo env CONFIG_DIR=/var/lib/p2pstream \
      MANAGEMENT_PUBLIC_URL=https://proxy.example.com:8081 \
-     SECRETS_ENCRYPTION_KEY=replace-with-32-byte-base64-key \
-     SECRETS_ENCRYPTION_KEY_ID=primary-2026-06 \
-     SECRETS_ENCRYPTION_REQUIRED=true \
      /usr/local/bin/p2pstream server
    ```
-
-   Use `SECRETS_ENCRYPTION_KEY_FILE=/etc/p2pstream/secrets-encryption.key` instead of `SECRETS_ENCRYPTION_KEY` when your secret manager can mount a `0400` or `0600` key file.
-   For external key custody, use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` with `SECRETS_ENCRYPTION_VAULT_ADDR`, `SECRETS_ENCRYPTION_VAULT_TOKEN_FILE`, and `SECRETS_ENCRYPTION_VAULT_KEY` instead of the direct key variables. The Vault Transit key must be created with `derived=true`, for example `vault write transit/keys/p2pstream type=aes256-gcm96 derived=true`.
 
 4. For production, create a systemd unit instead of running the foreground command.
 
@@ -58,8 +52,6 @@ Use this advanced path for a systemd-managed host install, custom networking, or
 ## Runtime Effects
 
 `p2pstream server` reads `.env` and environment variables, starts management on `MANAGEMENT_PORT` default `8081`, loads public listeners from SQLite, and stores generated files under `CONFIG_DIR` when `DATABASE_URL` is unset.
-
-Set stored-secret encryption in production to protect upstream/API credentials in SQLite. Use direct mode with `SECRETS_ENCRYPTION_KEY_FILE` or `SECRETS_ENCRYPTION_KEY`, or use `SECRETS_ENCRYPTION_PROVIDER=vault-transit` for Vault Transit KEK/DEK envelope encryption. For direct mode, generate the key with `p2pstream secrets generate-key`, store it outside `CONFIG_DIR`, and keep it available for restore and key rotation. Prefer the file option when your secret manager can mount a `0400` or `0600` file. For an existing plaintext deployment, start once with `SECRETS_ENCRYPTION_REQUIRED=false`, confirm startup succeeds or run `p2pstream secrets status`, then switch it to `true`.
 
 The same binary also includes the agent command:
 
@@ -117,7 +109,6 @@ https://proxy.example.com:8081/.well-known/p2pstream/source
 | --- | --- |
 | Cannot bind `80` or `443` | Run with enough privileges, grant capabilities, or use high ports. |
 | Data disappears after restart | Ensure `CONFIG_DIR` points to persistent storage. |
-| Server fails to initialize secret storage | Restore the matching direct key via `SECRETS_ENCRYPTION_KEY` or `SECRETS_ENCRYPTION_KEY_FILE`, configure the old key in `SECRETS_ENCRYPTION_PREVIOUS_KEYS`, or restore Vault Transit availability and token permissions. |
 | Browser warns about management TLS | Trust the generated CA or provide trusted management TLS. |
 | Agents cannot verify management | Pass the generated management CA to the agent. |
 

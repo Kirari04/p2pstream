@@ -22,7 +22,6 @@ import (
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/db"
-	secretspkg "p2pstream/internal/secrets"
 	"p2pstream/internal/sysmetrics"
 )
 
@@ -61,7 +60,6 @@ const (
 	defaultWafTriggerMinimumActive       = 30 * time.Second
 	defaultWafTriggerQuietPeriod         = 60 * time.Second
 	maxWafResponseBodyBytes              = 64 * 1024
-	publicWAFSettingsSingletonID         = int64(1)
 
 	publicWafCaptchaVerifyPath       = "/.p2pstream/waf/captcha/verify"
 	publicWafWaitingRoomPath         = "/.p2pstream/waf/waiting-room"
@@ -558,11 +556,7 @@ func (a *App) ensurePublicWafSettings(ctx context.Context) (db.PublicWafSetting,
 	if _, err := rand.Read(secret); err != nil {
 		return db.PublicWafSetting{}, connect.NewError(connect.CodeInternal, err)
 	}
-	secretValue, err := a.encryptSecret(secretspkg.PurposePublicWAFCookieSigningSecret, publicWAFSettingsSingletonID, base64.RawURLEncoding.EncodeToString(secret))
-	if err != nil {
-		return db.PublicWafSetting{}, connect.NewError(connect.CodeInternal, err)
-	}
-	row, err = a.DB.UpsertPublicWafSettings(ctx, secretValue)
+	row, err = a.DB.UpsertPublicWafSettings(ctx, base64.RawURLEncoding.EncodeToString(secret))
 	if err != nil {
 		return db.PublicWafSetting{}, connect.NewError(connect.CodeInternal, err)
 	}
@@ -1262,34 +1256,8 @@ func (a *App) CreatePublicWafCaptchaProvider(ctx context.Context, req *connect.R
 	if err != nil {
 		return nil, err
 	}
-	tx, err := a.DB.BeginTx(ctx, nil)
+	row, err := a.DB.CreatePublicWafCaptchaProvider(ctx, params)
 	if err != nil {
-		return nil, publicDBError(err)
-	}
-	defer tx.Rollback()
-	qtx := a.DB.WithTx(tx)
-	secretKey := params.SecretKey
-	params.SecretKey = ""
-	row, err := qtx.CreatePublicWafCaptchaProvider(ctx, params)
-	if err != nil {
-		return nil, publicDBError(err)
-	}
-	encryptedSecretKey, err := a.encryptSecret(secretspkg.PurposePublicWAFCaptchaProviderSecretKey, row.ID, secretKey)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	row, err = qtx.UpdatePublicWafCaptchaProvider(ctx, db.UpdatePublicWafCaptchaProviderParams{
-		ID:           row.ID,
-		Name:         params.Name,
-		ProviderType: params.ProviderType,
-		SiteKey:      params.SiteKey,
-		SecretKey:    encryptedSecretKey,
-		Enabled:      params.Enabled,
-	})
-	if err != nil {
-		return nil, publicDBError(err)
-	}
-	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
@@ -1306,26 +1274,16 @@ func (a *App) UpdatePublicWafCaptchaProvider(ctx context.Context, req *connect.R
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if existing.SecretKey != "" {
-		existing.SecretKey, _, err = a.decryptSecret(secretspkg.PurposePublicWAFCaptchaProviderSecretKey, existing.ID, existing.SecretKey)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-	}
 	params, _, err := validatePublicWafCaptchaProviderInput(req.Msg.Name, req.Msg.ProviderType, req.Msg.SiteKey, req.Msg.SecretKey, req.Msg.Enabled, &existing, req.Msg.SecretKeySet || req.Msg.SecretKey != "")
 	if err != nil {
 		return nil, err
-	}
-	secretKey, err := a.encryptSecret(secretspkg.PurposePublicWAFCaptchaProviderSecretKey, req.Msg.Id, params.SecretKey)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	row, err := a.DB.UpdatePublicWafCaptchaProvider(ctx, db.UpdatePublicWafCaptchaProviderParams{
 		ID:           req.Msg.Id,
 		Name:         params.Name,
 		ProviderType: params.ProviderType,
 		SiteKey:      params.SiteKey,
-		SecretKey:    secretKey,
+		SecretKey:    params.SecretKey,
 		Enabled:      params.Enabled,
 	})
 	if err != nil {
