@@ -40,13 +40,13 @@ func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
 	target := publicRouteTargetConfig{ID: 20, RouteID: 10, Enabled: true, TargetType: publicRouteTargetTypeStatic}
 	route := publicRouteConfig{ID: 10, Enabled: true, HostPattern: "app.example", Targets: []publicRouteTargetConfig{target}}
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
 		},
 		RouteTargets: map[int64]publicRouteTargetConfig{20: target},
-	}
+	})
 
 	resolution, err := app.resolvePublicRoute(1, req)
 	if err != nil {
@@ -365,11 +365,11 @@ func TestPublicProxyPlainSafePathStillWorks(t *testing.T) {
 
 func TestPublicProxyNoRouteUsesStrictEncodedSeparatorPolicy(t *testing.T) {
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners:        map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{1: {}},
 		WafCookieSecret:  []byte("test-secret"),
-	}
+	})
 	handler := app.publicProxyHandler(1)
 
 	safe := httptest.NewRecorder()
@@ -424,7 +424,7 @@ func TestPublicProxyEarlyRoutePathMatchDoesNotAdvanceLoadBalancer(t *testing.T) 
 	wafRule.Match = mustPublicPolicyMatchCEL(t, `path_prefix(path, "/blocked")`)
 	wafRule.Fingerprint = publicWafRuleFingerprint(wafRule)
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	snap := &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
@@ -436,7 +436,8 @@ func TestPublicProxyEarlyRoutePathMatchDoesNotAdvanceLoadBalancer(t *testing.T) 
 		WafRules:        []publicWafRuleConfig{wafRule},
 		WafCookieSecret: []byte("test-secret"),
 	}
-	app.PublicWAF.reconcile(app.publicSnapshot)
+	setPublicSnapshotForTest(t, app, snap)
+	app.PublicWAF.reconcile(snap)
 	handler := app.publicProxyHandler(1)
 
 	blocked := httptest.NewRecorder()
@@ -634,7 +635,7 @@ func newTestPublicPathProxyWithMode(t *testing.T, pathPrefix string, wafRules []
 		Targets:          []publicRouteTargetConfig{target},
 	}
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
@@ -642,7 +643,7 @@ func newTestPublicPathProxyWithMode(t *testing.T, pathPrefix string, wafRules []
 		RouteTargets:    map[int64]publicRouteTargetConfig{target.ID: target},
 		WafRules:        wafRules,
 		WafCookieSecret: []byte("test-secret"),
-	}
+	})
 	return app, app.publicProxyHandler(1), &hits, &lastPath
 }
 
@@ -678,13 +679,13 @@ func newTestForwardedHeaderProxy(t *testing.T, listenerProtocol string, listener
 		Targets:          []publicRouteTargetConfig{target},
 	}
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: listenerProtocol, Port: listenerPort, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
 		},
 		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
-	}
+	})
 	return app.publicProxyHandler(1), captured
 }
 

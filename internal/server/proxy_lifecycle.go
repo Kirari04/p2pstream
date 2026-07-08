@@ -71,7 +71,7 @@ func (a *App) startProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) 
 	}
 
 	a.proxyMu.Lock()
-	a.publicSnapshot = snap
+	a.setPublicSnapshotLocked(snap)
 	a.proxyServiceActive = true
 	a.ensureListenerStatesLocked(snap)
 	a.proxyState = p2pstreamv1.ProxyState_PROXY_STATE_STARTING

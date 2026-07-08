@@ -362,9 +362,7 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 	for i := int64(1); i <= 5; i++ {
 		snap.Agents[i] = publicAgentConfig{ID: i, PublicID: "agent-" + strconv.FormatInt(i, 10), Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.TargetHealth.reconcile(app, snap, false)
 	for i := int64(1); i <= 4; i++ {
 		agent := testAgentConn(i, "agent-"+strconv.FormatInt(i, 10))
@@ -442,9 +440,7 @@ func TestDefaultBackendRequiresEligibleAgent(t *testing.T) {
 		Listeners:        map[int64]publicListenerConfig{10: {ID: 10, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{10: {route}},
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
 	_, err = app.resolvePublicRoute(10, req)
@@ -860,9 +856,7 @@ func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicR
 		1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 		2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.TargetHealth.reconcile(app, snap, false)
 	for _, agent := range []*AgentConn{testAgentConn(1, "agent-a"), testAgentConn(2, "agent-b")} {
 		if err := app.AgentHub.connect(agent); err != nil {

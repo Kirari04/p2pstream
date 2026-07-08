@@ -261,10 +261,11 @@ func writeWaitingRoomPage(w http.ResponseWriter, r *http.Request, decision publi
 }
 
 func (a *App) servePublicWAFWaitingRoomStatus(w http.ResponseWriter, r *http.Request, listenerID int64) publicWafDecision {
+	return a.servePublicWAFWaitingRoomStatusWithSnapshot(a.currentPublicSnapshot(), w, r, listenerID)
+}
+
+func (a *App) servePublicWAFWaitingRoomStatusWithSnapshot(snap *publicProxySnapshot, w http.ResponseWriter, r *http.Request, listenerID int64) publicWafDecision {
 	ruleID, _ := strconv.ParseInt(r.URL.Query().Get("rule_id"), 10, 64)
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil || a.PublicWAF == nil || ruleID <= 0 {
 		http.NotFound(w, r)
 		return publicWafDecision{Action: publicWafActionWaitingRoom, StatusCode: http.StatusNotFound, ErrorKind: "waf_waiting_room_not_found"}

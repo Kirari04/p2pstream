@@ -343,9 +343,7 @@ func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string,
 		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
 		Agents:       map[int64]publicAgentConfig{agentID: {ID: agentID, PublicID: agent.PublicID, Enabled: true, Labels: map[string]string{agentIDSystemLabelKey: agent.PublicID}}},
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.TargetHealth.reconcile(app, snap, false)
 	return app, target, agent, fake
 }

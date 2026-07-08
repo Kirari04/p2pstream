@@ -356,6 +356,10 @@ func (c *publicProxyCache) removeCacheBodies(rows []db.DeleteExpiredPublicCacheE
 }
 
 func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution) publicCacheDecision {
+	return a.checkPublicCacheWithSnapshot(a.currentPublicSnapshot(), r, resolution)
+}
+
+func (a *App) checkPublicCacheWithSnapshot(snap *publicProxySnapshot, r *http.Request, resolution publicRouteResolution) publicCacheDecision {
 	startedAt := time.Now()
 	if a == nil || a.PublicCache == nil || a.DB == nil {
 		return publicCacheDecision{Status: publicCacheStatusBypass, BypassReason: "cache_unavailable"}
@@ -363,9 +367,6 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 	if resolution.Target.TargetType != publicRouteTargetTypeProxy {
 		return publicCacheDecision{Status: publicCacheStatusBypass, BypassReason: "target_not_proxy"}
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil || !snap.CacheSettings.Enabled || len(snap.CacheRules) == 0 {
 		return publicCacheDecision{Status: publicCacheStatusBypass, BypassReason: "cache_disabled"}
 	}
@@ -490,20 +491,22 @@ func selectPublicCacheRule(rules []publicCacheRuleConfig, listener publicListene
 	if len(rules) == 0 {
 		return publicCacheRuleConfig{}, false
 	}
-	ordered := append([]publicCacheRuleConfig(nil), rules...)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		if ordered[i].Priority == ordered[j].Priority {
-			return ordered[i].ID < ordered[j].ID
-		}
-		return ordered[i].Priority < ordered[j].Priority
-	})
-	for _, rule := range ordered {
+	for _, rule := range rules {
 		if !rule.Enabled || !rule.matches(listener, r, resolution) {
 			continue
 		}
 		return rule, true
 	}
 	return publicCacheRuleConfig{}, false
+}
+
+func sortPublicCacheRules(rules []publicCacheRuleConfig) {
+	sort.SliceStable(rules, func(i, j int) bool {
+		if rules[i].Priority == rules[j].Priority {
+			return rules[i].ID < rules[j].ID
+		}
+		return rules[i].Priority < rules[j].Priority
+	})
 }
 
 func (rule publicCacheRuleConfig) matches(listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) bool {

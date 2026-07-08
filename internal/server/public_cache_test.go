@@ -881,13 +881,11 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		CacheRuleID: rule.ID,
 	}
 	resolution.Route.Targets = []publicRouteTargetConfig{resolution.Target}
-	app.proxyMu.Lock()
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		CacheSettings: defaultPublicCacheSettings(),
 		CacheRules:    []publicCacheRuleConfig{rule},
 		RouteTargets:  map[int64]publicRouteTargetConfig{resolution.Target.ID: resolution.Target},
-	}
-	app.proxyMu.Unlock()
+	})
 	app.PublicCache.reconcile(defaultPublicCacheSettings())
 
 	return app, resolution, func() { database.Close() }

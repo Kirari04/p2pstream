@@ -770,7 +770,15 @@ func redactAgentDialAddress(address string) string {
 }
 
 func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
-	candidates := a.eligibleTargetAgentCandidates(target)
+	snap := a.currentPublicSnapshot()
+	if snap == nil {
+		return nil
+	}
+	return a.selectTargetAgentFromSnapshot(*snap, target)
+}
+
+func (a *App) selectTargetAgentFromSnapshot(snap publicProxySnapshot, target publicRouteTargetConfig) *AgentConn {
+	candidates := a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -781,13 +789,15 @@ func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
 }
 
 func (a *App) eligibleTargetAgentCandidates(target publicRouteTargetConfig) []backendAgentCandidate {
-	if a == nil || a.AgentHub == nil {
+	snap := a.currentPublicSnapshot()
+	if snap == nil {
 		return nil
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
-	if snap == nil {
+	return a.eligibleTargetAgentCandidatesFromSnapshot(*snap, target)
+}
+
+func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap publicProxySnapshot, target publicRouteTargetConfig) []backendAgentCandidate {
+	if a == nil || a.AgentHub == nil {
 		return nil
 	}
 	candidates := make([]backendAgentCandidate, 0, len(snap.Agents))
@@ -887,7 +897,7 @@ func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfi
 	if selected.Target.Transport != publicRouteTargetTransportAgent {
 		return selected.Target, nil, true
 	}
-	agent := a.selectTargetAgent(selected.Target)
+	agent := a.selectTargetAgentFromSnapshot(snap, selected.Target)
 	if agent == nil {
 		return publicRouteTargetConfig{}, nil, false
 	}
@@ -1049,11 +1059,12 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 }
 
 func (a *App) matchPublicRoute(listenerID int64, r *http.Request) (publicRouteMatch, error) {
+	return a.matchPublicRouteInSnapshot(a.currentPublicSnapshot(), listenerID, r)
+}
+
+func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicRouteMatch, error) {
 	host := normalizeRequestHost(r.Host)
 
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil {
 		return publicRouteMatch{}, errors.New("public proxy config is not loaded")
 	}

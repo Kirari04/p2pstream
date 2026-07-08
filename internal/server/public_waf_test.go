@@ -547,9 +547,7 @@ func TestPublicWafReservedWaitingRoomStatusRateLimited(t *testing.T) {
 	app := NewApp(nil, nil)
 	rule := testWafRule(1, publicWafActionWaitingRoom)
 	snap := testWafSnapshot(rule, nil)
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.PublicWAF.reconcile(snap)
 	handler := app.publicProxyHandler(1)
 
@@ -717,9 +715,7 @@ func TestPublicWafWaitingRoomStatusSanitizesUnsafeReturnRedirect(t *testing.T) {
 	app := NewApp(nil, nil)
 	rule := testWafRule(1, publicWafActionWaitingRoom)
 	snap := testWafSnapshot(rule, nil)
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.PublicWAF.reconcile(snap)
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com"+publicWafWaitingRoomStatusPath+"?rule_id=1&return_to=%2F%2Fevil.example%2Fprivate", nil)
@@ -932,9 +928,7 @@ func TestPublicProxyCaptchaPassStillHitsRateLimit(t *testing.T) {
 		WafCookieSecret: []byte("test-secret"),
 		RateLimitRules:  []publicRateLimitRuleConfig{rateLimitRule},
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.PublicWAF.reconcile(snap)
 	app.RateLimiter.reconcile(snap)
 	handler := app.publicProxyHandler(1)
@@ -1450,9 +1444,7 @@ func newTestCaptchaVerifyApp(t *testing.T, provider http.HandlerFunc) (*App, htt
 			Enabled:      true,
 		},
 	})
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.PublicWAF.reconcile(snap)
 	return app, app.publicProxyHandler(1), rule, &calls
 }
