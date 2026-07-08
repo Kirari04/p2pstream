@@ -649,7 +649,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	go func() {
 		select {
 		case <-ctx.Done():
-			_ = session.Close()
 		case <-agent.Done:
 			_ = session.Close()
 		case <-openDone:
@@ -691,7 +690,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		}
 		conn = result.conn
 	case <-ctx.Done():
-		_ = agent.Session.Close()
 		stopOpenWatch()
 		if agent != nil {
 			log.Debug().
