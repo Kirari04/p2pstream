@@ -362,6 +362,12 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Done:        make(chan struct{}),
 		ConnectedAt: time.Now(),
 	}
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, a.Config.TunnelMaxStreamWindowBytes)
+	if err != nil {
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid agent tunnel yamux configuration")
+		http.Error(w, "invalid agent tunnel configuration", http.StatusInternalServerError)
+		return
+	}
 
 	rawConn, rw, err := hijacker.Hijack()
 	if err != nil {
@@ -385,7 +391,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := yamux.Server(rawConn, tunnel.DefaultYamuxConfig(nil))
+	session, err := yamux.Server(rawConn, yamuxConfig)
 	if err != nil {
 		_ = rawConn.Close()
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to initialize agent tunnel session")

@@ -48,15 +48,16 @@ var (
 const agentTunnelResponseHeaderTimeout = 15 * time.Second
 
 type Options struct {
-	ManagementURL           string
-	PublicID                string
-	Name                    string
-	Token                   string
-	ManagementCAFile        string
-	ManagementCAPEMBase64   string
-	TLSCertFile             string
-	TLSKeyFile              string
-	AllowInsecureManagement bool
+	ManagementURL              string
+	PublicID                   string
+	Name                       string
+	Token                      string
+	ManagementCAFile           string
+	ManagementCAPEMBase64      string
+	TLSCertFile                string
+	TLSKeyFile                 string
+	AllowInsecureManagement    bool
+	TunnelMaxStreamWindowBytes int64
 }
 
 // Run is the main entry point to start the agent loop
@@ -84,7 +85,7 @@ func Run(opts Options) error {
 		log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
 
 		connectedAt := time.Now()
-		err := connectAndServe(tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token)
+		err := connectAndServe(tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token, opts.TunnelMaxStreamWindowBytes)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
@@ -143,6 +144,9 @@ func validateOptions(opts Options) error {
 	}
 	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "" || strings.TrimSpace(opts.ManagementCAPEMBase64) != "") {
 		return fmt.Errorf("agent TLS files require an https management URL")
+	}
+	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(opts.TunnelMaxStreamWindowBytes); err != nil {
+		return err
 	}
 	return nil
 }
@@ -269,7 +273,7 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}, nil
 }
 
-func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string) error {
+func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, maxStreamWindowSizeBytes int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -309,7 +313,12 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel response body is %T, want io.ReadWriteCloser", resp.Body)
 	}
-	session, err := yamux.Client(rwc, tunnel.DefaultYamuxConfig(nil))
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, maxStreamWindowSizeBytes)
+	if err != nil {
+		_ = rwc.Close()
+		return fmt.Errorf("invalid tunnel yamux configuration: %w", err)
+	}
+	session, err := yamux.Client(rwc, yamuxConfig)
 	if err != nil {
 		_ = rwc.Close()
 		return fmt.Errorf("failed to initialize tunnel session: %w", err)

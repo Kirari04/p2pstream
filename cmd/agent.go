@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"p2pstream/internal/agent"
+	"p2pstream/internal/tunnel"
 )
 
 var agentCmd = &cobra.Command{
@@ -65,17 +67,23 @@ var agentCmd = &cobra.Command{
 		if !allowInsecureManagement {
 			allowInsecureManagement = envBool("AGENT_ALLOW_INSECURE_MANAGEMENT")
 		}
+		tunnelMaxStreamWindowBytes, err := agentTunnelMaxStreamWindowBytes(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
 
 		if err := agent.Run(agent.Options{
-			ManagementURL:           mgmtURL,
-			PublicID:                agentID,
-			Name:                    agentName,
-			Token:                   agentToken,
-			ManagementCAFile:        managementCAFile,
-			ManagementCAPEMBase64:   managementCAPEMBase64,
-			TLSCertFile:             tlsCertFile,
-			TLSKeyFile:              tlsKeyFile,
-			AllowInsecureManagement: allowInsecureManagement,
+			ManagementURL:              mgmtURL,
+			PublicID:                   agentID,
+			Name:                       agentName,
+			Token:                      agentToken,
+			ManagementCAFile:           managementCAFile,
+			ManagementCAPEMBase64:      managementCAPEMBase64,
+			TLSCertFile:                tlsCertFile,
+			TLSKeyFile:                 tlsKeyFile,
+			AllowInsecureManagement:    allowInsecureManagement,
+			TunnelMaxStreamWindowBytes: tunnelMaxStreamWindowBytes,
 		}); err != nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
@@ -94,6 +102,7 @@ func init() {
 	agentCmd.Flags().String("tls-cert-file", "", "PEM client certificate for management mTLS")
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
+	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
 }
 
 func defaultAgentManagementURL() string {
@@ -159,4 +168,19 @@ func envBool(key string) bool {
 	default:
 		return false
 	}
+}
+
+func agentTunnelMaxStreamWindowBytes(cmd *cobra.Command) (int64, error) {
+	if cmd.Flags().Changed("tunnel-max-stream-window-bytes") {
+		return cmd.Flags().GetInt64("tunnel-max-stream-window-bytes")
+	}
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MAX_STREAM_WINDOW_BYTES"))
+	if raw == "" {
+		return tunnel.DefaultMaxStreamWindowSizeBytes, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid TUNNEL_MAX_STREAM_WINDOW_BYTES %q: %w", raw, err)
+	}
+	return value, nil
 }

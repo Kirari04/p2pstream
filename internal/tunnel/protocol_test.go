@@ -68,10 +68,31 @@ func TestDefaultYamuxConfig(t *testing.T) {
 	if cfg.ConnectionWriteTimeout != 10*time.Second {
 		t.Fatalf("ConnectionWriteTimeout = %s, want 10s", cfg.ConnectionWriteTimeout)
 	}
+	if cfg.MaxStreamWindowSize != uint32(DefaultMaxStreamWindowSizeBytes) {
+		t.Fatalf("MaxStreamWindowSize = %d, want %d", cfg.MaxStreamWindowSize, DefaultMaxStreamWindowSizeBytes)
+	}
 	if cfg.StreamOpenTimeout != 10*time.Second {
 		t.Fatalf("StreamOpenTimeout = %s, want 10s", cfg.StreamOpenTimeout)
 	}
 	if cfg.StreamCloseTimeout != 30*time.Second {
 		t.Fatalf("StreamCloseTimeout = %s, want 30s", cfg.StreamCloseTimeout)
+	}
+}
+
+func TestNewYamuxConfigMaxStreamWindowSizeOverride(t *testing.T) {
+	cfg, err := NewYamuxConfig(nil, 16*1024*1024)
+	if err != nil {
+		t.Fatalf("NewYamuxConfig() error = %v", err)
+	}
+	if cfg.MaxStreamWindowSize != 16*1024*1024 {
+		t.Fatalf("MaxStreamWindowSize = %d, want 16777216", cfg.MaxStreamWindowSize)
+	}
+}
+
+func TestNormalizeMaxStreamWindowSizeBytesRejectsUnsafeBounds(t *testing.T) {
+	for _, value := range []int64{-1, 1, MaxStreamWindowSizeBytesLimit + 1} {
+		if _, err := NormalizeMaxStreamWindowSizeBytes(value); err == nil {
+			t.Fatalf("NormalizeMaxStreamWindowSizeBytes(%d) error = nil, want error", value)
+		}
 	}
 }

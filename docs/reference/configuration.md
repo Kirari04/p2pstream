@@ -37,6 +37,7 @@ Set these on the server process via `.env` or environment. They control manageme
 | `OBSERVABILITY_RETENTION_DAYS`   | `30`                         | Retention window for recorded observability data.                                            |
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Maximum in-memory login throttle keys; active blocks are retained until expiry.              |
+| `TUNNEL_MAX_STREAM_WINDOW_BYTES` | `8388608`                    | Maximum Yamux receive window per tunnel stream. Raise for high-RTT/high-bandwidth agent links. |
 
 If every login throttle slot is occupied by an active block, new failed-login keys are not tracked until a blocked key expires or a login succeeds for an existing key.
 
@@ -55,6 +56,7 @@ Set these on each agent host via `/etc/p2pstream/agent.env` or the generated ins
 | `AGENT_TLS_CERT_FILE`             | Optional client certificate for management mTLS.                     |
 | `AGENT_TLS_KEY_FILE`              | Optional client private key for management mTLS.                     |
 | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy.                              |
+| `TUNNEL_MAX_STREAM_WINDOW_BYTES`  | Maximum Yamux receive window per tunnel stream. Defaults to `8388608`. |
 
 ### Installer Variables
 
@@ -76,6 +78,7 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_TLS_MODE=off` requires `MANAGEMENT_ALLOW_INSECURE_HTTP=true`.
 - `MANAGEMENT_PUBLIC_URL` must be absolute and must use `https`, unless management TLS is off and insecure HTTP is explicitly allowed.
 - `MANAGEMENT_BIND_ADDRESS` defaults to all interfaces so agents and remote clients can connect. Set it to `127.0.0.1` only for local-only management or when a local reverse proxy fronts management.
+- `TUNNEL_MAX_STREAM_WINDOW_BYTES` must be at least `262144` and at most `1073741824`.
 - Bootstrap agent ID, name, and token must all be set together.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.

@@ -243,6 +243,10 @@ func TestManagementHTTPClientValidation(t *testing.T) {
 			name: "unsupported scheme",
 			opts: Options{ManagementURL: "unix:///tmp/socket"},
 		},
+		{
+			name: "small tunnel stream window",
+			opts: Options{ManagementURL: "https://example.test", TunnelMaxStreamWindowBytes: 1},
+		},
 	}
 
 	for _, tt := range tests {
