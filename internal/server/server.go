@@ -352,12 +352,6 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	agentRow = finalAgentRow
 
-	if existing := a.AgentHub.connectedByID(agentRow.ID); existing != nil {
-		log.Warn().Str("agent", agentRow.PublicID).Msg("Rejecting duplicate agent connection")
-		http.Error(w, "agent is already connected", http.StatusConflict)
-		return
-	}
-
 	agent := &AgentConn{
 		AgentID:     agentRow.ID,
 		PublicID:    agentRow.PublicID,
@@ -407,7 +401,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Msg("Failed to insert connection into DB")
 		}
 	}
-	if err := a.AgentHub.connect(agent); err != nil {
+	displaced, err := a.AgentHub.replace(agent)
+	if err != nil {
 		_ = session.Close()
 		if a.DB != nil && agent.ConnectionDBID > 0 {
 			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
@@ -417,16 +412,20 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update rejected agent disconnected timestamp")
 			}
 		}
-		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Rejecting duplicate agent connection")
+		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to register agent tunnel")
 		return
+	}
+	for _, old := range displaced {
+		a.retireDisplacedAgentConnection(old)
 	}
 	unlockAgentAuth()
 
-	cleanupAgent := func() {
-		a.AgentHub.disconnect(agent)
-		if a.TargetHealth != nil {
+	cleanupAgent := func() bool {
+		disconnected := a.AgentHub.disconnect(agent)
+		if disconnected && a.TargetHealth != nil {
 			a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
 		}
+		return disconnected
 	}
 	if a.TargetHealth != nil {
 		a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
@@ -444,7 +443,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			_ = session.Close()
 		case <-session.CloseChan():
 		}
-		cleanupAgent()
+		disconnected := cleanupAgent()
 		log.Info().
 			Str("agent", agent.PublicID).
 			Int64("duration_ms", time.Since(agent.ConnectedAt).Milliseconds()).
@@ -454,11 +453,38 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
 				log.Warn().Err(err).Msg("Failed to update disconnection time")
 			}
-			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
-				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
+			if disconnected {
+				if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
+					log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
+				}
 			}
 		}
 	}()
+}
+
+func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
+	if agent == nil {
+		return
+	}
+	log.Warn().
+		Str("agent", agent.PublicID).
+		Int64("active_requests", agent.ActiveRequests.Load()).
+		Msg("Replacing existing agent tunnel with newer authenticated connection")
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeAgentConnection(agent)
+	}
+	if agent.Done != nil {
+		select {
+		case <-agent.Done:
+		default:
+			close(agent.Done)
+		}
+	}
+	if agent.Session != nil {
+		if err := agent.Session.Close(); err != nil {
+			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to close displaced agent tunnel session")
+		}
+	}
 }
 
 func headerHasToken(header http.Header, name string, want string) bool {

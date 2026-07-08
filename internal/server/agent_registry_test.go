@@ -478,7 +478,7 @@ func TestAgentTunnelRejectsWrongVersion(t *testing.T) {
 	}
 }
 
-func TestAgentTunnelRejectsDuplicateConnection(t *testing.T) {
+func TestAgentTunnelReplacesDuplicateConnection(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
 	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-duplicate", "Duplicate Tunnel", "token")
@@ -494,16 +494,40 @@ func TestAgentTunnelRejectsDuplicateConnection(t *testing.T) {
 	defer firstConn.Close()
 	defer firstSession.Close()
 	waitForAgentHubConnection(t, app, agent.ID, true)
+	firstHubConn := app.AgentHub.connectedByID(agent.ID)
+	if firstHubConn == nil {
+		t.Fatal("first tunnel was not registered in the hub")
+	}
 
-	_, secondConn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "token")
-	if secondConn != nil {
-		secondConn.Close()
+	secondSession, secondConn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "token")
+	if err != nil {
+		t.Fatalf("dial second tunnel: %v", err)
 	}
-	if err == nil {
-		t.Fatal("second tunnel connected, want duplicate rejection")
+	defer secondConn.Close()
+	defer secondSession.Close()
+	waitForAgentHubConnectionReplaced(t, app, agent.ID, firstHubConn)
+	secondHubConn := app.AgentHub.connectedByID(agent.ID)
+	if secondHubConn == nil {
+		t.Fatal("second tunnel was not registered in the hub")
 	}
-	if !strings.Contains(err.Error(), "409") {
-		t.Fatalf("duplicate tunnel error = %v, want status 409", err)
+	if secondHubConn == firstHubConn {
+		t.Fatal("hub still points at first tunnel after replacement")
+	}
+	assertAgentDoneClosed(t, firstHubConn)
+	assertAgentDoneOpen(t, secondHubConn)
+	waitForYamuxSessionClosed(t, firstSession)
+	waitForConnectionDisconnected(t, database, firstHubConn.ConnectionDBID)
+	assertOnlyOpenAgentConnection(t, database, agent.ID, secondHubConn.ConnectionDBID)
+
+	connected, err := database.GetAgent(context.Background(), agent.ID)
+	if err != nil {
+		t.Fatalf("get agent after reconnect: %v", err)
+	}
+	if !connected.LastConnectedAt.Valid {
+		t.Fatal("agent last_connected_at is not set after reconnect")
+	}
+	if connected.LastDisconnectedAt.Valid && connected.LastDisconnectedAt.Time.After(secondHubConn.ConnectedAt) {
+		t.Fatalf("agent was marked disconnected after replacement: disconnected_at=%s second_connected_at=%s", connected.LastDisconnectedAt.Time, secondHubConn.ConnectedAt)
 	}
 }
 
@@ -650,6 +674,19 @@ func waitForAgentHubConnection(t *testing.T, app *App, agentID int64, wantConnec
 	t.Fatalf("agent connected state did not become %v", wantConnected)
 }
 
+func waitForAgentHubConnectionReplaced(t *testing.T, app *App, agentID int64, old *AgentConn) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		connected := app.AgentHub.connectedByID(agentID)
+		if connected != nil && connected != old {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("agent hub connection was not replaced")
+}
+
 func waitForConnectionDisconnected(t *testing.T, database *db.DB, connID int64) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -664,6 +701,38 @@ func waitForConnectionDisconnected(t *testing.T, database *db.DB, connID int64) 
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("connection %d disconnected_at was not set", connID)
+}
+
+func assertOnlyOpenAgentConnection(t *testing.T, database *db.DB, agentID int64, wantConnID int64) {
+	t.Helper()
+	rows, err := database.QueryContext(context.Background(), `SELECT id FROM connections WHERE agent_id = ? AND disconnected_at IS NULL`, agentID)
+	if err != nil {
+		t.Fatalf("list open agent connections: %v", err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			t.Fatalf("scan open connection id: %v", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate open connections: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != wantConnID {
+		t.Fatalf("open connection ids = %+v, want [%d]", ids, wantConnID)
+	}
+}
+
+func waitForYamuxSessionClosed(t *testing.T, session *yamux.Session) {
+	t.Helper()
+	select {
+	case <-session.CloseChan():
+	case <-time.After(2 * time.Second):
+		t.Fatal("yamux session did not close")
+	}
 }
 
 type failingHijackResponseWriter struct {
