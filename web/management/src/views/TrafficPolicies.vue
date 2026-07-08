@@ -40,17 +40,18 @@ import {
 } from "@/lib/publicProxyLabels";
 import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
 import {
-  previewTrafficPolicyStages,
+  buildTrafficPolicyPlaygroundStages,
+  defaultTrafficPolicyPreviewForm,
   runtimeOrderedCacheRules,
   runtimeOrderedRateLimitRules,
   runtimeOrderedTrafficShaperRules,
   runtimeOrderedWafRules,
+  trafficPolicyPreviewFormToRequest,
   trafficPolicyAttentionWarnings,
   type TrafficPolicyAttentionWarning,
   type TrafficPolicyKind,
-  type TrafficPolicyMatchState,
-  type TrafficPolicyStageCandidate,
-  type TrafficPolicySyntheticRequest,
+  type TrafficPolicyPlaygroundStage,
+  type TrafficPolicyPreviewForm,
 } from "@/lib/trafficPolicyWorkbench";
 import type {
   PublicCacheRule,
@@ -72,33 +73,6 @@ type PolicySectionSummary = {
   description: string;
 };
 type PolicyFilterStatus = "all" | "enabled" | "disabled";
-type TrafficPolicyPreviewForm = {
-  method: string;
-  protocol: string;
-  host: string;
-  path: string;
-  remoteIp: string;
-  headersText: string;
-  cookiesText: string;
-  queryText: string;
-  routeId: string;
-  targetId: string;
-};
-type PlaygroundStageItem = {
-  id: bigint;
-  name: string;
-  priority: bigint;
-  state: TrafficPolicyMatchState;
-  reason: string;
-  selected: boolean;
-  skipped: boolean;
-};
-type PlaygroundStage = {
-  key: string;
-  label: string;
-  mode: "first" | "all";
-  items: PlaygroundStageItem[];
-};
 
 const managementClient = useManagementClient();
 const route = useRoute();
@@ -132,26 +106,7 @@ const policyFilterStatusOptions = [
   { label: "Disabled", value: "disabled" },
 ];
 const previewForm = reactive<TrafficPolicyPreviewForm>(defaultTrafficPolicyPreviewForm());
-const previewRequest = computed<TrafficPolicySyntheticRequest>(() => ({
-  method: previewForm.method,
-  protocol: previewForm.protocol,
-  host: previewForm.host,
-  path: previewForm.path,
-  remoteIp: previewForm.remoteIp,
-  headers: parseRepeatedMap(previewForm.headersText, true),
-  cookies: parseCookieMap(previewForm.cookiesText),
-  query: parseRepeatedMap(previewForm.queryText, false),
-  routeId: previewForm.routeId || null,
-  targetId: previewForm.targetId || null,
-}));
-const policyStagePreview = computed(() => previewTrafficPolicyStages({
-  rateLimitRules: rateLimitRules.value,
-  trafficShaperRules: trafficShaperRules.value,
-  wafRules: wafRules.value,
-  wafCaptchaProviders: wafCaptchaProviders.value,
-  cacheSettings: cacheSettings.value ?? undefined,
-  cacheRules: cacheRules.value,
-}, previewRequest.value));
+const previewRequest = computed(() => trafficPolicyPreviewFormToRequest(previewForm));
 const policyAttention = computed(() => trafficPolicyAttentionWarnings({
   rateLimitRules: rateLimitRules.value,
   trafficShaperRules: trafficShaperRules.value,
@@ -170,12 +125,14 @@ const executionStages = computed(() => [
   { key: "cache", label: "Cache", description: "first matching cacheable request", icon: "cache" as const, tags: countTags(enabledCacheRules.value) },
   { key: "response", label: "Response", description: "upstream, cached, or terminal", icon: "response" as const },
 ]);
-const playgroundStages = computed<PlaygroundStage[]>(() => [
-  stageFromFirstCandidate("waf", "WAF", wafRules.value, policyStagePreview.value.waf),
-  stageFromRateLimitCandidates(rateLimitRules.value, policyStagePreview.value.rateLimits),
-  stageFromFirstCandidate("traffic-shaper", "Traffic shaper", trafficShaperRules.value, policyStagePreview.value.trafficShaper),
-  stageFromFirstCandidate("cache", "Cache", cacheRules.value, policyStagePreview.value.cache),
-]);
+const playgroundStages = computed<TrafficPolicyPlaygroundStage[]>(() => buildTrafficPolicyPlaygroundStages({
+  rateLimitRules: rateLimitRules.value,
+  trafficShaperRules: trafficShaperRules.value,
+  wafRules: wafRules.value,
+  wafCaptchaProviders: wafCaptchaProviders.value,
+  cacheSettings: cacheSettings.value ?? undefined,
+  cacheRules: cacheRules.value,
+}, previewRequest.value));
 const filteredRateLimitRules = computed(() => filterPolicyRules(rateLimitRules.value, "rate-limit", rateLimitSearchText));
 const filteredWafRules = computed(() => filterPolicyRules(wafRules.value, "waf", wafSearchText));
 const filteredCacheRules = computed(() => filterPolicyRules(cacheRules.value, "cache", cacheSearchText));
@@ -289,21 +246,6 @@ async function selectPolicySection(value: string | number) {
   await router.push(`/policies/${section}`);
 }
 
-function defaultTrafficPolicyPreviewForm(): TrafficPolicyPreviewForm {
-  return {
-    method: "GET",
-    protocol: "https",
-    host: "app.example.com",
-    path: "/",
-    remoteIp: "198.51.100.10",
-    headersText: "X-Plan: pro",
-    cookiesText: "",
-    queryText: "",
-    routeId: "",
-    targetId: "",
-  };
-}
-
 function updateTrafficPolicyPreview(value: TrafficPolicyPreviewForm) {
   Object.assign(previewForm, value);
 }
@@ -312,98 +254,8 @@ function resetTrafficPolicyPreview() {
   Object.assign(previewForm, defaultTrafficPolicyPreviewForm());
 }
 
-function parseRepeatedMap(text: string, lowerCaseKeys: boolean): Record<string, string[]> {
-  const parsed: Record<string, string[]> = {};
-  for (const line of text.split(/\r?\n/)) {
-    const item = parseKeyValueLine(line);
-    if (!item) continue;
-    const key = lowerCaseKeys ? item.key.toLowerCase() : item.key;
-    const values = parsed[key] ?? [];
-    values.push(item.value);
-    parsed[key] = values;
-  }
-  return parsed;
-}
-
-function parseCookieMap(text: string): Record<string, string> {
-  const parsed: Record<string, string> = {};
-  for (const part of text.split(/\r?\n|;/)) {
-    const item = parseKeyValueLine(part);
-    if (!item) continue;
-    if (parsed[item.key] !== undefined) continue;
-    parsed[item.key] = item.value;
-  }
-  return parsed;
-}
-
-function parseKeyValueLine(line: string): { key: string; value: string } | null {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
-  const colon = trimmed.indexOf(":");
-  const equals = trimmed.indexOf("=");
-  const separator = colon >= 0 && (equals < 0 || colon < equals) ? colon : equals;
-  if (separator < 0) return { key: trimmed, value: "" };
-  const key = trimmed.slice(0, separator).trim();
-  if (!key) return null;
-  return { key, value: trimmed.slice(separator + 1).trim() };
-}
-
 function countTags(count: number) {
   return count ? [{ label: count.toString(), tone: "info" as const }] : [];
-}
-
-function stageFromFirstCandidate<T extends { id: bigint; name: string; priority: bigint; enabled: boolean }>(
-  key: TrafficPolicyKind,
-  label: string,
-  rules: readonly T[],
-  candidate: TrafficPolicyStageCandidate<T> | null,
-): PlaygroundStage {
-  const selectedId = candidate?.rule.id;
-  let passedSelected = false;
-  return {
-    key,
-    label,
-    mode: "first",
-    items: rules.map((rule) => {
-      const selected = selectedId !== undefined && rule.id === selectedId;
-      const skipped = Boolean(rule.enabled && passedSelected && !selected);
-      const selectedResult = selected ? candidate?.result : null;
-      if (selected) passedSelected = true;
-      return {
-        id: rule.id,
-        name: rule.name,
-        priority: rule.priority,
-        state: selectedResult?.state ?? "miss",
-        reason: selectedResult ? (selectedResult.reason || "Selected by preview") : (rule.enabled ? skipped ? "Skipped after earlier candidate" : "No match in preview" : "Rule is disabled"),
-        selected,
-        skipped,
-      };
-    }),
-  };
-}
-
-function stageFromRateLimitCandidates(
-  rules: readonly PublicRateLimitRule[],
-  candidates: readonly TrafficPolicyStageCandidate<PublicRateLimitRule>[],
-): PlaygroundStage {
-  const candidateById = new Map(candidates.map((candidate) => [candidate.rule.id.toString(), candidate]));
-  return {
-    key: "rate-limit",
-    label: "Rate limits",
-    mode: "all",
-    items: rules.map((rule) => {
-      const candidate = candidateById.get(rule.id.toString());
-      return {
-        id: rule.id,
-        name: rule.name,
-        priority: rule.priority,
-        state: candidate?.result.state ?? "miss",
-        reason: candidate?.result.reason || (rule.enabled ? "No match in preview" : "Rule is disabled"),
-        selected: Boolean(candidate),
-        skipped: false,
-      };
-    }),
-  };
 }
 
 function filterPolicyRules<T extends { enabled: boolean; id: bigint }>(

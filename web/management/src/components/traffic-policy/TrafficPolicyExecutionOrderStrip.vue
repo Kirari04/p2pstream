@@ -47,23 +47,15 @@ defineOptions({
 });
 
 const props = withDefaults(defineProps<{
-  modelValue?: string;
   stages?: readonly ExecutionStage[];
   title?: string;
   description?: string;
   ariaLabel?: string;
-  selectable?: boolean;
 }>(), {
   title: "Execution Order",
   description: "",
   ariaLabel: "Traffic policy execution order",
-  selectable: false,
 });
-
-const emit = defineEmits<{
-  (event: "update:modelValue", value: string): void;
-  (event: "select", stage: ExecutionStage): void;
-}>();
 
 const defaultExecutionStages: readonly ExecutionStage[] = [
   {
@@ -117,7 +109,6 @@ const defaultExecutionStages: readonly ExecutionStage[] = [
 ];
 
 const visibleStages = computed(() => props.stages?.length ? props.stages : defaultExecutionStages);
-const selectedKey = computed(() => props.modelValue || visibleStages.value[0]?.key || "");
 
 const iconByName: Record<ExecutionStageIcon, Component> = {
   listener: NetworkIcon,
@@ -130,18 +121,10 @@ const iconByName: Record<ExecutionStageIcon, Component> = {
   response: SendIcon,
 };
 
-function selectStage(stage: ExecutionStage) {
-  if (!props.selectable || stage.disabled) return;
-  emit("update:modelValue", stage.key);
-  emit("select", stage);
-}
-
 function stageClasses(stage: ExecutionStage): Array<string | Record<string, boolean>> {
   return [
     stage.state ? `tp-order-strip__stage--${stage.state}` : "",
     {
-      "tp-order-strip__stage--active": props.selectable && selectedKey.value === stage.key,
-      "tp-order-strip__stage--static": !props.selectable,
       "tp-order-strip__stage--disabled": stage.disabled === true,
     },
   ];
@@ -209,41 +192,7 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
         class="tp-order-strip__item"
         :class="{ 'tp-order-strip__item--last': index === visibleStages.length - 1 }"
       >
-        <button
-          v-if="selectable"
-          class="tp-order-strip__stage"
-          :class="stageClasses(stage)"
-          type="button"
-          :disabled="stage.disabled"
-          :aria-current="selectedKey === stage.key ? 'step' : undefined"
-          @click="selectStage(stage)"
-        >
-          <span class="tp-order-strip__icon" aria-hidden="true">
-            <component :is="iconFor(stage)" class="tp-order-strip__icon-svg" />
-          </span>
-          <span class="tp-order-strip__content">
-            <span class="tp-order-strip__label">{{ stage.label }}</span>
-            <span v-if="stage.description" class="tp-order-strip__stage-description">
-              {{ stage.description }}
-            </span>
-          </span>
-          <span class="tp-order-strip__status">
-            <NTag v-if="stage.state" size="small" :bordered="false" :type="stateTagType(stage.state)">
-              {{ stateLabel(stage.state) }}
-            </NTag>
-            <NTag
-              v-for="tag in stage.tags || []"
-              :key="`${stage.key}-${tag.label}`"
-              size="small"
-              :bordered="false"
-              :type="attentionTagType(tag.tone)"
-              :title="tag.title || tag.label"
-            >
-              {{ tag.label }}
-            </NTag>
-          </span>
-        </button>
-        <div v-else class="tp-order-strip__stage" :class="stageClasses(stage)">
+        <div class="tp-order-strip__stage" :class="stageClasses(stage)">
           <span class="tp-order-strip__icon" aria-hidden="true">
             <component :is="iconFor(stage)" class="tp-order-strip__icon-svg" />
           </span>
@@ -351,39 +300,15 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
   border-left: 3px solid transparent;
   background: var(--app-panel);
   color: var(--app-text);
-  cursor: pointer;
+  cursor: default;
   padding: 0.75rem 0.875rem;
   text-align: left;
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.tp-order-strip__stage:hover,
-.tp-order-strip__stage:focus-visible {
-  background: var(--app-panel-muted);
-}
-
-.tp-order-strip__stage:focus-visible {
-  outline: 2px solid var(--app-accent);
-  outline-offset: -2px;
-}
-
-.tp-order-strip__stage:disabled,
 .tp-order-strip__stage--disabled {
   cursor: not-allowed;
   opacity: 0.58;
-}
-
-.tp-order-strip__stage--static {
-  cursor: default;
-}
-
-.tp-order-strip__stage--static:hover {
-  background: var(--app-panel);
-}
-
-.tp-order-strip__stage--active {
-  background: color-mix(in srgb, var(--app-accent-soft) 60%, var(--app-panel));
-  box-shadow: inset 0 0 0 1px var(--app-accent-soft);
 }
 
 .tp-order-strip__stage--match {
@@ -408,11 +333,6 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
   border-radius: 6px;
   background: var(--app-panel-muted);
   color: var(--app-text-muted);
-}
-
-.tp-order-strip__stage--active .tp-order-strip__icon {
-  border-color: color-mix(in srgb, var(--app-accent) 44%, var(--app-border));
-  color: var(--app-accent);
 }
 
 .tp-order-strip__icon-svg {

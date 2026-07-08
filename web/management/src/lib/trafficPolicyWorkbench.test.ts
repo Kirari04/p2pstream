@@ -26,12 +26,15 @@ import {
   type PublicWafRule,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
+  buildTrafficPolicyPlaygroundStages,
+  defaultTrafficPolicyPreviewForm,
   evaluateTrafficPolicyMatch,
   previewTrafficPolicyStages,
   runtimeOrderedCacheRules,
   runtimeOrderedRateLimitRules,
   runtimeOrderedTrafficShaperRules,
   runtimeOrderedWafRules,
+  trafficPolicyPreviewFormToRequest,
   trafficPolicyAttentionWarnings,
   type TrafficPolicySyntheticRequest,
 } from "@/lib/trafficPolicyWorkbench";
@@ -57,6 +60,18 @@ describe("trafficPolicyWorkbench", () => {
     expect(evaluateTrafficPolicyMatch(rule, syntheticRequest({ remoteIp: "203.0.113.10", cookies: { sid: "abc-123" } })).state).toBe("miss");
   });
 
+  test("treats invalid CIDR inputs as misses", () => {
+    const invalidCidrRule = builderRule([
+      condition({ field: PublicPolicyMatchField.REMOTE_IP, operator: PublicPolicyMatchConditionOperator.CIDR, values: ["not-a-cidr"] }),
+    ]);
+    const invalidIpRule = builderRule([
+      condition({ field: PublicPolicyMatchField.REMOTE_IP, operator: PublicPolicyMatchConditionOperator.CIDR, values: ["198.51.100.0/24"] }),
+    ]);
+
+    expect(evaluateTrafficPolicyMatch(invalidCidrRule, syntheticRequest()).state).toBe("miss");
+    expect(evaluateTrafficPolicyMatch(invalidIpRule, syntheticRequest({ remoteIp: "not-an-ip" })).state).toBe("miss");
+  });
+
   test("returns match for empty rules and unknown for CEL-only or regex rules", () => {
     expect(evaluateTrafficPolicyMatch(undefined, syntheticRequest()).state).toBe("match");
     expect(evaluateTrafficPolicyMatch(create(PublicPolicyMatchRuleSchema), syntheticRequest()).state).toBe("match");
@@ -78,6 +93,27 @@ describe("trafficPolicyWorkbench", () => {
       ]),
     ], PublicPolicyMatchBooleanOperator.ANY);
     expect(evaluateTrafficPolicyMatch(anyWithUnknown, syntheticRequest()).state).toBe("unknown");
+  });
+
+  test("converts preview form text fields into synthetic requests", () => {
+    const form = defaultTrafficPolicyPreviewForm();
+    Object.assign(form, {
+      hasRequestBody: true,
+      headersText: "X-Plan: pro\nX-Plan: enterprise\nEmpty",
+      cookiesText: "sid=first; sid=second\nmode=dark",
+      queryText: "debug=1\nrole=ops",
+      routeId: "10",
+      targetId: "20",
+    });
+
+    const request = trafficPolicyPreviewFormToRequest(form);
+
+    expect(request.hasRequestBody).toBe(true);
+    expect(request.headers).toEqual({ "x-plan": ["pro", "enterprise"], empty: [""] });
+    expect(request.cookies).toEqual({ sid: "first", mode: "dark" });
+    expect(request.query).toEqual({ debug: ["1"], role: ["ops"] });
+    expect(request.routeId).toBe("10");
+    expect(request.targetId).toBe("20");
   });
 
   test("sorts all policy kinds by runtime priority then id", () => {
@@ -141,6 +177,38 @@ describe("trafficPolicyWorkbench", () => {
     expect(preview.cache?.rule.id).toBe(31n);
   });
 
+  test("keeps later first-match rules uncertain after an unknown selected candidate", () => {
+    const stages = buildTrafficPolicyPlaygroundStages({
+      wafRules: [
+        wafRule({ id: 1n, priority: 1n, activationMode: PublicWafActivationMode.AUTOMATIC, matchRule: pathRule("/api") }),
+        wafRule({ id: 2n, priority: 2n, matchRule: pathRule("/api") }),
+      ],
+    }, syntheticRequest());
+    const wafStage = stages.find((stage) => stage.key === "waf");
+
+    expect(wafStage?.items.map((item) => [item.id, item.state, item.selected, item.skipped])).toEqual([
+      [1n, "unknown", true, false],
+      [2n, "unknown", false, false],
+    ]);
+    expect(wafStage?.items[1].reason).toBe("May still apply; earlier preview result is unknown.");
+  });
+
+  test("skips later first-match rules after a confirmed selected candidate", () => {
+    const stages = buildTrafficPolicyPlaygroundStages({
+      trafficShaperRules: [
+        trafficShaperRule({ id: 20n, priority: 1n, matchRule: pathRule("/api") }),
+        trafficShaperRule({ id: 21n, priority: 2n, matchRule: pathRule("/api") }),
+      ],
+    }, syntheticRequest());
+    const trafficShaperStage = stages.find((stage) => stage.key === "traffic-shaper");
+
+    expect(trafficShaperStage?.items.map((item) => [item.id, item.state, item.selected, item.skipped])).toEqual([
+      [20n, "match", true, false],
+      [21n, "miss", false, true],
+    ]);
+    expect(trafficShaperStage?.items[1].reason).toBe("Skipped after earlier confirmed match");
+  });
+
   test("treats automatic WAF activation as unknown after a rule match", () => {
     const preview = previewTrafficPolicyStages({
       wafRules: [
@@ -167,18 +235,33 @@ describe("trafficPolicyWorkbench", () => {
     expect(previewTrafficPolicyStages(config, syntheticRequest({ cookies: { sid: "abc-123" } })).cache).toBeNull();
     expect(previewTrafficPolicyStages(config, syntheticRequest({ headers: { Range: ["bytes=0-10"] }, cookies: {} })).cache).toBeNull();
     expect(previewTrafficPolicyStages(config, syntheticRequest({ headers: { Connection: ["upgrade"] }, cookies: {} })).cache).toBeNull();
+    expect(previewTrafficPolicyStages(config, syntheticRequest({ hasRequestBody: true, cookies: {} })).cache).toBeNull();
   });
 
   test("marks encoded path separator cache behavior unknown", () => {
-    const preview = previewTrafficPolicyStages({
+    const config = {
       cacheSettings: create(PublicCacheSettingsSchema, { enabled: true }),
-      cacheRules: [cacheRule({ id: 30n, priority: 1n, matchRule: builderRule() })],
-    }, syntheticRequest({ path: "/api%2fusers/42.json", cookies: {} }));
+      cacheRules: [
+        cacheRule({ id: 30n, priority: 1n, matchRule: builderRule() }),
+        cacheRule({ id: 31n, priority: 2n, matchRule: builderRule() }),
+      ],
+    };
+    const request = syntheticRequest({ path: "/api%2fusers/42.json", cookies: {} });
+    const preview = previewTrafficPolicyStages(config, request);
+    const cacheStage = buildTrafficPolicyPlaygroundStages(config, request).find((stage) => stage.key === "cache");
 
     expect(preview.cache?.rule.id).toBe(30n);
     expect(preview.cache?.result).toEqual({
       state: "unknown",
       reason: "Encoded path separator cache behavior depends on route path security settings.",
+      canFallThrough: false,
+    });
+    expect(cacheStage?.items[1]).toMatchObject({
+      id: 31n,
+      state: "unknown",
+      selected: false,
+      skipped: false,
+      reason: "Not evaluated because stage eligibility is unknown.",
     });
   });
 

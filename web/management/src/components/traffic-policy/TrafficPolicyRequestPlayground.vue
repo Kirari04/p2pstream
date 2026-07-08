@@ -1,56 +1,28 @@
 <script setup lang="ts">
 import { RotateCcw as ResetIcon } from "@lucide/vue";
-import { NButton, NInput, NSelect, NTag } from "naive-ui";
+import { NButton, NCheckbox, NInput, NSelect, NTag } from "naive-ui";
 import type {
   TrafficPolicyAttentionWarning,
   TrafficPolicyMatchState,
+  TrafficPolicyPlaygroundStage,
+  TrafficPolicyPreviewForm,
 } from "@/lib/trafficPolicyWorkbench";
-
-type PreviewForm = {
-  method: string;
-  protocol: string;
-  host: string;
-  path: string;
-  remoteIp: string;
-  headersText: string;
-  cookiesText: string;
-  queryText: string;
-  routeId: string;
-  targetId: string;
-};
 
 type SelectOption = {
   label: string;
   value: string;
 };
 
-type PlaygroundStageItem = {
-  id: bigint;
-  name: string;
-  priority: bigint;
-  state: TrafficPolicyMatchState;
-  reason: string;
-  selected: boolean;
-  skipped: boolean;
-};
-
-type PlaygroundStage = {
-  key: string;
-  label: string;
-  mode: "first" | "all";
-  items: PlaygroundStageItem[];
-};
-
 const props = defineProps<{
-  modelValue: PreviewForm;
-  stages: PlaygroundStage[];
+  modelValue: TrafficPolicyPreviewForm;
+  stages: TrafficPolicyPlaygroundStage[];
   routeOptions: SelectOption[];
   targetOptions: SelectOption[];
   globalAttention: TrafficPolicyAttentionWarning[];
 }>();
 
 const emit = defineEmits<{
-  "update:modelValue": [value: PreviewForm];
+  "update:modelValue": [value: TrafficPolicyPreviewForm];
   reset: [];
 }>();
 
@@ -60,10 +32,10 @@ const protocolOptions = [
   { label: "HTTP", value: "http" },
 ];
 
-function updateField<K extends keyof PreviewForm>(key: K, value: PreviewForm[K] | null) {
+function updateField<K extends keyof TrafficPolicyPreviewForm>(key: K, value: TrafficPolicyPreviewForm[K]) {
   emit("update:modelValue", {
     ...props.modelValue,
-    [key]: value ?? "",
+    [key]: value,
   });
 }
 
@@ -125,6 +97,15 @@ function statusLabel(status: TrafficPolicyMatchState): string {
           <label class="field-label request-span-two">
             Remote IP
             <NInput :value="modelValue.remoteIp" size="small" placeholder="198.51.100.10" @update:value="(value) => updateField('remoteIp', value)" />
+          </label>
+          <label class="field-label request-body-field">
+            Request
+            <NCheckbox
+              :checked="modelValue.hasRequestBody"
+              @update:checked="(value) => updateField('hasRequestBody', Boolean(value))"
+            >
+              Has body
+            </NCheckbox>
           </label>
           <label class="field-label">
             Route
@@ -295,6 +276,18 @@ function statusLabel(status: TrafficPolicyMatchState): string {
 
 .request-map-input {
   font-size: 0.75rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.request-body-field {
+  align-content: end;
+}
+
+.request-body-field :deep(.n-checkbox__label) {
+  color: var(--app-text);
+  font-size: 0.78rem;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
 }

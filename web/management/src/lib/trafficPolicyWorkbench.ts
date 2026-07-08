@@ -27,6 +27,7 @@ export type TrafficPolicySyntheticRequest = {
   host: string;
   path: string;
   remoteIp: string;
+  hasRequestBody?: boolean;
   headers?: TrafficPolicyValueMap;
   cookies?: TrafficPolicyCookieMap;
   query?: TrafficPolicyValueMap;
@@ -34,9 +35,24 @@ export type TrafficPolicySyntheticRequest = {
   targetId?: TrafficPolicyId | null;
 };
 
+export type TrafficPolicyPreviewForm = {
+  method: string;
+  protocol: string;
+  host: string;
+  path: string;
+  remoteIp: string;
+  hasRequestBody: boolean;
+  headersText: string;
+  cookiesText: string;
+  queryText: string;
+  routeId: string;
+  targetId: string;
+};
+
 export type TrafficPolicyMatchResult = {
   state: TrafficPolicyMatchState;
   reason?: string;
+  canFallThrough?: boolean;
 };
 
 export type TrafficPolicyStageCandidate<T> = {
@@ -49,6 +65,23 @@ export type TrafficPolicyStagePreview = {
   rateLimits: TrafficPolicyStageCandidate<PublicRateLimitRule>[];
   trafficShaper: TrafficPolicyStageCandidate<PublicTrafficShaperRule> | null;
   cache: TrafficPolicyStageCandidate<PublicCacheRule> | null;
+};
+
+export type TrafficPolicyPlaygroundStageItem = {
+  id: bigint;
+  name: string;
+  priority: bigint;
+  state: TrafficPolicyMatchState;
+  reason: string;
+  selected: boolean;
+  skipped: boolean;
+};
+
+export type TrafficPolicyPlaygroundStage = {
+  key: TrafficPolicyKind;
+  label: string;
+  mode: "first" | "all";
+  items: TrafficPolicyPlaygroundStageItem[];
 };
 
 export type TrafficPolicyWorkbenchConfig = Partial<Pick<
@@ -82,6 +115,7 @@ type NormalizedTrafficPolicyRequest = {
   host: string;
   path: string;
   remoteIp: string;
+  hasRequestBody: boolean;
   headers: Map<string, string[]>;
   cookies: Map<string, string>;
   query: Map<string, string[]>;
@@ -124,6 +158,38 @@ export function trafficPolicyRuleMatchesAnyRequest(matchRule: PublicPolicyMatchR
   return expression === "" || expression === "true";
 }
 
+export function defaultTrafficPolicyPreviewForm(): TrafficPolicyPreviewForm {
+  return {
+    method: "GET",
+    protocol: "https",
+    host: "app.example.com",
+    path: "/",
+    remoteIp: "198.51.100.10",
+    hasRequestBody: false,
+    headersText: "X-Plan: pro",
+    cookiesText: "",
+    queryText: "",
+    routeId: "",
+    targetId: "",
+  };
+}
+
+export function trafficPolicyPreviewFormToRequest(form: TrafficPolicyPreviewForm): TrafficPolicySyntheticRequest {
+  return {
+    method: form.method,
+    protocol: form.protocol,
+    host: form.host,
+    path: form.path,
+    remoteIp: form.remoteIp,
+    hasRequestBody: form.hasRequestBody,
+    headers: parseRepeatedMap(form.headersText, true),
+    cookies: parseCookieMap(form.cookiesText),
+    query: parseRepeatedMap(form.queryText, false),
+    routeId: form.routeId || null,
+    targetId: form.targetId || null,
+  };
+}
+
 export function previewTrafficPolicyStages(
   config: TrafficPolicyWorkbenchConfig,
   request: TrafficPolicySyntheticRequest,
@@ -143,6 +209,19 @@ export function previewTrafficPolicyStages(
       return evaluateCacheRule(rule, normalized, config.cacheSettings?.enabled !== false);
     }),
   };
+}
+
+export function buildTrafficPolicyPlaygroundStages(
+  config: TrafficPolicyWorkbenchConfig,
+  request: TrafficPolicySyntheticRequest,
+): TrafficPolicyPlaygroundStage[] {
+  const preview = previewTrafficPolicyStages(config, request);
+  return [
+    stageFromFirstCandidate("waf", "WAF", runtimeOrderedWafRules(config.wafRules ?? []), preview.waf),
+    stageFromRateLimitCandidates(runtimeOrderedRateLimitRules(config.rateLimitRules ?? []), preview.rateLimits),
+    stageFromFirstCandidate("traffic-shaper", "Traffic shaper", runtimeOrderedTrafficShaperRules(config.trafficShaperRules ?? []), preview.trafficShaper),
+    stageFromFirstCandidate("cache", "Cache", runtimeOrderedCacheRules(config.cacheRules ?? []), preview.cache),
+  ];
 }
 
 export function trafficPolicyAttentionWarnings(config: TrafficPolicyWorkbenchConfig): TrafficPolicyAttentionWarning[] {
@@ -434,7 +513,7 @@ function evaluateRegex(actualValue: string, pattern: string): TrafficPolicyMatch
 function evaluateCidr(actualIp: string, rawCidr: string): TrafficPolicyMatchResult {
   const parsedIp = parseIpAddress(actualIp);
   const parsedCidr = parseCidr(rawCidr);
-  if (!parsedIp || !parsedCidr) return unknownResult("CIDR comparison could not be parsed.");
+  if (!parsedIp || !parsedCidr) return MISS_RESULT;
   if (parsedIp.length !== parsedCidr.address.length) return MISS_RESULT;
   return ipBytesInPrefix(parsedIp, parsedCidr.address, parsedCidr.prefixBits) ? MATCH_RESULT : MISS_RESULT;
 }
@@ -470,6 +549,81 @@ function allMatchingCandidates<T extends { enabled: boolean }>(
   return candidates;
 }
 
+function stageFromFirstCandidate<T extends { id: bigint; name: string; priority: bigint; enabled: boolean }>(
+  key: Exclude<TrafficPolicyKind, "rate-limit">,
+  label: string,
+  rules: readonly T[],
+  candidate: TrafficPolicyStageCandidate<T> | null,
+): TrafficPolicyPlaygroundStage {
+  const selectedId = candidate?.rule.id;
+  const selectedResult = candidate?.result ?? null;
+  const selectedResultCanFallThrough = selectedResult?.state === "unknown" && selectedResult.canFallThrough !== false;
+  const selectedResultBlocksLater = selectedResult?.state === "match";
+  let passedSelected = false;
+  return {
+    key,
+    label,
+    mode: "first",
+    items: rules.map((rule) => {
+      const selected = selectedId !== undefined && rule.id === selectedId;
+      const selectedRuleResult = selected ? selectedResult : null;
+      const afterSelected = Boolean(rule.enabled && passedSelected && !selected);
+      if (selected) passedSelected = true;
+
+      let state: TrafficPolicyMatchState = selectedRuleResult?.state ?? "miss";
+      let reason = selectedRuleResult ? (selectedRuleResult.reason || "Selected by preview") : "No match in preview";
+      let skipped = false;
+
+      if (!rule.enabled) {
+        reason = "Rule is disabled";
+      } else if (afterSelected && selectedResultBlocksLater) {
+        skipped = true;
+        reason = "Skipped after earlier confirmed match";
+      } else if (afterSelected && selectedResultCanFallThrough) {
+        state = "unknown";
+        reason = "May still apply; earlier preview result is unknown.";
+      } else if (afterSelected) {
+        state = "unknown";
+        reason = "Not evaluated because stage eligibility is unknown.";
+      }
+
+      return {
+        id: rule.id,
+        name: rule.name,
+        priority: rule.priority,
+        state,
+        reason,
+        selected,
+        skipped,
+      };
+    }),
+  };
+}
+
+function stageFromRateLimitCandidates(
+  rules: readonly PublicRateLimitRule[],
+  candidates: readonly TrafficPolicyStageCandidate<PublicRateLimitRule>[],
+): TrafficPolicyPlaygroundStage {
+  const candidateById = new Map(candidates.map((candidate) => [candidate.rule.id.toString(), candidate]));
+  return {
+    key: "rate-limit",
+    label: "Rate limits",
+    mode: "all",
+    items: rules.map((rule) => {
+      const candidate = candidateById.get(rule.id.toString());
+      return {
+        id: rule.id,
+        name: rule.name,
+        priority: rule.priority,
+        state: candidate?.result.state ?? "miss",
+        reason: candidate?.result.reason || (rule.enabled ? "No match in preview" : "Rule is disabled"),
+        selected: Boolean(candidate),
+        skipped: false,
+      };
+    }),
+  };
+}
+
 function andResults(results: readonly TrafficPolicyMatchResult[]): TrafficPolicyMatchResult {
   if (!results.length) return MATCH_RESULT;
   const miss = results.find((result) => result.state === "miss");
@@ -496,8 +650,8 @@ function negateResult(result: TrafficPolicyMatchResult): TrafficPolicyMatchResul
   return result;
 }
 
-function unknownResult(reason: string): TrafficPolicyMatchResult {
-  return { state: "unknown", reason };
+function unknownResult(reason: string, canFallThrough = true): TrafficPolicyMatchResult {
+  return canFallThrough ? { state: "unknown", reason } : { state: "unknown", reason, canFallThrough: false };
 }
 
 function cacheRequestBypassResult(request: NormalizedTrafficPolicyRequest, cacheSettingsEnabled: boolean): TrafficPolicyMatchResult | null {
@@ -509,8 +663,9 @@ function cacheRequestBypassResult(request: NormalizedTrafficPolicyRequest, cache
   if (headerEquals(request.headers, "connection", "upgrade") || hasHeader(request.headers, "upgrade")) {
     return missResult("Cache bypass: upgraded requests are never cached.");
   }
+  if (request.hasRequestBody) return missResult("Cache bypass: requests with a body are never cached.");
   if (hasEncodedPathSeparator(request.path)) {
-    return unknownResult("Encoded path separator cache behavior depends on route path security settings.");
+    return unknownResult("Encoded path separator cache behavior depends on route path security settings.", false);
   }
   return null;
 }
@@ -539,6 +694,7 @@ function normalizeTrafficPolicyRequest(request: TrafficPolicySyntheticRequest): 
     host: normalizeRequestHost(request.host),
     path: request.path.trim() || "/",
     remoteIp: request.remoteIp.trim(),
+    hasRequestBody: request.hasRequestBody === true,
     headers: normalizeMultiValueMap(request.headers, true),
     cookies: normalizeCookieMap(request.cookies),
     query: normalizeMultiValueMap(request.query, false),
@@ -557,6 +713,42 @@ function normalizeMultiValueMap(values: TrafficPolicyValueMap | undefined, lower
     map.set(name, normalizedValue.map((value) => value));
   }
   return map;
+}
+
+function parseRepeatedMap(text: string, lowerCaseKeys: boolean): Record<string, string[]> {
+  const parsed: Record<string, string[]> = {};
+  for (const line of text.split(/\r?\n/)) {
+    const item = parseKeyValueLine(line);
+    if (!item) continue;
+    const key = lowerCaseKeys ? item.key.toLowerCase() : item.key;
+    const values = parsed[key] ?? [];
+    values.push(item.value);
+    parsed[key] = values;
+  }
+  return parsed;
+}
+
+function parseCookieMap(text: string): Record<string, string> {
+  const parsed: Record<string, string> = {};
+  for (const part of text.split(/\r?\n|;/)) {
+    const item = parseKeyValueLine(part);
+    if (!item) continue;
+    if (parsed[item.key] !== undefined) continue;
+    parsed[item.key] = item.value;
+  }
+  return parsed;
+}
+
+function parseKeyValueLine(line: string): { key: string; value: string } | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+  const colon = trimmed.indexOf(":");
+  const equals = trimmed.indexOf("=");
+  const separator = colon >= 0 && (equals < 0 || colon < equals) ? colon : equals;
+  if (separator < 0) return { key: trimmed, value: "" };
+  const key = trimmed.slice(0, separator).trim();
+  if (!key) return null;
+  return { key, value: trimmed.slice(separator + 1).trim() };
 }
 
 function normalizeCookieMap(values: TrafficPolicyCookieMap | undefined): Map<string, string> {
