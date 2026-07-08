@@ -19,7 +19,14 @@ const (
 )
 
 func (a *App) insertProxyRequestEventWithRollups(ctx context.Context, event db.InsertProxyRequestEventAtParams) error {
+	return a.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, []db.InsertProxyRequestEventAtParams{event}, nil)
+}
+
+func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Context, events []db.InsertProxyRequestEventAtParams, cacheTouches []string) error {
 	if a.DB == nil {
+		return nil
+	}
+	if len(events) == 0 && len(cacheTouches) == 0 {
 		return nil
 	}
 
@@ -30,20 +37,132 @@ func (a *App) insertProxyRequestEventWithRollups(ctx context.Context, event db.I
 	defer tx.Rollback()
 
 	qtx := a.DB.WithTx(tx)
-	if _, err := qtx.InsertProxyRequestEventAt(ctx, event); err != nil {
-		return err
+	totals := make(map[int64]db.UpsertProxyRequestRollupMinuteParams)
+	tuples := make(map[proxyRequestTupleRollupKey]db.UpsertProxyRequestTupleRollupMinuteParams)
+	statuses := make(map[proxyRequestStatusRollupKey]db.UpsertProxyRequestStatusRollupMinuteParams)
+	for _, event := range events {
+		if _, err := qtx.InsertProxyRequestEventAt(ctx, event); err != nil {
+			return err
+		}
+		total, tuple, status := proxyRequestRollupParams(event)
+		mergeProxyRequestRollup(totals, total)
+		mergeProxyRequestTupleRollup(tuples, tuple)
+		mergeProxyRequestStatusRollup(statuses, status)
 	}
-	total, tuple, status := proxyRequestRollupParams(event)
-	if err := qtx.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
-		return err
+	for _, total := range totals {
+		if err := qtx.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
+			return err
+		}
 	}
-	if err := qtx.UpsertProxyRequestTupleRollupMinute(ctx, tuple); err != nil {
-		return err
+	for _, tuple := range tuples {
+		if err := qtx.UpsertProxyRequestTupleRollupMinute(ctx, tuple); err != nil {
+			return err
+		}
 	}
-	if err := qtx.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
-		return err
+	for _, status := range statuses {
+		if err := qtx.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
+			return err
+		}
+	}
+	for _, keyDigest := range cacheTouches {
+		if keyDigest == "" {
+			continue
+		}
+		if err := qtx.TouchPublicCacheEntry(ctx, keyDigest); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
+}
+
+type proxyRequestTupleRollupKey struct {
+	BucketUnixMillis int64
+	ListenerID       int64
+	RouteTargetID    int64
+	RouteID          int64
+	AgentID          int64
+	ErrorKind        string
+	StatusClass      int64
+}
+
+type proxyRequestStatusRollupKey struct {
+	BucketUnixMillis int64
+	StatusCode       int64
+}
+
+func mergeProxyRequestRollup(totals map[int64]db.UpsertProxyRequestRollupMinuteParams, next db.UpsertProxyRequestRollupMinuteParams) {
+	current, ok := totals[next.BucketUnixMillis]
+	if !ok {
+		totals[next.BucketUnixMillis] = next
+		return
+	}
+	current.Requests += next.Requests
+	current.Success += next.Success
+	current.ClientError += next.ClientError
+	current.ServerError += next.ServerError
+	current.InternalError += next.InternalError
+	current.DurationMsSum += next.DurationMsSum
+	if next.MaxDurationMs > current.MaxDurationMs {
+		current.MaxDurationMs = next.MaxDurationMs
+	}
+	current.SlowRequests += next.SlowRequests
+	current.RequestBytes += next.RequestBytes
+	current.ResponseBytes += next.ResponseBytes
+	current.CacheHits += next.CacheHits
+	current.CacheMisses += next.CacheMisses
+	current.CacheBypasses += next.CacheBypasses
+	current.CacheStored += next.CacheStored
+	current.CacheStoreFailed += next.CacheStoreFailed
+	current.CacheHitBytes += next.CacheHitBytes
+	current.CacheStoredBytes += next.CacheStoredBytes
+	totals[next.BucketUnixMillis] = current
+}
+
+func mergeProxyRequestTupleRollup(tuples map[proxyRequestTupleRollupKey]db.UpsertProxyRequestTupleRollupMinuteParams, next db.UpsertProxyRequestTupleRollupMinuteParams) {
+	key := proxyRequestTupleRollupKey{
+		BucketUnixMillis: next.BucketUnixMillis,
+		ListenerID:       next.ListenerID,
+		RouteTargetID:    next.RouteTargetID,
+		RouteID:          next.RouteID,
+		AgentID:          next.AgentID,
+		ErrorKind:        next.ErrorKind,
+		StatusClass:      next.StatusClass,
+	}
+	current, ok := tuples[key]
+	if !ok {
+		tuples[key] = next
+		return
+	}
+	current.Requests += next.Requests
+	current.Success += next.Success
+	current.ClientError += next.ClientError
+	current.ServerError += next.ServerError
+	current.InternalError += next.InternalError
+	current.DurationMsSum += next.DurationMsSum
+	current.RequestBytes += next.RequestBytes
+	current.ResponseBytes += next.ResponseBytes
+	tuples[key] = current
+}
+
+func mergeProxyRequestStatusRollup(statuses map[proxyRequestStatusRollupKey]db.UpsertProxyRequestStatusRollupMinuteParams, next db.UpsertProxyRequestStatusRollupMinuteParams) {
+	key := proxyRequestStatusRollupKey{
+		BucketUnixMillis: next.BucketUnixMillis,
+		StatusCode:       next.StatusCode,
+	}
+	current, ok := statuses[key]
+	if !ok {
+		statuses[key] = next
+		return
+	}
+	current.Requests += next.Requests
+	current.Success += next.Success
+	current.ClientError += next.ClientError
+	current.ServerError += next.ServerError
+	current.InternalError += next.InternalError
+	current.DurationMsSum += next.DurationMsSum
+	current.RequestBytes += next.RequestBytes
+	current.ResponseBytes += next.ResponseBytes
+	statuses[key] = current
 }
 
 func (a *App) insertAgentStatWithRollup(ctx context.Context, stat db.InsertAgentStatAtParams) error {

@@ -224,6 +224,9 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 		40,
 		400,
 	)
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 
 	var rawEvents int64
 	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
@@ -265,6 +268,127 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 	}
 	if statusCode != http.StatusGatewayTimeout || requests != 1 || serverError != 1 || internalError != 1 {
 		t.Fatalf("unexpected status rollup: status=%d requests=%d server=%d internal=%d", statusCode, requests, serverError, internalError)
+	}
+}
+
+func TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	seedDashboardRollupDimensionFixtures(t, app.DB)
+
+	for _, statusCode := range []int{http.StatusOK, http.StatusCreated, http.StatusBadGateway} {
+		app.recordProxyRequestEventWithIDsAndContext(
+			ctx,
+			statusCode,
+			time.Duration(statusCode)*time.Millisecond,
+			"",
+			sqlNullInt64(1),
+			sqlNullInt64(1),
+			sqlNullInt64(1),
+			1,
+			2,
+			proxyRequestContext{Method: "GET", Host: "example.test", PathPrefix: "/api"},
+		)
+	}
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count raw proxy events: %v", err)
+	}
+	if rawEvents != 3 {
+		t.Fatalf("raw proxy events = %d, want 3", rawEvents)
+	}
+
+	var requests, success, serverError, durationMsSum, requestBytes, responseBytes int64
+	if err := app.DB.QueryRowContext(ctx, `
+		SELECT COALESCE(SUM(requests), 0), COALESCE(SUM(success), 0), COALESCE(SUM(server_error), 0),
+		       COALESCE(SUM(duration_ms_sum), 0), COALESCE(SUM(request_bytes), 0), COALESCE(SUM(response_bytes), 0)
+		FROM proxy_request_rollup_minutes
+	`).Scan(&requests, &success, &serverError, &durationMsSum, &requestBytes, &responseBytes); err != nil {
+		t.Fatalf("read proxy rollup totals: %v", err)
+	}
+	if requests != 3 || success != 2 || serverError != 1 || durationMsSum != 903 || requestBytes != 3 || responseBytes != 6 {
+		t.Fatalf("unexpected rollup totals: requests=%d success=%d server=%d duration=%d request_bytes=%d response_bytes=%d", requests, success, serverError, durationMsSum, requestBytes, responseBytes)
+	}
+
+	var tupleRows, tupleRequests int64
+	if err := app.DB.QueryRowContext(ctx, `
+		SELECT COUNT(*), COALESCE(SUM(requests), 0)
+		FROM proxy_request_tuple_rollup_minutes
+		WHERE listener_id = 1 AND route_id = 1 AND agent_id = 1 AND error_kind = '' AND status_class = 2
+	`).Scan(&tupleRows, &tupleRequests); err != nil {
+		t.Fatalf("read tuple rollups: %v", err)
+	}
+	if tupleRows != 1 || tupleRequests != 2 {
+		t.Fatalf("tuple rollup rows/requests = %d/%d, want 1/2", tupleRows, tupleRequests)
+	}
+}
+
+func TestObservabilityRecorderCoalescesPublicCacheTouches(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	keyDigest := "cache-touch-key"
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_cache_rules (id, name) VALUES (1, 'cache-touch-rule')`); err != nil {
+		t.Fatalf("insert cache rule: %v", err)
+	}
+	if _, err := app.DB.ExecContext(ctx, `
+		INSERT INTO public_cache_entries (
+			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, expires_at
+		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/asset', '', 'GET', '[]', '{}', 200, '/tmp/body', 10, ?)
+	`, keyDigest, time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	recorder := app.observabilityRecorderService()
+	recorder.touchPublicCacheEntry(keyDigest)
+	recorder.touchPublicCacheEntry(keyDigest)
+	recorder.touchPublicCacheEntry(keyDigest)
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+
+	var hitCount int64
+	if err := app.DB.QueryRowContext(ctx, `SELECT hit_count FROM public_cache_entries WHERE key_digest = ?`, keyDigest).Scan(&hitCount); err != nil {
+		t.Fatalf("read cache hit count: %v", err)
+	}
+	if hitCount != 1 {
+		t.Fatalf("cache hit count = %d, want 1 coalesced touch", hitCount)
+	}
+}
+
+func TestCloseObservabilityRecorderFlushesQueuedEvents(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+
+	app.recordProxyRequestEventWithIDsAndContext(
+		ctx,
+		http.StatusOK,
+		25*time.Millisecond,
+		"",
+		sql.NullInt64{},
+		sql.NullInt64{},
+		sql.NullInt64{},
+		3,
+		7,
+		proxyRequestContext{Method: "GET", Host: "example.test", PathPrefix: "/close"},
+	)
+	if err := app.CloseObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("close observability recorder: %v", err)
+	}
+	if err := app.CloseObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("close observability recorder twice: %v", err)
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count raw proxy events: %v", err)
+	}
+	if rawEvents != 1 {
+		t.Fatalf("raw proxy events = %d, want 1", rawEvents)
 	}
 }
 

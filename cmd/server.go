@@ -119,6 +119,9 @@ var serverCmd = &cobra.Command{
 		if err := mgmtSrv.Shutdown(shutdownCtx); err != nil {
 			shutdownErrs = append(shutdownErrs, err)
 		}
+		if err := app.CloseObservabilityRecorder(shutdownCtx); err != nil {
+			shutdownErrs = append(shutdownErrs, err)
+		}
 
 		if len(shutdownErrs) > 0 {
 			log.Error().Errs("errors", shutdownErrs).Msg("Errors during shutdown")

@@ -206,6 +206,9 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", resp.StatusCode)
 	}
+	if err := app.FlushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 
 	summary, err := database.GetProxyRequestSummarySince(context.Background(), time.Now().UTC().Add(-time.Minute))
 	if err != nil {

@@ -565,6 +565,9 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("asset-v1")) {
 		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
 	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 
 	var eventStatus string
 	var eventBytes int64
@@ -655,6 +658,9 @@ func TestPublicCacheAgentBackendMissStoresThenHit(t *testing.T) {
 	}
 	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("agent-asset-v1")) {
 		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
+	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
 	}
 
 	var eventAgentID sql.NullInt64
@@ -890,7 +896,14 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 	app.proxyMu.Unlock()
 	app.PublicCache.reconcile(defaultPublicCacheSettings())
 
-	return app, resolution, func() { database.Close() }
+	return app, resolution, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := app.flushObservabilityRecorder(ctx); err != nil {
+			t.Fatalf("flush observability recorder: %v", err)
+		}
+		database.Close()
+	}
 }
 
 func setTestCacheRuleAllowCookieRequests(t *testing.T, app *App, allowed bool) {

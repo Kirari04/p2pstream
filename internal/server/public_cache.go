@@ -433,7 +433,7 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		entryCopy := entry
 		decision.Entry = &entryCopy
 		decision.LookupDuration = time.Since(startedAt)
-		_ = a.DB.TouchPublicCacheEntry(context.Background(), entry.KeyDigest)
+		a.observabilityRecorderService().touchPublicCacheEntry(entry.KeyDigest)
 		return decision
 	}
 	decision.Status = publicCacheStatusMiss
