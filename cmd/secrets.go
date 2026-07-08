@@ -157,9 +157,6 @@ func runSecretsStatus(ctx context.Context, opts secretsStatusOptions) error {
 		return err
 	}
 	defer database.Close()
-	if err := service.Check(ctx); err != nil {
-		return fmt.Errorf("check secrets encryption provider: %w", err)
-	}
 
 	status, err := secretstore.New(database.DB, service).Status(ctx, opts.BatchSize)
 	if err != nil {
@@ -196,9 +193,6 @@ func runSecretsRewrap(ctx context.Context, opts secretsRewrapOptions) error {
 	if !opts.DryRun && (service == nil || !service.Enabled()) {
 		return errors.New("secrets rewrap --yes requires a current secrets encryption key")
 	}
-	if err := service.Check(ctx); err != nil {
-		return fmt.Errorf("check secrets encryption provider: %w", err)
-	}
 
 	result, err := secretstore.New(database.DB, service).Reconcile(ctx, secretstore.ReconcileOptions{
 		DryRun:    opts.DryRun,
@@ -232,15 +226,6 @@ func openSecretsStore(databaseURL string) (*db.DB, *secrets.Service, error) {
 		PreviousKeys:   cfg.SecretsEncryptionPrevious,
 		Required:       cfg.SecretsEncryptionRequired,
 		AllowPlaintext: !cfg.SecretsEncryptionRequired,
-		Provider:       cfg.SecretsEncryptionProvider,
-		VaultTransit: secrets.VaultTransitConfig{
-			Address:   cfg.SecretsVaultAddress,
-			Token:     cfg.SecretsVaultToken,
-			MountPath: cfg.SecretsVaultMount,
-			KeyName:   cfg.SecretsVaultKey,
-			Namespace: cfg.SecretsVaultNamespace,
-			Timeout:   cfg.SecretsVaultTimeout,
-		},
 	})
 	if err != nil {
 		return nil, nil, err
@@ -258,9 +243,6 @@ func openSecretsStore(databaseURL string) (*db.DB, *secrets.Service, error) {
 
 func writeSecretsStatusTable(stdout io.Writer, status secretstore.Status) error {
 	fmt.Fprintf(stdout, "Encryption enabled:\t%t\n", status.EncryptionOn)
-	if status.Provider != "" {
-		fmt.Fprintf(stdout, "Provider:\t%s\n", status.Provider)
-	}
 	if status.CurrentKeyID != "" {
 		fmt.Fprintf(stdout, "Current key ID:\t%s\n", status.CurrentKeyID)
 	}
