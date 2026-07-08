@@ -26,6 +26,8 @@ var errNoRouteBackendAvailable = errors.New("no route backend available")
 var errNoRouteTargetAvailable = errors.New("no route target available")
 var errNoPublicRouteAvailable = errors.New("no public route available")
 
+var agentOpenHandshakeTimeout = 10 * time.Second
+
 type publicRouteTargetHealthConfig struct {
 	ID                            int64
 	Name                          string
@@ -713,9 +715,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		return nil, errAgentDisconnected
 	}
 
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = conn.SetDeadline(deadline)
-	}
+	_ = conn.SetDeadline(agentOpenHandshakeDeadline(ctx, time.Now()))
 	handshakeDone := make(chan struct{})
 	stopHandshakeWatch := func() {
 		select {
@@ -737,12 +737,12 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	req := tunnel.NewOpenRequest(requestID, network, address)
 	if err := tunnel.WriteOpenRequest(conn, req); err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, agentOpenHandshakeError(ctx, err)
 	}
 	resp, err := tunnel.ReadOpenResponse(conn)
 	if err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, agentOpenHandshakeError(ctx, err)
 	}
 	if !resp.OK {
 		_ = conn.Close()
@@ -756,6 +756,27 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	}
 	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
+}
+
+func agentOpenHandshakeDeadline(ctx context.Context, now time.Time) time.Time {
+	deadline := now.Add(agentOpenHandshakeTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		return ctxDeadline
+	}
+	return deadline
+}
+
+func agentOpenHandshakeError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+		return err
+	}
+	if isTimeoutError(err) || (ctx != nil && errors.Is(ctx.Err(), context.DeadlineExceeded)) {
+		return agentDialError{Kind: "dial_timeout", Err: err.Error()}
+	}
+	return err
 }
 
 func redactAgentDialAddress(address string) string {
