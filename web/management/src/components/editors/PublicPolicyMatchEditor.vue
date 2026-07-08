@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { NButton, NButtonGroup, NInput } from "naive-ui";
 import PolicyMatchGroupEditor from "@/components/editors/PolicyMatchGroupEditor.vue";
 import {
+  builderToCEL,
   policyMatchValidationReason,
   syncGeneratedExpressionForExpertMode,
   type PolicyMatchForm,
@@ -10,6 +12,14 @@ import {
 const props = defineProps<{
   form: PolicyMatchForm;
 }>();
+
+const matchSummary = computed(() => {
+  if (props.form.mode === "expression") {
+    const expression = props.form.expression.trim();
+    return expression ? expression : "true";
+  }
+  return builderToCEL(props.form.root) || "true";
+});
 
 function switchMode(mode: "builder" | "expression") {
   if (mode === props.form.mode) return;
@@ -44,10 +54,12 @@ defineExpose({ validationReason });
         spellcheck="false"
         placeholder='method == "POST" && path_prefix(path, "/login")'
       />
+      <p class="match-expression-summary mono-text">{{ matchSummary }}</p>
     </div>
 
     <div v-else class="builder-panel">
       <PolicyMatchGroupEditor :group="form.root" root />
+      <p class="match-expression-summary mono-text">{{ matchSummary }}</p>
       <p v-if="validationReason()" class="field-error">{{ validationReason() }}</p>
     </div>
   </section>
@@ -94,5 +106,19 @@ defineExpose({ validationReason });
 .field-error {
   color: var(--app-error);
   font-size: 0.78rem;
+}
+
+.match-expression-summary {
+  max-height: 4.5rem;
+  overflow: auto;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 5px;
+  background: var(--app-panel);
+  color: var(--app-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  padding: 0.5rem 0.625rem;
+  text-transform: none;
+  letter-spacing: 0;
 }
 </style>

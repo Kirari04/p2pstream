@@ -1,17 +1,18 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import Overview from './views/Overview.vue';
-import Diagnostics from './views/Diagnostics.vue';
-import Traffic from './views/Traffic.vue';
-import Monitor from './views/Monitor.vue';
-import AgentHealth from './views/AgentHealth.vue';
-import Settings from './views/Settings.vue';
-import SettingsApiTokens from './views/SettingsApiTokens.vue';
-import SettingsEnvironments from './views/SettingsEnvironments.vue';
-import ProxyConfig from './views/ProxyConfig.vue';
-import TrafficPolicies from './views/TrafficPolicies.vue';
-import ResponseTemplates from './views/ResponseTemplates.vue';
-import TlsConfig from './views/TlsConfig.vue';
-import NotFound from './views/NotFound.vue';
+
+const Overview = () => import('./views/Overview.vue');
+const Diagnostics = () => import('./views/Diagnostics.vue');
+const Traffic = () => import('./views/Traffic.vue');
+const Monitor = () => import('./views/Monitor.vue');
+const AgentHealth = () => import('./views/AgentHealth.vue');
+const Settings = () => import('./views/Settings.vue');
+const SettingsApiTokens = () => import('./views/SettingsApiTokens.vue');
+const SettingsEnvironments = () => import('./views/SettingsEnvironments.vue');
+const ProxyConfig = () => import('./views/ProxyConfig.vue');
+const TrafficPolicies = () => import('./views/TrafficPolicies.vue');
+const ResponseTemplates = () => import('./views/ResponseTemplates.vue');
+const TlsConfig = () => import('./views/TlsConfig.vue');
+const NotFound = () => import('./views/NotFound.vue');
 
 const routes = [
   { path: '/', redirect: '/overview' },

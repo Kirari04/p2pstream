@@ -155,7 +155,7 @@ const submitDisabledReason = computed(() => {
   if (varyHeadersValidationReason.value) return varyHeadersValidationReason.value;
   if (cacheStatusCodesValidationReason.value) return cacheStatusCodesValidationReason.value;
   if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
-  if (form.allowCookieRequests && !form.allowCookieRequestsAcknowledged) return "Acknowledge the Cookie cache key behavior.";
+  if (form.allowCookieRequests && !form.allowCookieRequestsAcknowledged) return "Acknowledge the legacy Cookie flag behavior.";
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -449,13 +449,13 @@ defineExpose({ openCreate, openEdit, close });
       <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
         <h4 class="copy-sm weight-semibold base-text">Cache behavior</h4>
         <p class="copy-xs line-normal muted-text">
-          Authorization requests are always bypassed. Cookie requests are cached only when this rule allows them. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
+          Authorization and Cookie requests always bypass shared cache. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
         <NCheckbox v-model:checked="form.allowCookieRequests" class="round-md framed frame-standard muted-bg pad-md">
           <span class="layout-grid space-2xs">
-            <span class="weight-medium base-text">Cache requests with Cookie headers</span>
+            <span class="weight-medium base-text">Preserve legacy Cookie opt-in flag</span>
             <span class="copy-xs line-normal muted-text">
-              Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
+              This compatibility flag has no runtime effect; Cookie requests still bypass shared cache.
             </span>
           </span>
         </NCheckbox>
@@ -465,9 +465,9 @@ defineExpose({ openCreate, openEdit, close });
           class="round-md framed frame-standard panel-bg pad-md"
         >
           <span class="layout-grid space-2xs">
-            <span class="weight-medium base-text">I understand Cookie is ignored in this cache key</span>
+            <span class="weight-medium base-text">I understand Cookie requests still bypass cache</span>
             <span class="copy-xs line-normal muted-text">
-              Only use this for responses that are identical for every visitor, even when the request includes cookies.
+              Keep this only when preserving legacy configuration shape; clear it for new cache rules.
             </span>
           </span>
         </NCheckbox>
@@ -490,7 +490,7 @@ defineExpose({ openCreate, openEdit, close });
           </label>
         </div>
         <p class="copy-xs line-normal muted-text">
-          Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored, even when cookie requests are enabled above.
+          Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored.
         </p>
       </section>
 
