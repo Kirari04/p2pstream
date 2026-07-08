@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"errors"
 	"io"
@@ -1311,21 +1310,7 @@ func mergeRedirectQuery(configuredQuery string, incomingQuery string, preserveIn
 }
 
 func directProxyTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duration) http.RoundTripper {
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return http.DefaultTransport
-	}
-	transport := base.Clone()
-	transport.ResponseHeaderTimeout = normalizeUpstreamResponseHeaderTimeout(responseHeaderTimeout)
-	if tlsSkipVerify {
-		if transport.TLSClientConfig == nil {
-			transport.TLSClientConfig = &tls.Config{}
-		} else {
-			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
-		}
-		transport.TLSClientConfig.InsecureSkipVerify = true
-	}
-	return transport
+	return newDirectProxyHTTPTransport(tlsSkipVerify, responseHeaderTimeout)
 }
 
 func normalizeUpstreamResponseHeaderTimeout(timeout time.Duration) time.Duration {

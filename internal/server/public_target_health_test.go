@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -59,6 +60,96 @@ func TestDirectTargetHealthStillChecksFromServer(t *testing.T) {
 	waitForHealthStatus(t, monitor, 1, p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY)
 	if !monitor.available(backend) {
 		t.Fatal("backend should be available after explicit health recovery")
+	}
+}
+
+func TestDirectTargetHealthCheckReusesPooledTransportConnection(t *testing.T) {
+	var newConnections atomic.Int64
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			t.Fatalf("direct health path = %q, want /health", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+
+	backend := testHealthTarget(t, 2, publicRouteTargetTransportDirect, srv.URL+"/base?ignored=true")
+	monitor := newPublicRouteTargetHealthMonitor()
+	t.Cleanup(func() { monitor.closeDirectHealthTransports() })
+
+	for i := 0; i < 3; i++ {
+		attempt := monitor.runPublicRouteTargetHealthCheck(context.Background(), backend)
+		if attempt.Err != nil {
+			t.Fatalf("health check %d failed: kind=%s err=%v", i, attempt.ErrorKind, attempt.Err)
+		}
+		if attempt.DebugAttributes["transport"] != "direct_pool" {
+			t.Fatalf("health check %d transport = %q, want direct_pool", i, attempt.DebugAttributes["transport"])
+		}
+	}
+
+	if got := newConnections.Load(); got != 1 {
+		t.Fatalf("new upstream connections = %d, want 1", got)
+	}
+	if got := monitor.directTransports.len(); got != 1 {
+		t.Fatalf("direct health transport pool len = %d, want 1", got)
+	}
+}
+
+func TestDirectHealthTransportPoolEvictsStaleTargetKeys(t *testing.T) {
+	monitor := newPublicRouteTargetHealthMonitor()
+	t.Cleanup(func() { monitor.closeDirectHealthTransports() })
+	backend := testHealthTarget(t, 3, publicRouteTargetTransportDirect, "http://127.0.0.1:8080/base?token=secret")
+
+	first := monitor.directTransports.transport(backend, publicRouteTargetHealthCheckTimeout(backend))
+	if got := monitor.directTransports.len(); got != 1 {
+		t.Fatalf("direct health transport pool len = %d, want 1", got)
+	}
+
+	requestOnlyChange := backend
+	requestOnlyChange.HealthCheck.Path = "/ready"
+	requestOnlyChange.HealthCheck.Method = http.MethodHead
+	requestOnlyChange.UpstreamRequestHeaders = []publicRequestHeader{{Name: "X-Health", Value: "ok"}}
+	monitor.closeStaleDirectHealthTransports(requestOnlyChange)
+	if got := monitor.directTransports.len(); got != 1 {
+		t.Fatalf("pool len after request-only change = %d, want 1", got)
+	}
+	if reused := monitor.directTransports.transport(requestOnlyChange, publicRouteTargetHealthCheckTimeout(requestOnlyChange)); reused != first {
+		t.Fatal("request-only health check changes should reuse the existing transport")
+	}
+
+	timeoutChange := backend
+	timeoutChange.HealthCheck.Timeout = 2 * time.Second
+	monitor.closeStaleDirectHealthTransports(timeoutChange)
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after timeout change cleanup = %d, want 0", got)
+	}
+	second := monitor.directTransports.transport(timeoutChange, publicRouteTargetHealthCheckTimeout(timeoutChange))
+	if second == first {
+		t.Fatal("timeout change reused stale direct health transport")
+	}
+
+	originChange := timeoutChange
+	originChange.TargetOrigin = "http://127.0.0.1:8081/other?token=secret"
+	parsedOrigin, err := url.Parse(originChange.TargetOrigin)
+	if err != nil {
+		t.Fatalf("parse changed origin: %v", err)
+	}
+	originChange.ParsedOrigin = parsedOrigin
+	monitor.closeStaleDirectHealthTransports(originChange)
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after origin change cleanup = %d, want 0", got)
+	}
+
+	_ = monitor.directTransports.transport(originChange, publicRouteTargetHealthCheckTimeout(originChange))
+	monitor.closeDirectHealthTransportsForTarget(originChange.ID)
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after target cleanup = %d, want 0", got)
 	}
 }
 
