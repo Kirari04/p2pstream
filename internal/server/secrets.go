@@ -8,7 +8,6 @@ import (
 
 	"p2pstream/internal/config"
 	"p2pstream/internal/secrets"
-	"p2pstream/internal/secretstore"
 )
 
 func newSecretService(cfg *config.Config) (*secrets.Service, error) {
@@ -34,19 +33,12 @@ func (a *App) InitializeSecretStorage(ctx context.Context) error {
 	if a.Secrets == nil {
 		a.Secrets = secrets.NewDisabledService()
 	}
-	if a.DB == nil {
-		return nil
-	}
-	result, err := secretstore.New(a.DB.DB, a.Secrets).Reconcile(ctx, secretstore.ReconcileOptions{})
+	migrated, err := a.migrateDatabaseSecrets(ctx)
 	if err != nil {
 		return err
 	}
-	migrated := result.Encrypted + result.Rewrapped
 	if migrated > 0 {
-		log.Info().
-			Int("secrets_encrypted", result.Encrypted).
-			Int("secrets_rewrapped", result.Rewrapped).
-			Msg("Reconciled stored database secrets")
+		log.Info().Int("secrets_migrated", migrated).Msg("Encrypted stored database secrets")
 	}
 	return nil
 }
