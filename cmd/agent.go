@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -70,7 +73,10 @@ var agentCmd = &cobra.Command{
 			allowTargets = splitAgentAllowTargets(os.Getenv("AGENT_ALLOW_TARGETS"))
 		}
 
-		if err := agent.Run(agent.Options{
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		if err := agent.RunContext(ctx, agent.Options{
 			ManagementURL:           mgmtURL,
 			PublicID:                agentID,
 			Name:                    agentName,
@@ -81,7 +87,7 @@ var agentCmd = &cobra.Command{
 			TLSKeyFile:              tlsKeyFile,
 			AllowInsecureManagement: allowInsecureManagement,
 			AllowTargets:            allowTargets,
-		}); err != nil {
+		}); err != nil && ctx.Err() == nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
 		}
