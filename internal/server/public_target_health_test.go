@@ -406,7 +406,7 @@ func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testin
 			2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 		},
 	}
-	if _, _, ok := app.selectRouteTarget(snap, route); ok {
+	if _, _, ok := app.selectRouteTarget(&snap, route); ok {
 		t.Fatal("route target should be unavailable when all agents are unhealthy")
 	}
 }
@@ -474,7 +474,7 @@ func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 	app.TargetHealth.reconcile(app, &snap, false)
 	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
-	selected, _, ok := app.selectRouteTarget(snap, route)
+	selected, _, ok := app.selectRouteTarget(&snap, route)
 	if !ok || selected.ID != fallbackTarget.ID {
 		t.Fatalf("route target selection = target=%d ok=%v, want fallback %d", selected.ID, ok, fallbackTarget.ID)
 	}
@@ -514,7 +514,7 @@ func TestRouteTargetLeastActiveUsesTargetHealthCounters(t *testing.T) {
 	done := app.TargetHealth.beginRequest(busy.ID)
 	t.Cleanup(done)
 
-	selected, _, ok := app.selectRouteTarget(snap, route)
+	selected, _, ok := app.selectRouteTarget(&snap, route)
 	if !ok || selected.ID != idle.ID {
 		t.Fatalf("route target selection = target=%d ok=%v, want idle target %d", selected.ID, ok, idle.ID)
 	}
@@ -781,7 +781,7 @@ func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testi
 		Action:  publicRouteActionForward,
 		Targets: []publicRouteTargetConfig{target},
 	}
-	selected, _, ok := app.selectRouteTarget(snap, route)
+	selected, _, ok := app.selectRouteTarget(&snap, route)
 	if !ok || selected.ID != target.ID {
 		t.Fatalf("route target selection = target=%d ok=%v, want target %d", selected.ID, ok, target.ID)
 	}

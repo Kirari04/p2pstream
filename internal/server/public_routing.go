@@ -774,10 +774,10 @@ func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
 	if snap == nil {
 		return nil
 	}
-	return a.selectTargetAgentFromSnapshot(*snap, target)
+	return a.selectTargetAgentFromSnapshot(snap, target)
 }
 
-func (a *App) selectTargetAgentFromSnapshot(snap publicProxySnapshot, target publicRouteTargetConfig) *AgentConn {
+func (a *App) selectTargetAgentFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig) *AgentConn {
 	candidates := a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
 	if len(candidates) == 0 {
 		return nil
@@ -793,11 +793,11 @@ func (a *App) eligibleTargetAgentCandidates(target publicRouteTargetConfig) []ba
 	if snap == nil {
 		return nil
 	}
-	return a.eligibleTargetAgentCandidatesFromSnapshot(*snap, target)
+	return a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
 }
 
-func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap publicProxySnapshot, target publicRouteTargetConfig) []backendAgentCandidate {
-	if a == nil || a.AgentHub == nil {
+func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig) []backendAgentCandidate {
+	if a == nil || a.AgentHub == nil || snap == nil {
 		return nil
 	}
 	candidates := make([]backendAgentCandidate, 0, len(snap.Agents))
@@ -854,7 +854,10 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 	return !requestContextCanceled(requestCtx, err)
 }
 
-func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+func (a *App) selectRouteTarget(snap *publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+	if snap == nil {
+		return publicRouteTargetConfig{}, nil, false
+	}
 	candidates := make([]routeTargetCandidate, 0, len(route.Targets))
 	lowestPriorityGroupSet := false
 	lowestPriorityGroup := int64(0)
@@ -904,7 +907,7 @@ func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfi
 	return selected.Target, agent, true
 }
 
-func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
+func (a *App) targetEligibleForRoute(snap *publicProxySnapshot, target publicRouteTargetConfig) bool {
 	if !target.Enabled {
 		return false
 	}
@@ -923,8 +926,8 @@ func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRout
 	return true
 }
 
-func (a *App) targetHasEligibleAgent(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
-	if a == nil || a.AgentHub == nil {
+func (a *App) targetHasEligibleAgent(snap *publicProxySnapshot, target publicRouteTargetConfig) bool {
+	if a == nil || a.AgentHub == nil || snap == nil {
 		return false
 	}
 	for agentID, agentConfig := range snap.Agents {
@@ -1133,7 +1136,7 @@ func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteRe
 			RouteID:      routeID,
 		}, nil
 	}
-	target, agent, ok := a.selectRouteTarget(*match.Snapshot, matchedRoute)
+	target, agent, ok := a.selectRouteTarget(match.Snapshot, matchedRoute)
 	if !ok {
 		return publicRouteResolution{}, errNoRouteTargetAvailable
 	}
