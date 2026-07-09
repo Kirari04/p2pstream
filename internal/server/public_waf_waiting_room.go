@@ -13,6 +13,8 @@ import (
 
 type publicWaitingRoomRuntime struct {
 	queue           []string
+	queueHead       int
+	queueIndex      map[string]int
 	queued          map[string]time.Time
 	admitted        map[string]time.Time
 	admissionTokens float64
@@ -21,8 +23,9 @@ type publicWaitingRoomRuntime struct {
 
 func newPublicWaitingRoomRuntime() *publicWaitingRoomRuntime {
 	return &publicWaitingRoomRuntime{
-		queued:   make(map[string]time.Time),
-		admitted: make(map[string]time.Time),
+		queueIndex: make(map[string]int),
+		queued:     make(map[string]time.Time),
+		admitted:   make(map[string]time.Time),
 	}
 }
 
@@ -60,11 +63,10 @@ func (rt *publicWaitingRoomRuntime) evaluateLocked(w *publicWAF, rule publicWafR
 				RetryAfter:      retryAfter,
 				AutomaticActive: automaticActive,
 				ChallengeKind:   publicWafActionWaitingRoom,
-				QueuePosition:   int64(len(rt.queue) + 1),
+				QueuePosition:   int64(rt.queueLenLocked() + 1),
 			}, false
 		}
-		rt.queued[sessionID] = now
-		rt.queue = append(rt.queue, sessionID)
+		rt.enqueueLocked(sessionID, now)
 	}
 	position := rt.positionLocked(sessionID)
 	queueCookie := w.signedRuleCookie(rule, listener, r, publicWafQueueCookieKind, sessionID, queueTimeout, now)
@@ -115,23 +117,29 @@ func (rt *publicWaitingRoomRuntime) pruneLocked(now time.Time, queueTimeout time
 	if queueTimeout <= 0 {
 		queueTimeout = defaultWafWaitingRoomQueueTimeout
 	}
-	keep := rt.queue[:0]
-	for _, sessionID := range rt.queue {
+	// Enqueue times are FIFO, so a non-expired head means later sessions are not expired.
+	for rt.queueHead < len(rt.queue) {
+		sessionID := rt.queue[rt.queueHead]
 		enqueuedAt, ok := rt.queued[sessionID]
 		if !ok {
+			delete(rt.queueIndex, sessionID)
+			rt.queue[rt.queueHead] = ""
+			rt.queueHead++
 			continue
 		}
-		if now.Sub(enqueuedAt) > queueTimeout {
-			delete(rt.queued, sessionID)
-			continue
+		if now.Sub(enqueuedAt) <= queueTimeout {
+			break
 		}
-		keep = append(keep, sessionID)
+		delete(rt.queued, sessionID)
+		delete(rt.queueIndex, sessionID)
+		rt.queue[rt.queueHead] = ""
+		rt.queueHead++
 	}
-	rt.queue = keep
+	rt.compactQueueLocked()
 }
 
 func (rt *publicWaitingRoomRuntime) canAdmitLocked(rule publicWafRuleConfig, now time.Time, sessionID string) bool {
-	if len(rt.queue) == 0 || rt.queue[0] != sessionID {
+	if rt.queueLenLocked() == 0 || rt.queue[rt.queueHead] != sessionID {
 		return false
 	}
 	maxAdmitted := rule.WaitingRoom.MaxAdmittedSessions
@@ -165,21 +173,67 @@ func (rt *publicWaitingRoomRuntime) canAdmitLocked(rule publicWafRuleConfig, now
 }
 
 func (rt *publicWaitingRoomRuntime) positionLocked(sessionID string) int64 {
-	for idx, queuedID := range rt.queue {
-		if queuedID == sessionID {
-			return int64(idx + 1)
-		}
+	idx, ok := rt.queueIndex[sessionID]
+	if ok && idx >= rt.queueHead && idx < len(rt.queue) {
+		return int64(idx - rt.queueHead + 1)
 	}
-	return int64(len(rt.queue) + 1)
+	return int64(rt.queueLenLocked() + 1)
 }
 
 func (rt *publicWaitingRoomRuntime) removeFromQueueLocked(sessionID string) {
-	for idx, queuedID := range rt.queue {
-		if queuedID == sessionID {
-			copy(rt.queue[idx:], rt.queue[idx+1:])
-			rt.queue = rt.queue[:len(rt.queue)-1]
-			return
-		}
+	idx, ok := rt.queueIndex[sessionID]
+	if !ok || idx < rt.queueHead || idx >= len(rt.queue) {
+		return
+	}
+	delete(rt.queueIndex, sessionID)
+	if idx == rt.queueHead {
+		rt.queue[idx] = ""
+		rt.queueHead++
+		rt.compactQueueLocked()
+		return
+	}
+	copy(rt.queue[idx:], rt.queue[idx+1:])
+	rt.queue[len(rt.queue)-1] = ""
+	rt.queue = rt.queue[:len(rt.queue)-1]
+	for shiftedIdx := idx; shiftedIdx < len(rt.queue); shiftedIdx++ {
+		rt.queueIndex[rt.queue[shiftedIdx]] = shiftedIdx
+	}
+}
+
+func (rt *publicWaitingRoomRuntime) enqueueLocked(sessionID string, now time.Time) {
+	if rt.queueIndex == nil {
+		rt.queueIndex = make(map[string]int)
+	}
+	rt.queued[sessionID] = now
+	rt.queueIndex[sessionID] = len(rt.queue)
+	rt.queue = append(rt.queue, sessionID)
+}
+
+func (rt *publicWaitingRoomRuntime) queueLenLocked() int {
+	return len(rt.queue) - rt.queueHead
+}
+
+func (rt *publicWaitingRoomRuntime) compactQueueLocked() {
+	if rt.queueHead == 0 {
+		return
+	}
+	if rt.queueHead == len(rt.queue) {
+		clear(rt.queueIndex)
+		rt.queue = rt.queue[:0]
+		rt.queueHead = 0
+		return
+	}
+	if rt.queueHead < 1024 && rt.queueHead*2 < len(rt.queue) {
+		return
+	}
+	active := copy(rt.queue, rt.queue[rt.queueHead:])
+	for idx := active; idx < len(rt.queue); idx++ {
+		rt.queue[idx] = ""
+	}
+	rt.queue = rt.queue[:active]
+	rt.queueHead = 0
+	for idx, sessionID := range rt.queue {
+		rt.queueIndex[sessionID] = idx
 	}
 }
 

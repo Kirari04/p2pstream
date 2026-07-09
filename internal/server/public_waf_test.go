@@ -1054,6 +1054,48 @@ func TestPublicWafCookieSecretConcurrentReconcileAndSigning(t *testing.T) {
 	}
 }
 
+func TestPublicWaitingRoomRuntimeMaintainsPositionIndex(t *testing.T) {
+	rt := newPublicWaitingRoomRuntime()
+	now := time.Unix(100, 0)
+
+	rt.enqueueLocked("a", now)
+	rt.enqueueLocked("b", now.Add(time.Second))
+	rt.enqueueLocked("c", now.Add(2*time.Second))
+
+	if got := rt.positionLocked("a"); got != 1 {
+		t.Fatalf("position a = %d, want 1", got)
+	}
+	if got := rt.positionLocked("c"); got != 3 {
+		t.Fatalf("position c = %d, want 3", got)
+	}
+
+	delete(rt.queued, "a")
+	rt.removeFromQueueLocked("a")
+	if _, ok := rt.queueIndex["a"]; ok {
+		t.Fatal("removed session still present in queue index")
+	}
+	if got := rt.positionLocked("b"); got != 1 {
+		t.Fatalf("position b after head removal = %d, want 1", got)
+	}
+	if got := rt.positionLocked("c"); got != 2 {
+		t.Fatalf("position c after head removal = %d, want 2", got)
+	}
+
+	rt.pruneLocked(now.Add(63*time.Second), 61*time.Second)
+	if _, ok := rt.queued["b"]; ok {
+		t.Fatal("expired session still present in queued map")
+	}
+	if _, ok := rt.queueIndex["b"]; ok {
+		t.Fatal("expired session still present in queue index")
+	}
+	if got := rt.positionLocked("c"); got != 1 {
+		t.Fatalf("position c after prune = %d, want 1", got)
+	}
+	if rt.queueHead != 0 || len(rt.queue) != 1 || rt.queue[0] != "c" {
+		t.Fatalf("queue after compaction = head %d queue %#v, want head 0 queue [c]", rt.queueHead, rt.queue)
+	}
+}
+
 func TestPublicWafWaitingRoomFIFOAdmission(t *testing.T) {
 	waf := newPublicWAF()
 	rule := testWafRule(1, publicWafActionWaitingRoom)
