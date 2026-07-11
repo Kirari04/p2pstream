@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -224,6 +226,9 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 		40,
 		400,
 	)
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 
 	var rawEvents int64
 	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
@@ -265,6 +270,564 @@ func TestProxyRequestEventRollupsAreWrittenWithRawEvent(t *testing.T) {
 	}
 	if statusCode != http.StatusGatewayTimeout || requests != 1 || serverError != 1 || internalError != 1 {
 		t.Fatalf("unexpected status rollup: status=%d requests=%d server=%d internal=%d", statusCode, requests, serverError, internalError)
+	}
+}
+
+func TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	seedDashboardRollupDimensionFixtures(t, app.DB)
+
+	for _, statusCode := range []int{http.StatusOK, http.StatusCreated, http.StatusBadGateway} {
+		app.recordProxyRequestEventWithIDsAndContext(
+			ctx,
+			statusCode,
+			time.Duration(statusCode)*time.Millisecond,
+			"",
+			sqlNullInt64(1),
+			sqlNullInt64(1),
+			sqlNullInt64(1),
+			1,
+			2,
+			proxyRequestContext{Method: "GET", Host: "example.test", PathPrefix: "/api"},
+		)
+	}
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count raw proxy events: %v", err)
+	}
+	if rawEvents != 3 {
+		t.Fatalf("raw proxy events = %d, want 3", rawEvents)
+	}
+
+	var requests, success, serverError, durationMsSum, requestBytes, responseBytes int64
+	if err := app.DB.QueryRowContext(ctx, `
+		SELECT COALESCE(SUM(requests), 0), COALESCE(SUM(success), 0), COALESCE(SUM(server_error), 0),
+		       COALESCE(SUM(duration_ms_sum), 0), COALESCE(SUM(request_bytes), 0), COALESCE(SUM(response_bytes), 0)
+		FROM proxy_request_rollup_minutes
+	`).Scan(&requests, &success, &serverError, &durationMsSum, &requestBytes, &responseBytes); err != nil {
+		t.Fatalf("read proxy rollup totals: %v", err)
+	}
+	if requests != 3 || success != 2 || serverError != 1 || durationMsSum != 903 || requestBytes != 3 || responseBytes != 6 {
+		t.Fatalf("unexpected rollup totals: requests=%d success=%d server=%d duration=%d request_bytes=%d response_bytes=%d", requests, success, serverError, durationMsSum, requestBytes, responseBytes)
+	}
+
+	var tupleRows, tupleRequests int64
+	if err := app.DB.QueryRowContext(ctx, `
+		SELECT COUNT(*), COALESCE(SUM(requests), 0)
+		FROM proxy_request_tuple_rollup_minutes
+		WHERE listener_id = 1 AND route_id = 1 AND agent_id = 1 AND error_kind = '' AND status_class = 2
+	`).Scan(&tupleRows, &tupleRequests); err != nil {
+		t.Fatalf("read tuple rollups: %v", err)
+	}
+	if tupleRows != 1 || tupleRequests != 2 {
+		t.Fatalf("tuple rollup rows/requests = %d/%d, want 1/2", tupleRows, tupleRequests)
+	}
+}
+
+func TestObservabilityRecorderCoalescesPublicCacheTouches(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	keyDigest := "cache-touch-key"
+	storedAt := time.Now().UTC().Round(0)
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_cache_rules (id, name) VALUES (1, 'cache-touch-rule')`); err != nil {
+		t.Fatalf("insert cache rule: %v", err)
+	}
+	if _, err := app.DB.ExecContext(ctx, `
+		INSERT INTO public_cache_entries (
+			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at
+		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/asset', '', 'GET', '[]', '{}', 200, '/tmp/body', 10, ?, ?)
+	`, keyDigest, storedAt, time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	recorder := app.observabilityRecorderService()
+	firstAccess := storedAt.Add(time.Second)
+	recorder.touchPublicCacheEntry(keyDigest, storedAt, firstAccess)
+	recorder.touchPublicCacheEntry(keyDigest, storedAt, firstAccess.Add(time.Second))
+	recorder.touchPublicCacheEntry(keyDigest, storedAt, firstAccess.Add(2*time.Second))
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+
+	var hitCount int64
+	var lastAccessedAt time.Time
+	if err := app.DB.QueryRowContext(ctx, `SELECT hit_count, last_accessed_at FROM public_cache_entries WHERE key_digest = ?`, keyDigest).Scan(&hitCount, &lastAccessedAt); err != nil {
+		t.Fatalf("read cache hit count: %v", err)
+	}
+	if hitCount != 3 {
+		t.Fatalf("cache hit count = %d, want all 3 coalesced hits", hitCount)
+	}
+	if want := firstAccess.Add(2 * time.Second); !lastAccessedAt.Equal(want) {
+		t.Fatalf("cache last access = %s, want latest hit %s", lastAccessedAt, want)
+	}
+}
+
+func TestObservabilityRecorderPreservesLatestCacheAccessAcrossPrunedState(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	keyDigest := "out-of-order-cache-touch"
+	storedAt := time.Unix(1_700_000_000, 123_456_789).UTC()
+	olderAccess := storedAt.Add(time.Second)
+	newerAccess := storedAt.Add(2 * time.Second)
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_cache_rules (id, name) VALUES (1, 'out-of-order-cache-rule')`); err != nil {
+		t.Fatalf("insert cache rule: %v", err)
+	}
+	if _, err := app.DB.ExecContext(ctx, `
+		INSERT INTO public_cache_entries (
+			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes,
+			stored_at, expires_at, last_accessed_at
+		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/asset', '', 'GET',
+			'[]', '{}', 200, '/tmp/body', 10, ?, ?, ?)
+	`, keyDigest, storedAt, storedAt.Add(time.Hour), storedAt); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	recorder := newObservabilityRecorder(app)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	batch := make([]db.InsertProxyRequestEventAtParams, 0)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(keyDigest, storedAt, newerAccess))
+	firstFlushAt := newerAccess.Add(time.Second)
+	if err := recorder.flushBatch(ctx, &batch, touches, firstFlushAt, true); err != nil {
+		t.Fatalf("flush newer cache touch: %v", err)
+	}
+
+	assertEntry := func(wantHits int64, wantAccess time.Time) {
+		t.Helper()
+		var hitCount int64
+		var lastAccessedAt time.Time
+		if err := app.DB.QueryRowContext(ctx, `
+			SELECT hit_count, last_accessed_at
+			FROM public_cache_entries
+			WHERE key_digest = ?
+		`, keyDigest).Scan(&hitCount, &lastAccessedAt); err != nil {
+			t.Fatalf("read cache touch state: %v", err)
+		}
+		if hitCount != wantHits || !lastAccessedAt.Equal(wantAccess) {
+			t.Fatalf("cache touch state = hits %d/access %s, want %d/%s", hitCount, lastAccessedAt, wantHits, wantAccess)
+		}
+	}
+	assertEntry(1, newerAccess)
+
+	recorder.prunePublicCacheTouches(touches, firstFlushAt.Add(publicCacheTouchCoalesceInterval))
+	if len(touches) != 0 || recorder.pendingTouches.Load() != 0 {
+		t.Fatalf("flushed cache touch state was not pruned: len=%d pending=%d", len(touches), recorder.pendingTouches.Load())
+	}
+
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(keyDigest, storedAt, olderAccess))
+	if err := recorder.flushBatch(ctx, &batch, touches, firstFlushAt.Add(publicCacheTouchCoalesceInterval), true); err != nil {
+		t.Fatalf("flush older cache touch: %v", err)
+	}
+	assertEntry(2, newerAccess)
+}
+
+func TestObservabilityRecorderTouchesLegacySQLiteTimestampGeneration(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	keyDigest := "legacy-sqlite-cache-touch"
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_cache_rules (id, name) VALUES (1, 'legacy-cache-rule')`); err != nil {
+		t.Fatalf("insert cache rule: %v", err)
+	}
+	if _, err := app.DB.ExecContext(ctx, `
+		INSERT INTO public_cache_entries (
+			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, expires_at
+		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/legacy', '', 'GET',
+			'[]', '{}', 200, '/tmp/legacy-body', 10, datetime('now', '+1 hour'))
+	`, keyDigest); err != nil {
+		t.Fatalf("insert legacy cache entry: %v", err)
+	}
+
+	var storedText string
+	var storedLength int
+	if err := app.DB.QueryRowContext(ctx, `
+		SELECT CAST(stored_at AS TEXT), length(stored_at)
+		FROM public_cache_entries
+		WHERE key_digest = ?
+	`, keyDigest).Scan(&storedText, &storedLength); err != nil {
+		t.Fatalf("read raw legacy stored_at: %v", err)
+	}
+	if storedLength != len("2006-01-02 15:04:05") {
+		t.Fatalf("legacy stored_at = %q (length %d), want SQLite CURRENT_TIMESTAMP format", storedText, storedLength)
+	}
+	entry, err := app.DB.GetPublicCacheEntry(ctx, keyDigest)
+	if err != nil {
+		t.Fatalf("load legacy cache entry: %v", err)
+	}
+	accessedAt := entry.StoredAt.Add(time.Second)
+	recorder := newObservabilityRecorder(app)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(keyDigest, entry.StoredAt, accessedAt))
+	batch := make([]db.InsertProxyRequestEventAtParams, 0)
+	if err := recorder.flushBatch(ctx, &batch, touches, accessedAt, true); err != nil {
+		t.Fatalf("flush legacy cache touch: %v", err)
+	}
+
+	updated, err := app.DB.GetPublicCacheEntry(ctx, keyDigest)
+	if err != nil {
+		t.Fatalf("reload legacy cache entry: %v", err)
+	}
+	if updated.HitCount != 1 || !updated.LastAccessedAt.Equal(accessedAt) {
+		t.Fatalf("legacy cache touch = hits %d/access %s, want 1/%s", updated.HitCount, updated.LastAccessedAt, accessedAt)
+	}
+}
+
+func TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails(t *testing.T) {
+	database := newServerTestDB(t)
+	app := NewApp(nil, database)
+	recorder := app.observabilityRecorderService()
+	flushFailure := errors.New("injected observability flush failure")
+	failFlush := true
+	insertBatch := recorder.insertBatch
+	recorder.insertBatch = func(ctx context.Context, events []db.InsertProxyRequestEventAtParams, touches []db.TouchPublicCacheEntryParams) error {
+		if failFlush {
+			return flushFailure
+		}
+		return insertBatch(ctx, events, touches)
+	}
+
+	for i := 0; i < observabilityRecorderMaxBatch; i++ {
+		recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for recorder.pendingEvents.Load() < observabilityRecorderMaxBatch && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	for i := 0; i < observabilityRecorderQueueSize+2048; i++ {
+		recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	}
+
+	pending := recorder.pendingEvents.Load()
+	queued := len(recorder.events)
+	if pending != observabilityRecorderMaxBatch {
+		t.Fatalf("pending event batch = %d, want hard cap %d", pending, observabilityRecorderMaxBatch)
+	}
+	if queued != observabilityRecorderQueueSize {
+		t.Fatalf("queued events = %d, want bounded queue filled to %d", queued, observabilityRecorderQueueSize)
+	}
+	if got := pending + int64(queued); got != observabilityRecorderMaxBatch+observabilityRecorderQueueSize {
+		t.Fatalf("retained events = %d, want %d", got, observabilityRecorderMaxBatch+observabilityRecorderQueueSize)
+	}
+	if recorder.droppedEvents.Load() == 0 {
+		t.Fatal("expected excess events to be dropped")
+	}
+
+	time.Sleep(2 * observabilityRecorderFlushInterval)
+	if got := recorder.pendingEvents.Load(); got != pending {
+		t.Fatalf("pending batch grew across failed retries: got %d, want %d", got, pending)
+	}
+	if got := len(recorder.events); got != queued {
+		t.Fatalf("bounded queue changed across failed retries: got %d, want %d", got, queued)
+	}
+
+	closeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if err := recorder.close(closeCtx); !errors.Is(err, flushFailure) {
+		t.Fatalf("close error = %v, want injected flush failure", err)
+	}
+	cancel()
+	failFlush = false
+	retryCtx, retryCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer retryCancel()
+	if err := recorder.close(retryCtx); err != nil {
+		t.Fatalf("retry close after database recovery: %v", err)
+	}
+}
+
+func TestObservabilityRecorderRateLimitsDropLogs(t *testing.T) {
+	recorder := newObservabilityRecorder(nil)
+	recorder.dropEvent()
+	nextLog := recorder.nextDropLog.Load()
+	if nextLog <= time.Now().UnixNano() {
+		t.Fatalf("next drop log deadline = %d, want a future deadline", nextLog)
+	}
+	for i := 0; i < 100; i++ {
+		recorder.dropEvent()
+		recorder.dropTouch()
+	}
+	if got := recorder.nextDropLog.Load(); got != nextLog {
+		t.Fatalf("drop log deadline changed under amplification: got %d, want %d", got, nextLog)
+	}
+	if got := recorder.droppedEvents.Load(); got != 101 {
+		t.Fatalf("dropped events = %d, want 101", got)
+	}
+	if got := recorder.droppedTouches.Load(); got != 100 {
+		t.Fatalf("dropped touches = %d, want 100", got)
+	}
+}
+
+func TestObservabilityRecorderBoundsAndPrunesCacheTouchState(t *testing.T) {
+	recorder := newObservabilityRecorder(nil)
+	recorder.nextDropLog.Store(time.Now().Add(time.Hour).UnixNano())
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	storedAt := time.Unix(1_700_000_000, 0).UTC()
+	for i := 0; i < observabilityRecorderMaxTouchKeys; i++ {
+		recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(fmt.Sprintf("key-%d", i), storedAt, storedAt.Add(time.Second)))
+	}
+	keyZero := newPublicCacheTouch("key-0", storedAt, storedAt.Add(2*time.Second))
+	recorder.queuePublicCacheTouch(touches, keyZero)
+	if got := touches[keyZero.key].hitCount; got != 2 {
+		t.Fatalf("existing cache key hit count = %d, want 2", got)
+	}
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("overflow", storedAt, storedAt.Add(time.Second)))
+	if got := len(touches); got != observabilityRecorderMaxTouchKeys {
+		t.Fatalf("cache touch state cardinality = %d, want cap %d", got, observabilityRecorderMaxTouchKeys)
+	}
+	if got := recorder.droppedTouches.Load(); got != 1 {
+		t.Fatalf("dropped cache touches = %d, want 1", got)
+	}
+
+	now := time.Now().UTC()
+	for _, touch := range touches {
+		touch.hitCount = 0
+		touch.lastFlushedAt = now.Add(-publicCacheTouchCoalesceInterval)
+	}
+	recorder.prunePublicCacheTouches(touches, now)
+	if len(touches) != 0 || recorder.pendingTouches.Load() != 0 {
+		t.Fatalf("expired cache touch state was not pruned: len=%d pending=%d", len(touches), recorder.pendingTouches.Load())
+	}
+}
+
+func TestObservabilityRecorderCoalescesCacheTouchesPerGeneration(t *testing.T) {
+	recorder := newObservabilityRecorder(nil)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	storedAtA := time.Unix(1_700_000_000, 1).UTC()
+	storedAtB := storedAtA.Add(time.Nanosecond)
+	keyA := newPublicCacheTouch("same-digest", storedAtA, storedAtA.Add(time.Second))
+	keyB := newPublicCacheTouch("same-digest", storedAtB, storedAtB.Add(time.Second))
+
+	recorder.queuePublicCacheTouch(touches, keyA)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("same-digest", storedAtA, storedAtA.Add(2*time.Second)))
+	recorder.queuePublicCacheTouch(touches, keyB)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("same-digest", storedAtB, storedAtB.Add(2*time.Second)))
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("same-digest", storedAtB, storedAtB.Add(3*time.Second)))
+	if len(touches) != 2 || touches[keyA.key].hitCount != 2 || touches[keyB.key].hitCount != 3 {
+		t.Fatalf("generation touch state = len %d/A %d/B %d, want 2/2/3", len(touches), touches[keyA.key].hitCount, touches[keyB.key].hitCount)
+	}
+	if got := touches[keyA.key].lastAccessedAt; !got.Equal(storedAtA.Add(2 * time.Second)) {
+		t.Fatalf("generation A latest access = %s, want %s", got, storedAtA.Add(2*time.Second))
+	}
+	if got := touches[keyB.key].lastAccessedAt; !got.Equal(storedAtB.Add(3 * time.Second)) {
+		t.Fatalf("generation B latest access = %s, want %s", got, storedAtB.Add(3*time.Second))
+	}
+
+	batch := publicCacheTouchesToFlush(touches, time.Now().UTC(), true)
+	counts := make(map[time.Time]int64)
+	accesses := make(map[time.Time]time.Time)
+	for _, touch := range batch {
+		if touch.KeyDigest != "same-digest" {
+			t.Fatalf("touch digest = %q, want same-digest", touch.KeyDigest)
+		}
+		counts[touch.StoredAt] = touch.HitCount
+		accesses[touch.StoredAt] = touch.LastAccessedAt
+	}
+	if counts[storedAtA] != 2 || counts[storedAtB] != 3 {
+		t.Fatalf("generation flush counts = A %d/B %d, want 2/3", counts[storedAtA], counts[storedAtB])
+	}
+	if !accesses[storedAtA].Equal(storedAtA.Add(2*time.Second)) || !accesses[storedAtB].Equal(storedAtB.Add(3*time.Second)) {
+		t.Fatalf("generation flush access times = A %s/B %s", accesses[storedAtA], accesses[storedAtB])
+	}
+}
+
+func TestCloseObservabilityRecorderFlushesQueuedEvents(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+
+	app.recordProxyRequestEventWithIDsAndContext(
+		ctx,
+		http.StatusOK,
+		25*time.Millisecond,
+		"",
+		sql.NullInt64{},
+		sql.NullInt64{},
+		sql.NullInt64{},
+		3,
+		7,
+		proxyRequestContext{Method: "GET", Host: "example.test", PathPrefix: "/close"},
+	)
+	if err := app.CloseObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("close observability recorder: %v", err)
+	}
+	if err := app.CloseObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("close observability recorder twice: %v", err)
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count raw proxy events: %v", err)
+	}
+	if rawEvents != 1 {
+		t.Fatalf("raw proxy events = %d, want 1", rawEvents)
+	}
+}
+
+func TestCloseObservabilityRecorderCancelsActiveFlushAndDrains(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	recorder := newObservabilityRecorder(app)
+	flushStarted := make(chan struct{})
+	flushCanceled := make(chan struct{})
+	flushCalls := 0
+	recorder.insertBatch = func(ctx context.Context, events []db.InsertProxyRequestEventAtParams, touches []db.TouchPublicCacheEntryParams) error {
+		flushCalls++
+		if flushCalls == 1 {
+			close(flushStarted)
+			<-ctx.Done()
+			close(flushCanceled)
+			return ctx.Err()
+		}
+		return app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, events, touches)
+	}
+
+	for i := 0; i < observabilityRecorderMaxBatch; i++ {
+		recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	}
+	select {
+	case <-flushStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for background observability flush to start")
+	}
+
+	closeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := recorder.close(closeCtx); err != nil {
+		t.Fatalf("close recorder after canceling active flush: %v", err)
+	}
+	select {
+	case <-flushCanceled:
+	default:
+		t.Fatal("active background flush did not observe close cancellation")
+	}
+	if flushCalls != 2 {
+		t.Fatalf("flush calls = %d, want canceled background flush plus stop drain", flushCalls)
+	}
+	if recorder.pendingEvents.Load() != 0 || len(recorder.events) != 0 {
+		t.Fatalf("events remained after close drain: pending=%d queued=%d", recorder.pendingEvents.Load(), len(recorder.events))
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count drained proxy events: %v", err)
+	}
+	if rawEvents != observabilityRecorderMaxBatch {
+		t.Fatalf("drained proxy events = %d, want %d", rawEvents, observabilityRecorderMaxBatch)
+	}
+}
+
+func TestObservabilityRecorderFailedDeliveredCloseWakesConcurrentRetry(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	recorder := newObservabilityRecorder(app)
+	flushStarted := make(chan struct{})
+	secondCloseWaiting := make(chan struct{})
+	var waitOnce sync.Once
+	recorder.closeWaitHook = func() {
+		waitOnce.Do(func() { close(secondCloseWaiting) })
+	}
+	flushCalls := 0
+	var firstEvents, firstTouches, retryEvents, retryTouches int
+	recorder.insertBatch = func(ctx context.Context, events []db.InsertProxyRequestEventAtParams, touches []db.TouchPublicCacheEntryParams) error {
+		flushCalls++
+		if flushCalls == 1 {
+			firstEvents, firstTouches = len(events), len(touches)
+			close(flushStarted)
+			<-ctx.Done()
+			return ctx.Err()
+		}
+		retryEvents, retryTouches = len(events), len(touches)
+		return app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, events, touches)
+	}
+
+	recorder.startOnce.Do(func() {})
+	storedAt := time.Now().Add(-time.Minute).UTC()
+	recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	recorder.touchPublicCacheEntry("retry-touch", storedAt, storedAt.Add(time.Second))
+	recorder.mu.Lock()
+	recorder.startOnce = sync.Once{}
+	recorder.mu.Unlock()
+	firstCtx, cancelFirst := context.WithCancel(context.Background())
+	firstDone := make(chan error, 1)
+	go func() { firstDone <- recorder.close(firstCtx) }()
+	select {
+	case <-flushStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for delivered stop flush")
+	}
+
+	secondCtx, cancelSecond := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelSecond()
+	secondDone := make(chan error, 1)
+	go func() { secondDone <- recorder.close(secondCtx) }()
+	select {
+	case <-secondCloseWaiting:
+	case <-time.After(2 * time.Second):
+		t.Fatal("concurrent close did not wait on the active close attempt")
+	}
+	cancelFirst()
+	if err := <-firstDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("first close error = %v, want context.Canceled", err)
+	}
+	if err := <-secondDone; err != nil {
+		t.Fatalf("concurrent retry close: %v", err)
+	}
+	if flushCalls != 2 {
+		t.Fatalf("flush calls = %d, want failed stop plus retry", flushCalls)
+	}
+	if firstEvents != 1 || firstTouches != 1 || retryEvents != 1 || retryTouches != 1 {
+		t.Fatalf("retained batches = first events/touches %d/%d retry %d/%d, want 1/1 then 1/1", firstEvents, firstTouches, retryEvents, retryTouches)
+	}
+	if recorder.pendingEvents.Load() != 0 || recorder.pendingTouches.Load() != 0 || len(recorder.events) != 0 || len(recorder.touches) != 0 {
+		t.Fatalf("records remained after retry close: pending=%d/%d queued=%d/%d", recorder.pendingEvents.Load(), recorder.pendingTouches.Load(), len(recorder.events), len(recorder.touches))
+	}
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count retry-drained proxy events: %v", err)
+	}
+	if rawEvents != 1 {
+		t.Fatalf("retry-drained proxy events = %d, want 1", rawEvents)
+	}
+}
+
+func TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	recorder := newObservabilityRecorder(app)
+	// Suppress the worker until after the first close so its unbuffered control
+	// send deterministically observes the canceled context.
+	recorder.startOnce.Do(func() {})
+	recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := recorder.close(canceledCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("close error = %v, want context.Canceled", err)
+	}
+	if recorder.stopped || recorder.closing.Load() {
+		t.Fatalf("recorder remained stopped after failed pre-send close: stopped=%t closing=%t", recorder.stopped, recorder.closing.Load())
+	}
+
+	recorder.mu.Lock()
+	recorder.startOnce = sync.Once{}
+	recorder.mu.Unlock()
+	flushCtx, flushCancel := context.WithTimeout(context.Background(), time.Second)
+	defer flushCancel()
+	if err := recorder.flush(flushCtx); err != nil {
+		t.Fatalf("flush recorder with fresh context: %v", err)
+	}
+	closeCtx, closeCancel := context.WithTimeout(context.Background(), time.Second)
+	defer closeCancel()
+	if err := recorder.close(closeCtx); err != nil {
+		t.Fatalf("close recorder with fresh context: %v", err)
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count raw proxy events: %v", err)
+	}
+	if rawEvents != 1 {
+		t.Fatalf("raw proxy events after canceled close and fresh flush = %d, want 1", rawEvents)
 	}
 }
 

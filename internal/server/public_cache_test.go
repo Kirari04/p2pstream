@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -568,6 +569,9 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("asset-v1")) {
 		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
 	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 
 	var eventStatus string
 	var eventBytes int64
@@ -609,10 +613,195 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	if thirdDecision.Status != publicCacheStatusHit {
 		t.Fatalf("third warmed cache status = %q, want hit", thirdDecision.Status)
 	}
-	thirdRec := httptest.NewRecorder()
-	app.servePublicCacheHit(thirdRec, thirdReq, resolution, nil, nil, thirdDecision, proxyRequestObservability{})
-	if thirdRec.Code != http.StatusOK || thirdRec.Body.String() != "asset-v1" {
-		t.Fatalf("third warmed response = status %d body %q, want cached asset", thirdRec.Code, thirdRec.Body.String())
+	if app.preparePublicCacheHitBody(thirdReq, &thirdDecision) {
+		if thirdDecision.HitBody != nil {
+			_ = thirdDecision.HitBody.Close()
+		}
+		t.Fatal("warmed cache generation without its authoritative database row was prepared")
+	}
+	fourthDecision := app.checkPublicCache(httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt?v=1", nil), resolution)
+	if fourthDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("cache status after rejecting stale warmed generation = %q, want miss", fourthDecision.Status)
+	}
+}
+
+func TestPublicCacheIndexedHitsUpdateMemoryAndDatabaseExactly(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/count.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	keyDigest := publicCacheKeyDigest(req, resolution, snap.CacheRules[0], "", nil)
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, []byte("counted"), 0600); err != nil {
+		t.Fatalf("write cache body: %v", err)
+	}
+	if _, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/count.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len("counted")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
+		ExpiresAt:           time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	for i := 0; i < 2; i++ {
+		decision := app.checkPublicCache(req, resolution)
+		if decision.Status != publicCacheStatusHit {
+			t.Fatalf("cache lookup %d status = %q, want hit", i+1, decision.Status)
+		}
+	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+
+	var databaseHits int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT hit_count FROM public_cache_entries WHERE key_digest = ?`, keyDigest).Scan(&databaseHits); err != nil {
+		t.Fatalf("read cache hit count: %v", err)
+	}
+	if databaseHits != 2 {
+		t.Fatalf("database cache hit count = %d, want 2", databaseHits)
+	}
+	app.PublicCache.mu.Lock()
+	indexedHits := app.PublicCache.indexEntries[keyDigest].entry.HitCount
+	app.PublicCache.mu.Unlock()
+	if indexedHits != 2 {
+		t.Fatalf("indexed cache hit count = %d, want 2", indexedHits)
+	}
+}
+
+func TestPublicCacheTouchTokenRejectsReplacedEntry(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	ctx := context.Background()
+	keyDigest := "replacement-token-digest"
+	oldStoredAt := time.Unix(1_700_000_000, 123_456_789).UTC()
+	params := db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/replacement.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            "/tmp/replacement-token.body",
+		SizeBytes:           10,
+		StoredAt:            oldStoredAt,
+		ExpiresAt:           time.Now().Add(time.Hour),
+	}
+	oldEntry, err := app.DB.UpsertPublicCacheEntry(ctx, params)
+	if err != nil {
+		t.Fatalf("insert old cache entry: %v", err)
+	}
+	if !oldEntry.StoredAt.Equal(oldStoredAt) || !oldEntry.LastAccessedAt.Equal(oldStoredAt) {
+		t.Fatalf("old stored_at round trip = stored %s/access %s, want %s", oldEntry.StoredAt, oldEntry.LastAccessedAt, oldStoredAt)
+	}
+	app.PublicCache.putIndexEntry(oldEntry)
+	oldTouchAt := time.Now().UTC()
+	app.PublicCache.touchIndexedEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
+	app.observabilityRecorderService().touchPublicCacheEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
+
+	params.StoredAt = oldStoredAt.Add(time.Nanosecond)
+	params.BodyPath = "/tmp/replacement-token-new.body"
+	replacement, err := app.DB.UpsertPublicCacheEntry(ctx, params)
+	if err != nil {
+		t.Fatalf("replace cache entry: %v", err)
+	}
+	if !replacement.StoredAt.Equal(params.StoredAt) || !replacement.LastAccessedAt.Equal(params.StoredAt) {
+		t.Fatalf("replacement stored_at round trip = stored %s/access %s, want %s", replacement.StoredAt, replacement.LastAccessedAt, params.StoredAt)
+	}
+	if !replacement.StoredAt.After(oldEntry.StoredAt) {
+		t.Fatalf("replacement token = %s, want after old token %s", replacement.StoredAt, oldEntry.StoredAt)
+	}
+	app.PublicCache.putIndexEntry(replacement)
+	app.PublicCache.touchIndexedEntry(keyDigest, oldEntry.StoredAt, oldTouchAt.Add(time.Second))
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush old cache touch: %v", err)
+	}
+
+	assertCounts := func(want int64, wantLastAccess time.Time) db.PublicCacheEntry {
+		t.Helper()
+		databaseEntry, err := app.DB.GetPublicCacheEntry(ctx, keyDigest)
+		if err != nil {
+			t.Fatalf("load replacement cache entry: %v", err)
+		}
+		app.PublicCache.mu.Lock()
+		indexedEntry := app.PublicCache.indexEntries[keyDigest].entry
+		app.PublicCache.mu.Unlock()
+		if databaseEntry.HitCount != want || indexedEntry.HitCount != want {
+			t.Fatalf("replacement hit counts = database %d/index %d, want %d", databaseEntry.HitCount, indexedEntry.HitCount, want)
+		}
+		if !databaseEntry.StoredAt.Equal(replacement.StoredAt) || !indexedEntry.StoredAt.Equal(replacement.StoredAt) {
+			t.Fatalf("replacement tokens changed = database %s/index %s, want %s", databaseEntry.StoredAt, indexedEntry.StoredAt, replacement.StoredAt)
+		}
+		if !databaseEntry.LastAccessedAt.Equal(wantLastAccess) || !indexedEntry.LastAccessedAt.Equal(wantLastAccess) {
+			t.Fatalf("replacement last access = database %s/index %s, want %s", databaseEntry.LastAccessedAt, indexedEntry.LastAccessedAt, wantLastAccess)
+		}
+		if databaseEntry.LastAccessedAt.Before(databaseEntry.StoredAt) || indexedEntry.LastAccessedAt.Before(indexedEntry.StoredAt) {
+			t.Fatalf("replacement last access regressed before stored_at: database %s/%s index %s/%s", databaseEntry.LastAccessedAt, databaseEntry.StoredAt, indexedEntry.LastAccessedAt, indexedEntry.StoredAt)
+		}
+		return databaseEntry
+	}
+	assertCounts(0, replacement.StoredAt)
+
+	newTouchAt := oldTouchAt.Add(2 * time.Second)
+	app.PublicCache.touchIndexedEntry(keyDigest, replacement.StoredAt, newTouchAt)
+	app.observabilityRecorderService().touchPublicCacheEntry(keyDigest, replacement.StoredAt, newTouchAt)
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush replacement cache touch: %v", err)
+	}
+	assertCounts(1, newTouchAt)
+}
+
+func TestPublicCacheStoredAtTokensAreStrictlyUnique(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	const count = 256
+	tokens := make(chan time.Time, count)
+	var group sync.WaitGroup
+	for i := 0; i < count; i++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			tokens <- cache.nextStoredAt()
+		}()
+	}
+	group.Wait()
+	close(tokens)
+
+	ordered := make([]time.Time, 0, count)
+	for token := range tokens {
+		ordered = append(ordered, token)
+	}
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Before(ordered[j]) })
+	for i := 1; i < len(ordered); i++ {
+		if !ordered[i].After(ordered[i-1]) {
+			t.Fatalf("stored_at token %d = %s, want after %s", i, ordered[i], ordered[i-1])
+		}
 	}
 }
 
@@ -648,6 +837,7 @@ func TestPublicCacheStaleIndexedBodyFallsBackToMiss(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("stale-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("insert cache entry: %v", err)
@@ -670,6 +860,571 @@ func TestPublicCacheStaleIndexedBodyFallsBackToMiss(t *testing.T) {
 	thirdDecision := app.checkPublicCache(req, resolution)
 	if thirdDecision.Status != publicCacheStatusMiss {
 		t.Fatalf("third cache status = %q, want miss after stale entry invalidation", thirdDecision.Status)
+	}
+}
+
+func TestPublicCacheExpiredIndexedEntryInvalidatesRowIndexMemoryAndBody(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/expired.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	keyDigest := publicCacheKeyDigest(req, resolution, rule, "", nil)
+	body := []byte("expired-body")
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, body, 0600); err != nil {
+		t.Fatalf("write expired cache body: %v", err)
+	}
+	entry, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/expired.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len(body)),
+		StoredAt:            app.PublicCache.nextStoredAt(),
+		ExpiresAt:           time.Now().Add(-time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("insert expired cache entry: %v", err)
+	}
+	app.PublicCache.putIndexEntry(entry)
+	app.PublicCache.putMemory(keyDigest, entry.StoredAt, body)
+	app.PublicCache.mu.Lock()
+	app.PublicCache.lastCleanup = time.Now()
+	_, indexed := app.PublicCache.indexEntries[keyDigest]
+	_, inMemory := app.PublicCache.memoryEntries[keyDigest]
+	app.PublicCache.mu.Unlock()
+	if !indexed || !inMemory {
+		t.Fatalf("expired cache fixture was not indexed and warmed: index=%t memory=%t", indexed, inMemory)
+	}
+
+	decision := app.checkPublicCache(req, resolution)
+	if decision.Status != publicCacheStatusMiss {
+		t.Fatalf("expired cache status = %q, want miss", decision.Status)
+	}
+	if _, err := app.DB.GetPublicCacheEntry(context.Background(), keyDigest); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expired cache database row error = %v, want sql.ErrNoRows", err)
+	}
+	if _, err := os.Stat(bodyPath); !os.IsNotExist(err) {
+		t.Fatalf("expired cache body stat error = %v, want not exist", err)
+	}
+	app.PublicCache.mu.Lock()
+	_, indexed = app.PublicCache.indexEntries[keyDigest]
+	_, inMemory = app.PublicCache.memoryEntries[keyDigest]
+	app.PublicCache.mu.Unlock()
+	if indexed || inMemory {
+		t.Fatalf("expired cache state remained after invalidation: index=%t memory=%t", indexed, inMemory)
+	}
+}
+
+func TestPublicCacheStaleInvalidationDoesNotDeleteReplacementGeneration(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/replaced.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	v1, err := storeTestPublicCacheGeneration(app, resolution, req, rule, app.PublicCache.nextStoredAt(), []byte("generation-v1"))
+	if err != nil {
+		t.Fatalf("store cache generation v1: %v", err)
+	}
+	staleCopy := v1
+	v2, err := storeTestPublicCacheGeneration(app, resolution, req, rule, app.PublicCache.nextStoredAt(), []byte("generation-v2"))
+	if err != nil {
+		t.Fatalf("store cache generation v2: %v", err)
+	}
+
+	app.invalidatePublicCacheEntry(staleCopy)
+	assertTestPublicCacheGeneration(t, app, v2, []byte("generation-v2"))
+	if body := app.PublicCache.getMemory(v1.KeyDigest, v1.StoredAt); len(body) != 0 {
+		t.Fatalf("stale generation memory remained addressable: %q", body)
+	}
+}
+
+func TestPublicCacheFailedExpiredReplacementRestoresPreviousGeneration(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/failed-replacement.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	v1, err := storeTestPublicCacheGeneration(app, resolution, req, rule, app.PublicCache.nextStoredAt(), []byte("failed-replacement-v1"))
+	if err != nil {
+		t.Fatalf("store failed-replacement generation v1: %v", err)
+	}
+	v1.ExpiresAt = time.Now().Add(-time.Minute)
+	if _, err := app.DB.ExecContext(context.Background(), `UPDATE public_cache_entries SET expires_at = ? WHERE key_digest = ?`, v1.ExpiresAt, v1.KeyDigest); err != nil {
+		t.Fatalf("expire failed-replacement generation v1: %v", err)
+	}
+	app.PublicCache.putIndexEntry(v1)
+	fingerprint := publicCacheSnapshotFingerprint(snap)
+	generation, current := app.PublicCache.captureGeneration(fingerprint)
+	if !current {
+		t.Fatal("cache generation was not current before failed replacement")
+	}
+	decision := publicCacheDecision{
+		Rule:             rule,
+		Status:           publicCacheStatusMiss,
+		QueryKey:         "",
+		Host:             normalizeRequestHost(req.Host),
+		Path:             req.URL.EscapedPath(),
+		Cacheable:        true,
+		cacheGeneration:  generation,
+		cacheFingerprint: fingerprint,
+		cacheCurrent:     true,
+	}
+	upsertFailure := errors.New("injected cache upsert failure")
+	upsertCalls := 0
+	upsertKey := ""
+	app.PublicCache.upsertHook = func(_ context.Context, params db.UpsertPublicCacheEntryParams) (db.PublicCacheEntry, error) {
+		upsertCalls++
+		upsertKey = params.KeyDigest
+		return db.PublicCacheEntry{}, upsertFailure
+	}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		Body:       io.NopCloser(strings.NewReader("failed-replacement-v2")),
+	}
+	captured := app.capturePublicCacheResponseBody(context.Background(), req, resolution, &decision, resp, nil)
+	if captured == nil {
+		t.Fatal("failed-replacement response body was not captured")
+	}
+	if _, err := io.Copy(io.Discard, captured); err != nil {
+		t.Fatalf("read failed-replacement response: %v", err)
+	}
+	if err := captured.Close(); err != nil {
+		t.Fatalf("close failed-replacement response: %v", err)
+	}
+	app.PublicCache.upsertHook = nil
+	if upsertCalls != 1 || upsertKey != v1.KeyDigest {
+		t.Fatalf("failed replacement upsert = calls %d/key %q, want 1/%q", upsertCalls, upsertKey, v1.KeyDigest)
+	}
+	if decision.Status != publicCacheStatusStoreFailed {
+		t.Fatalf("failed replacement cache status = %q, want %q", decision.Status, publicCacheStatusStoreFailed)
+	}
+	assertTestPublicCacheGeneration(t, app, v1, []byte("failed-replacement-v1"))
+	backups, err := filepath.Glob(filepath.Join(app.PublicCache.tempDir(), "*.previous"))
+	if err != nil {
+		t.Fatalf("glob failed-replacement backups: %v", err)
+	}
+	if len(backups) != 0 {
+		t.Fatalf("failed-replacement backup files remained: %v", backups)
+	}
+}
+
+func TestPublicCacheFirstWriterWinsWhileLateReaderWaits(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/first-writer.txt", nil)
+	firstDecision := app.checkPublicCache(req, resolution)
+	secondDecision := app.checkPublicCache(req, resolution)
+	if firstDecision.Status != publicCacheStatusMiss || secondDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("initial cache statuses = %q/%q, want miss/miss", firstDecision.Status, secondDecision.Status)
+	}
+	capture := func(decision *publicCacheDecision, generation, body string) io.ReadCloser {
+		t.Helper()
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type":       []string{"text/plain"},
+				"X-Cache-Generation": []string{generation},
+			},
+			Body: io.NopCloser(strings.NewReader(body)),
+		}
+		captured := app.capturePublicCacheResponseBody(context.Background(), req, resolution, decision, resp, nil)
+		if captured == nil {
+			t.Fatalf("%s response body was not captured", generation)
+		}
+		return captured
+	}
+	firstBody := capture(&firstDecision, "v1", "first-writer-v1")
+	secondBody := capture(&secondDecision, "v2", "late-writer-v2")
+
+	firstUpsertStarted := make(chan struct{})
+	releaseFirstUpsert := make(chan struct{})
+	var releaseFirstOnce sync.Once
+	releaseFirst := func() { releaseFirstOnce.Do(func() { close(releaseFirstUpsert) }) }
+	defer releaseFirst()
+	var upsertCallsMu sync.Mutex
+	upsertCalls := 0
+	app.PublicCache.upsertHook = func(ctx context.Context, params db.UpsertPublicCacheEntryParams) (db.PublicCacheEntry, error) {
+		upsertCallsMu.Lock()
+		upsertCalls++
+		call := upsertCalls
+		upsertCallsMu.Unlock()
+		if call == 1 {
+			close(firstUpsertStarted)
+			<-releaseFirstUpsert
+		}
+		return app.DB.UpsertPublicCacheEntry(ctx, params)
+	}
+	lateWriterChecked := make(chan struct{})
+	releaseLateWriter := make(chan struct{})
+	var releaseLateOnce sync.Once
+	releaseLate := func() { releaseLateOnce.Do(func() { close(releaseLateWriter) }) }
+	defer releaseLate()
+	app.PublicCache.duplicateHook = func() {
+		close(lateWriterChecked)
+		<-releaseLateWriter
+	}
+
+	drain := func(body io.ReadCloser, done chan<- error) {
+		_, copyErr := io.Copy(io.Discard, body)
+		done <- errors.Join(copyErr, body.Close())
+	}
+	firstDone := make(chan error, 1)
+	go drain(firstBody, firstDone)
+	select {
+	case <-firstUpsertStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for first writer to reach upsert")
+	}
+
+	secondDone := make(chan error, 1)
+	go drain(secondBody, secondDone)
+	select {
+	case err := <-secondDone:
+		releaseFirst()
+		t.Fatalf("late writer completed before first writer committed: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	releaseFirst()
+	select {
+	case err := <-firstDone:
+		if err != nil {
+			t.Fatalf("first writer failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for first writer")
+	}
+	select {
+	case <-lateWriterChecked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for late writer duplicate check")
+	}
+
+	hitDecision := app.checkPublicCache(req, resolution)
+	if hitDecision.Status != publicCacheStatusHit {
+		releaseLate()
+		t.Fatalf("cache status after first commit = %q, want hit", hitDecision.Status)
+	}
+	type preparedResult struct {
+		decision publicCacheDecision
+		ok       bool
+	}
+	prepared := make(chan preparedResult, 1)
+	go func() {
+		prepared <- preparedResult{decision: hitDecision, ok: app.preparePublicCacheHitBody(req, &hitDecision)}
+	}()
+	var early *preparedResult
+	select {
+	case result := <-prepared:
+		early = &result
+	case <-time.After(50 * time.Millisecond):
+	}
+	releaseLate()
+	if early != nil {
+		t.Fatal("cache reader passed the key fence while the late writer held it")
+	}
+	select {
+	case err := <-secondDone:
+		if err != nil {
+			t.Fatalf("late writer failed while being discarded: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for late writer")
+	}
+	var result preparedResult
+	select {
+	case result = <-prepared:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for cache reader")
+	}
+	if !result.ok {
+		t.Fatal("first generation cache hit was not prepared after the late writer was discarded")
+	}
+	rec := httptest.NewRecorder()
+	app.servePublicCacheHit(rec, req, resolution, nil, nil, result.decision, proxyRequestObservability{})
+	if rec.Code != http.StatusOK || rec.Header().Get("X-Cache-Generation") != "v1" || rec.Body.String() != "first-writer-v1" {
+		t.Fatalf("cache response = status %d/generation %q/body %q, want 200/v1/first-writer-v1", rec.Code, rec.Header().Get("X-Cache-Generation"), rec.Body.String())
+	}
+	upsertCallsMu.Lock()
+	gotUpsertCalls := upsertCalls
+	upsertCallsMu.Unlock()
+	if gotUpsertCalls != 1 {
+		t.Fatalf("cache upsert calls = %d, want 1", gotUpsertCalls)
+	}
+	if firstDecision.Status != publicCacheStatusStored || secondDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("final cache statuses = %q/%q, want stored/miss", firstDecision.Status, secondDecision.Status)
+	}
+	app.PublicCache.upsertHook = nil
+	app.PublicCache.duplicateHook = nil
+}
+
+func TestPublicCacheStaleResolvedHitRejectsReplacementBody(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/stale-resolved.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	v1, err := storeTestPublicCacheGeneration(app, resolution, req, rule, app.PublicCache.nextStoredAt(), []byte("stale-resolved-v1"))
+	if err != nil {
+		t.Fatalf("store stale-resolved generation v1: %v", err)
+	}
+	staleDecision := app.checkPublicCache(req, resolution)
+	if staleDecision.Status != publicCacheStatusHit || staleDecision.Entry == nil || !staleDecision.Entry.StoredAt.Equal(v1.StoredAt) {
+		t.Fatalf("resolved cache decision = %#v, want generation v1 hit", staleDecision)
+	}
+	app.invalidatePublicCacheEntry(v1)
+	v2, err := storeTestPublicCacheGeneration(app, resolution, req, rule, app.PublicCache.nextStoredAt(), []byte("stale-resolved-v2"))
+	if err != nil {
+		t.Fatalf("store stale-resolved generation v2: %v", err)
+	}
+	if app.preparePublicCacheHitBody(req, &staleDecision) {
+		if staleDecision.HitBody != nil {
+			_ = staleDecision.HitBody.Close()
+		}
+		t.Fatal("stale generation v1 decision opened the generation v2 body")
+	}
+	assertTestPublicCacheGeneration(t, app, v2, []byte("stale-resolved-v2"))
+}
+
+func TestPublicCachePreparedDiskHitDoesNotHoldGenerationFence(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/open-descriptor.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	v1Body := []byte("open-descriptor-v1")
+	v1, err := storeTestPublicCacheGeneration(app, resolution, req, snap.CacheRules[0], app.PublicCache.nextStoredAt(), v1Body)
+	if err != nil {
+		t.Fatalf("store open-descriptor generation v1: %v", err)
+	}
+	decision := app.checkPublicCache(req, resolution)
+	if decision.Status != publicCacheStatusHit {
+		t.Fatalf("open-descriptor cache status = %q, want hit", decision.Status)
+	}
+	app.PublicCache.deleteMemory(v1.KeyDigest)
+	if !app.preparePublicCacheHitBody(req, &decision) || decision.HitBody == nil {
+		t.Fatal("open-descriptor disk hit was not prepared")
+	}
+	defer decision.HitBody.Close()
+
+	invalidationDone := make(chan struct{})
+	go func() {
+		app.invalidatePublicCacheEntry(v1)
+		close(invalidationDone)
+	}()
+	select {
+	case <-invalidationDone:
+	case <-time.After(2 * time.Second):
+		_ = decision.HitBody.Close()
+		t.Fatal("cache invalidation waited for the prepared response body to close")
+	}
+	if _, err := app.DB.GetPublicCacheEntry(context.Background(), v1.KeyDigest); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("open-descriptor database row error = %v, want sql.ErrNoRows", err)
+	}
+	if _, err := os.Stat(v1.BodyPath); !os.IsNotExist(err) {
+		t.Fatalf("open-descriptor body path stat error = %v, want not exist", err)
+	}
+	gotBody, err := io.ReadAll(decision.HitBody)
+	if err != nil {
+		t.Fatalf("read prepared open-descriptor body after invalidation: %v", err)
+	}
+	if string(gotBody) != string(v1Body) {
+		t.Fatalf("prepared open-descriptor body = %q, want %q", gotBody, v1Body)
+	}
+}
+
+func TestPublicCacheInvalidationSerializesReplacementCommit(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/interleaved.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	v1, err := storeTestPublicCacheGeneration(app, resolution, req, rule, app.PublicCache.nextStoredAt(), []byte("interleaved-v1"))
+	if err != nil {
+		t.Fatalf("store interleaved generation v1: %v", err)
+	}
+	v2StoredAt := app.PublicCache.nextStoredAt()
+
+	invalidationLocked := make(chan struct{})
+	releaseInvalidation := make(chan struct{})
+	app.PublicCache.invalidateHook = func() {
+		close(invalidationLocked)
+		<-releaseInvalidation
+	}
+	invalidationDone := make(chan struct{})
+	go func() {
+		app.invalidatePublicCacheEntry(v1)
+		close(invalidationDone)
+	}()
+	select {
+	case <-invalidationLocked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for invalidation store gate")
+	}
+
+	type replacementResult struct {
+		entry db.PublicCacheEntry
+		err   error
+	}
+	replacementAcquired := make(chan struct{})
+	replacementDone := make(chan replacementResult, 1)
+	go func() {
+		app.PublicCache.storeGate.RLock()
+		close(replacementAcquired)
+		entry, err := storeTestPublicCacheGeneration(app, resolution, req, rule, v2StoredAt, []byte("interleaved-v2"))
+		app.PublicCache.storeGate.RUnlock()
+		replacementDone <- replacementResult{entry: entry, err: err}
+	}()
+	select {
+	case <-replacementAcquired:
+		close(releaseInvalidation)
+		t.Fatal("replacement acquired the store gate before invalidation completed")
+	case <-time.After(50 * time.Millisecond):
+		close(releaseInvalidation)
+	}
+	select {
+	case <-invalidationDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for invalidation to finish")
+	}
+	app.PublicCache.invalidateHook = nil
+	select {
+	case <-replacementAcquired:
+	case <-time.After(2 * time.Second):
+		t.Fatal("replacement did not acquire the store gate after invalidation")
+	}
+	var replacement replacementResult
+	select {
+	case replacement = <-replacementDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for replacement commit")
+	}
+	if replacement.err != nil {
+		t.Fatalf("store interleaved generation v2: %v", replacement.err)
+	}
+	assertTestPublicCacheGeneration(t, app, replacement.entry, []byte("interleaved-v2"))
+}
+
+func TestPublicCacheCleanupWaitsForActiveStoreGeneration(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/cleanup-gate.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	entry, err := storeTestPublicCacheGeneration(app, resolution, req, snap.CacheRules[0], app.PublicCache.nextStoredAt(), []byte("cleanup-gate"))
+	if err != nil {
+		t.Fatalf("store cleanup-gate entry: %v", err)
+	}
+	entry.ExpiresAt = time.Now().Add(-time.Minute)
+	if _, err := app.DB.ExecContext(context.Background(), `UPDATE public_cache_entries SET expires_at = ? WHERE key_digest = ?`, entry.ExpiresAt, entry.KeyDigest); err != nil {
+		t.Fatalf("expire cleanup-gate entry: %v", err)
+	}
+	app.PublicCache.putIndexEntry(entry)
+	app.PublicCache.mu.Lock()
+	app.PublicCache.lastCleanup = time.Time{}
+	app.PublicCache.mu.Unlock()
+
+	app.PublicCache.storeGate.RLock()
+	cleanupDone := make(chan struct{})
+	go func() {
+		app.PublicCache.maybeCleanup(context.Background(), app.DB)
+		close(cleanupDone)
+	}()
+	premature := false
+	select {
+	case <-cleanupDone:
+		premature = true
+	case <-time.After(50 * time.Millisecond):
+	}
+	app.PublicCache.storeGate.RUnlock()
+	if premature {
+		t.Fatal("cleanup completed while a store generation held the read gate")
+	}
+	select {
+	case <-cleanupDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("cleanup did not continue after the store generation released its gate")
+	}
+	if _, err := app.DB.GetPublicCacheEntry(context.Background(), entry.KeyDigest); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("cleanup-gate database row error = %v, want sql.ErrNoRows", err)
+	}
+	if _, err := os.Stat(entry.BodyPath); !os.IsNotExist(err) {
+		t.Fatalf("cleanup-gate body stat error = %v, want not exist", err)
+	}
+}
+
+func TestPublicCacheGenerationInvalidationSupportsLegacyTimestamp(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/legacy-generation.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	entry, err := storeTestPublicCacheGeneration(app, resolution, req, snap.CacheRules[0], app.PublicCache.nextStoredAt(), []byte("legacy-generation"))
+	if err != nil {
+		t.Fatalf("store legacy-generation entry: %v", err)
+	}
+	legacyStoredAt := entry.StoredAt.UTC().Truncate(time.Second)
+	legacyText := legacyStoredAt.Format(sqliteLegacyTimestampLayout)
+	if _, err := app.DB.ExecContext(context.Background(), `
+		UPDATE public_cache_entries
+		SET stored_at = ?, last_accessed_at = ?
+		WHERE key_digest = ?
+	`, legacyText, legacyText, entry.KeyDigest); err != nil {
+		t.Fatalf("convert cache generation to legacy timestamp: %v", err)
+	}
+	entry, err = app.DB.GetPublicCacheEntry(context.Background(), entry.KeyDigest)
+	if err != nil {
+		t.Fatalf("load legacy cache generation: %v", err)
+	}
+	app.PublicCache.putIndexEntry(entry)
+	app.PublicCache.putMemory(entry.KeyDigest, entry.StoredAt, []byte("legacy-generation"))
+
+	app.invalidatePublicCacheEntry(entry)
+	if _, err := app.DB.GetPublicCacheEntry(context.Background(), entry.KeyDigest); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("legacy cache generation database row error = %v, want sql.ErrNoRows", err)
+	}
+	if _, err := os.Stat(entry.BodyPath); !os.IsNotExist(err) {
+		t.Fatalf("legacy cache generation body stat error = %v, want not exist", err)
+	}
+	if body := app.PublicCache.getMemory(entry.KeyDigest, entry.StoredAt); len(body) != 0 {
+		t.Fatalf("legacy cache generation memory remained: %q", body)
 	}
 }
 
@@ -709,6 +1464,7 @@ func TestPublicCacheEmptyMissUsesWarmedIndex(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("later-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	})
 	if err != nil {
@@ -851,6 +1607,141 @@ func TestPublicCacheIndexMaintainsPositiveAndNegativeLookupConsistency(t *testin
 	cache.mu.Unlock()
 	if entryPresent || lookupPresent {
 		t.Fatalf("deleted positive index retained state = entry %v/lookup %v", entryPresent, lookupPresent)
+	}
+}
+
+func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
+	newCache := func(t *testing.T) (*publicProxyCache, uint64, string, db.PublicCacheEntry, publicCacheLookupKey, time.Time) {
+		t.Helper()
+		cache := newPublicProxyCache(t.TempDir())
+		settings := defaultPublicCacheSettings()
+		rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+		fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+		cache.reconcile(settings, rules)
+		generation, ok := cache.captureGeneration(fingerprint)
+		if !ok {
+			t.Fatal("cache generation was not current after reconcile")
+		}
+		now := time.Unix(1_700_000_000, 0)
+		entry := db.PublicCacheEntry{
+			KeyDigest:        "shared-digest",
+			RuleID:           1,
+			ListenerProtocol: publicListenerProtocolHTTP,
+			Host:             "assets.example",
+			Path:             "/asset",
+			StoredAt:         now.Add(-time.Minute),
+			ExpiresAt:        now.Add(time.Hour),
+		}
+		return cache, generation, fingerprint, entry, publicCacheLookupKeyFromEntry(entry), now
+	}
+
+	t.Run("deterministic interleaving", func(t *testing.T) {
+		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
+		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+		newerTouch := now.Add(2 * time.Second)
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, newerTouch)
+		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
+
+		cache.mu.Lock()
+		indexed := cache.indexEntries[staleEntry.KeyDigest].entry
+		cache.mu.Unlock()
+		if indexed.HitCount != 2 {
+			t.Fatalf("indexed hit count = %d, want 2 after stale second store", indexed.HitCount)
+		}
+		if !indexed.LastAccessedAt.Equal(newerTouch) {
+			t.Fatalf("indexed last access = %s, want newer out-of-order touch %s", indexed.LastAccessedAt, newerTouch)
+		}
+	})
+
+	t.Run("parallel cold loads", func(t *testing.T) {
+		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
+		const workers = 64
+		start := make(chan struct{})
+		var group sync.WaitGroup
+		for i := 0; i < workers; i++ {
+			group.Add(1)
+			go func() {
+				defer group.Done()
+				<-start
+				cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+				cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
+			}()
+		}
+		close(start)
+		group.Wait()
+
+		cache.mu.Lock()
+		hitCount := cache.indexEntries[staleEntry.KeyDigest].entry.HitCount
+		cache.mu.Unlock()
+		if hitCount != workers {
+			t.Fatalf("parallel indexed hit count = %d, want %d", hitCount, workers)
+		}
+	})
+}
+
+func TestPublicCachePositiveIndexAdmissionIsBounded(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	settings := defaultPublicCacheSettings()
+	settings.MaxEntries = 1
+	rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+	fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+	cache.reconcile(settings, rules)
+	generation, ok := cache.captureGeneration(fingerprint)
+	if !ok {
+		t.Fatal("cache generation was not current after reconcile")
+	}
+	now := time.Unix(1_700_000_000, 0)
+	entryA := db.PublicCacheEntry{
+		KeyDigest:        "digest-a",
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "a.example",
+		Path:             "/asset",
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	entryB := db.PublicCacheEntry{
+		KeyDigest:        "digest-b",
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "b.example",
+		Path:             "/asset",
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	lookupB := publicCacheLookupKeyFromEntry(entryB)
+
+	cache.putIndexEntry(entryA)
+	cache.storeIndexedCandidates(lookupB, []db.PublicCacheEntry{entryB}, now, generation, fingerprint)
+	cache.storeIndexedCandidates(publicCacheLookupKey{
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "miss.example",
+		Path:             "/asset",
+	}, nil, now, generation, fingerprint)
+
+	cache.mu.Lock()
+	entryCount := len(cache.indexEntries)
+	_, keptA := cache.indexEntries[entryA.KeyDigest]
+	_, admittedB := cache.indexEntries[entryB.KeyDigest]
+	_, negativeB := cache.negativeLookups[publicCacheLookupKeyHash(lookupB)]
+	negativeCount := len(cache.negativeLookups)
+	cache.mu.Unlock()
+	if entryCount != 1 || !keptA || admittedB {
+		t.Fatalf("bounded positive index = count %d/kept A %v/admitted B %v, want 1/true/false", entryCount, keptA, admittedB)
+	}
+	if negativeB || negativeCount != 0 {
+		t.Fatalf("negative budget at positive cap = contradictory B %v/count %d, want false/0", negativeB, negativeCount)
+	}
+
+	entryA.HitCount = 7
+	entryA.LastAccessedAt = now.Add(time.Minute)
+	cache.putIndexEntry(entryA)
+	cache.mu.Lock()
+	updated := cache.indexEntries[entryA.KeyDigest].entry
+	entryCount = len(cache.indexEntries)
+	cache.mu.Unlock()
+	if entryCount != 1 || updated.HitCount != 7 || !updated.LastAccessedAt.Equal(entryA.LastAccessedAt) {
+		t.Fatalf("existing entry update at cap = count %d/hits %d/last access %s", entryCount, updated.HitCount, updated.LastAccessedAt)
 	}
 }
 
@@ -1025,6 +1916,9 @@ func TestPublicCacheAgentBackendMissStoresThenHit(t *testing.T) {
 	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("agent-asset-v1")) {
 		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
 	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 
 	var eventAgentID sql.NullInt64
 	var eventStatus string
@@ -1165,6 +2059,7 @@ func TestPublicCacheHeadServedFromCachedGet(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("head-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("insert cache entry: %v", err)
@@ -1181,6 +2076,70 @@ func TestPublicCacheHeadServedFromCachedGet(t *testing.T) {
 	}
 	if rec.Body.Len() != 0 {
 		t.Fatalf("HEAD body length = %d, want 0", rec.Body.Len())
+	}
+}
+
+func storeTestPublicCacheGeneration(app *App, resolution publicRouteResolution, req *http.Request, rule publicCacheRuleConfig, storedAt time.Time, body []byte) (db.PublicCacheEntry, error) {
+	keyDigest := publicCacheKeyDigest(req, resolution, rule, "", rule.VaryHeaders)
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		return db.PublicCacheEntry{}, err
+	}
+	if err := os.WriteFile(bodyPath, body, 0600); err != nil {
+		return db.PublicCacheEntry{}, err
+	}
+	entry, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                normalizeRequestHost(req.Host),
+		Path:                req.URL.EscapedPath(),
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     publicCacheStringListJSON(rule.VaryHeaders),
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len(body)),
+		StoredAt:            storedAt,
+		ExpiresAt:           time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		return db.PublicCacheEntry{}, err
+	}
+	app.PublicCache.putIndexEntry(entry)
+	app.PublicCache.putMemory(keyDigest, entry.StoredAt, body)
+	return entry, nil
+}
+
+func assertTestPublicCacheGeneration(t *testing.T, app *App, want db.PublicCacheEntry, body []byte) {
+	t.Helper()
+	got, err := app.DB.GetPublicCacheEntry(context.Background(), want.KeyDigest)
+	if err != nil {
+		t.Fatalf("load cache generation: %v", err)
+	}
+	if !got.StoredAt.Equal(want.StoredAt) || got.BodyPath != want.BodyPath {
+		t.Fatalf("database cache generation = stored %s/body %q, want %s/%q", got.StoredAt, got.BodyPath, want.StoredAt, want.BodyPath)
+	}
+	diskBody, err := os.ReadFile(want.BodyPath)
+	if err != nil {
+		t.Fatalf("read cache generation body: %v", err)
+	}
+	if string(diskBody) != string(body) {
+		t.Fatalf("disk cache generation body = %q, want %q", diskBody, body)
+	}
+	app.PublicCache.mu.Lock()
+	indexed := app.PublicCache.indexEntries[want.KeyDigest]
+	memory := app.PublicCache.memoryEntries[want.KeyDigest]
+	app.PublicCache.mu.Unlock()
+	if !indexed.entry.StoredAt.Equal(want.StoredAt) {
+		t.Fatalf("indexed cache generation = %s, want %s", indexed.entry.StoredAt, want.StoredAt)
+	}
+	if memory == nil || !memory.storedAt.Equal(want.StoredAt) || string(memory.body) != string(body) {
+		t.Fatalf("memory cache generation = %#v, want stored %s/body %q", memory, want.StoredAt, body)
 	}
 }
 
@@ -1258,7 +2217,14 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 	})
 	app.PublicCache.reconcile(settings, rules)
 
-	return app, resolution, func() { database.Close() }
+	return app, resolution, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := app.flushObservabilityRecorder(ctx); err != nil {
+			t.Fatalf("flush observability recorder: %v", err)
+		}
+		database.Close()
+	}
 }
 
 func setTestCacheRuleAllowCookieRequests(t *testing.T, app *App, allowed bool) {

@@ -53,6 +53,7 @@ type Querier interface {
 	DeleteProxyRequestStatusRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteProxyRequestTupleRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeletePublicCacheEntry(ctx context.Context, keyDigest string) error
+	DeletePublicCacheEntryGeneration(ctx context.Context, arg DeletePublicCacheEntryGenerationParams) (int64, error)
 	DeletePublicCacheRule(ctx context.Context, id int64) error
 	DeletePublicListener(ctx context.Context, id int64) error
 	DeletePublicRateLimitRule(ctx context.Context, id int64) error
@@ -168,7 +169,7 @@ type Querier interface {
 	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
 	SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesRow, error)
 	TouchManagementAccessToken(ctx context.Context, id int64) error
-	TouchPublicCacheEntry(ctx context.Context, keyDigest string) error
+	TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCacheEntryParams) error
 	TouchSession(ctx context.Context, id int64) error
 	TrustEnvironmentCertificate(ctx context.Context, arg TrustEnvironmentCertificateParams) (Environment, error)
 	UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error)

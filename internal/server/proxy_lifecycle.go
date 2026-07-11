@@ -142,6 +142,9 @@ func (a *App) stopProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
 	if a.DirectTransports != nil {
 		a.DirectTransports.closeAll()
 	}
+	if err := a.FlushObservabilityRecorder(ctx); err != nil {
+		log.Warn().Err(err).Msg("Failed to flush observability recorder after stopping proxy")
+	}
 	if shutdownErr != nil {
 		return status, connect.NewError(connect.CodeInternal, shutdownErr)
 	}
