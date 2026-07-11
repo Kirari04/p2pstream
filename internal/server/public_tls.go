@@ -1,18 +1,19 @@
 package server
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
-	"math/big"
 	"net"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +32,13 @@ type publicWildcardCertificate struct {
 	suffix  string
 	cert    *tls.Certificate
 }
+
+var publicFallbackCertificateCache = struct {
+	sync.Mutex
+	cert *tls.Certificate
+}{}
+
+const publicFallbackCertificateRenewBefore = time.Minute
 
 func newPublicTLSConfig(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) (*tls.Config, error) {
 	tlsConfig, _, err := newPublicTLSConfigWithSelectorStore(listenerID, snap, acmeManager)
@@ -106,6 +114,9 @@ func (s *publicTLSSelectorStore) fallbackCertificate() *tls.Certificate {
 	if selector == nil {
 		return nil
 	}
+	if !publicFallbackCertificateFresh(selector.fallback, time.Now()) {
+		return nil
+	}
 	return selector.fallback
 }
 
@@ -147,7 +158,7 @@ func newPublicTLSSelector(listenerID int64, snap *publicProxySnapshot, acmeManag
 
 	if fallback == nil {
 		var err error
-		fallback, err = generateFallbackCertificate()
+		fallback, err = cachedFallbackCertificate()
 		if err != nil {
 			return nil, err
 		}
@@ -187,6 +198,20 @@ func clientSupportsALPN(hello *tls.ClientHelloInfo, proto string) bool {
 	return false
 }
 
+func cachedFallbackCertificate() (*tls.Certificate, error) {
+	publicFallbackCertificateCache.Lock()
+	defer publicFallbackCertificateCache.Unlock()
+	if publicFallbackCertificateFresh(publicFallbackCertificateCache.cert, time.Now()) {
+		return publicFallbackCertificateCache.cert, nil
+	}
+	cert, err := generateFallbackCertificate()
+	if err != nil {
+		return nil, err
+	}
+	publicFallbackCertificateCache.cert = cert
+	return cert, nil
+}
+
 func generateFallbackCertificate() (*tls.Certificate, error) {
 	certPEM, keyPEM, err := generateSelfSignedCertificatePEM(24 * time.Hour)
 	if err != nil {
@@ -196,7 +221,27 @@ func generateFallbackCertificate() (*tls.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil, err
+	}
+	cert.Leaf = leaf
 	return &cert, nil
+}
+
+func publicFallbackCertificateFresh(cert *tls.Certificate, now time.Time) bool {
+	if cert == nil || len(cert.Certificate) == 0 {
+		return false
+	}
+	leaf := cert.Leaf
+	if leaf == nil {
+		parsed, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return false
+		}
+		leaf = parsed
+	}
+	return leaf.NotAfter.After(now.Add(publicFallbackCertificateRenewBefore))
 }
 
 func generateManagedSelfSignedCertificatePEM() ([]byte, []byte, error) {
@@ -208,26 +253,20 @@ func generatePublicSelfSignedCertificatePEM(hostnamePattern string, validFor tim
 	if hostnamePattern == "" {
 		return nil, nil, nil, errors.New("hostname pattern is required")
 	}
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serial, err := rand.Int(rand.Reader, serialLimit)
+	key, keyPEM, err := generateECDSAPrivateKeyPEM()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	now := time.Now().UTC()
 	template := &x509.Certificate{
-		SerialNumber: serial,
+		SerialNumber: randomSerialNumber(),
 		Subject: pkix.Name{
 			CommonName: hostnamePattern,
 		},
 		NotBefore:             now.Add(-time.Minute),
 		NotAfter:              now.Add(validFor),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
@@ -247,31 +286,24 @@ func generatePublicSelfSignedCertificatePEM(hostnamePattern string, validFor tim
 	}
 
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 	return certPEM, keyPEM, cert, nil
 }
 
 func generateSelfSignedCertificatePEM(validFor time.Duration) ([]byte, []byte, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serial, err := rand.Int(rand.Reader, serialLimit)
+	key, keyPEM, err := generateECDSAPrivateKeyPEM()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	now := time.Now()
 	template := &x509.Certificate{
-		SerialNumber: serial,
+		SerialNumber: randomSerialNumber(),
 		Subject: pkix.Name{
 			CommonName: "p2pstream.local",
 		},
 		NotBefore:             now.Add(-time.Minute),
 		NotAfter:              now.Add(validFor),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		DNSNames:              []string{"localhost", "p2pstream.local"},
@@ -287,6 +319,17 @@ func generateSelfSignedCertificatePEM(validFor time.Duration) ([]byte, []byte, e
 	}
 
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 	return certPEM, keyPEM, nil
+}
+
+func generateECDSAPrivateKeyPEM() (*ecdsa.PrivateKey, []byte, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return key, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), nil
 }

@@ -3,7 +3,11 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -51,6 +55,115 @@ func TestPublicTLSSelectorRefreshesRunningListenerWithoutRestart(t *testing.T) {
 	if runtime.State != p2pstreamv1.ProxyState_PROXY_STATE_RUNNING || runtime.LastError != "" {
 		t.Fatalf("runtime after selector refresh = state %v error %q, want running with no error", runtime.State, runtime.LastError)
 	}
+}
+
+func TestPublicTLSFallbackCertificateIsCachedAcrossConfigBuilds(t *testing.T) {
+	snap := &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{
+			1: {
+				ID:       1,
+				Name:     "https",
+				Protocol: publicListenerProtocolHTTPS,
+				Enabled:  true,
+			},
+		},
+		RouteTargets:     map[int64]publicRouteTargetConfig{},
+		RoutesByListener: map[int64][]publicRouteConfig{},
+		CertsByListener:  map[int64][]publicTLSCertificateConfig{},
+	}
+
+	firstConfig, err := newPublicTLSConfig(1, snap, nil)
+	if err != nil {
+		t.Fatalf("first newPublicTLSConfig() error = %v", err)
+	}
+	secondConfig, err := newPublicTLSConfig(1, snap, nil)
+	if err != nil {
+		t.Fatalf("second newPublicTLSConfig() error = %v", err)
+	}
+
+	first, err := firstConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "unknown.example.com"})
+	if err != nil {
+		t.Fatalf("first fallback GetCertificate() error = %v", err)
+	}
+	second, err := secondConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "another.example.com"})
+	if err != nil {
+		t.Fatalf("second fallback GetCertificate() error = %v", err)
+	}
+	if first == nil || second == nil || len(first.Certificate) == 0 || len(second.Certificate) == 0 {
+		t.Fatalf("missing fallback certificates: first=%+v second=%+v", first, second)
+	}
+	if !bytes.Equal(first.Certificate[0], second.Certificate[0]) {
+		t.Fatal("fallback certificate was regenerated across public TLS config builds")
+	}
+	assertECDSAP256CertificateDER(t, first.Certificate[0])
+}
+
+func TestPublicTLSSelectorRefreshPreservesFallbackCertificate(t *testing.T) {
+	snap := publicTLSFallbackOnlySnapshot(1)
+	tlsConfig, selector, err := newPublicTLSConfigWithSelectorStore(1, snap, nil)
+	if err != nil {
+		t.Fatalf("newPublicTLSConfigWithSelectorStore() error = %v", err)
+	}
+	first, err := tlsConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "unknown.example.com"})
+	if err != nil {
+		t.Fatalf("first fallback GetCertificate() error = %v", err)
+	}
+	if err := selector.refresh(1, snap, nil); err != nil {
+		t.Fatalf("selector refresh error = %v", err)
+	}
+	second, err := tlsConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: "unknown.example.com"})
+	if err != nil {
+		t.Fatalf("second fallback GetCertificate() error = %v", err)
+	}
+	if first == nil || second == nil || len(first.Certificate) == 0 || len(second.Certificate) == 0 {
+		t.Fatalf("missing fallback certificates: first=%+v second=%+v", first, second)
+	}
+	if !bytes.Equal(first.Certificate[0], second.Certificate[0]) {
+		t.Fatal("fallback certificate changed during selector refresh")
+	}
+}
+
+func TestGeneratedPublicTLSCertificatesUseECDSAP256(t *testing.T) {
+	certPEM, keyPEM, err := generateSelfSignedCertificatePEM(time.Hour)
+	if err != nil {
+		t.Fatalf("generate fallback certificate PEM: %v", err)
+	}
+	cert, err := parseLeafCertificate(certPEM)
+	if err != nil {
+		t.Fatalf("parse fallback certificate: %v", err)
+	}
+	assertECDSAP256Certificate(t, cert)
+	assertECDSAP256PrivateKeyPEM(t, keyPEM)
+
+	certPEM, keyPEM, err = generateManagedSelfSignedCertificatePEM()
+	if err != nil {
+		t.Fatalf("generate managed certificate PEM: %v", err)
+	}
+	cert, err = parseLeafCertificate(certPEM)
+	if err != nil {
+		t.Fatalf("parse managed certificate: %v", err)
+	}
+	assertECDSAP256Certificate(t, cert)
+	assertECDSAP256PrivateKeyPEM(t, keyPEM)
+
+	certPEM, keyPEM, cert, err = generatePublicSelfSignedCertificatePEM("public.example.com", time.Hour)
+	if err != nil {
+		t.Fatalf("generate public certificate PEM: %v", err)
+	}
+	if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
+		t.Fatalf("generated public certificate key pair did not load: %v", err)
+	}
+	assertECDSAP256Certificate(t, cert)
+	assertECDSAP256PrivateKeyPEM(t, keyPEM)
+
+	fallback, err := generateFallbackCertificate()
+	if err != nil {
+		t.Fatalf("generate fallback certificate: %v", err)
+	}
+	if fallback == nil || len(fallback.Certificate) == 0 {
+		t.Fatalf("missing fallback certificate: %+v", fallback)
+	}
+	assertECDSAP256CertificateDER(t, fallback.Certificate[0])
 }
 
 func TestPublicTLSSelectorRefreshFailureKeepsLiveServerRegistered(t *testing.T) {
@@ -208,6 +321,71 @@ func testPublicTLSSnapshot(t *testing.T, listenerID int64, hostname string, name
 			}},
 		},
 	}, leaf.Raw
+}
+
+func publicTLSFallbackOnlySnapshot(listenerID int64) *publicProxySnapshot {
+	return &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{
+			listenerID: {
+				ID:       listenerID,
+				Name:     "https",
+				Protocol: publicListenerProtocolHTTPS,
+				Enabled:  true,
+			},
+		},
+		RouteTargets:     map[int64]publicRouteTargetConfig{},
+		RoutesByListener: map[int64][]publicRouteConfig{},
+		CertsByListener:  map[int64][]publicTLSCertificateConfig{},
+	}
+}
+
+func assertECDSAP256CertificateDER(t *testing.T, der []byte) {
+	t.Helper()
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("parse certificate DER: %v", err)
+	}
+	assertECDSAP256Certificate(t, cert)
+}
+
+func assertECDSAP256Certificate(t *testing.T, cert *x509.Certificate) {
+	t.Helper()
+	if cert.SerialNumber == nil || cert.SerialNumber.Sign() <= 0 {
+		t.Fatalf("certificate serial = %v, want positive non-zero", cert.SerialNumber)
+	}
+	if cert.PublicKeyAlgorithm != x509.ECDSA {
+		t.Fatalf("certificate public key algorithm = %s, want ECDSA", cert.PublicKeyAlgorithm)
+	}
+	publicKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		t.Fatalf("certificate public key is %T, want *ecdsa.PublicKey", cert.PublicKey)
+	}
+	if publicKey.Curve != elliptic.P256() {
+		t.Fatalf("certificate curve = %v, want P-256", publicKey.Curve)
+	}
+	if !cert.IsCA {
+		if cert.KeyUsage&x509.KeyUsageDigitalSignature == 0 {
+			t.Fatalf("certificate key usage = %v, want digital signature", cert.KeyUsage)
+		}
+		if cert.KeyUsage&x509.KeyUsageKeyEncipherment != 0 {
+			t.Fatalf("certificate key usage = %v, did not expect key encipherment for ECDSA", cert.KeyUsage)
+		}
+	}
+}
+
+func assertECDSAP256PrivateKeyPEM(t *testing.T, keyPEM []byte) {
+	t.Helper()
+	block, _ := pem.Decode(keyPEM)
+	if block == nil {
+		t.Fatal("private key PEM did not parse")
+	}
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatalf("parse EC private key: %v", err)
+	}
+	if key.Curve != elliptic.P256() {
+		t.Fatalf("private key curve = %v, want P-256", key.Curve)
+	}
 }
 
 func assertPublicTLSCertificateDER(t *testing.T, tlsConfig *tls.Config, hostname string, want []byte) {
