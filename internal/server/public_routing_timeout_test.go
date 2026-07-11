@@ -173,6 +173,41 @@ func TestAgentDialCancelWhileOpeningStreamDoesNotCloseSession(t *testing.T) {
 	}
 }
 
+func TestAgentStreamOpenDelayedSuccessAfterCancelClosesStream(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	openStarted := make(chan struct{})
+	releaseOpen := make(chan struct{})
+	stream, peer := net.Pipe()
+	defer stream.Close()
+	defer peer.Close()
+
+	results := startAgentStreamOpen(ctx, make(chan struct{}), func() (net.Conn, error) {
+		close(openStarted)
+		<-releaseOpen
+		return stream, nil
+	})
+
+	<-openStarted
+	cancel()
+	close(releaseOpen)
+
+	if err := peer.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set peer deadline: %v", err)
+	}
+	buf := make([]byte, 1)
+	if _, err := peer.Read(buf); !errors.Is(err, io.EOF) {
+		t.Fatalf("read after delayed open = %v, want EOF from closed abandoned stream", err)
+	}
+	select {
+	case result := <-results:
+		if result.conn != nil {
+			_ = result.conn.Close()
+		}
+		t.Fatal("delayed open transferred stream ownership after cancellation")
+	default:
+	}
+}
+
 func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
 	reached := make(chan struct{})
 	upstreamClosed := make(chan struct{})
