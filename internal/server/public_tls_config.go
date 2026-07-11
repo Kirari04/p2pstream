@@ -184,7 +184,6 @@ func (s *publicConfigService) createPublicTlsCertificate(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	a.queuePublicACMECertificateIssue(cert, publicACMETriggerConfigChange)
 	return connect.NewResponse(&p2pstreamv1.CreatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
@@ -252,10 +251,6 @@ func (s *publicConfigService) updatePublicTlsCertificate(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	if existing.ListenerID != cert.ListenerID {
-		_, _ = a.restartTLSListenerIfActive(ctx, existing.ListenerID)
-	}
-	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	a.queuePublicACMECertificateIssue(cert, publicACMETriggerConfigChange)
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
@@ -275,8 +270,7 @@ func (s *publicConfigService) deletePublicTlsCertificate(
 	req *connect.Request[p2pstreamv1.DeletePublicTlsCertificateRequest],
 ) (*connect.Response[p2pstreamv1.DeletePublicTlsCertificateResponse], error) {
 	a := s.app
-	cert, err := s.db.GetPublicTlsCertificate(ctx, req.Msg.Id)
-	if err != nil {
+	if _, err := s.db.GetPublicTlsCertificate(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := s.db.DeletePublicTlsCertificate(ctx, req.Msg.Id); err != nil {
@@ -285,7 +279,6 @@ func (s *publicConfigService) deletePublicTlsCertificate(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	return connect.NewResponse(&p2pstreamv1.DeletePublicTlsCertificateResponse{}), nil
 }
 

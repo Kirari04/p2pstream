@@ -43,9 +43,18 @@ var (
 	agentStableConnectionInterval = 20 * time.Second
 	agentReconnectBackoffMin      = time.Second
 	agentReconnectBackoffMax      = 30 * time.Second
+	agentTunnelOpenRequestTimeout = 10 * time.Second
+	agentTunnelDialTimeout        = 10 * time.Second
+	agentTunnelDialNetwork        = dialTunnelNetwork
+	agentStatsReportInterval      = 5 * time.Second
+	agentStatsReportTimeout       = 10 * time.Second
 )
 
 const agentTunnelResponseHeaderTimeout = 15 * time.Second
+
+type agentStatsReportClient interface {
+	ReportStats(context.Context, *connect.Request[p2pstreamv1.AgentStatsRequest]) (*connect.Response[p2pstreamv1.AgentStatsResponse], error)
+}
 
 type Options struct {
 	ManagementURL           string
@@ -57,11 +66,24 @@ type Options struct {
 	TLSCertFile             string
 	TLSKeyFile              string
 	AllowInsecureManagement bool
+	AllowTargets            []string
 }
 
 // Run is the main entry point to start the agent loop
 func Run(opts Options) error {
+	return RunContext(context.Background(), opts)
+}
+
+// RunContext starts the agent loop until the provided context is cancelled.
+func RunContext(ctx context.Context, opts Options) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := validateOptions(opts); err != nil {
+		return err
+	}
+	destinationPolicy, err := newAgentDestinationPolicy(opts.AllowTargets)
+	if err != nil {
 		return err
 	}
 	managementClient, err := managementHTTPClient(opts)
@@ -77,15 +99,32 @@ func Run(opts Options) error {
 		return err
 	}
 
-	go startStatsReporter(managementClient, opts.ManagementURL, opts.PublicID, opts.Token)
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	statsDone := make(chan struct{})
+	go func() {
+		defer close(statsDone)
+		startStatsReporter(runCtx, managementClient, opts.ManagementURL, opts.PublicID, opts.Token)
+	}()
+	defer func() {
+		cancel()
+		<-statsDone
+	}()
 
 	backoff := agentReconnectBackoffMin
 	for {
+		if err := runCtx.Err(); err != nil {
+			return err
+		}
 		log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
 
 		connectedAt := time.Now()
-		err := connectAndServe(tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token)
+		err := connectAndServe(runCtx, tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token, destinationPolicy)
 		if err != nil {
+			if runCtx.Err() != nil {
+				return runCtx.Err()
+			}
 			log.Warn().Err(err).Msg("Disconnected")
 		}
 		if time.Since(connectedAt) >= agentStableConnectionInterval {
@@ -94,7 +133,13 @@ func Run(opts Options) error {
 
 		sleep := jitterAgentReconnectBackoff(backoff)
 		log.Info().Dur("retry_in", sleep).Msg("Waiting before reconnect")
-		time.Sleep(sleep)
+		timer := time.NewTimer(sleep)
+		select {
+		case <-timer.C:
+		case <-runCtx.Done():
+			timer.Stop()
+			return runCtx.Err()
+		}
 		backoff = nextAgentReconnectBackoff(backoff)
 	}
 }
@@ -143,6 +188,9 @@ func validateOptions(opts Options) error {
 	}
 	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "" || strings.TrimSpace(opts.ManagementCAPEMBase64) != "") {
 		return fmt.Errorf("agent TLS files require an https management URL")
+	}
+	if _, err := newAgentDestinationPolicy(opts.AllowTargets); err != nil {
+		return err
 	}
 	return nil
 }
@@ -269,11 +317,14 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}, nil
 }
 
-func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string) error {
-	ctx, cancel := context.WithCancel(context.Background())
+func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	serveCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tunnelURL, nil)
+	req, err := http.NewRequestWithContext(serveCtx, http.MethodGet, tunnelURL, nil)
 	if err != nil {
 		return err
 	}
@@ -319,11 +370,11 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 	log.Info().Msg("Connected tunnel successfully")
 
 	go func() {
-		<-ctx.Done()
+		<-serveCtx.Done()
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSession(ctx, session); err != nil {
+	if err := serveTunnelSession(serveCtx, session, destinationPolicy); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
@@ -331,7 +382,7 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 	return nil
 }
 
-func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
+func serveTunnelSession(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy) error {
 	for {
 		stream, err := session.Accept()
 		if err != nil {
@@ -342,14 +393,16 @@ func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
-		go handleTunnelStream(ctx, stream)
+		go handleTunnelStream(ctx, stream, destinationPolicy)
 	}
 }
 
-func handleTunnelStream(ctx context.Context, stream net.Conn) {
+func handleTunnelStream(ctx context.Context, stream net.Conn, destinationPolicy *agentDestinationPolicy) {
 	defer stream.Close()
 
+	setTunnelOpenRequestReadDeadline(stream)
 	openReq, err := tunnel.ReadOpenRequest(stream)
+	clearTunnelOpenRequestReadDeadline(stream)
 	if err != nil {
 		kind := tunnelOpenRequestErrorKind(err)
 		reqInternalError.Add(1)
@@ -370,8 +423,7 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 	activeRequests.Add(1)
 	defer activeRequests.Add(-1)
 
-	dialer := net.Dialer{}
-	upstream, err := dialer.DialContext(ctx, openReq.Network, openReq.Address)
+	upstream, err := dialTunnelDestination(ctx, openReq.Network, openReq.Address, destinationPolicy)
 	if err != nil {
 		kind := tunnelDialErrorKind(err)
 		reqInternalError.Add(1)
@@ -411,7 +463,54 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 	reqSuccess.Add(1)
 }
 
+func setTunnelOpenRequestReadDeadline(conn net.Conn) {
+	if agentTunnelOpenRequestTimeout <= 0 {
+		return
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(agentTunnelOpenRequestTimeout))
+}
+
+func clearTunnelOpenRequestReadDeadline(conn net.Conn) {
+	_ = conn.SetReadDeadline(time.Time{})
+}
+
+func dialTunnelDestination(ctx context.Context, network string, address string, destinationPolicy *agentDestinationPolicy) (net.Conn, error) {
+	dialAddress := address
+	if agentTunnelDialTimeout <= 0 {
+		if destinationPolicy != nil {
+			var err error
+			dialAddress, err = destinationPolicy.dialAddress(ctx, network, address)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return agentTunnelDialNetwork(ctx, network, dialAddress)
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, agentTunnelDialTimeout)
+	defer cancel()
+	if destinationPolicy != nil {
+		var err error
+		dialAddress, err = destinationPolicy.dialAddress(dialCtx, network, address)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return agentTunnelDialNetwork(dialCtx, network, dialAddress)
+}
+
+func dialTunnelNetwork(ctx context.Context, network string, address string) (net.Conn, error) {
+	dialer := agentTunnelDialer()
+	return dialer.DialContext(ctx, network, address)
+}
+
+func agentTunnelDialer() net.Dialer {
+	return net.Dialer{Timeout: agentTunnelDialTimeout}
+}
+
 func tunnelDialErrorKind(err error) string {
+	if errors.Is(err, errAgentDestinationForbidden) {
+		return "dial_forbidden"
+	}
 	if isTimeoutError(err) {
 		return "dial_timeout"
 	}
@@ -421,6 +520,9 @@ func tunnelDialErrorKind(err error) string {
 func tunnelOpenRequestErrorKind(err error) string {
 	if errors.Is(err, tunnel.ErrUnsupportedVersion) {
 		return "unsupported_version"
+	}
+	if isTimeoutError(err) {
+		return "open_request_timeout"
 	}
 	return "invalid_open_request"
 }
@@ -494,47 +596,90 @@ func isTimeoutError(err error) bool {
 	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
-func startStatsReporter(httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string) {
+func startStatsReporter(ctx context.Context, httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	client := p2pstreamv1connect.NewAgentManagementServiceClient(
 		httpClient,
 		mgmtURL,
 		connect.WithGRPC(), // We can use gRPC or Connect protocol, let's use default Connect or GRPC
 	)
-	cpuSampler := sysmetrics.NewProcessCPUSampler()
+	runStatsReporter(ctx, client, agentPublicID, agentToken, sysmetrics.NewProcessCPUSampler())
+}
 
-	ticker := time.NewTicker(5 * time.Second)
+func runStatsReporter(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	interval := agentStatsReportInterval
+	if interval <= 0 {
+		interval = 5 * time.Second
+	}
+
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		var mem runtime.MemStats
-		runtime.ReadMemStats(&mem)
-		cpuPercent := 0.0
-		if cpuSampler != nil {
-			if sampled, ok, err := cpuSampler.Sample(); err == nil && ok {
-				cpuPercent = sampled
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := reportAgentStats(ctx, client, agentPublicID, agentToken, cpuSampler); err != nil && ctx.Err() == nil {
+				log.Debug().Err(err).Msg("Failed to report stats")
 			}
 		}
+	}
+}
 
-		req := &p2pstreamv1.AgentStatsRequest{
-			MemorySysMb:      int64(mem.Alloc / 1024 / 1024),
-			NumGoroutine:     int64(runtime.NumGoroutine()),
-			CpuPercent:       cpuPercent,
-			ActiveRequests:   activeRequests.Load(),
-			ReqSuccess:       int64(reqSuccess.Swap(0)),
-			ReqClientError:   int64(reqClientError.Swap(0)),
-			ReqServerError:   int64(reqServerError.Swap(0)),
-			ReqInternalError: int64(reqInternalError.Swap(0)),
-			BytesReceived:    bytesReceived.Swap(0),
-			BytesSent:        bytesSent.Swap(0),
-			AgentPublicId:    agentPublicID,
-		}
+func reportAgentStats(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req := buildAgentStatsRequest(agentPublicID, cpuSampler)
 
-		connectReq := connect.NewRequest(req)
-		connectReq.Header().Set("Authorization", "Bearer "+agentToken)
+	connectReq := connect.NewRequest(req)
+	connectReq.Header().Set("Authorization", "Bearer "+agentToken)
 
-		_, err := client.ReportStats(context.Background(), connectReq)
-		if err != nil {
-			log.Debug().Err(err).Msg("Failed to report stats")
+	reportCtx := ctx
+	cancel := func() {}
+	if agentStatsReportTimeout > 0 {
+		reportCtx, cancel = context.WithTimeout(ctx, agentStatsReportTimeout)
+	}
+	defer cancel()
+
+	_, err := client.ReportStats(reportCtx, connectReq)
+	return err
+}
+
+func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.ProcessCPUSampler) *p2pstreamv1.AgentStatsRequest {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	cpuPercent := 0.0
+	if cpuSampler != nil {
+		if sampled, ok, err := cpuSampler.Sample(); err == nil && ok {
+			cpuPercent = sampled
 		}
 	}
+
+	return &p2pstreamv1.AgentStatsRequest{
+		MemorySysMb:      agentStatsMemorySysMB(mem),
+		NumGoroutine:     int64(runtime.NumGoroutine()),
+		CpuPercent:       cpuPercent,
+		ActiveRequests:   activeRequests.Load(),
+		ReqSuccess:       int64(reqSuccess.Swap(0)),
+		ReqClientError:   int64(reqClientError.Swap(0)),
+		ReqServerError:   int64(reqServerError.Swap(0)),
+		ReqInternalError: int64(reqInternalError.Swap(0)),
+		BytesReceived:    bytesReceived.Swap(0),
+		BytesSent:        bytesSent.Swap(0),
+		AgentPublicId:    agentPublicID,
+	}
+}
+
+func agentStatsMemorySysMB(mem runtime.MemStats) int64 {
+	return int64(mem.Sys / 1024 / 1024)
 }

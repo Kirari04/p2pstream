@@ -502,7 +502,6 @@ func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, 
 			Time("attempt_at", attemptAt).
 			Msg("Failed to refresh public proxy after ACME issue")
 	}
-	_, _ = m.app.restartTLSListenerIfActive(ctx, updated.ListenerID)
 }
 
 func (m *publicACMEManager) beginIssue(certID int64) bool {

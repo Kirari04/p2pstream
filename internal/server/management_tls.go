@@ -1,8 +1,8 @@
 package server
 
 import (
+	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -192,7 +192,7 @@ func managementCertBaseDir(cfg *config.Config) string {
 	return filepath.Join(filepath.Clean(configDir), "certs")
 }
 
-func loadOrCreateManagementCA(certFile string, keyFile string) ([]byte, []byte, *x509.Certificate, *rsa.PrivateKey, error) {
+func loadOrCreateManagementCA(certFile string, keyFile string) ([]byte, []byte, *x509.Certificate, crypto.Signer, error) {
 	if certPEM, certErr := os.ReadFile(certFile); certErr == nil {
 		if keyPEM, keyErr := os.ReadFile(keyFile); keyErr == nil {
 			cert, key, err := parseManagementCA(certPEM, keyPEM)
@@ -215,7 +215,7 @@ func loadOrCreateManagementCA(certFile string, keyFile string) ([]byte, []byte, 
 	return certPEM, keyPEM, cert, key, nil
 }
 
-func parseManagementCA(certPEM []byte, keyPEM []byte) (*x509.Certificate, *rsa.PrivateKey, error) {
+func parseManagementCA(certPEM []byte, keyPEM []byte) (*x509.Certificate, crypto.Signer, error) {
 	certBlock, _ := pem.Decode(certPEM)
 	if certBlock == nil {
 		return nil, nil, fmt.Errorf("management CA certificate is not PEM")
@@ -228,7 +228,7 @@ func parseManagementCA(certPEM []byte, keyPEM []byte) (*x509.Certificate, *rsa.P
 	if keyBlock == nil {
 		return nil, nil, fmt.Errorf("management CA key is not PEM")
 	}
-	key, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	key, err := parseManagementPrivateKey(keyBlock)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -238,8 +238,29 @@ func parseManagementCA(certPEM []byte, keyPEM []byte) (*x509.Certificate, *rsa.P
 	return cert, key, nil
 }
 
-func generateManagementCAPEM() ([]byte, []byte, *x509.Certificate, *rsa.PrivateKey, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+func parseManagementPrivateKey(block *pem.Block) (crypto.Signer, error) {
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "EC PRIVATE KEY":
+		return x509.ParseECPrivateKey(block.Bytes)
+	case "PRIVATE KEY":
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		signer, ok := key.(crypto.Signer)
+		if !ok {
+			return nil, fmt.Errorf("management CA private key is %T, want signing key", key)
+		}
+		return signer, nil
+	default:
+		return nil, fmt.Errorf("unsupported management CA private key PEM type %q", block.Type)
+	}
+}
+
+func generateManagementCAPEM() ([]byte, []byte, *x509.Certificate, crypto.Signer, error) {
+	key, keyPEM, err := generateECDSAPrivateKeyPEM()
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -263,14 +284,14 @@ func generateManagementCAPEM() ([]byte, []byte, *x509.Certificate, *rsa.PrivateK
 		return nil, nil, nil, nil, err
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
-		pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}),
+		keyPEM,
 		cert,
 		key,
 		nil
 }
 
-func generateManagementServerCertificatePEM(caCert *x509.Certificate, caKey *rsa.PrivateKey, hosts []string) ([]byte, []byte, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+func generateManagementServerCertificatePEM(caCert *x509.Certificate, caKey crypto.Signer, hosts []string) ([]byte, []byte, error) {
+	key, keyPEM, err := generateECDSAPrivateKeyPEM()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -280,7 +301,7 @@ func generateManagementServerCertificatePEM(caCert *x509.Certificate, caKey *rsa
 		Subject:               pkix.Name{CommonName: "p2pstream management"},
 		NotBefore:             now.Add(-time.Minute),
 		NotAfter:              now.Add(10 * 365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
@@ -296,7 +317,7 @@ func generateManagementServerCertificatePEM(caCert *x509.Certificate, caKey *rsa
 		return nil, nil, err
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
-		pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}),
+		keyPEM,
 		nil
 }
 
@@ -467,11 +488,15 @@ func writePEMFile(path string, contents []byte, mode os.FileMode) error {
 
 func randomSerialNumber() *big.Int {
 	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serial, err := rand.Int(rand.Reader, serialLimit)
-	if err != nil {
-		return big.NewInt(time.Now().UnixNano())
+	for {
+		serial, err := rand.Int(rand.Reader, serialLimit)
+		if err != nil {
+			return big.NewInt(time.Now().UnixNano())
+		}
+		if serial.Sign() > 0 {
+			return serial
+		}
 	}
-	return serial
 }
 
 func managementCAPEMSHA256(caPEM string) string {
