@@ -482,8 +482,14 @@ func TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails(t *testing.T)
 	database := newServerTestDB(t)
 	app := NewApp(nil, database)
 	recorder := app.observabilityRecorderService()
-	if err := database.Close(); err != nil {
-		t.Fatalf("close database: %v", err)
+	flushFailure := errors.New("injected observability flush failure")
+	failFlush := true
+	insertBatch := recorder.insertBatch
+	recorder.insertBatch = func(ctx context.Context, events []db.InsertProxyRequestEventAtParams, touches []db.TouchPublicCacheEntryParams) error {
+		if failFlush {
+			return flushFailure
+		}
+		return insertBatch(ctx, events, touches)
 	}
 
 	for i := 0; i < observabilityRecorderMaxBatch; i++ {
@@ -521,9 +527,15 @@ func TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails(t *testing.T)
 	}
 
 	closeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := recorder.close(closeCtx); err == nil {
-		t.Fatal("close with failed database unexpectedly succeeded")
+	if err := recorder.close(closeCtx); !errors.Is(err, flushFailure) {
+		t.Fatalf("close error = %v, want injected flush failure", err)
+	}
+	cancel()
+	failFlush = false
+	retryCtx, retryCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer retryCancel()
+	if err := recorder.close(retryCtx); err != nil {
+		t.Fatalf("retry close after database recovery: %v", err)
 	}
 }
 
@@ -703,6 +715,79 @@ func TestCloseObservabilityRecorderCancelsActiveFlushAndDrains(t *testing.T) {
 	}
 	if rawEvents != observabilityRecorderMaxBatch {
 		t.Fatalf("drained proxy events = %d, want %d", rawEvents, observabilityRecorderMaxBatch)
+	}
+}
+
+func TestObservabilityRecorderFailedDeliveredCloseWakesConcurrentRetry(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	recorder := newObservabilityRecorder(app)
+	flushStarted := make(chan struct{})
+	secondCloseWaiting := make(chan struct{})
+	var waitOnce sync.Once
+	recorder.closeWaitHook = func() {
+		waitOnce.Do(func() { close(secondCloseWaiting) })
+	}
+	flushCalls := 0
+	var firstEvents, firstTouches, retryEvents, retryTouches int
+	recorder.insertBatch = func(ctx context.Context, events []db.InsertProxyRequestEventAtParams, touches []db.TouchPublicCacheEntryParams) error {
+		flushCalls++
+		if flushCalls == 1 {
+			firstEvents, firstTouches = len(events), len(touches)
+			close(flushStarted)
+			<-ctx.Done()
+			return ctx.Err()
+		}
+		retryEvents, retryTouches = len(events), len(touches)
+		return app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, events, touches)
+	}
+
+	recorder.startOnce.Do(func() {})
+	storedAt := time.Now().Add(-time.Minute).UTC()
+	recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	recorder.touchPublicCacheEntry("retry-touch", storedAt, storedAt.Add(time.Second))
+	recorder.mu.Lock()
+	recorder.startOnce = sync.Once{}
+	recorder.mu.Unlock()
+	firstCtx, cancelFirst := context.WithCancel(context.Background())
+	firstDone := make(chan error, 1)
+	go func() { firstDone <- recorder.close(firstCtx) }()
+	select {
+	case <-flushStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for delivered stop flush")
+	}
+
+	secondCtx, cancelSecond := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelSecond()
+	secondDone := make(chan error, 1)
+	go func() { secondDone <- recorder.close(secondCtx) }()
+	select {
+	case <-secondCloseWaiting:
+	case <-time.After(2 * time.Second):
+		t.Fatal("concurrent close did not wait on the active close attempt")
+	}
+	cancelFirst()
+	if err := <-firstDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("first close error = %v, want context.Canceled", err)
+	}
+	if err := <-secondDone; err != nil {
+		t.Fatalf("concurrent retry close: %v", err)
+	}
+	if flushCalls != 2 {
+		t.Fatalf("flush calls = %d, want failed stop plus retry", flushCalls)
+	}
+	if firstEvents != 1 || firstTouches != 1 || retryEvents != 1 || retryTouches != 1 {
+		t.Fatalf("retained batches = first events/touches %d/%d retry %d/%d, want 1/1 then 1/1", firstEvents, firstTouches, retryEvents, retryTouches)
+	}
+	if recorder.pendingEvents.Load() != 0 || recorder.pendingTouches.Load() != 0 || len(recorder.events) != 0 || len(recorder.touches) != 0 {
+		t.Fatalf("records remained after retry close: pending=%d/%d queued=%d/%d", recorder.pendingEvents.Load(), recorder.pendingTouches.Load(), len(recorder.events), len(recorder.touches))
+	}
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count retry-drained proxy events: %v", err)
+	}
+	if rawEvents != 1 {
+		t.Fatalf("retry-drained proxy events = %d, want 1", rawEvents)
 	}
 }
 

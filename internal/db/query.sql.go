@@ -1616,6 +1616,32 @@ func (q *Queries) DeletePublicCacheEntry(ctx context.Context, keyDigest string) 
 	return err
 }
 
+const deletePublicCacheEntryGeneration = `-- name: DeletePublicCacheEntryGeneration :execrows
+DELETE FROM public_cache_entries
+WHERE key_digest = ?1
+  AND (
+      stored_at = ?2
+      OR (
+          length(stored_at) = 19
+          AND stored_at = CAST(?3 AS TEXT)
+      )
+  )
+`
+
+type DeletePublicCacheEntryGenerationParams struct {
+	KeyDigest      string    `json:"key_digest"`
+	StoredAt       time.Time `json:"stored_at"`
+	StoredAtLegacy string    `json:"stored_at_legacy"`
+}
+
+func (q *Queries) DeletePublicCacheEntryGeneration(ctx context.Context, arg DeletePublicCacheEntryGenerationParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePublicCacheEntryGeneration, arg.KeyDigest, arg.StoredAt, arg.StoredAtLegacy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deletePublicCacheRule = `-- name: DeletePublicCacheRule :exec
 DELETE FROM public_cache_rules
 WHERE id = ?

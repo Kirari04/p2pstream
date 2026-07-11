@@ -46,6 +46,7 @@ type proxyRequestEvent struct {
 type observabilityRecorder struct {
 	app            *App
 	insertBatch    observabilityRecorderInsertFunc
+	closeWaitHook  func()
 	events         chan db.InsertProxyRequestEventAtParams
 	touches        chan publicCacheTouch
 	control        chan observabilityRecorderRequest
@@ -55,6 +56,7 @@ type observabilityRecorder struct {
 	activeFlush    *observabilityRecorderFlushOperation
 	startOnce      sync.Once
 	stopped        bool
+	closeAttempt   chan struct{}
 	closing        atomic.Bool
 	droppedEvents  atomic.Int64
 	droppedTouches atomic.Int64
@@ -71,9 +73,10 @@ type observabilityRecorderFlushOperation struct {
 type observabilityRecorderInsertFunc func(context.Context, []db.InsertProxyRequestEventAtParams, []db.TouchPublicCacheEntryParams) error
 
 type observabilityRecorderRequest struct {
-	ctx  context.Context
-	done chan error
-	stop bool
+	ctx          context.Context
+	done         chan error
+	closeAttempt chan struct{}
+	stop         bool
 }
 
 type publicCacheTouchState struct {
@@ -255,32 +258,37 @@ func (r *observabilityRecorder) flush(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	r.mu.Lock()
-	if r.stopped {
-		done := r.done
-		r.mu.Unlock()
+	for {
+		r.mu.Lock()
+		if r.stopped {
+			done := r.done
+			attempt := r.closeAttempt
+			r.mu.Unlock()
+			select {
+			case <-done:
+				return nil
+			case <-attempt:
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		r.startLocked()
+		done := make(chan error, 1)
+		req := observabilityRecorderRequest{ctx: ctx, done: done}
 		select {
-		case <-done:
-			return nil
+		case r.control <- req:
+			r.mu.Unlock()
+		case <-ctx.Done():
+			r.mu.Unlock()
+			return ctx.Err()
+		}
+		select {
+		case err := <-done:
+			return err
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}
-	r.startLocked()
-	done := make(chan error, 1)
-	req := observabilityRecorderRequest{ctx: ctx, done: done}
-	select {
-	case r.control <- req:
-		r.mu.Unlock()
-	case <-ctx.Done():
-		r.mu.Unlock()
-		return ctx.Err()
-	}
-	select {
-	case err := <-done:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
 	}
 }
 
@@ -291,43 +299,57 @@ func (r *observabilityRecorder) close(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	r.mu.Lock()
-	if r.stopped {
-		done := r.done
-		r.mu.Unlock()
+	for {
+		r.mu.Lock()
+		if r.stopped {
+			done := r.done
+			attempt := r.closeAttempt
+			if r.closeWaitHook != nil {
+				r.closeWaitHook()
+			}
+			r.mu.Unlock()
+			select {
+			case <-done:
+				return nil
+			case <-attempt:
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		r.stopped = true
+		r.closing.Store(true)
+		attempt := make(chan struct{})
+		r.closeAttempt = attempt
+		r.startLocked()
+		r.cancelActiveFlush()
+		done := make(chan error, 1)
+		req := observabilityRecorderRequest{ctx: ctx, done: done, closeAttempt: attempt, stop: true}
 		select {
-		case <-done:
-			return nil
+		case r.control <- req:
+			r.mu.Unlock()
 		case <-ctx.Done():
+			r.restoreCloseAttemptLocked(attempt)
+			r.mu.Unlock()
 			return ctx.Err()
 		}
-	}
-	r.stopped = true
-	r.closing.Store(true)
-	r.startLocked()
-	r.cancelActiveFlush()
-	done := make(chan error, 1)
-	req := observabilityRecorderRequest{ctx: ctx, done: done, stop: true}
-	select {
-	case r.control <- req:
-		r.mu.Unlock()
-	case <-ctx.Done():
-		r.stopped = false
-		r.closing.Store(false)
-		r.mu.Unlock()
-		return ctx.Err()
-	}
-	select {
-	case err := <-done:
 		select {
-		case <-r.done:
+		case err := <-done:
 			return err
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	case <-ctx.Done():
-		return ctx.Err()
 	}
+}
+
+func (r *observabilityRecorder) restoreCloseAttemptLocked(attempt chan struct{}) {
+	if attempt == nil || r.closeAttempt != attempt {
+		return
+	}
+	r.stopped = false
+	r.closing.Store(false)
+	r.closeAttempt = nil
+	close(attempt)
 }
 
 func (r *observabilityRecorder) startLocked() {
@@ -406,11 +428,28 @@ func (r *observabilityRecorder) run() {
 			err := r.runFlushOperation(req.ctx, req.stop, func(ctx context.Context) error {
 				return r.flushQueued(ctx, &batch, touches, eventCount, touchCount)
 			})
-			req.done <- err
-			if req.stop {
-				close(r.done)
-				return
+			if !req.stop {
+				req.done <- err
+				continue
 			}
+			if err != nil {
+				r.mu.Lock()
+				r.restoreCloseAttemptLocked(req.closeAttempt)
+				r.mu.Unlock()
+				req.done <- err
+				continue
+			}
+			r.pendingEvents.Store(0)
+			r.pendingTouches.Store(0)
+			r.mu.Lock()
+			if r.closeAttempt == req.closeAttempt {
+				r.closeAttempt = nil
+				close(r.done)
+				close(req.closeAttempt)
+			}
+			r.mu.Unlock()
+			req.done <- nil
+			return
 		case <-ticker.C:
 			now := time.Now().UTC()
 			r.prunePublicCacheTouches(touches, now)
