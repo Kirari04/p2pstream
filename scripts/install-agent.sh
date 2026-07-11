@@ -77,8 +77,37 @@ latest_release_tag() {
   printf '%s' "$tag"
 }
 
+existing_agent_env_assignment() {
+  local name="$1"
+  local line
+  [[ -f "$ENV_FILE" ]] || return 1
+  while IFS= read -r line; do
+    case "$line" in
+      "${name}="*)
+        printf '%s\n' "$line"
+        return 0
+        ;;
+    esac
+  done <"$ENV_FILE"
+  return 1
+}
+
+validate_allow_target_inputs() {
+  case "${AGENT_CLEAR_ALLOW_TARGETS:-false}" in
+    true|false) ;;
+    *) fail "AGENT_CLEAR_ALLOW_TARGETS must be true or false" ;;
+  esac
+  if [[ "${AGENT_CLEAR_ALLOW_TARGETS:-false}" == "true" && -n "${AGENT_ALLOW_TARGETS:-}" ]]; then
+    fail "AGENT_CLEAR_ALLOW_TARGETS=true cannot be combined with AGENT_ALLOW_TARGETS"
+  fi
+}
+
 write_agent_env() {
   local tmp_file="$1"
+  local preserved_allow_targets=""
+  if [[ -z "${AGENT_ALLOW_TARGETS:-}" && "${AGENT_CLEAR_ALLOW_TARGETS:-false}" != "true" ]]; then
+    preserved_allow_targets="$(existing_agent_env_assignment AGENT_ALLOW_TARGETS || true)"
+  fi
   {
     printf 'MANAGEMENT_URL=%s\n' "$(systemd_env_value "$MANAGEMENT_URL")"
     if [[ -n "${MANAGEMENT_CA_FILE:-}" ]]; then
@@ -95,6 +124,8 @@ write_agent_env() {
     fi
     if [[ -n "${AGENT_ALLOW_TARGETS:-}" ]]; then
       printf 'AGENT_ALLOW_TARGETS=%s\n' "$(systemd_env_value "$AGENT_ALLOW_TARGETS")"
+    elif [[ -n "$preserved_allow_targets" ]]; then
+      printf '%s\n' "$preserved_allow_targets"
     fi
     printf 'AGENT_ID=%s\n' "$(systemd_env_value "$AGENT_ID")"
     printf 'AGENT_TOKEN=%s\n' "$(systemd_env_value "$AGENT_TOKEN")"
@@ -231,6 +262,7 @@ main() {
   require_env AGENT_TOKEN
   validate_management_url_inputs
   validate_tls_inputs
+  validate_allow_target_inputs
   ensure_service_user
 
   local repository="${P2PSTREAM_REPOSITORY:-$DEFAULT_REPOSITORY}"
