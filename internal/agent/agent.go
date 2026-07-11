@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -43,6 +44,9 @@ var (
 	agentStableConnectionInterval = 20 * time.Second
 	agentReconnectBackoffMin      = time.Second
 	agentReconnectBackoffMax      = 30 * time.Second
+	agentTunnelOpenRequestTimeout = 10 * time.Second
+	agentTunnelDialTimeout        = 10 * time.Second
+	agentTunnelDialNetwork        = dialTunnelNetwork
 )
 
 const agentTunnelResponseHeaderTimeout = 15 * time.Second
@@ -332,6 +336,12 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 }
 
 func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
+	var handlers sync.WaitGroup
+	defer func() {
+		_ = session.Close()
+		handlers.Wait()
+	}()
+
 	for {
 		stream, err := session.Accept()
 		if err != nil {
@@ -342,14 +352,20 @@ func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
-		go handleTunnelStream(ctx, stream)
+		handlers.Add(1)
+		go func(stream net.Conn) {
+			defer handlers.Done()
+			handleTunnelStream(ctx, stream)
+		}(stream)
 	}
 }
 
 func handleTunnelStream(ctx context.Context, stream net.Conn) {
 	defer stream.Close()
 
+	setTunnelOpenRequestReadDeadline(stream)
 	openReq, err := tunnel.ReadOpenRequest(stream)
+	clearTunnelOpenRequestReadDeadline(stream)
 	if err != nil {
 		kind := tunnelOpenRequestErrorKind(err)
 		reqInternalError.Add(1)
@@ -370,8 +386,7 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 	activeRequests.Add(1)
 	defer activeRequests.Add(-1)
 
-	dialer := net.Dialer{}
-	upstream, err := dialer.DialContext(ctx, openReq.Network, openReq.Address)
+	upstream, err := dialTunnelDestination(ctx, openReq.Network, openReq.Address)
 	if err != nil {
 		kind := tunnelDialErrorKind(err)
 		reqInternalError.Add(1)
@@ -411,6 +426,35 @@ func handleTunnelStream(ctx context.Context, stream net.Conn) {
 	reqSuccess.Add(1)
 }
 
+func setTunnelOpenRequestReadDeadline(conn net.Conn) {
+	if agentTunnelOpenRequestTimeout <= 0 {
+		return
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(agentTunnelOpenRequestTimeout))
+}
+
+func clearTunnelOpenRequestReadDeadline(conn net.Conn) {
+	_ = conn.SetReadDeadline(time.Time{})
+}
+
+func dialTunnelDestination(ctx context.Context, network string, address string) (net.Conn, error) {
+	if agentTunnelDialTimeout <= 0 {
+		return agentTunnelDialNetwork(ctx, network, address)
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, agentTunnelDialTimeout)
+	defer cancel()
+	return agentTunnelDialNetwork(dialCtx, network, address)
+}
+
+func dialTunnelNetwork(ctx context.Context, network string, address string) (net.Conn, error) {
+	dialer := agentTunnelDialer()
+	return dialer.DialContext(ctx, network, address)
+}
+
+func agentTunnelDialer() net.Dialer {
+	return net.Dialer{Timeout: agentTunnelDialTimeout}
+}
+
 func tunnelDialErrorKind(err error) string {
 	if isTimeoutError(err) {
 		return "dial_timeout"
@@ -421,6 +465,9 @@ func tunnelDialErrorKind(err error) string {
 func tunnelOpenRequestErrorKind(err error) string {
 	if errors.Is(err, tunnel.ErrUnsupportedVersion) {
 		return "unsupported_version"
+	}
+	if isTimeoutError(err) {
+		return "open_request_timeout"
 	}
 	return "invalid_open_request"
 }
