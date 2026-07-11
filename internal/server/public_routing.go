@@ -620,6 +620,11 @@ type agentDialError struct {
 	Err  string
 }
 
+type agentStreamOpenResult struct {
+	conn net.Conn
+	err  error
+}
+
 func (e agentDialError) Error() string {
 	if e.Err == "" {
 		return e.Kind
@@ -634,6 +639,45 @@ func (a *App) agentTargetTransport(agent *AgentConn, target publicRouteTargetCon
 	return a.AgentTransports.publicRouteTargetTransport(a, agent, target)
 }
 
+func startAgentStreamOpen(
+	ctx context.Context,
+	agent *AgentConn,
+	open func() (net.Conn, error),
+) <-chan agentStreamOpenResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	release, admitted := agent.acquireStreamOpenAdmission(ctx)
+	if !admitted {
+		return nil
+	}
+	// Keep this channel unbuffered so ownership cannot be transferred after the
+	// caller has stopped receiving. A buffered result channel can accept a
+	// delayed successful Open even when ctx is already done, leaking that stream.
+	results := make(chan agentStreamOpenResult)
+	go func() {
+		// Cancellation only abandons this caller. The permit remains held until
+		// Yamux Open itself returns so blocked opens cannot accumulate unbounded
+		// goroutines behind the session's finite AcceptBacklog.
+		defer release()
+		conn, err := open()
+		release()
+		result := agentStreamOpenResult{conn: conn, err: err}
+		select {
+		case results <- result:
+		case <-ctx.Done():
+			if conn != nil {
+				_ = conn.Close()
+			}
+		case <-agent.Done:
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+	return results
+}
+
 func (a *App) directTargetTransport(target publicRouteTargetConfig) http.RoundTripper {
 	if a.DirectTransports == nil {
 		return newDirectTransportPool().publicRouteTargetTransport(target)
@@ -645,51 +689,12 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
 		return nil, errAgentDisconnected
 	}
-	openCh := make(chan struct {
-		conn net.Conn
-		err  error
-	}, 1)
-	openDone := make(chan struct{})
-	stopOpenWatch := func() {
-		select {
-		case <-openDone:
-		default:
-			close(openDone)
-		}
-	}
 	session := agent.Session
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = session.Close()
-		case <-agent.Done:
-			_ = session.Close()
-		case <-openDone:
-		}
-	}()
-	go func() {
-		conn, err := session.Open()
-		result := struct {
-			conn net.Conn
-			err  error
-		}{conn: conn, err: err}
-		select {
-		case openCh <- result:
-		case <-ctx.Done():
-			if conn != nil {
-				_ = conn.Close()
-			}
-		case <-agent.Done:
-			if conn != nil {
-				_ = conn.Close()
-			}
-		}
-	}()
+	openCh := startAgentStreamOpen(ctx, agent, session.Open)
 
 	var conn net.Conn
 	select {
 	case result := <-openCh:
-		stopOpenWatch()
 		if result.err != nil {
 			if agent != nil {
 				log.Debug().
@@ -703,8 +708,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		}
 		conn = result.conn
 	case <-ctx.Done():
-		_ = agent.Session.Close()
-		stopOpenWatch()
 		if agent != nil {
 			log.Debug().
 				Err(ctx.Err()).
@@ -716,7 +719,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		return nil, ctx.Err()
 	case <-agent.Done:
 		_ = agent.Session.Close()
-		stopOpenWatch()
 		log.Debug().
 			Str("request_id", requestID).
 			Str("agent", agent.PublicID).

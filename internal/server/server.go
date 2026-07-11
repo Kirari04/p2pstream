@@ -25,15 +25,18 @@ import (
 )
 
 type AgentConn struct {
-	AgentID        int64
-	PublicID       string
-	Name           string
-	Session        *yamux.Session
-	Done           chan struct{}
-	doneOnce       sync.Once
-	ActiveRequests atomic.Int64
-	ConnectedAt    time.Time
-	ConnectionDBID int64
+	AgentID                  int64
+	PublicID                 string
+	Name                     string
+	Session                  *yamux.Session
+	Done                     chan struct{}
+	doneOnce                 sync.Once
+	streamOpenMu             sync.Mutex
+	streamOpenGate           chan struct{}
+	streamOpenAdmissionLimit int
+	ActiveRequests           atomic.Int64
+	ConnectedAt              time.Time
+	ConnectionDBID           int64
 }
 
 func (c *AgentConn) signalDone() {
@@ -49,6 +52,64 @@ func (c *AgentConn) signalDone() {
 			close(c.Done)
 		}
 	})
+}
+
+func (c *AgentConn) streamOpenAdmissionGate() chan struct{} {
+	if c == nil {
+		return nil
+	}
+	c.streamOpenMu.Lock()
+	defer c.streamOpenMu.Unlock()
+	if c.streamOpenGate != nil {
+		return c.streamOpenGate
+	}
+	maxAdmissions := tunnel.DefaultYamuxConfig(nil).AcceptBacklog
+	if maxAdmissions < 1 {
+		maxAdmissions = 1
+	}
+	limit := c.streamOpenAdmissionLimit
+	if limit < 1 || limit > maxAdmissions {
+		limit = maxAdmissions
+	}
+	c.streamOpenGate = make(chan struct{}, limit)
+	return c.streamOpenGate
+}
+
+func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), bool) {
+	if c == nil {
+		return nil, false
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	gate := c.streamOpenAdmissionGate()
+	select {
+	case gate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, false
+	case <-c.Done:
+		return nil, false
+	}
+
+	// A ready gate and cancellation can race in the select above. Check again
+	// before the caller is allowed to create an Open goroutine.
+	select {
+	case <-ctx.Done():
+		<-gate
+		return nil, false
+	default:
+	}
+	select {
+	case <-c.Done:
+		<-gate
+		return nil, false
+	default:
+	}
+
+	var releaseOnce sync.Once
+	return func() {
+		releaseOnce.Do(func() { <-gate })
+	}, true
 }
 
 type App struct {
