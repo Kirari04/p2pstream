@@ -108,14 +108,7 @@ func (h *agentHub) disconnectLocked(conn *AgentConn) bool {
 		delete(h.byID, conn.AgentID)
 		disconnected = true
 	}
-	if conn.Done == nil {
-		return disconnected
-	}
-	select {
-	case <-conn.Done:
-	default:
-		close(conn.Done)
-	}
+	conn.signalDone()
 	return disconnected
 }
 

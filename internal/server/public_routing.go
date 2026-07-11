@@ -178,6 +178,7 @@ type publicProxySnapshot struct {
 	WafCookieSecret     []byte
 	CacheSettings       publicCacheSettingsConfig
 	CacheRules          []publicCacheRuleConfig
+	CacheFingerprint    string
 	ResponseTemplates   map[int64]publicResponseTemplateConfig
 }
 

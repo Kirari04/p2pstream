@@ -153,6 +153,54 @@ func TestDirectHealthTransportPoolEvictsStaleTargetKeys(t *testing.T) {
 	}
 }
 
+func TestDirectHealthGenerationPreventsStaleTransportResurrection(t *testing.T) {
+	monitor := newPublicRouteTargetHealthMonitor()
+	t.Cleanup(func() { monitor.closeDirectHealthTransports() })
+	oldTarget := testHealthTarget(t, 4, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
+	monitor.reconcile(nil, testHealthSnapshot(oldTarget), false)
+
+	monitor.mu.Lock()
+	state := monitor.states[oldTarget.ID]
+	state.directCheckRunning = true
+	state.directGeneration = 41
+	monitor.mu.Unlock()
+	_ = monitor.directTransports.transport(oldTarget, publicRouteTargetHealthCheckTimeout(oldTarget))
+
+	newTarget := oldTarget
+	newTarget.TargetOrigin = "http://127.0.0.1:8081"
+	parsedOrigin, err := url.Parse(newTarget.TargetOrigin)
+	if err != nil {
+		t.Fatalf("parse changed origin: %v", err)
+	}
+	newTarget.ParsedOrigin = parsedOrigin
+	monitor.reconcile(nil, testHealthSnapshot(newTarget), false)
+
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after reconcile = %d, want 0", got)
+	}
+	if _, _, ok := monitor.directCheckForGeneration(oldTarget.ID, 41); ok {
+		t.Fatal("stale health-loop generation remained eligible after reconcile")
+	}
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("stale generation recreated %d transports, want 0", got)
+	}
+
+	failedAttempt := newPublicRouteTargetHealthCheckAttempt(oldTarget)
+	failedAttempt.fail("request_failed", errors.New("old target failed"))
+	finishPublicRouteTargetHealthCheckAttempt(&failedAttempt)
+	monitor.recordDirectExplicitCheckForGeneration(oldTarget.ID, 41, failedAttempt)
+	monitor.mu.Lock()
+	snapshot := directHealthSnapshot(monitor.states[oldTarget.ID], true)
+	monitor.mu.Unlock()
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN {
+		t.Fatalf("stale result changed current health snapshot: %+v", snapshot)
+	}
+	traces, _ := monitor.listHealthTraces(oldTarget.ID, 0, 10, false)
+	if len(traces) != 0 {
+		t.Fatalf("stale result created %d traces, want 0", len(traces))
+	}
+}
+
 func TestAgentPoolHealthCheckRunsThroughAssignedAgent(t *testing.T) {
 	app := NewApp(nil, nil)
 	served := make(chan struct{})
