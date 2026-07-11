@@ -37,12 +37,16 @@ Set these on the server process via `.env` or environment. They control manageme
 | `OBSERVABILITY_RETENTION_DAYS`   | `30`                         | Retention window for recorded observability data.                                            |
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Maximum in-memory login throttle keys; active blocks are retained until expiry.              |
+| `TUNNEL_MAX_STREAM_WINDOW_BYTES` | `2097152`                    | Maximum Yamux receive window per tunnel stream. Raise for high-RTT/high-bandwidth agent links. |
+| `TUNNEL_MAX_CONCURRENT_REQUESTS` | `64`                         | Maximum concurrent public agent-route requests and live agent tunnel streams across the server. |
 
 If every login throttle slot is occupied by an active block, new failed-login keys are not tracked until a blocked key expires or a login succeeds for an existing key.
 
 ### Agent Variables
 
 Set these on each agent host via `/etc/p2pstream/agent.env` or the generated installer environment. The agent installer writes the generated setup values automatically; optional local hardening values such as `AGENT_ALLOW_TARGETS` can be supplied before running the installer or added to the env file afterward.
+
+When tunnel window or concurrency values are supplied to the installer, they are written to `agent.env` and the effective last numeric assignments are preserved by later reinstalls that do not provide replacements. Preservation is preflighted before installer mutations and fails closed if the existing environment file is unreadable or uses unsupported or multiline syntax. Supplying both numeric values explicitly avoids reading them from the old file, but the installer may still read that file to preserve `AGENT_ALLOW_TARGETS` unless the allowlist is also supplied or explicitly cleared.
 
 | Variable                          | Description                                                          |
 | --------------------------------- | -------------------------------------------------------------------- |
@@ -55,6 +59,8 @@ Set these on each agent host via `/etc/p2pstream/agent.env` or the generated ins
 | `AGENT_TLS_CERT_FILE`             | Optional client certificate for management mTLS.                     |
 | `AGENT_TLS_KEY_FILE`              | Optional client private key for management mTLS.                     |
 | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy.                              |
+| `TUNNEL_MAX_STREAM_WINDOW_BYTES`  | Maximum Yamux receive window per tunnel stream. Defaults to `2097152`. |
+| `TUNNEL_MAX_CONCURRENT_REQUESTS`  | Maximum concurrent requests handled by this agent. Defaults to `64`. |
 | `AGENT_ALLOW_TARGETS`             | Optional tunnel destination allowlist entries separated by commas or whitespace. |
 
 ### Installer Variables
@@ -78,6 +84,8 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_TLS_MODE=off` requires `MANAGEMENT_ALLOW_INSECURE_HTTP=true`.
 - `MANAGEMENT_PUBLIC_URL` must be absolute and must use `https`, unless management TLS is off and insecure HTTP is explicitly allowed.
 - `MANAGEMENT_BIND_ADDRESS` defaults to all interfaces so agents and remote clients can connect. Set it to `127.0.0.1` only for local-only management or when a local reverse proxy fronts management.
+- `TUNNEL_MAX_STREAM_WINDOW_BYTES` must be at least `262144` and at most `67108864`.
+- `TUNNEL_MAX_CONCURRENT_REQUESTS` must be between `1` and `2048`. Its product with `TUNNEL_MAX_STREAM_WINDOW_BYTES` cannot exceed `536870912` bytes. The server holds a slot for every live Yamux stream, including pooled idle HTTP connections, and the agent holds a slot for every handled stream, so the product bounds attacker-controlled aggregate receive windows at both ends.
 - Bootstrap agent ID, name, and token must all be set together.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
@@ -89,6 +97,8 @@ Set these as environment variables before running the Linux agent installer scri
 `CONFIG_DIR` is created with `0700` permissions. The managed certificate directory is `${CONFIG_DIR}/certs`. SQLite database directories are created or tightened to `0700`, and database/WAL/SHM files are set to `0600`. If `DATABASE_URL` is unset, p2pstream also migrates a legacy local `p2pstream.db` into `${CONFIG_DIR}/p2pstream.db` when needed.
 
 Management session cookies are Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`.
+
+When either the public-request cap or live-stream cap is reached, additional public agent-route requests receive `503 Service Unavailable` and the agent is not marked passively unhealthy. Environment and health-check dials share the server live-stream cap. Lower the stream window or concurrency limit for tighter memory bounds; raise either only while keeping their documented aggregate budget.
 
 ## Examples
 

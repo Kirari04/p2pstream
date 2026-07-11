@@ -321,6 +321,178 @@ func TestRotateAgentTokenClosesTunnelConnection(t *testing.T) {
 	waitForAgentHubConnection(t, app, agent.ID, true)
 }
 
+func TestAgentTunnelRejectsAgentInitiatedStreams(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-stream-direction", "Stream Direction", "token")
+	mux := http.NewServeMux()
+	app.RegisterManagementRoutes(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	agentSession, conn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "token")
+	if err != nil {
+		t.Fatalf("dial agent tunnel: %v", err)
+	}
+	defer conn.Close()
+	defer agentSession.Close()
+	waitForAgentHubConnection(t, app, agent.ID, true)
+
+	serverAgent := app.AgentHub.connectedByID(agent.ID)
+	if serverAgent == nil || serverAgent.Session == nil {
+		t.Fatal("agent tunnel session was not registered")
+	}
+
+	// A ping round trip is an ordering barrier: the agent must process the
+	// server's GoAway frame before the later ping response can arrive.
+	if _, err := agentSession.Ping(); err != nil {
+		t.Fatalf("ping agent tunnel after server GoAway: %v", err)
+	}
+	if stream, err := agentSession.Open(); !errors.Is(err, yamux.ErrRemoteGoAway) {
+		if stream != nil {
+			_ = stream.Close()
+		}
+		t.Fatalf("agent-initiated stream error = %v, want %v", err, yamux.ErrRemoteGoAway)
+	}
+	assertYamuxStreamCounts(t, serverAgent.Session, agentSession, 0)
+
+	acceptedCh := make(chan net.Conn, 1)
+	acceptErrCh := make(chan error, 1)
+	go func() {
+		stream, err := agentSession.Accept()
+		if err != nil {
+			acceptErrCh <- err
+			return
+		}
+		acceptedCh <- stream
+	}()
+
+	serverStream, err := serverAgent.Session.Open()
+	if err != nil {
+		t.Fatalf("open server-initiated stream: %v", err)
+	}
+	var agentStream net.Conn
+	select {
+	case agentStream = <-acceptedCh:
+	case err := <-acceptErrCh:
+		_ = serverStream.Close()
+		t.Fatalf("accept server-initiated stream: %v", err)
+	case <-time.After(2 * time.Second):
+		_ = serverStream.Close()
+		t.Fatal("timed out accepting server-initiated stream")
+	}
+
+	if err := serverStream.Close(); err != nil {
+		t.Fatalf("close server stream: %v", err)
+	}
+	if err := agentStream.Close(); err != nil {
+		t.Fatalf("close agent stream: %v", err)
+	}
+	assertYamuxStreamCounts(t, serverAgent.Session, agentSession, 0)
+}
+
+func TestAgentTunnelReadGateRejectsSYNQueuedBeforeGoAway(t *testing.T) {
+	serverConn, rawAgentConn := newAgentRegistryLocalTCPPair(t)
+	gatedConn := &agentTunnelReadGateConn{Conn: serverConn, ready: make(chan struct{})}
+	t.Cleanup(gatedConn.releaseReads)
+	serverSession, err := yamux.Server(gatedConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("create server session: %v", err)
+	}
+	defer serverSession.Close()
+
+	agentSession, err := yamux.Client(rawAgentConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("create agent session: %v", err)
+	}
+	defer agentSession.Close()
+
+	type openResult struct {
+		stream net.Conn
+		err    error
+	}
+	openCh := make(chan openResult, 1)
+	go func() {
+		stream, err := agentSession.Open()
+		openCh <- openResult{stream: stream, err: err}
+	}()
+
+	var preGoAwayStream net.Conn
+	select {
+	case result := <-openCh:
+		if result.err != nil {
+			t.Fatalf("prebuffer pre-GoAway agent SYN: %v", result.err)
+		}
+		if result.stream == nil {
+			t.Fatal("pre-GoAway agent SYN returned a nil stream")
+		}
+		preGoAwayStream = result.stream
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out prebuffering pre-GoAway agent SYN")
+	}
+	defer preGoAwayStream.Close()
+	if got := serverSession.NumStreams(); got != 0 {
+		t.Fatalf("server streams before releasing read gate = %d, want 0", got)
+	}
+
+	if err := serverSession.GoAway(); err != nil {
+		t.Fatalf("send server GoAway: %v", err)
+	}
+	gatedConn.releaseReads()
+
+	// The ping response follows the GoAway and RST frames on the server wire,
+	// so its completion proves the queued SYN has been rejected and drained.
+	if _, err := agentSession.Ping(); err != nil {
+		t.Fatalf("ping after releasing read gate: %v", err)
+	}
+	if err := preGoAwayStream.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set rejected stream deadline: %v", err)
+	}
+	if _, err := preGoAwayStream.Read(make([]byte, 1)); !errors.Is(err, yamux.ErrConnectionReset) {
+		t.Fatalf("pre-GoAway agent stream read error = %v, want %v", err, yamux.ErrConnectionReset)
+	}
+	assertYamuxStreamCounts(t, serverSession, agentSession, 0)
+
+	if stream, err := agentSession.Open(); !errors.Is(err, yamux.ErrRemoteGoAway) {
+		if stream != nil {
+			_ = stream.Close()
+		}
+		t.Fatalf("post-GoAway agent stream error = %v, want %v", err, yamux.ErrRemoteGoAway)
+	}
+
+	acceptedCh := make(chan net.Conn, 1)
+	acceptErrCh := make(chan error, 1)
+	go func() {
+		stream, err := agentSession.Accept()
+		if err != nil {
+			acceptErrCh <- err
+			return
+		}
+		acceptedCh <- stream
+	}()
+	serverStream, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open server stream after GoAway: %v", err)
+	}
+	var agentStream net.Conn
+	select {
+	case agentStream = <-acceptedCh:
+	case err := <-acceptErrCh:
+		_ = serverStream.Close()
+		t.Fatalf("accept server stream after GoAway: %v", err)
+	case <-time.After(2 * time.Second):
+		_ = serverStream.Close()
+		t.Fatal("timed out accepting server stream after GoAway")
+	}
+	if err := serverStream.Close(); err != nil {
+		t.Fatalf("close server stream after GoAway: %v", err)
+	}
+	if err := agentStream.Close(); err != nil {
+		t.Fatalf("close agent stream after GoAway: %v", err)
+	}
+	assertYamuxStreamCounts(t, serverSession, agentSession, 0)
+}
+
 func TestAgentTunnelRechecksTokenBeforeRegisteringAfterRotation(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
@@ -839,16 +1011,76 @@ func dialAgentRegistryTestTunnel(serverURL string, publicID string, token string
 		conn.Close()
 		return nil, nil, fmt.Errorf("agent tunnel upgrade header = %q", got)
 	}
-	if reader.Buffered() > 0 {
-		conn.Close()
-		return nil, nil, fmt.Errorf("agent tunnel response left %d buffered bytes", reader.Buffered())
-	}
-	session, err := yamux.Client(conn, tunnel.DefaultYamuxConfig(nil))
+	bufferedConn := &agentRegistryBufferedConn{Conn: conn, reader: reader}
+	session, err := yamux.Client(bufferedConn, tunnel.DefaultYamuxConfig(nil))
 	if err != nil {
 		conn.Close()
 		return nil, nil, err
 	}
-	return session, conn, nil
+	return session, bufferedConn, nil
+}
+
+type agentRegistryBufferedConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+func (c *agentRegistryBufferedConn) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
+}
+
+func newAgentRegistryLocalTCPPair(t *testing.T) (net.Conn, net.Conn) {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for local TCP pair: %v", err)
+	}
+	defer listener.Close()
+
+	type acceptResult struct {
+		conn net.Conn
+		err  error
+	}
+	acceptedCh := make(chan acceptResult, 1)
+	go func() {
+		conn, err := listener.Accept()
+		acceptedCh <- acceptResult{conn: conn, err: err}
+	}()
+
+	agentConn, err := net.DialTimeout("tcp", listener.Addr().String(), 2*time.Second)
+	if err != nil {
+		t.Fatalf("dial local TCP pair: %v", err)
+	}
+	select {
+	case result := <-acceptedCh:
+		if result.err != nil {
+			_ = agentConn.Close()
+			t.Fatalf("accept local TCP pair: %v", result.err)
+		}
+		return result.conn, agentConn
+	case <-time.After(2 * time.Second):
+		_ = agentConn.Close()
+		t.Fatal("timed out accepting local TCP pair")
+		return nil, nil
+	}
+}
+
+func assertYamuxStreamCounts(t *testing.T, serverSession *yamux.Session, agentSession *yamux.Session, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if serverSession.NumStreams() == want && agentSession.NumStreams() == want {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf(
+		"yamux stream counts = server %d/agent %d, want %d/%d",
+		serverSession.NumStreams(),
+		agentSession.NumStreams(),
+		want,
+		want,
+	)
 }
 
 func rotateAgentTokenForTest(t *testing.T, app *App, header http.Header, agentID int64) *connect.Response[p2pstreamv1.RotateAgentTokenResponse] {

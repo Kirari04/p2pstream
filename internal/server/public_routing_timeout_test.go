@@ -90,6 +90,135 @@ func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 	}
 }
 
+func TestAgentProxyRequestCapacityRejectsBeforeOpeningStream(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("capacity-rejected request unexpectedly reached upstream")
+	}))
+	defer upstream.Close()
+
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app.agentProxyRequests = newAgentRequestLimiter(1)
+	release, ok := app.agentProxyRequests.TryAcquire()
+	if !ok {
+		t.Fatal("failed to occupy the only agent request slot")
+	}
+	defer release()
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("agent was unavailable before capacity rejection")
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/at-capacity", nil)
+	proxyAgentTargetForTest(app, rec, req, target, agent)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("capacity response = status %d body %q, want 503", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Agent tunnel capacity reached") {
+		t.Fatalf("capacity response body = %q, want capacity error", rec.Body.String())
+	}
+	fake.mu.Lock()
+	openRequests := fake.openRequests
+	fake.mu.Unlock()
+	if openRequests != 0 || app.agentTunnelStreams.InUse() != 0 {
+		t.Fatalf("capacity rejection opened tunnel state = requests %d/streams %d, want 0/0", openRequests, app.agentTunnelStreams.InUse())
+	}
+	if got := agent.ActiveRequests.Load(); got != 0 {
+		t.Fatalf("agent active requests after capacity rejection = %d, want 0", got)
+	}
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("local request capacity rejection changed passive agent health")
+	}
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	if len(traces) != 0 {
+		t.Fatalf("capacity rejection recorded passive health traces: %+v", traces)
+	}
+}
+
+func TestDialViaAgentStreamCapacityFollowsConnectionLifetime(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer upstream.Close()
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+
+	app := NewApp(nil, nil)
+	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	agent, fake := newFakeYamuxAgent(t, 7, "agent-stream-capacity-test")
+
+	first, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "first")
+	if err != nil {
+		t.Fatalf("first dialViaAgent() error = %v", err)
+	}
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots after first dial = %d, want 1", got)
+	}
+
+	second, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "second")
+	if second != nil {
+		_ = second.Close()
+		t.Fatal("second dial unexpectedly returned a connection over capacity")
+	}
+	var dialErr agentDialError
+	if !errors.As(err, &dialErr) || dialErr.Kind != "agent_capacity" {
+		t.Fatalf("second dial error = %v, want agent_capacity", err)
+	}
+	fake.waitOpenRequestCount(t, 1)
+
+	if err := first.Close(); err != nil {
+		t.Fatalf("close first connection: %v", err)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatalf("close first connection again: %v", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+
+	third, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "third")
+	if err != nil {
+		t.Fatalf("third dialViaAgent() after release error = %v", err)
+	}
+	fake.waitOpenRequestCount(t, 2)
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots after third dial = %d, want 1", got)
+	}
+	if err := third.Close(); err != nil {
+		t.Fatalf("close third connection: %v", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+}
+
+func TestDialViaAgentReleasesStreamCapacityAfterHandshakeFailure(t *testing.T) {
+	app := NewApp(nil, nil)
+	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	agent, _ := newFakeYamuxAgent(t, 7, "agent-stream-failure-test")
+
+	conn, err := app.dialViaAgent(context.Background(), agent, "tcp", "127.0.0.1:0", "failed")
+	if conn != nil {
+		_ = conn.Close()
+		t.Fatal("failed dial unexpectedly returned a connection")
+	}
+	var dialErr agentDialError
+	if !errors.As(err, &dialErr) || dialErr.Kind != "dial_failed" {
+		t.Fatalf("failed dial error = %v, want dial_failed", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer upstream.Close()
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	conn, err = app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "recovered")
+	if err != nil {
+		t.Fatalf("dial after handshake failure error = %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close recovered connection: %v", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+}
+
 func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *testing.T) {
 	reached := make(chan struct{})
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -172,6 +301,100 @@ func TestAgentDialCancelWhileOpeningStreamDoesNotCloseSession(t *testing.T) {
 		t.Fatal("request cancellation closed shared agent session")
 	default:
 	}
+}
+
+func TestAgentDialCanceledDelayedOpenRetainsCapacityUntilPeerFIN(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+
+	session, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("yamux server: %v", err)
+	}
+	defer session.Close()
+
+	app := NewApp(nil, nil)
+	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	agent := &AgentConn{
+		AgentID:     7,
+		PublicID:    "agent-cancel-delayed-open",
+		Name:        "agent-cancel-delayed-open",
+		ConnectedAt: time.Now(),
+		Done:        make(chan struct{}),
+		Session:     session,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		conn, err := app.dialViaAgent(ctx, agent, "tcp", "127.0.0.1:80", "cancel-delayed-open")
+		if conn != nil {
+			_ = conn.Close()
+		}
+		errCh <- err
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for len(agent.streamOpenAdmissionGate()) != 1 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := len(agent.streamOpenAdmissionGate()); got != 1 {
+		t.Fatalf("open admission permits in use = %d, want 1", got)
+	}
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots while Open is blocked = %d, want 1", got)
+	}
+
+	cancel()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("dial error = %v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for cancelled dial")
+	}
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots after caller cancellation = %d, want blocked Open to retain 1", got)
+	}
+
+	peerSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("yamux client: %v", err)
+	}
+	defer peerSession.Close()
+	peerStreamCh := make(chan net.Conn, 1)
+	peerErrCh := make(chan error, 1)
+	go func() {
+		peerStream, err := peerSession.Accept()
+		if err != nil {
+			peerErrCh <- err
+			return
+		}
+		peerStreamCh <- peerStream
+	}()
+
+	var peerStream net.Conn
+	select {
+	case peerStream = <-peerStreamCh:
+	case err := <-peerErrCh:
+		t.Fatalf("accept delayed stream: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out accepting delayed stream")
+	}
+	if err := peerStream.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set delayed stream read deadline: %v", err)
+	}
+	var buf [1]byte
+	if _, err := peerStream.Read(buf[:]); !errors.Is(err, io.EOF) {
+		t.Fatalf("read delayed abandoned stream = %v, want EOF from local FIN", err)
+	}
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots after local FIN = %d, want 1 until peer FIN", got)
+	}
+	if err := peerStream.Close(); err != nil {
+		t.Fatalf("close delayed peer stream: %v", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
 }
 
 func TestAgentStreamOpenDelayedSuccessAfterCancelClosesStream(t *testing.T) {
@@ -838,6 +1061,18 @@ func waitForAgentActiveRequests(t *testing.T, agent *AgentConn, want int64) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("agent active requests = %d, want %d", agent.ActiveRequests.Load(), want)
+}
+
+func waitForAgentTunnelStreams(t *testing.T, app *App, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := app.agentTunnelStreams.InUse(); got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("agent tunnel streams = %d, want %d", app.agentTunnelStreams.InUse(), want)
 }
 
 func withTrustedHTTPDefaultTransport(t *testing.T, cert *x509.Certificate) {

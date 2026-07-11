@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -37,6 +38,27 @@ type AgentConn struct {
 	ActiveRequests           atomic.Int64
 	ConnectedAt              time.Time
 	ConnectionDBID           int64
+}
+
+type agentTunnelReadGateConn struct {
+	net.Conn
+	ready       chan struct{}
+	readOnce    sync.Once
+	releaseOnce sync.Once
+}
+
+func (c *agentTunnelReadGateConn) Read(p []byte) (int, error) {
+	c.readOnce.Do(func() { <-c.ready })
+	return c.Conn.Read(p)
+}
+
+func (c *agentTunnelReadGateConn) Close() error {
+	c.releaseReads()
+	return c.Conn.Close()
+}
+
+func (c *agentTunnelReadGateConn) releaseReads() {
+	c.releaseOnce.Do(func() { close(c.ready) })
 }
 
 func (c *AgentConn) signalDone() {
@@ -141,6 +163,8 @@ type App struct {
 	DashboardCache        *dashboardResponseCache
 	LoginThrottle         *loginThrottle
 	agentAuthLocks        *agentAuthLockMap
+	agentProxyRequests    *tunnel.StreamLimiter
+	agentTunnelStreams    *tunnel.StreamLimiter
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -213,6 +237,8 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		latestAgentStats:    make(map[int64]stats.AgentStats),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
+		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
+		agentTunnelStreams:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
 	}
 	app.applyServices(newAppServices(cfg, app))
 	if database != nil {
@@ -440,6 +466,12 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Done:        make(chan struct{}),
 		ConnectedAt: time.Now(),
 	}
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, a.Config.TunnelMaxStreamWindowBytes)
+	if err != nil {
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid agent tunnel yamux configuration")
+		http.Error(w, "invalid agent tunnel configuration", http.StatusInternalServerError)
+		return
+	}
 
 	rawConn, rw, err := hijacker.Hijack()
 	if err != nil {
@@ -463,12 +495,28 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := yamux.Server(rawConn, tunnel.DefaultYamuxConfig(nil))
+	// Yamux starts its receive loop before Server returns. Hold reads until
+	// GoAway has set localGoAway so even a SYN sent during session setup is RST
+	// instead of entering the unbudgeted accept backlog.
+	gatedConn := &agentTunnelReadGateConn{Conn: rawConn, ready: make(chan struct{})}
+	session, err := yamux.Server(gatedConn, yamuxConfig)
 	if err != nil {
+		gatedConn.releaseReads()
 		_ = rawConn.Close()
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to initialize agent tunnel session")
 		return
 	}
+	// Agent tunnel streams are always server-initiated. Fence the session before
+	// exposing it so unsolicited agent SYNs are rejected instead of occupying
+	// Yamux's unbudgeted accept backlog.
+	if err := session.GoAway(); err != nil {
+		gatedConn.releaseReads()
+		_ = session.Close()
+		_ = rawConn.Close()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to restrict agent tunnel stream direction")
+		return
+	}
+	gatedConn.releaseReads()
 	agent.Session = session
 
 	if a.DB != nil {

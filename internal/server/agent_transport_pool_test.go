@@ -33,6 +33,49 @@ func TestAgentTransportPoolReusesPublicRouteTargetConnection(t *testing.T) {
 	}
 }
 
+func TestAgentTransportPoolIdleStreamRetainsCapacityUntilPoolClose(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer upstream.Close()
+
+	app, firstTarget, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app.agentTunnelStreams = newAgentRequestLimiter(1)
+
+	first := httptest.NewRecorder()
+	proxyAgentTargetForTest(app, first, httptest.NewRequest(http.MethodGet, "http://public.test/first", nil), firstTarget, agent)
+	if first.Code != http.StatusOK {
+		t.Fatalf("first request status = %d body=%q, want 200", first.Code, first.Body.String())
+	}
+	fake.waitOpenRequestCount(t, 1)
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots after pooled request = %d, want 1", got)
+	}
+
+	secondTarget := firstTarget
+	secondTarget.ID++
+	secondTarget.Name = "second-target"
+	second := httptest.NewRecorder()
+	proxyAgentTargetForTest(app, second, httptest.NewRequest(http.MethodGet, "http://public.test/second", nil), secondTarget, agent)
+	if second.Code != http.StatusServiceUnavailable {
+		t.Fatalf("second target status = %d body=%q, want 503 at stream capacity", second.Code, second.Body.String())
+	}
+	fake.waitOpenRequestCount(t, 1)
+	if !app.TargetHealth.agentAvailable(secondTarget.ID, agent.AgentID) {
+		t.Fatal("server stream capacity should not mark the agent passively unhealthy")
+	}
+
+	app.AgentTransports.closeRouteTarget(firstTarget.ID)
+	waitForAgentTunnelStreams(t, app, 0)
+
+	third := httptest.NewRecorder()
+	proxyAgentTargetForTest(app, third, httptest.NewRequest(http.MethodGet, "http://public.test/third", nil), secondTarget, agent)
+	if third.Code != http.StatusOK {
+		t.Fatalf("request after pool close status = %d body=%q, want 200", third.Code, third.Body.String())
+	}
+	fake.waitOpenRequestCount(t, 2)
+}
+
 func TestAgentTransportPoolConcurrentPublicRouteTargetRequestsOpenParallelStreams(t *testing.T) {
 	release := make(chan struct{})
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

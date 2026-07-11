@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"p2pstream/internal/agent"
+	"p2pstream/internal/tunnel"
 )
 
 var agentCmd = &cobra.Command{
@@ -68,6 +70,16 @@ var agentCmd = &cobra.Command{
 		if !allowInsecureManagement {
 			allowInsecureManagement = envBool("AGENT_ALLOW_INSECURE_MANAGEMENT")
 		}
+		tunnelMaxStreamWindowBytes, err := agentTunnelMaxStreamWindowBytes(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		tunnelMaxConcurrentRequests, err := agentTunnelMaxConcurrentRequests(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
 		allowTargets, _ := cmd.Flags().GetStringArray("allow-target")
 		if len(allowTargets) == 0 {
 			allowTargets = splitAgentAllowTargets(os.Getenv("AGENT_ALLOW_TARGETS"))
@@ -77,16 +89,18 @@ var agentCmd = &cobra.Command{
 		defer stop()
 
 		if err := agent.RunContext(ctx, agent.Options{
-			ManagementURL:           mgmtURL,
-			PublicID:                agentID,
-			Name:                    agentName,
-			Token:                   agentToken,
-			ManagementCAFile:        managementCAFile,
-			ManagementCAPEMBase64:   managementCAPEMBase64,
-			TLSCertFile:             tlsCertFile,
-			TLSKeyFile:              tlsKeyFile,
-			AllowInsecureManagement: allowInsecureManagement,
-			AllowTargets:            allowTargets,
+			ManagementURL:               mgmtURL,
+			PublicID:                    agentID,
+			Name:                        agentName,
+			Token:                       agentToken,
+			ManagementCAFile:            managementCAFile,
+			ManagementCAPEMBase64:       managementCAPEMBase64,
+			TLSCertFile:                 tlsCertFile,
+			TLSKeyFile:                  tlsKeyFile,
+			AllowInsecureManagement:     allowInsecureManagement,
+			AllowTargets:                allowTargets,
+			TunnelMaxStreamWindowBytes:  tunnelMaxStreamWindowBytes,
+			TunnelMaxConcurrentRequests: tunnelMaxConcurrentRequests,
 		}); err != nil && ctx.Err() == nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
@@ -105,6 +119,8 @@ func init() {
 	agentCmd.Flags().String("tls-cert-file", "", "PEM client certificate for management mTLS")
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
+	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
+	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", tunnel.DefaultMaxConcurrentAgentRequests, "Maximum concurrent requests served through the agent tunnel")
 	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
 }
 
@@ -171,6 +187,36 @@ func envBool(key string) bool {
 	default:
 		return false
 	}
+}
+
+func agentTunnelMaxStreamWindowBytes(cmd *cobra.Command) (int64, error) {
+	if cmd.Flags().Changed("tunnel-max-stream-window-bytes") {
+		return cmd.Flags().GetInt64("tunnel-max-stream-window-bytes")
+	}
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MAX_STREAM_WINDOW_BYTES"))
+	if raw == "" {
+		return tunnel.DefaultMaxStreamWindowSizeBytes, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid TUNNEL_MAX_STREAM_WINDOW_BYTES %q: %w", raw, err)
+	}
+	return value, nil
+}
+
+func agentTunnelMaxConcurrentRequests(cmd *cobra.Command) (int64, error) {
+	if cmd.Flags().Changed("tunnel-max-concurrent-requests") {
+		return cmd.Flags().GetInt64("tunnel-max-concurrent-requests")
+	}
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MAX_CONCURRENT_REQUESTS"))
+	if raw == "" {
+		return tunnel.DefaultMaxConcurrentAgentRequests, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid TUNNEL_MAX_CONCURRENT_REQUESTS %q: %w", raw, err)
+	}
+	return value, nil
 }
 
 func splitAgentAllowTargets(value string) []string {

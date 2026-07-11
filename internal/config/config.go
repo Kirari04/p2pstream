@@ -11,6 +11,8 @@ import (
 
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
+
+	"p2pstream/internal/tunnel"
 )
 
 const (
@@ -46,6 +48,8 @@ type Config struct {
 	ObservabilityRetentionDays  int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
 	ObservabilityMaxRows        int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
 	LoginThrottleMaxKeys        int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
+	TunnelMaxStreamWindowBytes  int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"2097152"`
+	TunnelMaxConcurrentRequests int64  `env:"TUNNEL_MAX_CONCURRENT_REQUESTS" envDefault:"64"`
 
 	CertsDir                        string `env:"-"`
 	ManagementTLSEnabled            bool   `env:"-"`
@@ -107,6 +111,9 @@ func validateManagementTLSConfig(cfg *Config) error {
 	}
 	if cfg.LoginThrottleMaxKeys <= 0 {
 		return errors.New("LOGIN_THROTTLE_MAX_KEYS must be greater than 0")
+	}
+	if err := tunnel.ValidateAggregateStreamWindowBudget(cfg.TunnelMaxStreamWindowBytes, cfg.TunnelMaxConcurrentRequests); err != nil {
+		return err
 	}
 	cfg.ManagementTLSCertFile = strings.TrimSpace(cfg.ManagementTLSCertFile)
 	cfg.ManagementTLSKeyFile = strings.TrimSpace(cfg.ManagementTLSKeyFile)

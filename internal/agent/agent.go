@@ -51,23 +51,28 @@ var (
 	agentStatsReportTimeout       = 10 * time.Second
 )
 
-const agentTunnelResponseHeaderTimeout = 15 * time.Second
+const (
+	agentTunnelResponseHeaderTimeout = 15 * time.Second
+	agentCapacityResponseTimeout     = time.Second
+)
 
 type agentStatsReportClient interface {
 	ReportStats(context.Context, *connect.Request[p2pstreamv1.AgentStatsRequest]) (*connect.Response[p2pstreamv1.AgentStatsResponse], error)
 }
 
 type Options struct {
-	ManagementURL           string
-	PublicID                string
-	Name                    string
-	Token                   string
-	ManagementCAFile        string
-	ManagementCAPEMBase64   string
-	TLSCertFile             string
-	TLSKeyFile              string
-	AllowInsecureManagement bool
-	AllowTargets            []string
+	ManagementURL               string
+	PublicID                    string
+	Name                        string
+	Token                       string
+	ManagementCAFile            string
+	ManagementCAPEMBase64       string
+	TLSCertFile                 string
+	TLSKeyFile                  string
+	AllowInsecureManagement     bool
+	AllowTargets                []string
+	TunnelMaxStreamWindowBytes  int64
+	TunnelMaxConcurrentRequests int64
 }
 
 // Run is the main entry point to start the agent loop
@@ -121,7 +126,17 @@ func RunContext(ctx context.Context, opts Options) error {
 		log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
 
 		connectedAt := time.Now()
-		err := connectAndServe(runCtx, tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token, destinationPolicy)
+		err := connectAndServe(
+			runCtx,
+			tunnelClient,
+			tunnelURL,
+			opts.PublicID,
+			opts.Name,
+			opts.Token,
+			destinationPolicy,
+			opts.TunnelMaxStreamWindowBytes,
+			opts.TunnelMaxConcurrentRequests,
+		)
 		if err != nil {
 			if runCtx.Err() != nil {
 				return runCtx.Err()
@@ -189,6 +204,9 @@ func validateOptions(opts Options) error {
 	}
 	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "" || strings.TrimSpace(opts.ManagementCAPEMBase64) != "") {
 		return fmt.Errorf("agent TLS files require an https management URL")
+	}
+	if err := tunnel.ValidateAggregateStreamWindowBudget(opts.TunnelMaxStreamWindowBytes, opts.TunnelMaxConcurrentRequests); err != nil {
+		return err
 	}
 	if _, err := newAgentDestinationPolicy(opts.AllowTargets); err != nil {
 		return err
@@ -318,7 +336,7 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}, nil
 }
 
-func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy) error {
+func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy, maxStreamWindowSizeBytes int64, maxConcurrentRequests int64) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -361,7 +379,12 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel response body is %T, want io.ReadWriteCloser", resp.Body)
 	}
-	session, err := yamux.Client(rwc, tunnel.DefaultYamuxConfig(nil))
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, maxStreamWindowSizeBytes)
+	if err != nil {
+		_ = rwc.Close()
+		return fmt.Errorf("invalid tunnel yamux configuration: %w", err)
+	}
+	session, err := yamux.Client(rwc, yamuxConfig)
 	if err != nil {
 		_ = rwc.Close()
 		return fmt.Errorf("failed to initialize tunnel session: %w", err)
@@ -375,7 +398,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSession(serveCtx, session, destinationPolicy); err != nil {
+	if err := serveTunnelSessionWithPolicyAndLimit(serveCtx, session, destinationPolicy, maxConcurrentRequests); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
@@ -384,12 +407,23 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 }
 
 func serveTunnelSession(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy) error {
+	return serveTunnelSessionWithPolicyAndLimit(ctx, session, destinationPolicy, 0)
+}
+
+func serveTunnelSessionWithLimit(ctx context.Context, session *yamux.Session, maxConcurrentRequests int64) error {
+	return serveTunnelSessionWithPolicyAndLimit(ctx, session, nil, maxConcurrentRequests)
+}
+
+func serveTunnelSessionWithPolicyAndLimit(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, maxConcurrentRequests int64) error {
+	limiter, err := tunnel.NewStreamLimiter(maxConcurrentRequests)
+	if err != nil {
+		return fmt.Errorf("invalid tunnel request limit: %w", err)
+	}
 	var handlers sync.WaitGroup
 	defer func() {
 		_ = session.Close()
 		handlers.Wait()
 	}()
-
 	for {
 		stream, err := session.Accept()
 		if err != nil {
@@ -400,12 +434,32 @@ func serveTunnelSession(ctx context.Context, session *yamux.Session, destination
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
+		release, ok := limiter.TryAcquire()
+		if !ok {
+			reqServerError.Add(1)
+			rejectTunnelStreamAtCapacity(stream)
+			continue
+		}
 		handlers.Add(1)
 		go func(stream net.Conn) {
 			defer handlers.Done()
+			defer release()
 			handleTunnelStream(ctx, stream, destinationPolicy)
 		}(stream)
 	}
+}
+
+func rejectTunnelStreamAtCapacity(stream net.Conn) {
+	defer stream.Close()
+	_ = stream.SetDeadline(time.Now().Add(agentCapacityResponseTimeout))
+	if _, err := tunnel.ReadOpenRequest(stream); err != nil {
+		return
+	}
+	_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
+		OK:        false,
+		ErrorKind: "agent_capacity",
+		Error:     "agent tunnel request capacity reached",
+	})
 }
 
 func handleTunnelStream(ctx context.Context, stream net.Conn, destinationPolicy *agentDestinationPolicy) {

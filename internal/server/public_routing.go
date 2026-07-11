@@ -460,6 +460,14 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				"load_balancer": resolution.Target.AgentLoadBalancing,
 			})
 		}
+		releaseAgentRequest, ok := a.agentProxyRequests.TryAcquire()
+		if !ok {
+			statusCode = http.StatusServiceUnavailable
+			errorKind = "agent_request_capacity"
+			http.Error(w, "Agent tunnel capacity reached", http.StatusServiceUnavailable)
+			return
+		}
+		defer releaseAgentRequest()
 		agent.ActiveRequests.Add(1)
 		defer agent.ActiveRequests.Add(-1)
 	}
@@ -592,6 +600,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 					http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 					return
 				}
+				if dialErr.Kind == "agent_capacity" {
+					statusCode = http.StatusServiceUnavailable
+					errorKind = "agent_capacity"
+					http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+					return
+				}
 				statusCode = http.StatusBadGateway
 				if dialErr.Kind == "" {
 					errorKind = "agent_dial_failed"
@@ -689,8 +703,31 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
 		return nil, errAgentDisconnected
 	}
+	releaseStream, ok := a.agentTunnelStreams.TryAcquire()
+	if !ok {
+		return nil, agentDialError{Kind: "agent_capacity", Err: "server tunnel stream capacity reached"}
+	}
+	releaseOnReturn := true
+	defer func() {
+		if releaseOnReturn {
+			releaseStream()
+		}
+	}()
 	session := agent.Session
-	openCh := startAgentStreamOpen(ctx, agent, session.Open)
+	openCh := startAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
+		conn, err := session.Open()
+		if err != nil {
+			releaseStream()
+			return nil, err
+		}
+		return newAgentTunnelStreamConn(conn, releaseStream), nil
+	})
+	if openCh != nil {
+		// The Open callback now owns the slot. On failure it releases directly;
+		// on success the wrapped stream holds it through close and peer drain,
+		// including when a cancelled caller abandons a delayed successful Open.
+		releaseOnReturn = false
+	}
 
 	var conn net.Conn
 	select {
@@ -726,7 +763,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 			Msg("Agent disconnected before tunnel stream opened")
 		return nil, errAgentDisconnected
 	}
-
 	_ = conn.SetDeadline(agentOpenHandshakeDeadline(ctx, time.Now()))
 	handshakeDone := make(chan struct{})
 	stopHandshakeWatch := func() {
@@ -885,7 +921,7 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 		return false
 	}
 	var dialErr agentDialError
-	if errors.As(err, &dialErr) && dialErr.Kind == "dial_forbidden" {
+	if errors.As(err, &dialErr) && (dialErr.Kind == "agent_capacity" || dialErr.Kind == "dial_forbidden") {
 		return false
 	}
 	return !requestContextCanceled(requestCtx, err)

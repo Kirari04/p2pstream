@@ -38,6 +38,20 @@ assert_not_contains() {
   fi
 }
 
+assert_line_count() {
+  local path="$1"
+  local text="$2"
+  local expected="$3"
+  local actual
+  actual="$(grep -Fxc -- "$text" "$path" || true)"
+  [[ "$actual" == "$expected" ]] \
+    || fail "expected ${path} to contain ${expected} exact lines matching ${text}, found ${actual}"
+}
+
+assert_empty() {
+  [[ ! -s "$1" ]] || fail "expected path to be empty: $1"
+}
+
 assert_systemctl_enable_before_restart() {
   local enable_line restart_line
   enable_line="$(grep -n '^enable p2pstream-agent$' "$SYSTEMCTL_LOG" | tail -n 1 | cut -d: -f1)"
@@ -212,6 +226,8 @@ test_first_install() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "CA-one")" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="32" \
     AGENT_ALLOW_TARGETS="myapp.internal:443,10.0.5.0/24:8080" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="token-one"
@@ -222,6 +238,8 @@ test_first_install() {
   assert_exists "${SYSTEMD_DIR}/p2pstream-agent.service"
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_URL=\"https://mgmt.example.test:8081\""
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_CA_FILE=\"${CONFIG_DIR}/management-ca.pem\""
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_STREAM_WINDOW_BYTES=\"4194304\""
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_CONCURRENT_REQUESTS=\"32\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS=\"myapp.internal:443,10.0.5.0/24:8080\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ID=\"agent-one\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"token-one\""
@@ -236,6 +254,8 @@ test_reinstall_overwrites_token_and_ca() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "old CA")" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="32" \
     AGENT_ALLOW_TARGETS="myapp.internal:443,10.0.5.0/24:8080" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="old-token"
@@ -249,11 +269,33 @@ test_reinstall_overwrites_token_and_ca() {
 
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
   assert_not_contains "${CONFIG_DIR}/agent.env" "old-token"
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_STREAM_WINDOW_BYTES=\"4194304\""
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_CONCURRENT_REQUESTS=\"32\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS=\"myapp.internal:443,10.0.5.0/24:8080\""
   assert_contains "${CONFIG_DIR}/management-ca.pem" "new CA"
   assert_not_contains "${CONFIG_DIR}/management-ca.pem" "old CA"
   assert_systemctl_enable_before_restart
   assert_not_contains "$SYSTEMCTL_LOG" "enable --now"
+}
+
+test_reinstall_preserves_effective_tunnel_limits() {
+  setup_fixture
+  {
+    printf 'TUNNEL_MAX_STREAM_WINDOW_BYTES="1048576"\n'
+    printf 'TUNNEL_MAX_CONCURRENT_REQUESTS=8\n'
+    printf '   TUNNEL_MAX_STREAM_WINDOW_BYTES=0004194304\n'
+    printf '\tTUNNEL_MAX_CONCURRENT_REQUESTS=\04700032\047'
+  } >"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="32"' 1
+  assert_not_contains "${CONFIG_DIR}/agent.env" '1048576'
+  assert_not_contains "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="8"'
 }
 
 test_reinstall_explicitly_clears_allow_targets() {
@@ -295,6 +337,114 @@ test_reinstall_preserves_effective_last_allow_targets() {
     || fail "expected exactly one normalized AGENT_ALLOW_TARGETS assignment"
 }
 
+test_reinstall_preserves_effective_last_combined_policies() {
+  setup_fixture
+  printf '%s\n' \
+    'TUNNEL_MAX_STREAM_WINDOW_BYTES="1048576"' \
+    'AGENT_ALLOW_TARGETS="old.internal:443"' \
+    'TUNNEL_MAX_CONCURRENT_REQUESTS=8' \
+    '   TUNNEL_MAX_STREAM_WINDOW_BYTES=0004194304' \
+    'AGENT_ALLOW_TARGETS="effective.internal:8443"' \
+    "TUNNEL_MAX_CONCURRENT_REQUESTS='00032'" >"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="32"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="effective.internal:8443"' 1
+  assert_not_contains "${CONFIG_DIR}/agent.env" 'old.internal:443'
+  assert_not_contains "${CONFIG_DIR}/agent.env" '1048576'
+}
+
+test_explicit_tunnel_setting_bypasses_replaced_value() {
+  setup_fixture
+  {
+    printf 'TUNNEL_MAX_STREAM_WINDOW_BYTES=not-a-number\n'
+    printf 'TUNNEL_MAX_CONCURRENT_REQUESTS="00032"\n'
+  } >"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="32"' 1
+  assert_not_contains "${CONFIG_DIR}/agent.env" 'not-a-number'
+}
+
+test_ambiguous_tunnel_preservation_fails_before_mutation() {
+  setup_fixture
+  printf 'UNRELATED=continued\\\nTUNNEL_MAX_CONCURRENT_REQUESTS=32\n' >"${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >/dev/null 2>"${TEST_DIR}/ambiguous.err"; then
+    fail "ambiguous existing agent environment should fail"
+  fi
+  assert_contains "${TEST_DIR}/ambiguous.err" "unsupported multiline syntax in existing agent environment at line 1"
+  assert_absent "$INSTALL_PATH"
+  assert_empty "$COMMAND_LOG"
+
+  printf 'TUNNEL_MAX_CONCURRENT_REQUESTS =32\n' >"${CONFIG_DIR}/agent.env"
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >/dev/null 2>"${TEST_DIR}/spaced-assignment.err"; then
+    fail "unsupported whitespace in a tunnel setting assignment should fail"
+  fi
+  assert_contains "${TEST_DIR}/spaced-assignment.err" "unsupported syntax in existing agent environment at line 1"
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_CONCURRENT_REQUESTS =32"
+  assert_absent "$INSTALL_PATH"
+  assert_empty "$COMMAND_LOG"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="16"' 1
+}
+
+test_unreadable_tunnel_settings_require_explicit_replacement() {
+  setup_fixture
+  printf 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"\n' >"${CONFIG_DIR}/agent.env"
+  chmod 0200 "${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >/dev/null 2>"${TEST_DIR}/unreadable.err"; then
+    fail "unreadable existing agent environment should fail"
+  fi
+  assert_contains "${TEST_DIR}/unreadable.err" "cannot safely read existing agent environment"
+  assert_absent "$INSTALL_PATH"
+  assert_empty "$COMMAND_LOG"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="16"' 1
+}
+
 test_reinstall_preserves_unterminated_allow_targets_line() {
   setup_fixture
   printf '%s\n' \
@@ -322,6 +472,8 @@ test_reinstall_fails_closed_on_ambiguous_allow_targets() {
 
   if run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="new-token" \
     >"${TEST_DIR}/ambiguous-policy.out" 2>"${TEST_DIR}/ambiguous-policy.err"; then
@@ -335,6 +487,8 @@ test_reinstall_fails_closed_on_ambiguous_allow_targets() {
 
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
     AGENT_ALLOW_TARGETS="replacement.internal:443" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="new-token"
@@ -355,6 +509,8 @@ test_reinstall_fails_closed_on_allow_targets_read_error() {
 
   if run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="new-token" \
     >"${TEST_DIR}/policy-read.out" 2>"${TEST_DIR}/policy-read.err"; then
@@ -387,6 +543,8 @@ test_reinstall_rejects_unrelated_multiline_context() {
 
   if run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="new-token" \
     >"${TEST_DIR}/continued-policy.out" 2>"${TEST_DIR}/continued-policy.err"; then
@@ -400,6 +558,8 @@ test_reinstall_rejects_unrelated_multiline_context() {
 
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
     AGENT_ALLOW_TARGETS="replacement.internal:443" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="new-token"
@@ -413,6 +573,8 @@ test_reinstall_rejects_unrelated_multiline_context() {
     'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
   if run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="new-token" \
     >"${TEST_DIR}/unquoted-policy.out" 2>"${TEST_DIR}/unquoted-policy.err"; then
@@ -423,6 +585,8 @@ test_reinstall_rejects_unrelated_multiline_context() {
 
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
     AGENT_CLEAR_ALLOW_TARGETS="true" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="new-token"
@@ -477,6 +641,16 @@ test_validation_failures() {
     fail "unsupported P2PSTREAM_VERSION should fail"
   fi
   assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
+
+  if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" TUNNEL_MAX_STREAM_WINDOW_BYTES="262143" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/window.err"; then
+    fail "undersized TUNNEL_MAX_STREAM_WINDOW_BYTES should fail"
+  fi
+  assert_contains "${TEST_DIR}/window.err" "TUNNEL_MAX_STREAM_WINDOW_BYTES must be at least 262144"
+
+  if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" TUNNEL_MAX_STREAM_WINDOW_BYTES="67108864" TUNNEL_MAX_CONCURRENT_REQUESTS="9" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/aggregate.err"; then
+    fail "oversized aggregate tunnel window should fail"
+  fi
+  assert_contains "${TEST_DIR}/aggregate.err" "TUNNEL_MAX_STREAM_WINDOW_BYTES times TUNNEL_MAX_CONCURRENT_REQUESTS must be at most 536870912"
 
   if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ALLOW_TARGETS="myapp.internal:443" AGENT_CLEAR_ALLOW_TARGETS="true" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/allow-targets.err"; then
     fail "conflicting allow-target inputs should fail"
@@ -538,8 +712,13 @@ run_test() {
 
 run_test "first install" test_first_install
 run_test "reinstall overwrites token and CA" test_reinstall_overwrites_token_and_ca
+run_test "reinstall preserves effective tunnel limits" test_reinstall_preserves_effective_tunnel_limits
+run_test "explicit tunnel setting bypasses replaced value" test_explicit_tunnel_setting_bypasses_replaced_value
+run_test "ambiguous tunnel preservation fails before mutation" test_ambiguous_tunnel_preservation_fails_before_mutation
+run_test "unreadable tunnel settings require explicit replacement" test_unreadable_tunnel_settings_require_explicit_replacement
 run_test "reinstall explicitly clears allow targets" test_reinstall_explicitly_clears_allow_targets
 run_test "reinstall preserves effective last allow targets" test_reinstall_preserves_effective_last_allow_targets
+run_test "reinstall preserves effective last combined policies" test_reinstall_preserves_effective_last_combined_policies
 run_test "reinstall preserves unterminated allow targets line" test_reinstall_preserves_unterminated_allow_targets_line
 run_test "reinstall fails closed on ambiguous allow targets" test_reinstall_fails_closed_on_ambiguous_allow_targets
 run_test "reinstall fails closed on allow targets read error" test_reinstall_fails_closed_on_allow_targets_read_error

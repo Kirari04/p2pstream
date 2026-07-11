@@ -41,6 +41,8 @@ p2pstream agent [flags]
 | `--tls-cert-file` | `AGENT_TLS_CERT_FILE` | Client certificate for management mTLS. |
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
+| `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum Yamux receive window per tunnel stream. |
+| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Maximum concurrent requests handled by the agent tunnel. |
 | `--allow-target` | `AGENT_ALLOW_TARGETS` | Opt-in destination allowlist entry. Repeat the flag, or separate env entries with commas/whitespace. |
 
 ## Validation Rules
@@ -49,6 +51,9 @@ p2pstream agent [flags]
 - Use only one password source: prompt, `--password-env`, or `--password-file`.
 - `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
+- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `67108864`.
+- `--tunnel-max-concurrent-requests` must be between `1` and `2048`.
+- The stream window multiplied by `--tunnel-max-concurrent-requests` cannot exceed `536870912` bytes.
 - When no `--allow-target` or `AGENT_ALLOW_TARGETS` entries are set, the agent keeps the legacy behavior and trusts the management server to choose any tunnel destination.
 - Allow target entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges, such as `myapp.internal:443`, `10.0.5.0/24:8080`, or `metrics.internal:9000-9010`. IPv6 entries with ports must use brackets, for example `[2001:db8::/64]:8443`.
 
