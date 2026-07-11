@@ -48,9 +48,21 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	return nil
 }
 
+func (a *App) currentPublicSnapshot() *publicProxySnapshot {
+	if a == nil {
+		return nil
+	}
+	return a.publicSnapshotPtr.Load()
+}
+
+func (a *App) setPublicSnapshotLocked(snap *publicProxySnapshot) {
+	a.publicSnapshot = snap
+	a.publicSnapshotPtr.Store(snap)
+}
+
 func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyMu.Lock()
-	a.publicSnapshot = snap
+	a.setPublicSnapshotLocked(snap)
 	a.ensureListenerStatesLocked(snap)
 	a.proxyStatusLocked()
 	active := a.proxyServiceActive
@@ -363,6 +375,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		rule.Fingerprint = publicRateLimitRuleFingerprint(rule)
 		snap.RateLimitRules = append(snap.RateLimitRules, rule)
 	}
+	sortPublicRateLimitRules(snap.RateLimitRules)
 	for _, row := range rows.TrafficShaperRules {
 		rule, err := publicTrafficShaperRuleRowToConfig(row)
 		if err != nil {
@@ -370,6 +383,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		}
 		snap.TrafficShaperRules = append(snap.TrafficShaperRules, rule)
 	}
+	sortPublicTrafficShaperRules(snap.TrafficShaperRules)
 	for _, row := range rows.WafCaptchaProviders {
 		provider := publicWafCaptchaProviderRowToConfig(row, true)
 		snap.WafCaptchaProviders[provider.ID] = provider
@@ -397,6 +411,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		rule.Fingerprint = publicWafRuleFingerprint(rule)
 		snap.WafRules = append(snap.WafRules, rule)
 	}
+	sortPublicWafRules(snap.WafRules)
 	for _, row := range rows.CacheRules {
 		rule, err := publicCacheRuleRowToConfig(row)
 		if err != nil {
@@ -404,6 +419,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		}
 		snap.CacheRules = append(snap.CacheRules, rule)
 	}
+	sortPublicCacheRules(snap.CacheRules)
 	return snap, nil
 }
 

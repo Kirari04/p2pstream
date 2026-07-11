@@ -285,12 +285,13 @@ func (w *publicWAF) reconcile(snap *publicProxySnapshot) {
 }
 
 func (a *App) checkPublicWAF(listenerID int64, r *http.Request) (publicWafDecision, bool) {
+	return a.checkPublicWAFWithSnapshot(a.currentPublicSnapshot(), listenerID, r)
+}
+
+func (a *App) checkPublicWAFWithSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicWafDecision, bool) {
 	if a == nil || a.PublicWAF == nil {
 		return publicWafDecision{}, true
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil || len(snap.WafRules) == 0 {
 		return publicWafDecision{}, true
 	}
@@ -302,24 +303,16 @@ func (a *App) checkPublicWAF(listenerID int64, r *http.Request) (publicWafDecisi
 }
 
 func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerConfig, r *http.Request, now time.Time, app *App) (publicWafDecision, bool) {
-	ordered := append([]publicWafRuleConfig(nil), snap.WafRules...)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		if ordered[i].Priority == ordered[j].Priority {
-			return ordered[i].ID < ordered[j].ID
-		}
-		return ordered[i].Priority < ordered[j].Priority
-	})
-
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	for _, rule := range ordered {
+	for _, rule := range snap.WafRules {
 		if !rule.Enabled || !rule.matches(listener, r) {
 			continue
 		}
-		runtime := w.runtimeLocked(rule)
 		automaticActive := false
 		if rule.ActivationMode == publicWafActivationAutomatic {
+			w.mu.Lock()
+			runtime := w.runtimeLocked(rule)
 			automaticActive = w.updateAutomaticActivationLocked(runtime, rule, snap, app, now)
+			w.mu.Unlock()
 			if !automaticActive {
 				continue
 			}
@@ -357,7 +350,10 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 				CaptchaReturnTo:       returnTo,
 			}, false
 		case publicWafActionWaitingRoom:
+			w.mu.Lock()
+			runtime := w.runtimeLocked(rule)
 			decision, allowed := runtime.waitingRoom.evaluateLocked(w, rule, listener, r, now, automaticActive)
+			w.mu.Unlock()
 			return decision, allowed
 		default:
 			return publicWafDecision{
@@ -375,6 +371,15 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 		}
 	}
 	return publicWafDecision{}, true
+}
+
+func sortPublicWafRules(rules []publicWafRuleConfig) {
+	sort.SliceStable(rules, func(i, j int) bool {
+		if rules[i].Priority == rules[j].Priority {
+			return rules[i].ID < rules[j].ID
+		}
+		return rules[i].Priority < rules[j].Priority
+	})
 }
 
 func (w *publicWAF) runtimeLocked(rule publicWafRuleConfig) *publicWafRuleRuntime {

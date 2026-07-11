@@ -75,6 +75,7 @@ type App struct {
 	proxyState          p2pstreamv1.ProxyState
 	proxyLastError      string
 	publicSnapshot      *publicProxySnapshot
+	publicSnapshotPtr   atomic.Pointer[publicProxySnapshot]
 	publicListenerState map[int64]*publicListenerRuntime
 
 	publicConfigCacheMu sync.RWMutex
