@@ -248,6 +248,51 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 	}
 }
 
+func TestAgentDialCancelWhileOpeningStreamDoesNotCloseSession(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+
+	session, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("yamux server: %v", err)
+	}
+	defer session.Close()
+
+	app := NewApp(nil, nil)
+	agent := &AgentConn{
+		AgentID:     7,
+		PublicID:    "agent-cancel-open",
+		Name:        "agent-cancel-open",
+		ConnectedAt: time.Now(),
+		Done:        make(chan struct{}),
+		Session:     session,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		conn, err := app.dialViaAgent(ctx, agent, "tcp", "127.0.0.1:80", "cancel-open")
+		if conn != nil {
+			_ = conn.Close()
+		}
+		errCh <- err
+	}()
+
+	cancel()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("dial error = %v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for cancelled dial")
+	}
+	select {
+	case <-session.CloseChan():
+		t.Fatal("request cancellation closed shared agent session")
+	default:
+	}
+}
+
 func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
 	reached := make(chan struct{})
 	upstreamClosed := make(chan struct{})
