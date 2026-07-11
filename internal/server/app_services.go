@@ -7,41 +7,43 @@ import (
 )
 
 type appServices struct {
-	agentHub        *agentHub
-	loadBalancers   *loadBalancerRegistry
-	targetHealth    *publicRouteTargetHealthMonitor
-	trafficTracer   *trafficTracer
-	rateLimiter     *publicRateLimiter
-	trafficShaper   *publicTrafficShaper
-	publicWAF       *publicWAF
-	publicCache     *publicProxyCache
-	publicACME      *publicACMEManager
-	publicConfig    *publicConfigService
-	proxyRuntime    *proxyRuntime
-	observability   *observabilityRecorder
-	auth            *authService
-	agentTransports *agentTransportPool
-	reverseProxyBuf httputil.BufferPool
-	dashboardCache  *dashboardResponseCache
-	loginThrottle   *loginThrottle
-	agentAuthLocks  *agentAuthLockMap
+	agentHub         *agentHub
+	loadBalancers    *loadBalancerRegistry
+	targetHealth     *publicRouteTargetHealthMonitor
+	trafficTracer    *trafficTracer
+	rateLimiter      *publicRateLimiter
+	trafficShaper    *publicTrafficShaper
+	publicWAF        *publicWAF
+	publicCache      *publicProxyCache
+	publicACME       *publicACMEManager
+	publicConfig     *publicConfigService
+	proxyRuntime     *proxyRuntime
+	observability    *observabilityRecorder
+	auth             *authService
+	agentTransports  *agentTransportPool
+	directTransports *directTransportPool
+	reverseProxyBuf  httputil.BufferPool
+	dashboardCache   *dashboardResponseCache
+	loginThrottle    *loginThrottle
+	agentAuthLocks   *agentAuthLockMap
 }
 
 func newAppServices(cfg *config.Config, app *App) appServices {
 	services := appServices{
-		agentHub:        newAgentHub(),
-		loadBalancers:   newLoadBalancerRegistry(),
-		targetHealth:    newPublicRouteTargetHealthMonitor(),
-		trafficTracer:   newTrafficTracer(),
-		rateLimiter:     newPublicRateLimiter(),
-		trafficShaper:   newPublicTrafficShaper(),
-		publicWAF:       newPublicWAF(),
-		publicCache:     newPublicProxyCache(cfg.PublicCacheDir),
-		agentTransports: newAgentTransportPool(),
-		reverseProxyBuf: newReverseProxyBufferPool(),
-		dashboardCache:  newDashboardResponseCache(),
-		loginThrottle:   newLoginThrottle(cfg.LoginThrottleMaxKeys),
-		agentAuthLocks:  newAgentAuthLockMap(),
+		agentHub:         newAgentHub(),
+		loadBalancers:    newLoadBalancerRegistry(),
+		targetHealth:     newPublicRouteTargetHealthMonitor(),
+		trafficTracer:    newTrafficTracer(),
+		rateLimiter:      newPublicRateLimiter(),
+		trafficShaper:    newPublicTrafficShaper(),
+		publicWAF:        newPublicWAF(),
+		publicCache:      newPublicProxyCache(cfg.PublicCacheDir),
+		agentTransports:  newAgentTransportPool(),
+		directTransports: newDirectTransportPool(),
+		reverseProxyBuf:  newReverseProxyBufferPool(),
+		dashboardCache:   newDashboardResponseCache(),
+		loginThrottle:    newLoginThrottle(cfg.LoginThrottleMaxKeys),
+		agentAuthLocks:   newAgentAuthLockMap(),
 	}
 	services.agentHub.onDisconnect = func(conn *AgentConn) {
 		if app != nil && app.AgentTransports != nil {
@@ -71,6 +73,7 @@ func (a *App) applyServices(services appServices) {
 	a.observabilityRecorder = services.observability
 	a.auth = services.auth
 	a.AgentTransports = services.agentTransports
+	a.DirectTransports = services.directTransports
 	a.reverseProxyBuffers = services.reverseProxyBuf
 	a.DashboardCache = services.dashboardCache
 	a.LoginThrottle = services.loginThrottle

@@ -139,6 +139,9 @@ func (a *App) stopProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
 	if a.TargetHealth != nil {
 		a.TargetHealth.reconcile(a, nil, false)
 	}
+	if a.DirectTransports != nil {
+		a.DirectTransports.closeAll()
+	}
 	if shutdownErr != nil {
 		return status, connect.NewError(connect.CodeInternal, shutdownErr)
 	}

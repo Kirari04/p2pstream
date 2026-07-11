@@ -503,10 +503,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		)
 	}
 
-	transport := directProxyTransport(resolution.Target.TLSSkipVerify, resolution.Target.UpstreamResponseHeaderTimeout)
+	var transport http.RoundTripper
 	if agent != nil {
 		transport = a.agentTargetTransport(agent, resolution.Target)
 		r = r.WithContext(withAgentDialRequestID(r.Context(), id.String()))
+	} else {
+		transport = a.directTargetTransport(resolution.Target)
 	}
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(proxyReq *httputil.ProxyRequest) {
@@ -630,6 +632,13 @@ func (a *App) agentTargetTransport(agent *AgentConn, target publicRouteTargetCon
 		return newAgentTransportPool().publicRouteTargetTransport(a, agent, target)
 	}
 	return a.AgentTransports.publicRouteTargetTransport(a, agent, target)
+}
+
+func (a *App) directTargetTransport(target publicRouteTargetConfig) http.RoundTripper {
+	if a.DirectTransports == nil {
+		return newDirectTransportPool().publicRouteTargetTransport(target)
+	}
+	return a.DirectTransports.publicRouteTargetTransport(target)
 }
 
 func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string, address string, requestID string) (net.Conn, error) {

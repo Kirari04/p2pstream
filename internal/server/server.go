@@ -75,6 +75,7 @@ type App struct {
 	observabilityRecorder *observabilityRecorder
 	auth                  *authService
 	AgentTransports       *agentTransportPool
+	DirectTransports      *directTransportPool
 	reverseProxyBuffers   httputil.BufferPool
 	DashboardCache        *dashboardResponseCache
 	LoginThrottle         *loginThrottle
