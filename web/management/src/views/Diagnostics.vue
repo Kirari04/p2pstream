@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from "vue";
-import { NAlert, NButton, NButtonGroup, NDataTable, NEmpty, NSelect } from "naive-ui";
+import { NAlert, NButton, NButtonGroup, NDataTable, NDrawer, NDrawerContent, NEmpty } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import type {
   DashboardDiagnosticsSample,
@@ -13,10 +14,11 @@ import {
   formatBytes,
   formatDuration,
   formatNumber,
-  formatPathPrefix,
   formatPercent,
   statusTone,
 } from "@/lib/dashboardStats";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 
 type WindowLabel = "5m" | "1h" | "24h" | "30d";
 
@@ -33,6 +35,8 @@ const sampleLimit = ref(25);
 const diagnostics = ref<GetDashboardDiagnosticsResponse | null>(null);
 const isLoading = ref(false);
 const error = ref("");
+const selectedSample = ref<DashboardDiagnosticsSample | null>(null);
+const isSampleDetailsOpen = ref(false);
 let requestSequence = 0;
 
 const outcome = computed(() => diagnostics.value?.outcome);
@@ -57,6 +61,28 @@ const dimensionSections = computed(() => [
   { title: "Route targets", rows: diagnostics.value?.problemRouteTargets ?? [], empty: "No problem targets in this window." },
   { title: "Agents", rows: diagnostics.value?.problemAgents ?? [], empty: "No problem agents in this window." },
 ]);
+const selectedSampleDetails = computed(() => {
+  const sample = selectedSample.value;
+  if (!sample) return [];
+  return [
+    {
+      label: "Occurred",
+      value: `${formatSampleTime(sample.occurredAtUnixMillis)} · ${sample.occurredAtUnixMillis.toString()} ms since epoch`,
+    },
+    { label: "Method", value: inspectionValue(sample.method) },
+    { label: "Host", value: inspectionValue(sample.host) },
+    { label: "Path prefix", value: inspectionValue(sample.pathPrefix) },
+    { label: "Status", value: sampleStatusLabel(sample) },
+    { label: "Error kind", value: inspectionValue(sample.errorKind) },
+    { label: "Listener", value: inspectionValue(sample.listenerLabel) },
+    { label: "Route", value: inspectionValue(sample.routeLabel) },
+    { label: "Target", value: inspectionValue(sample.routeTargetLabel) },
+    { label: "Agent", value: inspectionValue(sample.agentLabel) },
+    { label: "Duration", value: formatDuration(sample.durationMs) },
+    { label: "Downloaded", value: formatBytes(sample.responseBytes) },
+    { label: "Uploaded", value: formatBytes(sample.requestBytes) },
+  ];
+});
 const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() => [
   {
     title: "Time",
@@ -67,16 +93,25 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   {
     title: "Request",
     key: "request",
-    width: 150,
-    ellipsis: { tooltip: true },
-    render: sampleContext,
+    width: 220,
+    render: (sample) => {
+      const method = diagnosticExcerpt(sample.method, 16);
+      const host = diagnosticExcerpt(sample.host);
+      return h("span", { class: "diagnostic-request-excerpt" }, [
+        h("span", { class: "diagnostic-request-method" }, method.text),
+        h("bdi", { class: "diagnostic-attacker-excerpt", dir: "ltr" }, host.text),
+      ]);
+    },
   },
   {
     title: "Path prefix",
     key: "pathPrefix",
-    width: 160,
-    ellipsis: { tooltip: true },
-    render: (sample) => formatPathPrefix(sample.pathPrefix),
+    width: 200,
+    render: (sample) => h(
+      "bdi",
+      { class: "diagnostic-attacker-excerpt", dir: "ltr" },
+      diagnosticExcerpt(sample.pathPrefix).text,
+    ),
   },
   {
     title: "Status",
@@ -137,6 +172,22 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
     width: 100,
     render: (sample) => formatBytes(sample.requestBytes),
   },
+  {
+    title: "Details",
+    key: "details",
+    width: 90,
+    fixed: "right",
+    render: (sample) => h(
+      NButton,
+      {
+        quaternary: true,
+        size: "small",
+        "aria-label": `View diagnostic sample from ${formatSampleTime(sample.occurredAtUnixMillis)}`,
+        onClick: () => openSampleDetails(sample),
+      },
+      { default: () => "View" },
+    ),
+  },
 ]);
 
 async function loadDiagnostics() {
@@ -188,10 +239,13 @@ function sampleStatusLabel(sample: DashboardDiagnosticsSample): string {
   return sample.statusCode > 0n ? sample.statusCode.toString() : "-";
 }
 
-function sampleContext(sample: DashboardDiagnosticsSample): string {
-  const method = sample.method || "-";
-  const host = sample.host || "-";
-  return `${method} ${host}`;
+function openSampleDetails(sample: DashboardDiagnosticsSample) {
+  selectedSample.value = sample;
+  isSampleDetailsOpen.value = true;
+}
+
+function inspectionValue(value: string): string {
+  return value ? diagnosticInspectionText(value) : "(empty)";
 }
 
 function formatSampleTime(value: bigint): string {
@@ -246,20 +300,25 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         <p>Proxy outcomes, response distribution, failure dimensions, and recent problem samples.</p>
       </div>
       <div class="header-controls">
-        <NButtonGroup class="window-tabs" role="tablist" aria-label="Diagnostics window" size="small">
+        <NButtonGroup class="window-tabs" role="group" aria-label="Diagnostics window" size="small">
           <NButton
             v-for="label in windowLabels"
             :key="label"
             attr-type="button"
-            role="tab"
-            :aria-selected="selectedWindowLabel === label"
+            :aria-pressed="selectedWindowLabel === label"
             :type="selectedWindowLabel === label ? 'primary' : 'default'"
             @click="selectedWindowLabel = label"
           >
             {{ label }}
           </NButton>
         </NButtonGroup>
-        <NSelect v-model:value="sampleLimit" class="sample-select" size="small" aria-label="Sample limit" :options="sampleSelectOptions" />
+        <AccessibleSelect
+          v-model:value="sampleLimit"
+          accessible-label="Sample limit"
+          class="sample-select"
+          size="small"
+          :options="sampleSelectOptions"
+        />
       </div>
     </section>
 
@@ -354,12 +413,34 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
           :pagination="false"
           :bordered="false"
           :single-line="false"
-          :scroll-x="1530"
+          :scroll-x="1880"
           size="small"
         />
       </div>
       <NEmpty v-else size="small" description="No recent problem samples in this window." />
     </section>
+
+    <NDrawer
+      v-model:show="isSampleDetailsOpen"
+      placement="right"
+      :width="editorDrawerWidth('36rem')"
+      aria-label="Diagnostic sample details"
+      class="editor-drawer diagnostic-sample-drawer"
+    >
+      <NDrawerContent title="Diagnostic sample details" closable>
+        <div v-if="selectedSample" class="diagnostic-sample-details">
+          <p class="diagnostic-sample-details__note">
+            Values are complete. Backslashes and invisible control or formatting characters are shown in a reversible escaped form.
+          </p>
+          <dl>
+            <div v-for="field in selectedSampleDetails" :key="field.label">
+              <dt>{{ field.label }}</dt>
+              <dd><bdi dir="ltr">{{ field.value }}</bdi></dd>
+            </div>
+          </dl>
+        </div>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
 
@@ -641,6 +722,89 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .diagnostics-table-shell :deep(.n-data-table) {
   min-width: 0;
+}
+
+.diagnostic-request-excerpt {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.diagnostic-request-method {
+  color: var(--app-text);
+  direction: ltr;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  unicode-bidi: isolate;
+}
+
+.diagnostic-attacker-excerpt {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text);
+  direction: ltr;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
+.diagnostic-sample-details {
+  display: grid;
+  gap: 1rem;
+}
+
+.diagnostic-sample-details__note {
+  border: 1px solid var(--app-border);
+  border-radius: 7px;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  padding: 0.75rem;
+}
+
+.diagnostic-sample-details dl {
+  display: grid;
+  margin: 0;
+}
+
+.diagnostic-sample-details dl > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.375rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-block: 0.75rem;
+}
+
+.diagnostic-sample-details dt {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.diagnostic-sample-details dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.diagnostic-sample-details bdi {
+  display: block;
+  max-height: 12rem;
+  overflow: auto;
+  color: var(--app-text);
+  direction: ltr;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+  white-space: pre-wrap;
 }
 
 .panel-empty {

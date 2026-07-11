@@ -54,7 +54,12 @@ export function statusForRequest(request: TraceRequest): VisualTokenStatus {
 }
 
 export function requestLabel(request: TraceRequest): string {
-  return `${request.method || "REQUEST"} ${request.path || "/"}`;
+  const label = `${request.method || "REQUEST"} ${request.path || "/"}`
+    .replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "�")
+    .replace(/\s+/g, " ")
+    .trim();
+  const codePoints = Array.from(label);
+  return codePoints.length <= 180 ? label : `${codePoints.slice(0, 179).join("")}…`;
 }
 
 export function createVisualToken(input: {

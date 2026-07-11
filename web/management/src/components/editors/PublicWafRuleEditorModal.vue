@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref, watch } from "vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
+import { NButton, NButtonGroup, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import PublicWafGeoRestrictionEditor from "@/components/editors/PublicWafGeoRestrictionEditor.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   defaultWafGeoRestrictionForm,
   wafGeoRestrictionFormFromProto,
@@ -501,15 +502,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'"
-    :style="modalCardStyle('64rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('64rem')"
+    :aria-label="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'"
+    class="editor-drawer"
   >
-    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRule">
+    <NDrawerContent :title="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'" closable>
+    <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Name
@@ -517,7 +518,7 @@ defineExpose({ openCreate, openEdit, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
-          <NInputNumber v-model:value="form.priority" size="small" required />
+          <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
         <NCheckbox v-model:checked="form.enabled" class="self-align-end">
           Enabled
@@ -525,24 +526,26 @@ defineExpose({ openCreate, openEdit, close });
       </section>
 
       <section class="layout-grid space-lg">
-        <NButtonGroup class="layout-grid cols-one mq-sm-cols-three" size="small">
+        <NButtonGroup class="layout-grid cols-one mq-sm-cols-three" size="small" role="group" aria-label="WAF action">
           <NButton
             v-for="option in actionOptions"
             :key="option.value"
             attr-type="button"
             :type="form.action === option.value ? 'primary' : 'default'"
+            :aria-pressed="form.action === option.value"
             @click="form.action = option.value"
           >
             {{ option.label }}
           </NButton>
         </NButtonGroup>
         <p class="copy-xs line-normal muted-text">{{ selectedActionDescription }}</p>
-        <NButtonGroup class="layout-grid cols-two" size="small">
+        <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="WAF activation mode">
           <NButton
             v-for="option in activationOptions"
             :key="option.value"
             attr-type="button"
             :type="form.activationMode === option.value ? 'primary' : 'default'"
+            :aria-pressed="form.activationMode === option.value"
             @click="form.activationMode = option.value"
           >
             {{ option.label }}
@@ -571,8 +574,9 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-lg mq-sm-cols-two">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Provider
-            <NSelect
+            <AccessibleSelect
               v-model:value="form.captchaProviderId"
+              accessible-label="Captcha provider"
               size="small"
               :options="captchaProviderOptions"
               :placeholder="providers.length ? 'Select provider' : 'No captcha providers configured'"
@@ -587,11 +591,11 @@ defineExpose({ openCreate, openEdit, close });
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Pass TTL minutes
-            <NInputNumber v-model:value="form.captchaPassMinutes" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.captchaPassMinutes" size="small" :min="1" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
             Page template
-            <NSelect v-model:value="form.captchaPageTemplateId" size="small" :options="captchaTemplateOptions" />
+            <AccessibleSelect v-model:value="form.captchaPageTemplateId" accessible-label="Captcha page template" size="small" :options="captchaTemplateOptions" />
           </label>
         </div>
       </section>
@@ -601,23 +605,23 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-lg mq-sm-cols-five">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Capacity
-            <NInputNumber v-model:value="form.waitingRoomMaxAdmitted" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.waitingRoomMaxAdmitted" size="small" :min="1" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Admit/sec
-            <NInputNumber v-model:value="form.waitingRoomAdmissionRate" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.waitingRoomAdmissionRate" size="small" :min="1" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             TTL minutes
-            <NInputNumber v-model:value="form.waitingRoomAdmissionTtlMinutes" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.waitingRoomAdmissionTtlMinutes" size="small" :min="1" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Poll seconds
-            <NInputNumber v-model:value="form.waitingRoomPollSeconds" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.waitingRoomPollSeconds" size="small" :min="1" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Timeout minutes
-            <NInputNumber v-model:value="form.waitingRoomTimeoutMinutes" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.waitingRoomTimeoutMinutes" size="small" :min="1" />
           </label>
         </div>
         <div class="layout-grid space-lg mq-sm-cols-two">
@@ -632,7 +636,7 @@ defineExpose({ openCreate, openEdit, close });
         </div>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Page template
-          <NSelect v-model:value="form.waitingRoomPageTemplateId" size="small" :options="waitingRoomTemplateOptions" />
+          <AccessibleSelect v-model:value="form.waitingRoomPageTemplateId" accessible-label="Waiting room page template" size="small" :options="waitingRoomTemplateOptions" />
         </label>
       </section>
 
@@ -653,7 +657,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-lg mq-sm-cols-three">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Window seconds
-            <NInputNumber v-model:value="form.triggers.requestWindowSeconds" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.triggers.requestWindowSeconds" size="small" :min="1" />
             <p class="copy-xs weight-normal normal-text line-normal letter-normal muted-text">Rolling window used by request-volume metrics.</p>
           </label>
         </div>
@@ -686,7 +690,7 @@ defineExpose({ openCreate, openEdit, close });
               </div>
               <div class="layout-grid space-xs">
                 <div class="layout-row align-center space-sm">
-                  <NInputNumber
+                  <NInputNumber :show-button="false"
                     v-model:value="form.triggers.metrics[metric.key].value"
                     size="small"
                     class="min-width-zero grow-fill"
@@ -710,12 +714,12 @@ defineExpose({ openCreate, openEdit, close });
           <div class="layout-grid space-lg mq-sm-cols-two">
             <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               Minimum active seconds
-              <NInputNumber v-model:value="form.triggers.minimumActiveSeconds" size="small" :min="1" />
+              <NInputNumber :show-button="false" v-model:value="form.triggers.minimumActiveSeconds" size="small" :min="1" />
               <p class="copy-xs weight-normal normal-text line-normal letter-normal muted-text">Pressure must persist this long before the action begins.</p>
             </label>
             <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               Quiet seconds
-              <NInputNumber v-model:value="form.triggers.quietSeconds" size="small" :min="1" />
+              <NInputNumber :show-button="false" v-model:value="form.triggers.quietSeconds" size="small" :min="1" />
               <p class="copy-xs weight-normal normal-text line-normal letter-normal muted-text">The action stays active this long after all pressure clears.</p>
             </label>
           </div>
@@ -727,7 +731,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-lg mq-sm-cols-three">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Status
-            <NInputNumber v-model:value="form.blockResponseStatusCode" size="small" :min="400" :max="599" />
+            <NInputNumber :show-button="false" v-model:value="form.blockResponseStatusCode" size="small" :min="400" :max="599" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
             Content type
@@ -737,10 +741,11 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-md round-md framed frame-standard muted-bg pad-md">
           <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Body source
-            <NButtonGroup class="layout-grid cols-two" size="small">
+            <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="Blocked response body source">
               <NButton
                 attr-type="button"
                 :type="form.blockResponseBodyMode === PublicResponseBodyMode.INLINE ? 'primary' : 'default'"
+                :aria-pressed="form.blockResponseBodyMode === PublicResponseBodyMode.INLINE"
                 @click="form.blockResponseBodyMode = PublicResponseBodyMode.INLINE"
               >
                 Inline
@@ -748,6 +753,7 @@ defineExpose({ openCreate, openEdit, close });
               <NButton
                 attr-type="button"
                 :type="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'primary' : 'default'"
+                :aria-pressed="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE"
                 @click="form.blockResponseBodyMode = PublicResponseBodyMode.TEMPLATE"
               >
                 Template
@@ -756,8 +762,9 @@ defineExpose({ openCreate, openEdit, close });
           </div>
           <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Template
-            <NSelect
+            <AccessibleSelect
               v-model:value="form.blockResponseTemplateId"
+              accessible-label="Block response template"
               size="small"
               :options="genericTemplateOptions"
               :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
@@ -792,7 +799,7 @@ defineExpose({ openCreate, openEdit, close });
         </div>
       </section>
 
-      <div class="layout-row align-end-row space-md">
+      <div class="editor-drawer-actions layout-row align-end-row space-md">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="submitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
@@ -801,7 +808,8 @@ defineExpose({ openCreate, openEdit, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref } from "vue";
+import { computed, h, ref, type HTMLAttributes } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NButton, NDataTable, NTabPane, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
@@ -46,7 +46,7 @@ type ProxySectionSummary = {
   detail: string;
   description: string;
 };
-type ProxySummaryCard = ProxySectionSummary | {
+type ProxySummaryFact = ProxySectionSummary | {
   key: "targets" | "proxy";
   label: string;
   value: string;
@@ -224,10 +224,11 @@ const proxySections = computed<ProxySectionSummary[]>(() => [
     description: "Incoming endpoints where the proxy accepts connections.",
   },
 ]);
-const summaryCards = computed<ProxySummaryCard[]>(() => [
-  ...proxySections.value,
-  { key: "targets", label: "Targets", value: routeTargets.value.length.toString(), detail: "proxy and static destinations" },
+const summaryFacts = computed<ProxySummaryFact[]>(() => [
   { key: "proxy", label: "Proxy", value: proxyStateLabel(proxyState.value, status.value?.proxyRunning), detail: proxyIsRunning.value ? "accepting traffic" : "not running" },
+  proxySections.value[1],
+  proxySections.value[0],
+  { key: "targets", label: "Targets", value: routeTargets.value.length.toString(), detail: "proxy and static destinations" },
 ]);
 const activeProxySection = computed<ProxySectionKey>(() => normalizeProxySection(route.params.section));
 const activeProxyMeta = computed(() => (
@@ -268,6 +269,21 @@ async function selectProxySection(value: string | number) {
   const section = normalizeProxySection(value);
   if (section === activeProxySection.value) return;
   await router.push(`/proxy/${section}`);
+}
+
+function proxyTabProps(section: ProxySectionKey, label: string): HTMLAttributes {
+  return {
+    id: `proxy-tab-${section}`,
+    role: "tab",
+    tabindex: 0,
+    "aria-label": label,
+    "aria-selected": activeProxySection.value === section,
+    onKeydown: (event: KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      void selectProxySection(section);
+    },
+  };
 }
 
 function openAddListenerModal() {
@@ -327,12 +343,12 @@ async function deleteRoute(id: bigint) {
 
 <template>
   <div v-if="dashboard" class="stack-xl">
-    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-      <div>
-        <h3 class="margin-bottom-sm copy-xl weight-bold">Proxy</h3>
-        <p class="copy-sm muted-text">{{ activeProxyMeta.description }}</p>
+    <header class="page-toolbar">
+      <div class="page-toolbar__body">
+        <h1 class="margin-bottom-sm copy-2xl weight-bold">Proxy</h1>
+        <p id="proxy-page-description" class="copy-sm muted-text">{{ activeProxyMeta.description }}</p>
       </div>
-      <div class="layout-row align-center space-md">
+      <div class="page-toolbar__actions" aria-live="polite">
         <NTag size="small" :bordered="false" :type="naiveTagType(proxySeverity)">
           {{ proxyStateLabel(proxyState, status?.proxyRunning) }}
         </NTag>
@@ -343,8 +359,8 @@ async function deleteRoute(id: bigint) {
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(true)"
           >
-            <template #icon><PlusIcon class="icon-md icon-md" /></template>
-            Start Proxy
+            <template #icon><PlusIcon class="icon-md" /></template>
+            Start proxy
           </NButton>
         </DisabledHint>
         <DisabledHint v-else :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
@@ -354,99 +370,152 @@ async function deleteRoute(id: bigint) {
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(false)"
           >
-            <template #icon><BanIcon class="icon-md icon-md" /></template>
-            Stop Proxy
+            <template #icon><BanIcon class="icon-md" /></template>
+            Stop proxy
           </NButton>
         </DisabledHint>
       </div>
-    </div>
+    </header>
 
-    <p v-if="proxyError" class="round-md framed error-border error-surface pad-x-lg pad-y-md copy-sm error-text">
+    <p v-if="proxyError" role="alert" class="proxy-error round-md framed error-border error-surface pad-x-lg pad-y-md copy-sm error-text">
       {{ proxyError }}
     </p>
 
-    <section class="summary-grid summary-grid--four proxy-summary-grid" aria-label="Proxy configuration summary">
+    <dl class="summary-grid summary-grid--four proxy-summary-grid" aria-label="Proxy configuration summary">
       <div
-        v-for="card in summaryCards"
-        :key="card.key"
-        class="surface-card pad-lg proxy-summary-card"
-        :class="{ 'proxy-summary-card--active': card.key === activeProxySection }"
+        v-for="fact in summaryFacts"
+        :key="fact.key"
+        class="proxy-summary-card"
+        :class="{ 'proxy-summary-card--active': fact.key === activeProxySection }"
       >
-        <p class="copy-xs weight-semibold label-case letter-widest muted-text">{{ card.label }}</p>
-        <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ card.value }}</p>
-        <p class="margin-top-xs copy-xs muted-text">{{ card.detail }}</p>
+        <dt>{{ fact.label }}</dt>
+        <dd>
+          <strong class="base-text">{{ fact.value }}</strong>
+          <small>{{ fact.detail }}</small>
+        </dd>
       </div>
-    </section>
+    </dl>
 
-    <NTabs class="proxy-tabs" type="line" animated :value="activeProxySection" @update:value="selectProxySection">
-      <NTabPane name="routes" :tab="`Routes (${routes.length})`">
+    <NTabs
+      class="proxy-tabs"
+      type="line"
+      animated
+      role="group"
+      aria-label="Proxy configuration sections"
+      aria-describedby="proxy-page-description"
+      :value="activeProxySection"
+      @update:value="selectProxySection"
+    >
+      <NTabPane
+        id="proxy-panel-routes"
+        name="routes"
+        role="tabpanel"
+        aria-labelledby="proxy-tab-routes"
+        :tab="`Routes · ${routes.length}`"
+        :tab-props="proxyTabProps('routes', `${routes.length.toString()} routes configured`)"
+      >
         <section class="surface-card hide-overflow">
-          <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
+          <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
             <div>
-              <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Routes</h4>
-              <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Rules that match incoming requests to route targets.</p>
+              <h2 class="copy-base weight-semibold">Routes</h2>
+              <p class="margin-top-xs copy-sm muted-text">Rules that match incoming requests to route targets.</p>
             </div>
-            <NButton secondary size="small" @click="openAddRouteModal">
-              <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+            <NButton type="primary" size="small" @click="openAddRouteModal">
+              <template #icon><PlusIcon class="icon-sm" /></template>
               Add Route
             </NButton>
           </div>
-          <div class="divided-list">
+          <div
+            v-if="routes.length"
+            class="route-table"
+            role="table"
+            aria-label="Configured proxy routes"
+            :aria-rowcount="routes.length + 1"
+          >
+            <div class="route-table__header" role="row">
+              <span role="columnheader">Route and match</span>
+              <span role="columnheader">Action and targets</span>
+              <span role="columnheader">Priority and state</span>
+              <span class="route-table__actions-heading" role="columnheader">Actions</span>
+            </div>
             <div
               v-for="route in routes"
               :key="route.id.toString()"
               :data-testid="`route-row-${route.id.toString()}`"
-              class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto"
+              class="route-table__row"
+              role="row"
             >
-              <div class="min-width-zero">
-                <div class="layout-row min-width-zero align-center space-sm">
-                  <p class="clip-text copy-sm weight-medium base-text">{{ listenerName(route.listenerId, listeners) }} -> {{ routeDestinationLabel(route) }}</p>
-                  <span
-                    v-if="routeAction(route) === PublicRouteAction.REDIRECT"
-                    class="no-shrink round-sm framed accent-frame pad-x-xs pad-y-2xs copy-3xs weight-semibold label-case letter-wide accent-text"
-                  >
-                    Redirect
-                  </span>
+              <div class="route-table__identity" role="cell">
+                <div class="route-table__primary-line">
+                  <span class="route-table__listener">{{ listenerName(route.listenerId, listeners) }}</span>
+                  <span class="route-table__id mono-text">#{{ route.id.toString() }}</span>
+                  <span v-if="route.isDefault" class="route-table__default">Default</span>
                 </div>
-                <p class="clip-text mono-text copy-xs muted-text">
-                  {{ route.priority.toString() }} / {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
-                </p>
-                <p class="clip-text mono-text copy-xs muted-text">
-                  {{ routeTargetSummary(route) }}
+                <p class="route-table__technical mono-text" dir="auto">
+                  {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
                 </p>
               </div>
-              <div class="layout-row space-sm">
+
+              <div class="route-table__destination" role="cell">
+                <div class="route-table__primary-line">
+                  <span
+                    class="route-table__action"
+                    :class="{ 'route-table__action--redirect': routeAction(route) === PublicRouteAction.REDIRECT }"
+                  >
+                    {{ routeAction(route) === PublicRouteAction.REDIRECT ? "Redirect" : "Forward" }}
+                  </span>
+                  <span class="route-table__destination-label">{{ routeDestinationLabel(route) }}</span>
+                </div>
+                <p class="route-table__technical mono-text" dir="auto">{{ routeTargetSummary(route) }}</p>
+              </div>
+
+              <div class="route-table__status" role="cell">
+                <span class="route-table__priority mono-text">{{ route.priority.toString() }}</span>
+                <span class="route-table__state" :class="{ 'route-table__state--disabled': !route.enabled }">
+                  <span class="route-table__state-dot" aria-hidden="true"></span>
+                  {{ route.enabled ? "Enabled" : "Disabled" }}
+                </span>
+              </div>
+
+              <div class="route-table__actions" role="cell">
                 <NButton secondary size="small" aria-label="Edit route" title="Edit route" @click="editRoute(route.id)">
-                  <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+                  <template #icon><PencilIcon class="icon-sm" /></template>
                 </NButton>
                 <NButton secondary size="small" aria-label="Clone route" title="Clone route" @click="cloneRoute(route.id)">
-                  <template #icon><WindowMaximizeIcon class="icon-sm icon-sm" /></template>
+                  <template #icon><WindowMaximizeIcon class="icon-sm" /></template>
                 </NButton>
                 <NButton type="error" size="small" aria-label="Delete route" title="Delete route" @click="deleteRoute(route.id)">
-                  <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+                  <template #icon><TrashIcon class="icon-sm" /></template>
                 </NButton>
               </div>
             </div>
-            <EmptyState
-              v-if="!routes.length"
-              title="No routes configured"
-              description="Routes match hosts and paths before forwarding, redirecting, or using listener defaults."
-              action-label="Add Route"
-              @action="openAddRouteModal"
-            />
           </div>
+          <EmptyState
+            v-else
+            title="No routes configured"
+            description="Routes match hosts and paths before forwarding, redirecting, or using listener defaults."
+            action-label="Add Route"
+            @action="openAddRouteModal"
+          />
         </section>
       </NTabPane>
 
-      <NTabPane name="listeners" :tab="`Public Listeners (${listeners.length})`">
+      <NTabPane
+        id="proxy-panel-listeners"
+        name="listeners"
+        role="tabpanel"
+        aria-labelledby="proxy-tab-listeners"
+        :tab="`Public Listeners · ${listeners.length}`"
+        :tab-props="proxyTabProps('listeners', `${listeners.length.toString()} public listeners configured`)"
+      >
         <section class="surface-card hide-overflow">
-          <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
+          <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
             <div>
-              <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Public Listeners</h4>
-              <p class="margin-top-2xs copy-xs muted-text normal-text letter-normal">Incoming endpoints where the proxy accepts connections.</p>
+              <h2 class="copy-base weight-semibold">Public Listeners</h2>
+              <p class="margin-top-xs copy-sm muted-text">Incoming endpoints where the proxy accepts connections.</p>
             </div>
-            <NButton secondary size="small" @click="openAddListenerModal">
-              <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
+            <NButton type="primary" size="small" @click="openAddListenerModal">
+              <template #icon><PlusIcon class="icon-sm" /></template>
               Add Listener
             </NButton>
           </div>
@@ -460,7 +529,7 @@ async function deleteRoute(id: bigint) {
               :pagination="false"
               :bordered="false"
               :single-line="false"
-              :scroll-x="900"
+              :scroll-x="980"
               size="small"
             />
             <EmptyState
@@ -480,23 +549,53 @@ async function deleteRoute(id: bigint) {
 </template>
 
 <style scoped>
-.proxy-summary-card {
-  min-height: 7rem;
-  padding: 0.875rem;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
-}
-
 .proxy-summary-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
 }
 
-.proxy-summary-card--active {
-  border-color: var(--app-accent);
-  box-shadow: inset 0 0 0 1px var(--app-accent-soft);
+.proxy-summary-card {
+  display: grid;
+  align-content: center;
+  gap: 0.25rem;
 }
 
-.proxy-summary-card--active .base-text {
-  color: var(--app-accent);
+.proxy-summary-card dt,
+.proxy-summary-card small {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.proxy-summary-card dt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.proxy-summary-card small {
+  overflow-wrap: anywhere;
+}
+
+.proxy-summary-card dd {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.proxy-summary-card strong {
+  overflow: hidden;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proxy-error {
+  overflow-wrap: anywhere;
 }
 
 .proxy-tabs {
@@ -511,14 +610,246 @@ async function deleteRoute(id: bigint) {
   padding-top: 0.25rem;
 }
 
-@media (min-width: 900px) {
-  .proxy-summary-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+.workbench-section-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.workbench-section-header > :deep(.n-button) {
+  width: 100%;
+}
+
+.route-table {
+  min-width: 0;
+}
+
+.route-table__header,
+.route-table__row {
+  display: grid;
+  grid-template-columns:
+    minmax(13rem, 1.15fr)
+    minmax(15rem, 1.4fr)
+    minmax(7.75rem, 0.45fr)
+    7.5rem;
+  column-gap: 1rem;
+  align-items: center;
+  padding-inline: 1.25rem;
+}
+
+.route-table__header {
+  min-height: 2.25rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.route-table__actions-heading {
+  text-align: right;
+}
+
+.route-table__row {
+  min-height: 3.75rem;
+  padding-block: 0.5rem;
+  transition: background-color 160ms ease-out;
+}
+
+.route-table__row + .route-table__row {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.route-table__row:hover,
+.route-table__row:focus-within {
+  background: var(--app-hover);
+}
+
+.route-table__identity,
+.route-table__destination,
+.route-table__status {
+  min-width: 0;
+}
+
+.route-table__primary-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.35;
+}
+
+.route-table__listener,
+.route-table__destination-label {
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  unicode-bidi: plaintext;
+  white-space: nowrap;
+}
+
+.route-table__id {
+  flex: 0 0 auto;
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+}
+
+.route-table__default,
+.route-table__action {
+  flex: 0 0 auto;
+  border-radius: 4px;
+  padding: 0.0625rem 0.375rem;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.route-table__action--redirect {
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.route-table__technical {
+  overflow: hidden;
+  margin: 0.125rem 0 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  unicode-bidi: plaintext;
+  white-space: nowrap;
+}
+
+.route-table__status {
+  display: grid;
+  grid-template-columns: minmax(2.25rem, auto) 1fr;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.route-table__priority {
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.route-table__state {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--app-success);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.route-table__state-dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.route-table__state--disabled {
+  color: var(--app-text-muted);
+}
+
+.route-table__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.route-table__actions :deep(.n-button) {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  padding-inline: 0;
+}
+
+@media (max-width: 860px) {
+  .route-table__header {
+    display: none;
   }
 
-  .proxy-summary-card {
+  .route-table__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "identity actions"
+      "destination destination"
+      "status status";
+    gap: 0.5rem 0.75rem;
     min-height: 0;
-    padding: 1rem;
+    padding-block: 0.75rem;
+  }
+
+  .route-table__identity {
+    grid-area: identity;
+  }
+
+  .route-table__destination {
+    grid-area: destination;
+  }
+
+  .route-table__status {
+    grid-area: status;
+    display: flex;
+  }
+
+  .route-table__priority::before {
+    content: "Priority ";
+    color: var(--app-text-muted);
+    font-family: var(--font-body);
+    font-weight: 400;
+  }
+
+  .route-table__actions {
+    grid-area: actions;
+  }
+}
+
+@media (max-width: 520px) {
+  .route-table__row {
+    padding-inline: 1rem;
+  }
+
+  .route-table__id {
+    display: none;
+  }
+
+  .route-table__actions {
+    gap: 0.25rem;
+  }
+
+  .route-table__actions :deep(.n-button) {
+    width: 2rem;
+    min-width: 2rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .route-table__actions :deep(.n-button) {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .workbench-section-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .workbench-section-header > :deep(.n-button) {
+    width: auto;
   }
 }
 </style>

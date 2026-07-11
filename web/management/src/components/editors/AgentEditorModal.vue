@@ -2,7 +2,7 @@
 import { computed, inject, reactive, ref } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NEmpty, NInput, NModal, NTag } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NEmpty, NInput, NTag } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -14,7 +14,7 @@ import {
   type AgentLabelPair,
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
@@ -139,15 +139,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="agentForm.id ? 'Edit Agent' : 'Add Agent'"
-    :style="modalCardStyle('44rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('44rem')"
+    :aria-label="agentForm.id ? 'Edit Agent' : 'Add Agent'"
+    class="editor-drawer"
   >
-    <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="layout-grid max-modal-height space-xl scroll-y pad-right-xs">
+    <NDrawerContent :title="agentForm.id ? 'Edit Agent' : 'Add Agent'" closable>
+    <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="editor-drawer-form layout-grid space-xl">
       <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Name
         <NInput v-model:value="agentForm.name" size="small" required />
@@ -194,7 +194,7 @@ defineExpose({ openCreate, openEdit, close });
           </NTag>
         </div>
       </section>
-      <div class="margin-top-lg layout-row align-end-row space-md">
+      <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(agentSubmitDisabledReason)" :reason="agentSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="Boolean(agentSubmitDisabledReason)">
@@ -203,5 +203,6 @@ defineExpose({ openCreate, openEdit, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>

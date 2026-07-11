@@ -84,7 +84,7 @@ test.describe("docs screenshots", () => {
       });
 
       await logOut(page);
-      await expect(page.getByRole("heading", { name: "Login", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Log in", exact: true })).toBeVisible();
       await capture(page, "login_page.png");
 
       await authenticate(page, appBaseURL, {
@@ -112,7 +112,7 @@ test.describe("docs screenshots", () => {
       await gotoApp(page, "/#/overview", "Proxy Overview");
       await capture(page, "dashboard_overview.png");
 
-      await gotoApp(page, "/#/traffic", "Traffic Flow");
+      await gotoApp(page, "/#/monitor/traffic", "Traffic Flow");
       await sendPublicProxyTraffic(page.request, httpPort);
       await expect(page.getByText("app.example.test").first()).toBeVisible({ timeout: 20_000 });
       await capture(page, "live_traffic_diagram_tracing.png");
@@ -120,12 +120,14 @@ test.describe("docs screenshots", () => {
       await capture(page, "traffic_trace_request_details.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/proxy", "Proxy");
+      await gotoApp(page, "/#/proxy/listeners", "Proxy");
+      await expect(page.getByRole("button", { name: "Edit listener" }).first()).toBeVisible();
       await capture(page, "proxy_listeners.png");
       await openFirstButton(page, "Edit listener", "Edit Listener");
       await capture(page, "proxy_edit_interface_listener_modal.png");
       await closeModal(page);
 
+      await gotoApp(page, "/#/proxy/routes", "Proxy");
       await page.getByRole("heading", { name: "Routes" }).scrollIntoViewIfNeeded();
       await capture(page, "proxy_backends_and_routes.png");
 
@@ -157,7 +159,12 @@ test.describe("docs screenshots", () => {
       await closeModal(page);
       await createAgentSetupScreenshot(page);
 
-      await gotoApp(page, "/#/policies", "Traffic Policy");
+      await gotoApp(page, "/#/policies/rate-limits", "Traffic Policy");
+      await openFirstButton(page, "Edit rate-limit rule", "Edit Rate Limit");
+      await capture(page, "edit_ratelimit_modal.png");
+      await closeModal(page);
+
+      await gotoApp(page, "/#/policies/waf", "Traffic Policy");
       await capture(page, "traffic_policies_waf_and_ratelimits.png");
       await openFirstButton(page, "Edit captcha provider", "Edit Captcha Provider");
       await capture(page, "waf_captcha_provider_modal.png");
@@ -165,17 +172,15 @@ test.describe("docs screenshots", () => {
       await openFirstButton(page, "Edit WAF rule", "Edit WAF Rule");
       await capture(page, "edit_waf_modal.png");
       await closeModal(page);
-      await openFirstButton(page, "Edit rate-limit rule", "Edit Rate Limit");
-      await capture(page, "edit_ratelimit_modal.png");
-      await closeModal(page);
 
-      await page.getByRole("heading", { name: "Cache", exact: true }).first().scrollIntoViewIfNeeded();
+      await gotoApp(page, "/#/policies/cache", "Traffic Policy");
       await capture(page, "cache_settings_section.png");
-      await page.getByRole("heading", { name: "Traffic Shaper", exact: true }).first().scrollIntoViewIfNeeded();
-      await capture(page, "traffic_policies_cache_and_trafficshaper.png");
       await openFirstButton(page, "Edit cache rule", "Edit Cache Rule");
       await capture(page, "edit_cache_modal.png");
       await closeModal(page);
+
+      await gotoApp(page, "/#/policies/traffic-shaper", "Traffic Policy");
+      await capture(page, "traffic_policies_cache_and_trafficshaper.png");
       await openFirstButton(page, "Edit traffic-shaper rule", "Edit Traffic Shaper");
       await capture(page, "edit_traffic_shaper.png");
       await closeModal(page);

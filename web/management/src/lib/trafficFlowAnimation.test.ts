@@ -9,6 +9,7 @@ import { createTrafficFlowConfigIndex } from "@/lib/trafficFlowLayout";
 import {
   initialFrameStressState,
   nextFrameStressState,
+  requestLabel,
   renderedTokenCap,
   shouldEnqueueCacheStorePulse,
 } from "@/lib/trafficFlowAnimation";
@@ -66,6 +67,19 @@ describe("trafficFlowAnimation", () => {
     expect(shouldEnqueueCacheStorePulse(request, index, seen)).toBe(true);
     expect(shouldEnqueueCacheStorePulse(request, index, seen)).toBe(false);
     expect(seen.has("cache-store")).toBe(true);
+  });
+
+  test("bounds and isolates attacker-controlled request labels used by controls", () => {
+    const request = traceRequest({
+      method: "GET\u202e",
+      path: `/${"x".repeat(300)}\nnext`,
+    });
+
+    const label = requestLabel(request);
+    expect(label).not.toContain("\u202e");
+    expect(label).not.toContain("\n");
+    expect(Array.from(label).length).toBeLessThanOrEqual(180);
+    expect(label.endsWith("…")).toBe(true);
   });
 });
 

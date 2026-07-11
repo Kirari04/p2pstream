@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { NModal } from "naive-ui";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { NDrawer, NDrawerContent } from "naive-ui";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import type { TraceRequest } from "@/types/trafficTrace";
 import {
   PublicRateLimitAlgorithm,
@@ -144,15 +144,15 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    title="Trace details"
-    :style="modalCardStyle('52rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('52rem')"
+    aria-label="Trace details"
+    class="editor-drawer trace-details-drawer"
   >
-    <div v-if="request" class="stack-lg">
+    <NDrawerContent title="Trace details" closable>
+    <div v-if="request" class="stack-lg trace-details-content">
       <section class="layout-grid space-md mq-sm-cols-two">
         <div class="trace-field mq-sm-span-two">
           <span>Request</span>
@@ -316,11 +316,13 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
         </div>
       </section>
     </div>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped>
 .trace-field {
+  min-width: 0;
   border: 1px solid var(--app-border);
   border-radius: 6px;
   background: var(--app-panel-muted);
@@ -333,13 +335,15 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
   color: var(--app-text-muted);
   font-size: 0.7rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
 .trace-field strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--app-text);
   font-size: 0.875rem;
+  unicode-bidi: plaintext;
 }
 
 .trace-panel {
@@ -362,17 +366,22 @@ function entries(mapValue: Record<string, string> | undefined): Array<[string, s
 }
 
 .trace-panel dt {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  unicode-bidi: plaintext;
 }
 
 .trace-panel dd {
+  min-width: 0;
   margin: -0.35rem 0 0;
   overflow-wrap: anywhere;
   color: var(--app-text);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+  unicode-bidi: plaintext;
 }
 
 .trace-panel p {

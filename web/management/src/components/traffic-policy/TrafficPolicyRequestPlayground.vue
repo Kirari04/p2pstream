@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RotateCcw as ResetIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NInput, NSelect, NTag } from "naive-ui";
+import { NButton, NCheckbox, NInput, NTag } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { countryOptions } from "@/lib/countryCatalog";
 import type {
   TrafficPolicyAttentionWarning,
@@ -75,8 +76,9 @@ function statusLabel(status: TrafficPolicyMatchState): string {
         <div class="request-fields">
           <label class="field-label">
             Method
-            <NSelect
+            <AccessibleSelect
               :value="modelValue.method"
+              accessible-label="Request method"
               size="small"
               :options="methodOptions"
               @update:value="(value) => updateField('method', String(value))"
@@ -84,8 +86,9 @@ function statusLabel(status: TrafficPolicyMatchState): string {
           </label>
           <label class="field-label">
             Protocol
-            <NSelect
+            <AccessibleSelect
               :value="modelValue.protocol"
+              accessible-label="Request protocol"
               size="small"
               :options="protocolOptions"
               @update:value="(value) => updateField('protocol', String(value))"
@@ -99,15 +102,15 @@ function statusLabel(status: TrafficPolicyMatchState): string {
             Path
             <NInput :value="modelValue.path" size="small" placeholder="/assets/app.js" @update:value="(value) => updateField('path', value)" />
           </label>
-          <label class="field-label request-span-two">
+          <label class="field-label">
             Remote IP
             <NInput :value="modelValue.remoteIp" size="small" placeholder="198.51.100.10" @update:value="(value) => updateField('remoteIp', value)" />
           </label>
           <label class="field-label">
             Country result
-            <NSelect
+            <AccessibleSelect
               :value="modelValue.countryCode"
-              :input-props="{ 'aria-label': 'Synthetic GeoIP country result' }"
+              accessible-label="Synthetic GeoIP country result"
               size="small"
               filterable
               :options="countryCodeOptions"
@@ -125,8 +128,9 @@ function statusLabel(status: TrafficPolicyMatchState): string {
           </label>
           <label class="field-label">
             Route
-            <NSelect
+            <AccessibleSelect
               :value="modelValue.routeId"
+              accessible-label="Request route"
               size="small"
               clearable
               filterable
@@ -137,8 +141,9 @@ function statusLabel(status: TrafficPolicyMatchState): string {
           </label>
           <label class="field-label">
             Target
-            <NSelect
+            <AccessibleSelect
               :value="modelValue.targetId"
+              accessible-label="Request target"
               size="small"
               clearable
               filterable

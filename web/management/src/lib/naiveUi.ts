@@ -45,3 +45,6 @@ export function modalCardStyle(maxWidth = "42rem"): CSSProperties {
   };
 }
 
+export function editorDrawerWidth(maxWidth = "42rem"): string {
+  return `min(100vw, ${maxWidth})`;
+}

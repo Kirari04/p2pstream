@@ -21,7 +21,7 @@ test("routes monitor traffic and diagnostics subpages", async ({ page }, testInf
 
   await page.goto("/#/monitor");
   await expect(page).toHaveURL(/#\/monitor\/traffic$/);
-  const monitorNav = page.getByRole("link", { name: "Monitor" });
+  const monitorNav = page.getByLabel("Management navigation").getByRole("link", { name: "Monitor" });
   await expect(monitorNav).toHaveClass(/app-nav__link--active/);
   await expect(page.getByRole("heading", { name: "Traffic Flow", exact: true })).toBeVisible();
   await expect(page.locator(".traffic-flow-shell")).toBeVisible();

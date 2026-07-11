@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { RefreshCw as RefreshIcon } from "@lucide/vue";
-import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NModal, NSelect, NSkeleton, useMessage, useNotification } from "naive-ui";
-import { computed, onMounted, provide } from "vue";
+import { LogOut as LogoutIcon, Menu as MenuIcon, RefreshCw as RefreshIcon } from "@lucide/vue";
+import { NAlert, NButton, NCard, NForm, NFormItem, NInput, NModal, NSkeleton, useMessage, useNotification } from "naive-ui";
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import DisabledHint from "@/components/DisabledHint.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import ManagementSidebar from "@/components/ui/ManagementSidebar.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 import {
   dashboardKey,
@@ -23,6 +25,7 @@ import { useDashboardRefresh } from "@/composables/useDashboardRefresh";
 import { useManagementSession } from "@/composables/useManagementSession";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { messageFromError } from "@/lib/errors";
+import { managementBreadcrumbsForPath, managementRouteLabel } from "@/lib/managementNavigation";
 
 const message = useMessage();
 const notification = useNotification();
@@ -60,22 +63,19 @@ const {
   stopAutoRefresh,
 } = dashboardRefresh;
 
-type NavTab = {
-  path: string;
-  label: string;
-  activePrefix?: string;
-};
+const sidebarStorageKey = "p2pstream:management-sidebar-collapsed";
+const sidebarCollapsed = ref(loadSidebarPreference());
+const mobileNavigationOpen = ref(false);
+const mobileMenuButton = ref<HTMLButtonElement | null>(null);
+const mainContent = ref<HTMLElement | null>(null);
+const showNavigation = computed(() => Boolean(currentUser.value) && !isLoading.value && !setupState.value?.setupRequired);
+const pageLabel = computed(() => managementRouteLabel(route.path));
+const breadcrumbs = computed(() => managementBreadcrumbsForPath(route.path));
+let desktopNavigationQuery: MediaQueryList | undefined;
 
-const tabs: NavTab[] = [
-  { path: "/overview", label: "Overview" },
-  { path: "/monitor/traffic", label: "Monitor", activePrefix: "/monitor" },
-  { path: "/proxy/routes", label: "Proxy", activePrefix: "/proxy" },
-  { path: "/agent", label: "Agents", activePrefix: "/agent" },
-  { path: "/policies/rate-limits", label: "Traffic Policy", activePrefix: "/policies" },
-  { path: "/templates", label: "Templates" },
-  { path: "/tls", label: "TLS" },
-  { path: "/settings", label: "Settings", activePrefix: "/settings" },
-];
+function closeNavigationAtDesktop(event: MediaQueryListEvent | MediaQueryList) {
+  if (event.matches) mobileNavigationOpen.value = false;
+}
 
 const sourceOfferHref = "/.well-known/p2pstream/source";
 const sourceOfferTitle = computed(() => {
@@ -95,10 +95,31 @@ const canShowRouteContent = computed(() =>
   Boolean(dashboard.value) || route.path.startsWith("/settings") || route.name === "not-found",
 );
 
-function isNavTabActive(tab: NavTab): boolean {
-  if (route.path === tab.path) return true;
-  if (!tab.activePrefix) return false;
-  return route.path === tab.activePrefix || route.path.startsWith(`${tab.activePrefix}/`);
+function loadSidebarPreference(): boolean {
+  try {
+    return window.localStorage.getItem(sidebarStorageKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+}
+
+async function openMobileNavigation() {
+  mobileNavigationOpen.value = true;
+  await nextTick();
+  document.querySelector<HTMLElement>("#management-navigation a")?.focus();
+}
+
+async function closeMobileNavigation() {
+  const wasOpen = mobileNavigationOpen.value;
+  mobileNavigationOpen.value = false;
+  if (wasOpen) {
+    await nextTick();
+    mobileMenuButton.value?.focus();
+  }
 }
 
 // Provide state to views
@@ -204,34 +225,119 @@ provide(logoutKey, requestLogout);
 
 onMounted(() => {
   session.initializeSetupToken();
+  desktopNavigationQuery = window.matchMedia("(min-width: 768px)");
+  closeNavigationAtDesktop(desktopNavigationQuery);
+  desktopNavigationQuery.addEventListener("change", closeNavigationAtDesktop);
   void bootstrap();
+});
+
+onBeforeUnmount(() => {
+  desktopNavigationQuery?.removeEventListener("change", closeNavigationAtDesktop);
+});
+
+watch(sidebarCollapsed, (collapsed) => {
+  try {
+    window.localStorage.setItem(sidebarStorageKey, collapsed ? "true" : "false");
+  } catch {
+    // Storage is optional; keep the in-memory navigation preference.
+  }
+});
+
+watch(() => route.fullPath, async () => {
+  mobileNavigationOpen.value = false;
+  await nextTick();
+  mainContent.value?.focus({ preventScroll: true });
 });
 
 </script>
 
 <template>
-  <div class="app-shell">
-    <header class="app-header">
-      <div class="app-header__inner">
+  <div
+    class="app-shell"
+    :class="{ 'app-shell--authenticated': showNavigation, 'app-shell--sidebar-collapsed': sidebarCollapsed }"
+    @keydown.esc.capture="closeMobileNavigation"
+  >
+    <a href="#management-main" class="skip-link" :tabindex="mobileNavigationOpen ? -1 : undefined">Skip to main content</a>
+    <ManagementSidebar
+      v-if="showNavigation"
+      :collapsed="sidebarCollapsed"
+      :mobile-open="mobileNavigationOpen"
+      :username="currentUser?.username || 'Administrator'"
+      @close-mobile="closeMobileNavigation"
+      @toggle-collapsed="toggleSidebar"
+    >
+      <template #environment>
+        <label class="app-sidebar__environment-label">
+          <span>Environment</span>
+          <AccessibleSelect
+            v-model:value="selectedEnvironmentId"
+            accessible-label="Environment"
+            data-testid="environment-select-mobile"
+            size="small"
+            :options="environmentSelectOptions"
+            :title="`Selected environment: ${selectedEnvironmentLabel}`"
+          />
+        </label>
+        <a
+          :href="sourceOfferHref"
+          :title="sourceOfferTitle"
+          class="app-sidebar__source-link"
+          target="_blank"
+          rel="noreferrer"
+        >
+          View source and license
+        </a>
+      </template>
+    </ManagementSidebar>
+
+    <div
+      v-if="showNavigation && mobileNavigationOpen"
+      class="app-sidebar-backdrop"
+      aria-hidden="true"
+      @click="closeMobileNavigation"
+    />
+
+    <div class="app-workspace" :inert="mobileNavigationOpen || undefined">
+      <header class="app-header">
         <div class="app-header__bar">
-          <div class="app-brand">
-            <div class="app-brand__group">
-              <div class="app-brand__mark">
-                <div class="app-brand__diamond"></div>
-              </div>
-              <span class="app-brand__name">p2pstream</span>
-            </div>
-            <div class="app-brand__divider"></div>
-            <div v-if="currentUser" class="app-user">
-              <span>{{ currentUser.username }}</span>
-            </div>
+          <div v-if="showNavigation" class="app-header__context">
+            <button
+              ref="mobileMenuButton"
+              type="button"
+              class="app-header__menu"
+              aria-label="Open navigation"
+              aria-controls="management-navigation"
+              :aria-expanded="mobileNavigationOpen"
+              @click="openMobileNavigation"
+            >
+              <MenuIcon aria-hidden="true" />
+            </button>
+            <nav class="app-breadcrumbs" aria-label="Breadcrumb">
+              <ol>
+                <li v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
+                  <router-link v-if="crumb.path && index < breadcrumbs.length - 1" :to="crumb.path">
+                    {{ crumb.label }}
+                  </router-link>
+                  <span v-else :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined">
+                    {{ crumb.label }}
+                  </span>
+                </li>
+              </ol>
+            </nav>
+            <strong class="app-header__mobile-title">{{ pageLabel }}</strong>
           </div>
+
+          <router-link v-else to="/overview" class="app-brand__group" aria-label="p2pstream home">
+            <span class="app-brand__mark" aria-hidden="true"><span class="app-brand__diamond" /></span>
+            <span class="app-brand__name">p2pstream</span>
+          </router-link>
 
           <div class="app-header__actions">
             <label v-if="currentUser" class="app-env-label">
-              Environment
-              <NSelect
+              <span>Environment</span>
+              <AccessibleSelect
                 v-model:value="selectedEnvironmentId"
+                accessible-label="Environment"
                 data-testid="environment-select"
                 size="small"
                 class="app-env-select"
@@ -252,49 +358,35 @@ onMounted(() => {
             <ThemeToggle />
             <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
               <NButton
-                secondary
+                quaternary
                 size="small"
                 :loading="isRefreshing"
                 :disabled="Boolean(refreshDisabledReason)"
-                aria-label="Refresh dashboard"
-                title="Refresh dashboard"
+                aria-label="Refresh management data"
+                title="Refresh management data"
                 @click="() => loadDashboard()"
               >
-                <template #icon>
-                  <RefreshIcon class="icon-sm" />
-                </template>
+                <template #icon><RefreshIcon class="icon-sm" /></template>
               </NButton>
             </DisabledHint>
             <DisabledHint v-if="currentUser" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
               <NButton
-                secondary
+                quaternary
                 size="small"
                 :disabled="Boolean(busyDisabledReason)"
+                aria-label="Log out"
+                title="Log out"
                 @click="requestLogout"
               >
-                Log out
+                <template #icon><LogoutIcon class="icon-sm" /></template>
+                <span class="app-header__logout-label">Log out</span>
               </NButton>
             </DisabledHint>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div v-if="currentUser && !isLoading && !setupState?.setupRequired" class="app-header__nav-wrap">
-        <nav class="app-nav no-scrollbar">
-          <router-link
-            v-for="tab in tabs"
-            :key="tab.path"
-            :to="tab.path"
-            class="app-nav__link"
-            :class="{ 'app-nav__link--active': isNavTabActive(tab) }"
-          >
-            {{ tab.label }}
-          </router-link>
-        </nav>
-      </div>
-    </header>
-
-    <main class="app-main">
+      <main id="management-main" ref="mainContent" class="app-main" tabindex="-1">
       <NAlert v-if="error" type="error" class="margin-bottom-xl" :bordered="false">
         {{ error }}
       </NAlert>
@@ -311,21 +403,19 @@ onMounted(() => {
 
       <div v-else-if="setupState?.setupRequired && setupState.setupAvailable" class="max-auth-width centered-block pad-y-4xl">
         <NCard :bordered="false" class="surface-shadow">
-          <h2 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Setup Admin</h2>
-          <p class="margin-bottom-xl copy-sm muted-text">Create the primary administrator account.</p>
-          <form class="layout-grid space-lg" @submit.prevent="submitSetup">
-            <NForm :model="setupForm">
+          <h1 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Setup Admin</h1>
+          <p class="margin-bottom-xl copy-sm line-relaxed muted-text">Create the administrator account that will manage this p2pstream instance.</p>
+          <NForm :model="setupForm" class="layout-grid space-lg" @submit.prevent="submitSetup">
               <NFormItem label="Username" path="username">
-                <NInput v-model:value="setupForm.username" autocomplete="username" />
+                <NInput v-model:value="setupForm.username" autocomplete="username" placeholder="Choose an administrator name" />
               </NFormItem>
               <NFormItem label="Password" path="password">
-                <NInput v-model:value="setupForm.password" type="password" autocomplete="new-password" minlength="12" />
+                <NInput v-model:value="setupForm.password" type="password" autocomplete="new-password" minlength="12" placeholder="At least 12 characters" />
               </NFormItem>
-            </NForm>
             <NButton type="primary" attr-type="submit" class="margin-top-lg fill-width" :loading="isBusy">
-              Complete Setup
+              Create administrator
             </NButton>
-          </form>
+          </NForm>
         </NCard>
       </div>
 
@@ -334,7 +424,7 @@ onMounted(() => {
           <div class="status-lock-pill margin-bottom-md">
             Setup locked
           </div>
-          <h2 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Restart required</h2>
+          <h1 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Restart required</h1>
           <p class="wrap-anywhere copy-sm line-relaxed muted-text">
             {{ setupState.setupUnavailableReason || "Setup window expired; restart the server to retry setup." }}
           </p>
@@ -343,26 +433,25 @@ onMounted(() => {
 
       <div v-else-if="!currentUser && !isLoading" class="max-auth-width centered-block pad-y-4xl">
         <NCard :bordered="false" class="surface-shadow">
-          <h2 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Login</h2>
-          <p class="margin-bottom-xl copy-sm muted-text">Enter your credentials to access the dashboard.</p>
-          <form class="layout-grid space-lg" @submit.prevent="submitLogin">
-            <NForm :model="loginForm">
+          <h1 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Log in</h1>
+          <p class="margin-bottom-xl copy-sm line-relaxed muted-text">Use your administrator credentials to open the management panel.</p>
+          <NForm :model="loginForm" class="layout-grid space-lg" @submit.prevent="submitLogin">
               <NFormItem label="Username" path="username">
-                <NInput v-model:value="loginForm.username" autocomplete="username" />
+                <NInput v-model:value="loginForm.username" autocomplete="username" placeholder="Administrator username" />
               </NFormItem>
               <NFormItem label="Password" path="password">
-                <NInput v-model:value="loginForm.password" type="password" autocomplete="current-password" />
+                <NInput v-model:value="loginForm.password" type="password" autocomplete="current-password" placeholder="Password" />
               </NFormItem>
-            </NForm>
             <NButton type="primary" attr-type="submit" class="margin-top-lg fill-width" :loading="isBusy">
-              Continue
+              Log in
             </NButton>
-          </form>
+          </NForm>
         </NCard>
       </div>
 
-      <router-view v-else-if="canShowRouteContent"></router-view>
-    </main>
+        <router-view v-else-if="canShowRouteContent"></router-view>
+      </main>
+    </div>
 
     <NModal
       :show="isLogoutConfirmOpen && Boolean(currentUser)"

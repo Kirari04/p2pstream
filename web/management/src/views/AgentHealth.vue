@@ -94,7 +94,7 @@ const connectedAgentPercent = computed(() => {
   return Math.round((connectedAgentCount.value / enabledAgents.value) * 100);
 });
 const connectedAgentPercentStyle = computed(() => ({
-  width: `${Math.min(100, Math.max(0, connectedAgentPercent.value))}%`,
+  transform: `scaleX(${Math.min(100, Math.max(0, connectedAgentPercent.value)) / 100})`,
 }));
 const fleetStatusType = computed<"success" | "warning" | "error" | "default">(() => {
   if (!totalAgents.value) return "default";
@@ -821,7 +821,7 @@ async function copyUninstallSnippet() {
         :pagination="false"
         :bordered="false"
         :single-line="false"
-        :scroll-x="1080"
+        :scroll-x="1200"
         size="small"
       />
       <EmptyState
@@ -849,7 +849,7 @@ async function copyUninstallSnippet() {
         :pagination="sessionPagination"
         :bordered="false"
         :single-line="false"
-        :scroll-x="860"
+        :scroll-x="870"
         size="small"
       />
       <EmptyState
@@ -1119,10 +1119,12 @@ async function copyUninstallSnippet() {
 
 .agent-connection-meter span {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--app-accent), var(--app-success));
-  transition: width 180ms ease;
+  transform-origin: left center;
+  transition: transform 180ms ease;
 }
 
 .agent-overview__tags {

@@ -4,15 +4,16 @@ import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NSelect, NTag, useNotification } from "naive-ui";
+import { NButton, NButtonGroup, NCheckbox, NDataTable, NDrawer, NDrawerContent, NInput, NInputNumber, NModal, NTag, useNotification } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref } from "vue";
 import { localManagementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { environmentsKey, isBusyKey, reloadEnvironmentsKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import { editorDrawerWidth, modalCardStyle, naiveTagType } from "@/lib/naiveUi";
 import type {
   Agent,
   Environment,
@@ -566,19 +567,20 @@ function handleTrustModalUpdate(show: boolean) {
         :pagination="false"
         :bordered="false"
         :single-line="false"
-        :scroll-x="1120"
+        :scroll-x="1340"
         size="small"
       />
     </section>
 
-    <NModal
+    <NDrawer
       v-model:show="isEnvironmentModalOpen"
-      preset="card"
-      :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'"
-      :style="modalCardStyle('42rem')"
-      :bordered="false"
+      placement="right"
+      :width="editorDrawerWidth('42rem')"
+      :aria-label="environmentForm.id ? 'Edit Environment' : 'Add Environment'"
+      class="editor-drawer"
     >
-      <form class="layout-grid max-modal-height space-lg scroll-y pad-right-xs" @submit.prevent="submitEnvironment">
+      <NDrawerContent :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'" closable>
+      <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitEnvironment">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
           <NInput v-model:value="environmentForm.name" size="small" required />
@@ -603,7 +605,7 @@ function handleTrustModalUpdate(show: boolean) {
         </div>
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Local Agent
-          <NSelect v-model:value="environmentForm.agentId" size="small" :options="localAgentOptions" required />
+          <AccessibleSelect v-model:value="environmentForm.agentId" accessible-label="Local agent" size="small" :options="localAgentOptions" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Access Token
@@ -616,19 +618,20 @@ function handleTrustModalUpdate(show: boolean) {
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Response Header Timeout
-          <NInputNumber v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
+          <NInputNumber :show-button="false" v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
         </label>
         <NCheckbox v-model:checked="environmentForm.enabled">
           Enabled
         </NCheckbox>
-        <div class="margin-top-lg layout-row align-end-row space-md">
+        <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isEnvironmentModalOpen = false">Cancel</NButton>
           <NButton type="primary" attr-type="submit" :disabled="Boolean(busyDisabledReason)">
             {{ environmentForm.id ? 'Save Changes' : 'Create Environment' }}
           </NButton>
         </div>
       </form>
-    </NModal>
+      </NDrawerContent>
+    </NDrawer>
     <NModal
       :show="Boolean(certificateTrustEnvironment)"
       preset="card"

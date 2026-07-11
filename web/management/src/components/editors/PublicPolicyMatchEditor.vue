@@ -40,9 +40,9 @@ defineExpose({ validationReason });
   <section class="policy-match">
     <div class="match-head">
       <h4>Match</h4>
-      <NButtonGroup size="small" role="tablist" aria-label="Match editor mode">
-        <NButton :type="form.mode === 'builder' ? 'primary' : 'default'" @click="switchMode('builder')">Builder</NButton>
-        <NButton :type="form.mode === 'expression' ? 'primary' : 'default'" @click="switchMode('expression')">CEL</NButton>
+      <NButtonGroup size="small" role="group" aria-label="Match editor mode">
+        <NButton attr-type="button" :type="form.mode === 'builder' ? 'primary' : 'default'" :aria-pressed="form.mode === 'builder'" @click="switchMode('builder')">Builder</NButton>
+        <NButton attr-type="button" :type="form.mode === 'expression' ? 'primary' : 'default'" :aria-pressed="form.mode === 'expression'" @click="switchMode('expression')">CEL</NButton>
       </NButtonGroup>
     </div>
 

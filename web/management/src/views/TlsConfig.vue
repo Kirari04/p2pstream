@@ -4,11 +4,12 @@ import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal, NSelect, NTag, NUpload } from "naive-ui";
+import { NButton, NButtonGroup, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber, NTag, NUpload } from "naive-ui";
 import type { UploadFileInfo } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -28,7 +29,7 @@ import {
   tlsStatusSeverity,
   type TlsMethod,
 } from "@/lib/publicProxyLabels";
-import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import { editorDrawerWidth, naiveTagType } from "@/lib/naiveUi";
 import {
   PublicAcmeCa,
   PublicAcmeChallengeType,
@@ -395,62 +396,82 @@ watch(tlsDnsCredentials, () => {
           Add Certificate
         </NButton>
       </div>
-      <div class="divided-list">
+      <div class="tls-table" role="table" aria-label="TLS certificate mappings">
+        <div v-if="tlsCertificates.length || httpsListeners.length" class="tls-table__header tls-table__certificate-grid" role="row">
+          <span role="columnheader">Mapping</span>
+          <span role="columnheader">Certificate</span>
+          <span role="columnheader">Status</span>
+          <span role="columnheader">Lifecycle</span>
+          <span class="visually-hidden" role="columnheader">Actions</span>
+        </div>
         <div
           v-for="cert in tlsCertificates"
           :key="cert.id.toString()"
           :data-testid="`tls-row-${cert.id.toString()}`"
-          class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto"
+          class="tls-table__row tls-table__certificate-grid"
+          role="row"
         >
-          <div class="min-width-zero">
-            <div class="layout-row min-width-zero align-center space-sm">
-              <p class="clip-text copy-sm weight-medium base-text">{{ listenerName(cert.listenerId, listeners) }} / {{ cert.hostnamePattern }}</p>
-              <NTag v-if="isDefaultSelfSignedCertificate(cert)" size="small" :bordered="false" type="info">Self-signed</NTag>
-              <NTag v-else size="small" :bordered="false" type="info">{{ tlsSourceLabel(cert) }}</NTag>
-              <NTag size="small" :bordered="false" :type="naiveTagType(tlsStatusSeverity(cert))">{{ tlsStatusLabel(cert) }}</NTag>
-            </div>
-            <p class="clip-text copy-xs muted-text">{{ tlsCertificateSummary(cert) }}</p>
-            <p v-if="tlsCertificateValiditySummary(cert)" class="clip-text copy-xs muted-text">{{ tlsCertificateValiditySummary(cert) }}</p>
-            <p v-if="tlsCertificateRenewalSummary(cert)" class="clip-text copy-xs muted-text">{{ tlsCertificateRenewalSummary(cert) }}</p>
-            <p v-if="tlsCertificateLastAttemptSummary(cert)" class="clip-text copy-xs muted-text">{{ tlsCertificateLastAttemptSummary(cert) }}</p>
-            <p v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="clip-text copy-xs muted-text">
-              Cloudflare / {{ dnsCredentialName(cert.dnsCredentialId, tlsDnsCredentials) }}
-            </p>
-            <p v-if="cert.lastError" class="preserve-lines wrap-anywhere copy-xs error-text">Last error: {{ cert.lastError }}</p>
+          <div class="tls-table__cell tls-table__identity" data-label="Mapping" role="cell">
+            <strong>{{ cert.hostnamePattern }}</strong>
+            <span>{{ listenerName(cert.listenerId, listeners) }}</span>
           </div>
-          <div class="layout-row space-sm">
-            <DisabledHint
-              v-if="cert.source === PublicTlsCertificateSource.ACME"
-              :disabled="Boolean(busyDisabledReason)"
-              :reason="busyDisabledReason"
-            >
-              <NButton
-                secondary
-                size="small"
-                aria-label="Renew TLS certificate"
-                title="Renew TLS certificate"
+          <div class="tls-table__cell" data-label="Certificate" role="cell">
+            <NTag v-if="isDefaultSelfSignedCertificate(cert)" size="small" :bordered="false" type="info">Self-signed</NTag>
+            <NTag v-else size="small" :bordered="false" type="info">{{ tlsSourceLabel(cert) }}</NTag>
+            <span class="tls-table__meta">{{ tlsCertificateSummary(cert) }}</span>
+          </div>
+          <div class="tls-table__cell" data-label="Status" role="cell">
+            <NTag size="small" :bordered="false" :type="naiveTagType(tlsStatusSeverity(cert))">{{ tlsStatusLabel(cert) }}</NTag>
+            <span v-if="tlsCertificateValiditySummary(cert)" class="tls-table__meta">{{ tlsCertificateValiditySummary(cert) }}</span>
+          </div>
+          <div class="tls-table__cell" data-label="Lifecycle" role="cell">
+            <span v-if="tlsCertificateRenewalSummary(cert)" class="tls-table__meta">{{ tlsCertificateRenewalSummary(cert) }}</span>
+            <span v-if="tlsCertificateLastAttemptSummary(cert)" class="tls-table__meta">{{ tlsCertificateLastAttemptSummary(cert) }}</span>
+            <span v-if="cert.source === PublicTlsCertificateSource.ACME && cert.dnsCredentialId" class="tls-table__meta">
+              Cloudflare · {{ dnsCredentialName(cert.dnsCredentialId, tlsDnsCredentials) }}
+            </span>
+            <span v-if="!tlsCertificateRenewalSummary(cert) && !tlsCertificateLastAttemptSummary(cert)" class="tls-table__meta">Managed manually</span>
+          </div>
+          <div class="tls-table__actions" data-label="Actions" role="cell">
+            <div class="tls-table__action-buttons">
+              <DisabledHint
+                v-if="cert.source === PublicTlsCertificateSource.ACME"
                 :disabled="Boolean(busyDisabledReason)"
-                @click="renewTlsCertificate(cert.id)"
+                :reason="busyDisabledReason"
               >
-                <template #icon><RefreshIcon class="icon-sm icon-sm" /></template>
+                <NButton
+                  secondary
+                  size="small"
+                  aria-label="Renew TLS certificate"
+                  title="Renew TLS certificate"
+                  :disabled="Boolean(busyDisabledReason)"
+                  @click="renewTlsCertificate(cert.id)"
+                >
+                  <template #icon><RefreshIcon class="icon-sm icon-sm" /></template>
+                </NButton>
+              </DisabledHint>
+              <NButton secondary size="small" aria-label="Edit TLS mapping" title="Edit TLS mapping" @click="editTlsCertificate(cert.id)">
+                <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
               </NButton>
-            </DisabledHint>
-            <NButton secondary size="small" aria-label="Edit TLS mapping" title="Edit TLS mapping" @click="editTlsCertificate(cert.id)">
-              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
-            </NButton>
-            <NButton type="error" size="small" aria-label="Delete TLS mapping" title="Delete TLS mapping" @click="deleteTlsCertificate(cert.id)">
-              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
-            </NButton>
-          </div>
-        </div>
-        <div v-if="httpsListeners.length && !tlsCertificates.length" class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto">
-          <div class="min-width-zero">
-            <div class="layout-row min-width-zero align-center space-sm">
-              <p class="clip-text copy-sm weight-medium base-text">{{ httpsListeners[0]?.name ?? "HTTPS listener" }} / p2pstream.local</p>
-              <NTag size="small" :bordered="false" type="info">Self-signed</NTag>
+              <NButton type="error" size="small" aria-label="Delete TLS mapping" title="Delete TLS mapping" @click="deleteTlsCertificate(cert.id)">
+                <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+              </NButton>
             </div>
-            <p class="clip-text copy-xs muted-text">Runtime fallback certificate</p>
           </div>
+          <p v-if="cert.lastError" class="tls-table__row-note error-text" role="cell">Last error: {{ cert.lastError }}</p>
+        </div>
+        <div v-if="httpsListeners.length && !tlsCertificates.length" class="tls-table__row tls-table__certificate-grid" role="row">
+          <div class="tls-table__cell tls-table__identity" data-label="Mapping" role="cell">
+            <strong>p2pstream.local</strong>
+            <span>{{ httpsListeners[0]?.name ?? "HTTPS listener" }}</span>
+          </div>
+          <div class="tls-table__cell" data-label="Certificate" role="cell">
+            <NTag size="small" :bordered="false" type="info">Self-signed</NTag>
+            <span class="tls-table__meta">Runtime fallback certificate</span>
+          </div>
+          <div class="tls-table__cell" data-label="Status" role="cell"><NTag size="small" :bordered="false" type="success">Active</NTag></div>
+          <div class="tls-table__cell" data-label="Lifecycle" role="cell"><span class="tls-table__meta">Managed automatically</span></div>
+          <div class="tls-table__actions tls-table__actions--note" data-label="Actions" role="cell">System managed</div>
         </div>
         <EmptyState
           v-if="!httpsListeners.length"
@@ -471,23 +492,38 @@ watch(tlsDnsCredentials, () => {
           Add DNS Credential
         </NButton>
       </div>
-      <div class="divided-list">
-        <div v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" class="layout-grid space-md pad-x-xl pad-y-lg mq-sm-one-auto">
-          <div class="min-width-zero">
-            <div class="layout-row min-width-zero align-center space-sm">
-              <p class="clip-text copy-sm weight-medium base-text">{{ credential.name }}</p>
-              <NTag size="small" :bordered="false" type="info">Cloudflare</NTag>
-              <NTag v-if="!credential.enabled" size="small" :bordered="false" type="warning">Disabled</NTag>
-            </div>
-            <p class="clip-text mono-text copy-xs muted-text">{{ credential.cloudflareZoneId }}</p>
+      <div class="tls-table tls-table--credentials" role="table" aria-label="DNS credentials">
+        <div v-if="tlsDnsCredentials.length" class="tls-table__header tls-table__credential-grid" role="row">
+          <span role="columnheader">Credential</span>
+          <span role="columnheader">Provider</span>
+          <span role="columnheader">Zone ID</span>
+          <span role="columnheader">State</span>
+          <span class="visually-hidden" role="columnheader">Actions</span>
+        </div>
+        <div v-for="credential in tlsDnsCredentials" :key="credential.id.toString()" class="tls-table__row tls-table__credential-grid" role="row">
+          <div class="tls-table__cell tls-table__identity" data-label="Credential" role="cell">
+            <strong>{{ credential.name }}</strong>
+            <span>DNS-01 validation</span>
           </div>
-          <div class="layout-row space-sm">
-            <NButton secondary size="small" aria-label="Edit DNS credential" title="Edit DNS credential" @click="editTlsCredential(credential)">
-              <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
-            </NButton>
-            <NButton type="error" size="small" aria-label="Delete DNS credential" title="Delete DNS credential" @click="deleteTlsCredential(credential.id)">
-              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
-            </NButton>
+          <div class="tls-table__cell" data-label="Provider" role="cell">
+            <NTag size="small" :bordered="false" type="info">Cloudflare</NTag>
+          </div>
+          <div class="tls-table__cell" data-label="Zone ID" role="cell">
+            <code class="tls-table__zone">{{ credential.cloudflareZoneId }}</code>
+          </div>
+          <div class="tls-table__cell" data-label="State" role="cell">
+            <NTag size="small" :bordered="false" :type="credential.enabled ? 'success' : 'warning'">{{ credential.enabled ? "Enabled" : "Disabled" }}</NTag>
+            <span class="tls-table__meta">{{ credential.apiTokenSet ? "Secret saved" : "Secret missing" }}</span>
+          </div>
+          <div class="tls-table__actions" data-label="Actions" role="cell">
+            <div class="tls-table__action-buttons">
+              <NButton secondary size="small" aria-label="Edit DNS credential" title="Edit DNS credential" @click="editTlsCredential(credential)">
+                <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
+              </NButton>
+              <NButton type="error" size="small" aria-label="Delete DNS credential" title="Delete DNS credential" @click="deleteTlsCredential(credential.id)">
+                <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+              </NButton>
+            </div>
           </div>
         </div>
         <EmptyState
@@ -500,22 +536,24 @@ watch(tlsDnsCredentials, () => {
       </div>
     </section>
 
-    <NModal
+    <NDrawer
       v-model:show="isTlsModalOpen"
-      preset="card"
-      :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'"
-      :style="modalCardStyle('36rem')"
-      :bordered="false"
+      placement="right"
+      :width="editorDrawerWidth('36rem')"
+      :aria-label="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'"
+      class="editor-drawer"
     >
-      <form class="layout-grid max-modal-height space-lg scroll-y pad-right-xs" @submit.prevent="submitTlsCertificate">
+      <NDrawerContent :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'" closable>
+      <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitTlsCertificate">
         <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Method
-          <NButtonGroup class="layout-grid cols-two space-sm mq-sm-cols-four" size="small">
+          <NButtonGroup class="layout-grid cols-two space-sm mq-sm-cols-four" size="small" role="group" aria-label="Certificate method">
             <NButton
               v-for="method in tlsMethodOptions"
               :key="method.value"
               attr-type="button"
               :type="tlsForm.method === method.value ? 'primary' : 'default'"
+              :aria-pressed="tlsForm.method === method.value"
               @click="tlsForm.method = method.value"
             >
               {{ method.label }}
@@ -524,7 +562,7 @@ watch(tlsDnsCredentials, () => {
         </div>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           HTTPS listener
-          <NSelect v-model:value="tlsForm.listenerId" size="small" :options="httpsListenerOptions" required />
+          <AccessibleSelect v-model:value="tlsForm.listenerId" accessible-label="HTTPS listener" size="small" :options="httpsListenerOptions" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Hostname pattern
@@ -540,23 +578,24 @@ watch(tlsDnsCredentials, () => {
             </label>
             <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
               CA environment
-              <NSelect v-model:value="tlsForm.acmeCa" size="small" :options="acmeCaOptions" />
+              <AccessibleSelect v-model:value="tlsForm.acmeCa" accessible-label="CA environment" size="small" :options="acmeCaOptions" />
             </label>
           </div>
           <label v-if="tlsForm.method === 'dns_01'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Cloudflare credential
-            <NSelect v-model:value="tlsForm.dnsCredentialId" size="small" :options="dnsCredentialOptions" required />
+            <AccessibleSelect v-model:value="tlsForm.dnsCredentialId" accessible-label="Cloudflare credential" size="small" :options="dnsCredentialOptions" required />
           </label>
         </div>
         <div v-if="tlsForm.method === 'manual'" class="layout-grid space-md">
           <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Certificate material
-            <NButtonGroup class="layout-grid cols-two space-sm" size="small">
+            <NButtonGroup class="layout-grid cols-two space-sm" size="small" role="group" aria-label="Certificate material source">
               <NButton
                 v-for="option in manualTlsMaterialOptions"
                 :key="option.value"
                 attr-type="button"
                 :type="tlsForm.manualMode === option.value ? 'primary' : 'default'"
+                :aria-pressed="tlsForm.manualMode === option.value"
                 @click="tlsForm.manualMode = option.value"
               >
                 {{ option.label }}
@@ -565,7 +604,7 @@ watch(tlsDnsCredentials, () => {
           </div>
           <label v-if="tlsForm.manualMode === 'generate'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Validity days
-            <NInputNumber v-model:value="tlsForm.selfSignedValidityDays" size="small" :min="1" :max="3650" :step="1" required />
+            <NInputNumber :show-button="false" v-model:value="tlsForm.selfSignedValidityDays" size="small" :min="1" :max="3650" :step="1" required />
           </label>
           <div v-else class="layout-grid space-md mq-sm-cols-two">
             <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
@@ -603,7 +642,7 @@ watch(tlsDnsCredentials, () => {
         <NCheckbox v-model:checked="tlsForm.enabled" class="margin-top-sm">
           Enabled
         </NCheckbox>
-        <div class="margin-top-lg layout-row align-end-row space-md">
+        <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isTlsModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsSubmitDisabledReason)" :reason="tlsSubmitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="tlsSubmitDisabled">
@@ -612,16 +651,18 @@ watch(tlsDnsCredentials, () => {
           </DisabledHint>
         </div>
       </form>
-    </NModal>
+      </NDrawerContent>
+    </NDrawer>
 
-    <NModal
+    <NDrawer
       v-model:show="isTlsCredentialModalOpen"
-      preset="card"
-      :title="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'"
-      :style="modalCardStyle('32rem')"
-      :bordered="false"
+      placement="right"
+      :width="editorDrawerWidth('32rem')"
+      :aria-label="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'"
+      class="editor-drawer"
     >
-      <form class="layout-grid max-modal-height space-lg scroll-y pad-right-xs" @submit.prevent="submitTlsCredential">
+      <NDrawerContent :title="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'" closable>
+      <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitTlsCredential">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
           <NInput v-model:value="tlsCredentialForm.name" size="small" placeholder="cloudflare-prod" required />
@@ -646,7 +687,7 @@ watch(tlsDnsCredentials, () => {
         <NCheckbox v-model:checked="tlsCredentialForm.enabled" class="margin-top-sm">
           Enabled
         </NCheckbox>
-        <div class="margin-top-lg layout-row align-end-row space-md">
+        <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isTlsCredentialModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsCredentialSubmitDisabledReason)" :reason="tlsCredentialSubmitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)">
@@ -655,6 +696,167 @@ watch(tlsDnsCredentials, () => {
           </DisabledHint>
         </div>
       </form>
-    </NModal>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
+
+<style scoped>
+.tls-table {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.tls-table__header,
+.tls-table__row {
+  display: grid;
+  align-items: center;
+  column-gap: 1rem;
+}
+
+.tls-table__certificate-grid {
+  grid-template-columns: minmax(13rem, 1.35fr) minmax(9rem, 0.85fr) minmax(11rem, 0.9fr) minmax(14rem, 1.25fr) auto;
+}
+
+.tls-table__credential-grid {
+  grid-template-columns: minmax(13rem, 1.15fr) minmax(8rem, 0.65fr) minmax(13rem, 1fr) minmax(10rem, 0.75fr) auto;
+}
+
+.tls-table__header {
+  min-height: 2.25rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding-inline: 1.25rem;
+}
+
+.tls-table__row {
+  min-height: 4rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.625rem 1.25rem;
+}
+
+.tls-table__row:last-of-type {
+  border-bottom: 0;
+}
+
+.tls-table__cell,
+.tls-table__identity {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tls-table__identity strong,
+.tls-table__identity span,
+.tls-table__meta,
+.tls-table__zone {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  unicode-bidi: plaintext;
+  white-space: nowrap;
+}
+
+.tls-table__identity strong {
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.tls-table__identity span,
+.tls-table__meta,
+.tls-table__actions--note {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+.tls-table__zone {
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.tls-table__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tls-table__action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.tls-table__row-note {
+  grid-column: 1 / -1;
+  max-height: 4rem;
+  margin: 0.5rem 0 0;
+  overflow: auto;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
+  white-space: pre-wrap;
+}
+
+@container (max-width: 62rem) {
+  .tls-table__header {
+    display: none;
+  }
+
+  .tls-table__certificate-grid,
+  .tls-table__credential-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+  }
+
+  .tls-table__row {
+    padding-block: 0.875rem;
+  }
+
+  .tls-table__cell::before,
+  .tls-table__actions::before {
+    content: attr(data-label);
+    color: var(--app-text-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  .tls-table__actions {
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .tls-table__row-note {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (max-width: 38rem) {
+  .tls-table__certificate-grid,
+  .tls-table__credential-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tls-table__row-note {
+    grid-column: 1;
+  }
+}
+
+@media (pointer: coarse) {
+  .tls-table__actions :deep(.n-button) {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+</style>

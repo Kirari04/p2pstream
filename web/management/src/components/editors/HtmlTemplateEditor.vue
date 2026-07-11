@@ -7,10 +7,12 @@ export default {
 <script setup lang="ts">
 import { autocompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { html, htmlLanguage } from "@codemirror/lang-html";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { abbreviationTracker, emmetConfig, EmmetKnownSyntax, expandAbbreviation } from "@emmetio/codemirror6-plugin";
 import { basicSetup } from "codemirror";
+import { tags } from "@lezer/highlight";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { PublicResponseTemplateKind } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -97,6 +99,14 @@ const unknownPlaceholders = computed(() => {
 const unknownPlaceholderLabels = computed(() => unknownPlaceholders.value.map((name) => `{{ .${name} }}`).join(", "));
 const missingRequiredPlaceholders = computed(() => requiredPlaceholders.value.filter((placeholder) => !referencedPlaceholders.value.has(placeholder.name)));
 const previewSource = computed(() => renderPreview(props.modelValue, props.kind, props.contentType));
+const accessibleHighlightStyle = HighlightStyle.define([
+  { tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword], color: "var(--code-keyword)", fontWeight: "600" },
+  { tag: [tags.name, tags.tagName, tags.attributeName, tags.propertyName], color: "var(--code-name)" },
+  { tag: [tags.string, tags.special(tags.string)], color: "var(--code-string)" },
+  { tag: [tags.number, tags.bool, tags.null], color: "var(--code-number)" },
+  { tag: [tags.comment, tags.docComment], color: "var(--code-comment)", fontStyle: "italic" },
+  { tag: [tags.bracket, tags.punctuation], color: "var(--app-text-muted)" },
+]);
 
 function placeholderCompletionSource(context: CompletionContext): CompletionResult | null {
   if (props.kind === PublicResponseTemplateKind.GENERIC_BODY) return null;
@@ -120,6 +130,7 @@ function placeholderCompletionSource(context: CompletionContext): CompletionResu
 function editorExtensions(): Extension[] {
   return [
     basicSetup,
+    syntaxHighlighting(accessibleHighlightStyle, { fallback: false }),
     html({ autoCloseTags: true }),
     htmlLanguage.data.of({ autocomplete: placeholderCompletionSource }),
     emmetConfig.of({ syntax: EmmetKnownSyntax.html }),
@@ -127,6 +138,11 @@ function editorExtensions(): Extension[] {
     keymap.of([{ key: "Tab", run: expandAbbreviation }]),
     autocompletion({ activateOnTyping: true }),
     EditorView.lineWrapping,
+    EditorView.contentAttributes.of({
+      "aria-label": "Response template source",
+      "aria-multiline": "true",
+      spellcheck: "false",
+    }),
     EditorView.theme({
       "&": {
         minHeight: "22rem",
@@ -157,6 +173,10 @@ function editorExtensions(): Extension[] {
       ".cm-selectionBackground": {
         backgroundColor: "var(--app-accent-soft) !important",
       },
+      "&.cm-focused": {
+        outline: "3px solid var(--app-focus)",
+        outlineOffset: "-3px",
+      },
       ".cm-tooltip": {
         backgroundColor: "var(--app-panel-muted)",
         border: "1px solid var(--app-border)",
@@ -166,7 +186,7 @@ function editorExtensions(): Extension[] {
         backgroundColor: "var(--app-panel)",
         color: "var(--app-text)",
       },
-    }, { dark: true }),
+    }),
     EditorView.updateListener.of((update) => {
       if (!update.docChanged) return;
       isUpdatingFromEditor.value = true;
@@ -317,7 +337,7 @@ onBeforeUnmount(() => {
   padding: 0.25rem 0.45rem;
   color: var(--app-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.15;
 }
 
@@ -366,10 +386,9 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--app-border);
   padding: 0.55rem 0.75rem;
   color: var(--app-text-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .template-preview-frame {
@@ -387,7 +406,7 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--app-warning) 9%, var(--app-panel));
   padding: 0.6rem 0.75rem;
   color: var(--app-warning);
-  font-size: 0.78rem;
+  font-size: 0.9375rem;
   line-height: 1.45;
 }
 </style>
