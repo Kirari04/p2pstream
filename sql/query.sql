@@ -2157,6 +2157,17 @@ WHERE key_digest = sqlc.arg(key_digest)
 DELETE FROM public_cache_entries
 WHERE key_digest = ?;
 
+-- name: DeletePublicCacheEntryGeneration :execrows
+DELETE FROM public_cache_entries
+WHERE key_digest = sqlc.arg(key_digest)
+  AND (
+      stored_at = sqlc.arg(stored_at)
+      OR (
+          length(stored_at) = 19
+          AND stored_at = CAST(sqlc.arg(stored_at_legacy) AS TEXT)
+      )
+  );
+
 -- name: DeleteExpiredPublicCacheEntries :many
 DELETE FROM public_cache_entries
 WHERE expires_at <= ?
