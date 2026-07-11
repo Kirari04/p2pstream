@@ -43,7 +43,6 @@ func TestAgentReconnectBackoffBounds(t *testing.T) {
 
 func TestTunnelSessionRelaysTCPStream(t *testing.T) {
 	resetAgentRequestCounters()
-	t.Cleanup(resetAgentRequestCounters)
 
 	upstream := startEchoListener(t)
 	clientConn, serverConn := net.Pipe()
@@ -58,12 +57,7 @@ func TestTunnelSessionRelaysTCPStream(t *testing.T) {
 	defer agentSession.Close()
 	defer serverSession.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	serveDone := make(chan error, 1)
-	go func() {
-		serveDone <- serveTunnelSession(ctx, agentSession, nil)
-	}()
+	startTestTunnelSession(t, agentSession, nil)
 
 	stream, err := serverSession.Open()
 	if err != nil {
@@ -90,19 +84,10 @@ func TestTunnelSessionRelaysTCPStream(t *testing.T) {
 	if string(buf) != "ping" {
 		t.Fatalf("echo = %q, want ping", buf)
 	}
-
-	cancel()
-	agentSession.Close()
-	select {
-	case <-serveDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for tunnel session to stop")
-	}
 }
 
 func TestTunnelSessionReturnsDialFailure(t *testing.T) {
 	resetAgentRequestCounters()
-	t.Cleanup(resetAgentRequestCounters)
 
 	clientConn, serverConn := net.Pipe()
 	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
@@ -116,11 +101,7 @@ func TestTunnelSessionReturnsDialFailure(t *testing.T) {
 	defer agentSession.Close()
 	defer serverSession.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		_ = serveTunnelSession(ctx, agentSession, nil)
-	}()
+	startTestTunnelSession(t, agentSession, nil)
 
 	stream, err := serverSession.Open()
 	if err != nil {
@@ -141,7 +122,6 @@ func TestTunnelSessionReturnsDialFailure(t *testing.T) {
 
 func TestTunnelSessionDestinationAllowlistDeniesWithoutClosingSession(t *testing.T) {
 	resetAgentRequestCounters()
-	t.Cleanup(resetAgentRequestCounters)
 
 	upstream := startEchoListener(t)
 	clientConn, serverConn := net.Pipe()
@@ -160,18 +140,14 @@ func TestTunnelSessionDestinationAllowlistDeniesWithoutClosingSession(t *testing
 	if err != nil {
 		t.Fatalf("newAgentDestinationPolicy() error = %v", err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		_ = serveTunnelSession(ctx, agentSession, policy)
-	}()
-
 	dialCalled := make(chan struct{}, 1)
 	restoreDial := replaceAgentTunnelDialContext(func(ctx context.Context, network string, address string) (net.Conn, error) {
 		dialCalled <- struct{}{}
 		return nil, context.Canceled
 	})
 	t.Cleanup(restoreDial)
+	startTestTunnelSession(t, agentSession, policy)
+
 	denied, err := serverSession.Open()
 	if err != nil {
 		t.Fatalf("open denied stream: %v", err)
@@ -224,7 +200,6 @@ func TestTunnelSessionDestinationAllowlistDeniesWithoutClosingSession(t *testing
 
 func TestTunnelSessionOpenRequestReadDeadlineKeepsSessionUsable(t *testing.T) {
 	resetAgentRequestCounters()
-	t.Cleanup(resetAgentRequestCounters)
 	withAgentTunnelOpenRequestTimeout(t, 25*time.Millisecond)
 
 	upstream := startEchoListener(t)
@@ -240,11 +215,7 @@ func TestTunnelSessionOpenRequestReadDeadlineKeepsSessionUsable(t *testing.T) {
 	defer agentSession.Close()
 	defer serverSession.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		_ = serveTunnelSession(ctx, agentSession, nil)
-	}()
+	startTestTunnelSession(t, agentSession, nil)
 
 	silent, err := serverSession.Open()
 	if err != nil {
@@ -309,7 +280,6 @@ func TestTunnelSessionOpenRequestReadDeadlineKeepsSessionUsable(t *testing.T) {
 
 func TestTunnelSessionDialTimeoutReturnsDialTimeout(t *testing.T) {
 	resetAgentRequestCounters()
-	t.Cleanup(resetAgentRequestCounters)
 	withAgentTunnelDialTimeout(t, 25*time.Millisecond)
 
 	clientConn, serverConn := net.Pipe()
@@ -325,12 +295,6 @@ func TestTunnelSessionDialTimeoutReturnsDialTimeout(t *testing.T) {
 	defer serverSession.Close()
 
 	upstream := startEchoListener(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		_ = serveTunnelSession(ctx, agentSession, nil)
-	}()
-
 	var dialNetwork string
 	var dialAddress string
 	restoreDial := replaceAgentTunnelDialContext(func(ctx context.Context, network string, address string) (net.Conn, error) {
@@ -340,6 +304,7 @@ func TestTunnelSessionDialTimeoutReturnsDialTimeout(t *testing.T) {
 		return nil, ctx.Err()
 	})
 	t.Cleanup(restoreDial)
+	startTestTunnelSession(t, agentSession, nil)
 
 	timeoutStream, err := serverSession.Open()
 	if err != nil {
@@ -388,7 +353,6 @@ func TestAgentTunnelDialerUsesConfiguredTimeout(t *testing.T) {
 
 func TestTunnelSessionInvalidOpenRequestKeepsSessionUsable(t *testing.T) {
 	resetAgentRequestCounters()
-	t.Cleanup(resetAgentRequestCounters)
 
 	upstream := startEchoListener(t)
 	clientConn, serverConn := net.Pipe()
@@ -403,11 +367,7 @@ func TestTunnelSessionInvalidOpenRequestKeepsSessionUsable(t *testing.T) {
 	defer agentSession.Close()
 	defer serverSession.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		_ = serveTunnelSession(ctx, agentSession, nil)
-	}()
+	startTestTunnelSession(t, agentSession, nil)
 
 	unsupported, err := serverSession.Open()
 	if err != nil {
@@ -492,6 +452,85 @@ func TestTunnelSessionReturnsWhenSessionCloses(t *testing.T) {
 	}
 }
 
+func TestTunnelSessionWaitsForAcceptedHandlerOnSessionClose(t *testing.T) {
+	resetAgentRequestCounters()
+
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		_ = agentSession.Close()
+		t.Fatalf("server yamux session: %v", err)
+	}
+
+	dialStarted := make(chan struct{})
+	releaseDial := make(chan struct{})
+	released := false
+	release := func() {
+		if released {
+			return
+		}
+		released = true
+		close(releaseDial)
+	}
+	restoreDial := replaceAgentTunnelDialContext(func(context.Context, string, string) (net.Conn, error) {
+		close(dialStarted)
+		<-releaseDial
+		return nil, context.Canceled
+	})
+	t.Cleanup(restoreDial)
+
+	serveDone := make(chan struct{})
+	go func() {
+		_ = serveTunnelSession(context.Background(), agentSession, nil)
+		close(serveDone)
+	}()
+	t.Cleanup(func() {
+		defer resetAgentRequestCounters()
+		release()
+		_ = agentSession.Close()
+		_ = serverSession.Close()
+		select {
+		case <-serveDone:
+		case <-time.After(2 * time.Second):
+			t.Error("timed out waiting for tunnel session handlers to stop")
+		}
+		waitForAgentActiveRequests(t, 0)
+	})
+
+	stream, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open stream: %v", err)
+	}
+	if err := tunnel.WriteOpenRequest(stream, tunnel.NewOpenRequest("req-blocked", "tcp", "127.0.0.1:1")); err != nil {
+		t.Fatalf("write open request: %v", err)
+	}
+	select {
+	case <-dialStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for tunnel handler to start")
+	}
+	waitForAgentActiveRequests(t, 1)
+
+	_ = agentSession.Close()
+	select {
+	case <-serveDone:
+		t.Fatal("tunnel session returned before its accepted handler stopped")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	release()
+	select {
+	case <-serveDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for tunnel session after handler stopped")
+	}
+	waitForAgentActiveRequests(t, 0)
+}
+
 func writeMalformedControlFrame(w io.Writer) error {
 	var header [4]byte
 	binary.BigEndian.PutUint32(header[:], 1)
@@ -522,6 +561,28 @@ func startEchoListener(t *testing.T) net.Listener {
 		}
 	}()
 	return ln
+}
+
+func startTestTunnelSession(t *testing.T, agentSession *yamux.Session, destinationPolicy *agentDestinationPolicy) {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	serveDone := make(chan error, 1)
+	go func() {
+		serveDone <- serveTunnelSession(ctx, agentSession, destinationPolicy)
+	}()
+
+	t.Cleanup(func() {
+		defer resetAgentRequestCounters()
+		cancel()
+		_ = agentSession.Close()
+		select {
+		case <-serveDone:
+		case <-time.After(2 * time.Second):
+			t.Error("timed out waiting for tunnel session to stop")
+		}
+		waitForAgentActiveRequests(t, 0)
+	})
 }
 
 func resetAgentRequestCounters() {
