@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -71,10 +73,23 @@ func TestAgentTunnelStreamConnReleasesAfterRemoteClose(t *testing.T) {
 	defer local.Close()
 	defer peer.Close()
 	remoteClosed := make(chan struct{})
+	readStarted := make(chan struct{})
 	conn := newAgentTunnelStreamConn(&delayedRemoteCloseConn{
 		Conn:         local,
 		remoteClosed: remoteClosed,
+		readStarted:  readStarted,
 	}, release)
+	readerDone := make(chan error, 1)
+	go func() {
+		var buf [1]byte
+		_, err := conn.Read(buf[:])
+		readerDone <- err
+	}()
+	select {
+	case <-readStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for existing connection reader")
+	}
 
 	if err := conn.Close(); err != nil {
 		t.Fatalf("close connection: %v", err)
@@ -87,6 +102,14 @@ func TestAgentTunnelStreamConnReleasesAfterRemoteClose(t *testing.T) {
 	}
 
 	close(remoteClosed)
+	select {
+	case err := <-readerDone:
+		if !errors.Is(err, io.EOF) {
+			t.Fatalf("existing reader error = %v, want EOF", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("existing reader did not finish after remote close")
+	}
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if limiter.InUse() == 0 {
@@ -99,7 +122,9 @@ func TestAgentTunnelStreamConnReleasesAfterRemoteClose(t *testing.T) {
 
 type delayedRemoteCloseConn struct {
 	net.Conn
-	remoteClosed <-chan struct{}
+	remoteClosed  <-chan struct{}
+	readStarted   chan struct{}
+	readStartOnce sync.Once
 }
 
 func (c *delayedRemoteCloseConn) Close() error {
@@ -107,6 +132,7 @@ func (c *delayedRemoteCloseConn) Close() error {
 }
 
 func (c *delayedRemoteCloseConn) Read([]byte) (int, error) {
+	c.readStartOnce.Do(func() { close(c.readStarted) })
 	<-c.remoteClosed
 	return 0, io.EOF
 }
