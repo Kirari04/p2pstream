@@ -38,7 +38,7 @@ Set these on the server process via `.env` or environment. They control manageme
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Maximum in-memory login throttle keys; active blocks are retained until expiry.              |
 | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | `2097152`                    | Maximum Yamux receive window per tunnel stream. Raise for high-RTT/high-bandwidth agent links. |
-| `TUNNEL_MAX_CONCURRENT_REQUESTS` | `64`                         | Maximum concurrent public requests using agent tunnels across the server.                     |
+| `TUNNEL_MAX_CONCURRENT_REQUESTS` | `64`                         | Maximum concurrent public agent-route requests and live agent tunnel streams across the server. |
 
 If every login throttle slot is occupied by an active block, new failed-login keys are not tracked until a blocked key expires or a login succeeds for an existing key.
 
@@ -83,7 +83,7 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_PUBLIC_URL` must be absolute and must use `https`, unless management TLS is off and insecure HTTP is explicitly allowed.
 - `MANAGEMENT_BIND_ADDRESS` defaults to all interfaces so agents and remote clients can connect. Set it to `127.0.0.1` only for local-only management or when a local reverse proxy fronts management.
 - `TUNNEL_MAX_STREAM_WINDOW_BYTES` must be at least `262144` and at most `67108864`.
-- `TUNNEL_MAX_CONCURRENT_REQUESTS` must be between `1` and `2048`. Its product with `TUNNEL_MAX_STREAM_WINDOW_BYTES` cannot exceed `536870912` bytes, bounding attacker-controlled aggregate Yamux receive windows.
+- `TUNNEL_MAX_CONCURRENT_REQUESTS` must be between `1` and `2048`. Its product with `TUNNEL_MAX_STREAM_WINDOW_BYTES` cannot exceed `536870912` bytes. The server holds a slot for every live Yamux stream, including pooled idle HTTP connections, and the agent holds a slot for every handled stream, so the product bounds attacker-controlled aggregate receive windows at both ends.
 - Bootstrap agent ID, name, and token must all be set together.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
@@ -94,7 +94,7 @@ Set these as environment variables before running the Linux agent installer scri
 
 Management session cookies are Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`.
 
-When the tunnel concurrency limit is reached, additional public agent-route requests receive `503 Service Unavailable` and the agent is not marked passively unhealthy. Lower the stream window or concurrency limit for tighter memory bounds; raise either only while keeping their documented aggregate budget.
+When either the public-request cap or live-stream cap is reached, additional public agent-route requests receive `503 Service Unavailable` and the agent is not marked passively unhealthy. Environment and health-check dials share the server live-stream cap. Lower the stream window or concurrency limit for tighter memory bounds; raise either only while keeping their documented aggregate budget.
 
 ## Examples
 

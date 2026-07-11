@@ -629,6 +629,11 @@ type agentDialError struct {
 	Err  string
 }
 
+type agentStreamOpenResult struct {
+	conn net.Conn
+	err  error
+}
+
 func (e agentDialError) Error() string {
 	if e.Err == "" {
 		return e.Kind
@@ -643,14 +648,48 @@ func (a *App) agentTargetTransport(agent *AgentConn, target publicRouteTargetCon
 	return a.AgentTransports.publicRouteTargetTransport(a, agent, target)
 }
 
+func startAgentStreamOpen(
+	ctx context.Context,
+	agentDone <-chan struct{},
+	open func() (net.Conn, error),
+) <-chan agentStreamOpenResult {
+	// Keep this channel unbuffered so ownership cannot be transferred after the
+	// caller has stopped receiving. A buffered result channel can accept a
+	// delayed successful Open even when ctx is already done, leaking that stream.
+	results := make(chan agentStreamOpenResult)
+	go func() {
+		conn, err := open()
+		result := agentStreamOpenResult{conn: conn, err: err}
+		select {
+		case results <- result:
+		case <-ctx.Done():
+			if conn != nil {
+				_ = conn.Close()
+			}
+		case <-agentDone:
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+	return results
+}
+
 func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string, address string, requestID string) (net.Conn, error) {
 	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
 		return nil, errAgentDisconnected
 	}
-	openCh := make(chan struct {
-		conn net.Conn
-		err  error
-	}, 1)
+	releaseStream, ok := a.agentTunnelStreams.TryAcquire()
+	if !ok {
+		return nil, agentDialError{Kind: "agent_capacity", Err: "server tunnel stream capacity reached"}
+	}
+	releaseOnReturn := true
+	defer func() {
+		if releaseOnReturn {
+			releaseStream()
+		}
+	}()
+
 	openDone := make(chan struct{})
 	stopOpenWatch := func() {
 		select {
@@ -669,24 +708,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		case <-openDone:
 		}
 	}()
-	go func() {
-		conn, err := session.Open()
-		result := struct {
-			conn net.Conn
-			err  error
-		}{conn: conn, err: err}
-		select {
-		case openCh <- result:
-		case <-ctx.Done():
-			if conn != nil {
-				_ = conn.Close()
-			}
-		case <-agent.Done:
-			if conn != nil {
-				_ = conn.Close()
-			}
-		}
-	}()
+	openCh := startAgentStreamOpen(ctx, agent.Done, session.Open)
 
 	var conn net.Conn
 	select {
@@ -726,6 +748,8 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 			Msg("Agent disconnected before tunnel stream opened")
 		return nil, errAgentDisconnected
 	}
+	conn = newAgentTunnelStreamConn(conn, releaseStream)
+	releaseOnReturn = false
 
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)

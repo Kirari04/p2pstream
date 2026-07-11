@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -85,6 +86,126 @@ func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for fake agent open request")
+	}
+}
+
+func TestDialViaAgentStreamCapacityFollowsConnectionLifetime(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer upstream.Close()
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+
+	app := NewApp(nil, nil)
+	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	agent, fake := newFakeYamuxAgent(t, 7, "agent-stream-capacity-test")
+
+	first, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "first")
+	if err != nil {
+		t.Fatalf("first dialViaAgent() error = %v", err)
+	}
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots after first dial = %d, want 1", got)
+	}
+
+	second, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "second")
+	if second != nil {
+		_ = second.Close()
+		t.Fatal("second dial unexpectedly returned a connection over capacity")
+	}
+	var dialErr agentDialError
+	if !errors.As(err, &dialErr) || dialErr.Kind != "agent_capacity" {
+		t.Fatalf("second dial error = %v, want agent_capacity", err)
+	}
+	fake.waitOpenRequestCount(t, 1)
+
+	if err := first.Close(); err != nil {
+		t.Fatalf("close first connection: %v", err)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatalf("close first connection again: %v", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+
+	third, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "third")
+	if err != nil {
+		t.Fatalf("third dialViaAgent() after release error = %v", err)
+	}
+	fake.waitOpenRequestCount(t, 2)
+	if got := app.agentTunnelStreams.InUse(); got != 1 {
+		t.Fatalf("stream slots after third dial = %d, want 1", got)
+	}
+	if err := third.Close(); err != nil {
+		t.Fatalf("close third connection: %v", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+}
+
+func TestDialViaAgentReleasesStreamCapacityAfterHandshakeFailure(t *testing.T) {
+	app := NewApp(nil, nil)
+	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	agent, _ := newFakeYamuxAgent(t, 7, "agent-stream-failure-test")
+
+	conn, err := app.dialViaAgent(context.Background(), agent, "tcp", "127.0.0.1:0", "failed")
+	if conn != nil {
+		_ = conn.Close()
+		t.Fatal("failed dial unexpectedly returned a connection")
+	}
+	var dialErr agentDialError
+	if !errors.As(err, &dialErr) || dialErr.Kind != "dial_failed" {
+		t.Fatalf("failed dial error = %v, want dial_failed", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer upstream.Close()
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	conn, err = app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "recovered")
+	if err != nil {
+		t.Fatalf("dial after handshake failure error = %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close recovered connection: %v", err)
+	}
+	waitForAgentTunnelStreams(t, app, 0)
+}
+
+func TestAgentStreamOpenDelayedSuccessAfterCancelClosesStream(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	openStarted := make(chan struct{})
+	releaseOpen := make(chan struct{})
+	stream, peer := net.Pipe()
+	defer stream.Close()
+	defer peer.Close()
+
+	results := startAgentStreamOpen(ctx, make(chan struct{}), func() (net.Conn, error) {
+		close(openStarted)
+		<-releaseOpen
+		return stream, nil
+	})
+
+	<-openStarted
+	cancel()
+	close(releaseOpen)
+
+	if err := peer.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set peer deadline: %v", err)
+	}
+	buf := make([]byte, 1)
+	if _, err := peer.Read(buf); !errors.Is(err, io.EOF) {
+		t.Fatalf("read after delayed open = %v, want EOF from closed abandoned stream", err)
+	}
+	select {
+	case result := <-results:
+		if result.conn != nil {
+			_ = result.conn.Close()
+		}
+		t.Fatal("delayed open transferred stream ownership after cancellation")
+	default:
 	}
 }
 
@@ -489,6 +610,18 @@ func waitForAgentActiveRequests(t *testing.T, agent *AgentConn, want int64) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("agent active requests = %d, want %d", agent.ActiveRequests.Load(), want)
+}
+
+func waitForAgentTunnelStreams(t *testing.T, app *App, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := app.agentTunnelStreams.InUse(); got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("agent tunnel streams = %d, want %d", app.agentTunnelStreams.InUse(), want)
 }
 
 func withTrustedHTTPDefaultTransport(t *testing.T, cert *x509.Certificate) {

@@ -62,6 +62,7 @@ type App struct {
 	LoginThrottle         *loginThrottle
 	agentAuthLocks        *agentAuthLockMap
 	agentProxyRequests    *tunnel.StreamLimiter
+	agentTunnelStreams    *tunnel.StreamLimiter
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -131,6 +132,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
+		agentTunnelStreams:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
 	}
 	app.applyServices(newAppServices(cfg, app))
 	if database != nil {
