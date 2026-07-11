@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"sync"
@@ -58,6 +59,7 @@ type App struct {
 	observabilityRecorder *observabilityRecorder
 	auth                  *authService
 	AgentTransports       *agentTransportPool
+	reverseProxyBuffers   httputil.BufferPool
 	DashboardCache        *dashboardResponseCache
 	LoginThrottle         *loginThrottle
 	agentAuthLocks        *agentAuthLockMap

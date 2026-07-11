@@ -138,6 +138,59 @@ func TestApplyTrustedForwardedHeadersCanonicalizesHostAndPort(t *testing.T) {
 	}
 }
 
+func TestProxyRouteTargetRequestUsesAppReverseProxyBufferPool(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("proxied"))
+	}))
+	defer upstream.Close()
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	pool := &countingReverseProxyBufferPool{}
+	app := NewApp(nil, nil)
+	app.reverseProxyBuffers = pool
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/app", nil)
+
+	app.proxyDirectTargetRequest(rec, req, publicRouteResolution{
+		Listener: publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+		Target: publicRouteTargetConfig{
+			ID:         20,
+			Name:       "buffered",
+			Enabled:    true,
+			TargetType: publicRouteTargetTypeProxy,
+			Transport:  publicRouteTargetTransportDirect,
+			ParsedURL:  origin,
+		},
+	}, nil, nil, nil, proxyRequestObservability{})
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "proxied" {
+		t.Fatalf("response = status %d body %q, want 200 proxied", rec.Code, rec.Body.String())
+	}
+	if got := pool.gets.Load(); got == 0 {
+		t.Fatal("reverse proxy did not get a copy buffer from the app pool")
+	}
+	if got := pool.puts.Load(); got == 0 {
+		t.Fatal("reverse proxy did not return a copy buffer to the app pool")
+	}
+}
+
+type countingReverseProxyBufferPool struct {
+	gets atomic.Int64
+	puts atomic.Int64
+}
+
+func (p *countingReverseProxyBufferPool) Get() []byte {
+	p.gets.Add(1)
+	return make([]byte, reverseProxyCopyBufferSize)
+}
+
+func (p *countingReverseProxyBufferPool) Put([]byte) {
+	p.puts.Add(1)
+}
+
 func TestPublicProxyForwardsCanonicalHostAndConfiguredPort(t *testing.T) {
 	handler, captured := newTestForwardedHeaderProxy(t, publicListenerProtocolHTTP, 8080)
 	req := httptest.NewRequest(http.MethodGet, "http://app.example.:444/assets/app.txt", nil)
