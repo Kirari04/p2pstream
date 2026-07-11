@@ -3,6 +3,7 @@ package server
 import (
 	"net"
 	"sync"
+	"time"
 
 	"p2pstream/internal/tunnel"
 )
@@ -32,8 +33,23 @@ func (c *agentTunnelStreamConn) Close() error {
 	c.closeOnce.Do(func() {
 		c.closeErr = c.Conn.Close()
 		if c.release != nil {
-			c.release()
+			go c.releaseAfterStreamClosed()
 		}
 	})
 	return c.closeErr
+}
+
+func (c *agentTunnelStreamConn) releaseAfterStreamClosed() {
+	// yamux.Stream.Close sends a local FIN. The stream remains in the session
+	// (and can retain its receive window) until the peer replies with FIN or the
+	// configured StreamCloseTimeout forces cleanup. Drain the read side until
+	// either event is observable before returning the capacity slot.
+	_ = c.Conn.SetReadDeadline(time.Time{})
+	var buf [4 * 1024]byte
+	for {
+		if _, err := c.Conn.Read(buf[:]); err != nil {
+			c.release()
+			return
+		}
+	}
 }

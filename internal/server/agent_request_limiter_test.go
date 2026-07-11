@@ -3,7 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
 	"testing"
+	"time"
 
 	"p2pstream/internal/tunnel"
 )
@@ -56,4 +59,54 @@ func TestAgentRequestLimiterUsesSafeDefaultForUnsetOrInvalidLimit(t *testing.T) 
 			t.Fatalf("limit %d created capacity %d, want %d", limit, got, tunnel.DefaultMaxConcurrentAgentRequests)
 		}
 	}
+}
+
+func TestAgentTunnelStreamConnReleasesAfterRemoteClose(t *testing.T) {
+	limiter := newAgentRequestLimiter(1)
+	release, ok := limiter.TryAcquire()
+	if !ok {
+		t.Fatal("acquire stream slot failed")
+	}
+	local, peer := net.Pipe()
+	defer local.Close()
+	defer peer.Close()
+	remoteClosed := make(chan struct{})
+	conn := newAgentTunnelStreamConn(&delayedRemoteCloseConn{
+		Conn:         local,
+		remoteClosed: remoteClosed,
+	}, release)
+
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close connection: %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close connection again: %v", err)
+	}
+	if got := limiter.InUse(); got != 1 {
+		t.Fatalf("stream slots after local close = %d, want 1 until remote close", got)
+	}
+
+	close(remoteClosed)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if limiter.InUse() == 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("stream slots after remote close = %d, want 0", limiter.InUse())
+}
+
+type delayedRemoteCloseConn struct {
+	net.Conn
+	remoteClosed <-chan struct{}
+}
+
+func (c *delayedRemoteCloseConn) Close() error {
+	return nil
+}
+
+func (c *delayedRemoteCloseConn) Read([]byte) (int, error) {
+	<-c.remoteClosed
+	return 0, io.EOF
 }
