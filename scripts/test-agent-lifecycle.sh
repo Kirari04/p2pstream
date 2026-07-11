@@ -328,6 +328,20 @@ test_ambiguous_tunnel_preservation_fails_before_mutation() {
   assert_absent "$INSTALL_PATH"
   assert_empty "$COMMAND_LOG"
 
+  printf 'TUNNEL_MAX_CONCURRENT_REQUESTS =32\n' >"${CONFIG_DIR}/agent.env"
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >/dev/null 2>"${TEST_DIR}/spaced-assignment.err"; then
+    fail "unsupported whitespace in a tunnel setting assignment should fail"
+  fi
+  assert_contains "${TEST_DIR}/spaced-assignment.err" "unsupported syntax in existing agent environment at line 1"
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_CONCURRENT_REQUESTS =32"
+  assert_absent "$INSTALL_PATH"
+  assert_empty "$COMMAND_LOG"
+
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \

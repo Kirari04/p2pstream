@@ -46,7 +46,7 @@ If every login throttle slot is occupied by an active block, new failed-login ke
 
 Set these on each agent host via `/etc/p2pstream/agent.env` or the generated installer environment. The agent installer writes these automatically from the setup dialog.
 
-When tunnel window or concurrency values are supplied to the installer, they are written to `agent.env` and preserved by later reinstalls that do not provide replacements.
+When tunnel window or concurrency values are supplied to the installer, they are written to `agent.env` and the effective last numeric assignments are preserved by later reinstalls that do not provide replacements. Preservation is preflighted before installer mutations and fails closed if the existing environment file is unreadable or uses unsupported or multiline syntax. Supplying both values explicitly replaces them without reading the old file.
 
 | Variable                          | Description                                                          |
 | --------------------------------- | -------------------------------------------------------------------- |

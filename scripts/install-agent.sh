@@ -195,7 +195,7 @@ load_existing_tunnel_settings() {
     fi
     env_assignment_is_single_line "$line" \
       || fail "unsupported multiline syntax in existing agent environment at line ${line_number}"
-    if [[ ! "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]]; then
+    if [[ ! "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
       fail "unsupported syntax in existing agent environment at line ${line_number}"
     fi
     name="${BASH_REMATCH[1]}"
