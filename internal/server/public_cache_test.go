@@ -689,6 +689,7 @@ func TestPublicCacheTouchTokenRejectsReplacedEntry(t *testing.T) {
 	defer closeDB()
 	ctx := context.Background()
 	keyDigest := "replacement-token-digest"
+	oldStoredAt := time.Unix(1_700_000_000, 123_456_789).UTC()
 	params := db.UpsertPublicCacheEntryParams{
 		KeyDigest:           keyDigest,
 		RuleID:              resolution.CacheRuleID,
@@ -705,10 +706,9 @@ func TestPublicCacheTouchTokenRejectsReplacedEntry(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            "/tmp/replacement-token.body",
 		SizeBytes:           10,
-		StoredAt:            app.PublicCache.nextStoredAt(),
+		StoredAt:            oldStoredAt,
 		ExpiresAt:           time.Now().Add(time.Hour),
 	}
-	oldStoredAt := params.StoredAt
 	oldEntry, err := app.DB.UpsertPublicCacheEntry(ctx, params)
 	if err != nil {
 		t.Fatalf("insert old cache entry: %v", err)
@@ -721,7 +721,7 @@ func TestPublicCacheTouchTokenRejectsReplacedEntry(t *testing.T) {
 	app.PublicCache.touchIndexedEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
 	app.observabilityRecorderService().touchPublicCacheEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
 
-	params.StoredAt = app.PublicCache.nextStoredAt()
+	params.StoredAt = oldStoredAt.Add(time.Nanosecond)
 	params.BodyPath = "/tmp/replacement-token-new.body"
 	replacement, err := app.DB.UpsertPublicCacheEntry(ctx, params)
 	if err != nil {
@@ -1068,9 +1068,10 @@ func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
 	t.Run("deterministic interleaving", func(t *testing.T) {
 		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
 		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
-		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
+		newerTouch := now.Add(2 * time.Second)
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, newerTouch)
 		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
-		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(2*time.Second))
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
 
 		cache.mu.Lock()
 		indexed := cache.indexEntries[staleEntry.KeyDigest].entry
@@ -1078,8 +1079,8 @@ func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
 		if indexed.HitCount != 2 {
 			t.Fatalf("indexed hit count = %d, want 2 after stale second store", indexed.HitCount)
 		}
-		if !indexed.LastAccessedAt.Equal(now.Add(2 * time.Second)) {
-			t.Fatalf("indexed last access = %s, want newest touch", indexed.LastAccessedAt)
+		if !indexed.LastAccessedAt.Equal(newerTouch) {
+			t.Fatalf("indexed last access = %s, want newer out-of-order touch %s", indexed.LastAccessedAt, newerTouch)
 		}
 	})
 

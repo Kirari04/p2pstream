@@ -724,7 +724,9 @@ func (c *publicProxyCache) touchIndexedEntry(key string, storedAt time.Time, now
 	if !ok || !indexEntry.entry.StoredAt.Equal(storedAt) {
 		return
 	}
-	indexEntry.entry.LastAccessedAt = now
+	if now.After(indexEntry.entry.LastAccessedAt) {
+		indexEntry.entry.LastAccessedAt = now
+	}
 	indexEntry.entry.HitCount++
 	c.indexEntries[key] = indexEntry
 }

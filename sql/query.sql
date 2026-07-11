@@ -2139,10 +2139,19 @@ RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, 
 
 -- name: TouchPublicCacheEntry :exec
 UPDATE public_cache_entries
-SET last_accessed_at = sqlc.arg(last_accessed_at),
+SET last_accessed_at = CASE
+        WHEN sqlc.arg(last_accessed_at) > last_accessed_at THEN sqlc.arg(last_accessed_at)
+        ELSE last_accessed_at
+    END,
     hit_count = hit_count + sqlc.arg(hit_count)
 WHERE key_digest = sqlc.arg(key_digest)
-  AND stored_at = sqlc.arg(stored_at);
+  AND (
+      stored_at = sqlc.arg(stored_at)
+      OR (
+          length(stored_at) = 19
+          AND stored_at = CAST(sqlc.arg(stored_at_legacy) AS TEXT)
+      )
+  );
 
 -- name: DeletePublicCacheEntry :exec
 DELETE FROM public_cache_entries

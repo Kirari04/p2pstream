@@ -21,6 +21,7 @@ const (
 	observabilityRecorderMaxTouchKeys  = 8192
 	observabilityRecorderLogInterval   = time.Minute
 	publicCacheTouchCoalesceInterval   = time.Minute
+	sqliteLegacyTimestampLayout        = "2006-01-02 15:04:05"
 )
 
 type proxyRequestEvent struct {
@@ -432,6 +433,7 @@ func publicCacheTouchesToFlush(touches map[publicCacheTouchKey]*publicCacheTouch
 			HitCount:       touch.hitCount,
 			KeyDigest:      key.keyDigest,
 			StoredAt:       key.storedAt,
+			StoredAtLegacy: key.storedAt.UTC().Format(sqliteLegacyTimestampLayout),
 			LastAccessedAt: touch.lastAccessedAt,
 		})
 	}

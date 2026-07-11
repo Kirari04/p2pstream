@@ -368,6 +368,116 @@ func TestObservabilityRecorderCoalescesPublicCacheTouches(t *testing.T) {
 	}
 }
 
+func TestObservabilityRecorderPreservesLatestCacheAccessAcrossPrunedState(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	keyDigest := "out-of-order-cache-touch"
+	storedAt := time.Unix(1_700_000_000, 123_456_789).UTC()
+	olderAccess := storedAt.Add(time.Second)
+	newerAccess := storedAt.Add(2 * time.Second)
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_cache_rules (id, name) VALUES (1, 'out-of-order-cache-rule')`); err != nil {
+		t.Fatalf("insert cache rule: %v", err)
+	}
+	if _, err := app.DB.ExecContext(ctx, `
+		INSERT INTO public_cache_entries (
+			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes,
+			stored_at, expires_at, last_accessed_at
+		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/asset', '', 'GET',
+			'[]', '{}', 200, '/tmp/body', 10, ?, ?, ?)
+	`, keyDigest, storedAt, storedAt.Add(time.Hour), storedAt); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	recorder := newObservabilityRecorder(app)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	batch := make([]db.InsertProxyRequestEventAtParams, 0)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(keyDigest, storedAt, newerAccess))
+	firstFlushAt := newerAccess.Add(time.Second)
+	if err := recorder.flushBatch(ctx, &batch, touches, firstFlushAt, true); err != nil {
+		t.Fatalf("flush newer cache touch: %v", err)
+	}
+
+	assertEntry := func(wantHits int64, wantAccess time.Time) {
+		t.Helper()
+		var hitCount int64
+		var lastAccessedAt time.Time
+		if err := app.DB.QueryRowContext(ctx, `
+			SELECT hit_count, last_accessed_at
+			FROM public_cache_entries
+			WHERE key_digest = ?
+		`, keyDigest).Scan(&hitCount, &lastAccessedAt); err != nil {
+			t.Fatalf("read cache touch state: %v", err)
+		}
+		if hitCount != wantHits || !lastAccessedAt.Equal(wantAccess) {
+			t.Fatalf("cache touch state = hits %d/access %s, want %d/%s", hitCount, lastAccessedAt, wantHits, wantAccess)
+		}
+	}
+	assertEntry(1, newerAccess)
+
+	recorder.prunePublicCacheTouches(touches, firstFlushAt.Add(publicCacheTouchCoalesceInterval))
+	if len(touches) != 0 || recorder.pendingTouches.Load() != 0 {
+		t.Fatalf("flushed cache touch state was not pruned: len=%d pending=%d", len(touches), recorder.pendingTouches.Load())
+	}
+
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(keyDigest, storedAt, olderAccess))
+	if err := recorder.flushBatch(ctx, &batch, touches, firstFlushAt.Add(publicCacheTouchCoalesceInterval), true); err != nil {
+		t.Fatalf("flush older cache touch: %v", err)
+	}
+	assertEntry(2, newerAccess)
+}
+
+func TestObservabilityRecorderTouchesLegacySQLiteTimestampGeneration(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	keyDigest := "legacy-sqlite-cache-touch"
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_cache_rules (id, name) VALUES (1, 'legacy-cache-rule')`); err != nil {
+		t.Fatalf("insert cache rule: %v", err)
+	}
+	if _, err := app.DB.ExecContext(ctx, `
+		INSERT INTO public_cache_entries (
+			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, expires_at
+		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/legacy', '', 'GET',
+			'[]', '{}', 200, '/tmp/legacy-body', 10, datetime('now', '+1 hour'))
+	`, keyDigest); err != nil {
+		t.Fatalf("insert legacy cache entry: %v", err)
+	}
+
+	var storedText string
+	var storedLength int
+	if err := app.DB.QueryRowContext(ctx, `
+		SELECT CAST(stored_at AS TEXT), length(stored_at)
+		FROM public_cache_entries
+		WHERE key_digest = ?
+	`, keyDigest).Scan(&storedText, &storedLength); err != nil {
+		t.Fatalf("read raw legacy stored_at: %v", err)
+	}
+	if storedLength != len("2006-01-02 15:04:05") {
+		t.Fatalf("legacy stored_at = %q (length %d), want SQLite CURRENT_TIMESTAMP format", storedText, storedLength)
+	}
+	entry, err := app.DB.GetPublicCacheEntry(ctx, keyDigest)
+	if err != nil {
+		t.Fatalf("load legacy cache entry: %v", err)
+	}
+	accessedAt := entry.StoredAt.Add(time.Second)
+	recorder := newObservabilityRecorder(app)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(keyDigest, entry.StoredAt, accessedAt))
+	batch := make([]db.InsertProxyRequestEventAtParams, 0)
+	if err := recorder.flushBatch(ctx, &batch, touches, accessedAt, true); err != nil {
+		t.Fatalf("flush legacy cache touch: %v", err)
+	}
+
+	updated, err := app.DB.GetPublicCacheEntry(ctx, keyDigest)
+	if err != nil {
+		t.Fatalf("reload legacy cache entry: %v", err)
+	}
+	if updated.HitCount != 1 || !updated.LastAccessedAt.Equal(accessedAt) {
+		t.Fatalf("legacy cache touch = hits %d/access %s, want 1/%s", updated.HitCount, updated.LastAccessedAt, accessedAt)
+	}
+}
+
 func TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails(t *testing.T) {
 	database := newServerTestDB(t)
 	app := NewApp(nil, database)

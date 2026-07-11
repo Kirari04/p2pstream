@@ -6199,10 +6199,19 @@ func (q *Queries) TouchManagementAccessToken(ctx context.Context, id int64) erro
 
 const touchPublicCacheEntry = `-- name: TouchPublicCacheEntry :exec
 UPDATE public_cache_entries
-SET last_accessed_at = ?1,
+SET last_accessed_at = CASE
+        WHEN ?1 > last_accessed_at THEN ?1
+        ELSE last_accessed_at
+    END,
     hit_count = hit_count + ?2
 WHERE key_digest = ?3
-  AND stored_at = ?4
+  AND (
+      stored_at = ?4
+      OR (
+          length(stored_at) = 19
+          AND stored_at = CAST(?5 AS TEXT)
+      )
+  )
 `
 
 type TouchPublicCacheEntryParams struct {
@@ -6210,6 +6219,7 @@ type TouchPublicCacheEntryParams struct {
 	HitCount       int64     `json:"hit_count"`
 	KeyDigest      string    `json:"key_digest"`
 	StoredAt       time.Time `json:"stored_at"`
+	StoredAtLegacy string    `json:"stored_at_legacy"`
 }
 
 func (q *Queries) TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCacheEntryParams) error {
@@ -6218,6 +6228,7 @@ func (q *Queries) TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCach
 		arg.HitCount,
 		arg.KeyDigest,
 		arg.StoredAt,
+		arg.StoredAtLegacy,
 	)
 	return err
 }
