@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/tls"
@@ -10,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -161,6 +164,122 @@ func TestGeneratedPublicTLSCertificatesUseECDSAP256(t *testing.T) {
 		t.Fatalf("missing fallback certificate: %+v", fallback)
 	}
 	assertECDSAP256CertificateDER(t, fallback.Certificate[0])
+}
+
+func TestPublicTLSSelectorRefreshFailureKeepsLiveServerRegistered(t *testing.T) {
+	const hostname = "rotate-failure.example.com"
+	firstSnap, firstDER := testPublicTLSSnapshot(t, 1, hostname, "first")
+	invalidSnap, _ := testPublicTLSSnapshot(t, 1, hostname, "invalid")
+	invalidSnap.CertsByListener[1][0].CertPath = filepath.Join(t.TempDir(), "missing.crt.pem")
+
+	tlsConfig, selector, err := newPublicTLSConfigWithSelectorStore(1, firstSnap, nil)
+	if err != nil {
+		t.Fatalf("newPublicTLSConfigWithSelectorStore() error = %v", err)
+	}
+	server := &http.Server{}
+	app := NewApp(nil, nil)
+	app.proxyMu.Lock()
+	app.setPublicSnapshotLocked(firstSnap)
+	app.publicListenerState = map[int64]*publicListenerRuntime{
+		1: {
+			Server:      server,
+			TLSSelector: selector,
+			State:       p2pstreamv1.ProxyState_PROXY_STATE_RUNNING,
+		},
+	}
+	app.proxyMu.Unlock()
+
+	app.applyPublicProxySnapshot(invalidSnap)
+	assertPublicTLSCertificateDER(t, tlsConfig, hostname, firstDER)
+
+	app.proxyMu.Lock()
+	runtime := app.publicListenerState[1]
+	app.proxyMu.Unlock()
+	if runtime == nil || runtime.Server != server || runtime.TLSSelector != selector {
+		t.Fatalf("live runtime was orphaned after selector failure: %+v", runtime)
+	}
+	if runtime.State != p2pstreamv1.ProxyState_PROXY_STATE_RUNNING || !strings.Contains(runtime.LastError, "refresh TLS certificates") {
+		t.Fatalf("runtime after selector failure = state %v error %q, want running with refresh error", runtime.State, runtime.LastError)
+	}
+
+	if _, err := app.startPublicListenerRuntime(context.Background(), 1, false); err != nil {
+		t.Fatalf("startPublicListenerRuntime() with live degraded listener error = %v", err)
+	}
+	app.proxyMu.Lock()
+	runtime = app.publicListenerState[1]
+	app.proxyMu.Unlock()
+	if runtime == nil || runtime.Server != server || runtime.TLSSelector != selector {
+		t.Fatalf("start retry orphaned live runtime after selector failure: %+v", runtime)
+	}
+}
+
+func TestPublicTLSSelectorConcurrentRefreshPublishesNewestSnapshot(t *testing.T) {
+	const hostname = "rotate-concurrent.example.com"
+	firstSnap, _ := testPublicTLSSnapshot(t, 1, hostname, "first")
+	secondSnap, _ := testPublicTLSSnapshot(t, 1, hostname, "second")
+	thirdSnap, thirdDER := testPublicTLSSnapshot(t, 1, hostname, "third")
+
+	tlsConfig, selector, err := newPublicTLSConfigWithSelectorStore(1, firstSnap, nil)
+	if err != nil {
+		t.Fatalf("newPublicTLSConfigWithSelectorStore() error = %v", err)
+	}
+	app := NewApp(nil, nil)
+	server := &http.Server{}
+	app.proxyMu.Lock()
+	app.setPublicSnapshotLocked(firstSnap)
+	blockedGeneration := app.publicSnapshotGeneration + 1
+	app.publicListenerState = map[int64]*publicListenerRuntime{
+		1: {
+			Server:      server,
+			TLSSelector: selector,
+			State:       p2pstreamv1.ProxyState_PROXY_STATE_RUNNING,
+		},
+	}
+	app.proxyMu.Unlock()
+
+	firstBuilt := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	var blockOnce sync.Once
+	app.publicTLSSelectorRefreshBeforePublish = func(generation uint64) {
+		if generation != blockedGeneration {
+			return
+		}
+		blockOnce.Do(func() {
+			close(firstBuilt)
+			<-releaseFirst
+		})
+	}
+
+	firstDone := make(chan struct{})
+	go func() {
+		defer close(firstDone)
+		app.applyPublicProxySnapshot(secondSnap)
+	}()
+	select {
+	case <-firstBuilt:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for first selector refresh build")
+	}
+
+	app.applyPublicProxySnapshot(thirdSnap)
+	close(releaseFirst)
+	select {
+	case <-firstDone:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for stale selector refresh")
+	}
+
+	assertPublicTLSCertificateDER(t, tlsConfig, hostname, thirdDER)
+	app.proxyMu.Lock()
+	runtime := app.publicListenerState[1]
+	currentSnap := app.publicSnapshot
+	app.proxyMu.Unlock()
+	if currentSnap != thirdSnap {
+		t.Fatal("concurrent refresh replaced the newest public snapshot")
+	}
+	if runtime == nil || runtime.Server != server || runtime.State != p2pstreamv1.ProxyState_PROXY_STATE_RUNNING || runtime.LastError != "" {
+		t.Fatalf("runtime after concurrent selector refresh = %+v", runtime)
+	}
 }
 
 func testPublicTLSSnapshot(t *testing.T, listenerID int64, hostname string, name string) (*publicProxySnapshot, []byte) {
