@@ -374,6 +374,62 @@ test_reinstall_fails_closed_on_allow_targets_read_error() {
   assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
 }
 
+test_reinstall_rejects_unrelated_multiline_context() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="restrictive.internal:443"' \
+    'OTHER="continued\' \
+    'AGENT_ALLOW_TARGETS=""' \
+    '"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/continued-policy.out" 2>"${TEST_DIR}/continued-policy.err"; then
+    fail "unrelated multiline context should fail before changing AGENT_ALLOW_TARGETS"
+  fi
+  assert_contains "${TEST_DIR}/continued-policy.err" "unsupported or multiline environment syntax"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="restrictive.internal:443"'
+  assert_absent "$INSTALL_PATH"
+  assert_not_contains "$COMMAND_LOG" "curl "
+  assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_TARGETS="replacement.internal:443" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="replacement.internal:443"'
+
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="restrictive.internal:443"' \
+    'OTHER=prefix"unsupported' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/unquoted-policy.out" 2>"${TEST_DIR}/unquoted-policy.err"; then
+    fail "quote characters in an unquoted environment value should fail closed"
+  fi
+  assert_contains "${TEST_DIR}/unquoted-policy.err" "unsupported or multiline environment syntax"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="restrictive.internal:443"'
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "OTHER="
+}
+
 test_reinstall_without_ca_removes_stale_managed_ca() {
   setup_fixture
   printf 'stale CA\n' >"${CONFIG_DIR}/management-ca.pem"
@@ -487,6 +543,7 @@ run_test "reinstall preserves effective last allow targets" test_reinstall_prese
 run_test "reinstall preserves unterminated allow targets line" test_reinstall_preserves_unterminated_allow_targets_line
 run_test "reinstall fails closed on ambiguous allow targets" test_reinstall_fails_closed_on_ambiguous_allow_targets
 run_test "reinstall fails closed on allow targets read error" test_reinstall_fails_closed_on_allow_targets_read_error
+run_test "reinstall rejects unrelated multiline context" test_reinstall_rejects_unrelated_multiline_context
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
 run_test "staging version downloads staging asset" test_staging_version_downloads_staging_asset
 run_test "validation failures" test_validation_failures

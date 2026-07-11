@@ -151,6 +151,14 @@ agent_env_value_is_supported_single_line() {
     return 1
   fi
 
+  while (( index < length )); do
+    char="${value:index:1}"
+    if [[ "$char" == "'" || "$char" == '"' ]]; then
+      return 1
+    fi
+    index=$((index + 1))
+  done
+
   local trailing_backslashes=0
   index=$((length - 1))
   while (( index >= 0 )) && [[ "${value:index:1}" == $'\\' ]]; do
@@ -168,8 +176,8 @@ load_existing_agent_env_assignment() {
   local contents
   local line
   local trimmed
+  local assignment_name
   local value
-  local suffix
 
   EXISTING_AGENT_ENV_ASSIGNMENT=""
   if [[ ! -e "$ENV_FILE" && ! -L "$ENV_FILE" ]]; then
@@ -188,26 +196,19 @@ load_existing_agent_env_assignment() {
     if [[ -z "$trimmed" || "$trimmed" == \#* || "$trimmed" == \;* ]]; then
       continue
     fi
-    if [[ "$trimmed" == "${name}="* ]]; then
-      value="${trimmed#"${name}="}"
-      if ! agent_env_value_is_supported_single_line "$value"; then
-        fail "cannot safely preserve ${name} from ${ENV_FILE}: multiline or ambiguous assignment; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
-      fi
+    if [[ "$trimmed" != *=* ]]; then
+      fail "cannot safely preserve ${name} from ${ENV_FILE}: unsupported or multiline environment syntax; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+    fi
+    assignment_name="${trimmed%%=*}"
+    value="${trimmed#*=}"
+    if [[ ! "$assignment_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      fail "cannot safely preserve ${name} from ${ENV_FILE}: unsupported or multiline environment syntax; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+    fi
+    if ! agent_env_value_is_supported_single_line "$value"; then
+      fail "cannot safely preserve ${name} from ${ENV_FILE}: unsupported or multiline environment syntax; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+    fi
+    if [[ "$assignment_name" == "$name" ]]; then
       EXISTING_AGENT_ENV_ASSIGNMENT="${name}=${value}"
-      continue
-    fi
-    if [[ "$trimmed" == "$name"* ]]; then
-      suffix="${trimmed:${#name}:1}"
-      if [[ -z "$suffix" || ! "$suffix" =~ [A-Za-z0-9_] ]]; then
-        fail "cannot safely preserve ${name} from ${ENV_FILE}: ambiguous assignment; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
-      fi
-    fi
-    if [[ "$trimmed" == export[[:space:]]* ]]; then
-      trimmed="${trimmed#export}"
-      trimmed="$(trim_leading_agent_env_whitespace "$trimmed")"
-      if [[ "$trimmed" == "${name}="* ]]; then
-        fail "cannot safely preserve ${name} from ${ENV_FILE}: unsupported export assignment; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
-      fi
     fi
   done <<<"$contents"
 }
