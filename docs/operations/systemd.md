@@ -92,7 +92,7 @@ sudo systemctl restart p2pstream-agent
 sudo journalctl -u p2pstream-agent -f
 ```
 
-After rotating an agent token, run the generated Linux reinstall command on the existing agent host. The installer rewrites `/etc/p2pstream/agent.env`, refreshes installer-managed management CA material, and restarts `p2pstream-agent` so the new token and TLS settings are loaded. A locally configured `AGENT_ALLOW_TARGETS` is preserved when the reinstall command does not provide a replacement. To remove that policy intentionally, add `AGENT_CLEAR_ALLOW_TARGETS=true` to the installer environment.
+After rotating an agent token, run the generated Linux reinstall command on the existing agent host. The installer rewrites `/etc/p2pstream/agent.env`, refreshes installer-managed management CA material, and restarts `p2pstream-agent` so the new token and TLS settings are loaded. A locally configured `AGENT_ALLOW_TARGETS` is preserved when the reinstall command does not provide a replacement. If the existing policy cannot be read or uses ambiguous multiline syntax, the reinstall stops instead of removing it; provide a replacement explicitly or add `AGENT_CLEAR_ALLOW_TARGETS=true` to remove the policy intentionally.
 
 ## Uninstall Agent
 

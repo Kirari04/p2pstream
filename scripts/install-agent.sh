@@ -12,6 +12,7 @@ readonly MANAGEMENT_CA_PEM_FILE="${CONFIG_DIR}/management-ca.pem"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
 INSTALL_TMP_DIR=""
+EXISTING_AGENT_ENV_ASSIGNMENT=""
 
 fail() {
   printf 'p2pstream agent install failed: %s\n' "$*" >&2
@@ -77,19 +78,138 @@ latest_release_tag() {
   printf '%s' "$tag"
 }
 
-existing_agent_env_assignment() {
-  local name="$1"
-  local line
-  [[ -f "$ENV_FILE" ]] || return 1
-  while IFS= read -r line; do
-    case "$line" in
-      "${name}="*)
-        printf '%s\n' "$line"
+trim_leading_agent_env_whitespace() {
+  local value="$1"
+  while [[ "$value" == " "* || "$value" == $'\t'* || "$value" == $'\r'* ]]; do
+    value="${value:1}"
+  done
+  printf '%s' "$value"
+}
+
+agent_env_value_is_supported_single_line() {
+  local value="$1"
+  local length="${#value}"
+  local index=0
+  local char
+
+  while (( index < length )); do
+    char="${value:index:1}"
+    if [[ "$char" != " " && "$char" != $'\t' && "$char" != $'\r' ]]; then
+      break
+    fi
+    index=$((index + 1))
+  done
+  if (( index == length )); then
+    return 0
+  fi
+
+  char="${value:index:1}"
+  if [[ "$char" == "'" ]]; then
+    index=$((index + 1))
+    while (( index < length )) && [[ "${value:index:1}" != "'" ]]; do
+      index=$((index + 1))
+    done
+    if (( index == length )); then
+      return 1
+    fi
+    index=$((index + 1))
+    while (( index < length )); do
+      char="${value:index:1}"
+      if [[ "$char" != " " && "$char" != $'\t' && "$char" != $'\r' ]]; then
+        return 1
+      fi
+      index=$((index + 1))
+    done
+    return 0
+  fi
+
+  if [[ "$char" == '"' ]]; then
+    index=$((index + 1))
+    while (( index < length )); do
+      char="${value:index:1}"
+      if [[ "$char" == $'\\' ]]; then
+        index=$((index + 1))
+        if (( index == length )); then
+          return 1
+        fi
+        index=$((index + 1))
+        continue
+      fi
+      if [[ "$char" == '"' ]]; then
+        index=$((index + 1))
+        while (( index < length )); do
+          char="${value:index:1}"
+          if [[ "$char" != " " && "$char" != $'\t' && "$char" != $'\r' ]]; then
+            return 1
+          fi
+          index=$((index + 1))
+        done
         return 0
-        ;;
-    esac
-  done <"$ENV_FILE"
-  return 1
+      fi
+      index=$((index + 1))
+    done
+    return 1
+  fi
+
+  local trailing_backslashes=0
+  index=$((length - 1))
+  while (( index >= 0 )) && [[ "${value:index:1}" == $'\\' ]]; do
+    trailing_backslashes=$((trailing_backslashes + 1))
+    index=$((index - 1))
+  done
+  if (( trailing_backslashes % 2 != 0 )); then
+    return 1
+  fi
+  return 0
+}
+
+load_existing_agent_env_assignment() {
+  local name="$1"
+  local contents
+  local line
+  local trimmed
+  local value
+  local suffix
+
+  EXISTING_AGENT_ENV_ASSIGNMENT=""
+  if [[ ! -e "$ENV_FILE" && ! -L "$ENV_FILE" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$ENV_FILE" || ! -r "$ENV_FILE" ]]; then
+    fail "cannot safely read existing ${ENV_FILE} to preserve ${name}; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+  fi
+  if ! contents="$(sed -n 'p' "$ENV_FILE")"; then
+    fail "cannot safely read existing ${ENV_FILE} to preserve ${name}; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    trimmed="$(trim_leading_agent_env_whitespace "$line")"
+    if [[ -z "$trimmed" || "$trimmed" == \#* || "$trimmed" == \;* ]]; then
+      continue
+    fi
+    if [[ "$trimmed" == "${name}="* ]]; then
+      value="${trimmed#"${name}="}"
+      if ! agent_env_value_is_supported_single_line "$value"; then
+        fail "cannot safely preserve ${name} from ${ENV_FILE}: multiline or ambiguous assignment; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+      fi
+      EXISTING_AGENT_ENV_ASSIGNMENT="${name}=${value}"
+      continue
+    fi
+    if [[ "$trimmed" == "$name"* ]]; then
+      suffix="${trimmed:${#name}:1}"
+      if [[ -z "$suffix" || ! "$suffix" =~ [A-Za-z0-9_] ]]; then
+        fail "cannot safely preserve ${name} from ${ENV_FILE}: ambiguous assignment; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+      fi
+    fi
+    if [[ "$trimmed" == export[[:space:]]* ]]; then
+      trimmed="${trimmed#export}"
+      trimmed="$(trim_leading_agent_env_whitespace "$trimmed")"
+      if [[ "$trimmed" == "${name}="* ]]; then
+        fail "cannot safely preserve ${name} from ${ENV_FILE}: unsupported export assignment; provide ${name} or set AGENT_CLEAR_ALLOW_TARGETS=true"
+      fi
+    fi
+  done <<<"$contents"
 }
 
 validate_allow_target_inputs() {
@@ -102,12 +222,16 @@ validate_allow_target_inputs() {
   fi
 }
 
+prepare_allow_target_preservation() {
+  EXISTING_AGENT_ENV_ASSIGNMENT=""
+  if [[ -z "${AGENT_ALLOW_TARGETS:-}" && "${AGENT_CLEAR_ALLOW_TARGETS:-false}" != "true" ]]; then
+    load_existing_agent_env_assignment AGENT_ALLOW_TARGETS
+  fi
+}
+
 write_agent_env() {
   local tmp_file="$1"
-  local preserved_allow_targets=""
-  if [[ -z "${AGENT_ALLOW_TARGETS:-}" && "${AGENT_CLEAR_ALLOW_TARGETS:-false}" != "true" ]]; then
-    preserved_allow_targets="$(existing_agent_env_assignment AGENT_ALLOW_TARGETS || true)"
-  fi
+  local preserved_allow_targets="$EXISTING_AGENT_ENV_ASSIGNMENT"
   {
     printf 'MANAGEMENT_URL=%s\n' "$(systemd_env_value "$MANAGEMENT_URL")"
     if [[ -n "${MANAGEMENT_CA_FILE:-}" ]]; then
@@ -263,6 +387,7 @@ main() {
   validate_management_url_inputs
   validate_tls_inputs
   validate_allow_target_inputs
+  prepare_allow_target_preservation
   ensure_service_user
 
   local repository="${P2PSTREAM_REPOSITORY:-$DEFAULT_REPOSITORY}"

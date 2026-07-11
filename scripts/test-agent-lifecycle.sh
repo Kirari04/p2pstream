@@ -275,6 +275,105 @@ test_reinstall_explicitly_clears_allow_targets() {
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
 }
 
+test_reinstall_preserves_effective_last_allow_targets() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS=""' \
+    '   AGENT_ALLOW_TARGETS="effective.internal:443"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="effective.internal:443"'
+  assert_not_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS=""'
+  [[ "$(grep -c '^AGENT_ALLOW_TARGETS=' "${CONFIG_DIR}/agent.env")" == "1" ]] \
+    || fail "expected exactly one normalized AGENT_ALLOW_TARGETS assignment"
+}
+
+test_reinstall_preserves_unterminated_allow_targets_line() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+  printf '%s' 'AGENT_ALLOW_TARGETS="tail.internal:443"' >>"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="tail.internal:443"'
+}
+
+test_reinstall_fails_closed_on_ambiguous_allow_targets() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="first.internal:443,' \
+    'second.internal:443"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/ambiguous-policy.out" 2>"${TEST_DIR}/ambiguous-policy.err"; then
+    fail "ambiguous existing AGENT_ALLOW_TARGETS should fail closed"
+  fi
+  assert_contains "${TEST_DIR}/ambiguous-policy.err" "cannot safely preserve AGENT_ALLOW_TARGETS"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="first.internal:443,'
+  assert_absent "$INSTALL_PATH"
+  assert_not_contains "$COMMAND_LOG" "curl "
+  assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_TARGETS="replacement.internal:443" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="replacement.internal:443"'
+  assert_not_contains "${CONFIG_DIR}/agent.env" "second.internal:443"
+}
+
+test_reinstall_fails_closed_on_allow_targets_read_error() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="preserved.internal:443"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+  write_executable "${FAKE_BIN}/sed" \
+    '#!/usr/bin/env bash' \
+    'exit 1'
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/policy-read.out" 2>"${TEST_DIR}/policy-read.err"; then
+    fail "unreadable existing AGENT_ALLOW_TARGETS should fail closed"
+  fi
+  assert_contains "${TEST_DIR}/policy-read.err" "cannot safely read existing"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="preserved.internal:443"'
+  assert_absent "$INSTALL_PATH"
+  assert_not_contains "$COMMAND_LOG" "curl "
+  assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+}
+
 test_reinstall_without_ca_removes_stale_managed_ca() {
   setup_fixture
   printf 'stale CA\n' >"${CONFIG_DIR}/management-ca.pem"
@@ -384,6 +483,10 @@ run_test() {
 run_test "first install" test_first_install
 run_test "reinstall overwrites token and CA" test_reinstall_overwrites_token_and_ca
 run_test "reinstall explicitly clears allow targets" test_reinstall_explicitly_clears_allow_targets
+run_test "reinstall preserves effective last allow targets" test_reinstall_preserves_effective_last_allow_targets
+run_test "reinstall preserves unterminated allow targets line" test_reinstall_preserves_unterminated_allow_targets_line
+run_test "reinstall fails closed on ambiguous allow targets" test_reinstall_fails_closed_on_ambiguous_allow_targets
+run_test "reinstall fails closed on allow targets read error" test_reinstall_fails_closed_on_allow_targets_read_error
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
 run_test "staging version downloads staging asset" test_staging_version_downloads_staging_asset
 run_test "validation failures" test_validation_failures
