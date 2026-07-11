@@ -121,9 +121,9 @@ test.describe("docs screenshots", () => {
       await closeModal(page);
 
       await gotoApp(page, "/#/proxy/listeners", "Proxy");
-      await expect(page.getByRole("button", { name: "Edit listener" }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Edit / }).first()).toBeVisible();
       await capture(page, "proxy_listeners.png");
-      await openFirstButton(page, "Edit listener", "Edit Listener");
+      await openFirstButton(page, /^Edit /, "Edit Listener");
       await capture(page, "proxy_edit_interface_listener_modal.png");
       await closeModal(page);
 
@@ -211,7 +211,7 @@ test.describe("docs screenshots", () => {
 
       await gotoApp(page, "/#/settings/environments", "Environments");
       await capture(page, "environment_settings_page.png");
-      await openFirstButton(page, "Edit environment", "Edit Environment");
+      await openFirstEnvironmentEditor(page);
       await capture(page, "settings_environment_editor_modal.png");
       await closeModal(page);
       await openTrustCertificate(page);
@@ -276,9 +276,16 @@ async function logOut(page: Page) {
   await page.getByRole("button", { name: "Log out" }).last().click();
 }
 
-async function openFirstButton(page: Page, buttonName: string, modalTitle: string) {
+async function openFirstButton(page: Page, buttonName: string | RegExp, modalTitle: string) {
   await page.getByRole("button", { name: buttonName }).first().click();
   await expect(page.getByText(modalTitle)).toBeVisible({ timeout: 10_000 });
+  await waitForSettled(page);
+}
+
+async function openFirstEnvironmentEditor(page: Page) {
+  await page.getByRole("button", { name: /^More actions for / }).first().click();
+  await page.getByRole("menuitem", { name: "Edit environment", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Edit Environment", exact: true })).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }
 
@@ -333,13 +340,16 @@ async function createAgentSetupScreenshot(page: Page) {
   await page.getByRole("button", { name: "Create Agent" }).click();
   await expect(page.getByRole("heading", { name: "Agent Setup", exact: true })).toBeVisible({ timeout: 10_000 });
   await capture(page, "new_agent_modal_setup.png");
-  await closeModal(page);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByText("Close Without Copying?", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Discard Token", exact: true }).click();
 }
 
 async function openTrustCertificate(page: Page) {
-  const trustButton = page.getByRole("button", { name: "Trust certificate" }).first();
-  if (await trustButton.isDisabled().catch(() => false)) {
-    await page.getByRole("button", { name: "Discover certificate" }).first().click();
+  let trustButton = page.getByRole("button", { name: /^Review trust for / }).first();
+  if (!await trustButton.isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: /^Discover certificate for / }).first().click();
+    trustButton = page.getByRole("button", { name: /^Review trust for / }).first();
     await expect(trustButton).toBeEnabled({ timeout: 15_000 });
   }
   await trustButton.click();

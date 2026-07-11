@@ -20,6 +20,7 @@ import {
 import { pointAtMotionDistance, type MotionNodeBox, type MotionPlan, type MotionPoint } from "@/lib/trafficMotion";
 import { TrafficTraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TraceRequest } from "@/types/trafficTrace";
+import { diagnosticExcerpt } from "@/lib/diagnosticText";
 
 export type FrameStressState = {
   previousFrameAt: number | null;
@@ -54,12 +55,7 @@ export function statusForRequest(request: TraceRequest): VisualTokenStatus {
 }
 
 export function requestLabel(request: TraceRequest): string {
-  const label = `${request.method || "REQUEST"} ${request.path || "/"}`
-    .replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "�")
-    .replace(/\s+/g, " ")
-    .trim();
-  const codePoints = Array.from(label);
-  return codePoints.length <= 180 ? label : `${codePoints.slice(0, 179).join("")}…`;
+  return diagnosticExcerpt(`${request.method || "REQUEST"} ${request.path || "/"}`, 180).text;
 }
 
 export function createVisualToken(input: {

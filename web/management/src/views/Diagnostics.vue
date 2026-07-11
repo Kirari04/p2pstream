@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from "vue";
-import { NAlert, NButton, NButtonGroup, NDataTable, NDrawer, NDrawerContent, NEmpty } from "naive-ui";
+import { NAlert, NButton, NButtonGroup, NDataTable, NDrawer, NDrawerContent, NEmpty, NSkeleton } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { useManagementClient } from "@/composables/useManagementClient";
@@ -21,6 +21,8 @@ import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticTex
 import { editorDrawerWidth } from "@/lib/naiveUi";
 
 type WindowLabel = "5m" | "1h" | "24h" | "30d";
+type DimensionKey = "error" | "listener" | "route" | "target" | "agent";
+type DimensionFilter = Readonly<{ key: DimensionKey; label: string; title: string }>;
 
 const managementClient = useManagementClient();
 const windowLabels: WindowLabel[] = ["5m", "1h", "24h", "30d"];
@@ -37,11 +39,32 @@ const isLoading = ref(false);
 const error = ref("");
 const selectedSample = ref<DashboardDiagnosticsSample | null>(null);
 const isSampleDetailsOpen = ref(false);
+const selectedDimension = ref<DimensionFilter | null>(null);
 let requestSequence = 0;
 
 const outcome = computed(() => diagnostics.value?.outcome);
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
 const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
+const filteredRecentSamples = computed(() => {
+  const filter = selectedDimension.value;
+  if (!filter) return recentSamples.value;
+  return recentSamples.value.filter((sample) => sampleDimensionValue(sample, filter.key) === filter.label);
+});
+const isInitialLoading = computed(() => isLoading.value && !diagnostics.value);
+const generatedAtLabel = computed(() => diagnostics.value ? formatSampleTime(diagnostics.value.generatedAtUnixMillis) : "Not loaded");
+const incidentTitle = computed(() => {
+  if (!outcome.value) return "Waiting for diagnostics";
+  if (outcome.value.proxyFailure > 0n) return `${formatNumber(outcome.value.proxyFailure)} proxy ${outcome.value.proxyFailure === 1n ? "failure" : "failures"} need investigation`;
+  if (outcome.value.serverError > 0n) return `${formatNumber(outcome.value.serverError)} server ${outcome.value.serverError === 1n ? "error" : "errors"} in this window`;
+  if (outcome.value.nonSuccess > 0n) return `${formatNumber(outcome.value.nonSuccess)} non-success ${outcome.value.nonSuccess === 1n ? "response" : "responses"} in this window`;
+  return "No incidents detected in this window";
+});
+const incidentSummary = computed(() => {
+  if (!outcome.value) return "Outcome data has not loaded.";
+  if (outcome.value.proxyFailure > 0n) return "Start with the ranked failure dimensions, then inspect the matching request samples.";
+  if (outcome.value.nonSuccess > 0n) return "Review status distribution and filter samples by the affected listener, route, target, or agent.";
+  return "Requests completed without a captured non-success response or internal proxy failure.";
+});
 const recentSampleRowKeys = computed(() => {
   const keys = new WeakMap<DashboardDiagnosticsSample, string>();
   const seen = new Map<string, number>();
@@ -55,11 +78,11 @@ const recentSampleRowKeys = computed(() => {
 });
 const maxStatusRequests = computed(() => Math.max(1, ...statusCodes.value.map((row) => toNumber(row.requests))));
 const dimensionSections = computed(() => [
-  { title: "Error kinds", rows: diagnostics.value?.errorKinds ?? [], empty: "No proxy failures in this window." },
-  { title: "Listeners", rows: diagnostics.value?.problemListeners ?? [], empty: "No problem listeners in this window." },
-  { title: "Routes", rows: diagnostics.value?.problemRoutes ?? [], empty: "No problem routes in this window." },
-  { title: "Route targets", rows: diagnostics.value?.problemRouteTargets ?? [], empty: "No problem targets in this window." },
-  { title: "Agents", rows: diagnostics.value?.problemAgents ?? [], empty: "No problem agents in this window." },
+  { key: "error" as const, title: "Error kinds", rows: rankDimensionRows(diagnostics.value?.errorKinds), empty: "No proxy failures in this window." },
+  { key: "listener" as const, title: "Listeners", rows: rankDimensionRows(diagnostics.value?.problemListeners), empty: "No problem listeners in this window." },
+  { key: "route" as const, title: "Routes", rows: rankDimensionRows(diagnostics.value?.problemRoutes), empty: "No problem routes in this window." },
+  { key: "target" as const, title: "Route targets", rows: rankDimensionRows(diagnostics.value?.problemRouteTargets), empty: "No problem targets in this window." },
+  { key: "agent" as const, title: "Agents", rows: rankDimensionRows(diagnostics.value?.problemAgents), empty: "No problem agents in this window." },
 ]);
 const selectedSampleDetails = computed(() => {
   const sample = selectedSample.value;
@@ -93,66 +116,39 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   {
     title: "Request",
     key: "request",
-    width: 220,
+    width: 300,
     render: (sample) => {
       const method = diagnosticExcerpt(sample.method, 16);
       const host = diagnosticExcerpt(sample.host);
-      return h("span", { class: "diagnostic-request-excerpt" }, [
-        h("span", { class: "diagnostic-request-method" }, method.text),
-        h("bdi", { class: "diagnostic-attacker-excerpt", dir: "ltr" }, host.text),
+      const path = diagnosticExcerpt(sample.pathPrefix);
+      return h("span", { class: "diagnostic-request-stack" }, [
+        h("span", { class: "diagnostic-request-excerpt" }, [
+          h("bdi", { class: "diagnostic-request-method", dir: "ltr" }, method.text),
+          h("bdi", { class: "diagnostic-attacker-excerpt", dir: "ltr", title: inspectionValue(sample.host) }, host.text),
+        ]),
+        h("bdi", { class: "diagnostic-attacker-excerpt diagnostic-request-path", dir: "ltr", title: inspectionValue(sample.pathPrefix) }, path.text),
       ]);
     },
   },
   {
-    title: "Path prefix",
-    key: "pathPrefix",
-    width: 200,
-    render: (sample) => h(
-      "bdi",
-      { class: "diagnostic-attacker-excerpt", dir: "ltr" },
-      diagnosticExcerpt(sample.pathPrefix).text,
-    ),
+    title: "Outcome",
+    key: "outcome",
+    width: 190,
+    render: (sample) => h("span", { class: "diagnostic-outcome-cell" }, [
+      h("span", { class: ["status-pill", `tone-${statusTone(sample.statusCode)}`] }, sampleStatusLabel(sample)),
+      attackerCell(sample.errorKind, 48),
+    ]),
   },
   {
-    title: "Status",
-    key: "status",
-    width: 100,
-    render: (sample) => h("span", { class: ["status-pill", `tone-${statusTone(sample.statusCode)}`] }, sampleStatusLabel(sample)),
-  },
-  {
-    title: "Error kind",
-    key: "errorKind",
-    width: 160,
-    ellipsis: { tooltip: true },
-    render: (sample) => sample.errorKind || "-",
-  },
-  {
-    title: "Listener",
-    key: "listener",
-    width: 150,
-    ellipsis: { tooltip: true },
-    render: (sample) => sample.listenerLabel || "-",
-  },
-  {
-    title: "Route",
-    key: "route",
-    width: 150,
-    ellipsis: { tooltip: true },
-    render: (sample) => sample.routeLabel || "-",
-  },
-  {
-    title: "Target",
-    key: "target",
-    width: 160,
-    ellipsis: { tooltip: true },
-    render: (sample) => sample.routeTargetLabel || "-",
-  },
-  {
-    title: "Agent",
-    key: "agent",
-    width: 150,
-    ellipsis: { tooltip: true },
-    render: (sample) => sample.agentLabel || "-",
+    title: "Resolved flow",
+    key: "flow",
+    width: 300,
+    render: (sample) => h("span", { class: "diagnostic-flow-cell" }, [
+      flowLine("Listener", sample.listenerLabel),
+      flowLine("Route", sample.routeLabel),
+      flowLine("Target", sample.routeTargetLabel),
+      flowLine("Agent", sample.agentLabel),
+    ]),
   },
   {
     title: "Duration",
@@ -161,16 +157,13 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
     render: (sample) => formatDuration(sample.durationMs),
   },
   {
-    title: "Down",
-    key: "down",
-    width: 100,
-    render: (sample) => formatBytes(sample.responseBytes),
-  },
-  {
-    title: "Up",
-    key: "up",
-    width: 100,
-    render: (sample) => formatBytes(sample.requestBytes),
+    title: "Transfer",
+    key: "transfer",
+    width: 150,
+    render: (sample) => h("span", { class: "diagnostic-transfer" }, [
+      h("span", `↓ ${formatBytes(sample.responseBytes)}`),
+      h("span", `↑ ${formatBytes(sample.requestBytes)}`),
+    ]),
   },
   {
     title: "Details",
@@ -190,8 +183,9 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   },
 ]);
 
-async function loadDiagnostics() {
+async function loadDiagnostics(clearCurrent = false) {
   const sequence = ++requestSequence;
+  if (clearCurrent) diagnostics.value = null;
   isLoading.value = true;
   error.value = "";
   try {
@@ -212,7 +206,8 @@ async function loadDiagnostics() {
 }
 
 watch([selectedWindowLabel, sampleLimit], () => {
-  void loadDiagnostics();
+  selectedDimension.value = null;
+  void loadDiagnostics(true);
 });
 
 onMounted(() => {
@@ -235,6 +230,19 @@ function dimensionProxyFailures(row: DashboardProxyDimensionSummary): bigint {
   return row.internalError;
 }
 
+function rankDimensionRows(rows: DashboardProxyDimensionSummary[] | undefined): DashboardProxyDimensionSummary[] {
+  return [...(rows ?? [])].sort((left, right) => {
+    const leftFailures = left.internalError;
+    const rightFailures = right.internalError;
+    if (leftFailures !== rightFailures) return leftFailures > rightFailures ? -1 : 1;
+    const leftNonSuccess = dimensionNonSuccess(left);
+    const rightNonSuccess = dimensionNonSuccess(right);
+    if (leftNonSuccess !== rightNonSuccess) return leftNonSuccess > rightNonSuccess ? -1 : 1;
+    if (left.requests === right.requests) return 0;
+    return left.requests > right.requests ? -1 : 1;
+  });
+}
+
 function sampleStatusLabel(sample: DashboardDiagnosticsSample): string {
   return sample.statusCode > 0n ? sample.statusCode.toString() : "-";
 }
@@ -244,6 +252,41 @@ function openSampleDetails(sample: DashboardDiagnosticsSample) {
   isSampleDetailsOpen.value = true;
 }
 
+function selectDimension(key: DimensionKey, row: DashboardProxyDimensionSummary, title: string) {
+  const next = { key, label: row.label, title };
+  const current = selectedDimension.value;
+  selectedDimension.value = current?.key === next.key && current.label === next.label ? null : next;
+}
+
+function dimensionSelected(key: DimensionKey, label: string): boolean {
+  return selectedDimension.value?.key === key && selectedDimension.value.label === label;
+}
+
+function sampleDimensionValue(sample: DashboardDiagnosticsSample, key: DimensionKey): string {
+  switch (key) {
+    case "error": return sample.errorKind;
+    case "listener": return sample.listenerLabel;
+    case "route": return sample.routeLabel;
+    case "target": return sample.routeTargetLabel;
+    case "agent": return sample.agentLabel;
+  }
+}
+
+function attackerCell(value: string, limit = 72) {
+  return h("bdi", {
+    class: "diagnostic-attacker-excerpt",
+    dir: "ltr",
+    title: inspectionValue(value),
+  }, diagnosticExcerpt(value, limit).text);
+}
+
+function flowLine(label: string, value: string) {
+  return h("span", { class: "diagnostic-flow-line" }, [
+    h("span", { class: "diagnostic-flow-key" }, label),
+    attackerCell(value, 52),
+  ]);
+}
+
 function inspectionValue(value: string): string {
   return value ? diagnosticInspectionText(value) : "(empty)";
 }
@@ -251,13 +294,15 @@ function inspectionValue(value: string): string {
 function formatSampleTime(value: bigint): string {
   const millis = toNumber(value);
   if (millis <= 0) return "-";
+  const date = new Date(millis);
+  if (Number.isNaN(date.getTime())) return "Invalid timestamp";
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-  }).format(new Date(millis));
+  }).format(date);
 }
 
 function toNumber(value: bigint | number): number {
@@ -319,106 +364,183 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
           size="small"
           :options="sampleSelectOptions"
         />
+        <NButton secondary size="small" attr-type="button" :loading="isLoading && Boolean(diagnostics)" @click="loadDiagnostics(false)">
+          Refresh
+        </NButton>
       </div>
     </section>
 
-    <NAlert v-if="error" type="error" :show-icon="false">{{ error }}</NAlert>
-
-    <section class="summary-strip" :class="{ loading: isLoading }">
-      <div class="summary-item">
-        <span>Requests</span>
-        <strong>{{ formatNumber(outcome?.requests) }}</strong>
-        <small>{{ diagnostics?.label || selectedWindowLabel }}</small>
-      </div>
-      <div class="summary-item">
-        <span>Successful</span>
-        <strong>{{ formatNumber(outcome?.success) }}</strong>
-        <small>{{ formatPercent(outcome && outcome.requests > 0n ? toNumber(outcome.success) / Math.max(1, toNumber(outcome.requests)) : 0) }}</small>
-      </div>
-      <div class="summary-item">
-        <span>Non-success</span>
-        <strong>{{ formatNumber(outcome?.nonSuccess) }}</strong>
-        <small>4xx + 5xx</small>
-      </div>
-      <div class="summary-item">
-        <span>Proxy failures</span>
-        <strong>{{ formatNumber(outcome?.proxyFailure) }}</strong>
-        <small>error kind set</small>
-      </div>
-      <div class="summary-item">
-        <span>Latency</span>
-        <strong>{{ formatDuration(outcome?.avgDurationMs) }}</strong>
-        <small>max {{ formatDuration(outcome?.maxDurationMs) }}</small>
-      </div>
-    </section>
-
-    <section class="diagnostics-panel">
-      <div class="panel-heading">
+    <NAlert v-if="error" :type="diagnostics ? 'warning' : 'error'" :show-icon="false">
+      <div class="diagnostics-alert">
         <div>
-          <h4>Status Codes</h4>
-          <p>Exact response distribution for the selected window.</p>
+          <strong>{{ diagnostics ? "Refresh failed. Showing the last server snapshot." : "Diagnostics could not be loaded." }}</strong>
+          <bdi dir="ltr">{{ diagnosticInspectionText(error) }}</bdi>
+          <small v-if="diagnostics">Snapshot generated {{ generatedAtLabel }}.</small>
         </div>
+        <NButton secondary size="small" attr-type="button" @click="loadDiagnostics(false)">Retry</NButton>
       </div>
-      <div v-if="statusCodes.length" class="status-list">
-        <div v-for="row in statusCodes" :key="row.statusCode.toString()" class="status-row">
-          <div class="status-label">
-            <span class="status-pill" :class="`tone-${statusTone(row.statusCode)}`">{{ row.statusCode.toString() }}</span>
-            <strong>{{ formatNumber(row.requests) }}</strong>
-          </div>
-          <div class="status-bar-track">
-            <div class="status-bar" :class="`tone-${statusTone(row.statusCode)}`" :style="{ width: statusWidth(row) }" />
-          </div>
-          <div class="status-meta">
-            <span>{{ formatNumber(statusNonSuccess(row)) }} non-success</span>
-            <span>{{ formatNumber(row.proxyFailure) }} failures</span>
-            <span>{{ formatDuration(row.avgDurationMs) }}</span>
-            <span>{{ formatBytes(row.responseBytes) }} down</span>
-          </div>
-        </div>
+    </NAlert>
+
+    <section v-if="isInitialLoading" class="diagnostics-skeleton" aria-label="Loading diagnostics" aria-busy="true">
+      <div class="diagnostics-skeleton__lead">
+        <NSkeleton text width="35%" />
+        <NSkeleton text :repeat="2" />
       </div>
-      <NEmpty v-else size="small" description="No status codes in this window." />
+      <div class="diagnostics-skeleton__facts">
+        <NSkeleton v-for="index in 5" :key="index" text :repeat="2" />
+      </div>
+      <NSkeleton height="12rem" />
+      <div class="diagnostics-skeleton__grid">
+        <NSkeleton v-for="index in 5" :key="index" height="10rem" />
+      </div>
     </section>
 
-    <section class="breakdown-grid">
-      <div v-for="section in dimensionSections" :key="section.title" class="diagnostics-panel">
-        <div class="panel-heading compact">
-          <h4>{{ section.title }}</h4>
+    <NEmpty v-else-if="!diagnostics" size="large" description="No authoritative diagnostics snapshot is available.">
+      <template #extra>
+        <NButton secondary attr-type="button" @click="loadDiagnostics(false)">Retry diagnostics</NButton>
+      </template>
+    </NEmpty>
+
+    <template v-else>
+      <p v-if="isLoading" class="diagnostics-refresh-state" role="status">
+        Refreshing from the server. Values below remain the snapshot generated {{ generatedAtLabel }} until a new response arrives.
+      </p>
+      <section class="incident-summary" :aria-busy="isLoading">
+        <div class="incident-summary__lead">
+          <div class="incident-summary__eyebrow">
+            <span>Incident snapshot</span>
+            <small><bdi dir="ltr">{{ diagnostics.label ? diagnosticInspectionText(diagnostics.label) : selectedWindowLabel }}</bdi> · generated {{ generatedAtLabel }}</small>
+          </div>
+          <h4>{{ incidentTitle }}</h4>
+          <p>{{ incidentSummary }}</p>
         </div>
-        <div v-if="section.rows.length" class="dimension-list">
-          <div v-for="row in section.rows" :key="`${section.title}-${row.id.toString()}-${row.label}`" class="dimension-row">
-            <div class="dimension-name" :title="row.label">{{ row.label || "unknown" }}</div>
-            <div class="dimension-counts">
-              <span>{{ formatNumber(row.requests) }} req</span>
-              <span>{{ formatNumber(dimensionNonSuccess(row)) }} non-success</span>
-              <span>{{ formatNumber(dimensionProxyFailures(row)) }} failures</span>
+        <dl class="incident-facts">
+          <div>
+            <dt>Requests</dt>
+            <dd>{{ formatNumber(outcome?.requests) }}</dd>
+            <small>{{ formatPercent(outcome && outcome.requests > 0n ? toNumber(outcome.success) / Math.max(1, toNumber(outcome.requests)) : 0) }} successful</small>
+          </div>
+          <div>
+            <dt>Successful</dt>
+            <dd>{{ formatNumber(outcome?.success) }}</dd>
+            <small>2xx + 3xx</small>
+          </div>
+          <div>
+            <dt>Non-success</dt>
+            <dd>{{ formatNumber(outcome?.nonSuccess) }}</dd>
+            <small>4xx + 5xx</small>
+          </div>
+          <div>
+            <dt>Proxy failures</dt>
+            <dd>{{ formatNumber(outcome?.proxyFailure) }}</dd>
+            <small>error kind set</small>
+          </div>
+          <div>
+            <dt>Latency</dt>
+            <dd>{{ formatDuration(outcome?.avgDurationMs) }}</dd>
+            <small>max {{ formatDuration(outcome?.maxDurationMs) }}</small>
+          </div>
+        </dl>
+      </section>
+
+      <section class="diagnostics-panel">
+        <div class="panel-heading">
+          <div>
+            <h4>Status Codes</h4>
+            <p>Exact response distribution for the selected window.</p>
+          </div>
+        </div>
+        <div v-if="statusCodes.length" class="status-list">
+          <div v-for="row in statusCodes" :key="row.statusCode.toString()" class="status-row">
+            <div class="status-label">
+              <span class="status-pill" :class="`tone-${statusTone(row.statusCode)}`">{{ row.statusCode.toString() }}</span>
+              <strong>{{ formatNumber(row.requests) }}</strong>
+            </div>
+            <div class="status-bar-track">
+              <div class="status-bar" :class="`tone-${statusTone(row.statusCode)}`" :style="{ width: statusWidth(row) }" />
+            </div>
+            <div class="status-meta">
+              <span>{{ formatNumber(statusNonSuccess(row)) }} non-success</span>
+              <span>{{ formatNumber(row.proxyFailure) }} failures</span>
+              <span>{{ formatDuration(row.avgDurationMs) }}</span>
+              <span>{{ formatBytes(row.responseBytes) }} down</span>
             </div>
           </div>
         </div>
-        <NEmpty v-else size="small" class="panel-empty panel-empty--compact" :description="section.empty" />
-      </div>
-    </section>
+        <NEmpty v-else size="small" description="No status codes in this window." />
+      </section>
 
-    <section class="diagnostics-panel diagnostics-panel--table">
-      <div class="panel-heading">
-        <div>
-          <h4>Recent Samples</h4>
-          <p>Newest non-success responses and proxy/internal failures.</p>
+      <section class="breakdown-section" aria-labelledby="failure-dimensions-heading">
+        <div class="panel-heading">
+          <div>
+            <h4 id="failure-dimensions-heading">Ranked failure dimensions</h4>
+            <p>Select a row to filter the request samples by that exact value.</p>
+          </div>
         </div>
-      </div>
-      <div v-if="recentSamples.length" class="diagnostics-table-shell">
-        <NDataTable
-          :columns="sampleColumns"
-          :data="recentSamples"
-          :row-key="sampleRowKey"
-          :pagination="false"
-          :bordered="false"
-          :single-line="false"
-          :scroll-x="1880"
+        <div class="breakdown-grid">
+          <div v-for="section in dimensionSections" :key="section.title" class="diagnostics-panel diagnostics-panel--dimension">
+            <div class="panel-heading compact">
+              <h5>{{ section.title }}</h5>
+            </div>
+            <ol v-if="section.rows.length" class="dimension-list">
+              <li v-for="(row, index) in section.rows" :key="`${section.title}-${row.id.toString()}-${row.label}`">
+                <button
+                  type="button"
+                  class="dimension-row"
+                  :class="{ 'dimension-row--selected': dimensionSelected(section.key, row.label) }"
+                  :aria-pressed="dimensionSelected(section.key, row.label)"
+                  @click="selectDimension(section.key, row, section.title)"
+                >
+                  <span class="dimension-rank">{{ index + 1 }}</span>
+                  <bdi class="dimension-name" dir="ltr" :title="inspectionValue(row.label)">{{ diagnosticExcerpt(row.label, 56).text }}</bdi>
+                  <span class="dimension-counts">
+                    <span>{{ formatNumber(row.requests) }} req</span>
+                    <span>{{ formatNumber(dimensionNonSuccess(row)) }} non-success</span>
+                    <span>{{ formatNumber(dimensionProxyFailures(row)) }} failures</span>
+                  </span>
+                </button>
+              </li>
+            </ol>
+            <NEmpty v-else size="small" class="panel-empty panel-empty--compact" :description="section.empty" />
+          </div>
+        </div>
+      </section>
+
+      <section class="diagnostics-panel diagnostics-panel--table">
+        <div class="panel-heading diagnostics-samples-heading">
+          <div>
+            <h4>Recent Samples</h4>
+            <p>Newest non-success responses and proxy/internal failures.</p>
+          </div>
+          <div v-if="selectedDimension" class="sample-filter">
+            <span>Filtered by {{ selectedDimension.title }}</span>
+            <bdi dir="ltr">{{ inspectionValue(selectedDimension.label) }}</bdi>
+            <NButton quaternary size="small" attr-type="button" @click="selectedDimension = null">Clear filter</NButton>
+          </div>
+        </div>
+        <div v-if="filteredRecentSamples.length" class="diagnostics-table-shell">
+          <NDataTable
+            :columns="sampleColumns"
+            :data="filteredRecentSamples"
+            :row-key="sampleRowKey"
+            :pagination="false"
+            :bordered="false"
+            :single-line="false"
+            :scroll-x="1290"
+            size="small"
+          />
+        </div>
+        <NEmpty
+          v-else
           size="small"
-        />
-      </div>
-      <NEmpty v-else size="small" description="No recent problem samples in this window." />
-    </section>
+          :description="recentSamples.length ? 'No retained samples match the selected failure dimension.' : 'No recent problem samples in this window.'"
+        >
+          <template v-if="selectedDimension" #extra>
+            <NButton secondary size="small" attr-type="button" @click="selectedDimension = null">Clear sample filter</NButton>
+          </template>
+        </NEmpty>
+      </section>
+    </template>
 
     <NDrawer
       v-model:show="isSampleDetailsOpen"
@@ -476,7 +598,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .header-controls {
   display: grid;
-  grid-template-columns: auto 14rem;
+  grid-template-columns: auto 11rem auto;
   align-items: center;
   gap: 0.5rem;
   justify-content: end;
@@ -496,24 +618,72 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 }
 
 .sample-select {
-  width: 14rem;
+  width: 11rem;
 }
 
-.summary-strip,
 .breakdown-grid {
   display: grid;
   gap: 0.75rem;
 }
 
-.summary-strip {
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+.diagnostics-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-.summary-strip.loading {
-  opacity: 0.72;
+.diagnostics-alert > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
 }
 
-.summary-item,
+.diagnostics-alert bdi,
+.diagnostics-alert small {
+  direction: ltr;
+  color: inherit;
+  font-size: 0.75rem;
+  unicode-bidi: isolate;
+}
+
+.diagnostics-refresh-state {
+  margin: 0;
+  border-left: 3px solid var(--app-accent);
+  background: var(--app-panel-muted);
+  padding: 0.625rem 0.75rem;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+}
+
+.incident-summary__eyebrow bdi {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.diagnostics-skeleton {
+  display: grid;
+  gap: 1rem;
+}
+
+.diagnostics-skeleton__lead,
+.diagnostics-skeleton__facts,
+.diagnostics-skeleton__grid {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-panel-muted);
+  padding: 1rem;
+}
+
+.diagnostics-skeleton__facts,
+.diagnostics-skeleton__grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.incident-summary,
 .diagnostics-panel {
   min-width: 0;
   border: 1px solid var(--app-border);
@@ -521,32 +691,75 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   background: var(--app-panel-muted);
 }
 
-.summary-item {
+.incident-summary {
   display: grid;
-  gap: 0.25rem;
+  gap: 1rem;
+  border-left: 3px solid var(--app-accent);
   padding: 1rem;
 }
 
-.summary-item span {
+.incident-summary__lead {
+  min-width: 0;
+}
+
+.incident-summary__eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.incident-summary__eyebrow span,
+.incident-facts dt {
   color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0;
   text-transform: uppercase;
 }
 
-.summary-item strong {
+.incident-summary__eyebrow small,
+.incident-summary__lead > p,
+.incident-facts small {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+.incident-summary__lead h4 {
+  margin: 0.35rem 0 0.25rem;
   color: var(--app-text);
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
 }
 
-.summary-item small {
-  overflow: hidden;
-  color: var(--app-text-muted);
-  font-size: 0.72rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.incident-facts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 0.75rem;
+}
+
+.incident-facts > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+  padding-inline: 0.75rem;
+}
+
+.incident-facts > div:first-child {
+  padding-left: 0;
+}
+
+.incident-facts > div + div {
+  border-left: 1px solid var(--app-border-subtle);
+}
+
+.incident-facts dd {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .diagnostics-panel {
@@ -575,6 +788,23 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0;
+}
+
+.panel-heading h5 {
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.breakdown-section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.diagnostics-panel--dimension {
+  align-content: start;
+  gap: 0.5rem;
+  padding: 0.75rem;
 }
 
 .status-list,
@@ -684,9 +914,35 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .dimension-row {
   display: grid;
-  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 0.25rem 0.5rem;
   border-top: 1px solid var(--app-border);
-  padding-top: 0.55rem;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: transparent;
+  padding: 0.55rem 0;
+  color: var(--app-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dimension-row:hover,
+.dimension-row--selected {
+  color: var(--app-accent);
+}
+
+.dimension-row--selected {
+  box-shadow: inset 2px 0 0 var(--app-accent);
+  padding-left: 0.5rem;
+}
+
+.dimension-rank {
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
 }
 
 .dimension-name {
@@ -696,15 +952,23 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   font-size: 0.82rem;
   font-weight: 650;
   text-overflow: ellipsis;
+  unicode-bidi: isolate;
   white-space: nowrap;
 }
 
 .dimension-counts {
   display: grid;
+  grid-column: 2;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
   color: var(--app-text-muted);
   font-size: 0.72rem;
+}
+
+.dimension-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .dimension-counts span {
@@ -722,6 +986,80 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .diagnostics-table-shell :deep(.n-data-table) {
   min-width: 0;
+}
+
+.diagnostics-samples-heading {
+  align-items: center;
+}
+
+.sample-filter {
+  display: grid;
+  min-width: min(100%, 19rem);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 0.5rem;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 6px;
+  background: var(--app-panel);
+  padding: 0.4rem 0.5rem;
+}
+
+.sample-filter > span {
+  color: var(--app-text-muted);
+  font-size: 0.7rem;
+}
+
+.sample-filter bdi {
+  min-width: 0;
+  overflow: hidden;
+  direction: ltr;
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
+.sample-filter :deep(.n-button) {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.diagnostic-request-stack,
+.diagnostic-outcome-cell,
+.diagnostic-flow-cell,
+.diagnostic-transfer {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.diagnostic-request-path {
+  color: var(--app-text-muted);
+}
+
+.diagnostic-outcome-cell {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.diagnostic-flow-line {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.diagnostic-flow-key {
+  color: var(--app-text-muted);
+  font-size: 0.68rem;
+}
+
+.diagnostic-transfer {
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
 }
 
 .diagnostic-request-excerpt {
@@ -811,17 +1149,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   align-self: start;
 }
 
-@media (min-width: 640px) {
-  .summary-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (min-width: 900px) {
-  .summary-strip {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
   .breakdown-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -860,6 +1188,49 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   .status-meta {
     grid-column: 1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .incident-facts,
+  .diagnostics-skeleton__facts,
+  .diagnostics-skeleton__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .incident-facts > div {
+    border-left: 0 !important;
+    border-top: 1px solid var(--app-border-subtle);
+    padding: 0.65rem 0;
+  }
+
+  .diagnostics-samples-heading {
+    display: grid;
+  }
+
+  .sample-filter {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .incident-facts,
+  .diagnostics-skeleton__facts,
+  .diagnostics-skeleton__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .window-tabs :deep(.n-button) {
+    padding-inline: 0.5rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .header-controls :deep(.n-button),
+  .header-controls :deep(.n-base-selection),
+  .dimension-row,
+  .sample-filter :deep(.n-button),
+  .diagnostics-table-shell :deep(.n-button),
+  .diagnostic-sample-drawer :deep(.n-base-close) {
+    min-height: 44px;
   }
 }
 </style>

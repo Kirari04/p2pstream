@@ -1413,10 +1413,6 @@ samp {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.settings-token-grid {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .response-template-form-grid {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1628,10 +1624,6 @@ samp {
 
   .mq-lg-span-two {
     grid-column: span 2 / span 2;
-  }
-
-  .settings-token-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
   }
 
   .mq-lg-pad-x-xl {

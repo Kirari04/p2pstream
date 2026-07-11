@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, h, ref, type HTMLAttributes } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { NButton, NDataTable, NTabPane, NTabs, NTag } from "naive-ui";
+import { NButton, NDataTable, NDropdown, NInput, NTabPane, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { Ban as BanIcon } from "@lucide/vue";
-import { Check as CheckIcon } from "@lucide/vue";
+import { MoreHorizontal as MoreIcon } from "@lucide/vue";
 import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
+import { Search as SearchIcon } from "@lucide/vue";
 import { X as TimesIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import { Copy as WindowMaximizeIcon } from "@lucide/vue";
@@ -18,6 +19,7 @@ import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vu
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 import {
   bindLabel,
   listenerName,
@@ -77,36 +79,56 @@ const routes = computed(() => config.value?.routes ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const runningListeners = computed(() => listeners.value.filter((listener) => listenerStatus(listener)?.running).length);
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
+const listenerFilterText = ref("");
+const displayedListeners = computed(() => {
+  const query = listenerFilterText.value.trim().toLocaleLowerCase();
+  return [...listeners.value]
+    .filter((listener) => {
+      if (!query) return true;
+      return [
+        listener.name,
+        bindLabel(listener),
+        protocolLabel(listener.protocol),
+        listenerStateLabel(listener, listenerStatus(listener)),
+      ].some((value) => value.toLocaleLowerCase().includes(query));
+    })
+    .sort((left, right) => {
+      const rankDifference = listenerAttentionRank(left) - listenerAttentionRank(right);
+      if (rankDifference) return rankDifference;
+      return left.name.localeCompare(right.name);
+    });
+});
 const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
   {
-    title: "Name",
-    key: "name",
-    minWidth: 180,
-    ellipsis: { tooltip: true },
-    render: (listener) => listener.name,
+    title: "Listener",
+    key: "listener",
+    minWidth: 280,
+    render: (listener) => h("div", { class: "layout-grid min-width-zero space-xs" }, [
+      h("bdi", {
+        class: "clip-text weight-medium base-text",
+        dir: "ltr",
+        title: diagnosticInspectionText(listener.name),
+      }, diagnosticExcerpt(listener.name, 56).text),
+      h("bdi", {
+        class: "clip-text mono-text copy-xs muted-text",
+        dir: "ltr",
+        title: diagnosticInspectionText(bindLabel(listener)),
+      }, diagnosticExcerpt(bindLabel(listener), 72).text),
+    ]),
   },
   {
-    title: "Bind",
-    key: "bind",
-    minWidth: 180,
-    render: (listener) => h("span", { class: "mono-text copy-xs" }, bindLabel(listener)),
-  },
-  {
-    title: "Protocol",
-    key: "protocol",
-    width: 120,
-    render: (listener) => protocolLabel(listener.protocol),
-  },
-  {
-    title: "Routes",
-    key: "routes",
-    width: 100,
-    render: (listener) => routes.value.filter((route) => route.listenerId === listener.id).length.toString(),
+    title: "Protocol & routes",
+    key: "traffic",
+    width: 150,
+    render: (listener) => h("div", { class: "layout-grid space-xs" }, [
+      h("span", { class: "base-text" }, protocolLabel(listener.protocol)),
+      h("span", { class: "copy-xs muted-text" }, `${routes.value.filter((route) => route.listenerId === listener.id).length.toString()} routes`),
+    ]),
   },
   {
     title: "State",
     key: "state",
-    minWidth: 180,
+    minWidth: 230,
     render: (listener) => h("div", { class: "layout-row layout-column space-2xs" }, [
       h(
         NTag,
@@ -119,34 +141,19 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
         { default: () => listenerStateLabel(listener, listenerStatus(listener)) },
       ),
       listenerStatus(listener)?.lastError
-        ? h("span", { class: "max-token-width clip-text copy-xs error-text" }, listenerStatus(listener)?.lastError)
+        ? h("details", { class: "listener-error-disclosure" }, [
+          h("summary", { class: "copy-xs error-text" }, "View error"),
+          h("bdi", { class: "mono-text copy-xs error-text", dir: "ltr" }, diagnosticInspectionText(listenerStatus(listener)?.lastError ?? "")),
+        ])
         : null,
     ]),
   },
   {
     title: "Actions",
     key: "actions",
-    width: 220,
+    width: 260,
     align: "right",
-    render: (listener) => h("div", { class: "layout-row align-end-row space-sm" }, [
-      h(
-        DisabledHint,
-        { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value },
-        {
-          default: () => h(
-            NButton,
-            {
-              secondary: true,
-              size: "small",
-              "aria-label": listener.enabled ? "Disable listener" : "Enable listener",
-              title: listener.enabled ? "Disable listener" : "Enable listener",
-              disabled: Boolean(busyDisabledReason.value),
-              onClick: () => void setListenerEnabled(listener, !listener.enabled),
-            },
-            { icon: () => listener.enabled ? h(BanIcon, { class: "icon-sm" }) : h(CheckIcon, { class: "icon-sm" }) },
-          ),
-        },
-      ),
+    render: (listener) => h("div", { class: "layout-row align-center align-end-row space-sm" }, [
       h(
         DisabledHint,
         { disabled: Boolean(listenerRunningDisabledReason(listener)), reason: listenerRunningDisabledReason(listener) },
@@ -156,12 +163,14 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
             {
               secondary: true,
               size: "small",
-              "aria-label": listenerStatus(listener)?.running ? "Stop listener" : "Start listener",
-              title: listenerStatus(listener)?.running ? "Stop listener" : "Start listener",
+              "aria-label": `${listenerStatus(listener)?.running ? "Stop" : "Start"} ${safeListenerName(listener)}`,
               disabled: Boolean(listenerRunningDisabledReason(listener)),
               onClick: () => void setListenerRunning(listener, !listenerStatus(listener)?.running),
             },
-            { icon: () => listenerStatus(listener)?.running ? h(TimesIcon, { class: "icon-sm" }) : h(RefreshIcon, { class: "icon-sm" }) },
+            {
+              icon: () => listenerStatus(listener)?.running ? h(TimesIcon, { class: "icon-sm" }) : h(RefreshIcon, { class: "icon-sm" }),
+              default: () => listenerStatus(listener)?.running ? "Stop" : "Start",
+            },
           ),
         },
       ),
@@ -174,33 +183,26 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
             {
               secondary: true,
               size: "small",
-              "aria-label": "Edit listener",
-              title: "Edit listener",
+              "aria-label": `Edit ${safeListenerName(listener)}`,
               disabled: Boolean(busyDisabledReason.value),
               onClick: () => editListener(listener),
             },
-            { icon: () => h(PencilIcon, { class: "icon-sm" }) },
+            { icon: () => h(PencilIcon, { class: "icon-sm" }), default: () => "Edit" },
           ),
         },
       ),
-      h(
-        DisabledHint,
-        { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value },
-        {
-          default: () => h(
-            NButton,
-            {
-              type: "error",
-              size: "small",
-              "aria-label": "Delete listener",
-              title: "Delete listener",
-              disabled: Boolean(busyDisabledReason.value),
-              onClick: () => void deleteListener(listener.id),
-            },
-            { icon: () => h(TrashIcon, { class: "icon-sm" }) },
-          ),
-        },
-      ),
+      h(NDropdown, {
+        trigger: "click",
+        options: listenerMenuOptions(listener),
+        onSelect: (key: string | number) => handleListenerMenuSelect(listener, String(key)),
+      }, {
+        default: () => h(NButton, {
+          secondary: true,
+          size: "small",
+          "aria-label": `More actions for ${safeListenerName(listener)}`,
+          disabled: Boolean(busyDisabledReason.value),
+        }, { icon: () => h(MoreIcon, { class: "icon-sm" }), default: () => "More" }),
+      }),
     ]),
   },
 ]);
@@ -247,6 +249,34 @@ function listenerRowProps(listener: PublicListener): Record<string, string> {
   return {
     "data-testid": `listener-row-${listener.id.toString()}`,
   };
+}
+
+function safeListenerName(listener: PublicListener): string {
+  return diagnosticExcerpt(listener.name, 48).text;
+}
+
+function listenerAttentionRank(listener: PublicListener): number {
+  const runtime = listenerStatus(listener);
+  if (runtime?.lastError) return 0;
+  if (listener.enabled && !runtime?.running) return 1;
+  if (listener.enabled) return 2;
+  return 3;
+}
+
+function listenerMenuOptions(listener: PublicListener) {
+  const disabled = Boolean(busyDisabledReason.value);
+  return [
+    { label: listener.enabled ? "Disable listener" : "Enable listener", key: "toggle-enabled", disabled },
+    { label: "Delete listener", key: "delete", disabled },
+  ];
+}
+
+function handleListenerMenuSelect(listener: PublicListener, key: string) {
+  if (key === "toggle-enabled") {
+    void setListenerEnabled(listener, !listener.enabled);
+    return;
+  }
+  if (key === "delete") void deleteListener(listener);
 }
 
 function listenerRunningDisabledReason(listener: PublicListener): string {
@@ -306,10 +336,13 @@ function cloneRoute(routeId: bigint) {
   editorHost.value?.openCloneRoute(routeId);
 }
 
-async function deleteListener(id: bigint) {
-  if (!await confirm("Delete Listener", "This listener will stop accepting connections and be permanently removed.")) return;
+async function deleteListener(listener: PublicListener) {
+  if (!await confirm(
+    "Delete Listener",
+    `Delete "${diagnosticInspectionText(listener.name)}"? It will stop accepting connections and be permanently removed.`,
+  )) return;
   await run(async () => {
-    await managementClient.deletePublicListener({ id });
+    await managementClient.deletePublicListener({ id: listener.id });
   });
 }
 
@@ -378,7 +411,7 @@ async function deleteRoute(id: bigint) {
     </header>
 
     <p v-if="proxyError" role="alert" class="proxy-error round-md framed error-border error-surface pad-x-lg pad-y-md copy-sm error-text">
-      {{ proxyError }}
+      {{ diagnosticInspectionText(proxyError) }}
     </p>
 
     <dl class="summary-grid summary-grid--four proxy-summary-grid" aria-label="Proxy configuration summary">
@@ -519,18 +552,38 @@ async function deleteRoute(id: bigint) {
               Add Listener
             </NButton>
           </div>
+          <div v-if="listeners.length" class="divider-bottom frame-standard muted-bg pad-x-xl pad-y-md layout-row layout-column space-sm mq-md-row mq-md-align-end">
+            <NInput
+              v-model:value="listenerFilterText"
+              class="grow-fill"
+              size="small"
+              clearable
+              :input-props="{ 'aria-label': 'Search public listeners' }"
+              placeholder="Search name, bind address, protocol, or state"
+            >
+              <template #prefix><SearchIcon class="icon-sm" /></template>
+            </NInput>
+            <span class="listener-filter-count copy-xs muted-text" aria-live="polite">
+              {{ displayedListeners.length }} of {{ listeners.length }}
+            </span>
+          </div>
           <div>
             <NDataTable
-              v-if="listeners.length"
+              v-if="displayedListeners.length"
               :columns="listenerColumns"
-              :data="listeners"
+              :data="displayedListeners"
               :row-key="listenerRowKey"
               :row-props="listenerRowProps"
               :pagination="false"
               :bordered="false"
               :single-line="false"
-              :scroll-x="980"
+              :scroll-x="920"
               size="small"
+            />
+            <EmptyState
+              v-else-if="listeners.length"
+              title="No matching listeners"
+              description="Clear or adjust the listener search."
             />
             <EmptyState
               v-else
@@ -566,6 +619,11 @@ async function deleteRoute(id: bigint) {
   line-height: 1.45;
 }
 
+.listener-filter-count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .proxy-summary-card dt {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -596,6 +654,24 @@ async function deleteRoute(id: bigint) {
 
 .proxy-error {
   overflow-wrap: anywhere;
+}
+
+.listener-error-disclosure {
+  max-width: 18rem;
+}
+
+.listener-error-disclosure summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.listener-error-disclosure bdi {
+  display: block;
+  max-height: 8rem;
+  margin-top: 0.375rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .proxy-tabs {

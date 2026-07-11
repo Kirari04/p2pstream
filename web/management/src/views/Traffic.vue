@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, h, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
-import { NAlert, NButton, NCheckbox, NDataTable, NRadioButton, NRadioGroup, NTag } from "naive-ui";
+import { NAlert, NButton, NCheckbox, NDataTable, NEmpty, NInput, NRadioButton, NRadioGroup, NSkeleton, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { dashboardKey, publicProxyConfigKey, selectedEnvironmentBlockedKey, selectedEnvironmentIdKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -10,13 +11,14 @@ import TrafficFlowEditTargetChooser from "@/components/editors/TrafficFlowEditTa
 import TrafficFlowDiagram from "@/components/TrafficFlowDiagram.vue";
 import TrafficTraceDetailsModal from "@/components/TrafficTraceDetailsModal.vue";
 import { NO_TRACES_REASON, TRACE_BUSY_REASON } from "@/lib/disabledReasons";
-import { TrafficTraceStore, traceStreamRequestForSequence } from "@/lib/trafficTraceStore";
+import { TrafficTraceStore, isTerminalStage, traceStreamRequestForSequence } from "@/lib/trafficTraceStore";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRenderStats, TraceRequest, TraceRequestView } from "@/types/trafficTrace";
 import { emptyTraceRenderStats } from "@/types/trafficTrace";
 import type { TrafficTraceEvent, TrafficTraceSettings } from "@/gen/proto/p2pstream/v1/management_pb";
-import { TrafficTraceLevel } from "@/gen/proto/p2pstream/v1/management_pb";
+import { TrafficTraceLevel, TrafficTraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
 import { messageFromError } from "@/lib/errors";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 
 const managementClient = useManagementClient();
 
@@ -28,8 +30,10 @@ const selectedEnvironmentBlocked = inject(selectedEnvironmentBlockedKey, compute
 const config = computed(() => publicProxyConfig?.value ?? null);
 
 const traceSettings = ref<TrafficTraceSettings | null>(null);
-const selectedTraceLevel = ref<TrafficTraceLevel>(TrafficTraceLevel.BASIC);
+const selectedTraceLevel = ref<TrafficTraceLevel>(TrafficTraceLevel.UNSPECIFIED);
+const traceSettingsState = ref<"loading" | "ready" | "error" | "blocked">("loading");
 const isTraceBusy = ref(false);
+const isPaused = ref(false);
 const streamState = ref<"idle" | "connecting" | "live" | "retrying" | "error">("idle");
 const streamError = ref("");
 const tableRequests = shallowRef<TraceRequestView[]>([]);
@@ -47,6 +51,8 @@ const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
 const pendingEditRequest = ref<TrafficFlowEditRequest | null>(null);
 const isEditChooserOpen = ref(false);
 const showDebugStats = ref(false);
+const traceSearch = ref("");
+const traceFilter = ref<"all" | "problems" | "in-flight" | "completed">("all");
 const traceStore = new TrafficTraceStore(applyTraceStoreSnapshot);
 
 let streamController: AbortController | null = null;
@@ -60,6 +66,12 @@ const traceLevelOptions = [
   { label: "Headers", value: TrafficTraceLevel.HEADERS },
   { label: "Debug", value: TrafficTraceLevel.DEBUG },
 ];
+const traceFilterOptions = [
+  { label: "All traces", value: "all" },
+  { label: "Problems", value: "problems" },
+  { label: "In flight", value: "in-flight" },
+  { label: "Completed", value: "completed" },
+];
 const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
   {
     title: "Request",
@@ -67,10 +79,10 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
     minWidth: 260,
     render: (request) => h("div", [
       h("div", { class: "layout-row align-center space-sm" }, [
-        h("span", { class: "round-sm framed frame-standard pad-x-xs pad-y-2xs mono-text copy-2xs base-text" }, request.methodLabel),
-        h("span", { class: "max-token-width clip-text mono-text copy-xs base-text" }, request.pathLabel),
+        h("bdi", { class: "round-sm framed frame-standard pad-x-xs pad-y-2xs mono-text copy-2xs base-text trace-hostile-value", dir: "ltr" }, diagnosticExcerpt(request.methodLabel, 18).text),
+        h("bdi", { class: "max-token-width clip-text mono-text copy-xs base-text trace-hostile-value", dir: "ltr" }, diagnosticExcerpt(request.pathLabel).text),
       ]),
-      h("p", { class: "margin-top-xs max-trace-width clip-text mono-text copy-2xs muted-text" }, request.requestIdLabel),
+      h("bdi", { class: "margin-top-xs max-trace-width clip-text mono-text copy-2xs muted-text trace-hostile-value", dir: "ltr" }, diagnosticExcerpt(request.requestIdLabel).text),
     ]),
   },
   {
@@ -78,7 +90,7 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
     key: "flow",
     minWidth: 260,
     render: (request) => h("div", [
-      h("p", { class: "copy-xs base-text" }, request.flowLabel),
+      h("bdi", { class: "copy-xs base-text trace-hostile-value trace-flow-label", dir: "ltr" }, diagnosticExcerpt(request.flowLabel, 112).text),
       h("p", { class: "margin-top-xs copy-2xs muted-text" }, `${request.stageLabel}${request.sampledEventCount ? ` / sampled ${numberLabel(request.sampledEventCount)}` : ""}`),
     ]),
   },
@@ -99,8 +111,30 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
 ]);
 
 const tracingEnabled = computed(() => traceSettings.value?.enabled === true);
-const traceBusyDisabledReason = computed(() => isTraceBusy.value ? TRACE_BUSY_REASON : "");
+const traceControlsDisabledReason = computed(() => {
+  if (selectedEnvironmentBlocked.value) return selectedEnvironmentBlocked.value;
+  if (traceSettingsState.value === "loading") return "Loading authoritative trace settings from the server.";
+  if (traceSettingsState.value === "error") return "Reload trace settings before changing server tracing.";
+  if (isTraceBusy.value) return TRACE_BUSY_REASON;
+  return "";
+});
+const pauseDisabledReason = computed(() => {
+  if (traceControlsDisabledReason.value) return traceControlsDisabledReason.value;
+  return tracingEnabled.value ? "" : "Enable tracing before pausing live updates.";
+});
 const clearTracesDisabledReason = computed(() => renderStats.value.retainedRequests ? "" : NO_TRACES_REASON);
+const filteredTableRequests = computed(() => {
+  const query = traceSearch.value.trim().toLocaleLowerCase();
+  return tableRequests.value.filter((view) => {
+    const request = traceStore.get(view.requestId);
+    if (traceFilter.value === "problems" && !isProblemTrace(request)) return false;
+    if (traceFilter.value === "in-flight" && (!request || isTerminalStage(request.stage))) return false;
+    if (traceFilter.value === "completed" && (!request || !isTerminalStage(request.stage))) return false;
+    if (!query) return true;
+    return [view.methodLabel, view.pathLabel, view.requestIdLabel, view.flowLabel, view.stageLabel, view.statusLabel]
+      .some((value) => value.toLocaleLowerCase().includes(query));
+  });
+});
 const traceTableSummary = computed(() => {
   const stats = renderStats.value;
   if (stats.sampledEvents || stats.sampledRequests) {
@@ -109,6 +143,9 @@ const traceTableSummary = computed(() => {
   return `Latest ${numberLabel(stats.renderedTableRows)} rendered from ${numberLabel(stats.retainedRequests)} retained requests.`;
 });
 const streamStateTagType = computed(() => {
+  if (traceSettingsState.value === "loading") return "info";
+  if (traceSettingsState.value === "error") return "error";
+  if (isPaused.value && tracingEnabled.value) return "warning";
   if (!tracingEnabled.value) return "default";
   if (streamState.value === "live") return "success";
   if (streamState.value === "error") return "error";
@@ -117,19 +154,35 @@ const streamStateTagType = computed(() => {
 });
 
 async function loadTraceSettings(loadVersion: number) {
-  if (selectedEnvironmentBlocked.value) return;
+  if (selectedEnvironmentBlocked.value) {
+    traceSettingsState.value = "blocked";
+    return;
+  }
+  traceSettingsState.value = "loading";
+  traceSettings.value = null;
+  selectedTraceLevel.value = TrafficTraceLevel.UNSPECIFIED;
   try {
     const resp = await managementClient.getTrafficTraceSettings({});
     if (loadVersion !== traceSettingsLoadVersion) return;
-    applyTraceSettings(resp.settings ?? null);
-    if (resp.settings?.enabled) {
+    if (!resp.settings) throw new Error("The server returned no trace settings.");
+    applyTraceSettings(resp.settings);
+    traceSettingsState.value = "ready";
+    if (resp.settings.enabled && !isPaused.value) {
       startTraceStream();
     }
   } catch (err) {
     if (loadVersion !== traceSettingsLoadVersion) return;
+    traceSettings.value = null;
+    traceSettingsState.value = "error";
     streamError.value = messageFromError(err);
     streamState.value = "error";
   }
+}
+
+function retryTraceSettings() {
+  traceSettingsLoadVersion += 1;
+  streamError.value = "";
+  void loadTraceSettings(traceSettingsLoadVersion);
 }
 
 async function setTracingEnabled(enabled: boolean) {
@@ -137,17 +190,18 @@ async function setTracingEnabled(enabled: boolean) {
 }
 
 async function setTraceLevel(level: TrafficTraceLevel) {
-  selectedTraceLevel.value = level;
   await updateTraceSettings(tracingEnabled.value, level);
 }
 
 async function updateTraceSettings(enabled: boolean, level: TrafficTraceLevel) {
-  if (isTraceBusy.value || selectedEnvironmentBlocked.value) return;
+  if (traceControlsDisabledReason.value) return;
   isTraceBusy.value = true;
   streamError.value = "";
   try {
     const resp = await managementClient.setTrafficTraceSettings({ enabled, level });
-    applyTraceSettings(resp.settings ?? null);
+    if (!resp.settings) throw new Error("The server did not confirm the trace settings change.");
+    applyTraceSettings(resp.settings);
+    traceSettingsState.value = "ready";
     if (resp.settings?.enabled) {
       startTraceStream();
     } else {
@@ -155,7 +209,6 @@ async function updateTraceSettings(enabled: boolean, level: TrafficTraceLevel) {
     }
   } catch (err) {
     streamError.value = messageFromError(err);
-    streamState.value = "error";
   } finally {
     isTraceBusy.value = false;
   }
@@ -164,14 +217,14 @@ async function updateTraceSettings(enabled: boolean, level: TrafficTraceLevel) {
 function applyTraceSettings(settings: TrafficTraceSettings | null) {
   if (!settings) return;
   traceSettings.value = settings;
-  selectedTraceLevel.value = settings.level || TrafficTraceLevel.BASIC;
+  selectedTraceLevel.value = settings.level;
   if (!settings.enabled) {
     stopTraceStream("idle");
   }
 }
 
 function startTraceStream() {
-  if (streamController || !traceSettings.value?.enabled || selectedEnvironmentBlocked.value) return;
+  if (streamController || isPaused.value || traceSettingsState.value !== "ready" || !traceSettings.value?.enabled || selectedEnvironmentBlocked.value) return;
   clearRetryTimer();
   streamController = new AbortController();
   streamState.value = "connecting";
@@ -212,7 +265,7 @@ async function consumeTraceStream(controller: AbortController) {
 
 function scheduleTraceReconnect(message: string) {
   streamError.value = message;
-  if (!traceSettings.value?.enabled) {
+  if (!traceSettings.value?.enabled || isPaused.value) {
     streamState.value = "idle";
     return;
   }
@@ -261,6 +314,22 @@ function clearTraceRequests() {
   selectedRequestId.value = null;
 }
 
+function togglePause() {
+  if (pauseDisabledReason.value) return;
+  isPaused.value = !isPaused.value;
+  if (isPaused.value) {
+    stopTraceStream("idle");
+    return;
+  }
+  startTraceStream();
+}
+
+function isProblemTrace(request: TraceRequest | null): boolean {
+  if (!request) return false;
+  if (request.stage === TrafficTraceStage.FAILED || request.stage === TrafficTraceStage.WAF_BLOCKED || request.stage === TrafficTraceStage.RATE_LIMITED) return true;
+  return request.statusCode >= 400n;
+}
+
 function openTraceDetails(request: TraceRequest | TraceRequestView | string) {
   selectedRequestId.value = typeof request === "string" ? request : request.requestId;
   isDetailsOpen.value = true;
@@ -275,7 +344,7 @@ function traceRowProps(request: TraceRequestView) {
     class: "interactive-cursor",
     role: "button",
     tabindex: 0,
-    "aria-label": `Open trace details for ${request.requestIdLabel}`,
+    "aria-label": `Open trace details for ${diagnosticInspectionText(request.requestIdLabel)}`,
     onClick: () => openTraceDetails(request),
     onKeydown: (event: KeyboardEvent) => {
       if (event.key !== "Enter" && event.key !== " ") return;
@@ -306,7 +375,7 @@ function handlePageHide() {
 
 function bigIntLabel(value: bigint | undefined): string {
   if (value === undefined) return "0";
-  return new Intl.NumberFormat().format(Number(value));
+  return new Intl.NumberFormat().format(value);
 }
 
 function numberLabel(value: number): string {
@@ -314,6 +383,10 @@ function numberLabel(value: number): string {
 }
 
 function streamStateLabel(): string {
+  if (selectedEnvironmentBlocked.value) return "Unavailable";
+  if (traceSettingsState.value === "loading") return "Loading settings";
+  if (traceSettingsState.value === "error") return "Settings unavailable";
+  if (isPaused.value && tracingEnabled.value) return "Paused";
   if (!tracingEnabled.value) return "Disabled";
   if (streamState.value === "live") return "Live";
   if (streamState.value === "connecting") return "Connecting";
@@ -337,6 +410,9 @@ watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
   traceStore.clear();
   selectedRequestId.value = null;
   traceSettings.value = null;
+  selectedTraceLevel.value = TrafficTraceLevel.UNSPECIFIED;
+  traceSettingsState.value = selectedEnvironmentBlocked.value ? "blocked" : "loading";
+  isPaused.value = false;
   streamError.value = "";
   if (selectedEnvironmentBlocked.value) return;
   void loadTraceSettings(traceSettingsLoadVersion);
@@ -352,7 +428,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="dashboard" class="stack-xl traffic-page">
     <section class="stack-md">
-      <div class="surface-card traffic-console">
+      <div class="surface-card traffic-console" :aria-busy="traceSettingsState === 'loading'">
         <div class="traffic-console__header">
           <div class="traffic-console__intro">
             <div class="traffic-title-row">
@@ -363,22 +439,23 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="traffic-console__controls">
-            <DisabledHint :disabled="Boolean(traceBusyDisabledReason)" :reason="traceBusyDisabledReason">
+            <DisabledHint :disabled="Boolean(traceControlsDisabledReason)" :reason="traceControlsDisabledReason">
               <NCheckbox
                 class="traffic-tracing-toggle"
                 :checked="tracingEnabled"
-                :disabled="Boolean(traceBusyDisabledReason)"
+                :indeterminate="traceSettingsState === 'loading'"
+                :disabled="Boolean(traceControlsDisabledReason)"
                 @update:checked="setTracingEnabled"
               >
                 Tracing
               </NCheckbox>
             </DisabledHint>
 
-            <DisabledHint full-width :disabled="Boolean(traceBusyDisabledReason)" :reason="traceBusyDisabledReason">
+            <DisabledHint full-width :disabled="Boolean(traceControlsDisabledReason)" :reason="traceControlsDisabledReason">
               <NRadioGroup
                 class="traffic-level-group"
                 :value="selectedTraceLevel"
-                :disabled="Boolean(traceBusyDisabledReason)"
+                :disabled="Boolean(traceControlsDisabledReason)"
                 button-style="solid"
                 size="small"
                 @update:value="(value) => setTraceLevel(value as TrafficTraceLevel)"
@@ -387,6 +464,19 @@ onBeforeUnmount(() => {
                   {{ option.label }}
                 </NRadioButton>
               </NRadioGroup>
+            </DisabledHint>
+
+            <DisabledHint :disabled="Boolean(pauseDisabledReason)" :reason="pauseDisabledReason">
+              <NButton
+                secondary
+                size="small"
+                attr-type="button"
+                :disabled="Boolean(pauseDisabledReason)"
+                :aria-pressed="isPaused"
+                @click="togglePause"
+              >
+                {{ isPaused ? "Resume live updates" : "Pause live updates" }}
+              </NButton>
             </DisabledHint>
           </div>
         </div>
@@ -398,12 +488,14 @@ onBeforeUnmount(() => {
           </div>
           <div class="traffic-status-item">
             <p class="stat-label">Events</p>
-            <span class="copy-lg weight-semibold">{{ bigIntLabel(traceSettings?.emittedEvents) }}</span>
+            <NSkeleton v-if="traceSettingsState === 'loading'" text width="4.5rem" />
+            <span v-else class="copy-lg weight-semibold">{{ traceSettings ? bigIntLabel(traceSettings.emittedEvents) : "—" }}</span>
           </div>
           <div class="traffic-status-item">
             <p class="stat-label">Dropped</p>
-            <span class="copy-lg weight-semibold" :class="traceSettings?.droppedEvents ? 'warning-text' : 'base-text'">
-              {{ bigIntLabel(traceSettings?.droppedEvents) }}
+            <NSkeleton v-if="traceSettingsState === 'loading'" text width="4.5rem" />
+            <span v-else class="copy-lg weight-semibold" :class="traceSettings?.droppedEvents ? 'warning-text' : 'base-text'">
+              {{ traceSettings ? bigIntLabel(traceSettings.droppedEvents) : "—" }}
             </span>
           </div>
           <div class="traffic-status-item">
@@ -434,42 +526,64 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <NAlert v-if="streamError" type="warning" :show-icon="false">
-          {{ streamError }}
+        <NAlert v-if="streamError" :type="traceSettingsState === 'error' ? 'error' : 'warning'" :show-icon="false">
+          <div class="traffic-alert-content">
+            <bdi class="traffic-alert-message" dir="ltr">{{ diagnosticInspectionText(streamError) }}</bdi>
+            <NButton v-if="traceSettingsState === 'error'" secondary size="small" attr-type="button" @click="retryTraceSettings">
+              Retry settings
+            </NButton>
+          </div>
         </NAlert>
       </div>
 
       <TrafficFlowDiagram
         :config="config"
         :requests="diagramRequests"
-        :tracing-enabled="tracingEnabled"
+        :tracing-enabled="tracingEnabled && !isPaused"
         @select="openTraceDetails"
         @active-change="renderedTokenCount = $event"
         @edit-node="handleFlowEditRequest"
       />
 
       <div class="surface-card hide-overflow">
-        <div class="layout-row align-center spread-items divider-bottom frame-standard pad-x-xl pad-y-lg">
+        <div class="traffic-table-heading divider-bottom frame-standard pad-x-xl pad-y-lg">
           <div>
             <h4 class="weight-semibold">Recent traces</h4>
             <p class="copy-xs muted-text">{{ traceTableSummary }}</p>
           </div>
-          <DisabledHint :disabled="Boolean(clearTracesDisabledReason)" :reason="clearTracesDisabledReason">
-            <NButton
-              secondary
+          <div class="traffic-table-tools">
+            <NInput
+              v-model:value="traceSearch"
+              clearable
               size="small"
-              class="important-muted-frame important-transparent-bg important-muted-text important-muted-button"
-              :disabled="Boolean(clearTracesDisabledReason)"
-              @click="clearTraceRequests"
-            >
-              Clear
-            </NButton>
-          </DisabledHint>
+              :input-props="{ 'aria-label': 'Search recent traces' }"
+              placeholder="Search request, flow, or status"
+            />
+            <AccessibleSelect
+              v-model:value="traceFilter"
+              accessible-label="Filter recent traces"
+              class="traffic-filter-select"
+              size="small"
+              :options="traceFilterOptions"
+            />
+            <DisabledHint :disabled="Boolean(clearTracesDisabledReason)" :reason="clearTracesDisabledReason">
+              <NButton
+                secondary
+                size="small"
+                class="important-muted-frame important-transparent-bg important-muted-text important-muted-button"
+                :disabled="Boolean(clearTracesDisabledReason)"
+                @click="clearTraceRequests"
+              >
+                Clear
+              </NButton>
+            </DisabledHint>
+          </div>
         </div>
 
         <NDataTable
+          v-if="filteredTableRequests.length"
           :columns="traceColumns"
-          :data="tableRequests"
+          :data="filteredTableRequests"
           :row-key="traceRowKey"
           :row-props="traceRowProps"
           :pagination="false"
@@ -478,6 +592,12 @@ onBeforeUnmount(() => {
           :scroll-x="760"
           size="small"
         />
+        <div v-else class="traffic-empty-state">
+          <NEmpty
+            size="small"
+            :description="tableRequests.length ? 'No retained traces match this search and filter.' : tracingEnabled ? (isPaused ? 'Live updates are paused. Resume to receive new traces.' : 'Waiting for the next traced request.') : traceSettingsState === 'ready' ? 'Tracing is disabled. Enable it to inspect live requests.' : 'Trace data will appear after server settings load.'"
+          />
+        </div>
       </div>
     </section>
 
@@ -523,6 +643,21 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
+}
+
+.traffic-alert-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.traffic-alert-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .traffic-tracing-toggle {
@@ -595,6 +730,35 @@ onBeforeUnmount(() => {
   padding: 0.85rem;
 }
 
+.traffic-table-heading {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.traffic-table-tools {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.traffic-filter-select {
+  width: 100%;
+}
+
+.traffic-empty-state {
+  padding: 2rem 1rem;
+}
+
+.trace-hostile-value {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.trace-flow-label {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 760px) {
   .traffic-console {
     padding: 1.25rem;
@@ -606,8 +770,8 @@ onBeforeUnmount(() => {
   }
 
   .traffic-console__controls {
-    width: min(100%, 32rem);
-    grid-template-columns: auto minmax(22rem, 1fr);
+    width: min(100%, 44rem);
+    grid-template-columns: auto minmax(22rem, 1fr) auto;
     align-items: center;
     justify-content: end;
   }
@@ -627,6 +791,29 @@ onBeforeUnmount(() => {
 
   .traffic-debug-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .traffic-table-heading {
+    grid-template-columns: minmax(13rem, 1fr) minmax(25rem, auto);
+    align-items: end;
+  }
+
+  .traffic-table-tools {
+    grid-template-columns: minmax(14rem, 20rem) 10rem auto;
+    align-items: center;
+  }
+
+  .traffic-filter-select {
+    width: 10rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .traffic-console__controls :deep(.n-button),
+  .traffic-table-tools :deep(.n-button),
+  .traffic-table-tools :deep(.n-input),
+  .traffic-table-tools :deep(.n-base-selection) {
+    min-height: 44px;
   }
 }
 </style>

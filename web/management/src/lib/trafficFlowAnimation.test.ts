@@ -71,13 +71,14 @@ describe("trafficFlowAnimation", () => {
 
   test("bounds and isolates attacker-controlled request labels used by controls", () => {
     const request = traceRequest({
-      method: "GET\u202e",
+      method: "GET\\literal\u202e",
       path: `/${"x".repeat(300)}\nnext`,
     });
 
     const label = requestLabel(request);
     expect(label).not.toContain("\u202e");
     expect(label).not.toContain("\n");
+    expect(label).toContain("GET\\\\literal\\u{202E}");
     expect(Array.from(label).length).toBeLessThanOrEqual(180);
     expect(label.endsWith("…")).toBe(true);
   });
