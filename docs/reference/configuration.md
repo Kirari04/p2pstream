@@ -82,7 +82,7 @@ Set these as environment variables before running the Linux agent installer scri
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
 - Agent target allowlist entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges. When unset, the agent trusts the management server to choose any tunnel destination.
-- Reinstall preserves an existing `AGENT_ALLOW_TARGETS` when no replacement is supplied. Set `AGENT_CLEAR_ALLOW_TARGETS=true` to remove it explicitly; it cannot be combined with `AGENT_ALLOW_TARGETS`.
+- Reinstall preserves the effective last single-line `AGENT_ALLOW_TARGETS` assignment when no replacement is supplied. It fails closed if the existing policy cannot be read or uses ambiguous multiline syntax. Set `AGENT_CLEAR_ALLOW_TARGETS=true` to remove it explicitly; it cannot be combined with `AGENT_ALLOW_TARGETS`.
 
 ## Runtime Effects
 
