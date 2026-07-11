@@ -168,7 +168,7 @@ type Querier interface {
 	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
 	SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesRow, error)
 	TouchManagementAccessToken(ctx context.Context, id int64) error
-	TouchPublicCacheEntry(ctx context.Context, keyDigest string) error
+	TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCacheEntryParams) error
 	TouchSession(ctx context.Context, id int64) error
 	TrustEnvironmentCertificate(ctx context.Context, arg TrustEnvironmentCertificateParams) (Environment, error)
 	UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error)

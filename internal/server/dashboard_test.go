@@ -355,8 +355,109 @@ func TestObservabilityRecorderCoalescesPublicCacheTouches(t *testing.T) {
 	if err := app.DB.QueryRowContext(ctx, `SELECT hit_count FROM public_cache_entries WHERE key_digest = ?`, keyDigest).Scan(&hitCount); err != nil {
 		t.Fatalf("read cache hit count: %v", err)
 	}
-	if hitCount != 1 {
-		t.Fatalf("cache hit count = %d, want 1 coalesced touch", hitCount)
+	if hitCount != 3 {
+		t.Fatalf("cache hit count = %d, want all 3 coalesced hits", hitCount)
+	}
+}
+
+func TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails(t *testing.T) {
+	database := newServerTestDB(t)
+	app := NewApp(nil, database)
+	recorder := app.observabilityRecorderService()
+	if err := database.Close(); err != nil {
+		t.Fatalf("close database: %v", err)
+	}
+
+	for i := 0; i < observabilityRecorderMaxBatch; i++ {
+		recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for recorder.pendingEvents.Load() < observabilityRecorderMaxBatch && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	for i := 0; i < observabilityRecorderQueueSize+2048; i++ {
+		recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	}
+
+	pending := recorder.pendingEvents.Load()
+	queued := len(recorder.events)
+	if pending != observabilityRecorderMaxBatch {
+		t.Fatalf("pending event batch = %d, want hard cap %d", pending, observabilityRecorderMaxBatch)
+	}
+	if queued != observabilityRecorderQueueSize {
+		t.Fatalf("queued events = %d, want bounded queue filled to %d", queued, observabilityRecorderQueueSize)
+	}
+	if got := pending + int64(queued); got != observabilityRecorderMaxBatch+observabilityRecorderQueueSize {
+		t.Fatalf("retained events = %d, want %d", got, observabilityRecorderMaxBatch+observabilityRecorderQueueSize)
+	}
+	if recorder.droppedEvents.Load() == 0 {
+		t.Fatal("expected excess events to be dropped")
+	}
+
+	time.Sleep(2 * observabilityRecorderFlushInterval)
+	if got := recorder.pendingEvents.Load(); got != pending {
+		t.Fatalf("pending batch grew across failed retries: got %d, want %d", got, pending)
+	}
+	if got := len(recorder.events); got != queued {
+		t.Fatalf("bounded queue changed across failed retries: got %d, want %d", got, queued)
+	}
+
+	closeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := recorder.close(closeCtx); err == nil {
+		t.Fatal("close with failed database unexpectedly succeeded")
+	}
+}
+
+func TestObservabilityRecorderRateLimitsDropLogs(t *testing.T) {
+	recorder := newObservabilityRecorder(nil)
+	recorder.dropEvent()
+	nextLog := recorder.nextDropLog.Load()
+	if nextLog <= time.Now().UnixNano() {
+		t.Fatalf("next drop log deadline = %d, want a future deadline", nextLog)
+	}
+	for i := 0; i < 100; i++ {
+		recorder.dropEvent()
+		recorder.dropTouch()
+	}
+	if got := recorder.nextDropLog.Load(); got != nextLog {
+		t.Fatalf("drop log deadline changed under amplification: got %d, want %d", got, nextLog)
+	}
+	if got := recorder.droppedEvents.Load(); got != 101 {
+		t.Fatalf("dropped events = %d, want 101", got)
+	}
+	if got := recorder.droppedTouches.Load(); got != 100 {
+		t.Fatalf("dropped touches = %d, want 100", got)
+	}
+}
+
+func TestObservabilityRecorderBoundsAndPrunesCacheTouchState(t *testing.T) {
+	recorder := newObservabilityRecorder(nil)
+	recorder.nextDropLog.Store(time.Now().Add(time.Hour).UnixNano())
+	touches := make(map[string]*publicCacheTouchState)
+	for i := 0; i < observabilityRecorderMaxTouchKeys; i++ {
+		recorder.queuePublicCacheTouch(touches, fmt.Sprintf("key-%d", i))
+	}
+	recorder.queuePublicCacheTouch(touches, "key-0")
+	if got := touches["key-0"].hitCount; got != 2 {
+		t.Fatalf("existing cache key hit count = %d, want 2", got)
+	}
+	recorder.queuePublicCacheTouch(touches, "overflow")
+	if got := len(touches); got != observabilityRecorderMaxTouchKeys {
+		t.Fatalf("cache touch state cardinality = %d, want cap %d", got, observabilityRecorderMaxTouchKeys)
+	}
+	if got := recorder.droppedTouches.Load(); got != 1 {
+		t.Fatalf("dropped cache touches = %d, want 1", got)
+	}
+
+	now := time.Now().UTC()
+	for _, touch := range touches {
+		touch.hitCount = 0
+		touch.lastFlushedAt = now.Add(-publicCacheTouchCoalesceInterval)
+	}
+	recorder.prunePublicCacheTouches(touches, now)
+	if len(touches) != 0 || recorder.pendingTouches.Load() != 0 {
+		t.Fatalf("expired cache touch state was not pruned: len=%d pending=%d", len(touches), recorder.pendingTouches.Load())
 	}
 }
 

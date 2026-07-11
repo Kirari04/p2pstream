@@ -6200,12 +6200,17 @@ func (q *Queries) TouchManagementAccessToken(ctx context.Context, id int64) erro
 const touchPublicCacheEntry = `-- name: TouchPublicCacheEntry :exec
 UPDATE public_cache_entries
 SET last_accessed_at = CURRENT_TIMESTAMP,
-    hit_count = hit_count + 1
-WHERE key_digest = ?
+    hit_count = hit_count + ?1
+WHERE key_digest = ?2
 `
 
-func (q *Queries) TouchPublicCacheEntry(ctx context.Context, keyDigest string) error {
-	_, err := q.db.ExecContext(ctx, touchPublicCacheEntry, keyDigest)
+type TouchPublicCacheEntryParams struct {
+	HitCount  int64  `json:"hit_count"`
+	KeyDigest string `json:"key_digest"`
+}
+
+func (q *Queries) TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCacheEntryParams) error {
+	_, err := q.db.ExecContext(ctx, touchPublicCacheEntry, arg.HitCount, arg.KeyDigest)
 	return err
 }
 

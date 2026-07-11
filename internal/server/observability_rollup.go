@@ -22,7 +22,7 @@ func (a *App) insertProxyRequestEventWithRollups(ctx context.Context, event db.I
 	return a.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, []db.InsertProxyRequestEventAtParams{event}, nil)
 }
 
-func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Context, events []db.InsertProxyRequestEventAtParams, cacheTouches []string) error {
+func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Context, events []db.InsertProxyRequestEventAtParams, cacheTouches []db.TouchPublicCacheEntryParams) error {
 	if a.DB == nil {
 		return nil
 	}
@@ -64,11 +64,11 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 			return err
 		}
 	}
-	for _, keyDigest := range cacheTouches {
-		if keyDigest == "" {
+	for _, touch := range cacheTouches {
+		if touch.KeyDigest == "" || touch.HitCount <= 0 {
 			continue
 		}
-		if err := qtx.TouchPublicCacheEntry(ctx, keyDigest); err != nil {
+		if err := qtx.TouchPublicCacheEntry(ctx, touch); err != nil {
 			return err
 		}
 	}

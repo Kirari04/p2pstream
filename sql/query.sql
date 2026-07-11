@@ -2140,8 +2140,8 @@ RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, 
 -- name: TouchPublicCacheEntry :exec
 UPDATE public_cache_entries
 SET last_accessed_at = CURRENT_TIMESTAMP,
-    hit_count = hit_count + 1
-WHERE key_digest = ?;
+    hit_count = hit_count + sqlc.arg(hit_count)
+WHERE key_digest = sqlc.arg(key_digest);
 
 -- name: DeletePublicCacheEntry :exec
 DELETE FROM public_cache_entries
