@@ -11,6 +11,13 @@ readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
 readonly MANAGEMENT_CA_PEM_FILE="${CONFIG_DIR}/management-ca.pem"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
+readonly DEFAULT_TUNNEL_MAX_STREAM_WINDOW_BYTES="2097152"
+readonly MIN_TUNNEL_MAX_STREAM_WINDOW_BYTES="262144"
+readonly MAX_TUNNEL_MAX_STREAM_WINDOW_BYTES="67108864"
+readonly DEFAULT_TUNNEL_MAX_CONCURRENT_REQUESTS="64"
+readonly MIN_TUNNEL_MAX_CONCURRENT_REQUESTS="1"
+readonly MAX_TUNNEL_MAX_CONCURRENT_REQUESTS="2048"
+readonly MAX_TUNNEL_AGGREGATE_WINDOW_BYTES="536870912"
 INSTALL_TMP_DIR=""
 
 fail() {
@@ -77,24 +84,187 @@ latest_release_tag() {
   printf '%s' "$tag"
 }
 
+normalize_decimal() {
+  local value="$1"
+  while [[ ${#value} -gt 1 && "$value" == 0* ]]; do
+    value="${value:1}"
+  done
+  printf '%s' "$value"
+}
+
+decimal_is_at_least() {
+  local value="$1"
+  local minimum="$2"
+  if [[ ${#value} -ne ${#minimum} ]]; then
+    [[ ${#value} -gt ${#minimum} ]]
+    return
+  fi
+  [[ "$value" == "$minimum" || "$value" > "$minimum" ]]
+}
+
+decimal_is_at_most() {
+  local value="$1"
+  local maximum="$2"
+  if [[ ${#value} -ne ${#maximum} ]]; then
+    [[ ${#value} -lt ${#maximum} ]]
+    return
+  fi
+  [[ "$value" == "$maximum" || "$value" < "$maximum" ]]
+}
+
+parse_numeric_env_value() {
+  local raw="$1"
+  local value
+  if [[ "$raw" =~ ^[[:space:]]*([0-9]+)[[:space:]]*$ ]]; then
+    value="${BASH_REMATCH[1]}"
+  elif [[ "$raw" =~ ^[[:space:]]*\"([0-9]+)\"[[:space:]]*$ ]]; then
+    value="${BASH_REMATCH[1]}"
+  elif [[ "$raw" =~ ^[[:space:]]*\'([0-9]+)\'[[:space:]]*$ ]]; then
+    value="${BASH_REMATCH[1]}"
+  else
+    return 1
+  fi
+  normalize_decimal "$value"
+}
+
+validate_tunnel_setting() {
+  local name="$1"
+  local raw="$2"
+  local minimum="$3"
+  local maximum="$4"
+  local value
+  value="$(parse_numeric_env_value "$raw")" \
+    || fail "${name} must be a single quoted or unquoted decimal integer"
+  decimal_is_at_least "$value" "$minimum" \
+    || fail "${name} must be at least ${minimum}"
+  decimal_is_at_most "$value" "$maximum" \
+    || fail "${name} must be at most ${maximum}"
+  printf '%s' "$value"
+}
+
+env_assignment_is_single_line() {
+  local line="$1"
+  local state="unquoted"
+  local index character
+  for ((index = 0; index < ${#line}; index++)); do
+    character="${line:index:1}"
+    case "$state:$character" in
+      unquoted:\\|double:\\)
+        index=$((index + 1))
+        ((index < ${#line})) || return 1
+        ;;
+      unquoted:\')
+        state="single"
+        ;;
+      single:\')
+        state="unquoted"
+        ;;
+      unquoted:\")
+        state="double"
+        ;;
+      double:\")
+        state="unquoted"
+        ;;
+    esac
+  done
+  [[ "$state" == "unquoted" ]]
+}
+
+load_existing_tunnel_settings() {
+  local need_window="$1"
+  local need_concurrency="$2"
+  local line name raw
+  local line_number=0
+  local window_seen="false"
+  local concurrency_seen="false"
+  local window_raw=""
+  local concurrency_raw=""
+  local -a lines=()
+
+  [[ -e "$ENV_FILE" || -L "$ENV_FILE" ]] || return 0
+  if [[ ! -f "$ENV_FILE" || ! -r "$ENV_FILE" ]]; then
+    fail "cannot safely read existing agent environment: ${ENV_FILE}"
+  fi
+  mapfile -t lines <"$ENV_FILE" \
+    || fail "could not read existing agent environment: ${ENV_FILE}"
+
+  for line in "${lines[@]}"; do
+    line_number=$((line_number + 1))
+    if [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]]; then
+      continue
+    fi
+    env_assignment_is_single_line "$line" \
+      || fail "unsupported multiline syntax in existing agent environment at line ${line_number}"
+    if [[ ! "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]]; then
+      fail "unsupported syntax in existing agent environment at line ${line_number}"
+    fi
+    name="${BASH_REMATCH[1]}"
+    raw="${BASH_REMATCH[2]}"
+    case "$name" in
+      TUNNEL_MAX_STREAM_WINDOW_BYTES)
+        if [[ "$need_window" == "true" ]]; then
+          window_seen="true"
+          window_raw="$raw"
+        fi
+        ;;
+      TUNNEL_MAX_CONCURRENT_REQUESTS)
+        if [[ "$need_concurrency" == "true" ]]; then
+          concurrency_seen="true"
+          concurrency_raw="$raw"
+        fi
+        ;;
+    esac
+  done
+
+  if [[ "$window_seen" == "true" ]]; then
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="$(validate_tunnel_setting \
+      TUNNEL_MAX_STREAM_WINDOW_BYTES "$window_raw" \
+      "$MIN_TUNNEL_MAX_STREAM_WINDOW_BYTES" "$MAX_TUNNEL_MAX_STREAM_WINDOW_BYTES")"
+  fi
+  if [[ "$concurrency_seen" == "true" ]]; then
+    TUNNEL_MAX_CONCURRENT_REQUESTS="$(validate_tunnel_setting \
+      TUNNEL_MAX_CONCURRENT_REQUESTS "$concurrency_raw" \
+      "$MIN_TUNNEL_MAX_CONCURRENT_REQUESTS" "$MAX_TUNNEL_MAX_CONCURRENT_REQUESTS")"
+  fi
+}
+
+preflight_tunnel_settings() {
+  local need_window="false"
+  local need_concurrency="false"
+  local effective_window effective_concurrency
+
+  if [[ -n "${TUNNEL_MAX_STREAM_WINDOW_BYTES:-}" ]]; then
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="$(validate_tunnel_setting \
+      TUNNEL_MAX_STREAM_WINDOW_BYTES "$TUNNEL_MAX_STREAM_WINDOW_BYTES" \
+      "$MIN_TUNNEL_MAX_STREAM_WINDOW_BYTES" "$MAX_TUNNEL_MAX_STREAM_WINDOW_BYTES")"
+  else
+    need_window="true"
+  fi
+  if [[ -n "${TUNNEL_MAX_CONCURRENT_REQUESTS:-}" ]]; then
+    TUNNEL_MAX_CONCURRENT_REQUESTS="$(validate_tunnel_setting \
+      TUNNEL_MAX_CONCURRENT_REQUESTS "$TUNNEL_MAX_CONCURRENT_REQUESTS" \
+      "$MIN_TUNNEL_MAX_CONCURRENT_REQUESTS" "$MAX_TUNNEL_MAX_CONCURRENT_REQUESTS")"
+  else
+    need_concurrency="true"
+  fi
+
+  if [[ "$need_window" == "true" || "$need_concurrency" == "true" ]]; then
+    load_existing_tunnel_settings "$need_window" "$need_concurrency"
+  fi
+
+  effective_window="${TUNNEL_MAX_STREAM_WINDOW_BYTES:-$DEFAULT_TUNNEL_MAX_STREAM_WINDOW_BYTES}"
+  effective_concurrency="${TUNNEL_MAX_CONCURRENT_REQUESTS:-$DEFAULT_TUNNEL_MAX_CONCURRENT_REQUESTS}"
+  if ((effective_window * effective_concurrency > MAX_TUNNEL_AGGREGATE_WINDOW_BYTES)); then
+    fail "TUNNEL_MAX_STREAM_WINDOW_BYTES times TUNNEL_MAX_CONCURRENT_REQUESTS must be at most ${MAX_TUNNEL_AGGREGATE_WINDOW_BYTES}"
+  fi
+}
+
 write_optional_agent_env() {
   local name="$1"
   local value="$2"
-  local line
   if [[ -n "$value" ]]; then
     printf '%s=%s\n' "$name" "$(systemd_env_value "$value")"
-    return
   fi
-  [[ -f "$ENV_FILE" ]] || return 0
-  while IFS= read -r line; do
-    case "$line" in
-      "${name}="*)
-        printf '%s\n' "$line"
-        return
-        ;;
-    esac
-  done <"$ENV_FILE"
-  return 0
 }
 
 write_agent_env() {
@@ -250,6 +420,7 @@ main() {
   require_env AGENT_TOKEN
   validate_management_url_inputs
   validate_tls_inputs
+  preflight_tunnel_settings
   ensure_service_user
 
   local repository="${P2PSTREAM_REPOSITORY:-$DEFAULT_REPOSITORY}"

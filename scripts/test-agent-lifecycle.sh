@@ -38,6 +38,20 @@ assert_not_contains() {
   fi
 }
 
+assert_line_count() {
+  local path="$1"
+  local text="$2"
+  local expected="$3"
+  local actual
+  actual="$(grep -Fxc -- "$text" "$path" || true)"
+  [[ "$actual" == "$expected" ]] \
+    || fail "expected ${path} to contain ${expected} exact lines matching ${text}, found ${actual}"
+}
+
+assert_empty() {
+  [[ ! -s "$1" ]] || fail "expected path to be empty: $1"
+}
+
 assert_systemctl_enable_before_restart() {
   local enable_line restart_line
   enable_line="$(grep -n '^enable p2pstream-agent$' "$SYSTEMCTL_LOG" | tail -n 1 | cut -d: -f1)"
@@ -260,6 +274,96 @@ test_reinstall_overwrites_token_and_ca() {
   assert_not_contains "$SYSTEMCTL_LOG" "enable --now"
 }
 
+test_reinstall_preserves_effective_tunnel_limits() {
+  setup_fixture
+  {
+    printf 'TUNNEL_MAX_STREAM_WINDOW_BYTES="1048576"\n'
+    printf 'TUNNEL_MAX_CONCURRENT_REQUESTS=8\n'
+    printf '   TUNNEL_MAX_STREAM_WINDOW_BYTES=0004194304\n'
+    printf '\tTUNNEL_MAX_CONCURRENT_REQUESTS=\04700032\047'
+  } >"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="32"' 1
+  assert_not_contains "${CONFIG_DIR}/agent.env" '1048576'
+  assert_not_contains "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="8"'
+}
+
+test_explicit_tunnel_setting_bypasses_replaced_value() {
+  setup_fixture
+  {
+    printf 'TUNNEL_MAX_STREAM_WINDOW_BYTES=not-a-number\n'
+    printf 'TUNNEL_MAX_CONCURRENT_REQUESTS="00032"\n'
+  } >"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="32"' 1
+  assert_not_contains "${CONFIG_DIR}/agent.env" 'not-a-number'
+}
+
+test_ambiguous_tunnel_preservation_fails_before_mutation() {
+  setup_fixture
+  printf 'UNRELATED=continued\\\nTUNNEL_MAX_CONCURRENT_REQUESTS=32\n' >"${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >/dev/null 2>"${TEST_DIR}/ambiguous.err"; then
+    fail "ambiguous existing agent environment should fail"
+  fi
+  assert_contains "${TEST_DIR}/ambiguous.err" "unsupported multiline syntax in existing agent environment at line 1"
+  assert_absent "$INSTALL_PATH"
+  assert_empty "$COMMAND_LOG"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="16"' 1
+}
+
+test_unreadable_tunnel_settings_require_explicit_replacement() {
+  setup_fixture
+  printf 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"\n' >"${CONFIG_DIR}/agent.env"
+  chmod 0200 "${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >/dev/null 2>"${TEST_DIR}/unreadable.err"; then
+    fail "unreadable existing agent environment should fail"
+  fi
+  assert_contains "${TEST_DIR}/unreadable.err" "cannot safely read existing agent environment"
+  assert_absent "$INSTALL_PATH"
+  assert_empty "$COMMAND_LOG"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="16" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304"' 1
+  assert_line_count "${CONFIG_DIR}/agent.env" 'TUNNEL_MAX_CONCURRENT_REQUESTS="16"' 1
+}
+
 test_reinstall_without_ca_removes_stale_managed_ca() {
   setup_fixture
   printf 'stale CA\n' >"${CONFIG_DIR}/management-ca.pem"
@@ -307,6 +411,16 @@ test_validation_failures() {
     fail "unsupported P2PSTREAM_VERSION should fail"
   fi
   assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
+
+  if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" TUNNEL_MAX_STREAM_WINDOW_BYTES="262143" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/window.err"; then
+    fail "undersized TUNNEL_MAX_STREAM_WINDOW_BYTES should fail"
+  fi
+  assert_contains "${TEST_DIR}/window.err" "TUNNEL_MAX_STREAM_WINDOW_BYTES must be at least 262144"
+
+  if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" TUNNEL_MAX_STREAM_WINDOW_BYTES="67108864" TUNNEL_MAX_CONCURRENT_REQUESTS="9" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/aggregate.err"; then
+    fail "oversized aggregate tunnel window should fail"
+  fi
+  assert_contains "${TEST_DIR}/aggregate.err" "TUNNEL_MAX_STREAM_WINDOW_BYTES times TUNNEL_MAX_CONCURRENT_REQUESTS must be at most 536870912"
 }
 
 test_uninstall_full_purge() {
@@ -363,6 +477,10 @@ run_test() {
 
 run_test "first install" test_first_install
 run_test "reinstall overwrites token and CA" test_reinstall_overwrites_token_and_ca
+run_test "reinstall preserves effective tunnel limits" test_reinstall_preserves_effective_tunnel_limits
+run_test "explicit tunnel setting bypasses replaced value" test_explicit_tunnel_setting_bypasses_replaced_value
+run_test "ambiguous tunnel preservation fails before mutation" test_ambiguous_tunnel_preservation_fails_before_mutation
+run_test "unreadable tunnel settings require explicit replacement" test_unreadable_tunnel_settings_require_explicit_replacement
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
 run_test "staging version downloads staging asset" test_staging_version_downloads_staging_asset
 run_test "validation failures" test_validation_failures
