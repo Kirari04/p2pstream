@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -37,6 +38,27 @@ type AgentConn struct {
 	ActiveRequests           atomic.Int64
 	ConnectedAt              time.Time
 	ConnectionDBID           int64
+}
+
+type agentTunnelReadGateConn struct {
+	net.Conn
+	ready       chan struct{}
+	readOnce    sync.Once
+	releaseOnce sync.Once
+}
+
+func (c *agentTunnelReadGateConn) Read(p []byte) (int, error) {
+	c.readOnce.Do(func() { <-c.ready })
+	return c.Conn.Read(p)
+}
+
+func (c *agentTunnelReadGateConn) Close() error {
+	c.releaseReads()
+	return c.Conn.Close()
+}
+
+func (c *agentTunnelReadGateConn) releaseReads() {
+	c.releaseOnce.Do(func() { close(c.ready) })
 }
 
 func (c *AgentConn) signalDone() {
@@ -473,12 +495,28 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := yamux.Server(rawConn, yamuxConfig)
+	// Yamux starts its receive loop before Server returns. Hold reads until
+	// GoAway has set localGoAway so even a SYN sent during session setup is RST
+	// instead of entering the unbudgeted accept backlog.
+	gatedConn := &agentTunnelReadGateConn{Conn: rawConn, ready: make(chan struct{})}
+	session, err := yamux.Server(gatedConn, yamuxConfig)
 	if err != nil {
+		gatedConn.releaseReads()
 		_ = rawConn.Close()
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to initialize agent tunnel session")
 		return
 	}
+	// Agent tunnel streams are always server-initiated. Fence the session before
+	// exposing it so unsolicited agent SYNs are rejected instead of occupying
+	// Yamux's unbudgeted accept backlog.
+	if err := session.GoAway(); err != nil {
+		gatedConn.releaseReads()
+		_ = session.Close()
+		_ = rawConn.Close()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to restrict agent tunnel stream direction")
+		return
+	}
+	gatedConn.releaseReads()
 	agent.Session = session
 
 	if a.DB != nil {
