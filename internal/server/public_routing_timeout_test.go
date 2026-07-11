@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -175,13 +176,14 @@ func TestAgentDialCancelWhileOpeningStreamDoesNotCloseSession(t *testing.T) {
 
 func TestAgentStreamOpenDelayedSuccessAfterCancelClosesStream(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	agent := &AgentConn{Done: make(chan struct{})}
 	openStarted := make(chan struct{})
 	releaseOpen := make(chan struct{})
 	stream, peer := net.Pipe()
 	defer stream.Close()
 	defer peer.Close()
 
-	results := startAgentStreamOpen(ctx, make(chan struct{}), func() (net.Conn, error) {
+	results := startAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
 		close(openStarted)
 		<-releaseOpen
 		return stream, nil
@@ -205,6 +207,137 @@ func TestAgentStreamOpenDelayedSuccessAfterCancelClosesStream(t *testing.T) {
 		}
 		t.Fatal("delayed open transferred stream ownership after cancellation")
 	default:
+	}
+}
+
+func TestAgentStreamOpenAdmissionCanceledWaitersSpawnNoOpen(t *testing.T) {
+	agent := &AgentConn{
+		Done:                     make(chan struct{}),
+		streamOpenAdmissionLimit: 1,
+	}
+	releaseOpen := make(chan struct{})
+	openStarted := make(chan struct{})
+	var openCalls atomic.Int64
+	firstResults := startAgentStreamOpen(context.Background(), agent, func() (net.Conn, error) {
+		openCalls.Add(1)
+		close(openStarted)
+		<-releaseOpen
+		return nil, errors.New("first open finished")
+	})
+	<-openStarted
+
+	gate := agent.streamOpenAdmissionGate()
+	if cap(gate) != 1 || len(gate) != 1 {
+		t.Fatalf("open admission gate = len %d/cap %d, want 1/1", len(gate), cap(gate))
+	}
+	if max := tunnel.DefaultYamuxConfig(nil).AcceptBacklog; cap(gate) > max {
+		t.Fatalf("open admission capacity = %d, exceeds Yamux AcceptBacklog %d", cap(gate), max)
+	}
+
+	const canceledWaiters = 512
+	for i := 0; i < canceledWaiters; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		results := startAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
+			openCalls.Add(1)
+			return nil, errors.New("canceled waiter unexpectedly opened")
+		})
+		if results != nil {
+			t.Fatalf("canceled waiter %d received a result channel", i)
+		}
+	}
+	if got := openCalls.Load(); got != 1 {
+		t.Fatalf("Open callbacks after canceled waiters = %d, want only the admitted callback", got)
+	}
+
+	close(releaseOpen)
+	select {
+	case result := <-firstResults:
+		if result.err == nil {
+			t.Fatal("first Open result unexpectedly succeeded")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for admitted Open to return")
+	}
+}
+
+func TestAgentStreamOpenAdmissionHeldUntilOpenReturnsAndReusable(t *testing.T) {
+	agent := &AgentConn{
+		Done:                     make(chan struct{}),
+		streamOpenAdmissionLimit: 1,
+	}
+	firstCtx, cancelFirst := context.WithCancel(context.Background())
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	_ = startAgentStreamOpen(firstCtx, agent, func() (net.Conn, error) {
+		close(firstStarted)
+		<-releaseFirst
+		return nil, errors.New("first open finished")
+	})
+	<-firstStarted
+	cancelFirst()
+	if got := len(agent.streamOpenAdmissionGate()); got != 1 {
+		t.Fatalf("gate permits after caller cancellation = %d, want 1 held by blocked Open", got)
+	}
+
+	secondCalling := make(chan struct{})
+	secondStarted := make(chan struct{})
+	secondReturned := make(chan (<-chan agentStreamOpenResult), 1)
+	go func() {
+		close(secondCalling)
+		secondReturned <- startAgentStreamOpen(context.Background(), agent, func() (net.Conn, error) {
+			close(secondStarted)
+			return nil, errors.New("second open finished")
+		})
+	}()
+	<-secondCalling
+	select {
+	case <-secondStarted:
+		t.Fatal("caller cancellation released the permit before the underlying Open returned")
+	case <-secondReturned:
+		t.Fatal("waiting admission returned before the underlying Open released its permit")
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	close(releaseFirst)
+
+	var secondResults <-chan agentStreamOpenResult
+	select {
+	case secondResults = <-secondReturned:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for second admission")
+	}
+	select {
+	case <-secondStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for second Open callback")
+	}
+
+	thirdStarted := make(chan struct{})
+	thirdResults := startAgentStreamOpen(context.Background(), agent, func() (net.Conn, error) {
+		close(thirdStarted)
+		return nil, errors.New("third open finished")
+	})
+	if thirdResults == nil {
+		t.Fatal("permit was not reusable after second Open returned")
+	}
+	select {
+	case <-thirdStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for third Open callback")
+	}
+	for name, results := range map[string]<-chan agentStreamOpenResult{
+		"second": secondResults,
+		"third":  thirdResults,
+	} {
+		select {
+		case result := <-results:
+			if result.err == nil {
+				t.Fatalf("%s Open result unexpectedly succeeded", name)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timed out receiving %s Open result", name)
+		}
 	}
 }
 
