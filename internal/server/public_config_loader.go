@@ -81,7 +81,7 @@ func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 		a.PublicWAF.reconcile(snap)
 	}
 	if a.PublicCache != nil {
-		a.PublicCache.reconcile(snap.CacheSettings)
+		a.PublicCache.reconcile(snap.CacheSettings, snap.CacheRules)
 	}
 }
 
@@ -420,6 +420,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		snap.CacheRules = append(snap.CacheRules, rule)
 	}
 	sortPublicCacheRules(snap.CacheRules)
+	snap.CacheFingerprint = publicCacheRuntimeFingerprint(snap.CacheSettings, snap.CacheRules)
 	return snap, nil
 }
 
