@@ -30,9 +30,25 @@ type AgentConn struct {
 	Name           string
 	Session        *yamux.Session
 	Done           chan struct{}
+	doneOnce       sync.Once
 	ActiveRequests atomic.Int64
 	ConnectedAt    time.Time
 	ConnectionDBID int64
+}
+
+func (c *AgentConn) signalDone() {
+	if c == nil || c.Done == nil {
+		return
+	}
+	c.doneOnce.Do(func() {
+		select {
+		case <-c.Done:
+			// Keep compatibility with test and embedded callers that supplied an
+			// already-closed channel without going through signalDone.
+		default:
+			close(c.Done)
+		}
+	})
 }
 
 type App struct {
@@ -72,13 +88,14 @@ type App struct {
 	generatedSetupToken string
 	setupTokenLogOnce   sync.Once
 
-	proxyMu             sync.Mutex
-	proxyServiceActive  bool
-	proxyState          p2pstreamv1.ProxyState
-	proxyLastError      string
-	publicSnapshot      *publicProxySnapshot
-	publicSnapshotPtr   atomic.Pointer[publicProxySnapshot]
-	publicListenerState map[int64]*publicListenerRuntime
+	proxyMu                  sync.Mutex
+	proxyServiceActive       bool
+	proxyState               p2pstreamv1.ProxyState
+	proxyLastError           string
+	publicSnapshot           *publicProxySnapshot
+	publicSnapshotPtr        atomic.Pointer[publicProxySnapshot]
+	publicSnapshotGeneration uint64
+	publicListenerState      map[int64]*publicListenerRuntime
 
 	publicConfigCacheMu sync.RWMutex
 	publicConfigCache   cachedPublicConfig
@@ -86,7 +103,9 @@ type App struct {
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
 
-	agentTunnelBeforeFinalAuth func(db.Agent)
+	agentTunnelBeforeFinalAuth            func(db.Agent)
+	agentDisconnectAfterHubRemoval        func(*AgentConn, bool)
+	publicTLSSelectorRefreshBeforePublish func(uint64)
 }
 
 type agentAuthLockMap struct {
@@ -418,18 +437,10 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	for _, old := range displaced {
 		a.retireDisplacedAgentConnection(old)
 	}
-	unlockAgentAuth()
-
-	cleanupAgent := func() bool {
-		disconnected := a.AgentHub.disconnect(agent)
-		if disconnected && a.TargetHealth != nil {
-			a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
-		}
-		return disconnected
-	}
 	if a.TargetHealth != nil {
 		a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
 	}
+	unlockAgentAuth()
 
 	log.Info().
 		Str("remote_addr", r.RemoteAddr).
@@ -443,23 +454,43 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			_ = session.Close()
 		case <-session.CloseChan():
 		}
-		disconnected := cleanupAgent()
+		a.cleanupAgentConnection(agent)
 		log.Info().
 			Str("agent", agent.PublicID).
 			Int64("duration_ms", time.Since(agent.ConnectedAt).Milliseconds()).
 			Int64("active_requests", agent.ActiveRequests.Load()).
 			Msg("Agent tunnel disconnected")
-		if a.DB != nil && agent.ConnectionDBID > 0 {
-			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
-				log.Warn().Err(err).Msg("Failed to update disconnection time")
-			}
-			if disconnected {
-				if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
-					log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
-				}
+	}()
+}
+
+func (a *App) cleanupAgentConnection(agent *AgentConn) bool {
+	if a == nil || agent == nil {
+		return false
+	}
+	unlock := a.lockAgentAuth(agent.AgentID)
+	defer unlock()
+
+	disconnected := false
+	if a.AgentHub != nil {
+		disconnected = a.AgentHub.disconnect(agent)
+	}
+	if hook := a.agentDisconnectAfterHubRemoval; hook != nil {
+		hook(agent, disconnected)
+	}
+	if disconnected && a.TargetHealth != nil {
+		a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
+	}
+	if a.DB != nil && agent.ConnectionDBID > 0 {
+		if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
+			log.Warn().Err(err).Msg("Failed to update disconnection time")
+		}
+		if disconnected {
+			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
+				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
 			}
 		}
-	}()
+	}
+	return disconnected
 }
 
 func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
@@ -473,13 +504,7 @@ func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
 	if a.AgentTransports != nil {
 		a.AgentTransports.closeAgentConnection(agent)
 	}
-	if agent.Done != nil {
-		select {
-		case <-agent.Done:
-		default:
-			close(agent.Done)
-		}
-	}
+	agent.signalDone()
 	if agent.Session != nil {
 		if err := agent.Session.Close(); err != nil {
 			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to close displaced agent tunnel session")

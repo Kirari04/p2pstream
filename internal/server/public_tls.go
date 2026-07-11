@@ -80,15 +80,30 @@ func (s *publicTLSSelectorStore) GetCertificate(hello *tls.ClientHelloInfo) (*tl
 }
 
 func (s *publicTLSSelectorStore) refresh(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) error {
-	if s == nil {
-		return errors.New("public TLS selector store is not initialized")
-	}
-	selector, err := newPublicTLSSelector(listenerID, snap, acmeManager, s.fallbackCertificate())
+	selector, err := s.buildRefresh(listenerID, snap, acmeManager)
 	if err != nil {
 		return err
 	}
-	s.selector.Store(selector)
+	s.publish(selector)
 	return nil
+}
+
+func (s *publicTLSSelectorStore) buildRefresh(listenerID int64, snap *publicProxySnapshot, acmeManager *publicACMEManager) (*publicTLSSelector, error) {
+	if s == nil {
+		return nil, errors.New("public TLS selector store is not initialized")
+	}
+	selector, err := newPublicTLSSelector(listenerID, snap, acmeManager, s.fallbackCertificate())
+	if err != nil {
+		return nil, err
+	}
+	return selector, nil
+}
+
+func (s *publicTLSSelectorStore) publish(selector *publicTLSSelector) {
+	if s == nil || selector == nil {
+		return
+	}
+	s.selector.Store(selector)
 }
 
 func (s *publicTLSSelectorStore) fallbackCertificate() *tls.Certificate {

@@ -236,6 +236,7 @@ test_reinstall_overwrites_token_and_ca() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "old CA")" \
+    AGENT_ALLOW_TARGETS="myapp.internal:443,10.0.5.0/24:8080" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="old-token"
   : >"$SYSTEMCTL_LOG"
@@ -248,10 +249,30 @@ test_reinstall_overwrites_token_and_ca() {
 
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
   assert_not_contains "${CONFIG_DIR}/agent.env" "old-token"
+  assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS=\"myapp.internal:443,10.0.5.0/24:8080\""
   assert_contains "${CONFIG_DIR}/management-ca.pem" "new CA"
   assert_not_contains "${CONFIG_DIR}/management-ca.pem" "old CA"
   assert_systemctl_enable_before_restart
   assert_not_contains "$SYSTEMCTL_LOG" "enable --now"
+}
+
+test_reinstall_explicitly_clears_allow_targets() {
+  setup_fixture
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_TARGETS="myapp.internal:443" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="old-token"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_CLEAR_ALLOW_TARGETS"
+  assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
 }
 
 test_reinstall_without_ca_removes_stale_managed_ca() {
@@ -301,6 +322,11 @@ test_validation_failures() {
     fail "unsupported P2PSTREAM_VERSION should fail"
   fi
   assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
+
+  if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ALLOW_TARGETS="myapp.internal:443" AGENT_CLEAR_ALLOW_TARGETS="true" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/allow-targets.err"; then
+    fail "conflicting allow-target inputs should fail"
+  fi
+  assert_contains "${TEST_DIR}/allow-targets.err" "AGENT_CLEAR_ALLOW_TARGETS=true cannot be combined with AGENT_ALLOW_TARGETS"
 }
 
 test_uninstall_full_purge() {
@@ -357,6 +383,7 @@ run_test() {
 
 run_test "first install" test_first_install
 run_test "reinstall overwrites token and CA" test_reinstall_overwrites_token_and_ca
+run_test "reinstall explicitly clears allow targets" test_reinstall_explicitly_clears_allow_targets
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
 run_test "staging version downloads staging asset" test_staging_version_downloads_staging_asset
 run_test "validation failures" test_validation_failures
