@@ -492,11 +492,16 @@ func publicCacheLookupKeyHash(lookupKey publicCacheLookupKey) publicCacheLookupD
 	return sha256.Sum256(data)
 }
 
-func (c *publicProxyCache) negativeLookupLimitLocked() int {
+func (c *publicProxyCache) maxIndexEntriesLocked() int64 {
 	maxEntries := c.settings.MaxEntries
 	if maxEntries <= 0 {
 		maxEntries = defaultPublicCacheMaxEntries
 	}
+	return maxEntries
+}
+
+func (c *publicProxyCache) negativeLookupLimitLocked() int {
+	maxEntries := c.maxIndexEntriesLocked()
 	remaining := maxEntries - int64(len(c.indexEntries))
 	if remaining <= 0 {
 		return 0
@@ -617,12 +622,25 @@ func (c *publicProxyCache) storeIndexedCandidates(lookupKey publicCacheLookupKey
 	}
 	stored := false
 	for _, entry := range candidates {
-		if !entry.ExpiresAt.After(now) {
-			c.deleteEntryLocked(entry.KeyDigest)
+		// Another cold lookup may have installed and touched this digest while the
+		// current database read was in flight. Never replace that newer in-memory
+		// state with the stale row returned by this read.
+		if existing, ok := c.indexEntries[entry.KeyDigest]; ok {
+			if existing.lookupKey == lookupKey && existing.entry.ExpiresAt.After(now) {
+				stored = true
+			}
 			continue
 		}
-		c.putIndexEntryLocked(entry)
+		if !entry.ExpiresAt.After(now) {
+			continue
+		}
+		if publicCacheLookupKeyFromEntry(entry) != lookupKey {
+			continue
+		}
+		// A valid database candidate satisfies this lookup even when the positive
+		// index is already at capacity and cannot retain the row.
 		stored = true
+		c.putIndexEntryLocked(entry)
 	}
 	if !stored {
 		c.rememberNegativeLookupLocked(lookupKey, now)
@@ -639,12 +657,20 @@ func (c *publicProxyCache) putIndexEntry(entry db.PublicCacheEntry) {
 	c.putIndexEntryLocked(entry)
 }
 
-func (c *publicProxyCache) putIndexEntryLocked(entry db.PublicCacheEntry) {
+func (c *publicProxyCache) putIndexEntryLocked(entry db.PublicCacheEntry) bool {
 	if entry.KeyDigest == "" {
-		return
+		return false
 	}
 	lookupKey := publicCacheLookupKeyFromEntry(entry)
-	if existing, ok := c.indexEntries[entry.KeyDigest]; ok && existing.lookupKey != lookupKey {
+	existing, exists := c.indexEntries[entry.KeyDigest]
+	if !exists && int64(len(c.indexEntries)) >= c.maxIndexEntriesLocked() {
+		// Do not retain a contradictory negative result for a positive row that
+		// was deliberately left uncached because the positive index is full.
+		c.removeNegativeLookupLocked(lookupKey)
+		c.pruneNegativeLookupsLocked(time.Now())
+		return false
+	}
+	if exists && existing.lookupKey != lookupKey {
 		if digests := c.indexLookups[existing.lookupKey]; digests != nil {
 			delete(digests, entry.KeyDigest)
 			if len(digests) == 0 {
@@ -661,6 +687,7 @@ func (c *publicProxyCache) putIndexEntryLocked(entry db.PublicCacheEntry) {
 	digests[entry.KeyDigest] = struct{}{}
 	c.removeNegativeLookupLocked(lookupKey)
 	c.pruneNegativeLookupsLocked(time.Now())
+	return true
 }
 
 // touchIndexedEntry keeps the in-memory index consistent with hits queued for

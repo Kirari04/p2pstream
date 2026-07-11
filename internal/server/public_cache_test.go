@@ -920,6 +920,139 @@ func TestPublicCacheIndexMaintainsPositiveAndNegativeLookupConsistency(t *testin
 	}
 }
 
+func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
+	newCache := func(t *testing.T) (*publicProxyCache, uint64, string, db.PublicCacheEntry, publicCacheLookupKey, time.Time) {
+		t.Helper()
+		cache := newPublicProxyCache(t.TempDir())
+		settings := defaultPublicCacheSettings()
+		rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+		fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+		cache.reconcile(settings, rules)
+		generation, ok := cache.captureGeneration(fingerprint)
+		if !ok {
+			t.Fatal("cache generation was not current after reconcile")
+		}
+		now := time.Unix(1_700_000_000, 0)
+		entry := db.PublicCacheEntry{
+			KeyDigest:        "shared-digest",
+			RuleID:           1,
+			ListenerProtocol: publicListenerProtocolHTTP,
+			Host:             "assets.example",
+			Path:             "/asset",
+			ExpiresAt:        now.Add(time.Hour),
+		}
+		return cache, generation, fingerprint, entry, publicCacheLookupKeyFromEntry(entry), now
+	}
+
+	t.Run("deterministic interleaving", func(t *testing.T) {
+		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
+		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+		cache.touchIndexedEntry(staleEntry.KeyDigest, now.Add(time.Second))
+		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+		cache.touchIndexedEntry(staleEntry.KeyDigest, now.Add(2*time.Second))
+
+		cache.mu.Lock()
+		indexed := cache.indexEntries[staleEntry.KeyDigest].entry
+		cache.mu.Unlock()
+		if indexed.HitCount != 2 {
+			t.Fatalf("indexed hit count = %d, want 2 after stale second store", indexed.HitCount)
+		}
+		if !indexed.LastAccessedAt.Equal(now.Add(2 * time.Second)) {
+			t.Fatalf("indexed last access = %s, want newest touch", indexed.LastAccessedAt)
+		}
+	})
+
+	t.Run("parallel cold loads", func(t *testing.T) {
+		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
+		const workers = 64
+		start := make(chan struct{})
+		var group sync.WaitGroup
+		for i := 0; i < workers; i++ {
+			group.Add(1)
+			go func() {
+				defer group.Done()
+				<-start
+				cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+				cache.touchIndexedEntry(staleEntry.KeyDigest, now.Add(time.Second))
+			}()
+		}
+		close(start)
+		group.Wait()
+
+		cache.mu.Lock()
+		hitCount := cache.indexEntries[staleEntry.KeyDigest].entry.HitCount
+		cache.mu.Unlock()
+		if hitCount != workers {
+			t.Fatalf("parallel indexed hit count = %d, want %d", hitCount, workers)
+		}
+	})
+}
+
+func TestPublicCachePositiveIndexAdmissionIsBounded(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	settings := defaultPublicCacheSettings()
+	settings.MaxEntries = 1
+	rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+	fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+	cache.reconcile(settings, rules)
+	generation, ok := cache.captureGeneration(fingerprint)
+	if !ok {
+		t.Fatal("cache generation was not current after reconcile")
+	}
+	now := time.Unix(1_700_000_000, 0)
+	entryA := db.PublicCacheEntry{
+		KeyDigest:        "digest-a",
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "a.example",
+		Path:             "/asset",
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	entryB := db.PublicCacheEntry{
+		KeyDigest:        "digest-b",
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "b.example",
+		Path:             "/asset",
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	lookupB := publicCacheLookupKeyFromEntry(entryB)
+
+	cache.putIndexEntry(entryA)
+	cache.storeIndexedCandidates(lookupB, []db.PublicCacheEntry{entryB}, now, generation, fingerprint)
+	cache.storeIndexedCandidates(publicCacheLookupKey{
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "miss.example",
+		Path:             "/asset",
+	}, nil, now, generation, fingerprint)
+
+	cache.mu.Lock()
+	entryCount := len(cache.indexEntries)
+	_, keptA := cache.indexEntries[entryA.KeyDigest]
+	_, admittedB := cache.indexEntries[entryB.KeyDigest]
+	_, negativeB := cache.negativeLookups[publicCacheLookupKeyHash(lookupB)]
+	negativeCount := len(cache.negativeLookups)
+	cache.mu.Unlock()
+	if entryCount != 1 || !keptA || admittedB {
+		t.Fatalf("bounded positive index = count %d/kept A %v/admitted B %v, want 1/true/false", entryCount, keptA, admittedB)
+	}
+	if negativeB || negativeCount != 0 {
+		t.Fatalf("negative budget at positive cap = contradictory B %v/count %d, want false/0", negativeB, negativeCount)
+	}
+
+	entryA.HitCount = 7
+	entryA.LastAccessedAt = now.Add(time.Minute)
+	cache.putIndexEntry(entryA)
+	cache.mu.Lock()
+	updated := cache.indexEntries[entryA.KeyDigest].entry
+	entryCount = len(cache.indexEntries)
+	cache.mu.Unlock()
+	if entryCount != 1 || updated.HitCount != 7 || !updated.LastAccessedAt.Equal(entryA.LastAccessedAt) {
+		t.Fatalf("existing entry update at cap = count %d/hits %d/last access %s", entryCount, updated.HitCount, updated.LastAccessedAt)
+	}
+}
+
 func TestPublicCacheStaleConcurrentLookupLoadsCannotRepopulateAfterReconcile(t *testing.T) {
 	cache := newPublicProxyCache(t.TempDir())
 	settings := defaultPublicCacheSettings()

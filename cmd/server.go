@@ -18,6 +18,11 @@ import (
 	"p2pstream/internal/server"
 )
 
+const (
+	serverShutdownTimeout             = 5 * time.Second
+	observabilityRecorderCloseTimeout = 5 * time.Second
+)
+
 var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start the p2pstream proxy server",
@@ -109,8 +114,7 @@ var serverCmd = &cobra.Command{
 		<-ctx.Done()
 		log.Info().Msg("Shutting down servers gracefully...")
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), serverShutdownTimeout)
 
 		var shutdownErrs []error
 		if _, err := app.StopProxyListener(shutdownCtx); err != nil {
@@ -119,9 +123,15 @@ var serverCmd = &cobra.Command{
 		if err := mgmtSrv.Shutdown(shutdownCtx); err != nil {
 			shutdownErrs = append(shutdownErrs, err)
 		}
-		if err := app.CloseObservabilityRecorder(shutdownCtx); err != nil {
+		cancelShutdown()
+
+		// Listener shutdown can consume its entire shared deadline. Give the
+		// recorder an independent bounded chance to persist already-queued data.
+		recorderCloseCtx, cancelRecorderClose := context.WithTimeout(context.Background(), observabilityRecorderCloseTimeout)
+		if err := app.CloseObservabilityRecorder(recorderCloseCtx); err != nil {
 			shutdownErrs = append(shutdownErrs, err)
 		}
+		cancelRecorderClose()
 
 		if len(shutdownErrs) > 0 {
 			log.Error().Errs("errors", shutdownErrs).Msg("Errors during shutdown")

@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -490,6 +492,38 @@ func TestCloseObservabilityRecorderFlushesQueuedEvents(t *testing.T) {
 	}
 	if rawEvents != 1 {
 		t.Fatalf("raw proxy events = %d, want 1", rawEvents)
+	}
+}
+
+func TestObservabilityRecorderCanceledFlushCanRetryWithFreshCloseContext(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	recorder := newObservabilityRecorder(app)
+	// Suppress the worker until after the first flush so its unbuffered control
+	// send deterministically observes the canceled context.
+	recorder.startOnce.Do(func() {})
+	recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := recorder.flush(canceledCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("flush error = %v, want context.Canceled", err)
+	}
+
+	recorder.mu.Lock()
+	recorder.startOnce = sync.Once{}
+	recorder.mu.Unlock()
+	closeCtx, closeCancel := context.WithTimeout(context.Background(), time.Second)
+	defer closeCancel()
+	if err := recorder.close(closeCtx); err != nil {
+		t.Fatalf("close recorder with fresh context: %v", err)
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count raw proxy events: %v", err)
+	}
+	if rawEvents != 1 {
+		t.Fatalf("raw proxy events after canceled flush and fresh close = %d, want 1", rawEvents)
 	}
 }
 
