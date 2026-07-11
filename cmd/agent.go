@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -77,8 +80,15 @@ var agentCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
+		allowTargets, _ := cmd.Flags().GetStringArray("allow-target")
+		if len(allowTargets) == 0 {
+			allowTargets = splitAgentAllowTargets(os.Getenv("AGENT_ALLOW_TARGETS"))
+		}
 
-		if err := agent.Run(agent.Options{
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		if err := agent.RunContext(ctx, agent.Options{
 			ManagementURL:               mgmtURL,
 			PublicID:                    agentID,
 			Name:                        agentName,
@@ -88,9 +98,10 @@ var agentCmd = &cobra.Command{
 			TLSCertFile:                 tlsCertFile,
 			TLSKeyFile:                  tlsKeyFile,
 			AllowInsecureManagement:     allowInsecureManagement,
+			AllowTargets:                allowTargets,
 			TunnelMaxStreamWindowBytes:  tunnelMaxStreamWindowBytes,
 			TunnelMaxConcurrentRequests: tunnelMaxConcurrentRequests,
-		}); err != nil {
+		}); err != nil && ctx.Err() == nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
 		}
@@ -110,6 +121,7 @@ func init() {
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
 	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
 	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", tunnel.DefaultMaxConcurrentAgentRequests, "Maximum concurrent requests served through the agent tunnel")
+	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
 }
 
 func defaultAgentManagementURL() string {
@@ -205,4 +217,18 @@ func agentTunnelMaxConcurrentRequests(cmd *cobra.Command) (int64, error) {
 		return 0, fmt.Errorf("invalid TUNNEL_MAX_CONCURRENT_REQUESTS %q: %w", raw, err)
 	}
 	return value, nil
+}
+
+func splitAgentAllowTargets(value string) []string {
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\t' || r == ' '
+	})
+	targets := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field != "" {
+			targets = append(targets, field)
+		}
+	}
+	return targets
 }

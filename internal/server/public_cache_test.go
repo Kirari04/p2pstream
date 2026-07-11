@@ -4,13 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -565,6 +569,9 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("asset-v1")) {
 		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
 	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 
 	var eventStatus string
 	var eventBytes int64
@@ -590,6 +597,689 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	}
 	if originHits != 1 {
 		t.Fatalf("origin hits = %d, want 1", originHits)
+	}
+
+	if secondDecision.Entry == nil {
+		t.Fatal("second decision missing cache entry")
+	}
+	if err := app.DB.DeletePublicCacheEntry(context.Background(), secondDecision.Entry.KeyDigest); err != nil {
+		t.Fatalf("delete warmed cache DB row: %v", err)
+	}
+	if err := os.Remove(secondDecision.Entry.BodyPath); err != nil {
+		t.Fatalf("remove warmed cache body: %v", err)
+	}
+	thirdReq := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt?v=1", nil)
+	thirdDecision := app.checkPublicCache(thirdReq, resolution)
+	if thirdDecision.Status != publicCacheStatusHit {
+		t.Fatalf("third warmed cache status = %q, want hit", thirdDecision.Status)
+	}
+	thirdRec := httptest.NewRecorder()
+	app.servePublicCacheHit(thirdRec, thirdReq, resolution, nil, nil, thirdDecision, proxyRequestObservability{})
+	if thirdRec.Code != http.StatusOK || thirdRec.Body.String() != "asset-v1" {
+		t.Fatalf("third warmed response = status %d body %q, want cached asset", thirdRec.Code, thirdRec.Body.String())
+	}
+}
+
+func TestPublicCacheIndexedHitsUpdateMemoryAndDatabaseExactly(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/count.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	keyDigest := publicCacheKeyDigest(req, resolution, snap.CacheRules[0], "", nil)
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, []byte("counted"), 0600); err != nil {
+		t.Fatalf("write cache body: %v", err)
+	}
+	if _, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/count.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len("counted")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
+		ExpiresAt:           time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	for i := 0; i < 2; i++ {
+		decision := app.checkPublicCache(req, resolution)
+		if decision.Status != publicCacheStatusHit {
+			t.Fatalf("cache lookup %d status = %q, want hit", i+1, decision.Status)
+		}
+	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+
+	var databaseHits int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT hit_count FROM public_cache_entries WHERE key_digest = ?`, keyDigest).Scan(&databaseHits); err != nil {
+		t.Fatalf("read cache hit count: %v", err)
+	}
+	if databaseHits != 2 {
+		t.Fatalf("database cache hit count = %d, want 2", databaseHits)
+	}
+	app.PublicCache.mu.Lock()
+	indexedHits := app.PublicCache.indexEntries[keyDigest].entry.HitCount
+	app.PublicCache.mu.Unlock()
+	if indexedHits != 2 {
+		t.Fatalf("indexed cache hit count = %d, want 2", indexedHits)
+	}
+}
+
+func TestPublicCacheTouchTokenRejectsReplacedEntry(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	ctx := context.Background()
+	keyDigest := "replacement-token-digest"
+	oldStoredAt := time.Unix(1_700_000_000, 123_456_789).UTC()
+	params := db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/replacement.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            "/tmp/replacement-token.body",
+		SizeBytes:           10,
+		StoredAt:            oldStoredAt,
+		ExpiresAt:           time.Now().Add(time.Hour),
+	}
+	oldEntry, err := app.DB.UpsertPublicCacheEntry(ctx, params)
+	if err != nil {
+		t.Fatalf("insert old cache entry: %v", err)
+	}
+	if !oldEntry.StoredAt.Equal(oldStoredAt) || !oldEntry.LastAccessedAt.Equal(oldStoredAt) {
+		t.Fatalf("old stored_at round trip = stored %s/access %s, want %s", oldEntry.StoredAt, oldEntry.LastAccessedAt, oldStoredAt)
+	}
+	app.PublicCache.putIndexEntry(oldEntry)
+	oldTouchAt := time.Now().UTC()
+	app.PublicCache.touchIndexedEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
+	app.observabilityRecorderService().touchPublicCacheEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
+
+	params.StoredAt = oldStoredAt.Add(time.Nanosecond)
+	params.BodyPath = "/tmp/replacement-token-new.body"
+	replacement, err := app.DB.UpsertPublicCacheEntry(ctx, params)
+	if err != nil {
+		t.Fatalf("replace cache entry: %v", err)
+	}
+	if !replacement.StoredAt.Equal(params.StoredAt) || !replacement.LastAccessedAt.Equal(params.StoredAt) {
+		t.Fatalf("replacement stored_at round trip = stored %s/access %s, want %s", replacement.StoredAt, replacement.LastAccessedAt, params.StoredAt)
+	}
+	if !replacement.StoredAt.After(oldEntry.StoredAt) {
+		t.Fatalf("replacement token = %s, want after old token %s", replacement.StoredAt, oldEntry.StoredAt)
+	}
+	app.PublicCache.putIndexEntry(replacement)
+	app.PublicCache.touchIndexedEntry(keyDigest, oldEntry.StoredAt, oldTouchAt.Add(time.Second))
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush old cache touch: %v", err)
+	}
+
+	assertCounts := func(want int64, wantLastAccess time.Time) db.PublicCacheEntry {
+		t.Helper()
+		databaseEntry, err := app.DB.GetPublicCacheEntry(ctx, keyDigest)
+		if err != nil {
+			t.Fatalf("load replacement cache entry: %v", err)
+		}
+		app.PublicCache.mu.Lock()
+		indexedEntry := app.PublicCache.indexEntries[keyDigest].entry
+		app.PublicCache.mu.Unlock()
+		if databaseEntry.HitCount != want || indexedEntry.HitCount != want {
+			t.Fatalf("replacement hit counts = database %d/index %d, want %d", databaseEntry.HitCount, indexedEntry.HitCount, want)
+		}
+		if !databaseEntry.StoredAt.Equal(replacement.StoredAt) || !indexedEntry.StoredAt.Equal(replacement.StoredAt) {
+			t.Fatalf("replacement tokens changed = database %s/index %s, want %s", databaseEntry.StoredAt, indexedEntry.StoredAt, replacement.StoredAt)
+		}
+		if !databaseEntry.LastAccessedAt.Equal(wantLastAccess) || !indexedEntry.LastAccessedAt.Equal(wantLastAccess) {
+			t.Fatalf("replacement last access = database %s/index %s, want %s", databaseEntry.LastAccessedAt, indexedEntry.LastAccessedAt, wantLastAccess)
+		}
+		if databaseEntry.LastAccessedAt.Before(databaseEntry.StoredAt) || indexedEntry.LastAccessedAt.Before(indexedEntry.StoredAt) {
+			t.Fatalf("replacement last access regressed before stored_at: database %s/%s index %s/%s", databaseEntry.LastAccessedAt, databaseEntry.StoredAt, indexedEntry.LastAccessedAt, indexedEntry.StoredAt)
+		}
+		return databaseEntry
+	}
+	assertCounts(0, replacement.StoredAt)
+
+	newTouchAt := oldTouchAt.Add(2 * time.Second)
+	app.PublicCache.touchIndexedEntry(keyDigest, replacement.StoredAt, newTouchAt)
+	app.observabilityRecorderService().touchPublicCacheEntry(keyDigest, replacement.StoredAt, newTouchAt)
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush replacement cache touch: %v", err)
+	}
+	assertCounts(1, newTouchAt)
+}
+
+func TestPublicCacheStoredAtTokensAreStrictlyUnique(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	const count = 256
+	tokens := make(chan time.Time, count)
+	var group sync.WaitGroup
+	for i := 0; i < count; i++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			tokens <- cache.nextStoredAt()
+		}()
+	}
+	group.Wait()
+	close(tokens)
+
+	ordered := make([]time.Time, 0, count)
+	for token := range tokens {
+		ordered = append(ordered, token)
+	}
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Before(ordered[j]) })
+	for i := 1; i < len(ordered); i++ {
+		if !ordered[i].After(ordered[i-1]) {
+			t.Fatalf("stored_at token %d = %s, want after %s", i, ordered[i], ordered[i-1])
+		}
+	}
+}
+
+func TestPublicCacheStaleIndexedBodyFallsBackToMiss(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/stale.txt", nil)
+	app.proxyMu.Lock()
+	rule := app.publicSnapshot.CacheRules[0]
+	app.proxyMu.Unlock()
+	keyDigest := publicCacheKeyDigest(req, resolution, rule, "", nil)
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, []byte("stale-body"), 0600); err != nil {
+		t.Fatalf("write cache body: %v", err)
+	}
+	if _, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/stale.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len("stale-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
+		ExpiresAt:           time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	firstDecision := app.checkPublicCache(req, resolution)
+	if firstDecision.Status != publicCacheStatusHit {
+		t.Fatalf("first cache status = %q, want hit", firstDecision.Status)
+	}
+	if err := os.Remove(bodyPath); err != nil {
+		t.Fatalf("remove cache body: %v", err)
+	}
+	secondDecision := app.checkPublicCache(req, resolution)
+	if secondDecision.Status != publicCacheStatusHit {
+		t.Fatalf("second indexed status = %q, want hit before body preparation", secondDecision.Status)
+	}
+	if ok := app.preparePublicCacheHitBody(req, &secondDecision); ok {
+		t.Fatal("prepare cache hit body succeeded after body file was removed")
+	}
+	thirdDecision := app.checkPublicCache(req, resolution)
+	if thirdDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("third cache status = %q, want miss after stale entry invalidation", thirdDecision.Status)
+	}
+}
+
+func TestPublicCacheEmptyMissUsesWarmedIndex(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/later.txt", nil)
+	firstDecision := app.checkPublicCache(req, resolution)
+	if firstDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("first cache status = %q, want miss", firstDecision.Status)
+	}
+	app.proxyMu.Lock()
+	rule := app.publicSnapshot.CacheRules[0]
+	app.proxyMu.Unlock()
+	keyDigest := publicCacheKeyDigest(req, resolution, rule, "", nil)
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, []byte("later-body"), 0600); err != nil {
+		t.Fatalf("write cache body: %v", err)
+	}
+	entry, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/later.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len("later-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
+		ExpiresAt:           time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("insert cache entry: %v", err)
+	}
+
+	secondDecision := app.checkPublicCache(req, resolution)
+	if secondDecision.Status != publicCacheStatusMiss {
+		t.Fatalf("second warmed-empty cache status = %q, want miss", secondDecision.Status)
+	}
+	app.PublicCache.putIndexEntry(entry)
+	thirdDecision := app.checkPublicCache(req, resolution)
+	if thirdDecision.Status != publicCacheStatusHit {
+		t.Fatalf("third indexed cache status = %q, want hit", thirdDecision.Status)
+	}
+}
+
+func TestPublicCacheNegativeLookupIndexIsBoundedAndExpires(t *testing.T) {
+	newCache := func(t *testing.T, maxEntries int64) (*publicProxyCache, uint64, string) {
+		t.Helper()
+		cache := newPublicProxyCache(t.TempDir())
+		settings := defaultPublicCacheSettings()
+		settings.MaxEntries = maxEntries
+		rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+		fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+		cache.reconcile(settings, rules)
+		generation, ok := cache.captureGeneration(fingerprint)
+		if !ok {
+			t.Fatal("cache generation was not current after reconcile")
+		}
+		return cache, generation, fingerprint
+	}
+
+	t.Run("configured max entries and ttl", func(t *testing.T) {
+		cache, generation, fingerprint := newCache(t, 3)
+		now := time.Unix(1_700_000_000, 0)
+		lookups := make([]publicCacheLookupKey, 5)
+		for i := range lookups {
+			lookups[i] = publicCacheLookupKey{
+				RuleID:           1,
+				ListenerProtocol: publicListenerProtocolHTTP,
+				Host:             "attacker.example",
+				Path:             "/uncached/" + strconv.Itoa(i),
+				QueryKey:         "nonce=" + strconv.Itoa(i),
+			}
+			cache.storeIndexedCandidates(lookups[i], nil, now, generation, fingerprint)
+		}
+
+		cache.mu.Lock()
+		negativeCount := len(cache.negativeLookups)
+		orderCount := cache.negativeOrder.Len()
+		cache.mu.Unlock()
+		if negativeCount != 3 || orderCount != 3 {
+			t.Fatalf("negative lookup cardinality = map %d/order %d, want 3/3", negativeCount, orderCount)
+		}
+		if _, loaded := cache.lookupIndexedCandidates(lookups[0], now, generation, fingerprint); loaded {
+			t.Fatal("oldest negative lookup was not evicted at MaxEntries")
+		}
+		if _, loaded := cache.lookupIndexedCandidates(lookups[len(lookups)-1], now, generation, fingerprint); !loaded {
+			t.Fatal("newest negative lookup was not cached")
+		}
+		if _, loaded := cache.lookupIndexedCandidates(lookups[len(lookups)-1], now.Add(publicCacheNegativeLookupTTL), generation, fingerprint); loaded {
+			t.Fatal("negative lookup remained loaded at its TTL boundary")
+		}
+	})
+
+	t.Run("hard safety cap", func(t *testing.T) {
+		cache, generation, fingerprint := newCache(t, defaultPublicCacheMaxEntries)
+		now := time.Unix(1_700_000_000, 0)
+		for i := 0; i < maxPublicCacheNegativeLookups+64; i++ {
+			cache.storeIndexedCandidates(publicCacheLookupKey{
+				RuleID:           1,
+				ListenerProtocol: publicListenerProtocolHTTP,
+				Host:             "attacker.example",
+				Path:             "/uncached/" + strconv.Itoa(i),
+			}, nil, now, generation, fingerprint)
+		}
+		cache.mu.Lock()
+		negativeCount := len(cache.negativeLookups)
+		cache.mu.Unlock()
+		if negativeCount != maxPublicCacheNegativeLookups {
+			t.Fatalf("negative lookup cardinality = %d, want hard cap %d", negativeCount, maxPublicCacheNegativeLookups)
+		}
+	})
+}
+
+func TestPublicCacheIndexMaintainsPositiveAndNegativeLookupConsistency(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	settings := defaultPublicCacheSettings()
+	settings.MaxEntries = 2
+	rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+	fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+	cache.reconcile(settings, rules)
+	generation, ok := cache.captureGeneration(fingerprint)
+	if !ok {
+		t.Fatal("cache generation was not current after reconcile")
+	}
+	now := time.Now()
+	lookupA := publicCacheLookupKey{RuleID: 1, ListenerProtocol: publicListenerProtocolHTTP, Host: "a.example", Path: "/asset"}
+	lookupB := publicCacheLookupKey{RuleID: 1, ListenerProtocol: publicListenerProtocolHTTP, Host: "b.example", Path: "/asset"}
+	lookupC := publicCacheLookupKey{RuleID: 1, ListenerProtocol: publicListenerProtocolHTTP, Host: "c.example", Path: "/asset"}
+	cache.storeIndexedCandidates(lookupA, nil, now, generation, fingerprint)
+	cache.storeIndexedCandidates(lookupB, nil, now, generation, fingerprint)
+
+	entry := db.PublicCacheEntry{
+		KeyDigest:        "digest",
+		RuleID:           lookupB.RuleID,
+		ListenerProtocol: lookupB.ListenerProtocol,
+		Host:             lookupB.Host,
+		Path:             lookupB.Path,
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	cache.putIndexEntry(entry)
+	cache.mu.Lock()
+	if _, exists := cache.negativeLookups[publicCacheLookupKeyHash(lookupB)]; exists {
+		cache.mu.Unlock()
+		t.Fatal("positive insertion retained a contradictory negative lookup")
+	}
+	if got := len(cache.negativeLookups) + len(cache.indexEntries); got != 2 {
+		cache.mu.Unlock()
+		t.Fatalf("combined index cardinality = %d, want MaxEntries 2", got)
+	}
+	cache.mu.Unlock()
+
+	entry.Host = lookupC.Host
+	cache.putIndexEntry(entry)
+	cache.mu.Lock()
+	_, oldLookupPresent := cache.indexLookups[lookupB]
+	newDigests := cache.indexLookups[lookupC]
+	_, newDigestPresent := newDigests[entry.KeyDigest]
+	cache.mu.Unlock()
+	if oldLookupPresent || !newDigestPresent {
+		t.Fatalf("moved positive index consistency = old lookup %v/new digest %v, want false/true", oldLookupPresent, newDigestPresent)
+	}
+
+	cache.deleteEntry(entry.KeyDigest)
+	cache.mu.Lock()
+	_, entryPresent := cache.indexEntries[entry.KeyDigest]
+	_, lookupPresent := cache.indexLookups[lookupC]
+	cache.mu.Unlock()
+	if entryPresent || lookupPresent {
+		t.Fatalf("deleted positive index retained state = entry %v/lookup %v", entryPresent, lookupPresent)
+	}
+}
+
+func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
+	newCache := func(t *testing.T) (*publicProxyCache, uint64, string, db.PublicCacheEntry, publicCacheLookupKey, time.Time) {
+		t.Helper()
+		cache := newPublicProxyCache(t.TempDir())
+		settings := defaultPublicCacheSettings()
+		rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+		fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+		cache.reconcile(settings, rules)
+		generation, ok := cache.captureGeneration(fingerprint)
+		if !ok {
+			t.Fatal("cache generation was not current after reconcile")
+		}
+		now := time.Unix(1_700_000_000, 0)
+		entry := db.PublicCacheEntry{
+			KeyDigest:        "shared-digest",
+			RuleID:           1,
+			ListenerProtocol: publicListenerProtocolHTTP,
+			Host:             "assets.example",
+			Path:             "/asset",
+			StoredAt:         now.Add(-time.Minute),
+			ExpiresAt:        now.Add(time.Hour),
+		}
+		return cache, generation, fingerprint, entry, publicCacheLookupKeyFromEntry(entry), now
+	}
+
+	t.Run("deterministic interleaving", func(t *testing.T) {
+		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
+		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+		newerTouch := now.Add(2 * time.Second)
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, newerTouch)
+		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
+
+		cache.mu.Lock()
+		indexed := cache.indexEntries[staleEntry.KeyDigest].entry
+		cache.mu.Unlock()
+		if indexed.HitCount != 2 {
+			t.Fatalf("indexed hit count = %d, want 2 after stale second store", indexed.HitCount)
+		}
+		if !indexed.LastAccessedAt.Equal(newerTouch) {
+			t.Fatalf("indexed last access = %s, want newer out-of-order touch %s", indexed.LastAccessedAt, newerTouch)
+		}
+	})
+
+	t.Run("parallel cold loads", func(t *testing.T) {
+		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
+		const workers = 64
+		start := make(chan struct{})
+		var group sync.WaitGroup
+		for i := 0; i < workers; i++ {
+			group.Add(1)
+			go func() {
+				defer group.Done()
+				<-start
+				cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
+				cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
+			}()
+		}
+		close(start)
+		group.Wait()
+
+		cache.mu.Lock()
+		hitCount := cache.indexEntries[staleEntry.KeyDigest].entry.HitCount
+		cache.mu.Unlock()
+		if hitCount != workers {
+			t.Fatalf("parallel indexed hit count = %d, want %d", hitCount, workers)
+		}
+	})
+}
+
+func TestPublicCachePositiveIndexAdmissionIsBounded(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	settings := defaultPublicCacheSettings()
+	settings.MaxEntries = 1
+	rules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+	fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+	cache.reconcile(settings, rules)
+	generation, ok := cache.captureGeneration(fingerprint)
+	if !ok {
+		t.Fatal("cache generation was not current after reconcile")
+	}
+	now := time.Unix(1_700_000_000, 0)
+	entryA := db.PublicCacheEntry{
+		KeyDigest:        "digest-a",
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "a.example",
+		Path:             "/asset",
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	entryB := db.PublicCacheEntry{
+		KeyDigest:        "digest-b",
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "b.example",
+		Path:             "/asset",
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	lookupB := publicCacheLookupKeyFromEntry(entryB)
+
+	cache.putIndexEntry(entryA)
+	cache.storeIndexedCandidates(lookupB, []db.PublicCacheEntry{entryB}, now, generation, fingerprint)
+	cache.storeIndexedCandidates(publicCacheLookupKey{
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "miss.example",
+		Path:             "/asset",
+	}, nil, now, generation, fingerprint)
+
+	cache.mu.Lock()
+	entryCount := len(cache.indexEntries)
+	_, keptA := cache.indexEntries[entryA.KeyDigest]
+	_, admittedB := cache.indexEntries[entryB.KeyDigest]
+	_, negativeB := cache.negativeLookups[publicCacheLookupKeyHash(lookupB)]
+	negativeCount := len(cache.negativeLookups)
+	cache.mu.Unlock()
+	if entryCount != 1 || !keptA || admittedB {
+		t.Fatalf("bounded positive index = count %d/kept A %v/admitted B %v, want 1/true/false", entryCount, keptA, admittedB)
+	}
+	if negativeB || negativeCount != 0 {
+		t.Fatalf("negative budget at positive cap = contradictory B %v/count %d, want false/0", negativeB, negativeCount)
+	}
+
+	entryA.HitCount = 7
+	entryA.LastAccessedAt = now.Add(time.Minute)
+	cache.putIndexEntry(entryA)
+	cache.mu.Lock()
+	updated := cache.indexEntries[entryA.KeyDigest].entry
+	entryCount = len(cache.indexEntries)
+	cache.mu.Unlock()
+	if entryCount != 1 || updated.HitCount != 7 || !updated.LastAccessedAt.Equal(entryA.LastAccessedAt) {
+		t.Fatalf("existing entry update at cap = count %d/hits %d/last access %s", entryCount, updated.HitCount, updated.LastAccessedAt)
+	}
+}
+
+func TestPublicCacheStaleConcurrentLookupLoadsCannotRepopulateAfterReconcile(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	settings := defaultPublicCacheSettings()
+	oldRules := []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v1"}}
+	oldFingerprint := publicCacheRuntimeFingerprint(settings, oldRules)
+	cache.reconcile(settings, oldRules)
+	oldGeneration, ok := cache.captureGeneration(oldFingerprint)
+	if !ok {
+		t.Fatal("old cache generation was not current after reconcile")
+	}
+	now := time.Now()
+	entry := db.PublicCacheEntry{
+		KeyDigest:        "stale-digest",
+		RuleID:           1,
+		ListenerProtocol: publicListenerProtocolHTTP,
+		Host:             "assets.example",
+		Path:             "/asset",
+		ExpiresAt:        now.Add(time.Hour),
+	}
+	lookup := publicCacheLookupKeyFromEntry(entry)
+
+	start := make(chan struct{})
+	var workers sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			<-start
+			for j := 0; j < 100; j++ {
+				cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{entry}, now, oldGeneration, oldFingerprint)
+			}
+		}()
+	}
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		<-start
+		cache.reconcile(settings, []publicCacheRuleConfig{{ID: 1, Enabled: true, Fingerprint: "rule-v2"}})
+	}()
+	close(start)
+	workers.Wait()
+
+	cache.mu.Lock()
+	entryCount := len(cache.indexEntries)
+	lookupCount := len(cache.indexLookups)
+	negativeCount := len(cache.negativeLookups)
+	cache.mu.Unlock()
+	if entryCount != 0 || lookupCount != 0 || negativeCount != 0 {
+		t.Fatalf("stale lookup load repopulated index after reconcile: entries=%d lookups=%d negatives=%d", entryCount, lookupCount, negativeCount)
+	}
+}
+
+func TestPublicCacheInFlightOldRuleResponseIsDiscardedAfterReconcile(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/config-race.txt", nil)
+	decision := app.checkPublicCache(req, resolution)
+	if decision.Status != publicCacheStatusMiss {
+		t.Fatalf("cache status = %q, want miss", decision.Status)
+	}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Cache-Control": []string{"max-age=300"},
+			"Content-Type":  []string{"text/plain"},
+			"Vary":          []string{"Accept-Encoding"},
+		},
+		Body: io.NopCloser(strings.NewReader("old-rule-body")),
+	}
+	body := app.capturePublicCacheResponseBody(context.Background(), req, resolution, &decision, resp, nil)
+	store, ok := body.(*publicCacheStoreReadCloser)
+	if !ok {
+		t.Fatalf("cache response body type = %T, want *publicCacheStoreReadCloser", body)
+	}
+
+	newRule := decision.Rule
+	newRule.Scope = publicCacheScopeRoute
+	newRule.TTL = 2 * time.Hour
+	newRule.VaryHeaders = []string{"Accept-Language"}
+	newRule.Fingerprint = publicCacheRuleFingerprint(newRule)
+	settings := defaultPublicCacheSettings()
+	newRules := []publicCacheRuleConfig{newRule}
+	newSnapshot := &publicProxySnapshot{
+		CacheSettings:    settings,
+		CacheRules:       newRules,
+		CacheFingerprint: publicCacheRuntimeFingerprint(settings, newRules),
+	}
+	setPublicSnapshotForTest(t, app, newSnapshot)
+	app.PublicCache.reconcile(settings, newRules)
+
+	if _, err := io.ReadAll(body); err != nil {
+		t.Fatalf("read old-rule response: %v", err)
+	}
+	if err := body.Close(); err != nil {
+		t.Fatalf("close old-rule response: %v", err)
+	}
+	if decision.Status != publicCacheStatusMiss {
+		t.Fatalf("stale response decision status = %q, want miss", decision.Status)
+	}
+	if _, err := app.DB.GetPublicCacheEntry(context.Background(), store.keyDigest); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("stale cache DB lookup error = %v, want sql.ErrNoRows", err)
+	}
+	if _, err := os.Stat(store.finalPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stale cache body stat error = %v, want os.ErrNotExist", err)
 	}
 }
 
@@ -655,6 +1345,9 @@ func TestPublicCacheAgentBackendMissStoresThenHit(t *testing.T) {
 	}
 	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("agent-asset-v1")) {
 		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
+	}
+	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
 	}
 
 	var eventAgentID sql.NullInt64
@@ -728,19 +1421,17 @@ func TestPublicCacheStoreReadCloserDoesNotRaceWithReconcile(t *testing.T) {
 	reconcileDone := make(chan struct{})
 	go func() {
 		defer close(reconcileDone)
-		for i := 0; ; i++ {
+		for {
 			select {
 			case <-stopReconcile:
 				return
 			default:
 			}
 			settings := defaultPublicCacheSettings()
-			if i%2 == 0 {
-				settings.MemoryHotObjectMaxBytes = 32
-			} else {
-				settings.MemoryHotObjectMaxBytes = defaultPublicCacheMemoryHotObjectBytes
-			}
-			app.PublicCache.reconcile(settings)
+			app.proxyMu.Lock()
+			rules := append([]publicCacheRuleConfig(nil), app.publicSnapshot.CacheRules...)
+			app.proxyMu.Unlock()
+			app.PublicCache.reconcile(settings, rules)
 		}
 	}()
 	defer func() {
@@ -798,6 +1489,7 @@ func TestPublicCacheHeadServedFromCachedGet(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("head-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("insert cache entry: %v", err)
@@ -881,27 +1573,40 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		CacheRuleID: rule.ID,
 	}
 	resolution.Route.Targets = []publicRouteTargetConfig{resolution.Target}
-	app.proxyMu.Lock()
-	app.publicSnapshot = &publicProxySnapshot{
-		CacheSettings: defaultPublicCacheSettings(),
-		CacheRules:    []publicCacheRuleConfig{rule},
-		RouteTargets:  map[int64]publicRouteTargetConfig{resolution.Target.ID: resolution.Target},
-	}
-	app.proxyMu.Unlock()
-	app.PublicCache.reconcile(defaultPublicCacheSettings())
+	settings := defaultPublicCacheSettings()
+	rules := []publicCacheRuleConfig{rule}
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
+		CacheSettings:    settings,
+		CacheRules:       rules,
+		CacheFingerprint: publicCacheRuntimeFingerprint(settings, rules),
+		RouteTargets:     map[int64]publicRouteTargetConfig{resolution.Target.ID: resolution.Target},
+	})
+	app.PublicCache.reconcile(settings, rules)
 
-	return app, resolution, func() { database.Close() }
+	return app, resolution, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := app.flushObservabilityRecorder(ctx); err != nil {
+			t.Fatalf("flush observability recorder: %v", err)
+		}
+		database.Close()
+	}
 }
 
 func setTestCacheRuleAllowCookieRequests(t *testing.T, app *App, allowed bool) {
 	t.Helper()
 	app.proxyMu.Lock()
-	defer app.proxyMu.Unlock()
 	if app.publicSnapshot == nil || len(app.publicSnapshot.CacheRules) == 0 {
+		app.proxyMu.Unlock()
 		t.Fatal("test cache snapshot missing rule")
 	}
 	app.publicSnapshot.CacheRules[0].AllowCookieRequests = allowed
 	app.publicSnapshot.CacheRules[0].Fingerprint = publicCacheRuleFingerprint(app.publicSnapshot.CacheRules[0])
+	settings := app.publicSnapshot.CacheSettings
+	rules := append([]publicCacheRuleConfig(nil), app.publicSnapshot.CacheRules...)
+	app.publicSnapshot.CacheFingerprint = publicCacheRuntimeFingerprint(settings, rules)
+	app.proxyMu.Unlock()
+	app.PublicCache.reconcile(settings, rules)
 }
 
 func createTestAdminSession(t *testing.T, app *App) http.Header {

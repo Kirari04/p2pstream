@@ -78,7 +78,7 @@ func (p *agentTransportPool) publicRouteTargetTransport(app *App, agent *AgentCo
 		Kind:                        agentTransportKindRouteTarget,
 		AgentID:                     agent.AgentID,
 		RouteTargetID:               target.ID,
-		TargetOrigin:                target.URL,
+		TargetOrigin:                routeTargetTransportOrigin(target),
 		TLSSkipVerify:               target.TLSSkipVerify,
 		ResponseHeaderTimeoutMillis: int64(timeout / time.Millisecond),
 	}
@@ -160,6 +160,15 @@ func (p *agentTransportPool) closeAgent(agentID int64) {
 	})
 }
 
+func (p *agentTransportPool) closeAgentConnection(agent *AgentConn) {
+	if agent == nil {
+		return
+	}
+	p.closeEntriesWhere(func(_ agentTransportKey, entry *pooledAgentTransport) bool {
+		return entry != nil && entry.agent == agent
+	})
+}
+
 func (p *agentTransportPool) closeRouteTarget(targetID int64) {
 	p.closeWhere(func(key agentTransportKey) bool {
 		return key.Kind == agentTransportKindRouteTarget && key.RouteTargetID == targetID
@@ -186,13 +195,19 @@ func (p *agentTransportPool) len() int {
 }
 
 func (p *agentTransportPool) closeWhere(match func(agentTransportKey) bool) {
+	p.closeEntriesWhere(func(key agentTransportKey, _ *pooledAgentTransport) bool {
+		return match(key)
+	})
+}
+
+func (p *agentTransportPool) closeEntriesWhere(match func(agentTransportKey, *pooledAgentTransport) bool) {
 	if p == nil {
 		return
 	}
 	var transports []*http.Transport
 	p.mu.Lock()
 	for key, entry := range p.entries {
-		if !match(key) {
+		if !match(key, entry) {
 			continue
 		}
 		if entry.transport != nil {

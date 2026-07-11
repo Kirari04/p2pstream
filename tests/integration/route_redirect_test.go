@@ -164,6 +164,9 @@ func TestPublicRouteRedirectResponses(t *testing.T) {
 			if got := resp.Header.Get("Location"); got != tt.wantLoc {
 				t.Fatalf("Location = %q, want %q", got, tt.wantLoc)
 			}
+			if err := app.FlushObservabilityRecorder(context.Background()); err != nil {
+				t.Fatalf("flush observability recorder: %v", err)
+			}
 
 			var routeID sql.NullInt64
 			var routeTargetID sql.NullInt64
