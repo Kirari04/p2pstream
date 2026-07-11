@@ -58,16 +58,18 @@ func (a *App) currentPublicSnapshot() *publicProxySnapshot {
 func (a *App) setPublicSnapshotLocked(snap *publicProxySnapshot) {
 	a.publicSnapshot = snap
 	a.publicSnapshotPtr.Store(snap)
+	a.publicSnapshotGeneration++
 }
 
 func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyMu.Lock()
 	a.setPublicSnapshotLocked(snap)
+	generation := a.publicSnapshotGeneration
 	a.ensureListenerStatesLocked(snap)
 	a.proxyStatusLocked()
 	active := a.proxyServiceActive
 	a.proxyMu.Unlock()
-	a.refreshRunningPublicTLSSelectors(snap)
+	a.refreshRunningPublicTLSSelectors(snap, generation)
 	a.LoadBalancers.reconcile(snap)
 	if a.TargetHealth != nil {
 		a.TargetHealth.reconcile(a, snap, active)
