@@ -458,6 +458,14 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				"load_balancer": resolution.Target.AgentLoadBalancing,
 			})
 		}
+		releaseAgentRequest, ok := a.agentProxyRequests.TryAcquire()
+		if !ok {
+			statusCode = http.StatusServiceUnavailable
+			errorKind = "agent_request_capacity"
+			http.Error(w, "Agent tunnel capacity reached", http.StatusServiceUnavailable)
+			return
+		}
+		defer releaseAgentRequest()
 		agent.ActiveRequests.Add(1)
 		defer agent.ActiveRequests.Add(-1)
 	}
@@ -586,6 +594,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 					statusCode = http.StatusGatewayTimeout
 					errorKind = "agent_dial_timeout"
 					http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+					return
+				}
+				if dialErr.Kind == "agent_capacity" {
+					statusCode = http.StatusServiceUnavailable
+					errorKind = "agent_capacity"
+					http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 					return
 				}
 				statusCode = http.StatusBadGateway
@@ -839,6 +853,10 @@ func requestContextCanceled(ctx context.Context, err error) bool {
 
 func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 	if err == nil {
+		return false
+	}
+	var dialErr agentDialError
+	if errors.As(err, &dialErr) && dialErr.Kind == "agent_capacity" {
 		return false
 	}
 	return !requestContextCanceled(requestCtx, err)

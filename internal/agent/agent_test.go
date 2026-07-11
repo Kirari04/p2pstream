@@ -100,6 +100,79 @@ func TestTunnelSessionRelaysTCPStream(t *testing.T) {
 	}
 }
 
+func TestTunnelSessionBoundsConcurrentRequests(t *testing.T) {
+	resetAgentRequestCounters()
+	t.Cleanup(resetAgentRequestCounters)
+
+	upstream := startEchoListener(t)
+	clientConn, serverConn := net.Pipe()
+	agentSession, err := yamux.Client(clientConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("agent yamux client: %v", err)
+	}
+	serverSession, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("server yamux session: %v", err)
+	}
+	defer agentSession.Close()
+	defer serverSession.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		_ = serveTunnelSessionWithLimit(ctx, agentSession, 1)
+	}()
+
+	first, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open first stream: %v", err)
+	}
+	if err := tunnel.WriteOpenRequest(first, tunnel.NewOpenRequest("req-1", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatalf("write first open request: %v", err)
+	}
+	if resp, err := tunnel.ReadOpenResponse(first); err != nil || !resp.OK {
+		t.Fatalf("first open response = %+v, err=%v, want ok", resp, err)
+	}
+
+	second, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open second stream: %v", err)
+	}
+	if err := tunnel.WriteOpenRequest(second, tunnel.NewOpenRequest("req-2", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatalf("write second open request: %v", err)
+	}
+	_ = second.SetReadDeadline(time.Now().Add(time.Second))
+	resp, err := tunnel.ReadOpenResponse(second)
+	if err != nil {
+		t.Fatalf("read capacity response: %v", err)
+	}
+	if resp.OK || resp.ErrorKind != "agent_capacity" {
+		t.Fatalf("second open response = %+v, want agent_capacity", resp)
+	}
+	_ = second.Close()
+
+	_ = first.Close()
+	deadline := time.Now().Add(2 * time.Second)
+	for activeRequests.Load() != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := activeRequests.Load(); got != 0 {
+		t.Fatalf("active requests after first close = %d, want 0", got)
+	}
+
+	third, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open third stream: %v", err)
+	}
+	defer third.Close()
+	if err := tunnel.WriteOpenRequest(third, tunnel.NewOpenRequest("req-3", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatalf("write third open request: %v", err)
+	}
+	if resp, err := tunnel.ReadOpenResponse(third); err != nil || !resp.OK {
+		t.Fatalf("third open response = %+v, err=%v, want capacity to recover", resp, err)
+	}
+}
+
 func TestTunnelSessionReturnsDialFailure(t *testing.T) {
 	resetAgentRequestCounters()
 	t.Cleanup(resetAgentRequestCounters)

@@ -45,19 +45,23 @@ var (
 	agentReconnectBackoffMax      = 30 * time.Second
 )
 
-const agentTunnelResponseHeaderTimeout = 15 * time.Second
+const (
+	agentTunnelResponseHeaderTimeout = 15 * time.Second
+	agentCapacityResponseTimeout     = time.Second
+)
 
 type Options struct {
-	ManagementURL              string
-	PublicID                   string
-	Name                       string
-	Token                      string
-	ManagementCAFile           string
-	ManagementCAPEMBase64      string
-	TLSCertFile                string
-	TLSKeyFile                 string
-	AllowInsecureManagement    bool
-	TunnelMaxStreamWindowBytes int64
+	ManagementURL               string
+	PublicID                    string
+	Name                        string
+	Token                       string
+	ManagementCAFile            string
+	ManagementCAPEMBase64       string
+	TLSCertFile                 string
+	TLSKeyFile                  string
+	AllowInsecureManagement     bool
+	TunnelMaxStreamWindowBytes  int64
+	TunnelMaxConcurrentRequests int64
 }
 
 // Run is the main entry point to start the agent loop
@@ -85,7 +89,15 @@ func Run(opts Options) error {
 		log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
 
 		connectedAt := time.Now()
-		err := connectAndServe(tunnelClient, tunnelURL, opts.PublicID, opts.Name, opts.Token, opts.TunnelMaxStreamWindowBytes)
+		err := connectAndServe(
+			tunnelClient,
+			tunnelURL,
+			opts.PublicID,
+			opts.Name,
+			opts.Token,
+			opts.TunnelMaxStreamWindowBytes,
+			opts.TunnelMaxConcurrentRequests,
+		)
 		if err != nil {
 			log.Warn().Err(err).Msg("Disconnected")
 		}
@@ -145,7 +157,7 @@ func validateOptions(opts Options) error {
 	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "" || strings.TrimSpace(opts.ManagementCAPEMBase64) != "") {
 		return fmt.Errorf("agent TLS files require an https management URL")
 	}
-	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(opts.TunnelMaxStreamWindowBytes); err != nil {
+	if err := tunnel.ValidateAggregateStreamWindowBudget(opts.TunnelMaxStreamWindowBytes, opts.TunnelMaxConcurrentRequests); err != nil {
 		return err
 	}
 	return nil
@@ -273,7 +285,7 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}, nil
 }
 
-func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, maxStreamWindowSizeBytes int64) error {
+func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, maxStreamWindowSizeBytes int64, maxConcurrentRequests int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -332,7 +344,7 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSession(ctx, session); err != nil {
+	if err := serveTunnelSessionWithLimit(ctx, session, maxConcurrentRequests); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
@@ -341,6 +353,14 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 }
 
 func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
+	return serveTunnelSessionWithLimit(ctx, session, 0)
+}
+
+func serveTunnelSessionWithLimit(ctx context.Context, session *yamux.Session, maxConcurrentRequests int64) error {
+	limiter, err := tunnel.NewStreamLimiter(maxConcurrentRequests)
+	if err != nil {
+		return fmt.Errorf("invalid tunnel request limit: %w", err)
+	}
 	for {
 		stream, err := session.Accept()
 		if err != nil {
@@ -351,8 +371,30 @@ func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
-		go handleTunnelStream(ctx, stream)
+		release, ok := limiter.TryAcquire()
+		if !ok {
+			reqServerError.Add(1)
+			rejectTunnelStreamAtCapacity(stream)
+			continue
+		}
+		go func() {
+			defer release()
+			handleTunnelStream(ctx, stream)
+		}()
 	}
+}
+
+func rejectTunnelStreamAtCapacity(stream net.Conn) {
+	defer stream.Close()
+	_ = stream.SetDeadline(time.Now().Add(agentCapacityResponseTimeout))
+	if _, err := tunnel.ReadOpenRequest(stream); err != nil {
+		return
+	}
+	_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
+		OK:        false,
+		ErrorKind: "agent_capacity",
+		Error:     "agent tunnel request capacity reached",
+	})
 }
 
 func handleTunnelStream(ctx context.Context, stream net.Conn) {

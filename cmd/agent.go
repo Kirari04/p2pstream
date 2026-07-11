@@ -72,18 +72,24 @@ var agentCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
+		tunnelMaxConcurrentRequests, err := agentTunnelMaxConcurrentRequests(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
 
 		if err := agent.Run(agent.Options{
-			ManagementURL:              mgmtURL,
-			PublicID:                   agentID,
-			Name:                       agentName,
-			Token:                      agentToken,
-			ManagementCAFile:           managementCAFile,
-			ManagementCAPEMBase64:      managementCAPEMBase64,
-			TLSCertFile:                tlsCertFile,
-			TLSKeyFile:                 tlsKeyFile,
-			AllowInsecureManagement:    allowInsecureManagement,
-			TunnelMaxStreamWindowBytes: tunnelMaxStreamWindowBytes,
+			ManagementURL:               mgmtURL,
+			PublicID:                    agentID,
+			Name:                        agentName,
+			Token:                       agentToken,
+			ManagementCAFile:            managementCAFile,
+			ManagementCAPEMBase64:       managementCAPEMBase64,
+			TLSCertFile:                 tlsCertFile,
+			TLSKeyFile:                  tlsKeyFile,
+			AllowInsecureManagement:     allowInsecureManagement,
+			TunnelMaxStreamWindowBytes:  tunnelMaxStreamWindowBytes,
+			TunnelMaxConcurrentRequests: tunnelMaxConcurrentRequests,
 		}); err != nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
@@ -103,6 +109,7 @@ func init() {
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
 	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
+	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", tunnel.DefaultMaxConcurrentAgentRequests, "Maximum concurrent requests served through the agent tunnel")
 }
 
 func defaultAgentManagementURL() string {
@@ -181,6 +188,21 @@ func agentTunnelMaxStreamWindowBytes(cmd *cobra.Command) (int64, error) {
 	value, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid TUNNEL_MAX_STREAM_WINDOW_BYTES %q: %w", raw, err)
+	}
+	return value, nil
+}
+
+func agentTunnelMaxConcurrentRequests(cmd *cobra.Command) (int64, error) {
+	if cmd.Flags().Changed("tunnel-max-concurrent-requests") {
+		return cmd.Flags().GetInt64("tunnel-max-concurrent-requests")
+	}
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MAX_CONCURRENT_REQUESTS"))
+	if raw == "" {
+		return tunnel.DefaultMaxConcurrentAgentRequests, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid TUNNEL_MAX_CONCURRENT_REQUESTS %q: %w", raw, err)
 	}
 	return value, nil
 }

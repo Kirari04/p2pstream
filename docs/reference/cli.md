@@ -42,6 +42,7 @@ p2pstream agent [flags]
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
 | `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum Yamux receive window per tunnel stream. |
+| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Maximum concurrent requests handled by the agent tunnel. |
 
 ## Validation Rules
 
@@ -49,7 +50,9 @@ p2pstream agent [flags]
 - Use only one password source: prompt, `--password-env`, or `--password-file`.
 - `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
-- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `1073741824`.
+- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `67108864`.
+- `--tunnel-max-concurrent-requests` must be between `1` and `2048`.
+- The stream window multiplied by `--tunnel-max-concurrent-requests` cannot exceed `536870912` bytes.
 
 ## Runtime Effects
 

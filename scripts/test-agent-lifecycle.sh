@@ -212,6 +212,8 @@ test_first_install() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "CA-one")" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="32" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="token-one"
 
@@ -221,6 +223,8 @@ test_first_install() {
   assert_exists "${SYSTEMD_DIR}/p2pstream-agent.service"
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_URL=\"https://mgmt.example.test:8081\""
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_CA_FILE=\"${CONFIG_DIR}/management-ca.pem\""
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_STREAM_WINDOW_BYTES=\"4194304\""
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_CONCURRENT_REQUESTS=\"32\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ID=\"agent-one\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"token-one\""
   assert_contains "${CONFIG_DIR}/management-ca.pem" "CA-one"
@@ -234,6 +238,8 @@ test_reinstall_overwrites_token_and_ca() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "old CA")" \
+    TUNNEL_MAX_STREAM_WINDOW_BYTES="4194304" \
+    TUNNEL_MAX_CONCURRENT_REQUESTS="32" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="old-token"
   : >"$SYSTEMCTL_LOG"
@@ -246,6 +252,8 @@ test_reinstall_overwrites_token_and_ca() {
 
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
   assert_not_contains "${CONFIG_DIR}/agent.env" "old-token"
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_STREAM_WINDOW_BYTES=\"4194304\""
+  assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_CONCURRENT_REQUESTS=\"32\""
   assert_contains "${CONFIG_DIR}/management-ca.pem" "new CA"
   assert_not_contains "${CONFIG_DIR}/management-ca.pem" "old CA"
   assert_systemctl_enable_before_restart

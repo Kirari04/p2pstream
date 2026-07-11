@@ -77,6 +77,26 @@ latest_release_tag() {
   printf '%s' "$tag"
 }
 
+write_optional_agent_env() {
+  local name="$1"
+  local value="$2"
+  local line
+  if [[ -n "$value" ]]; then
+    printf '%s=%s\n' "$name" "$(systemd_env_value "$value")"
+    return
+  fi
+  [[ -f "$ENV_FILE" ]] || return 0
+  while IFS= read -r line; do
+    case "$line" in
+      "${name}="*)
+        printf '%s\n' "$line"
+        return
+        ;;
+    esac
+  done <"$ENV_FILE"
+  return 0
+}
+
 write_agent_env() {
   local tmp_file="$1"
   {
@@ -93,6 +113,8 @@ write_agent_env() {
     if [[ "${AGENT_ALLOW_INSECURE_MANAGEMENT:-}" == "true" ]]; then
       printf 'AGENT_ALLOW_INSECURE_MANAGEMENT="true"\n'
     fi
+    write_optional_agent_env TUNNEL_MAX_STREAM_WINDOW_BYTES "${TUNNEL_MAX_STREAM_WINDOW_BYTES:-}"
+    write_optional_agent_env TUNNEL_MAX_CONCURRENT_REQUESTS "${TUNNEL_MAX_CONCURRENT_REQUESTS:-}"
     printf 'AGENT_ID=%s\n' "$(systemd_env_value "$AGENT_ID")"
     printf 'AGENT_TOKEN=%s\n' "$(systemd_env_value "$AGENT_TOKEN")"
   } >"$tmp_file"

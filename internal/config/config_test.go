@@ -115,8 +115,11 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.LoginThrottleMaxKeys != 50_000 {
 		t.Fatalf("LoginThrottleMaxKeys = %d, want 50000", cfg.LoginThrottleMaxKeys)
 	}
-	if cfg.TunnelMaxStreamWindowBytes != 8*1024*1024 {
-		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 8388608", cfg.TunnelMaxStreamWindowBytes)
+	if cfg.TunnelMaxStreamWindowBytes != 2*1024*1024 {
+		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 2097152", cfg.TunnelMaxStreamWindowBytes)
+	}
+	if cfg.TunnelMaxConcurrentRequests != 64 {
+		t.Fatalf("TunnelMaxConcurrentRequests = %d, want 64", cfg.TunnelMaxConcurrentRequests)
 	}
 }
 
@@ -182,10 +185,21 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 	t.Run("large tunnel stream window rejected", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
-		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "1073741825")
+		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108865")
 
 		if _, err := Load(); err == nil {
 			t.Fatal("expected large TUNNEL_MAX_STREAM_WINDOW_BYTES to fail")
+		}
+	})
+
+	t.Run("aggregate tunnel window budget rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108864")
+		t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "9")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected aggregate tunnel receive-window budget to fail")
 		}
 	})
 }

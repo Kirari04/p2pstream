@@ -96,3 +96,20 @@ func TestNormalizeMaxStreamWindowSizeBytesRejectsUnsafeBounds(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateAggregateStreamWindowBudget(t *testing.T) {
+	if err := ValidateAggregateStreamWindowBudget(0, 0); err != nil {
+		t.Fatalf("default aggregate stream window budget: %v", err)
+	}
+	if err := ValidateAggregateStreamWindowBudget(64*1024*1024, 8); err != nil {
+		t.Fatalf("boundary aggregate stream window budget: %v", err)
+	}
+	if err := ValidateAggregateStreamWindowBudget(64*1024*1024, 9); err == nil {
+		t.Fatal("aggregate stream window budget above limit was accepted")
+	}
+	for _, requests := range []int64{-1, MaxConcurrentAgentRequestsLimit + 1} {
+		if err := ValidateAggregateStreamWindowBudget(DefaultMaxStreamWindowSizeBytes, requests); err == nil {
+			t.Fatalf("concurrent request limit %d was accepted", requests)
+		}
+	}
+}
