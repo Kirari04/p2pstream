@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -335,6 +336,12 @@ func connectAndServe(client *http.Client, tunnelURL string, agentPublicID string
 }
 
 func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
+	var handlers sync.WaitGroup
+	defer func() {
+		_ = session.Close()
+		handlers.Wait()
+	}()
+
 	for {
 		stream, err := session.Accept()
 		if err != nil {
@@ -345,7 +352,11 @@ func serveTunnelSession(ctx context.Context, session *yamux.Session) error {
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
-		go handleTunnelStream(ctx, stream)
+		handlers.Add(1)
+		go func(stream net.Conn) {
+			defer handlers.Done()
+			handleTunnelStream(ctx, stream)
+		}(stream)
 	}
 }
 
