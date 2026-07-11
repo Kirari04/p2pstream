@@ -654,23 +654,83 @@ func TestCloseObservabilityRecorderFlushesQueuedEvents(t *testing.T) {
 	}
 }
 
-func TestObservabilityRecorderCanceledFlushCanRetryWithFreshCloseContext(t *testing.T) {
+func TestCloseObservabilityRecorderCancelsActiveFlushAndDrains(t *testing.T) {
 	app := NewApp(nil, newServerTestDB(t))
 	recorder := newObservabilityRecorder(app)
-	// Suppress the worker until after the first flush so its unbuffered control
+	flushStarted := make(chan struct{})
+	flushCanceled := make(chan struct{})
+	flushCalls := 0
+	recorder.insertBatch = func(ctx context.Context, events []db.InsertProxyRequestEventAtParams, touches []db.TouchPublicCacheEntryParams) error {
+		flushCalls++
+		if flushCalls == 1 {
+			close(flushStarted)
+			<-ctx.Done()
+			close(flushCanceled)
+			return ctx.Err()
+		}
+		return app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, events, touches)
+	}
+
+	for i := 0; i < observabilityRecorderMaxBatch; i++ {
+		recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
+	}
+	select {
+	case <-flushStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for background observability flush to start")
+	}
+
+	closeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := recorder.close(closeCtx); err != nil {
+		t.Fatalf("close recorder after canceling active flush: %v", err)
+	}
+	select {
+	case <-flushCanceled:
+	default:
+		t.Fatal("active background flush did not observe close cancellation")
+	}
+	if flushCalls != 2 {
+		t.Fatalf("flush calls = %d, want canceled background flush plus stop drain", flushCalls)
+	}
+	if recorder.pendingEvents.Load() != 0 || len(recorder.events) != 0 {
+		t.Fatalf("events remained after close drain: pending=%d queued=%d", recorder.pendingEvents.Load(), len(recorder.events))
+	}
+
+	var rawEvents int64
+	if err := app.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rawEvents); err != nil {
+		t.Fatalf("count drained proxy events: %v", err)
+	}
+	if rawEvents != observabilityRecorderMaxBatch {
+		t.Fatalf("drained proxy events = %d, want %d", rawEvents, observabilityRecorderMaxBatch)
+	}
+}
+
+func TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	recorder := newObservabilityRecorder(app)
+	// Suppress the worker until after the first close so its unbuffered control
 	// send deterministically observes the canceled context.
 	recorder.startOnce.Do(func() {})
 	recorder.recordProxyRequestEvent(context.Background(), proxyRequestEvent{StatusCode: http.StatusOK})
 
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := recorder.flush(canceledCtx); !errors.Is(err, context.Canceled) {
-		t.Fatalf("flush error = %v, want context.Canceled", err)
+	if err := recorder.close(canceledCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("close error = %v, want context.Canceled", err)
+	}
+	if recorder.stopped || recorder.closing.Load() {
+		t.Fatalf("recorder remained stopped after failed pre-send close: stopped=%t closing=%t", recorder.stopped, recorder.closing.Load())
 	}
 
 	recorder.mu.Lock()
 	recorder.startOnce = sync.Once{}
 	recorder.mu.Unlock()
+	flushCtx, flushCancel := context.WithTimeout(context.Background(), time.Second)
+	defer flushCancel()
+	if err := recorder.flush(flushCtx); err != nil {
+		t.Fatalf("flush recorder with fresh context: %v", err)
+	}
 	closeCtx, closeCancel := context.WithTimeout(context.Background(), time.Second)
 	defer closeCancel()
 	if err := recorder.close(closeCtx); err != nil {
@@ -682,7 +742,7 @@ func TestObservabilityRecorderCanceledFlushCanRetryWithFreshCloseContext(t *test
 		t.Fatalf("count raw proxy events: %v", err)
 	}
 	if rawEvents != 1 {
-		t.Fatalf("raw proxy events after canceled flush and fresh close = %d, want 1", rawEvents)
+		t.Fatalf("raw proxy events after canceled close and fresh flush = %d, want 1", rawEvents)
 	}
 }
 

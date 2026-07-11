@@ -17,6 +17,7 @@ import (
 const (
 	observabilityRecorderQueueSize     = 8192
 	observabilityRecorderFlushInterval = 250 * time.Millisecond
+	observabilityRecorderFlushTimeout  = 5 * time.Second
 	observabilityRecorderMaxBatch      = 512
 	observabilityRecorderMaxTouchKeys  = 8192
 	observabilityRecorderLogInterval   = time.Minute
@@ -44,13 +45,17 @@ type proxyRequestEvent struct {
 
 type observabilityRecorder struct {
 	app            *App
+	insertBatch    observabilityRecorderInsertFunc
 	events         chan db.InsertProxyRequestEventAtParams
 	touches        chan publicCacheTouch
 	control        chan observabilityRecorderRequest
 	done           chan struct{}
 	mu             sync.Mutex
+	flushMu        sync.Mutex
+	activeFlush    *observabilityRecorderFlushOperation
 	startOnce      sync.Once
 	stopped        bool
+	closing        atomic.Bool
 	droppedEvents  atomic.Int64
 	droppedTouches atomic.Int64
 	pendingEvents  atomic.Int64
@@ -58,6 +63,12 @@ type observabilityRecorder struct {
 	nextDropLog    atomic.Int64
 	nextErrorLog   atomic.Int64
 }
+
+type observabilityRecorderFlushOperation struct {
+	cancel context.CancelFunc
+}
+
+type observabilityRecorderInsertFunc func(context.Context, []db.InsertProxyRequestEventAtParams, []db.TouchPublicCacheEntryParams) error
 
 type observabilityRecorderRequest struct {
 	ctx  context.Context
@@ -97,13 +108,17 @@ func newPublicCacheTouch(keyDigest string, storedAt time.Time, accessedAt time.T
 }
 
 func newObservabilityRecorder(app *App) *observabilityRecorder {
-	return &observabilityRecorder{
+	recorder := &observabilityRecorder{
 		app:     app,
 		events:  make(chan db.InsertProxyRequestEventAtParams, observabilityRecorderQueueSize),
 		touches: make(chan publicCacheTouch, observabilityRecorderQueueSize),
 		control: make(chan observabilityRecorderRequest),
 		done:    make(chan struct{}),
 	}
+	if app != nil {
+		recorder.insertBatch = app.insertProxyRequestEventsWithRollupsAndCacheTouches
+	}
+	return recorder
 }
 
 func (a *App) observabilityRecorderService() *observabilityRecorder {
@@ -288,7 +303,9 @@ func (r *observabilityRecorder) close(ctx context.Context) error {
 		}
 	}
 	r.stopped = true
+	r.closing.Store(true)
 	r.startLocked()
+	r.cancelActiveFlush()
 	done := make(chan error, 1)
 	req := observabilityRecorderRequest{ctx: ctx, done: done, stop: true}
 	select {
@@ -296,6 +313,7 @@ func (r *observabilityRecorder) close(ctx context.Context) error {
 		r.mu.Unlock()
 	case <-ctx.Done():
 		r.stopped = false
+		r.closing.Store(false)
 		r.mu.Unlock()
 		return ctx.Err()
 	}
@@ -318,6 +336,46 @@ func (r *observabilityRecorder) startLocked() {
 	})
 }
 
+func (r *observabilityRecorder) cancelActiveFlush() {
+	r.flushMu.Lock()
+	defer r.flushMu.Unlock()
+	if r.activeFlush != nil {
+		r.activeFlush.cancel()
+	}
+}
+
+func (r *observabilityRecorder) runFlushOperation(ctx context.Context, allowClosing bool, flush func(context.Context) error) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	flushCtx, cancel := context.WithCancel(ctx)
+	operation := &observabilityRecorderFlushOperation{cancel: cancel}
+
+	r.flushMu.Lock()
+	if !allowClosing && r.closing.Load() {
+		r.flushMu.Unlock()
+		cancel()
+		return context.Canceled
+	}
+	r.activeFlush = operation
+	r.flushMu.Unlock()
+
+	err := flush(flushCtx)
+	cancel()
+	r.flushMu.Lock()
+	if r.activeFlush == operation {
+		r.activeFlush = nil
+	}
+	r.flushMu.Unlock()
+	return err
+}
+
+func (r *observabilityRecorder) runBackgroundFlush(flush func(context.Context) error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), observabilityRecorderFlushTimeout)
+	defer cancel()
+	return r.runFlushOperation(ctx, false, flush)
+}
+
 func (r *observabilityRecorder) run() {
 	ticker := time.NewTicker(observabilityRecorderFlushInterval)
 	defer ticker.Stop()
@@ -336,14 +394,19 @@ func (r *observabilityRecorder) run() {
 			batch = append(batch, event)
 			r.pendingEvents.Store(int64(len(batch)))
 			if len(batch) >= observabilityRecorderMaxBatch {
-				r.flushBatch(context.Background(), &batch, touches, time.Now().UTC(), false)
+				_ = r.runBackgroundFlush(func(ctx context.Context) error {
+					return r.flushBatch(ctx, &batch, touches, time.Now().UTC(), false)
+				})
 			}
 		case touch := <-r.touches:
 			r.queuePublicCacheTouch(touches, touch)
 		case req := <-r.control:
 			eventCount := len(r.events)
 			touchCount := len(r.touches)
-			req.done <- r.flushQueued(req.ctx, &batch, touches, eventCount, touchCount)
+			err := r.runFlushOperation(req.ctx, req.stop, func(ctx context.Context) error {
+				return r.flushQueued(ctx, &batch, touches, eventCount, touchCount)
+			})
+			req.done <- err
 			if req.stop {
 				close(r.done)
 				return
@@ -351,7 +414,9 @@ func (r *observabilityRecorder) run() {
 		case <-ticker.C:
 			now := time.Now().UTC()
 			r.prunePublicCacheTouches(touches, now)
-			r.flushBatch(context.Background(), &batch, touches, now, false)
+			_ = r.runBackgroundFlush(func(ctx context.Context) error {
+				return r.flushBatch(ctx, &batch, touches, now, false)
+			})
 		}
 	}
 }
@@ -451,8 +516,13 @@ func (r *observabilityRecorder) flushBatch(
 	if len(*batch) == 0 && len(touchBatch) == 0 {
 		return nil
 	}
-	if err := r.app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, *batch, touchBatch); err != nil {
-		r.logFlushError(err)
+	if r.insertBatch == nil {
+		return nil
+	}
+	if err := r.insertBatch(ctx, *batch, touchBatch); err != nil {
+		if !r.closing.Load() || ctx.Err() != context.Canceled {
+			r.logFlushError(err)
+		}
 		return err
 	}
 	*batch = (*batch)[:0]
