@@ -71,6 +71,8 @@ const (
 var defaultPublicCacheStatusCodes = []int64{200, 203, 204, 301, 308}
 var defaultPublicCacheVaryHeaders = []string{"Accept-Encoding"}
 
+var errPublicCacheGenerationChanged = errors.New("public cache entry generation changed")
+
 type publicCacheSettingsConfig struct {
 	Enabled                 bool
 	MaxDiskBytes            int64
@@ -167,6 +169,7 @@ type publicProxyCache struct {
 	generation      uint64
 	invalidateHook  func()
 	upsertHook      func(context.Context, db.UpsertPublicCacheEntryParams) (db.PublicCacheEntry, error)
+	duplicateHook   func()
 }
 
 type publicCacheMemoryEntry struct {
@@ -312,28 +315,38 @@ func (c *publicProxyCache) storeStripe(key string) *sync.Mutex {
 	return &c.storeStripes[int(sum[0])%len(c.storeStripes)]
 }
 
-func (c *publicProxyCache) acquireStoreGeneration(key string, generation uint64, fingerprint string) bool {
+func (c *publicProxyCache) acquireKeyFence(key string) bool {
 	stripe := c.storeStripe(key)
 	if stripe == nil {
 		return false
 	}
 	stripe.Lock()
 	c.storeGate.RLock()
-	if c.generationMatches(generation, fingerprint) {
-		return true
-	}
-	c.storeGate.RUnlock()
-	stripe.Unlock()
-	return false
+	return true
 }
 
-func (c *publicProxyCache) releaseStoreGeneration(key string) {
+func (c *publicProxyCache) releaseKeyFence(key string) {
 	stripe := c.storeStripe(key)
 	if stripe == nil {
 		return
 	}
 	c.storeGate.RUnlock()
 	stripe.Unlock()
+}
+
+func (c *publicProxyCache) acquireStoreGeneration(key string, generation uint64, fingerprint string) bool {
+	if !c.acquireKeyFence(key) {
+		return false
+	}
+	if c.generationMatches(generation, fingerprint) {
+		return true
+	}
+	c.releaseKeyFence(key)
+	return false
+}
+
+func (c *publicProxyCache) releaseStoreGeneration(key string) {
+	c.releaseKeyFence(key)
 }
 
 func publicCacheRuntimeFingerprint(settings publicCacheSettingsConfig, rules []publicCacheRuleConfig) string {
@@ -1163,7 +1176,8 @@ func (a *App) preparePublicCacheHitBody(r *http.Request, decision *publicCacheDe
 		return false
 	}
 	if r.Method == http.MethodHead || decision.Entry.SizeBytes == 0 {
-		return true
+		_, err := a.openCurrentPublicCacheHit(*decision.Entry, false)
+		return err == nil
 	}
 	body, err := a.openPublicCacheHitBody(*decision.Entry)
 	if err != nil {
@@ -1174,10 +1188,34 @@ func (a *App) preparePublicCacheHitBody(r *http.Request, decision *publicCacheDe
 }
 
 func (a *App) openPublicCacheHitBody(entry db.PublicCacheEntry) (io.ReadCloser, error) {
+	return a.openCurrentPublicCacheHit(entry, true)
+}
+
+func (a *App) openCurrentPublicCacheHit(entry db.PublicCacheEntry, openBody bool) (io.ReadCloser, error) {
+	if a == nil || a.PublicCache == nil || a.DB == nil || !a.PublicCache.acquireKeyFence(entry.KeyDigest) {
+		return nil, errPublicCacheGenerationChanged
+	}
+	current, err := a.DB.GetPublicCacheEntry(context.Background(), entry.KeyDigest)
+	if err != nil || !current.StoredAt.Equal(entry.StoredAt) {
+		a.PublicCache.releaseKeyFence(entry.KeyDigest)
+		if err == nil || errors.Is(err, sql.ErrNoRows) {
+			a.invalidatePublicCacheEntry(entry)
+		}
+		if err == nil {
+			err = errPublicCacheGenerationChanged
+		}
+		return nil, err
+	}
+	if !openBody {
+		a.PublicCache.releaseKeyFence(entry.KeyDigest)
+		return nil, nil
+	}
 	if body := a.PublicCache.getMemory(entry.KeyDigest, entry.StoredAt); len(body) > 0 {
+		a.PublicCache.releaseKeyFence(entry.KeyDigest)
 		return io.NopCloser(bytes.NewReader(body)), nil
 	}
 	file, err := os.Open(entry.BodyPath)
+	a.PublicCache.releaseKeyFence(entry.KeyDigest)
 	if err != nil {
 		a.invalidatePublicCacheEntry(entry)
 		return nil, err
@@ -1201,11 +1239,14 @@ func (a *App) invalidatePublicCacheEntry(entry db.PublicCacheEntry) {
 		StoredAt:       entry.StoredAt,
 		StoredAtLegacy: entry.StoredAt.UTC().Format(sqliteLegacyTimestampLayout),
 	})
-	if err != nil || deleted == 0 {
+	if err != nil {
 		return
 	}
 	if a.PublicCache != nil {
 		a.PublicCache.deleteEntryGeneration(entry.KeyDigest, entry.StoredAt)
+	}
+	if deleted == 0 {
+		return
 	}
 	if entry.BodyPath != "" {
 		_ = os.Remove(entry.BodyPath)
@@ -1441,6 +1482,18 @@ func (r *publicCacheStoreReadCloser) commit() {
 		return
 	}
 	defer r.app.PublicCache.releaseStoreGeneration(r.keyDigest)
+	if existing, err := r.app.DB.GetPublicCacheEntry(context.Background(), r.keyDigest); err == nil && existing.ExpiresAt.After(time.Now()) {
+		if r.app.PublicCache.duplicateHook != nil {
+			r.app.PublicCache.duplicateHook()
+		}
+		r.discard()
+		return
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		r.markStoreFailed()
+		r.discard()
+		log.Warn().Err(err).Str("cache_key", r.keyDigest).Msg("Failed to check for an existing public cache entry")
+		return
+	}
 	if err := r.tmp.Close(); err != nil {
 		r.markStoreFailed()
 		r.discard()
