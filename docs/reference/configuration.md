@@ -1,6 +1,6 @@
 # Configuration Reference
 
-p2pstream loads `.env` when present, then environment variables, and derives defaults for SQLite, certificate, cache, and management URL settings.
+p2pstream loads `.env` when present, then environment variables, and derives defaults for SQLite, certificate, cache, GeoIP, and management URL settings.
 
 ## Exact Fields And Defaults
 
@@ -94,7 +94,7 @@ Set these as environment variables before running the Linux agent installer scri
 
 ## Runtime Effects
 
-`CONFIG_DIR` is created with `0700` permissions. The managed certificate directory is `${CONFIG_DIR}/certs`. SQLite database directories are created or tightened to `0700`, and database/WAL/SHM files are set to `0600`. If `DATABASE_URL` is unset, p2pstream also migrates a legacy local `p2pstream.db` into `${CONFIG_DIR}/p2pstream.db` when needed.
+`CONFIG_DIR` is created or tightened to `0700`. The managed certificate directory is `${CONFIG_DIR}/certs`; an enabled managed GeoLite2 Country database is stored under `${CONFIG_DIR}/geoip`, whose directory and database file are tightened to `0700` and `0600`. SQLite directories created by p2pstream use `0700`, and database/WAL/SHM files are set to `0600`. When `DATABASE_URL` points into an existing directory, p2pstream preserves that directory's mode; secure that directory and its backups separately. If `DATABASE_URL` is unset, p2pstream also migrates a legacy local `p2pstream.db` into `${CONFIG_DIR}/p2pstream.db` when needed.
 
 Management session cookies are Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`.
 

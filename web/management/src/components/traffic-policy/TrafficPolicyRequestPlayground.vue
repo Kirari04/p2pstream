@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RotateCcw as ResetIcon } from "@lucide/vue";
 import { NButton, NCheckbox, NInput, NSelect, NTag } from "naive-ui";
+import { countryOptions } from "@/lib/countryCatalog";
 import type {
   TrafficPolicyAttentionWarning,
   TrafficPolicyMatchState,
@@ -30,6 +31,10 @@ const methodOptions = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS
 const protocolOptions = [
   { label: "HTTPS", value: "https" },
   { label: "HTTP", value: "http" },
+];
+const countryCodeOptions = [
+  { label: "Unknown / unresolved", value: "__unknown__" },
+  ...countryOptions("en"),
 ];
 
 function updateField<K extends keyof TrafficPolicyPreviewForm>(key: K, value: TrafficPolicyPreviewForm[K]) {
@@ -97,6 +102,17 @@ function statusLabel(status: TrafficPolicyMatchState): string {
           <label class="field-label request-span-two">
             Remote IP
             <NInput :value="modelValue.remoteIp" size="small" placeholder="198.51.100.10" @update:value="(value) => updateField('remoteIp', value)" />
+          </label>
+          <label class="field-label">
+            Country result
+            <NSelect
+              :value="modelValue.countryCode"
+              :input-props="{ 'aria-label': 'Synthetic GeoIP country result' }"
+              size="small"
+              filterable
+              :options="countryCodeOptions"
+              @update:value="(value) => updateField('countryCode', String(value))"
+            />
           </label>
           <label class="field-label request-body-field">
             Request

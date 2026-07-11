@@ -31,6 +31,8 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
   const pendingDashboardReload = ref(false);
   const refreshTimer = ref<number | null>(null);
   const remoteManagementClients = new Map<string, ManagementClient>();
+  let dashboardLoadDone: Promise<void> | null = null;
+  let finishDashboardLoad: (() => void) | null = null;
 
   const environmentOptions = computed(() => [
     { id: "0", name: "Local", enabled: true, trustState: EnvironmentTrustState.TRUSTED },
@@ -142,23 +144,29 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
     syncSelectedEnvironmentSelection();
   }
 
-  async function loadDashboard() {
+  async function loadDashboard(options: { propagateError?: boolean } = {}) {
     if (isRefreshing.value) {
+      if (options.propagateError && dashboardLoadDone) {
+        await dashboardLoadDone;
+        return loadDashboard(options);
+      }
       pendingDashboardReload.value = true;
       return;
     }
     isRefreshing.value = true;
+    dashboardLoadDone = new Promise<void>((resolve) => {
+      finishDashboardLoad = resolve;
+    });
     error.value = null;
     const loadEnvironmentId = selectedEnvironmentId.value;
     const loadBlockedReason = selectedEnvironmentBlocked.value;
-    if (loadBlockedReason) {
-      clearDashboardState();
-      pendingDashboardReload.value = false;
-      isRefreshing.value = false;
-      return;
-    }
-    const loadClient = selectedManagementClient.value;
     try {
+      if (loadBlockedReason) {
+        clearDashboardState();
+        pendingDashboardReload.value = false;
+        return;
+      }
+      const loadClient = selectedManagementClient.value;
       const [dashboardResp, publicProxyResp] = await Promise.all([
         loadClient.getDashboard({}),
         loadClient.getPublicProxyConfig({}),
@@ -175,8 +183,13 @@ export function useDashboardRefresh({ currentUser, error, isBusy, isLoading }: D
       } else {
         pendingDashboardReload.value = true;
       }
+      if (options.propagateError) throw err;
     } finally {
       isRefreshing.value = false;
+      const finish = finishDashboardLoad;
+      finishDashboardLoad = null;
+      dashboardLoadDone = null;
+      finish?.();
       if (pendingDashboardReload.value && currentUser.value) {
         pendingDashboardReload.value = false;
         void loadDashboard();

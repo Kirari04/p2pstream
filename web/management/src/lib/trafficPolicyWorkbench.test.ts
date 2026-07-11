@@ -14,6 +14,9 @@ import {
   PublicTrafficShaperRuleSchema,
   PublicWafActivationMode,
   PublicWafCaptchaProviderSchema,
+  PublicWafGeoRestrictionMode,
+  PublicWafGeoRestrictionSchema,
+  PublicWafGeoUnknownBehavior,
   PublicWafRuleAction,
   PublicWafRuleSchema,
   type PublicCacheRule,
@@ -224,6 +227,58 @@ describe("trafficPolicyWorkbench", () => {
     });
   });
 
+  test("previews selected-country and outside-selected-country WAF restrictions", () => {
+    const selectedOnly = wafRule({
+      id: 1n,
+      priority: 1n,
+      geoRestriction: create(PublicWafGeoRestrictionSchema, {
+        mode: PublicWafGeoRestrictionMode.SELECTED_COUNTRIES,
+        countryCodes: ["CH"],
+      }),
+    });
+    const outsideSelected = wafRule({
+      id: 2n,
+      priority: 1n,
+      geoRestriction: create(PublicWafGeoRestrictionSchema, {
+        mode: PublicWafGeoRestrictionMode.OUTSIDE_SELECTED_COUNTRIES,
+        countryCodes: ["CH"],
+      }),
+    });
+
+    expect(previewTrafficPolicyStages({ wafRules: [selectedOnly] }, syntheticRequest({ countryCode: "CH" })).waf?.rule.id).toBe(1n);
+    expect(previewTrafficPolicyStages({ wafRules: [selectedOnly] }, syntheticRequest({ countryCode: "US" })).waf).toBeNull();
+    expect(previewTrafficPolicyStages({ wafRules: [outsideSelected] }, syntheticRequest({ countryCode: "US" })).waf?.rule.id).toBe(2n);
+    expect(previewTrafficPolicyStages({ wafRules: [outsideSelected] }, syntheticRequest({ countryCode: "CH" })).waf).toBeNull();
+  });
+
+  test("previews explicit unknown-country behavior for WAF restrictions", () => {
+    const bypassUnknown = wafRule({
+      id: 1n,
+      priority: 1n,
+      geoRestriction: create(PublicWafGeoRestrictionSchema, {
+        mode: PublicWafGeoRestrictionMode.SELECTED_COUNTRIES,
+        countryCodes: ["CH"],
+        unknownBehavior: PublicWafGeoUnknownBehavior.BYPASS_RULE,
+      }),
+    });
+    const applyUnknown = wafRule({
+      id: 2n,
+      priority: 2n,
+      geoRestriction: create(PublicWafGeoRestrictionSchema, {
+        mode: PublicWafGeoRestrictionMode.SELECTED_COUNTRIES,
+        countryCodes: ["US"],
+        unknownBehavior: PublicWafGeoUnknownBehavior.APPLY_RULE,
+      }),
+    });
+
+    const preview = previewTrafficPolicyStages(
+      { wafRules: [bypassUnknown, applyUnknown] },
+      syntheticRequest({ countryCode: "__unknown__" }),
+    );
+    expect(preview.waf?.rule.id).toBe(2n);
+    expect(preview.waf?.result.state).toBe("match");
+  });
+
   test("does not select cache rules for runtime cache bypass requests", () => {
     const config = {
       cacheSettings: create(PublicCacheSettingsSchema, { enabled: true }),
@@ -403,6 +458,7 @@ function wafRule(overrides: Partial<PublicWafRule>): PublicWafRule {
     action: overrides.action ?? PublicWafRuleAction.BLOCK,
     captchaProviderId: overrides.captchaProviderId ?? 0n,
     matchRule: overrides.matchRule,
+    geoRestriction: overrides.geoRestriction,
   });
 }
 

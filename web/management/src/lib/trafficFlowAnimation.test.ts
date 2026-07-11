@@ -48,6 +48,7 @@ describe("trafficFlowAnimation", () => {
       tlsDnsCredentials: [],
       wafCaptchaProviders: [],
       wafRules: [],
+      trustedProxySources: [],
       responseTemplates: [],
       tlsCertificates: [],
       proxy: undefined,

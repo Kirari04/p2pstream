@@ -250,6 +250,20 @@ type PublicCacheSetting struct {
 	UpdatedAt               time.Time `json:"updated_at"`
 }
 
+type PublicGeoIpSetting struct {
+	ID                  int64        `json:"id"`
+	Enabled             int64        `json:"enabled"`
+	MaxmindAccountID    string       `json:"maxmind_account_id"`
+	MaxmindLicenseKey   string       `json:"maxmind_license_key"`
+	DatabaseType        string       `json:"database_type"`
+	DatabaseBuildAt     sql.NullTime `json:"database_build_at"`
+	LastUpdateAttemptAt sql.NullTime `json:"last_update_attempt_at"`
+	LastUpdateSuccessAt sql.NullTime `json:"last_update_success_at"`
+	LastUpdateError     string       `json:"last_update_error"`
+	CreatedAt           time.Time    `json:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at"`
+}
+
 type PublicListener struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
@@ -419,6 +433,22 @@ type PublicTrafficShaperRule struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
+type PublicTrustedProxySource struct {
+	ID                   int64        `json:"id"`
+	Name                 string       `json:"name"`
+	Provider             string       `json:"provider"`
+	BuiltIn              int64        `json:"built_in"`
+	Enabled              int64        `json:"enabled"`
+	CidrsJson            string       `json:"cidrs_json"`
+	HeaderName           string       `json:"header_name"`
+	HeaderMode           string       `json:"header_mode"`
+	LastRefreshAttemptAt sql.NullTime `json:"last_refresh_attempt_at"`
+	LastRefreshSuccessAt sql.NullTime `json:"last_refresh_success_at"`
+	LastRefreshError     string       `json:"last_refresh_error"`
+	CreatedAt            time.Time    `json:"created_at"`
+	UpdatedAt            time.Time    `json:"updated_at"`
+}
+
 type PublicWafCaptchaProvider struct {
 	ID           int64     `json:"id"`
 	Name         string    `json:"name"`
@@ -468,6 +498,9 @@ type PublicWafRule struct {
 	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
 	CreatedAt                            time.Time     `json:"created_at"`
 	UpdatedAt                            time.Time     `json:"updated_at"`
+	GeoMode                              string        `json:"geo_mode"`
+	GeoCountryCodesJson                  string        `json:"geo_country_codes_json"`
+	GeoUnknownBehavior                   string        `json:"geo_unknown_behavior"`
 }
 
 type PublicWafSetting struct {

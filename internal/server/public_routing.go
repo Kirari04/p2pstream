@@ -180,6 +180,7 @@ type publicProxySnapshot struct {
 	CacheRules          []publicCacheRuleConfig
 	CacheFingerprint    string
 	ResponseTemplates   map[int64]publicResponseTemplateConfig
+	ClientIdentity      *ClientIdentityResolver
 }
 
 type publicRouteResolution struct {
@@ -1071,12 +1072,28 @@ func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, lis
 	if outReq == nil {
 		return
 	}
+	if outReq.Header == nil {
+		outReq.Header = make(http.Header)
+	}
 	for _, name := range []string{
+		"Cf-Connecting-Ip",
+		"Cf-Connecting-Ipv6",
+		"Cloudfront-Viewer-Address",
+		"Fastly-Client-Ip",
+		"Fly-Client-Ip",
 		"Forwarded",
+		"True-Client-Ip",
+		"X-Appengine-User-Ip",
+		"X-Azure-Clientip",
+		"X-Client-Ip",
+		"X-Cluster-Client-Ip",
+		"X-Envoy-External-Address",
+		"X-Forwarded-Client-Ip",
 		"X-Forwarded-For",
 		"X-Forwarded-Host",
 		"X-Forwarded-Proto",
 		"X-Forwarded-Port",
+		"X-Original-Forwarded-For",
 		"X-Real-Ip",
 	} {
 		outReq.Header.Del(name)
@@ -1084,7 +1101,17 @@ func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, lis
 	if inReq == nil {
 		return
 	}
-	clientIP := remoteAddrIP(inReq.RemoteAddr)
+	for _, name := range ClientIdentityHeaderNames(inReq.Context()) {
+		outReq.Header.Del(name)
+	}
+	clientIP := ""
+	if _, attached := ClientIdentityFromContext(inReq.Context()); attached {
+		if addr, ok := ClientIdentityResolved(inReq.Context()); ok {
+			clientIP = addr.String()
+		}
+	} else {
+		clientIP = remoteAddrIP(inReq.RemoteAddr)
+	}
 	if clientIP != "" {
 		outReq.Header.Set("X-Forwarded-For", clientIP)
 		outReq.Header.Set("X-Real-IP", clientIP)

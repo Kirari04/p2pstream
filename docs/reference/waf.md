@@ -88,7 +88,9 @@ WAF path matching uses p2pstream's decoded request path. On routes that allow en
 
 WAF key parts reuse rate-limit key sources: remote IP, host, method, path, protocol, header, cookie, and query parameter.
 
-`REMOTE_IP` is the only built-in client-IP identity source. It uses the peer address seen by p2pstream. `HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Behind another reverse proxy, place p2pstream where it sees the real client address or use only trusted application headers; trusted-proxy parsing is not available yet.
+`REMOTE_IP` is the built-in client-IP identity source. With no trusted proxy enabled, it is the peer address seen by p2pstream and all client-IP headers are ignored. When the immediate peer belongs to an explicitly enabled trusted CDN or custom proxy source, p2pstream strictly resolves the visitor address from that source's configured header. A missing, malformed, or contradictory trusted header produces an unknown visitor address instead of trusting attacker-controlled input.
+
+`HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Configure visitor identity through **Visitor identity & GeoIP** instead.
 
 Before upgrading from an older version that allowed arbitrary header key parts, inspect stored WAF rules:
 
@@ -102,6 +104,64 @@ WHERE lower(key_parts_json) LIKE '%forwarded%'
 ```
 
 Automatic trigger thresholds accept `0` to disable individual signals. CPU percentages are 0 to 100.
+
+## Country Restrictions
+
+Country restrictions use an automatically refreshed local MaxMind GeoLite2 Country database. They are disabled until an administrator supplies a MaxMind account ID and license key and enables GeoIP under **Traffic Policy -> WAF -> Visitor identity & GeoIP**. Database credentials are stored server-side and the license key is never returned by the management API.
+
+### Set Up GeoLite2 Country
+
+1. [Create a free GeoLite account](https://www.maxmind.com/en/geolite2/signup) and accept the terms that apply to your use.
+2. [Generate a MaxMind license key](https://support.maxmind.com/knowledge-base/articles/generate-a-maxmind-license-key). Record it when it is shown; MaxMind displays a new key only once.
+3. Enter the numeric account ID and license key in **Visitor identity & GeoIP**, enable GeoIP, and save. The first database download must succeed before an enabled geo-targeted WAF rule can be saved.
+4. Monitor the build date, last successful refresh, and error shown in the UI. p2pstream checks hourly and refreshes a ready database after 24 hours; failed downloads leave the last valid database active.
+
+Permit outbound HTTPS to `download.maxmind.com` and MaxMind's current presigned-download host. MaxMind documents that host and its redirect behavior in [Updating GeoIP and GeoLite Databases](https://dev.maxmind.com/geoip/updating-databases/).
+
+Operators remain responsible for the [GeoLite license terms](https://www.maxmind.com/en/geolite/eula), including any attribution and data-retention obligations. MaxMind currently requires prompt updates and destruction of superseded databases within 30 days; investigate stale or failed refresh warnings rather than relying indefinitely on an old file.
+
+> This product includes GeoLite Data created by MaxMind, available from [MaxMind](https://www.maxmind.com/).
+
+Each WAF rule can target:
+
+- selected countries, which applies the rule action only to listed country codes; or
+- countries outside the selection, which is an allow-only pattern for a block rule.
+
+The country restriction is combined with the ordinary request match using `AND`. For example, a selected-country restriction plus host `app.example.com` only targets visitors from those countries requesting that host. Rules still use normal priority and first-match behavior. An allow-only country rule does not skip later WAF rules if it does not match.
+
+Unknown-country behavior is selected per rule:
+
+| Behavior | Runtime effect |
+| --- | --- |
+| Apply rule | Fail closed. The configured block, captcha, or waiting-room action applies. |
+| Bypass geo restriction | Fail open. This rule does not match the unresolved visitor. |
+
+A country is unknown when p2pstream cannot resolve a trusted visitor IP, the database has no record, the IP is private or special-use, or no usable database is loaded. GeoIP is inherently approximate and should not be treated as proof of a person's physical location.
+
+## Trusted Proxies And CDNs
+
+No proxy source is trusted by default. Built-in presets are available for Cloudflare, Bunny, and Amazon CloudFront, and each one must be explicitly enabled by an administrator. Provider address ranges are downloaded from the provider's official endpoint and refreshed in the background; the last valid range set remains active if a refresh fails.
+
+The managed contracts are:
+
+| Preset | Peer ranges and client-IP contract |
+| --- | --- |
+| Cloudflare | [Cloudflare IP ranges API](https://developers.cloudflare.com/api/resources/ips/) and the single-value [`CF-Connecting-IP`](https://developers.cloudflare.com/fundamentals/reference/http-headers/#cf-connecting-ip) header. |
+| Bunny CDN | Bunny's [origin IP allowlist](https://support.bunny.net/hc/en-us/articles/24155254055964-Do-you-have-an-IP-whitelist) and single-value [`X-Real-IP`](https://support.bunny.net/hc/en-us/articles/26864967496348-How-can-I-see-end-user-IPs-in-my-origin-via-Bunny-CDN) header. |
+| Amazon CloudFront | AWS `CLOUDFRONT_ORIGIN_FACING` ranges, corresponding to its [origin-facing managed prefix list](https://docs.aws.amazon.com/vpc/latest/userguide/working-with-aws-managed-prefix-lists.html), and CloudFront's append-only-at-the-edge [`X-Forwarded-For` behavior](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorCustomOrigin.html#RequestCustomClientIPAddresses). Viewer-edge-only `CLOUDFRONT` ranges are not trusted. |
+
+Fastly is intentionally custom-only. Fastly publishes [origin-facing ranges](https://www.fastly.com/documentation/reference/api/utils/public-ip-list/), but its default [`Fastly-Client-IP` header is not protected from client modification](https://www.fastly.com/documentation/reference/http/http-headers/Fastly-Client-IP/). Configure Fastly VCL or an edge rule to overwrite a dedicated header, then add that header and the documented Fastly ranges as a custom single-IP source.
+
+Custom trusted sources require one or more peer CIDRs, a header name, and a parser mode:
+
+| Parser | Requirement |
+| --- | --- |
+| Single IP | The header must contain exactly one IP literal. Use this when the proxy overwrites a dedicated header. |
+| Trusted chain | Parses an IP-only comma-separated chain from right to left, removes hops from enabled trusted-chain sources using the same canonical header, and selects the first untrusted address. Single-IP and different-header sources never enlarge that chain's trust domain. |
+
+If the immediate peer is not trusted, forwarding headers never affect request identity. If multiple matching trusted sources disagree, identity resolution fails closed to unknown. Resolved visitor identity is used consistently by GeoIP, `remote_ip` CEL, rate-limit and shaper keys, captcha verification, and generated upstream client-IP headers. The network peer remains available internally for connection logging and reserved-endpoint abuse protection.
+
+Application-level proxy trust does not prevent an attacker from reaching an exposed origin directly. Restrict the origin firewall to the selected CDN ranges whenever the deployment requires all traffic to traverse that CDN.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/edit_waf_modal.png" alt="p2pstream WAF rule editor showing match builder, action, activation mode, response template, captcha, and waiting-room settings">

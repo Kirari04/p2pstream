@@ -43,6 +43,14 @@ var serverCmd = &cobra.Command{
 
 		app := server.NewApp(cfg, database)
 		defer app.CloseAgentTransports()
+		defer func() {
+			if err := app.ClosePublicGeoRuntime(); err != nil {
+				log.Warn().Err(err).Msg("Failed to close GeoIP runtime")
+			}
+		}()
+		if err := app.LoadPublicGeoRuntime(); err != nil && !os.IsNotExist(err) {
+			log.Warn().Err(err).Msg("Failed to load the existing GeoIP country database")
+		}
 
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()
@@ -75,6 +83,7 @@ var serverCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		app.StartObservabilityMaintenance(ctx)
+		app.StartPublicGeoMaintenance(ctx)
 
 		if app.PublicACME != nil {
 			app.PublicACME.Start(ctx)

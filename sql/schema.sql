@@ -387,7 +387,9 @@ CREATE TABLE IF NOT EXISTS public_waf_rules (
     block_response_headers_json TEXT NOT NULL DEFAULT '[]',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+    , geo_mode TEXT NOT NULL DEFAULT 'disabled',
+    geo_country_codes_json TEXT NOT NULL DEFAULT '[]',
+    geo_unknown_behavior TEXT NOT NULL DEFAULT 'apply_rule');
 
 CREATE TABLE IF NOT EXISTS public_waf_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -395,6 +397,52 @@ CREATE TABLE IF NOT EXISTS public_waf_settings (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS public_geo_ip_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    enabled INTEGER NOT NULL DEFAULT 0,
+    maxmind_account_id TEXT NOT NULL DEFAULT '',
+    maxmind_license_key TEXT NOT NULL DEFAULT '',
+    database_type TEXT NOT NULL DEFAULT '',
+    database_build_at DATETIME,
+    last_update_attempt_at DATETIME,
+    last_update_success_at DATETIME,
+    last_update_error TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO public_geo_ip_settings (id)
+SELECT 1
+WHERE NOT EXISTS (SELECT 1 FROM public_geo_ip_settings WHERE id = 1);
+
+CREATE TABLE IF NOT EXISTS public_trusted_proxy_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    provider TEXT NOT NULL DEFAULT 'custom',
+    built_in INTEGER NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    cidrs_json TEXT NOT NULL DEFAULT '[]',
+    header_name TEXT NOT NULL,
+    header_mode TEXT NOT NULL DEFAULT 'single_ip',
+    last_refresh_attempt_at DATETIME,
+    last_refresh_success_at DATETIME,
+    last_refresh_error TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO public_trusted_proxy_sources (name, provider, built_in, enabled, cidrs_json, header_name, header_mode)
+SELECT 'Cloudflare', 'cloudflare', 1, 0, '[]', 'CF-Connecting-IP', 'single_ip'
+WHERE NOT EXISTS (SELECT 1 FROM public_trusted_proxy_sources WHERE provider = 'cloudflare' AND built_in = 1);
+
+INSERT INTO public_trusted_proxy_sources (name, provider, built_in, enabled, cidrs_json, header_name, header_mode)
+SELECT 'Bunny', 'bunny', 1, 0, '[]', 'X-Real-IP', 'single_ip'
+WHERE NOT EXISTS (SELECT 1 FROM public_trusted_proxy_sources WHERE provider = 'bunny' AND built_in = 1);
+
+INSERT INTO public_trusted_proxy_sources (name, provider, built_in, enabled, cidrs_json, header_name, header_mode)
+SELECT 'CloudFront', 'cloudfront', 1, 0, '[]', 'X-Forwarded-For', 'trusted_chain'
+WHERE NOT EXISTS (SELECT 1 FROM public_trusted_proxy_sources WHERE provider = 'cloudfront' AND built_in = 1);
 
 CREATE TABLE IF NOT EXISTS public_cache_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -581,6 +629,10 @@ ON public_waf_rules (captcha_page_template_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_waf_rules_waiting_room_page_template_id
 ON public_waf_rules (waiting_room_page_template_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_public_trusted_proxy_sources_builtin_provider
+ON public_trusted_proxy_sources (provider)
+WHERE built_in = 1;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id
 ON proxy_request_events (waf_rule_id);

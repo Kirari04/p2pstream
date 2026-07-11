@@ -647,6 +647,7 @@ message PublicWafRule {
   int64 captcha_page_template_id = 21;
   int64 waiting_room_page_template_id = 22;
   PublicPolicyMatchRule match_rule = 23;
+  PublicWafGeoRestriction geo_restriction = 24;
 }
 
 message PublicResponseTemplate {
@@ -728,6 +729,8 @@ message GetPublicProxyConfigResponse {
   repeated PublicCacheRule cache_rules = 15;
   repeated PublicResponseTemplate response_templates = 16;
   repeated PublicRouteTarget route_targets = 17;
+  PublicGeoIpSettings geo_ip_settings = 18;
+  repeated PublicTrustedProxySource trusted_proxy_sources = 19;
 }
 
 message PublicRouteTargetHealthTrace {
@@ -1382,6 +1385,7 @@ message CreatePublicWafRuleRequest {
   int64 captcha_page_template_id = 18;
   int64 waiting_room_page_template_id = 19;
   PublicPolicyMatchRule match_rule = 20;
+  PublicWafGeoRestriction geo_restriction = 21;
 }
 
 message CreatePublicWafRuleResponse {
@@ -1412,6 +1416,7 @@ message UpdatePublicWafRuleRequest {
   int64 captcha_page_template_id = 19;
   int64 waiting_room_page_template_id = 20;
   PublicPolicyMatchRule match_rule = 21;
+  PublicWafGeoRestriction geo_restriction = 22;
 }
 
 message UpdatePublicWafRuleResponse {
@@ -1869,6 +1874,132 @@ message StopProxyResponse {
   ProxyStatus proxy = 1;
 }
 
+enum PublicWafGeoRestrictionMode {
+  PUBLIC_WAF_GEO_RESTRICTION_MODE_UNSPECIFIED = 0;
+  PUBLIC_WAF_GEO_RESTRICTION_MODE_DISABLED = 1;
+  PUBLIC_WAF_GEO_RESTRICTION_MODE_SELECTED_COUNTRIES = 2;
+  PUBLIC_WAF_GEO_RESTRICTION_MODE_OUTSIDE_SELECTED_COUNTRIES = 3;
+}
+
+enum PublicWafGeoUnknownBehavior {
+  PUBLIC_WAF_GEO_UNKNOWN_BEHAVIOR_UNSPECIFIED = 0;
+  PUBLIC_WAF_GEO_UNKNOWN_BEHAVIOR_APPLY_RULE = 1;
+  PUBLIC_WAF_GEO_UNKNOWN_BEHAVIOR_BYPASS_RULE = 2;
+}
+
+enum PublicTrustedProxyProvider {
+  PUBLIC_TRUSTED_PROXY_PROVIDER_UNSPECIFIED = 0;
+  PUBLIC_TRUSTED_PROXY_PROVIDER_CUSTOM = 1;
+  PUBLIC_TRUSTED_PROXY_PROVIDER_CLOUDFLARE = 2;
+  PUBLIC_TRUSTED_PROXY_PROVIDER_BUNNY = 3;
+  PUBLIC_TRUSTED_PROXY_PROVIDER_CLOUDFRONT = 4;
+}
+
+enum PublicTrustedProxyHeaderMode {
+  PUBLIC_TRUSTED_PROXY_HEADER_MODE_UNSPECIFIED = 0;
+  PUBLIC_TRUSTED_PROXY_HEADER_MODE_SINGLE_IP = 1;
+  PUBLIC_TRUSTED_PROXY_HEADER_MODE_TRUSTED_CHAIN = 2;
+}
+
+message PublicWafGeoRestriction {
+  PublicWafGeoRestrictionMode mode = 1;
+  repeated string country_codes = 2;
+  PublicWafGeoUnknownBehavior unknown_behavior = 3;
+}
+
+message PublicGeoIpDatabaseStatus {
+  bool ready = 1;
+  string database_type = 2;
+  int64 build_at_unix_millis = 3;
+  int64 last_update_attempt_at_unix_millis = 4;
+  int64 last_update_success_at_unix_millis = 5;
+  string last_update_error = 6;
+}
+
+message PublicGeoIpSettings {
+  bool enabled = 1;
+  string maxmind_account_id = 2;
+  bool maxmind_license_key_set = 3;
+  PublicGeoIpDatabaseStatus database_status = 4;
+  int64 created_at_unix_millis = 5;
+  int64 updated_at_unix_millis = 6;
+}
+
+message PublicTrustedProxySource {
+  int64 id = 1;
+  string name = 2;
+  PublicTrustedProxyProvider provider = 3;
+  bool built_in = 4;
+  bool enabled = 5;
+  repeated string cidrs = 6;
+  string header_name = 7;
+  PublicTrustedProxyHeaderMode header_mode = 8;
+  int64 cidr_count = 9;
+  int64 last_refresh_attempt_at_unix_millis = 10;
+  int64 last_refresh_success_at_unix_millis = 11;
+  string last_refresh_error = 12;
+  int64 created_at_unix_millis = 13;
+  int64 updated_at_unix_millis = 14;
+}
+
+message UpdatePublicGeoIpSettingsRequest {
+  bool enabled = 1;
+  string maxmind_account_id = 2;
+  string maxmind_license_key = 3;
+  bool clear_license_key = 4;
+}
+
+message UpdatePublicGeoIpSettingsResponse {
+  PublicGeoIpSettings settings = 1;
+}
+
+message RefreshPublicGeoIpDatabaseRequest {
+}
+
+message RefreshPublicGeoIpDatabaseResponse {
+  PublicGeoIpSettings settings = 1;
+}
+
+message CreatePublicTrustedProxySourceRequest {
+  string name = 1;
+  bool enabled = 2;
+  repeated string cidrs = 3;
+  string header_name = 4;
+  PublicTrustedProxyHeaderMode header_mode = 5;
+}
+
+message CreatePublicTrustedProxySourceResponse {
+  PublicTrustedProxySource source = 1;
+}
+
+message UpdatePublicTrustedProxySourceRequest {
+  int64 id = 1;
+  string name = 2;
+  bool enabled = 3;
+  repeated string cidrs = 4;
+  string header_name = 5;
+  PublicTrustedProxyHeaderMode header_mode = 6;
+}
+
+message UpdatePublicTrustedProxySourceResponse {
+  PublicTrustedProxySource source = 1;
+}
+
+message DeletePublicTrustedProxySourceRequest {
+  int64 id = 1;
+}
+
+message DeletePublicTrustedProxySourceResponse {
+}
+
+message RefreshPublicTrustedProxySourceRequest {
+  int64 id = 1;
+}
+
+message RefreshPublicTrustedProxySourceResponse {
+  PublicTrustedProxySource source = 1;
+}
+
 service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
@@ -1932,6 +2063,12 @@ service AgentManagementService {
   rpc CreatePublicWafRule(CreatePublicWafRuleRequest) returns (CreatePublicWafRuleResponse) {}
   rpc UpdatePublicWafRule(UpdatePublicWafRuleRequest) returns (UpdatePublicWafRuleResponse) {}
   rpc DeletePublicWafRule(DeletePublicWafRuleRequest) returns (DeletePublicWafRuleResponse) {}
+  rpc UpdatePublicGeoIpSettings(UpdatePublicGeoIpSettingsRequest) returns (UpdatePublicGeoIpSettingsResponse) {}
+  rpc RefreshPublicGeoIpDatabase(RefreshPublicGeoIpDatabaseRequest) returns (RefreshPublicGeoIpDatabaseResponse) {}
+  rpc CreatePublicTrustedProxySource(CreatePublicTrustedProxySourceRequest) returns (CreatePublicTrustedProxySourceResponse) {}
+  rpc UpdatePublicTrustedProxySource(UpdatePublicTrustedProxySourceRequest) returns (UpdatePublicTrustedProxySourceResponse) {}
+  rpc DeletePublicTrustedProxySource(DeletePublicTrustedProxySourceRequest) returns (DeletePublicTrustedProxySourceResponse) {}
+  rpc RefreshPublicTrustedProxySource(RefreshPublicTrustedProxySourceRequest) returns (RefreshPublicTrustedProxySourceResponse) {}
   rpc CreatePublicCacheRule(CreatePublicCacheRuleRequest) returns (CreatePublicCacheRuleResponse) {}
   rpc UpdatePublicCacheRule(UpdatePublicCacheRuleRequest) returns (UpdatePublicCacheRuleResponse) {}
   rpc DeletePublicCacheRule(DeletePublicCacheRuleRequest) returns (DeletePublicCacheRuleResponse) {}

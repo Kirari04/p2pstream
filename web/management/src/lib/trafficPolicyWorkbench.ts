@@ -3,6 +3,8 @@ import {
   PublicPolicyMatchConditionOperator,
   PublicPolicyMatchField,
   PublicWafActivationMode,
+  PublicWafGeoRestrictionMode,
+  PublicWafGeoUnknownBehavior,
   PublicWafRuleAction,
   type GetPublicProxyConfigResponse,
   type PublicCacheRule,
@@ -27,6 +29,7 @@ export type TrafficPolicySyntheticRequest = {
   host: string;
   path: string;
   remoteIp: string;
+  countryCode?: string;
   hasRequestBody?: boolean;
   headers?: TrafficPolicyValueMap;
   cookies?: TrafficPolicyCookieMap;
@@ -41,6 +44,7 @@ export type TrafficPolicyPreviewForm = {
   host: string;
   path: string;
   remoteIp: string;
+  countryCode: string;
   hasRequestBody: boolean;
   headersText: string;
   cookiesText: string;
@@ -115,6 +119,7 @@ type NormalizedTrafficPolicyRequest = {
   host: string;
   path: string;
   remoteIp: string;
+  countryCode: string;
   hasRequestBody: boolean;
   headers: Map<string, string[]>;
   cookies: Map<string, string>;
@@ -165,6 +170,7 @@ export function defaultTrafficPolicyPreviewForm(): TrafficPolicyPreviewForm {
     host: "app.example.com",
     path: "/",
     remoteIp: "198.51.100.10",
+    countryCode: "CH",
     hasRequestBody: false,
     headersText: "X-Plan: pro",
     cookiesText: "",
@@ -181,6 +187,7 @@ export function trafficPolicyPreviewFormToRequest(form: TrafficPolicyPreviewForm
     host: form.host,
     path: form.path,
     remoteIp: form.remoteIp,
+    countryCode: form.countryCode,
     hasRequestBody: form.hasRequestBody,
     headers: parseRepeatedMap(form.headersText, true),
     cookies: parseCookieMap(form.cookiesText),
@@ -283,12 +290,32 @@ function evaluateTrafficPolicyMatchForRequest(
 }
 
 function evaluateWafRule(rule: PublicWafRule, request: NormalizedTrafficPolicyRequest): TrafficPolicyMatchResult {
-  const match = evaluateTrafficPolicyMatchForRequest(rule.matchRule, request);
+  const match = andResults([
+    evaluateTrafficPolicyMatchForRequest(rule.matchRule, request),
+    evaluateWafGeoRestriction(rule, request),
+  ]);
   if (match.state !== "match") return match;
   if (rule.activationMode === PublicWafActivationMode.AUTOMATIC) {
     return unknownResult("Automatic WAF activation depends on live trigger state.");
   }
   return match;
+}
+
+function evaluateWafGeoRestriction(rule: PublicWafRule, request: NormalizedTrafficPolicyRequest): TrafficPolicyMatchResult {
+  const restriction = rule.geoRestriction;
+  if (!restriction || restriction.mode === PublicWafGeoRestrictionMode.DISABLED || restriction.mode === PublicWafGeoRestrictionMode.UNSPECIFIED) {
+    return MATCH_RESULT;
+  }
+  if (!request.countryCode) {
+    return restriction.unknownBehavior === PublicWafGeoUnknownBehavior.BYPASS_RULE
+      ? missResult("Unknown country bypasses this WAF rule.")
+      : MATCH_RESULT;
+  }
+  const selected = restriction.countryCodes.some((code) => code.trim().toUpperCase() === request.countryCode);
+  if (restriction.mode === PublicWafGeoRestrictionMode.OUTSIDE_SELECTED_COUNTRIES) {
+    return selected ? missResult("Synthetic country is inside the allow-only selection.") : MATCH_RESULT;
+  }
+  return selected ? MATCH_RESULT : missResult("Synthetic country is not selected by this WAF rule.");
 }
 
 function evaluateCacheRule(rule: PublicCacheRule, request: NormalizedTrafficPolicyRequest, cacheSettingsEnabled: boolean): TrafficPolicyMatchResult {
@@ -694,6 +721,7 @@ function normalizeTrafficPolicyRequest(request: TrafficPolicySyntheticRequest): 
     host: normalizeRequestHost(request.host),
     path: request.path.trim() || "/",
     remoteIp: request.remoteIp.trim(),
+    countryCode: (request.countryCode ?? "").trim().toUpperCase() === "__UNKNOWN__" ? "" : (request.countryCode ?? "").trim().toUpperCase(),
     hasRequestBody: request.hasRequestBody === true,
     headers: normalizeMultiValueMap(request.headers, true),
     cookies: normalizeCookieMap(request.cookies),

@@ -1127,6 +1127,51 @@ func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreateP
 	return i, err
 }
 
+const createPublicTrustedProxySource = `-- name: CreatePublicTrustedProxySource :one
+INSERT INTO public_trusted_proxy_sources (
+    name, provider, built_in, enabled, cidrs_json, header_name, header_mode
+) VALUES (
+    ?, 'custom', 0, ?, ?, ?, ?
+)
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+`
+
+type CreatePublicTrustedProxySourceParams struct {
+	Name       string `json:"name"`
+	Enabled    int64  `json:"enabled"`
+	CidrsJson  string `json:"cidrs_json"`
+	HeaderName string `json:"header_name"`
+	HeaderMode string `json:"header_mode"`
+}
+
+func (q *Queries) CreatePublicTrustedProxySource(ctx context.Context, arg CreatePublicTrustedProxySourceParams) (PublicTrustedProxySource, error) {
+	row := q.db.QueryRowContext(ctx, createPublicTrustedProxySource,
+		arg.Name,
+		arg.Enabled,
+		arg.CidrsJson,
+		arg.HeaderName,
+		arg.HeaderMode,
+	)
+	var i PublicTrustedProxySource
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.BuiltIn,
+		&i.Enabled,
+		&i.CidrsJson,
+		&i.HeaderName,
+		&i.HeaderMode,
+		&i.LastRefreshAttemptAt,
+		&i.LastRefreshSuccessAt,
+		&i.LastRefreshError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createPublicWafCaptchaProvider = `-- name: CreatePublicWafCaptchaProvider :one
 INSERT INTO public_waf_captcha_providers (
     name,
@@ -1205,9 +1250,12 @@ INSERT INTO public_waf_rules (
     captcha_page_template_id,
     waiting_room_page_template_id,
     block_response_content_type,
-    block_response_headers_json
+    block_response_headers_json,
+    geo_mode,
+    geo_country_codes_json,
+    geo_unknown_behavior
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
@@ -1216,7 +1264,8 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-          block_response_content_type, block_response_headers_json, created_at, updated_at
+          block_response_content_type, block_response_headers_json, created_at, updated_at,
+          geo_mode, geo_country_codes_json, geo_unknown_behavior
 `
 
 type CreatePublicWafRuleParams struct {
@@ -1254,6 +1303,9 @@ type CreatePublicWafRuleParams struct {
 	WaitingRoomPageTemplateID            sql.NullInt64 `json:"waiting_room_page_template_id"`
 	BlockResponseContentType             string        `json:"block_response_content_type"`
 	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
+	GeoMode                              string        `json:"geo_mode"`
+	GeoCountryCodesJson                  string        `json:"geo_country_codes_json"`
+	GeoUnknownBehavior                   string        `json:"geo_unknown_behavior"`
 }
 
 func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRuleParams) (PublicWafRule, error) {
@@ -1292,6 +1344,9 @@ func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRu
 		arg.WaitingRoomPageTemplateID,
 		arg.BlockResponseContentType,
 		arg.BlockResponseHeadersJson,
+		arg.GeoMode,
+		arg.GeoCountryCodesJson,
+		arg.GeoUnknownBehavior,
 	)
 	var i PublicWafRule
 	err := row.Scan(
@@ -1332,6 +1387,9 @@ func (q *Queries) CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRu
 		&i.BlockResponseHeadersJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GeoMode,
+		&i.GeoCountryCodesJson,
+		&i.GeoUnknownBehavior,
 	)
 	return i, err
 }
@@ -1759,6 +1817,16 @@ WHERE id = ?
 
 func (q *Queries) DeletePublicTrafficShaperRule(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicTrafficShaperRule, id)
+	return err
+}
+
+const deletePublicTrustedProxySource = `-- name: DeletePublicTrustedProxySource :exec
+DELETE FROM public_trusted_proxy_sources
+WHERE id = ? AND built_in = 0
+`
+
+func (q *Queries) DeletePublicTrustedProxySource(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicTrustedProxySource, id)
 	return err
 }
 
@@ -2468,6 +2536,32 @@ func (q *Queries) GetPublicCacheSettings(ctx context.Context) (PublicCacheSettin
 	return i, err
 }
 
+const getPublicGeoIpSettings = `-- name: GetPublicGeoIpSettings :one
+SELECT id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+       last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at
+FROM public_geo_ip_settings
+WHERE id = 1
+`
+
+func (q *Queries) GetPublicGeoIpSettings(ctx context.Context) (PublicGeoIpSetting, error) {
+	row := q.db.QueryRowContext(ctx, getPublicGeoIpSettings)
+	var i PublicGeoIpSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxmindAccountID,
+		&i.MaxmindLicenseKey,
+		&i.DatabaseType,
+		&i.DatabaseBuildAt,
+		&i.LastUpdateAttemptAt,
+		&i.LastUpdateSuccessAt,
+		&i.LastUpdateError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPublicListener = `-- name: GetPublicListener :one
 SELECT id, name, bind_address, port, protocol, enabled, created_at, updated_at
 FROM public_listeners
@@ -2732,6 +2826,34 @@ func (q *Queries) GetPublicTrafficShaperRule(ctx context.Context, id int64) (Pub
 	return i, err
 }
 
+const getPublicTrustedProxySource = `-- name: GetPublicTrustedProxySource :one
+SELECT id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+       last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+FROM public_trusted_proxy_sources
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicTrustedProxySource(ctx context.Context, id int64) (PublicTrustedProxySource, error) {
+	row := q.db.QueryRowContext(ctx, getPublicTrustedProxySource, id)
+	var i PublicTrustedProxySource
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.BuiltIn,
+		&i.Enabled,
+		&i.CidrsJson,
+		&i.HeaderName,
+		&i.HeaderMode,
+		&i.LastRefreshAttemptAt,
+		&i.LastRefreshSuccessAt,
+		&i.LastRefreshError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPublicWafCaptchaProvider = `-- name: GetPublicWafCaptchaProvider :one
 SELECT id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
 FROM public_waf_captcha_providers
@@ -2762,7 +2884,8 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-       block_response_content_type, block_response_headers_json, created_at, updated_at
+       block_response_content_type, block_response_headers_json, created_at, updated_at,
+       geo_mode, geo_country_codes_json, geo_unknown_behavior
 FROM public_waf_rules
 WHERE id = ?
 `
@@ -2808,6 +2931,9 @@ func (q *Queries) GetPublicWafRule(ctx context.Context, id int64) (PublicWafRule
 		&i.BlockResponseHeadersJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GeoMode,
+		&i.GeoCountryCodesJson,
+		&i.GeoUnknownBehavior,
 	)
 	return i, err
 }
@@ -5011,6 +5137,50 @@ func (q *Queries) ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTra
 	return items, nil
 }
 
+const listPublicTrustedProxySources = `-- name: ListPublicTrustedProxySources :many
+SELECT id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+       last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+FROM public_trusted_proxy_sources
+ORDER BY built_in DESC, name ASC, id ASC
+`
+
+func (q *Queries) ListPublicTrustedProxySources(ctx context.Context) ([]PublicTrustedProxySource, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicTrustedProxySources)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicTrustedProxySource
+	for rows.Next() {
+		var i PublicTrustedProxySource
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Provider,
+			&i.BuiltIn,
+			&i.Enabled,
+			&i.CidrsJson,
+			&i.HeaderName,
+			&i.HeaderMode,
+			&i.LastRefreshAttemptAt,
+			&i.LastRefreshSuccessAt,
+			&i.LastRefreshError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicWafCaptchaProviders = `-- name: ListPublicWafCaptchaProviders :many
 SELECT id, name, provider_type, site_key, secret_key, enabled, created_at, updated_at
 FROM public_waf_captcha_providers
@@ -5057,7 +5227,8 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-       block_response_content_type, block_response_headers_json, created_at, updated_at
+       block_response_content_type, block_response_headers_json, created_at, updated_at,
+       geo_mode, geo_country_codes_json, geo_unknown_behavior
 FROM public_waf_rules
 ORDER BY priority ASC, id ASC
 `
@@ -5109,6 +5280,9 @@ func (q *Queries) ListPublicWafRules(ctx context.Context) ([]PublicWafRule, erro
 			&i.BlockResponseHeadersJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.GeoMode,
+			&i.GeoCountryCodesJson,
+			&i.GeoUnknownBehavior,
 		); err != nil {
 			return nil, err
 		}
@@ -6165,6 +6339,113 @@ func (q *Queries) RevokeUserSessions(ctx context.Context, userID int64) (int64, 
 	return result.RowsAffected()
 }
 
+const setPublicGeoIpUpdateAttempt = `-- name: SetPublicGeoIpUpdateAttempt :one
+UPDATE public_geo_ip_settings
+SET last_update_attempt_at = ?,
+    last_update_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at
+`
+
+func (q *Queries) SetPublicGeoIpUpdateAttempt(ctx context.Context, lastUpdateAttemptAt sql.NullTime) (PublicGeoIpSetting, error) {
+	row := q.db.QueryRowContext(ctx, setPublicGeoIpUpdateAttempt, lastUpdateAttemptAt)
+	var i PublicGeoIpSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxmindAccountID,
+		&i.MaxmindLicenseKey,
+		&i.DatabaseType,
+		&i.DatabaseBuildAt,
+		&i.LastUpdateAttemptAt,
+		&i.LastUpdateSuccessAt,
+		&i.LastUpdateError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPublicGeoIpUpdateError = `-- name: SetPublicGeoIpUpdateError :one
+UPDATE public_geo_ip_settings
+SET last_update_attempt_at = ?,
+    last_update_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at
+`
+
+type SetPublicGeoIpUpdateErrorParams struct {
+	LastUpdateAttemptAt sql.NullTime `json:"last_update_attempt_at"`
+	LastUpdateError     string       `json:"last_update_error"`
+}
+
+func (q *Queries) SetPublicGeoIpUpdateError(ctx context.Context, arg SetPublicGeoIpUpdateErrorParams) (PublicGeoIpSetting, error) {
+	row := q.db.QueryRowContext(ctx, setPublicGeoIpUpdateError, arg.LastUpdateAttemptAt, arg.LastUpdateError)
+	var i PublicGeoIpSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxmindAccountID,
+		&i.MaxmindLicenseKey,
+		&i.DatabaseType,
+		&i.DatabaseBuildAt,
+		&i.LastUpdateAttemptAt,
+		&i.LastUpdateSuccessAt,
+		&i.LastUpdateError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPublicGeoIpUpdateSuccess = `-- name: SetPublicGeoIpUpdateSuccess :one
+UPDATE public_geo_ip_settings
+SET database_type = ?,
+    database_build_at = ?,
+    last_update_attempt_at = ?,
+    last_update_success_at = ?,
+    last_update_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at
+`
+
+type SetPublicGeoIpUpdateSuccessParams struct {
+	DatabaseType        string       `json:"database_type"`
+	DatabaseBuildAt     sql.NullTime `json:"database_build_at"`
+	LastUpdateAttemptAt sql.NullTime `json:"last_update_attempt_at"`
+	LastUpdateSuccessAt sql.NullTime `json:"last_update_success_at"`
+}
+
+func (q *Queries) SetPublicGeoIpUpdateSuccess(ctx context.Context, arg SetPublicGeoIpUpdateSuccessParams) (PublicGeoIpSetting, error) {
+	row := q.db.QueryRowContext(ctx, setPublicGeoIpUpdateSuccess,
+		arg.DatabaseType,
+		arg.DatabaseBuildAt,
+		arg.LastUpdateAttemptAt,
+		arg.LastUpdateSuccessAt,
+	)
+	var i PublicGeoIpSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxmindAccountID,
+		&i.MaxmindLicenseKey,
+		&i.DatabaseType,
+		&i.DatabaseBuildAt,
+		&i.LastUpdateAttemptAt,
+		&i.LastUpdateSuccessAt,
+		&i.LastUpdateError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const setPublicListenerEnabled = `-- name: SetPublicListenerEnabled :one
 UPDATE public_listeners
 SET enabled = ?, updated_at = CURRENT_TIMESTAMP
@@ -6187,6 +6468,159 @@ func (q *Queries) SetPublicListenerEnabled(ctx context.Context, arg SetPublicLis
 		&i.Port,
 		&i.Protocol,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPublicTrustedProxySourceEnabled = `-- name: SetPublicTrustedProxySourceEnabled :one
+UPDATE public_trusted_proxy_sources
+SET enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+`
+
+type SetPublicTrustedProxySourceEnabledParams struct {
+	Enabled int64 `json:"enabled"`
+	ID      int64 `json:"id"`
+}
+
+func (q *Queries) SetPublicTrustedProxySourceEnabled(ctx context.Context, arg SetPublicTrustedProxySourceEnabledParams) (PublicTrustedProxySource, error) {
+	row := q.db.QueryRowContext(ctx, setPublicTrustedProxySourceEnabled, arg.Enabled, arg.ID)
+	var i PublicTrustedProxySource
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.BuiltIn,
+		&i.Enabled,
+		&i.CidrsJson,
+		&i.HeaderName,
+		&i.HeaderMode,
+		&i.LastRefreshAttemptAt,
+		&i.LastRefreshSuccessAt,
+		&i.LastRefreshError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPublicTrustedProxySourceRefreshAttempt = `-- name: SetPublicTrustedProxySourceRefreshAttempt :one
+UPDATE public_trusted_proxy_sources
+SET last_refresh_attempt_at = ?,
+    last_refresh_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+`
+
+type SetPublicTrustedProxySourceRefreshAttemptParams struct {
+	LastRefreshAttemptAt sql.NullTime `json:"last_refresh_attempt_at"`
+	ID                   int64        `json:"id"`
+}
+
+func (q *Queries) SetPublicTrustedProxySourceRefreshAttempt(ctx context.Context, arg SetPublicTrustedProxySourceRefreshAttemptParams) (PublicTrustedProxySource, error) {
+	row := q.db.QueryRowContext(ctx, setPublicTrustedProxySourceRefreshAttempt, arg.LastRefreshAttemptAt, arg.ID)
+	var i PublicTrustedProxySource
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.BuiltIn,
+		&i.Enabled,
+		&i.CidrsJson,
+		&i.HeaderName,
+		&i.HeaderMode,
+		&i.LastRefreshAttemptAt,
+		&i.LastRefreshSuccessAt,
+		&i.LastRefreshError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPublicTrustedProxySourceRefreshError = `-- name: SetPublicTrustedProxySourceRefreshError :one
+UPDATE public_trusted_proxy_sources
+SET last_refresh_attempt_at = ?,
+    last_refresh_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+`
+
+type SetPublicTrustedProxySourceRefreshErrorParams struct {
+	LastRefreshAttemptAt sql.NullTime `json:"last_refresh_attempt_at"`
+	LastRefreshError     string       `json:"last_refresh_error"`
+	ID                   int64        `json:"id"`
+}
+
+func (q *Queries) SetPublicTrustedProxySourceRefreshError(ctx context.Context, arg SetPublicTrustedProxySourceRefreshErrorParams) (PublicTrustedProxySource, error) {
+	row := q.db.QueryRowContext(ctx, setPublicTrustedProxySourceRefreshError, arg.LastRefreshAttemptAt, arg.LastRefreshError, arg.ID)
+	var i PublicTrustedProxySource
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.BuiltIn,
+		&i.Enabled,
+		&i.CidrsJson,
+		&i.HeaderName,
+		&i.HeaderMode,
+		&i.LastRefreshAttemptAt,
+		&i.LastRefreshSuccessAt,
+		&i.LastRefreshError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPublicTrustedProxySourceRefreshSuccess = `-- name: SetPublicTrustedProxySourceRefreshSuccess :one
+UPDATE public_trusted_proxy_sources
+SET cidrs_json = ?,
+    last_refresh_attempt_at = ?,
+    last_refresh_success_at = ?,
+    last_refresh_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+`
+
+type SetPublicTrustedProxySourceRefreshSuccessParams struct {
+	CidrsJson            string       `json:"cidrs_json"`
+	LastRefreshAttemptAt sql.NullTime `json:"last_refresh_attempt_at"`
+	LastRefreshSuccessAt sql.NullTime `json:"last_refresh_success_at"`
+	ID                   int64        `json:"id"`
+}
+
+func (q *Queries) SetPublicTrustedProxySourceRefreshSuccess(ctx context.Context, arg SetPublicTrustedProxySourceRefreshSuccessParams) (PublicTrustedProxySource, error) {
+	row := q.db.QueryRowContext(ctx, setPublicTrustedProxySourceRefreshSuccess,
+		arg.CidrsJson,
+		arg.LastRefreshAttemptAt,
+		arg.LastRefreshSuccessAt,
+		arg.ID,
+	)
+	var i PublicTrustedProxySource
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.BuiltIn,
+		&i.Enabled,
+		&i.CidrsJson,
+		&i.HeaderName,
+		&i.HeaderMode,
+		&i.LastRefreshAttemptAt,
+		&i.LastRefreshSuccessAt,
+		&i.LastRefreshError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -6683,6 +7117,42 @@ func (q *Queries) UpdatePublicCacheSettings(ctx context.Context, arg UpdatePubli
 		&i.MemoryHotObjectMaxBytes,
 		&i.MaxEntries,
 		&i.CleanupIntervalMillis,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicGeoIpSettings = `-- name: UpdatePublicGeoIpSettings :one
+UPDATE public_geo_ip_settings
+SET enabled = ?,
+    maxmind_account_id = ?,
+    maxmind_license_key = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at
+`
+
+type UpdatePublicGeoIpSettingsParams struct {
+	Enabled           int64  `json:"enabled"`
+	MaxmindAccountID  string `json:"maxmind_account_id"`
+	MaxmindLicenseKey string `json:"maxmind_license_key"`
+}
+
+func (q *Queries) UpdatePublicGeoIpSettings(ctx context.Context, arg UpdatePublicGeoIpSettingsParams) (PublicGeoIpSetting, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicGeoIpSettings, arg.Enabled, arg.MaxmindAccountID, arg.MaxmindLicenseKey)
+	var i PublicGeoIpSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxmindAccountID,
+		&i.MaxmindLicenseKey,
+		&i.DatabaseType,
+		&i.DatabaseBuildAt,
+		&i.LastUpdateAttemptAt,
+		&i.LastUpdateSuccessAt,
+		&i.LastUpdateError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -7442,6 +7912,56 @@ func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdateP
 	return i, err
 }
 
+const updatePublicTrustedProxySource = `-- name: UpdatePublicTrustedProxySource :one
+UPDATE public_trusted_proxy_sources
+SET name = ?,
+    enabled = ?,
+    cidrs_json = ?,
+    header_name = ?,
+    header_mode = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+`
+
+type UpdatePublicTrustedProxySourceParams struct {
+	Name       string `json:"name"`
+	Enabled    int64  `json:"enabled"`
+	CidrsJson  string `json:"cidrs_json"`
+	HeaderName string `json:"header_name"`
+	HeaderMode string `json:"header_mode"`
+	ID         int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicTrustedProxySource(ctx context.Context, arg UpdatePublicTrustedProxySourceParams) (PublicTrustedProxySource, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicTrustedProxySource,
+		arg.Name,
+		arg.Enabled,
+		arg.CidrsJson,
+		arg.HeaderName,
+		arg.HeaderMode,
+		arg.ID,
+	)
+	var i PublicTrustedProxySource
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Provider,
+		&i.BuiltIn,
+		&i.Enabled,
+		&i.CidrsJson,
+		&i.HeaderName,
+		&i.HeaderMode,
+		&i.LastRefreshAttemptAt,
+		&i.LastRefreshSuccessAt,
+		&i.LastRefreshError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updatePublicWafCaptchaProvider = `-- name: UpdatePublicWafCaptchaProvider :one
 UPDATE public_waf_captcha_providers
 SET name = ?,
@@ -7522,6 +8042,9 @@ SET name = ?,
     waiting_room_page_template_id = ?,
     block_response_content_type = ?,
     block_response_headers_json = ?,
+    geo_mode = ?,
+    geo_country_codes_json = ?,
+    geo_unknown_behavior = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
@@ -7531,7 +8054,8 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-          block_response_content_type, block_response_headers_json, created_at, updated_at
+          block_response_content_type, block_response_headers_json, created_at, updated_at,
+          geo_mode, geo_country_codes_json, geo_unknown_behavior
 `
 
 type UpdatePublicWafRuleParams struct {
@@ -7569,6 +8093,9 @@ type UpdatePublicWafRuleParams struct {
 	WaitingRoomPageTemplateID            sql.NullInt64 `json:"waiting_room_page_template_id"`
 	BlockResponseContentType             string        `json:"block_response_content_type"`
 	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
+	GeoMode                              string        `json:"geo_mode"`
+	GeoCountryCodesJson                  string        `json:"geo_country_codes_json"`
+	GeoUnknownBehavior                   string        `json:"geo_unknown_behavior"`
 	ID                                   int64         `json:"id"`
 }
 
@@ -7608,6 +8135,9 @@ func (q *Queries) UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRu
 		arg.WaitingRoomPageTemplateID,
 		arg.BlockResponseContentType,
 		arg.BlockResponseHeadersJson,
+		arg.GeoMode,
+		arg.GeoCountryCodesJson,
+		arg.GeoUnknownBehavior,
 		arg.ID,
 	)
 	var i PublicWafRule
@@ -7649,6 +8179,9 @@ func (q *Queries) UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRu
 		&i.BlockResponseHeadersJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GeoMode,
+		&i.GeoCountryCodesJson,
+		&i.GeoUnknownBehavior,
 	)
 	return i, err
 }
@@ -8109,6 +8642,33 @@ func (q *Queries) UpsertPublicCacheSettingsDefaults(ctx context.Context) (Public
 		&i.MemoryHotObjectMaxBytes,
 		&i.MaxEntries,
 		&i.CleanupIntervalMillis,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertPublicGeoIpSettingsDefaults = `-- name: UpsertPublicGeoIpSettingsDefaults :one
+INSERT INTO public_geo_ip_settings (id)
+VALUES (1)
+ON CONFLICT(id) DO UPDATE SET updated_at = public_geo_ip_settings.updated_at
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at
+`
+
+func (q *Queries) UpsertPublicGeoIpSettingsDefaults(ctx context.Context) (PublicGeoIpSetting, error) {
+	row := q.db.QueryRowContext(ctx, upsertPublicGeoIpSettingsDefaults)
+	var i PublicGeoIpSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Enabled,
+		&i.MaxmindAccountID,
+		&i.MaxmindLicenseKey,
+		&i.DatabaseType,
+		&i.DatabaseBuildAt,
+		&i.LastUpdateAttemptAt,
+		&i.LastUpdateSuccessAt,
+		&i.LastUpdateError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

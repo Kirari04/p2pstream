@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
 import TrafficPolicyExecutionOrderStrip from "@/components/traffic-policy/TrafficPolicyExecutionOrderStrip.vue";
 import TrafficPolicyRequestPlayground from "@/components/traffic-policy/TrafficPolicyRequestPlayground.vue";
+import PublicVisitorIdentitySettings from "@/components/traffic-policy/PublicVisitorIdentitySettings.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -589,6 +590,8 @@ async function deleteTrafficShaperRule(id: bigint) {
       </NTabPane>
 
       <NTabPane name="waf" :tab="`WAF (${enabledWafRules})`">
+    <div class="layout-grid space-xl">
+    <PublicVisitorIdentitySettings :config="config" />
     <section class="surface-card hide-overflow">
       <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
         <div>
@@ -670,6 +673,7 @@ async function deleteTrafficShaperRule(id: bigint) {
         />
       </div>
     </section>
+    </div>
       </NTabPane>
 
       <NTabPane name="cache" :tab="`Cache (${enabledCacheRules})`">

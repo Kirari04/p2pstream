@@ -102,7 +102,7 @@ func (a *App) rateLimitPublicWAFReservedEndpoint(w http.ResponseWriter, r *http.
 	if r != nil && r.URL != nil {
 		path = r.URL.Path
 	}
-	retryAfter, allowed := a.PublicWAF.reservedEndpointLimiter.allow(listenerID, path, remoteIPForRateLimit(r), time.Now())
+	retryAfter, allowed := a.PublicWAF.reservedEndpointLimiter.allow(listenerID, path, peerIPForRequest(r), time.Now())
 	if allowed {
 		return publicWafDecision{}, false
 	}

@@ -89,6 +89,8 @@ type publicConfigRows struct {
 	WafCaptchaProviders        []db.PublicWafCaptchaProvider
 	WafRules                   []db.PublicWafRule
 	WafSettings                db.PublicWafSetting
+	GeoIPSettings              db.PublicGeoIpSetting
+	TrustedProxySources        []db.PublicTrustedProxySource
 	CacheSettings              db.PublicCacheSetting
 	CacheRules                 []db.PublicCacheRule
 	ResponseTemplates          []db.PublicResponseTemplate

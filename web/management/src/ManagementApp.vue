@@ -158,8 +158,17 @@ async function runManagementAction(action: () => Promise<void>, successMessage?:
   isBusy.value = true;
   error.value = null;
   try {
-    await action();
-    await loadDashboard();
+    try {
+      await action();
+    } catch (actionError) {
+      // Refresh even after a failed mutation because refresh endpoints persist
+      // their attempt/error status before returning the failure.
+      await loadDashboard();
+      throw actionError;
+    }
+    // Do not show a success state until the authoritative configuration can be
+    // read back. Automatic polling keeps its existing non-throwing behavior.
+    await loadDashboard({ propagateError: true });
     if (successMessage) {
       message.success(successMessage);
     }
@@ -237,7 +246,7 @@ onMounted(() => {
                 :disabled="Boolean(refreshDisabledReason)"
                 aria-label="Refresh dashboard"
                 title="Refresh dashboard"
-                @click="loadDashboard"
+                @click="() => loadDashboard()"
               >
                 <template #icon>
                   <RefreshIcon class="icon-sm" />

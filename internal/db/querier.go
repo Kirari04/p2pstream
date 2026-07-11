@@ -33,6 +33,7 @@ type Querier interface {
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
+	CreatePublicTrustedProxySource(ctx context.Context, arg CreatePublicTrustedProxySourceParams) (PublicTrustedProxySource, error)
 	CreatePublicWafCaptchaProvider(ctx context.Context, arg CreatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error)
 	CreatePublicWafRule(ctx context.Context, arg CreatePublicWafRuleParams) (PublicWafRule, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
@@ -66,6 +67,7 @@ type Querier interface {
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
+	DeletePublicTrustedProxySource(ctx context.Context, id int64) error
 	DeletePublicWafCaptchaProvider(ctx context.Context, id int64) error
 	DeletePublicWafRule(ctx context.Context, id int64) error
 	DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int64) error
@@ -88,6 +90,7 @@ type Querier interface {
 	GetPublicCacheEntry(ctx context.Context, keyDigest string) (PublicCacheEntry, error)
 	GetPublicCacheRule(ctx context.Context, id int64) (PublicCacheRule, error)
 	GetPublicCacheSettings(ctx context.Context) (PublicCacheSetting, error)
+	GetPublicGeoIpSettings(ctx context.Context) (PublicGeoIpSetting, error)
 	GetPublicListener(ctx context.Context, id int64) (PublicListener, error)
 	GetPublicRateLimitRule(ctx context.Context, id int64) (PublicRateLimitRule, error)
 	GetPublicResponseTemplate(ctx context.Context, id int64) (PublicResponseTemplate, error)
@@ -97,6 +100,7 @@ type Querier interface {
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
 	GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error)
+	GetPublicTrustedProxySource(ctx context.Context, id int64) (PublicTrustedProxySource, error)
 	GetPublicWafCaptchaProvider(ctx context.Context, id int64) (PublicWafCaptchaProvider, error)
 	GetPublicWafRule(ctx context.Context, id int64) (PublicWafRule, error)
 	GetPublicWafSettings(ctx context.Context) (PublicWafSetting, error)
@@ -142,6 +146,7 @@ type Querier interface {
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
+	ListPublicTrustedProxySources(ctx context.Context) ([]PublicTrustedProxySource, error)
 	ListPublicWafCaptchaProviders(ctx context.Context) ([]PublicWafCaptchaProvider, error)
 	ListPublicWafRules(ctx context.Context) ([]PublicWafRule, error)
 	ListRecentConnections(ctx context.Context, limit int64) ([]ListRecentConnectionsRow, error)
@@ -166,7 +171,14 @@ type Querier interface {
 	PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int64) ([]PurgePublicCacheEntriesByRuleRow, error)
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
 	RevokeUserSessions(ctx context.Context, userID int64) (int64, error)
+	SetPublicGeoIpUpdateAttempt(ctx context.Context, lastUpdateAttemptAt sql.NullTime) (PublicGeoIpSetting, error)
+	SetPublicGeoIpUpdateError(ctx context.Context, arg SetPublicGeoIpUpdateErrorParams) (PublicGeoIpSetting, error)
+	SetPublicGeoIpUpdateSuccess(ctx context.Context, arg SetPublicGeoIpUpdateSuccessParams) (PublicGeoIpSetting, error)
 	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
+	SetPublicTrustedProxySourceEnabled(ctx context.Context, arg SetPublicTrustedProxySourceEnabledParams) (PublicTrustedProxySource, error)
+	SetPublicTrustedProxySourceRefreshAttempt(ctx context.Context, arg SetPublicTrustedProxySourceRefreshAttemptParams) (PublicTrustedProxySource, error)
+	SetPublicTrustedProxySourceRefreshError(ctx context.Context, arg SetPublicTrustedProxySourceRefreshErrorParams) (PublicTrustedProxySource, error)
+	SetPublicTrustedProxySourceRefreshSuccess(ctx context.Context, arg SetPublicTrustedProxySourceRefreshSuccessParams) (PublicTrustedProxySource, error)
 	SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesRow, error)
 	TouchManagementAccessToken(ctx context.Context, id int64) error
 	TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCacheEntryParams) error
@@ -180,6 +192,7 @@ type Querier interface {
 	UpdateEnvironmentObservedCertificate(ctx context.Context, arg UpdateEnvironmentObservedCertificateParams) (Environment, error)
 	UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCacheRuleParams) (PublicCacheRule, error)
 	UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error)
+	UpdatePublicGeoIpSettings(ctx context.Context, arg UpdatePublicGeoIpSettingsParams) (PublicGeoIpSetting, error)
 	UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error)
 	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error)
@@ -191,6 +204,7 @@ type Querier interface {
 	UpdatePublicTlsCertificateStatus(ctx context.Context, arg UpdatePublicTlsCertificateStatusParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsDnsCredential(ctx context.Context, arg UpdatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
+	UpdatePublicTrustedProxySource(ctx context.Context, arg UpdatePublicTrustedProxySourceParams) (PublicTrustedProxySource, error)
 	UpdatePublicWafCaptchaProvider(ctx context.Context, arg UpdatePublicWafCaptchaProviderParams) (PublicWafCaptchaProvider, error)
 	UpdatePublicWafRule(ctx context.Context, arg UpdatePublicWafRuleParams) (PublicWafRule, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error)
@@ -202,6 +216,7 @@ type Querier interface {
 	UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg UpsertProxyRequestTupleRollupMinuteParams) error
 	UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCacheEntryParams) (PublicCacheEntry, error)
 	UpsertPublicCacheSettingsDefaults(ctx context.Context) (PublicCacheSetting, error)
+	UpsertPublicGeoIpSettingsDefaults(ctx context.Context) (PublicGeoIpSetting, error)
 	UpsertPublicWafSettings(ctx context.Context, cookieSigningSecret string) (PublicWafSetting, error)
 }
 

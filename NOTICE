@@ -12,3 +12,6 @@ warranty of merchantability or fitness for a particular purpose.
 
 The corresponding source for official release binaries and container images is
 available from the matching GitHub release tag or source archive.
+
+When the optional GeoIP feature is enabled, this product includes GeoLite Data
+created by MaxMind, available from https://www.maxmind.com.
