@@ -531,6 +531,225 @@ func TestAgentTunnelReplacesDuplicateConnection(t *testing.T) {
 	}
 }
 
+func TestAgentConnSignalDoneIsConcurrentAndIdempotent(t *testing.T) {
+	conn := &AgentConn{Done: make(chan struct{})}
+	const callers = 64
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			conn.signalDone()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	conn.signalDone()
+	assertAgentDoneClosed(t, conn)
+}
+
+func TestAgentReplacementSerializesPriorDisconnectSideEffects(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-replace-serialized", "Serialized Replacement", "token")
+	old := agentRegistryTestConn(agent)
+	old.ConnectedAt = time.Now()
+	old.ConnectionDBID = insertAgentConnectionForTest(t, database, agent.ID)
+	if err := database.MarkAgentConnected(context.Background(), agent.ID); err != nil {
+		t.Fatalf("mark old agent connected: %v", err)
+	}
+	if err := app.AgentHub.connect(old); err != nil {
+		t.Fatalf("connect old agent: %v", err)
+	}
+	target := agentReplacementTransportTarget()
+	_ = app.agentTargetTransport(old, target)
+
+	hubRemoved := make(chan struct{})
+	releaseCleanup := make(chan struct{})
+	var hookOnce sync.Once
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(releaseCleanup) })
+	app.agentDisconnectAfterHubRemoval = func(conn *AgentConn, disconnected bool) {
+		if conn != old || !disconnected {
+			return
+		}
+		hookOnce.Do(func() {
+			close(hubRemoved)
+			<-releaseCleanup
+		})
+	}
+	cleanupDone := make(chan bool, 1)
+	go func() {
+		cleanupDone <- app.cleanupAgentConnection(old)
+	}()
+	select {
+	case <-hubRemoved:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for old connection to leave hub")
+	}
+
+	app.agentAuthLocks.mu.Lock()
+	lifecycleLock := app.agentAuthLocks.locks[agent.ID]
+	app.agentAuthLocks.mu.Unlock()
+	if lifecycleLock == nil {
+		t.Fatal("agent lifecycle lock was not created")
+	}
+	if lifecycleLock.TryLock() {
+		lifecycleLock.Unlock()
+		t.Fatal("disconnect side effects did not retain the agent lifecycle lock")
+	}
+
+	type replacementResult struct {
+		conn *AgentConn
+		err  error
+	}
+	replacementStarted := make(chan struct{})
+	replacementDone := make(chan replacementResult, 1)
+	go func() {
+		close(replacementStarted)
+		unlock := app.lockAgentAuth(agent.ID)
+		defer unlock()
+		newConn := agentRegistryTestConn(agent)
+		newConn.ConnectedAt = time.Now()
+		connectionID, err := insertAgentConnection(database, agent.ID)
+		if err != nil {
+			replacementDone <- replacementResult{err: err}
+			return
+		}
+		newConn.ConnectionDBID = connectionID
+		if err := database.MarkAgentConnected(context.Background(), agent.ID); err != nil {
+			replacementDone <- replacementResult{err: err}
+			return
+		}
+		displaced, err := app.AgentHub.replace(newConn)
+		if err != nil {
+			replacementDone <- replacementResult{err: err}
+			return
+		}
+		if len(displaced) != 0 {
+			replacementDone <- replacementResult{err: fmt.Errorf("unexpected displaced connections: %d", len(displaced))}
+			return
+		}
+		_ = app.agentTargetTransport(newConn, target)
+		replacementDone <- replacementResult{conn: newConn}
+	}()
+	<-replacementStarted
+	releaseOnce.Do(func() { close(releaseCleanup) })
+
+	if disconnected := <-cleanupDone; !disconnected {
+		t.Fatal("old current connection was not disconnected")
+	}
+	var result replacementResult
+	select {
+	case result = <-replacementDone:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for serialized replacement")
+	}
+	if result.err != nil {
+		t.Fatalf("replace agent after disconnect: %v", result.err)
+	}
+	if got := app.AgentHub.connectedByID(agent.ID); got != result.conn {
+		t.Fatalf("hub connection = %#v, want replacement %#v", got, result.conn)
+	}
+	assertAgentTransportPoolConnection(t, app.AgentTransports, result.conn)
+	assertOnlyOpenAgentConnection(t, database, agent.ID, result.conn.ConnectionDBID)
+	row, err := database.GetAgent(context.Background(), agent.ID)
+	if err != nil {
+		t.Fatalf("get agent after serialized replacement: %v", err)
+	}
+	if row.LastDisconnectedAt.Valid && row.LastConnectedAt.Valid && row.LastDisconnectedAt.Time.After(row.LastConnectedAt.Time) {
+		t.Fatalf("agent disconnect timestamp %s is after replacement connect timestamp %s", row.LastDisconnectedAt.Time, row.LastConnectedAt.Time)
+	}
+}
+
+func TestStaleAgentCleanupCannotAffectReplacementSideEffects(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-replace-stale-cleanup", "Stale Cleanup", "token")
+	old := agentRegistryTestConn(agent)
+	old.ConnectionDBID = insertAgentConnectionForTest(t, database, agent.ID)
+	if err := app.AgentHub.connect(old); err != nil {
+		t.Fatalf("connect old agent: %v", err)
+	}
+	target := agentReplacementTransportTarget()
+	_ = app.agentTargetTransport(old, target)
+
+	newConn := agentRegistryTestConn(agent)
+	newConn.ConnectedAt = time.Now()
+	newConn.ConnectionDBID = insertAgentConnectionForTest(t, database, agent.ID)
+	if err := database.MarkAgentConnected(context.Background(), agent.ID); err != nil {
+		t.Fatalf("mark replacement connected: %v", err)
+	}
+	unlock := app.lockAgentAuth(agent.ID)
+	displaced, err := app.AgentHub.replace(newConn)
+	if err != nil {
+		unlock()
+		t.Fatalf("replace agent: %v", err)
+	}
+	for _, conn := range displaced {
+		app.retireDisplacedAgentConnection(conn)
+	}
+	_ = app.agentTargetTransport(newConn, target)
+	unlock()
+
+	if disconnected := app.cleanupAgentConnection(old); disconnected {
+		t.Fatal("stale cleanup disconnected the replacement")
+	}
+	if got := app.AgentHub.connectedByID(agent.ID); got != newConn {
+		t.Fatalf("hub connection = %#v, want replacement %#v", got, newConn)
+	}
+	assertAgentTransportPoolConnection(t, app.AgentTransports, newConn)
+	assertOnlyOpenAgentConnection(t, database, agent.ID, newConn.ConnectionDBID)
+	row, err := database.GetAgent(context.Background(), agent.ID)
+	if err != nil {
+		t.Fatalf("get agent after stale cleanup: %v", err)
+	}
+	if row.LastDisconnectedAt.Valid {
+		t.Fatalf("stale cleanup marked replacement disconnected at %s", row.LastDisconnectedAt.Time)
+	}
+}
+
+func insertAgentConnectionForTest(t *testing.T, database *db.DB, agentID int64) int64 {
+	t.Helper()
+	id, err := insertAgentConnection(database, agentID)
+	if err != nil {
+		t.Fatalf("insert agent connection: %v", err)
+	}
+	return id
+}
+
+func insertAgentConnection(database *db.DB, agentID int64) (int64, error) {
+	id, err := database.InsertConnection(context.Background(), sql.NullInt64{Int64: agentID, Valid: true})
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+func agentReplacementTransportTarget() publicRouteTargetConfig {
+	return publicRouteTargetConfig{
+		ID:                            900,
+		URL:                           "http://replacement.test:9000",
+		UpstreamResponseHeaderTimeout: time.Second,
+	}
+}
+
+func assertAgentTransportPoolConnection(t *testing.T, pool *agentTransportPool, want *AgentConn) {
+	t.Helper()
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	if len(pool.entries) != 1 {
+		t.Fatalf("agent transport entries = %d, want 1", len(pool.entries))
+	}
+	for _, entry := range pool.entries {
+		if entry == nil || entry.agent != want {
+			t.Fatalf("pooled transport agent = %#v, want %#v", entry, want)
+		}
+	}
+}
+
 func newAgentRegistryTestDB(t *testing.T) *db.DB {
 	t.Helper()
 	database, err := db.Open(filepath.Join(t.TempDir(), "agent-registry-test.db"))
