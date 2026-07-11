@@ -641,15 +641,27 @@ func (a *App) agentTargetTransport(agent *AgentConn, target publicRouteTargetCon
 
 func startAgentStreamOpen(
 	ctx context.Context,
-	agentDone <-chan struct{},
+	agent *AgentConn,
 	open func() (net.Conn, error),
 ) <-chan agentStreamOpenResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	release, admitted := agent.acquireStreamOpenAdmission(ctx)
+	if !admitted {
+		return nil
+	}
 	// Keep this channel unbuffered so ownership cannot be transferred after the
 	// caller has stopped receiving. A buffered result channel can accept a
 	// delayed successful Open even when ctx is already done, leaking that stream.
 	results := make(chan agentStreamOpenResult)
 	go func() {
+		// Cancellation only abandons this caller. The permit remains held until
+		// Yamux Open itself returns so blocked opens cannot accumulate unbounded
+		// goroutines behind the session's finite AcceptBacklog.
+		defer release()
 		conn, err := open()
+		release()
 		result := agentStreamOpenResult{conn: conn, err: err}
 		select {
 		case results <- result:
@@ -657,7 +669,7 @@ func startAgentStreamOpen(
 			if conn != nil {
 				_ = conn.Close()
 			}
-		case <-agentDone:
+		case <-agent.Done:
 			if conn != nil {
 				_ = conn.Close()
 			}
@@ -677,29 +689,12 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
 		return nil, errAgentDisconnected
 	}
-	openDone := make(chan struct{})
-	stopOpenWatch := func() {
-		select {
-		case <-openDone:
-		default:
-			close(openDone)
-		}
-	}
 	session := agent.Session
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-agent.Done:
-			_ = session.Close()
-		case <-openDone:
-		}
-	}()
-	openCh := startAgentStreamOpen(ctx, agent.Done, session.Open)
+	openCh := startAgentStreamOpen(ctx, agent, session.Open)
 
 	var conn net.Conn
 	select {
 	case result := <-openCh:
-		stopOpenWatch()
 		if result.err != nil {
 			if agent != nil {
 				log.Debug().
@@ -713,7 +708,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		}
 		conn = result.conn
 	case <-ctx.Done():
-		stopOpenWatch()
 		if agent != nil {
 			log.Debug().
 				Err(ctx.Err()).
@@ -725,7 +719,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		return nil, ctx.Err()
 	case <-agent.Done:
 		_ = agent.Session.Close()
-		stopOpenWatch()
 		log.Debug().
 			Str("request_id", requestID).
 			Str("agent", agent.PublicID).
