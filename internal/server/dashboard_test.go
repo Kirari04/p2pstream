@@ -894,7 +894,7 @@ func TestPublicProxyConfigAgentsUseMemoryLatestStats(t *testing.T) {
 	app.storeLatestAgentStats(agent.ID, stats.AgentStats{
 		Timestamp:        time.Unix(1700000000, 0).UTC(),
 		NumGoroutine:     12,
-		AllocAllocated:   256,
+		MemorySysMB:      256,
 		ReqSuccess:       7,
 		ReqClientError:   1,
 		ReqServerError:   2,

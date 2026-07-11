@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -42,16 +43,18 @@ type publicRouteTargetAgentHealthSnapshot struct {
 }
 
 type publicRouteTargetHealthMonitor struct {
-	mu       sync.Mutex
-	app      *App
-	sequence uint64
-	states   map[int64]*publicRouteTargetHealthState
+	mu               sync.Mutex
+	app              *App
+	sequence         uint64
+	states           map[int64]*publicRouteTargetHealthState
+	directTransports *directHealthTransportPool
 }
 
 type publicRouteTargetHealthState struct {
 	target             publicRouteTargetHealthConfig
 	directCancel       context.CancelFunc
 	directCheckRunning bool
+	directGeneration   uint64
 	direct             publicRouteTargetCheckState
 	directTraces       []*p2pstreamv1.PublicRouteTargetHealthTrace
 	agentStates        map[int64]*publicRouteTargetAgentHealthState
@@ -105,7 +108,10 @@ type publicRouteTargetHealthTraceState struct {
 }
 
 func newPublicRouteTargetHealthMonitor() *publicRouteTargetHealthMonitor {
-	return &publicRouteTargetHealthMonitor{states: make(map[int64]*publicRouteTargetHealthState)}
+	return &publicRouteTargetHealthMonitor{
+		states:           make(map[int64]*publicRouteTargetHealthState),
+		directTransports: newDirectHealthTransportPool(),
+	}
 }
 
 func (m *publicRouteTargetHealthMonitor) reconcile(app *App, snap *publicProxySnapshot, active bool) {
@@ -121,6 +127,7 @@ func (m *publicRouteTargetHealthMonitor) reconcile(app *App, snap *publicProxySn
 			state.stopLocked()
 			delete(m.states, id)
 		}
+		m.closeDirectHealthTransports()
 		return
 	}
 	healthBackends := publicHealthTargetConfigsFromSnapshot(snap)
@@ -128,6 +135,7 @@ func (m *publicRouteTargetHealthMonitor) reconcile(app *App, snap *publicProxySn
 		if _, ok := healthBackends[id]; !ok {
 			state.stopLocked()
 			delete(m.states, id)
+			m.closeDirectHealthTransportsForTarget(id)
 		}
 	}
 	for _, target := range healthBackends {
@@ -135,6 +143,11 @@ func (m *publicRouteTargetHealthMonitor) reconcile(app *App, snap *publicProxySn
 		if state == nil {
 			state = newPublicRouteTargetHealthState(target)
 			m.states[target.ID] = state
+		}
+		directConfigChanged := !reflect.DeepEqual(state.target, target)
+		if directConfigChanged && state.directCheckRunning {
+			state.stopDirectLocked()
+			state.directGeneration++
 		}
 		state.target = target
 
@@ -148,10 +161,18 @@ func (m *publicRouteTargetHealthMonitor) reconcile(app *App, snap *publicProxySn
 			ctx, cancel := context.WithCancel(context.Background())
 			state.directCancel = cancel
 			state.directCheckRunning = true
-			go m.directHealthLoop(ctx, target.ID)
+			state.directGeneration++
+			generation := state.directGeneration
+			go m.directHealthLoop(ctx, target.ID, generation)
 		}
-		if !shouldRunDirect {
+		if shouldRunDirect {
+			m.closeStaleDirectHealthTransports(target)
+		} else {
+			if state.directCheckRunning {
+				state.directGeneration++
+			}
 			state.stopDirectLocked()
+			m.closeDirectHealthTransportsForTarget(target.ID)
 		}
 
 		shouldRunAgents := active &&
@@ -319,13 +340,18 @@ func (s *publicRouteTargetHealthState) clearHealthStateLocked() {
 	}
 }
 
-func (m *publicRouteTargetHealthMonitor) directHealthLoop(ctx context.Context, targetID int64) {
+func (m *publicRouteTargetHealthMonitor) directHealthLoop(ctx context.Context, targetID int64, generation uint64) {
 	for {
-		target, ok := m.targetForDirectCheck(targetID)
+		target, transport, ok := m.directCheckForGeneration(targetID, generation)
 		if !ok {
 			return
 		}
-		m.recordDirectExplicitCheck(targetID, runPublicRouteTargetHealthCheck(ctx, target))
+		transportLabel := ""
+		if transport != nil {
+			transportLabel = "direct_pool"
+		}
+		attempt := runPublicRouteTargetHealthCheckWithTransport(ctx, target, transport, transportLabel)
+		m.recordDirectExplicitCheckForGeneration(targetID, generation, attempt)
 		if !waitPublicTargetHealthInterval(ctx, target.HealthCheck.Interval) {
 			return
 		}
@@ -369,14 +395,19 @@ func waitPublicTargetHealthInterval(ctx context.Context, interval time.Duration)
 	}
 }
 
-func (m *publicRouteTargetHealthMonitor) targetForDirectCheck(targetID int64) (publicRouteTargetHealthConfig, bool) {
+func (m *publicRouteTargetHealthMonitor) directCheckForGeneration(targetID int64, generation uint64) (publicRouteTargetHealthConfig, http.RoundTripper, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	state := m.states[targetID]
-	if state == nil || !state.directCheckRunning {
-		return publicRouteTargetHealthConfig{}, false
+	if state == nil || !state.directCheckRunning || state.directGeneration != generation {
+		return publicRouteTargetHealthConfig{}, nil, false
 	}
-	return state.target, true
+	target := state.target
+	var transport http.RoundTripper
+	if m.directTransports != nil {
+		transport = m.directTransports.transport(target, publicRouteTargetHealthCheckTimeout(target))
+	}
+	return target, transport, true
 }
 
 func (m *publicRouteTargetHealthMonitor) backendForAgentCheck(targetID int64, agentID int64) (publicRouteTargetHealthConfig, bool) {
@@ -410,7 +441,27 @@ func checkPublicTargetHealth(parent context.Context, target publicRouteTargetHea
 }
 
 func runPublicRouteTargetHealthCheck(parent context.Context, target publicRouteTargetHealthConfig) publicRouteTargetHealthCheckAttempt {
+	return runPublicRouteTargetHealthCheckWithTransport(parent, target, nil, "")
+}
+
+func (m *publicRouteTargetHealthMonitor) runPublicRouteTargetHealthCheck(parent context.Context, target publicRouteTargetHealthConfig) publicRouteTargetHealthCheckAttempt {
+	timeout := publicRouteTargetHealthCheckTimeout(target)
+	transport := http.RoundTripper(nil)
+	if m != nil && m.directTransports != nil {
+		transport = m.directTransports.transport(target, timeout)
+	}
+	transportLabel := ""
+	if transport != nil {
+		transportLabel = "direct_pool"
+	}
+	return runPublicRouteTargetHealthCheckWithTransport(parent, target, transport, transportLabel)
+}
+
+func runPublicRouteTargetHealthCheckWithTransport(parent context.Context, target publicRouteTargetHealthConfig, transport http.RoundTripper, transportLabel string) publicRouteTargetHealthCheckAttempt {
 	attempt := newPublicRouteTargetHealthCheckAttempt(target)
+	if transportLabel != "" {
+		attempt.DebugAttributes["transport"] = transportLabel
+	}
 	defer finishPublicRouteTargetHealthCheckAttempt(&attempt)
 
 	checkURL, err := publicRouteTargetHealthCheckURL(target)
@@ -419,10 +470,7 @@ func runPublicRouteTargetHealthCheck(parent context.Context, target publicRouteT
 		return attempt
 	}
 	attempt.URL = redactSensitiveTraceURL(checkURL.String())
-	timeout := target.HealthCheck.Timeout
-	if timeout <= 0 {
-		timeout = time.Duration(defaultTargetHealthCheckTimeoutMillis) * time.Millisecond
-	}
+	timeout := publicRouteTargetHealthCheckTimeout(target)
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, target.HealthCheck.Method, checkURL.String(), nil)
@@ -431,7 +479,13 @@ func runPublicRouteTargetHealthCheck(parent context.Context, target publicRouteT
 		return attempt
 	}
 	applyUpstreamRequestConfig(req, target)
-	client := &http.Client{Transport: directProxyTransport(target.TLSSkipVerify, timeout)}
+	if transport == nil {
+		transport = directProxyTransport(target.TLSSkipVerify, timeout)
+		if directTransport, ok := transport.(*http.Transport); ok {
+			defer directTransport.CloseIdleConnections()
+		}
+	}
+	client := &http.Client{Transport: transport}
 	resp, err := client.Do(req)
 	if err != nil {
 		attempt.applyContextFailure(parent, ctx, "request_failed", err)
@@ -449,6 +503,35 @@ func runPublicRouteTargetHealthCheck(parent context.Context, target publicRouteT
 	}
 	attempt.ErrorKind = "success"
 	return attempt
+}
+
+func publicRouteTargetHealthCheckTimeout(target publicRouteTargetHealthConfig) time.Duration {
+	timeout := target.HealthCheck.Timeout
+	if timeout <= 0 {
+		timeout = time.Duration(defaultTargetHealthCheckTimeoutMillis) * time.Millisecond
+	}
+	return timeout
+}
+
+func (m *publicRouteTargetHealthMonitor) closeDirectHealthTransportsForTarget(targetID int64) {
+	if m == nil || m.directTransports == nil {
+		return
+	}
+	m.directTransports.closeTarget(targetID)
+}
+
+func (m *publicRouteTargetHealthMonitor) closeStaleDirectHealthTransports(target publicRouteTargetHealthConfig) {
+	if m == nil || m.directTransports == nil {
+		return
+	}
+	m.directTransports.closeStaleTargetTransports(target, publicRouteTargetHealthCheckTimeout(target))
+}
+
+func (m *publicRouteTargetHealthMonitor) closeDirectHealthTransports() {
+	if m == nil || m.directTransports == nil {
+		return
+	}
+	m.directTransports.closeAll()
 }
 
 func (a *App) checkPublicTargetHealthViaAgent(parent context.Context, target publicRouteTargetHealthConfig, agent *AgentConn) error {
@@ -639,6 +722,20 @@ func (m *publicRouteTargetHealthMonitor) recordDirectExplicitCheck(targetID int6
 	if state == nil {
 		return
 	}
+	m.recordDirectExplicitCheckLocked(state, attempt)
+}
+
+func (m *publicRouteTargetHealthMonitor) recordDirectExplicitCheckForGeneration(targetID int64, generation uint64, attempt publicRouteTargetHealthCheckAttempt) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state := m.states[targetID]
+	if state == nil || !state.directCheckRunning || state.directGeneration != generation {
+		return
+	}
+	m.recordDirectExplicitCheckLocked(state, attempt)
+}
+
+func (m *publicRouteTargetHealthMonitor) recordDirectExplicitCheckLocked(state *publicRouteTargetHealthState, attempt publicRouteTargetHealthCheckAttempt) {
 	now := time.Now()
 	before := publicRouteTargetHealthTraceStateFromCheck(state.direct, state.target.HealthCheck.Enabled, now)
 	if attempt.Skipped {

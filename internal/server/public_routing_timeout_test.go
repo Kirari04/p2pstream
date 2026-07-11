@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -127,6 +128,86 @@ func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *t
 	}
 }
 
+func TestAgentDialCancelWhileOpeningStreamDoesNotCloseSession(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+
+	session, err := yamux.Server(serverConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("yamux server: %v", err)
+	}
+	defer session.Close()
+
+	app := NewApp(nil, nil)
+	agent := &AgentConn{
+		AgentID:     7,
+		PublicID:    "agent-cancel-open",
+		Name:        "agent-cancel-open",
+		ConnectedAt: time.Now(),
+		Done:        make(chan struct{}),
+		Session:     session,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		conn, err := app.dialViaAgent(ctx, agent, "tcp", "127.0.0.1:80", "cancel-open")
+		if conn != nil {
+			_ = conn.Close()
+		}
+		errCh <- err
+	}()
+
+	cancel()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("dial error = %v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for cancelled dial")
+	}
+	select {
+	case <-session.CloseChan():
+		t.Fatal("request cancellation closed shared agent session")
+	default:
+	}
+}
+
+func TestAgentStreamOpenDelayedSuccessAfterCancelClosesStream(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	openStarted := make(chan struct{})
+	releaseOpen := make(chan struct{})
+	stream, peer := net.Pipe()
+	defer stream.Close()
+	defer peer.Close()
+
+	results := startAgentStreamOpen(ctx, make(chan struct{}), func() (net.Conn, error) {
+		close(openStarted)
+		<-releaseOpen
+		return stream, nil
+	})
+
+	<-openStarted
+	cancel()
+	close(releaseOpen)
+
+	if err := peer.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set peer deadline: %v", err)
+	}
+	buf := make([]byte, 1)
+	if _, err := peer.Read(buf); !errors.Is(err, io.EOF) {
+		t.Fatalf("read after delayed open = %v, want EOF from closed abandoned stream", err)
+	}
+	select {
+	case result := <-results:
+		if result.conn != nil {
+			_ = result.conn.Close()
+		}
+		t.Fatal("delayed open transferred stream ownership after cancellation")
+	default:
+	}
+}
+
 func TestAgentProxyClientCancelDuringUploadClosesUpstream(t *testing.T) {
 	reached := make(chan struct{})
 	upstreamClosed := make(chan struct{})
@@ -237,6 +318,95 @@ func TestAgentProxyResponseTimeoutMarksPassiveFailure(t *testing.T) {
 	}
 }
 
+func TestDialViaAgentOpenHandshakeTimesOutWithoutContextDeadline(t *testing.T) {
+	withAgentOpenHandshakeTimeout(t, 25*time.Millisecond)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("upstream should not be reached before agent open response")
+	}))
+	defer upstream.Close()
+
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	fake.suppressOpenResponse = true
+	ctx := context.Background()
+	if _, ok := ctx.Deadline(); ok {
+		t.Fatal("test context unexpectedly has a deadline")
+	}
+
+	started := time.Now()
+	conn, err := app.dialViaAgent(ctx, agent, "tcp", target.ParsedURL.Host, "request-timeout-test")
+	if conn != nil {
+		_ = conn.Close()
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("agent open handshake timeout took %s, want under 1s", elapsed)
+	}
+	var dialErr agentDialError
+	if !errors.As(err, &dialErr) || dialErr.Kind != "dial_timeout" {
+		t.Fatalf("dialViaAgent error = %T %[1]v, want agent dial_timeout", err)
+	}
+	fake.waitOpenRequestCount(t, 1)
+}
+
+func TestAgentProxyOpenHandshakeTimeoutWithoutRequestDeadline(t *testing.T) {
+	withAgentOpenHandshakeTimeout(t, 25*time.Millisecond)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("upstream should not be reached before agent open response")
+	}))
+	defer upstream.Close()
+
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	fake.suppressOpenResponse = true
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+	if _, ok := req.Context().Deadline(); ok {
+		t.Fatal("test request unexpectedly has a context deadline")
+	}
+
+	started := time.Now()
+	proxyAgentTargetForTest(app, rec, req, target, agent)
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("agent open handshake timeout took %s, want under 1s", elapsed)
+	}
+
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("open handshake timeout status = %d body=%q, want 504", rec.Code, rec.Body.String())
+	}
+	waitForAgentActiveRequests(t, agent, 0)
+	fake.waitOpenRequestCount(t, 1)
+	if app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("agent open handshake timeout should make the agent unavailable during passive cooldown")
+	}
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	if len(traces) == 0 ||
+		traces[0].ErrorKind != "passive_failure" ||
+		!strings.Contains(traces[0].Error, "dial_timeout") {
+		t.Fatalf("latest trace = %+v, want passive dial_timeout failure", traces)
+	}
+}
+
+func TestAgentOpenHandshakeDeadlineUsesEarlierRequestDeadline(t *testing.T) {
+	withAgentOpenHandshakeTimeout(t, 10*time.Second)
+	now := time.Now()
+
+	if got, want := agentOpenHandshakeDeadline(context.Background(), now), now.Add(10*time.Second); !got.Equal(want) {
+		t.Fatalf("handshake deadline without context deadline = %s, want %s", got, want)
+	}
+
+	earlier := now.Add(time.Second)
+	earlierCtx, cancelEarlier := context.WithDeadline(context.Background(), earlier)
+	defer cancelEarlier()
+	if got := agentOpenHandshakeDeadline(earlierCtx, now); !got.Equal(earlier) {
+		t.Fatalf("handshake deadline with earlier context = %s, want %s", got, earlier)
+	}
+
+	later := now.Add(time.Minute)
+	laterCtx, cancelLater := context.WithDeadline(context.Background(), later)
+	defer cancelLater()
+	if got, want := agentOpenHandshakeDeadline(laterCtx, now), now.Add(10*time.Second); !got.Equal(want) {
+		t.Fatalf("handshake deadline with later context = %s, want %s", got, want)
+	}
+}
+
 func TestAgentProxyClosedSessionMarksPassiveFailure(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("should not be reached"))
@@ -260,6 +430,34 @@ func TestAgentProxyClosedSessionMarksPassiveFailure(t *testing.T) {
 	if len(traces) == 0 || traces[0].ErrorKind != "passive_failure" || !strings.Contains(traces[0].Error, errAgentDisconnected.Error()) {
 		t.Fatalf("latest trace = %+v, want passive agent_disconnected failure", traces)
 	}
+}
+
+func TestAgentProxyDialForbiddenDoesNotMarkPassiveFailure(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("upstream should not be reached when agent rejects destination")
+	}))
+	defer upstream.Close()
+
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
+	fake.openResponse = func(open tunnel.OpenRequest) tunnel.OpenResponse {
+		return tunnel.OpenResponse{OK: false, ErrorKind: "dial_forbidden", Error: "agent destination forbidden by allowlist"}
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+	proxyAgentTargetForTest(app, rec, req, target, agent)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("dial forbidden status = %d body=%q, want 502", rec.Code, rec.Body.String())
+	}
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("agent dial_forbidden should not make the agent unavailable")
+	}
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	if len(traces) != 0 {
+		t.Fatalf("unexpected health traces after dial_forbidden: %+v", traces)
+	}
+	fake.waitOpenRequestCount(t, 1)
 }
 
 func TestAgentProxyHTTPSOriginTLSVerification(t *testing.T) {
@@ -343,21 +541,21 @@ func newAgentProxyTunnelTestApp(t *testing.T, agentID int64, upstreamURL string,
 		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
 		Agents:       map[int64]publicAgentConfig{agentID: {ID: agentID, PublicID: agent.PublicID, Enabled: true, Labels: map[string]string{agentIDSystemLabelKey: agent.PublicID}}},
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.TargetHealth.reconcile(app, snap, false)
 	return app, target, agent, fake
 }
 
 type fakeYamuxAgent struct {
-	serverSession *yamux.Session
-	agentSession  *yamux.Session
-	requests      chan tunnel.OpenRequest
-	mu            sync.Mutex
-	openRequests  int
-	wg            sync.WaitGroup
-	closeOnce     sync.Once
+	serverSession        *yamux.Session
+	agentSession         *yamux.Session
+	requests             chan tunnel.OpenRequest
+	openResponse         func(tunnel.OpenRequest) tunnel.OpenResponse
+	suppressOpenResponse bool
+	mu                   sync.Mutex
+	openRequests         int
+	wg                   sync.WaitGroup
+	closeOnce            sync.Once
 }
 
 func newFakeYamuxAgent(t *testing.T, agentID int64, publicID string) (*AgentConn, *fakeYamuxAgent) {
@@ -436,6 +634,15 @@ func (f *fakeYamuxAgent) handleStream(stream net.Conn) {
 	case f.requests <- open:
 	default:
 	}
+	if f.suppressOpenResponse {
+		_, _ = io.Copy(io.Discard, stream)
+		return
+	}
+	if f.openResponse != nil {
+		resp := f.openResponse(open)
+		_ = tunnel.WriteOpenResponse(stream, resp)
+		return
+	}
 	upstream, err := (&net.Dialer{}).DialContext(context.Background(), open.Network, open.Address)
 	if err != nil {
 		_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{OK: false, ErrorKind: "dial_failed", Error: err.Error()})
@@ -477,6 +684,15 @@ func (f *fakeYamuxAgent) waitOpenRequestCount(t *testing.T, want int) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("fake yamux open requests = %d, want %d", f.openRequestCount(), want)
+}
+
+func withAgentOpenHandshakeTimeout(t *testing.T, timeout time.Duration) {
+	t.Helper()
+	previous := agentOpenHandshakeTimeout
+	agentOpenHandshakeTimeout = timeout
+	t.Cleanup(func() {
+		agentOpenHandshakeTimeout = previous
+	})
 }
 
 func waitForAgentActiveRequests(t *testing.T, agent *AgentConn, want int64) {

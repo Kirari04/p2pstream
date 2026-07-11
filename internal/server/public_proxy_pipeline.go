@@ -28,6 +28,7 @@ type publicProxyContext struct {
 	App        *App
 	ListenerID int64
 	StartedAt  time.Time
+	Snapshot   *publicProxySnapshot
 
 	Writer         http.ResponseWriter
 	ResponseWriter http.ResponseWriter
@@ -77,10 +78,15 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 	if trace != nil {
 		trace.emitReceived(listenerID)
 	}
+	var snap *publicProxySnapshot
+	if app != nil {
+		snap = app.currentPublicSnapshot()
+	}
 	return &publicProxyContext{
 		App:            app,
 		ListenerID:     listenerID,
 		StartedAt:      time.Now(),
+		Snapshot:       snap,
 		Writer:         w,
 		ResponseWriter: responseWriter,
 		Recorder:       recorder,
@@ -126,7 +132,7 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 		return publicProxyStageContinue
 	}
 	if !ctx.PathIssues.hasEncodedSeparator() {
-		match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+		match, err := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 		if err != nil {
 			match.Err = err
 		}
@@ -134,7 +140,7 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 		ctx.HasRouteMatch = true
 		return publicProxyStageContinue
 	}
-	match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+	match, err := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if err != nil {
 		match.Err = err
 		ctx.RouteMatch = match
@@ -289,7 +295,7 @@ func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func serveWAFReservedStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, handled := ctx.App.servePublicWAFReserved(ctx.ResponseWriter, ctx.Request, ctx.ListenerID)
+	decision, handled := ctx.App.servePublicWAFReservedWithSnapshot(ctx.Snapshot, ctx.ResponseWriter, ctx.Request, ctx.ListenerID)
 	if !handled {
 		return publicProxyStageContinue
 	}
@@ -337,7 +343,7 @@ func beginWAFPressureStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, allowed := ctx.App.checkPublicWAF(ctx.ListenerID, ctx.Request)
+	decision, allowed := ctx.App.checkPublicWAFWithSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if allowed {
 		return publicProxyStageContinue
 	}
@@ -379,7 +385,7 @@ func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, allowed := ctx.App.checkPublicRateLimits(ctx.ListenerID, ctx.Request)
+	decision, allowed := ctx.App.checkPublicRateLimitsWithSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if allowed {
 		return publicProxyStageContinue
 	}
@@ -423,7 +429,7 @@ func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func trafficShaperStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, ok := ctx.App.selectPublicTrafficShaper(ctx.ListenerID, ctx.Request)
+	decision, ok := ctx.App.selectPublicTrafficShaperWithSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if !ok {
 		return publicProxyStageContinue
 	}
@@ -465,7 +471,12 @@ func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.HasRouteMatch {
 		resolution, err = ctx.App.resolvePublicRouteFromMatch(ctx.RouteMatch)
 	} else {
-		resolution, err = ctx.App.resolvePublicRoute(ctx.ListenerID, ctx.Request)
+		match, matchErr := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
+		if matchErr != nil {
+			err = matchErr
+		} else {
+			resolution, err = ctx.App.resolvePublicRouteFromMatch(match)
+		}
 	}
 	if err != nil {
 		statusCode := http.StatusBadGateway
@@ -547,7 +558,12 @@ func cacheLookupStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.Resolution.Target.TargetType != publicRouteTargetTypeProxy {
 		return publicProxyStageContinue
 	}
-	decision := ctx.App.checkPublicCache(ctx.Request, ctx.Resolution)
+	decision := ctx.App.checkPublicCacheWithSnapshot(ctx.Snapshot, ctx.Request, ctx.Resolution)
+	if decision.Status == publicCacheStatusHit && !ctx.App.preparePublicCacheHitBody(ctx.Request, &decision) {
+		decision.Status = publicCacheStatusMiss
+		decision.Entry = nil
+		decision.HitBody = nil
+	}
 	applyCacheResolutionFields(&ctx.Resolution, decision)
 	if ctx.Trace != nil {
 		ctx.Trace.emit(

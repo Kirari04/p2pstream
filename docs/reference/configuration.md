@@ -42,7 +42,7 @@ If every login throttle slot is occupied by an active block, new failed-login ke
 
 ### Agent Variables
 
-Set these on each agent host via `/etc/p2pstream/agent.env` or the generated installer environment. The agent installer writes these automatically from the setup dialog.
+Set these on each agent host via `/etc/p2pstream/agent.env` or the generated installer environment. The agent installer writes the generated setup values automatically; optional local hardening values such as `AGENT_ALLOW_TARGETS` can be supplied before running the installer or added to the env file afterward.
 
 | Variable                          | Description                                                          |
 | --------------------------------- | -------------------------------------------------------------------- |
@@ -55,6 +55,7 @@ Set these on each agent host via `/etc/p2pstream/agent.env` or the generated ins
 | `AGENT_TLS_CERT_FILE`             | Optional client certificate for management mTLS.                     |
 | `AGENT_TLS_KEY_FILE`              | Optional client private key for management mTLS.                     |
 | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy.                              |
+| `AGENT_ALLOW_TARGETS`             | Optional tunnel destination allowlist entries separated by commas or whitespace. |
 
 ### Installer Variables
 
@@ -67,6 +68,7 @@ Set these as environment variables before running the Linux agent installer scri
 | `P2PSTREAM_CONFIG_DIR`   | `/etc/p2pstream`           | Agent config directory created by installer.                                 |
 | `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path.                                                         |
 | `P2PSTREAM_SYSTEMD_DIR`  | `/etc/systemd/system`      | Systemd unit directory used by installer and uninstaller.                    |
+| `AGENT_CLEAR_ALLOW_TARGETS` | `false`                 | Explicitly remove a previously installed local destination allowlist.        |
 
 ## Validation Rules
 
@@ -79,6 +81,8 @@ Set these as environment variables before running the Linux agent installer scri
 - Bootstrap agent ID, name, and token must all be set together.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
+- Agent target allowlist entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges. When unset, the agent trusts the management server to choose any tunnel destination.
+- Reinstall preserves the effective last single-line `AGENT_ALLOW_TARGETS` assignment when no replacement is supplied. It fails closed if the existing environment file cannot be read or contains unsupported or multiline assignment syntax. Set `AGENT_CLEAR_ALLOW_TARGETS=true` to remove it explicitly; it cannot be combined with `AGENT_ALLOW_TARGETS`.
 
 ## Runtime Effects
 
