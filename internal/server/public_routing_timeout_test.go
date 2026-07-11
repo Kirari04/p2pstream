@@ -90,6 +90,50 @@ func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 	}
 }
 
+func TestAgentProxyRequestCapacityRejectsBeforeOpeningStream(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("capacity-rejected request unexpectedly reached upstream")
+	}))
+	defer upstream.Close()
+
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app.agentProxyRequests = newAgentRequestLimiter(1)
+	release, ok := app.agentProxyRequests.TryAcquire()
+	if !ok {
+		t.Fatal("failed to occupy the only agent request slot")
+	}
+	defer release()
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("agent was unavailable before capacity rejection")
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/at-capacity", nil)
+	proxyAgentTargetForTest(app, rec, req, target, agent)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("capacity response = status %d body %q, want 503", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Agent tunnel capacity reached") {
+		t.Fatalf("capacity response body = %q, want capacity error", rec.Body.String())
+	}
+	fake.mu.Lock()
+	openRequests := fake.openRequests
+	fake.mu.Unlock()
+	if openRequests != 0 || app.agentTunnelStreams.InUse() != 0 {
+		t.Fatalf("capacity rejection opened tunnel state = requests %d/streams %d, want 0/0", openRequests, app.agentTunnelStreams.InUse())
+	}
+	if got := agent.ActiveRequests.Load(); got != 0 {
+		t.Fatalf("agent active requests after capacity rejection = %d, want 0", got)
+	}
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("local request capacity rejection changed passive agent health")
+	}
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	if len(traces) != 0 {
+		t.Fatalf("capacity rejection recorded passive health traces: %+v", traces)
+	}
+}
+
 func TestDialViaAgentStreamCapacityFollowsConnectionLifetime(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	defer upstream.Close()
