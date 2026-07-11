@@ -207,7 +207,7 @@ func (a *App) ReportStats(
 	s := stats.AgentStats{
 		Timestamp:        time.Now(),
 		NumGoroutine:     int(payload.NumGoroutine),
-		AllocAllocated:   uint64(payload.MemorySysMb),
+		MemorySysMB:      uint64(payload.MemorySysMb),
 		ActiveRequests:   payload.ActiveRequests,
 		CPUPercent:       payload.CpuPercent,
 		ReqSuccess:       int32(payload.ReqSuccess),
@@ -273,7 +273,7 @@ func (a *App) latestAgentStatsSnapshot(agentID int64) (*p2pstreamv1.AgentStatsSn
 
 func agentStatsSnapshotFromRuntime(stat stats.AgentStats) *p2pstreamv1.AgentStatsSnapshot {
 	return &p2pstreamv1.AgentStatsSnapshot{
-		MemorySysMb:          int64(stat.AllocAllocated),
+		MemorySysMb:          int64(stat.MemorySysMB),
 		NumGoroutine:         int64(stat.NumGoroutine),
 		ReqSuccess:           int64(stat.ReqSuccess),
 		ReqClientError:       int64(stat.ReqClientError),
