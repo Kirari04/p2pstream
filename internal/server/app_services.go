@@ -1,6 +1,10 @@
 package server
 
-import "p2pstream/internal/config"
+import (
+	"net/http/httputil"
+
+	"p2pstream/internal/config"
+)
 
 type appServices struct {
 	agentHub         *agentHub
@@ -18,6 +22,7 @@ type appServices struct {
 	auth             *authService
 	agentTransports  *agentTransportPool
 	directTransports *directTransportPool
+	reverseProxyBuf  httputil.BufferPool
 	dashboardCache   *dashboardResponseCache
 	loginThrottle    *loginThrottle
 	agentAuthLocks   *agentAuthLockMap
@@ -35,6 +40,7 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 		publicCache:      newPublicProxyCache(cfg.PublicCacheDir),
 		agentTransports:  newAgentTransportPool(),
 		directTransports: newDirectTransportPool(),
+		reverseProxyBuf:  newReverseProxyBufferPool(),
 		dashboardCache:   newDashboardResponseCache(),
 		loginThrottle:    newLoginThrottle(cfg.LoginThrottleMaxKeys),
 		agentAuthLocks:   newAgentAuthLockMap(),
@@ -68,6 +74,7 @@ func (a *App) applyServices(services appServices) {
 	a.auth = services.auth
 	a.AgentTransports = services.agentTransports
 	a.DirectTransports = services.directTransports
+	a.reverseProxyBuffers = services.reverseProxyBuf
 	a.DashboardCache = services.dashboardCache
 	a.LoginThrottle = services.loginThrottle
 	a.agentAuthLocks = services.agentAuthLocks

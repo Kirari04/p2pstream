@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"errors"
 	"io"
@@ -26,6 +25,8 @@ import (
 var errNoRouteBackendAvailable = errors.New("no route backend available")
 var errNoRouteTargetAvailable = errors.New("no route target available")
 var errNoPublicRouteAvailable = errors.New("no public route available")
+
+var agentOpenHandshakeTimeout = 10 * time.Second
 
 type publicRouteTargetHealthConfig struct {
 	ID                            int64
@@ -177,6 +178,7 @@ type publicProxySnapshot struct {
 	WafCookieSecret     []byte
 	CacheSettings       publicCacheSettingsConfig
 	CacheRules          []publicCacheRuleConfig
+	CacheFingerprint    string
 	ResponseTemplates   map[int64]publicResponseTemplateConfig
 }
 
@@ -607,7 +609,8 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			}
 		},
-		Transport: transport,
+		Transport:  transport,
+		BufferPool: a.reverseProxyBufferPool(),
 	}
 	proxy.ServeHTTP(w, r)
 }
@@ -722,9 +725,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		return nil, errAgentDisconnected
 	}
 
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = conn.SetDeadline(deadline)
-	}
+	_ = conn.SetDeadline(agentOpenHandshakeDeadline(ctx, time.Now()))
 	handshakeDone := make(chan struct{})
 	stopHandshakeWatch := func() {
 		select {
@@ -746,12 +747,12 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	req := tunnel.NewOpenRequest(requestID, network, address)
 	if err := tunnel.WriteOpenRequest(conn, req); err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, agentOpenHandshakeError(ctx, err)
 	}
 	resp, err := tunnel.ReadOpenResponse(conn)
 	if err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, agentOpenHandshakeError(ctx, err)
 	}
 	if !resp.OK {
 		_ = conn.Close()
@@ -767,6 +768,27 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	return conn, nil
 }
 
+func agentOpenHandshakeDeadline(ctx context.Context, now time.Time) time.Time {
+	deadline := now.Add(agentOpenHandshakeTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		return ctxDeadline
+	}
+	return deadline
+}
+
+func agentOpenHandshakeError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+		return err
+	}
+	if isTimeoutError(err) || (ctx != nil && errors.Is(ctx.Err(), context.DeadlineExceeded)) {
+		return agentDialError{Kind: "dial_timeout", Err: err.Error()}
+	}
+	return err
+}
+
 func redactAgentDialAddress(address string) string {
 	_, port, err := net.SplitHostPort(strings.TrimSpace(address))
 	if err != nil {
@@ -779,7 +801,15 @@ func redactAgentDialAddress(address string) string {
 }
 
 func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
-	candidates := a.eligibleTargetAgentCandidates(target)
+	snap := a.currentPublicSnapshot()
+	if snap == nil {
+		return nil
+	}
+	return a.selectTargetAgentFromSnapshot(snap, target)
+}
+
+func (a *App) selectTargetAgentFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig) *AgentConn {
+	candidates := a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -790,13 +820,15 @@ func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
 }
 
 func (a *App) eligibleTargetAgentCandidates(target publicRouteTargetConfig) []backendAgentCandidate {
-	if a == nil || a.AgentHub == nil {
+	snap := a.currentPublicSnapshot()
+	if snap == nil {
 		return nil
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
-	if snap == nil {
+	return a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
+}
+
+func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig) []backendAgentCandidate {
+	if a == nil || a.AgentHub == nil || snap == nil {
 		return nil
 	}
 	candidates := make([]backendAgentCandidate, 0, len(snap.Agents))
@@ -850,10 +882,17 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 	if err == nil {
 		return false
 	}
+	var dialErr agentDialError
+	if errors.As(err, &dialErr) && dialErr.Kind == "dial_forbidden" {
+		return false
+	}
 	return !requestContextCanceled(requestCtx, err)
 }
 
-func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+func (a *App) selectRouteTarget(snap *publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+	if snap == nil {
+		return publicRouteTargetConfig{}, nil, false
+	}
 	candidates := make([]routeTargetCandidate, 0, len(route.Targets))
 	lowestPriorityGroupSet := false
 	lowestPriorityGroup := int64(0)
@@ -896,14 +935,14 @@ func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfi
 	if selected.Target.Transport != publicRouteTargetTransportAgent {
 		return selected.Target, nil, true
 	}
-	agent := a.selectTargetAgent(selected.Target)
+	agent := a.selectTargetAgentFromSnapshot(snap, selected.Target)
 	if agent == nil {
 		return publicRouteTargetConfig{}, nil, false
 	}
 	return selected.Target, agent, true
 }
 
-func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
+func (a *App) targetEligibleForRoute(snap *publicProxySnapshot, target publicRouteTargetConfig) bool {
 	if !target.Enabled {
 		return false
 	}
@@ -922,8 +961,8 @@ func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRout
 	return true
 }
 
-func (a *App) targetHasEligibleAgent(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
-	if a == nil || a.AgentHub == nil {
+func (a *App) targetHasEligibleAgent(snap *publicProxySnapshot, target publicRouteTargetConfig) bool {
+	if a == nil || a.AgentHub == nil || snap == nil {
 		return false
 	}
 	for agentID, agentConfig := range snap.Agents {
@@ -1058,11 +1097,12 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 }
 
 func (a *App) matchPublicRoute(listenerID int64, r *http.Request) (publicRouteMatch, error) {
+	return a.matchPublicRouteInSnapshot(a.currentPublicSnapshot(), listenerID, r)
+}
+
+func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicRouteMatch, error) {
 	host := normalizeRequestHost(r.Host)
 
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil {
 		return publicRouteMatch{}, errors.New("public proxy config is not loaded")
 	}
@@ -1131,7 +1171,7 @@ func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteRe
 			RouteID:      routeID,
 		}, nil
 	}
-	target, agent, ok := a.selectRouteTarget(*match.Snapshot, matchedRoute)
+	target, agent, ok := a.selectRouteTarget(match.Snapshot, matchedRoute)
 	if !ok {
 		return publicRouteResolution{}, errNoRouteTargetAvailable
 	}
@@ -1305,21 +1345,7 @@ func mergeRedirectQuery(configuredQuery string, incomingQuery string, preserveIn
 }
 
 func directProxyTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duration) http.RoundTripper {
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return http.DefaultTransport
-	}
-	transport := base.Clone()
-	transport.ResponseHeaderTimeout = normalizeUpstreamResponseHeaderTimeout(responseHeaderTimeout)
-	if tlsSkipVerify {
-		if transport.TLSClientConfig == nil {
-			transport.TLSClientConfig = &tls.Config{}
-		} else {
-			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
-		}
-		transport.TLSClientConfig.InsecureSkipVerify = true
-	}
-	return transport
+	return newDirectProxyHTTPTransport(tlsSkipVerify, responseHeaderTimeout)
 }
 
 func normalizeUpstreamResponseHeaderTimeout(timeout time.Duration) time.Duration {

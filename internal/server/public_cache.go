@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -60,7 +61,11 @@ const (
 	maxPublicCacheCleanupIntervalMillis     = int64(3600000)
 	maxPublicCacheHeaderBytes               = 256 * 1024
 	maxPublicCacheListItems                 = 64
-	publicCacheKeyDigestVersion             = "v3"
+	// Miss keys are attacker-derived, so their in-memory budget remains bounded
+	// independently of the operator's potentially much larger disk-entry limit.
+	maxPublicCacheNegativeLookups = 4096
+	publicCacheNegativeLookupTTL  = 30 * time.Second
+	publicCacheKeyDigestVersion   = "v3"
 )
 
 var defaultPublicCacheStatusCodes = []int64{200, 203, 204, 301, 308}
@@ -120,31 +125,44 @@ type publicCacheRuleMutationInput struct {
 }
 
 type publicCacheDecision struct {
-	Rule           publicCacheRuleConfig
-	Status         string
-	KeyDigest      string
-	QueryKey       string
-	Host           string
-	Path           string
-	RouteID        sql.NullInt64
-	RouteTargetID  sql.NullInt64
-	Entry          *db.PublicCacheEntry
-	BypassReason   string
-	CookieRequest  bool
-	Cacheable      bool
-	StoredBytes    int64
-	LookupDuration time.Duration
+	Rule             publicCacheRuleConfig
+	Status           string
+	KeyDigest        string
+	QueryKey         string
+	Host             string
+	Path             string
+	RouteID          sql.NullInt64
+	RouteTargetID    sql.NullInt64
+	Entry            *db.PublicCacheEntry
+	BypassReason     string
+	CookieRequest    bool
+	Cacheable        bool
+	StoredBytes      int64
+	LookupDuration   time.Duration
+	HitBody          io.ReadCloser
+	cacheGeneration  uint64
+	cacheFingerprint string
+	cacheCurrent     bool
 }
 
 type publicProxyCache struct {
 	dir string
 
+	// storeGate lets cache writes run concurrently while making a configuration
+	// invalidation atomic with respect to the final database commit.
+	storeGate       sync.RWMutex
 	mu              sync.Mutex
 	settings        publicCacheSettingsConfig
 	lastCleanup     time.Time
 	memoryEntries   map[string]*publicCacheMemoryEntry
+	indexEntries    map[string]publicCacheIndexEntry
+	indexLookups    map[publicCacheLookupKey]map[string]struct{}
+	negativeLookups map[publicCacheLookupDigest]*list.Element
+	negativeOrder   *list.List
+	pendingTouches  map[string]struct{}
 	memoryBytes     int64
 	lastFingerprint string
+	generation      uint64
 }
 
 type publicCacheMemoryEntry struct {
@@ -152,14 +170,41 @@ type publicCacheMemoryEntry struct {
 	lastAccessed time.Time
 }
 
+type publicCacheIndexEntry struct {
+	entry     db.PublicCacheEntry
+	lookupKey publicCacheLookupKey
+}
+
+type publicCacheLookupKey struct {
+	RuleID           int64
+	ListenerProtocol string
+	Host             string
+	Path             string
+	QueryKey         string
+	RouteID          int64
+	RouteTargetID    int64
+}
+
+type publicCacheLookupDigest [sha256.Size]byte
+
+type publicCacheNegativeLookup struct {
+	digest    publicCacheLookupDigest
+	expiresAt time.Time
+}
+
 func newPublicProxyCache(cacheDir string) *publicProxyCache {
 	if strings.TrimSpace(cacheDir) == "" {
 		cacheDir = filepath.Join(config.DefaultConfigDir, "cache", "public")
 	}
 	return &publicProxyCache{
-		dir:           cacheDir,
-		settings:      defaultPublicCacheSettings(),
-		memoryEntries: make(map[string]*publicCacheMemoryEntry),
+		dir:             cacheDir,
+		settings:        defaultPublicCacheSettings(),
+		memoryEntries:   make(map[string]*publicCacheMemoryEntry),
+		indexEntries:    make(map[string]publicCacheIndexEntry),
+		indexLookups:    make(map[publicCacheLookupKey]map[string]struct{}),
+		negativeLookups: make(map[publicCacheLookupDigest]*list.Element),
+		negativeOrder:   list.New(),
+		pendingTouches:  make(map[string]struct{}),
 	}
 }
 
@@ -177,12 +222,23 @@ func defaultPublicCacheSettings() publicCacheSettingsConfig {
 	}
 }
 
-func (c *publicProxyCache) reconcile(settings publicCacheSettingsConfig) {
+func (c *publicProxyCache) reconcile(settings publicCacheSettingsConfig, rules []publicCacheRuleConfig) {
 	if c == nil {
 		return
 	}
+	fingerprint := publicCacheRuntimeFingerprint(settings, rules)
+	c.storeGate.Lock()
+	defer c.storeGate.Unlock()
 	c.mu.Lock()
+	configChanged := c.lastFingerprint != fingerprint
 	c.settings = settings
+	c.lastFingerprint = fingerprint
+	if configChanged {
+		c.generation++
+	}
+	if configChanged || !settings.Enabled {
+		c.clearIndexLocked()
+	}
 	if !settings.Enabled || settings.MaxMemoryBytes <= 0 {
 		c.memoryEntries = make(map[string]*publicCacheMemoryEntry)
 		c.memoryBytes = 0
@@ -190,6 +246,119 @@ func (c *publicProxyCache) reconcile(settings publicCacheSettingsConfig) {
 		c.pruneMemoryLocked()
 	}
 	c.mu.Unlock()
+}
+
+func (c *publicProxyCache) invalidateConfiguration() {
+	if c == nil {
+		return
+	}
+	c.storeGate.Lock()
+	c.mu.Lock()
+	c.generation++
+	c.lastFingerprint = ""
+	c.clearIndexLocked()
+	c.mu.Unlock()
+	c.storeGate.Unlock()
+}
+
+// invalidateEntries rejects requests that began before an explicit purge while
+// allowing requests that begin after the purge boundary to use the same config.
+func (c *publicProxyCache) invalidateEntries() {
+	if c == nil {
+		return
+	}
+	c.storeGate.Lock()
+	c.mu.Lock()
+	c.generation++
+	c.clearIndexLocked()
+	c.mu.Unlock()
+	c.storeGate.Unlock()
+}
+
+func (c *publicProxyCache) captureGeneration(fingerprint string) (uint64, bool) {
+	if c == nil || fingerprint == "" {
+		return 0, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.generation, c.settings.Enabled && c.lastFingerprint == fingerprint
+}
+
+func (c *publicProxyCache) generationMatches(generation uint64, fingerprint string) bool {
+	if c == nil || fingerprint == "" {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.settings.Enabled && c.generation == generation && c.lastFingerprint == fingerprint
+}
+
+func (c *publicProxyCache) acquireStoreGeneration(generation uint64, fingerprint string) bool {
+	if c == nil {
+		return false
+	}
+	c.storeGate.RLock()
+	if c.generationMatches(generation, fingerprint) {
+		return true
+	}
+	c.storeGate.RUnlock()
+	return false
+}
+
+func (c *publicProxyCache) releaseStoreGeneration() {
+	if c != nil {
+		c.storeGate.RUnlock()
+	}
+}
+
+func publicCacheRuntimeFingerprint(settings publicCacheSettingsConfig, rules []publicCacheRuleConfig) string {
+	type settingsFingerprint struct {
+		Enabled                 bool
+		MaxDiskBytes            int64
+		MaxMemoryBytes          int64
+		MemoryHotObjectMaxBytes int64
+		MaxEntries              int64
+		CleanupInterval         time.Duration
+	}
+	type ruleFingerprint struct {
+		ID          int64
+		Fingerprint string
+		Enabled     bool
+	}
+	payload := struct {
+		Settings settingsFingerprint
+		Rules    []ruleFingerprint
+	}{
+		Settings: settingsFingerprint{
+			Enabled:                 settings.Enabled,
+			MaxDiskBytes:            settings.MaxDiskBytes,
+			MaxMemoryBytes:          settings.MaxMemoryBytes,
+			MemoryHotObjectMaxBytes: settings.MemoryHotObjectMaxBytes,
+			MaxEntries:              settings.MaxEntries,
+			CleanupInterval:         settings.CleanupInterval,
+		},
+		Rules: make([]ruleFingerprint, 0, len(rules)),
+	}
+	for _, rule := range rules {
+		payload.Rules = append(payload.Rules, ruleFingerprint{
+			ID:          rule.ID,
+			Fingerprint: rule.Fingerprint,
+			Enabled:     rule.Enabled,
+		})
+	}
+	data, _ := json.Marshal(payload)
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+func publicCacheSnapshotFingerprint(snap *publicProxySnapshot) string {
+	if snap == nil {
+		return ""
+	}
+	if snap.CacheFingerprint != "" {
+		return snap.CacheFingerprint
+	}
+	return publicCacheRuntimeFingerprint(snap.CacheSettings, snap.CacheRules)
 }
 
 func (c *publicProxyCache) memoryHotObjectMaxBytesSnapshot() int64 {
@@ -262,10 +431,277 @@ func (c *publicProxyCache) deleteMemory(key string) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.deleteMemoryLocked(key)
+}
+
+func (c *publicProxyCache) deleteMemoryLocked(key string) {
 	if existing := c.memoryEntries[key]; existing != nil {
 		c.memoryBytes -= int64(len(existing.body))
 		delete(c.memoryEntries, key)
 	}
+}
+
+func (c *publicProxyCache) deleteEntry(key string) {
+	if c == nil || key == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.deleteEntryLocked(key)
+}
+
+func (c *publicProxyCache) deleteEntryLocked(key string) {
+	c.deleteMemoryLocked(key)
+	indexEntry, ok := c.indexEntries[key]
+	if !ok {
+		return
+	}
+	delete(c.indexEntries, key)
+	delete(c.pendingTouches, key)
+	if digests := c.indexLookups[indexEntry.lookupKey]; digests != nil {
+		delete(digests, key)
+		if len(digests) == 0 {
+			delete(c.indexLookups, indexEntry.lookupKey)
+		}
+	}
+}
+
+func (c *publicProxyCache) clearIndexLocked() {
+	c.indexEntries = make(map[string]publicCacheIndexEntry)
+	c.indexLookups = make(map[publicCacheLookupKey]map[string]struct{})
+	c.negativeLookups = make(map[publicCacheLookupDigest]*list.Element)
+	c.negativeOrder = list.New()
+	c.pendingTouches = make(map[string]struct{})
+}
+
+func (c *publicProxyCache) ensureIndexLocked() {
+	if c.indexEntries == nil {
+		c.indexEntries = make(map[string]publicCacheIndexEntry)
+	}
+	if c.indexLookups == nil {
+		c.indexLookups = make(map[publicCacheLookupKey]map[string]struct{})
+	}
+	if c.negativeLookups == nil {
+		c.negativeLookups = make(map[publicCacheLookupDigest]*list.Element)
+	}
+	if c.negativeOrder == nil {
+		c.negativeOrder = list.New()
+	}
+	if c.pendingTouches == nil {
+		c.pendingTouches = make(map[string]struct{})
+	}
+}
+
+func publicCacheLookupKeyHash(lookupKey publicCacheLookupKey) publicCacheLookupDigest {
+	// Retain only a fixed-width digest: Host, Path, and QueryKey all originate
+	// from an untrusted public request and can otherwise consume unbounded heap.
+	data, _ := json.Marshal(lookupKey)
+	return sha256.Sum256(data)
+}
+
+func (c *publicProxyCache) negativeLookupLimitLocked() int {
+	maxEntries := c.settings.MaxEntries
+	if maxEntries <= 0 {
+		maxEntries = defaultPublicCacheMaxEntries
+	}
+	remaining := maxEntries - int64(len(c.indexEntries))
+	if remaining <= 0 {
+		return 0
+	}
+	if remaining > maxPublicCacheNegativeLookups {
+		return maxPublicCacheNegativeLookups
+	}
+	return int(remaining)
+}
+
+func (c *publicProxyCache) removeNegativeLookupDigestLocked(digest publicCacheLookupDigest) {
+	element := c.negativeLookups[digest]
+	if element == nil {
+		return
+	}
+	delete(c.negativeLookups, digest)
+	c.negativeOrder.Remove(element)
+}
+
+func (c *publicProxyCache) removeNegativeLookupLocked(lookupKey publicCacheLookupKey) {
+	c.removeNegativeLookupDigestLocked(publicCacheLookupKeyHash(lookupKey))
+}
+
+func (c *publicProxyCache) pruneNegativeLookupsLocked(now time.Time) {
+	for element := c.negativeOrder.Front(); element != nil; {
+		next := element.Next()
+		negative := element.Value.(publicCacheNegativeLookup)
+		if negative.expiresAt.After(now) {
+			break
+		}
+		c.removeNegativeLookupDigestLocked(negative.digest)
+		element = next
+	}
+	limit := c.negativeLookupLimitLocked()
+	for len(c.negativeLookups) > limit {
+		element := c.negativeOrder.Front()
+		if element == nil {
+			break
+		}
+		negative := element.Value.(publicCacheNegativeLookup)
+		c.removeNegativeLookupDigestLocked(negative.digest)
+	}
+}
+
+func (c *publicProxyCache) rememberNegativeLookupLocked(lookupKey publicCacheLookupKey, now time.Time) {
+	c.pruneNegativeLookupsLocked(now)
+	if c.negativeLookupLimitLocked() == 0 {
+		return
+	}
+	digest := publicCacheLookupKeyHash(lookupKey)
+	c.removeNegativeLookupDigestLocked(digest)
+	element := c.negativeOrder.PushBack(publicCacheNegativeLookup{
+		digest:    digest,
+		expiresAt: now.Add(publicCacheNegativeLookupTTL),
+	})
+	c.negativeLookups[digest] = element
+	c.pruneNegativeLookupsLocked(now)
+}
+
+func (c *publicProxyCache) negativeLookupLoadedLocked(lookupKey publicCacheLookupKey, now time.Time) bool {
+	digest := publicCacheLookupKeyHash(lookupKey)
+	element := c.negativeLookups[digest]
+	if element == nil {
+		return false
+	}
+	negative := element.Value.(publicCacheNegativeLookup)
+	if !negative.expiresAt.After(now) {
+		c.removeNegativeLookupDigestLocked(digest)
+		return false
+	}
+	return true
+}
+
+func (c *publicProxyCache) lookupIndexedCandidates(lookupKey publicCacheLookupKey, now time.Time, generation uint64, fingerprint string) ([]db.PublicCacheEntry, bool) {
+	if c == nil {
+		return nil, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ensureIndexLocked()
+	if !c.settings.Enabled || c.generation != generation || c.lastFingerprint != fingerprint {
+		return nil, false
+	}
+	digests := c.indexLookups[lookupKey]
+	if len(digests) == 0 {
+		delete(c.indexLookups, lookupKey)
+		return nil, c.negativeLookupLoadedLocked(lookupKey, now)
+	}
+	candidates := make([]db.PublicCacheEntry, 0, len(digests))
+	for key := range digests {
+		indexEntry, ok := c.indexEntries[key]
+		if !ok {
+			delete(digests, key)
+			continue
+		}
+		if !indexEntry.entry.ExpiresAt.After(now) {
+			c.deleteEntryLocked(key)
+			continue
+		}
+		candidates = append(candidates, indexEntry.entry)
+	}
+	if len(digests) == 0 {
+		delete(c.indexLookups, lookupKey)
+		return nil, false
+	}
+	return candidates, true
+}
+
+func (c *publicProxyCache) storeIndexedCandidates(lookupKey publicCacheLookupKey, candidates []db.PublicCacheEntry, now time.Time, generation uint64, fingerprint string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ensureIndexLocked()
+	if !c.settings.Enabled || c.generation != generation || c.lastFingerprint != fingerprint {
+		return
+	}
+	stored := false
+	for _, entry := range candidates {
+		if !entry.ExpiresAt.After(now) {
+			c.deleteEntryLocked(entry.KeyDigest)
+			continue
+		}
+		c.putIndexEntryLocked(entry)
+		stored = true
+	}
+	if !stored {
+		c.rememberNegativeLookupLocked(lookupKey, now)
+	}
+}
+
+func (c *publicProxyCache) putIndexEntry(entry db.PublicCacheEntry) {
+	if c == nil || entry.KeyDigest == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ensureIndexLocked()
+	c.putIndexEntryLocked(entry)
+}
+
+func (c *publicProxyCache) putIndexEntryLocked(entry db.PublicCacheEntry) {
+	if entry.KeyDigest == "" {
+		return
+	}
+	lookupKey := publicCacheLookupKeyFromEntry(entry)
+	if existing, ok := c.indexEntries[entry.KeyDigest]; ok && existing.lookupKey != lookupKey {
+		if digests := c.indexLookups[existing.lookupKey]; digests != nil {
+			delete(digests, entry.KeyDigest)
+			if len(digests) == 0 {
+				delete(c.indexLookups, existing.lookupKey)
+			}
+		}
+	}
+	c.indexEntries[entry.KeyDigest] = publicCacheIndexEntry{entry: entry, lookupKey: lookupKey}
+	digests := c.indexLookups[lookupKey]
+	if digests == nil {
+		digests = make(map[string]struct{})
+		c.indexLookups[lookupKey] = digests
+	}
+	digests[entry.KeyDigest] = struct{}{}
+	c.removeNegativeLookupLocked(lookupKey)
+	c.pruneNegativeLookupsLocked(time.Now())
+}
+
+func (c *publicProxyCache) touchEntry(key string, now time.Time) {
+	if c == nil || key == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ensureIndexLocked()
+	indexEntry, ok := c.indexEntries[key]
+	if !ok {
+		return
+	}
+	indexEntry.entry.LastAccessedAt = now
+	indexEntry.entry.HitCount++
+	c.indexEntries[key] = indexEntry
+	c.pendingTouches[key] = struct{}{}
+}
+
+func (c *publicProxyCache) drainPendingTouches() []string {
+	if c == nil {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.pendingTouches) == 0 {
+		return nil
+	}
+	touches := make([]string, 0, len(c.pendingTouches))
+	for key := range c.pendingTouches {
+		touches = append(touches, key)
+	}
+	c.pendingTouches = make(map[string]struct{})
+	return touches
 }
 
 func (c *publicProxyCache) pruneMemoryLocked() {
@@ -317,6 +753,10 @@ func (c *publicProxyCache) maybeCleanup(ctx context.Context, q *db.DB) {
 	settings := c.settings
 	c.mu.Unlock()
 
+	for _, key := range c.drainPendingTouches() {
+		_ = q.TouchPublicCacheEntry(ctx, key)
+	}
+
 	rows, err := q.DeleteExpiredPublicCacheEntries(ctx, now)
 	if err == nil {
 		c.removeCacheBodies(rows)
@@ -337,7 +777,7 @@ func (c *publicProxyCache) maybeCleanup(ctx context.Context, q *db.DB) {
 			if err := q.DeletePublicCacheEntry(ctx, row.KeyDigest); err != nil {
 				continue
 			}
-			c.deleteMemory(row.KeyDigest)
+			c.deleteEntry(row.KeyDigest)
 			_ = os.Remove(row.BodyPath)
 			totalBytes -= row.SizeBytes
 			entryCount--
@@ -350,12 +790,16 @@ func (c *publicProxyCache) maybeCleanup(ctx context.Context, q *db.DB) {
 
 func (c *publicProxyCache) removeCacheBodies(rows []db.DeleteExpiredPublicCacheEntriesRow) {
 	for _, row := range rows {
-		c.deleteMemory(row.KeyDigest)
+		c.deleteEntry(row.KeyDigest)
 		_ = os.Remove(row.BodyPath)
 	}
 }
 
 func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution) publicCacheDecision {
+	return a.checkPublicCacheWithSnapshot(a.currentPublicSnapshot(), r, resolution)
+}
+
+func (a *App) checkPublicCacheWithSnapshot(snap *publicProxySnapshot, r *http.Request, resolution publicRouteResolution) publicCacheDecision {
 	startedAt := time.Now()
 	if a == nil || a.PublicCache == nil || a.DB == nil {
 		return publicCacheDecision{Status: publicCacheStatusBypass, BypassReason: "cache_unavailable"}
@@ -363,9 +807,6 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 	if resolution.Target.TargetType != publicRouteTargetTypeProxy {
 		return publicCacheDecision{Status: publicCacheStatusBypass, BypassReason: "target_not_proxy"}
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil || !snap.CacheSettings.Enabled || len(snap.CacheRules) == 0 {
 		return publicCacheDecision{Status: publicCacheStatusBypass, BypassReason: "cache_disabled"}
 	}
@@ -389,6 +830,8 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		return decision
 	}
 	decision.Rule = rule
+	decision.cacheFingerprint = publicCacheSnapshotFingerprint(snap)
+	decision.cacheGeneration, decision.cacheCurrent = a.PublicCache.captureGeneration(decision.cacheFingerprint)
 	if rule.Scope == publicCacheScopeRoute {
 		decision.RouteTargetID = sql.NullInt64{}
 	}
@@ -402,20 +845,27 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 	decision.QueryKey = queryKey
 
 	a.PublicCache.maybeCleanup(context.Background(), a.DB)
-	candidates, err := a.DB.ListPublicCacheEntryCandidates(context.Background(), db.ListPublicCacheEntryCandidatesParams{
-		RuleID:           rule.ID,
-		ListenerProtocol: resolution.Listener.Protocol,
-		Host:             decision.Host,
-		Path:             decision.Path,
-		QueryKey:         queryKey,
-		RouteID:          sql.NullInt64{Int64: nullInt64Value(decision.RouteID), Valid: true},
-		RouteTargetID:    sql.NullInt64{Int64: nullInt64Value(decision.RouteTargetID), Valid: true},
-		ExpiresAt:        time.Now(),
-	})
-	if err != nil {
-		decision.Status = publicCacheStatusMiss
-		decision.LookupDuration = time.Since(startedAt)
-		return decision
+	now := time.Now()
+	lookupKey := publicCacheLookupKeyFromDecision(rule, resolution, decision, queryKey)
+	candidates, loaded := a.PublicCache.lookupIndexedCandidates(lookupKey, now, decision.cacheGeneration, decision.cacheFingerprint)
+	if !loaded {
+		var err error
+		candidates, err = a.DB.ListPublicCacheEntryCandidates(context.Background(), db.ListPublicCacheEntryCandidatesParams{
+			RuleID:           lookupKey.RuleID,
+			ListenerProtocol: lookupKey.ListenerProtocol,
+			Host:             lookupKey.Host,
+			Path:             lookupKey.Path,
+			QueryKey:         lookupKey.QueryKey,
+			RouteID:          sql.NullInt64{Int64: lookupKey.RouteID, Valid: true},
+			RouteTargetID:    sql.NullInt64{Int64: lookupKey.RouteTargetID, Valid: true},
+			ExpiresAt:        now,
+		})
+		if err != nil {
+			decision.Status = publicCacheStatusMiss
+			decision.LookupDuration = time.Since(startedAt)
+			return decision
+		}
+		a.PublicCache.storeIndexedCandidates(lookupKey, candidates, now, decision.cacheGeneration, decision.cacheFingerprint)
 	}
 	for _, entry := range candidates {
 		varyHeaders := publicCacheStringListFromJSON(entry.VaryHeadersJson)
@@ -423,9 +873,9 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		if keyDigest != entry.KeyDigest {
 			continue
 		}
-		if _, err := os.Stat(entry.BodyPath); err != nil {
+		if !entry.ExpiresAt.After(now) {
 			_ = a.DB.DeletePublicCacheEntry(context.Background(), entry.KeyDigest)
-			a.PublicCache.deleteMemory(entry.KeyDigest)
+			a.PublicCache.deleteEntry(entry.KeyDigest)
 			continue
 		}
 		decision.Status = publicCacheStatusHit
@@ -433,7 +883,7 @@ func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution
 		entryCopy := entry
 		decision.Entry = &entryCopy
 		decision.LookupDuration = time.Since(startedAt)
-		_ = a.DB.TouchPublicCacheEntry(context.Background(), entry.KeyDigest)
+		a.PublicCache.touchEntry(entry.KeyDigest, now)
 		return decision
 	}
 	decision.Status = publicCacheStatusMiss
@@ -464,6 +914,30 @@ func publicCacheBaseDecision(r *http.Request, resolution publicRouteResolution) 
 	}
 }
 
+func publicCacheLookupKeyFromDecision(rule publicCacheRuleConfig, resolution publicRouteResolution, decision publicCacheDecision, queryKey string) publicCacheLookupKey {
+	return publicCacheLookupKey{
+		RuleID:           rule.ID,
+		ListenerProtocol: resolution.Listener.Protocol,
+		Host:             decision.Host,
+		Path:             decision.Path,
+		QueryKey:         queryKey,
+		RouteID:          nullInt64Value(decision.RouteID),
+		RouteTargetID:    nullInt64Value(decision.RouteTargetID),
+	}
+}
+
+func publicCacheLookupKeyFromEntry(entry db.PublicCacheEntry) publicCacheLookupKey {
+	return publicCacheLookupKey{
+		RuleID:           entry.RuleID,
+		ListenerProtocol: entry.ListenerProtocol,
+		Host:             entry.Host,
+		Path:             entry.Path,
+		QueryKey:         entry.QueryKey,
+		RouteID:          nullInt64Value(entry.RouteID),
+		RouteTargetID:    nullInt64Value(entry.RouteTargetID),
+	}
+}
+
 func publicCacheRequestBypassReason(r *http.Request) string {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return "method"
@@ -490,20 +964,22 @@ func selectPublicCacheRule(rules []publicCacheRuleConfig, listener publicListene
 	if len(rules) == 0 {
 		return publicCacheRuleConfig{}, false
 	}
-	ordered := append([]publicCacheRuleConfig(nil), rules...)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		if ordered[i].Priority == ordered[j].Priority {
-			return ordered[i].ID < ordered[j].ID
-		}
-		return ordered[i].Priority < ordered[j].Priority
-	})
-	for _, rule := range ordered {
+	for _, rule := range rules {
 		if !rule.Enabled || !rule.matches(listener, r, resolution) {
 			continue
 		}
 		return rule, true
 	}
 	return publicCacheRuleConfig{}, false
+}
+
+func sortPublicCacheRules(rules []publicCacheRuleConfig) {
+	sort.SliceStable(rules, func(i, j int) bool {
+		if rules[i].Priority == rules[j].Priority {
+			return rules[i].ID < rules[j].ID
+		}
+		return rules[i].Priority < rules[j].Priority
+	})
 }
 
 func (rule publicCacheRuleConfig) matches(listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) bool {
@@ -608,6 +1084,41 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 	return hex.EncodeToString(sum[:])
 }
 
+func (a *App) preparePublicCacheHitBody(r *http.Request, decision *publicCacheDecision) bool {
+	if a == nil || a.PublicCache == nil || decision == nil || decision.Entry == nil {
+		return false
+	}
+	if r.Method == http.MethodHead || decision.Entry.SizeBytes == 0 {
+		return true
+	}
+	if body := a.PublicCache.getMemory(decision.Entry.KeyDigest); len(body) > 0 {
+		decision.HitBody = io.NopCloser(bytes.NewReader(body))
+		return true
+	}
+	file, err := os.Open(decision.Entry.BodyPath)
+	if err != nil {
+		a.invalidatePublicCacheEntry(*decision.Entry)
+		return false
+	}
+	decision.HitBody = file
+	return true
+}
+
+func (a *App) invalidatePublicCacheEntry(entry db.PublicCacheEntry) {
+	if a == nil {
+		return
+	}
+	if a.DB != nil && entry.KeyDigest != "" {
+		_ = a.DB.DeletePublicCacheEntry(context.Background(), entry.KeyDigest)
+	}
+	if a.PublicCache != nil {
+		a.PublicCache.deleteEntry(entry.KeyDigest)
+	}
+	if entry.BodyPath != "" {
+		_ = os.Remove(entry.BodyPath)
+	}
+}
+
 func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, decision publicCacheDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
@@ -631,7 +1142,7 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			sql.NullInt64{},
 			sql.NullInt64{Int64: decision.Rule.ID, Valid: decision.Rule.ID != 0},
 			publicCacheStatusHit,
-			uint64FromInt64(decision.Entry.SizeBytes),
+			cacheEntryBytes(decision.Entry),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
 			proxyRequestContextFromHTTP(r),
@@ -642,6 +1153,28 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 		errorKind = "cache_entry_missing"
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
+	}
+	var body io.ReadCloser
+	if r.Method != http.MethodHead && decision.Entry.SizeBytes > 0 {
+		if decision.HitBody != nil {
+			body = decision.HitBody
+		} else if memoryBody := a.PublicCache.getMemory(decision.Entry.KeyDigest); len(memoryBody) > 0 {
+			body = io.NopCloser(bytes.NewReader(memoryBody))
+		} else {
+			file, err := os.Open(decision.Entry.BodyPath)
+			if err != nil {
+				a.invalidatePublicCacheEntry(*decision.Entry)
+				statusCode = http.StatusInternalServerError
+				errorKind = "cache_body_missing"
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+			body = file
+		}
+		if shaper != nil {
+			body = shaper.wrapDownloadBody(r.Context(), body)
+		}
+		defer body.Close()
 	}
 	headers := publicCacheHeadersFromJSON(decision.Entry.ResponseHeadersJson)
 	for key, values := range headers {
@@ -659,30 +1192,17 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 	}
 	statusCode = int(decision.Entry.StatusCode)
 	w.WriteHeader(statusCode)
-	if r.Method == http.MethodHead || decision.Entry.SizeBytes == 0 {
+	if body == nil {
 		return
 	}
-	if body := a.PublicCache.getMemory(decision.Entry.KeyDigest); len(body) > 0 {
-		reader := io.NopCloser(bytes.NewReader(body))
-		if shaper != nil {
-			reader = shaper.wrapDownloadBody(r.Context(), reader)
-		}
-		defer reader.Close()
-		_, _ = io.Copy(w, reader)
-		return
-	}
-	file, err := os.Open(decision.Entry.BodyPath)
-	if err != nil {
-		statusCode = http.StatusInternalServerError
-		errorKind = "cache_body_missing"
-		return
-	}
-	var body io.ReadCloser = file
-	if shaper != nil {
-		body = shaper.wrapDownloadBody(r.Context(), body)
-	}
-	defer body.Close()
 	_, _ = io.Copy(w, body)
+}
+
+func cacheEntryBytes(entry *db.PublicCacheEntry) uint64 {
+	if entry == nil || entry.SizeBytes <= 0 {
+		return 0
+	}
+	return uint64FromInt64(entry.SizeBytes)
 }
 
 func (a *App) capturePublicCacheResponseBody(ctx context.Context, r *http.Request, resolution publicRouteResolution, decision *publicCacheDecision, resp *http.Response, trace *trafficRequestTrace) io.ReadCloser {
@@ -691,6 +1211,9 @@ func (a *App) capturePublicCacheResponseBody(ctx context.Context, r *http.Reques
 			return resp.Body
 		}
 		return nil
+	}
+	if !decision.cacheCurrent || !a.PublicCache.generationMatches(decision.cacheGeneration, decision.cacheFingerprint) {
+		return resp.Body
 	}
 	ttl, varyHeaders, ok := publicCacheResponseEligibility(decision.Rule, resp)
 	if !ok {
@@ -742,6 +1265,8 @@ func (a *App) capturePublicCacheResponseBody(ctx context.Context, r *http.Reques
 		expiresAt:               time.Now().Add(ttl),
 		memoryBuffer:            memoryBuffer,
 		memoryHotObjectMaxBytes: memoryHotObjectMaxBytes,
+		cacheGeneration:         decision.cacheGeneration,
+		cacheFingerprint:        decision.cacheFingerprint,
 	}
 }
 
@@ -767,6 +1292,8 @@ type publicCacheStoreReadCloser struct {
 	expiresAt               time.Time
 	memoryBuffer            *bytes.Buffer
 	memoryHotObjectMaxBytes int64
+	cacheGeneration         uint64
+	cacheFingerprint        string
 	bytesWritten            int64
 	tooLarge                bool
 	committed               bool
@@ -819,6 +1346,11 @@ func (r *publicCacheStoreReadCloser) commit() {
 		r.discard()
 		return
 	}
+	if r.app == nil || r.app.PublicCache == nil || !r.app.PublicCache.acquireStoreGeneration(r.cacheGeneration, r.cacheFingerprint) {
+		r.discard()
+		return
+	}
+	defer r.app.PublicCache.releaseStoreGeneration()
 	if err := r.tmp.Close(); err != nil {
 		r.markStoreFailed()
 		r.discard()
@@ -840,7 +1372,7 @@ func (r *publicCacheStoreReadCloser) commit() {
 			routeTargetID = sql.NullInt64{Int64: r.resolution.Target.ID, Valid: true}
 		}
 	}
-	_, err := r.app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+	entry, err := r.app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
 		KeyDigest:           r.keyDigest,
 		RuleID:              r.rule.ID,
 		Scope:               r.rule.Scope,
@@ -860,10 +1392,12 @@ func (r *publicCacheStoreReadCloser) commit() {
 	})
 	if err != nil {
 		_ = os.Remove(r.finalPath)
+		r.app.PublicCache.deleteEntry(r.keyDigest)
 		r.markStoreFailed()
 		log.Warn().Err(err).Str("cache_key", r.keyDigest).Msg("Failed to store public cache entry")
 		return
 	}
+	r.app.PublicCache.putIndexEntry(entry)
 	if r.decision != nil {
 		r.decision.Status = publicCacheStatusStored
 		r.decision.KeyDigest = r.keyDigest
@@ -1443,6 +1977,7 @@ func (a *App) CreatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	a.PublicCache.invalidateConfiguration()
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -1468,6 +2003,10 @@ func (a *App) UpdatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	a.PublicCache.invalidateConfiguration()
+	if err := a.purgePublicCacheEntriesByRuleID(ctx, req.Msg.Id); err != nil {
+		return nil, publicDBError(err)
+	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -1482,6 +2021,10 @@ func (a *App) DeletePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	a.PublicCache.invalidateConfiguration()
+	if err := a.purgePublicCacheEntriesByRuleID(ctx, req.Msg.Id); err != nil {
+		return nil, publicDBError(err)
+	}
 	if err := a.DB.DeletePublicCacheRule(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
@@ -1489,6 +2032,21 @@ func (a *App) DeletePublicCacheRule(ctx context.Context, req *connect.Request[p2
 		return nil, err
 	}
 	return connect.NewResponse(&p2pstreamv1.DeletePublicCacheRuleResponse{}), nil
+}
+
+func (a *App) purgePublicCacheEntriesByRuleID(ctx context.Context, ruleID int64) error {
+	if a == nil || a.DB == nil || a.PublicCache == nil || ruleID <= 0 {
+		return nil
+	}
+	rows, err := a.DB.PurgePublicCacheEntriesByRule(ctx, ruleID)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		a.PublicCache.deleteEntry(row.KeyDigest)
+		_ = os.Remove(row.BodyPath)
+	}
+	return nil
 }
 
 func (a *App) UpdatePublicCacheSettings(ctx context.Context, req *connect.Request[p2pstreamv1.UpdatePublicCacheSettingsRequest]) (*connect.Response[p2pstreamv1.UpdatePublicCacheSettingsResponse], error) {
@@ -1503,6 +2061,7 @@ func (a *App) UpdatePublicCacheSettings(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	a.PublicCache.invalidateConfiguration()
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -1520,24 +2079,26 @@ func (a *App) PurgePublicCache(ctx context.Context, req *connect.Request[p2pstre
 	var purgedEntries int64
 	var purgedBytes int64
 	if req.Msg.All {
+		a.PublicCache.invalidateEntries()
 		var err error
 		rows, err = a.DB.PurgeAllPublicCacheEntries(ctx)
 		if err != nil {
 			return nil, publicDBError(err)
 		}
 		for _, row := range rows {
-			a.PublicCache.deleteMemory(row.KeyDigest)
+			a.PublicCache.deleteEntry(row.KeyDigest)
 			_ = os.Remove(row.BodyPath)
 			purgedEntries++
 			purgedBytes += row.SizeBytes
 		}
 	} else if req.Msg.RuleId > 0 {
+		a.PublicCache.invalidateEntries()
 		ruleRows, err := a.DB.PurgePublicCacheEntriesByRule(ctx, req.Msg.RuleId)
 		if err != nil {
 			return nil, publicDBError(err)
 		}
 		for _, row := range ruleRows {
-			a.PublicCache.deleteMemory(row.KeyDigest)
+			a.PublicCache.deleteEntry(row.KeyDigest)
 			_ = os.Remove(row.BodyPath)
 			purgedEntries++
 			purgedBytes += row.SizeBytes
@@ -1551,6 +2112,7 @@ func (a *App) PurgePublicCache(ctx context.Context, req *connect.Request[p2pstre
 		if pathPrefix != "" && !strings.HasPrefix(pathPrefix, "/") {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("cache purge path prefix must start with /"))
 		}
+		a.PublicCache.invalidateEntries()
 		hostRows, err := a.DB.PurgePublicCacheEntriesByHostPath(ctx, db.PurgePublicCacheEntriesByHostPathParams{
 			Column1: host,
 			Host:    host,
@@ -1561,7 +2123,7 @@ func (a *App) PurgePublicCache(ctx context.Context, req *connect.Request[p2pstre
 			return nil, publicDBError(err)
 		}
 		for _, row := range hostRows {
-			a.PublicCache.deleteMemory(row.KeyDigest)
+			a.PublicCache.deleteEntry(row.KeyDigest)
 			_ = os.Remove(row.BodyPath)
 			purgedEntries++
 			purgedBytes += row.SizeBytes

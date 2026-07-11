@@ -24,6 +24,9 @@ func newAgentHub() *agentHub {
 func (h *agentHub) connect(conn *AgentConn) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if _, ok := h.byID[conn.AgentID]; ok {
+		return errors.New("agent is already connected")
+	}
 	if _, ok := h.byPublicID[conn.PublicID]; ok {
 		return errors.New("agent is already connected")
 	}
@@ -32,9 +35,36 @@ func (h *agentHub) connect(conn *AgentConn) error {
 	return nil
 }
 
-func (h *agentHub) disconnect(conn *AgentConn) {
+func (h *agentHub) replace(conn *AgentConn) ([]*AgentConn, error) {
 	if h == nil || conn == nil {
-		return
+		return nil, errors.New("agent connection is required")
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	displacedByID := h.byID[conn.AgentID]
+	displacedByPublicID := h.byPublicID[conn.PublicID]
+	if displacedByID == conn || displacedByPublicID == conn {
+		return nil, errors.New("agent connection is already registered")
+	}
+	displaced := make([]*AgentConn, 0, 2)
+	if displacedByID != nil {
+		displaced = append(displaced, displacedByID)
+	}
+	if displacedByPublicID != nil && displacedByPublicID != displacedByID {
+		displaced = append(displaced, displacedByPublicID)
+	}
+	for _, old := range displaced {
+		delete(h.byID, old.AgentID)
+		delete(h.byPublicID, old.PublicID)
+	}
+	h.byPublicID[conn.PublicID] = conn
+	h.byID[conn.AgentID] = conn
+	return displaced, nil
+}
+
+func (h *agentHub) disconnect(conn *AgentConn) bool {
+	if h == nil || conn == nil {
+		return false
 	}
 	h.mu.Lock()
 	disconnected := h.disconnectLocked(conn)
@@ -43,6 +73,7 @@ func (h *agentHub) disconnect(conn *AgentConn) {
 	if disconnected && onDisconnect != nil {
 		onDisconnect(conn)
 	}
+	return disconnected
 }
 
 func (h *agentHub) disconnectByID(agentID int64) *AgentConn {
@@ -77,14 +108,7 @@ func (h *agentHub) disconnectLocked(conn *AgentConn) bool {
 		delete(h.byID, conn.AgentID)
 		disconnected = true
 	}
-	if conn.Done == nil {
-		return disconnected
-	}
-	select {
-	case <-conn.Done:
-	default:
-		close(conn.Done)
-	}
+	conn.signalDone()
 	return disconnected
 }
 

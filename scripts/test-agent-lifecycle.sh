@@ -212,6 +212,7 @@ test_first_install() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "CA-one")" \
+    AGENT_ALLOW_TARGETS="myapp.internal:443,10.0.5.0/24:8080" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="token-one"
 
@@ -221,6 +222,7 @@ test_first_install() {
   assert_exists "${SYSTEMD_DIR}/p2pstream-agent.service"
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_URL=\"https://mgmt.example.test:8081\""
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_CA_FILE=\"${CONFIG_DIR}/management-ca.pem\""
+  assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS=\"myapp.internal:443,10.0.5.0/24:8080\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ID=\"agent-one\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"token-one\""
   assert_contains "${CONFIG_DIR}/management-ca.pem" "CA-one"
@@ -234,6 +236,7 @@ test_reinstall_overwrites_token_and_ca() {
   run_installer \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     MANAGEMENT_CA_PEM_BASE64="$(base64_value "old CA")" \
+    AGENT_ALLOW_TARGETS="myapp.internal:443,10.0.5.0/24:8080" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="old-token"
   : >"$SYSTEMCTL_LOG"
@@ -246,10 +249,185 @@ test_reinstall_overwrites_token_and_ca() {
 
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
   assert_not_contains "${CONFIG_DIR}/agent.env" "old-token"
+  assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS=\"myapp.internal:443,10.0.5.0/24:8080\""
   assert_contains "${CONFIG_DIR}/management-ca.pem" "new CA"
   assert_not_contains "${CONFIG_DIR}/management-ca.pem" "old CA"
   assert_systemctl_enable_before_restart
   assert_not_contains "$SYSTEMCTL_LOG" "enable --now"
+}
+
+test_reinstall_explicitly_clears_allow_targets() {
+  setup_fixture
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_TARGETS="myapp.internal:443" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="old-token"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_CLEAR_ALLOW_TARGETS"
+  assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
+}
+
+test_reinstall_preserves_effective_last_allow_targets() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS=""' \
+    '   AGENT_ALLOW_TARGETS="effective.internal:443"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="effective.internal:443"'
+  assert_not_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS=""'
+  [[ "$(grep -c '^AGENT_ALLOW_TARGETS=' "${CONFIG_DIR}/agent.env")" == "1" ]] \
+    || fail "expected exactly one normalized AGENT_ALLOW_TARGETS assignment"
+}
+
+test_reinstall_preserves_unterminated_allow_targets_line() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+  printf '%s' 'AGENT_ALLOW_TARGETS="tail.internal:443"' >>"${CONFIG_DIR}/agent.env"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="tail.internal:443"'
+}
+
+test_reinstall_fails_closed_on_ambiguous_allow_targets() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="first.internal:443,' \
+    'second.internal:443"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/ambiguous-policy.out" 2>"${TEST_DIR}/ambiguous-policy.err"; then
+    fail "ambiguous existing AGENT_ALLOW_TARGETS should fail closed"
+  fi
+  assert_contains "${TEST_DIR}/ambiguous-policy.err" "cannot safely preserve AGENT_ALLOW_TARGETS"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="first.internal:443,'
+  assert_absent "$INSTALL_PATH"
+  assert_not_contains "$COMMAND_LOG" "curl "
+  assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_TARGETS="replacement.internal:443" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="replacement.internal:443"'
+  assert_not_contains "${CONFIG_DIR}/agent.env" "second.internal:443"
+}
+
+test_reinstall_fails_closed_on_allow_targets_read_error() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="preserved.internal:443"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+  write_executable "${FAKE_BIN}/sed" \
+    '#!/usr/bin/env bash' \
+    'exit 1'
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/policy-read.out" 2>"${TEST_DIR}/policy-read.err"; then
+    fail "unreadable existing AGENT_ALLOW_TARGETS should fail closed"
+  fi
+  assert_contains "${TEST_DIR}/policy-read.err" "cannot safely read existing"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="preserved.internal:443"'
+  assert_absent "$INSTALL_PATH"
+  assert_not_contains "$COMMAND_LOG" "curl "
+  assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+}
+
+test_reinstall_rejects_unrelated_multiline_context() {
+  setup_fixture
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="restrictive.internal:443"' \
+    'OTHER="continued\' \
+    'AGENT_ALLOW_TARGETS=""' \
+    '"' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/continued-policy.out" 2>"${TEST_DIR}/continued-policy.err"; then
+    fail "unrelated multiline context should fail before changing AGENT_ALLOW_TARGETS"
+  fi
+  assert_contains "${TEST_DIR}/continued-policy.err" "unsupported or multiline environment syntax"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="restrictive.internal:443"'
+  assert_absent "$INSTALL_PATH"
+  assert_not_contains "$COMMAND_LOG" "curl "
+  assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_TARGETS="replacement.internal:443" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="replacement.internal:443"'
+
+  printf '%s\n' \
+    'MANAGEMENT_URL="https://mgmt.example.test:8081"' \
+    'AGENT_ALLOW_TARGETS="restrictive.internal:443"' \
+    'OTHER=prefix"unsupported' \
+    'AGENT_ID="agent-one"' \
+    'AGENT_TOKEN="old-token"' >"${CONFIG_DIR}/agent.env"
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token" \
+    >"${TEST_DIR}/unquoted-policy.out" 2>"${TEST_DIR}/unquoted-policy.err"; then
+    fail "quote characters in an unquoted environment value should fail closed"
+  fi
+  assert_contains "${TEST_DIR}/unquoted-policy.err" "unsupported or multiline environment syntax"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_TARGETS="restrictive.internal:443"'
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_CLEAR_ALLOW_TARGETS="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "OTHER="
 }
 
 test_reinstall_without_ca_removes_stale_managed_ca() {
@@ -299,6 +477,11 @@ test_validation_failures() {
     fail "unsupported P2PSTREAM_VERSION should fail"
   fi
   assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
+
+  if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ALLOW_TARGETS="myapp.internal:443" AGENT_CLEAR_ALLOW_TARGETS="true" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/allow-targets.err"; then
+    fail "conflicting allow-target inputs should fail"
+  fi
+  assert_contains "${TEST_DIR}/allow-targets.err" "AGENT_CLEAR_ALLOW_TARGETS=true cannot be combined with AGENT_ALLOW_TARGETS"
 }
 
 test_uninstall_full_purge() {
@@ -355,6 +538,12 @@ run_test() {
 
 run_test "first install" test_first_install
 run_test "reinstall overwrites token and CA" test_reinstall_overwrites_token_and_ca
+run_test "reinstall explicitly clears allow targets" test_reinstall_explicitly_clears_allow_targets
+run_test "reinstall preserves effective last allow targets" test_reinstall_preserves_effective_last_allow_targets
+run_test "reinstall preserves unterminated allow targets line" test_reinstall_preserves_unterminated_allow_targets_line
+run_test "reinstall fails closed on ambiguous allow targets" test_reinstall_fails_closed_on_ambiguous_allow_targets
+run_test "reinstall fails closed on allow targets read error" test_reinstall_fails_closed_on_allow_targets_read_error
+run_test "reinstall rejects unrelated multiline context" test_reinstall_rejects_unrelated_multiline_context
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
 run_test "staging version downloads staging asset" test_staging_version_downloads_staging_asset
 run_test "validation failures" test_validation_failures

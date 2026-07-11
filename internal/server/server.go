@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,9 +30,25 @@ type AgentConn struct {
 	Name           string
 	Session        *yamux.Session
 	Done           chan struct{}
+	doneOnce       sync.Once
 	ActiveRequests atomic.Int64
 	ConnectedAt    time.Time
 	ConnectionDBID int64
+}
+
+func (c *AgentConn) signalDone() {
+	if c == nil || c.Done == nil {
+		return
+	}
+	c.doneOnce.Do(func() {
+		select {
+		case <-c.Done:
+			// Keep compatibility with test and embedded callers that supplied an
+			// already-closed channel without going through signalDone.
+		default:
+			close(c.Done)
+		}
+	})
 }
 
 type App struct {
@@ -59,6 +76,7 @@ type App struct {
 	auth                  *authService
 	AgentTransports       *agentTransportPool
 	DirectTransports      *directTransportPool
+	reverseProxyBuffers   httputil.BufferPool
 	DashboardCache        *dashboardResponseCache
 	LoginThrottle         *loginThrottle
 	agentAuthLocks        *agentAuthLockMap
@@ -71,12 +89,14 @@ type App struct {
 	generatedSetupToken string
 	setupTokenLogOnce   sync.Once
 
-	proxyMu             sync.Mutex
-	proxyServiceActive  bool
-	proxyState          p2pstreamv1.ProxyState
-	proxyLastError      string
-	publicSnapshot      *publicProxySnapshot
-	publicListenerState map[int64]*publicListenerRuntime
+	proxyMu                  sync.Mutex
+	proxyServiceActive       bool
+	proxyState               p2pstreamv1.ProxyState
+	proxyLastError           string
+	publicSnapshot           *publicProxySnapshot
+	publicSnapshotPtr        atomic.Pointer[publicProxySnapshot]
+	publicSnapshotGeneration uint64
+	publicListenerState      map[int64]*publicListenerRuntime
 
 	publicConfigCacheMu sync.RWMutex
 	publicConfigCache   cachedPublicConfig
@@ -84,7 +104,9 @@ type App struct {
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
 
-	agentTunnelBeforeFinalAuth func(db.Agent)
+	agentTunnelBeforeFinalAuth            func(db.Agent)
+	agentDisconnectAfterHubRemoval        func(*AgentConn, bool)
+	publicTLSSelectorRefreshBeforePublish func(uint64)
 }
 
 type agentAuthLockMap struct {
@@ -186,7 +208,7 @@ func (a *App) ReportStats(
 	s := stats.AgentStats{
 		Timestamp:        time.Now(),
 		NumGoroutine:     int(payload.NumGoroutine),
-		AllocAllocated:   uint64(payload.MemorySysMb),
+		MemorySysMB:      uint64(payload.MemorySysMb),
 		ActiveRequests:   payload.ActiveRequests,
 		CPUPercent:       payload.CpuPercent,
 		ReqSuccess:       int32(payload.ReqSuccess),
@@ -252,7 +274,7 @@ func (a *App) latestAgentStatsSnapshot(agentID int64) (*p2pstreamv1.AgentStatsSn
 
 func agentStatsSnapshotFromRuntime(stat stats.AgentStats) *p2pstreamv1.AgentStatsSnapshot {
 	return &p2pstreamv1.AgentStatsSnapshot{
-		MemorySysMb:          int64(stat.AllocAllocated),
+		MemorySysMb:          int64(stat.MemorySysMB),
 		NumGoroutine:         int64(stat.NumGoroutine),
 		ReqSuccess:           int64(stat.ReqSuccess),
 		ReqClientError:       int64(stat.ReqClientError),
@@ -350,12 +372,6 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	agentRow = finalAgentRow
 
-	if existing := a.AgentHub.connectedByID(agentRow.ID); existing != nil {
-		log.Warn().Str("agent", agentRow.PublicID).Msg("Rejecting duplicate agent connection")
-		http.Error(w, "agent is already connected", http.StatusConflict)
-		return
-	}
-
 	agent := &AgentConn{
 		AgentID:     agentRow.ID,
 		PublicID:    agentRow.PublicID,
@@ -405,7 +421,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Msg("Failed to insert connection into DB")
 		}
 	}
-	if err := a.AgentHub.connect(agent); err != nil {
+	displaced, err := a.AgentHub.replace(agent)
+	if err != nil {
 		_ = session.Close()
 		if a.DB != nil && agent.ConnectionDBID > 0 {
 			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
@@ -415,20 +432,16 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update rejected agent disconnected timestamp")
 			}
 		}
-		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Rejecting duplicate agent connection")
+		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to register agent tunnel")
 		return
 	}
-	unlockAgentAuth()
-
-	cleanupAgent := func() {
-		a.AgentHub.disconnect(agent)
-		if a.TargetHealth != nil {
-			a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
-		}
+	for _, old := range displaced {
+		a.retireDisplacedAgentConnection(old)
 	}
 	if a.TargetHealth != nil {
 		a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
 	}
+	unlockAgentAuth()
 
 	log.Info().
 		Str("remote_addr", r.RemoteAddr).
@@ -442,21 +455,62 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			_ = session.Close()
 		case <-session.CloseChan():
 		}
-		cleanupAgent()
+		a.cleanupAgentConnection(agent)
 		log.Info().
 			Str("agent", agent.PublicID).
 			Int64("duration_ms", time.Since(agent.ConnectedAt).Milliseconds()).
 			Int64("active_requests", agent.ActiveRequests.Load()).
 			Msg("Agent tunnel disconnected")
-		if a.DB != nil && agent.ConnectionDBID > 0 {
-			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
-				log.Warn().Err(err).Msg("Failed to update disconnection time")
-			}
+	}()
+}
+
+func (a *App) cleanupAgentConnection(agent *AgentConn) bool {
+	if a == nil || agent == nil {
+		return false
+	}
+	unlock := a.lockAgentAuth(agent.AgentID)
+	defer unlock()
+
+	disconnected := false
+	if a.AgentHub != nil {
+		disconnected = a.AgentHub.disconnect(agent)
+	}
+	if hook := a.agentDisconnectAfterHubRemoval; hook != nil {
+		hook(agent, disconnected)
+	}
+	if disconnected && a.TargetHealth != nil {
+		a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
+	}
+	if a.DB != nil && agent.ConnectionDBID > 0 {
+		if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
+			log.Warn().Err(err).Msg("Failed to update disconnection time")
+		}
+		if disconnected {
 			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
 				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
 			}
 		}
-	}()
+	}
+	return disconnected
+}
+
+func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
+	if agent == nil {
+		return
+	}
+	log.Warn().
+		Str("agent", agent.PublicID).
+		Int64("active_requests", agent.ActiveRequests.Load()).
+		Msg("Replacing existing agent tunnel with newer authenticated connection")
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeAgentConnection(agent)
+	}
+	agent.signalDone()
+	if agent.Session != nil {
+		if err := agent.Session.Close(); err != nil {
+			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to close displaced agent tunnel session")
+		}
+	}
 }
 
 func headerHasToken(header http.Header, name string, want string) bool {

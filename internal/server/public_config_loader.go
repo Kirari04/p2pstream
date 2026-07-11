@@ -48,15 +48,30 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	return nil
 }
 
+func (a *App) currentPublicSnapshot() *publicProxySnapshot {
+	if a == nil {
+		return nil
+	}
+	return a.publicSnapshotPtr.Load()
+}
+
+func (a *App) setPublicSnapshotLocked(snap *publicProxySnapshot) {
+	a.publicSnapshot = snap
+	a.publicSnapshotPtr.Store(snap)
+	a.publicSnapshotGeneration++
+}
+
 func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyMu.Lock()
 	previous := a.publicSnapshot
-	a.publicSnapshot = snap
+	a.setPublicSnapshotLocked(snap)
+	generation := a.publicSnapshotGeneration
 	a.ensureListenerStatesLocked(snap)
 	a.proxyStatusLocked()
 	active := a.proxyServiceActive
 	a.proxyMu.Unlock()
 	a.reconcileRouteTargetTransports(previous, snap)
+	a.refreshRunningPublicTLSSelectors(snap, generation)
 	a.LoadBalancers.reconcile(snap)
 	if a.TargetHealth != nil {
 		a.TargetHealth.reconcile(a, snap, active)
@@ -71,7 +86,7 @@ func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 		a.PublicWAF.reconcile(snap)
 	}
 	if a.PublicCache != nil {
-		a.PublicCache.reconcile(snap.CacheSettings)
+		a.PublicCache.reconcile(snap.CacheSettings, snap.CacheRules)
 	}
 }
 
@@ -400,6 +415,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		rule.Fingerprint = publicRateLimitRuleFingerprint(rule)
 		snap.RateLimitRules = append(snap.RateLimitRules, rule)
 	}
+	sortPublicRateLimitRules(snap.RateLimitRules)
 	for _, row := range rows.TrafficShaperRules {
 		rule, err := publicTrafficShaperRuleRowToConfig(row)
 		if err != nil {
@@ -407,6 +423,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		}
 		snap.TrafficShaperRules = append(snap.TrafficShaperRules, rule)
 	}
+	sortPublicTrafficShaperRules(snap.TrafficShaperRules)
 	for _, row := range rows.WafCaptchaProviders {
 		provider := publicWafCaptchaProviderRowToConfig(row, true)
 		snap.WafCaptchaProviders[provider.ID] = provider
@@ -434,6 +451,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		rule.Fingerprint = publicWafRuleFingerprint(rule)
 		snap.WafRules = append(snap.WafRules, rule)
 	}
+	sortPublicWafRules(snap.WafRules)
 	for _, row := range rows.CacheRules {
 		rule, err := publicCacheRuleRowToConfig(row)
 		if err != nil {
@@ -441,6 +459,8 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		}
 		snap.CacheRules = append(snap.CacheRules, rule)
 	}
+	sortPublicCacheRules(snap.CacheRules)
+	snap.CacheFingerprint = publicCacheRuntimeFingerprint(snap.CacheSettings, snap.CacheRules)
 	return snap, nil
 }
 
@@ -465,15 +485,4 @@ func (a *App) reconcilePublicListenerAfterMutation(ctx context.Context, listener
 		return a.restartPublicListenerRuntime(ctx, listenerID)
 	}
 	return a.getPublicListenerStatus(listenerID), nil
-}
-
-func (a *App) restartTLSListenerIfActive(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
-	a.proxyMu.Lock()
-	runtime := a.publicListenerState[listenerID]
-	running := runtime != nil && runtime.Server != nil
-	a.proxyMu.Unlock()
-	if !running {
-		return a.getPublicListenerStatus(listenerID), nil
-	}
-	return a.restartPublicListenerRuntime(ctx, listenerID)
 }
