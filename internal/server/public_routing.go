@@ -873,6 +873,10 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 	if err == nil {
 		return false
 	}
+	var dialErr agentDialError
+	if errors.As(err, &dialErr) && dialErr.Kind == "dial_forbidden" {
+		return false
+	}
 	return !requestContextCanceled(requestCtx, err)
 }
 

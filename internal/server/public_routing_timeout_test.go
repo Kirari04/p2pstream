@@ -352,6 +352,34 @@ func TestAgentProxyClosedSessionMarksPassiveFailure(t *testing.T) {
 	}
 }
 
+func TestAgentProxyDialForbiddenDoesNotMarkPassiveFailure(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("upstream should not be reached when agent rejects destination")
+	}))
+	defer upstream.Close()
+
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 500*time.Millisecond)
+	fake.openResponse = func(open tunnel.OpenRequest) tunnel.OpenResponse {
+		return tunnel.OpenResponse{OK: false, ErrorKind: "dial_forbidden", Error: "agent destination forbidden by allowlist"}
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+	proxyAgentTargetForTest(app, rec, req, target, agent)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("dial forbidden status = %d body=%q, want 502", rec.Code, rec.Body.String())
+	}
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("agent dial_forbidden should not make the agent unavailable")
+	}
+	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
+	if len(traces) != 0 {
+		t.Fatalf("unexpected health traces after dial_forbidden: %+v", traces)
+	}
+	fake.waitOpenRequestCount(t, 1)
+}
+
 func TestAgentProxyHTTPSOriginTLSVerification(t *testing.T) {
 	tlsUpstream := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("secure upstream"))
@@ -442,6 +470,7 @@ type fakeYamuxAgent struct {
 	serverSession        *yamux.Session
 	agentSession         *yamux.Session
 	requests             chan tunnel.OpenRequest
+	openResponse         func(tunnel.OpenRequest) tunnel.OpenResponse
 	suppressOpenResponse bool
 	mu                   sync.Mutex
 	openRequests         int
@@ -527,6 +556,11 @@ func (f *fakeYamuxAgent) handleStream(stream net.Conn) {
 	}
 	if f.suppressOpenResponse {
 		_, _ = io.Copy(io.Discard, stream)
+		return
+	}
+	if f.openResponse != nil {
+		resp := f.openResponse(open)
+		_ = tunnel.WriteOpenResponse(stream, resp)
 		return
 	}
 	upstream, err := (&net.Dialer{}).DialContext(context.Background(), open.Network, open.Address)

@@ -65,6 +65,10 @@ var agentCmd = &cobra.Command{
 		if !allowInsecureManagement {
 			allowInsecureManagement = envBool("AGENT_ALLOW_INSECURE_MANAGEMENT")
 		}
+		allowTargets, _ := cmd.Flags().GetStringArray("allow-target")
+		if len(allowTargets) == 0 {
+			allowTargets = splitAgentAllowTargets(os.Getenv("AGENT_ALLOW_TARGETS"))
+		}
 
 		if err := agent.Run(agent.Options{
 			ManagementURL:           mgmtURL,
@@ -76,6 +80,7 @@ var agentCmd = &cobra.Command{
 			TLSCertFile:             tlsCertFile,
 			TLSKeyFile:              tlsKeyFile,
 			AllowInsecureManagement: allowInsecureManagement,
+			AllowTargets:            allowTargets,
 		}); err != nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
@@ -94,6 +99,7 @@ func init() {
 	agentCmd.Flags().String("tls-cert-file", "", "PEM client certificate for management mTLS")
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
+	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
 }
 
 func defaultAgentManagementURL() string {
@@ -159,4 +165,18 @@ func envBool(key string) bool {
 	default:
 		return false
 	}
+}
+
+func splitAgentAllowTargets(value string) []string {
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\t' || r == ' '
+	})
+	targets := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field != "" {
+			targets = append(targets, field)
+		}
+	}
+	return targets
 }
