@@ -612,10 +612,8 @@ func (c *publicProxyCache) lookupIndexedCandidates(lookupKey publicCacheLookupKe
 			delete(digests, key)
 			continue
 		}
-		if !indexEntry.entry.ExpiresAt.After(now) {
-			c.deleteEntryLocked(key)
-			continue
-		}
+		// Return expired entries to the caller as well. The caller owns the
+		// database and body-file cleanup, which must happen outside this mutex.
 		candidates = append(candidates, indexEntry.entry)
 	}
 	if len(digests) == 0 {
@@ -897,8 +895,7 @@ func (a *App) checkPublicCacheWithSnapshot(snap *publicProxySnapshot, r *http.Re
 			continue
 		}
 		if !entry.ExpiresAt.After(now) {
-			_ = a.DB.DeletePublicCacheEntry(context.Background(), entry.KeyDigest)
-			a.PublicCache.deleteEntry(entry.KeyDigest)
+			a.invalidatePublicCacheEntry(entry)
 			continue
 		}
 		decision.Status = publicCacheStatusHit
@@ -1115,17 +1112,24 @@ func (a *App) preparePublicCacheHitBody(r *http.Request, decision *publicCacheDe
 	if r.Method == http.MethodHead || decision.Entry.SizeBytes == 0 {
 		return true
 	}
-	if body := a.PublicCache.getMemory(decision.Entry.KeyDigest); len(body) > 0 {
-		decision.HitBody = io.NopCloser(bytes.NewReader(body))
-		return true
-	}
-	file, err := os.Open(decision.Entry.BodyPath)
+	body, err := a.openPublicCacheHitBody(*decision.Entry)
 	if err != nil {
-		a.invalidatePublicCacheEntry(*decision.Entry)
 		return false
 	}
-	decision.HitBody = file
+	decision.HitBody = body
 	return true
+}
+
+func (a *App) openPublicCacheHitBody(entry db.PublicCacheEntry) (io.ReadCloser, error) {
+	if body := a.PublicCache.getMemory(entry.KeyDigest); len(body) > 0 {
+		return io.NopCloser(bytes.NewReader(body)), nil
+	}
+	file, err := os.Open(entry.BodyPath)
+	if err != nil {
+		a.invalidatePublicCacheEntry(entry)
+		return nil, err
+	}
+	return file, nil
 }
 
 func (a *App) invalidatePublicCacheEntry(entry db.PublicCacheEntry) {
@@ -1182,18 +1186,15 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 	if r.Method != http.MethodHead && decision.Entry.SizeBytes > 0 {
 		if decision.HitBody != nil {
 			body = decision.HitBody
-		} else if memoryBody := a.PublicCache.getMemory(decision.Entry.KeyDigest); len(memoryBody) > 0 {
-			body = io.NopCloser(bytes.NewReader(memoryBody))
 		} else {
-			file, err := os.Open(decision.Entry.BodyPath)
+			var err error
+			body, err = a.openPublicCacheHitBody(*decision.Entry)
 			if err != nil {
-				a.invalidatePublicCacheEntry(*decision.Entry)
 				statusCode = http.StatusInternalServerError
 				errorKind = "cache_body_missing"
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-			body = file
 		}
 		if shaper != nil {
 			body = shaper.wrapDownloadBody(r.Context(), body)

@@ -858,6 +858,77 @@ func TestPublicCacheStaleIndexedBodyFallsBackToMiss(t *testing.T) {
 	}
 }
 
+func TestPublicCacheExpiredIndexedEntryInvalidatesRowIndexMemoryAndBody(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/expired.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	keyDigest := publicCacheKeyDigest(req, resolution, rule, "", nil)
+	body := []byte("expired-body")
+	bodyPath := app.PublicCache.bodyPath(keyDigest)
+	if err := os.MkdirAll(filepath.Dir(bodyPath), 0700); err != nil {
+		t.Fatalf("create cache body dir: %v", err)
+	}
+	if err := os.WriteFile(bodyPath, body, 0600); err != nil {
+		t.Fatalf("write expired cache body: %v", err)
+	}
+	entry, err := app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/expired.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            bodyPath,
+		SizeBytes:           int64(len(body)),
+		StoredAt:            app.PublicCache.nextStoredAt(),
+		ExpiresAt:           time.Now().Add(-time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("insert expired cache entry: %v", err)
+	}
+	app.PublicCache.putIndexEntry(entry)
+	app.PublicCache.putMemory(keyDigest, body)
+	app.PublicCache.mu.Lock()
+	app.PublicCache.lastCleanup = time.Now()
+	_, indexed := app.PublicCache.indexEntries[keyDigest]
+	_, inMemory := app.PublicCache.memoryEntries[keyDigest]
+	app.PublicCache.mu.Unlock()
+	if !indexed || !inMemory {
+		t.Fatalf("expired cache fixture was not indexed and warmed: index=%t memory=%t", indexed, inMemory)
+	}
+
+	decision := app.checkPublicCache(req, resolution)
+	if decision.Status != publicCacheStatusMiss {
+		t.Fatalf("expired cache status = %q, want miss", decision.Status)
+	}
+	if _, err := app.DB.GetPublicCacheEntry(context.Background(), keyDigest); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expired cache database row error = %v, want sql.ErrNoRows", err)
+	}
+	if _, err := os.Stat(bodyPath); !os.IsNotExist(err) {
+		t.Fatalf("expired cache body stat error = %v, want not exist", err)
+	}
+	app.PublicCache.mu.Lock()
+	_, indexed = app.PublicCache.indexEntries[keyDigest]
+	_, inMemory = app.PublicCache.memoryEntries[keyDigest]
+	app.PublicCache.mu.Unlock()
+	if indexed || inMemory {
+		t.Fatalf("expired cache state remained after invalidation: index=%t memory=%t", indexed, inMemory)
+	}
+}
+
 func TestPublicCacheEmptyMissUsesWarmedIndex(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
