@@ -420,6 +420,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		snap.CacheRules = append(snap.CacheRules, rule)
 	}
 	sortPublicCacheRules(snap.CacheRules)
+	snap.CacheFingerprint = publicCacheRuntimeFingerprint(snap.CacheSettings, snap.CacheRules)
 	return snap, nil
 }
 
