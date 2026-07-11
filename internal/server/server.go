@@ -72,13 +72,14 @@ type App struct {
 	generatedSetupToken string
 	setupTokenLogOnce   sync.Once
 
-	proxyMu             sync.Mutex
-	proxyServiceActive  bool
-	proxyState          p2pstreamv1.ProxyState
-	proxyLastError      string
-	publicSnapshot      *publicProxySnapshot
-	publicSnapshotPtr   atomic.Pointer[publicProxySnapshot]
-	publicListenerState map[int64]*publicListenerRuntime
+	proxyMu                  sync.Mutex
+	proxyServiceActive       bool
+	proxyState               p2pstreamv1.ProxyState
+	proxyLastError           string
+	publicSnapshot           *publicProxySnapshot
+	publicSnapshotPtr        atomic.Pointer[publicProxySnapshot]
+	publicSnapshotGeneration uint64
+	publicListenerState      map[int64]*publicListenerRuntime
 
 	publicConfigCacheMu sync.RWMutex
 	publicConfigCache   cachedPublicConfig
@@ -86,7 +87,8 @@ type App struct {
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
 
-	agentTunnelBeforeFinalAuth func(db.Agent)
+	agentTunnelBeforeFinalAuth            func(db.Agent)
+	publicTLSSelectorRefreshBeforePublish func(uint64)
 }
 
 type agentAuthLockMap struct {
