@@ -65,7 +65,7 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 		}
 	}
 	for _, touch := range cacheTouches {
-		if touch.KeyDigest == "" || touch.HitCount <= 0 {
+		if touch.KeyDigest == "" || touch.StoredAt.IsZero() || touch.LastAccessedAt.IsZero() || touch.HitCount <= 0 {
 			continue
 		}
 		if err := qtx.TouchPublicCacheEntry(ctx, touch); err != nil {

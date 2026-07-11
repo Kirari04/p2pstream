@@ -333,32 +333,38 @@ func TestObservabilityRecorderCoalescesPublicCacheTouches(t *testing.T) {
 	ctx := context.Background()
 	app := NewApp(nil, newServerTestDB(t))
 	keyDigest := "cache-touch-key"
+	storedAt := time.Now().UTC().Round(0)
 	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_cache_rules (id, name) VALUES (1, 'cache-touch-rule')`); err != nil {
 		t.Fatalf("insert cache rule: %v", err)
 	}
 	if _, err := app.DB.ExecContext(ctx, `
 		INSERT INTO public_cache_entries (
 			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
-			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, expires_at
-		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/asset', '', 'GET', '[]', '{}', 200, '/tmp/body', 10, ?)
-	`, keyDigest, time.Now().Add(time.Hour)); err != nil {
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at
+		) VALUES (?, 1, 'selected_backend', 'http', 'example.test', '/asset', '', 'GET', '[]', '{}', 200, '/tmp/body', 10, ?, ?)
+	`, keyDigest, storedAt, time.Now().Add(time.Hour)); err != nil {
 		t.Fatalf("insert cache entry: %v", err)
 	}
 
 	recorder := app.observabilityRecorderService()
-	recorder.touchPublicCacheEntry(keyDigest)
-	recorder.touchPublicCacheEntry(keyDigest)
-	recorder.touchPublicCacheEntry(keyDigest)
+	firstAccess := storedAt.Add(time.Second)
+	recorder.touchPublicCacheEntry(keyDigest, storedAt, firstAccess)
+	recorder.touchPublicCacheEntry(keyDigest, storedAt, firstAccess.Add(time.Second))
+	recorder.touchPublicCacheEntry(keyDigest, storedAt, firstAccess.Add(2*time.Second))
 	if err := app.flushObservabilityRecorder(ctx); err != nil {
 		t.Fatalf("flush observability recorder: %v", err)
 	}
 
 	var hitCount int64
-	if err := app.DB.QueryRowContext(ctx, `SELECT hit_count FROM public_cache_entries WHERE key_digest = ?`, keyDigest).Scan(&hitCount); err != nil {
+	var lastAccessedAt time.Time
+	if err := app.DB.QueryRowContext(ctx, `SELECT hit_count, last_accessed_at FROM public_cache_entries WHERE key_digest = ?`, keyDigest).Scan(&hitCount, &lastAccessedAt); err != nil {
 		t.Fatalf("read cache hit count: %v", err)
 	}
 	if hitCount != 3 {
 		t.Fatalf("cache hit count = %d, want all 3 coalesced hits", hitCount)
+	}
+	if want := firstAccess.Add(2 * time.Second); !lastAccessedAt.Equal(want) {
+		t.Fatalf("cache last access = %s, want latest hit %s", lastAccessedAt, want)
 	}
 }
 
@@ -436,15 +442,17 @@ func TestObservabilityRecorderRateLimitsDropLogs(t *testing.T) {
 func TestObservabilityRecorderBoundsAndPrunesCacheTouchState(t *testing.T) {
 	recorder := newObservabilityRecorder(nil)
 	recorder.nextDropLog.Store(time.Now().Add(time.Hour).UnixNano())
-	touches := make(map[string]*publicCacheTouchState)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	storedAt := time.Unix(1_700_000_000, 0).UTC()
 	for i := 0; i < observabilityRecorderMaxTouchKeys; i++ {
-		recorder.queuePublicCacheTouch(touches, fmt.Sprintf("key-%d", i))
+		recorder.queuePublicCacheTouch(touches, newPublicCacheTouch(fmt.Sprintf("key-%d", i), storedAt, storedAt.Add(time.Second)))
 	}
-	recorder.queuePublicCacheTouch(touches, "key-0")
-	if got := touches["key-0"].hitCount; got != 2 {
+	keyZero := newPublicCacheTouch("key-0", storedAt, storedAt.Add(2*time.Second))
+	recorder.queuePublicCacheTouch(touches, keyZero)
+	if got := touches[keyZero.key].hitCount; got != 2 {
 		t.Fatalf("existing cache key hit count = %d, want 2", got)
 	}
-	recorder.queuePublicCacheTouch(touches, "overflow")
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("overflow", storedAt, storedAt.Add(time.Second)))
 	if got := len(touches); got != observabilityRecorderMaxTouchKeys {
 		t.Fatalf("cache touch state cardinality = %d, want cap %d", got, observabilityRecorderMaxTouchKeys)
 	}
@@ -460,6 +468,47 @@ func TestObservabilityRecorderBoundsAndPrunesCacheTouchState(t *testing.T) {
 	recorder.prunePublicCacheTouches(touches, now)
 	if len(touches) != 0 || recorder.pendingTouches.Load() != 0 {
 		t.Fatalf("expired cache touch state was not pruned: len=%d pending=%d", len(touches), recorder.pendingTouches.Load())
+	}
+}
+
+func TestObservabilityRecorderCoalescesCacheTouchesPerGeneration(t *testing.T) {
+	recorder := newObservabilityRecorder(nil)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+	storedAtA := time.Unix(1_700_000_000, 1).UTC()
+	storedAtB := storedAtA.Add(time.Nanosecond)
+	keyA := newPublicCacheTouch("same-digest", storedAtA, storedAtA.Add(time.Second))
+	keyB := newPublicCacheTouch("same-digest", storedAtB, storedAtB.Add(time.Second))
+
+	recorder.queuePublicCacheTouch(touches, keyA)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("same-digest", storedAtA, storedAtA.Add(2*time.Second)))
+	recorder.queuePublicCacheTouch(touches, keyB)
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("same-digest", storedAtB, storedAtB.Add(2*time.Second)))
+	recorder.queuePublicCacheTouch(touches, newPublicCacheTouch("same-digest", storedAtB, storedAtB.Add(3*time.Second)))
+	if len(touches) != 2 || touches[keyA.key].hitCount != 2 || touches[keyB.key].hitCount != 3 {
+		t.Fatalf("generation touch state = len %d/A %d/B %d, want 2/2/3", len(touches), touches[keyA.key].hitCount, touches[keyB.key].hitCount)
+	}
+	if got := touches[keyA.key].lastAccessedAt; !got.Equal(storedAtA.Add(2 * time.Second)) {
+		t.Fatalf("generation A latest access = %s, want %s", got, storedAtA.Add(2*time.Second))
+	}
+	if got := touches[keyB.key].lastAccessedAt; !got.Equal(storedAtB.Add(3 * time.Second)) {
+		t.Fatalf("generation B latest access = %s, want %s", got, storedAtB.Add(3*time.Second))
+	}
+
+	batch := publicCacheTouchesToFlush(touches, time.Now().UTC(), true)
+	counts := make(map[time.Time]int64)
+	accesses := make(map[time.Time]time.Time)
+	for _, touch := range batch {
+		if touch.KeyDigest != "same-digest" {
+			t.Fatalf("touch digest = %q, want same-digest", touch.KeyDigest)
+		}
+		counts[touch.StoredAt] = touch.HitCount
+		accesses[touch.StoredAt] = touch.LastAccessedAt
+	}
+	if counts[storedAtA] != 2 || counts[storedAtB] != 3 {
+		t.Fatalf("generation flush counts = A %d/B %d, want 2/3", counts[storedAtA], counts[storedAtB])
+	}
+	if !accesses[storedAtA].Equal(storedAtA.Add(2*time.Second)) || !accesses[storedAtB].Equal(storedAtB.Add(3*time.Second)) {
+		t.Fatalf("generation flush access times = A %s/B %s", accesses[storedAtA], accesses[storedAtB])
 	}
 }
 

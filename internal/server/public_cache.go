@@ -161,6 +161,7 @@ type publicProxyCache struct {
 	negativeOrder   *list.List
 	memoryBytes     int64
 	lastFingerprint string
+	lastStoredAt    time.Time
 	generation      uint64
 }
 
@@ -369,6 +370,20 @@ func (c *publicProxyCache) memoryHotObjectMaxBytesSnapshot() int64 {
 		return 0
 	}
 	return c.settings.MemoryHotObjectMaxBytes
+}
+
+func (c *publicProxyCache) nextStoredAt() time.Time {
+	now := time.Now().UTC().Round(0)
+	if c == nil {
+		return now
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !now.After(c.lastStoredAt) {
+		now = c.lastStoredAt.Add(time.Nanosecond)
+	}
+	c.lastStoredAt = now
+	return now
 }
 
 func (c *publicProxyCache) cacheDir() string {
@@ -693,15 +708,20 @@ func (c *publicProxyCache) putIndexEntryLocked(entry db.PublicCacheEntry) bool {
 // touchIndexedEntry keeps the in-memory index consistent with hits queued for
 // the observability recorder. Database hit counts are updated only by that
 // recorder so coalescing cannot double-count a cache hit.
-func (c *publicProxyCache) touchIndexedEntry(key string, now time.Time) {
-	if c == nil || key == "" {
+func (c *publicProxyCache) touchIndexedEntry(key string, storedAt time.Time, now time.Time) {
+	if c == nil || key == "" || storedAt.IsZero() {
 		return
+	}
+	storedAt = storedAt.UTC().Round(0)
+	now = now.UTC().Round(0)
+	if now.Before(storedAt) {
+		now = storedAt
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.ensureIndexLocked()
 	indexEntry, ok := c.indexEntries[key]
-	if !ok {
+	if !ok || !indexEntry.entry.StoredAt.Equal(storedAt) {
 		return
 	}
 	indexEntry.entry.LastAccessedAt = now
@@ -884,8 +904,8 @@ func (a *App) checkPublicCacheWithSnapshot(snap *publicProxySnapshot, r *http.Re
 		entryCopy := entry
 		decision.Entry = &entryCopy
 		decision.LookupDuration = time.Since(startedAt)
-		a.PublicCache.touchIndexedEntry(entry.KeyDigest, now)
-		a.observabilityRecorderService().touchPublicCacheEntry(entry.KeyDigest)
+		a.PublicCache.touchIndexedEntry(entry.KeyDigest, entry.StoredAt, now)
+		a.observabilityRecorderService().touchPublicCacheEntry(entry.KeyDigest, entry.StoredAt, now)
 		return decision
 	}
 	decision.Status = publicCacheStatusMiss
@@ -1374,6 +1394,7 @@ func (r *publicCacheStoreReadCloser) commit() {
 			routeTargetID = sql.NullInt64{Int64: r.resolution.Target.ID, Valid: true}
 		}
 	}
+	storedAt := r.app.PublicCache.nextStoredAt()
 	entry, err := r.app.DB.UpsertPublicCacheEntry(context.Background(), db.UpsertPublicCacheEntryParams{
 		KeyDigest:           r.keyDigest,
 		RuleID:              r.rule.ID,
@@ -1390,6 +1411,7 @@ func (r *publicCacheStoreReadCloser) commit() {
 		StatusCode:          r.statusCode,
 		BodyPath:            r.finalPath,
 		SizeBytes:           r.bytesWritten,
+		StoredAt:            storedAt,
 		ExpiresAt:           r.expiresAt,
 	})
 	if err != nil {

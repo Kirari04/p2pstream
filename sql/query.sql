@@ -2112,7 +2112,7 @@ INSERT INTO public_cache_entries (
     vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
     last_accessed_at, hit_count
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, sqlc.arg(stored_at), sqlc.arg(expires_at), sqlc.arg(stored_at), 0
 )
 ON CONFLICT(key_digest) DO UPDATE SET
     rule_id = excluded.rule_id,
@@ -2129,9 +2129,9 @@ ON CONFLICT(key_digest) DO UPDATE SET
     status_code = excluded.status_code,
     body_path = excluded.body_path,
     size_bytes = excluded.size_bytes,
-    stored_at = CURRENT_TIMESTAMP,
+    stored_at = excluded.stored_at,
     expires_at = excluded.expires_at,
-    last_accessed_at = CURRENT_TIMESTAMP,
+    last_accessed_at = excluded.stored_at,
     hit_count = 0
 RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, route_target_id, method,
           vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
@@ -2139,9 +2139,10 @@ RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, 
 
 -- name: TouchPublicCacheEntry :exec
 UPDATE public_cache_entries
-SET last_accessed_at = CURRENT_TIMESTAMP,
+SET last_accessed_at = sqlc.arg(last_accessed_at),
     hit_count = hit_count + sqlc.arg(hit_count)
-WHERE key_digest = sqlc.arg(key_digest);
+WHERE key_digest = sqlc.arg(key_digest)
+  AND stored_at = sqlc.arg(stored_at);
 
 -- name: DeletePublicCacheEntry :exec
 DELETE FROM public_cache_entries

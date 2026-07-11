@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -652,6 +653,7 @@ func TestPublicCacheIndexedHitsUpdateMemoryAndDatabaseExactly(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("counted")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("insert cache entry: %v", err)
@@ -679,6 +681,122 @@ func TestPublicCacheIndexedHitsUpdateMemoryAndDatabaseExactly(t *testing.T) {
 	app.PublicCache.mu.Unlock()
 	if indexedHits != 2 {
 		t.Fatalf("indexed cache hit count = %d, want 2", indexedHits)
+	}
+}
+
+func TestPublicCacheTouchTokenRejectsReplacedEntry(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	ctx := context.Background()
+	keyDigest := "replacement-token-digest"
+	params := db.UpsertPublicCacheEntryParams{
+		KeyDigest:           keyDigest,
+		RuleID:              resolution.CacheRuleID,
+		Scope:               publicCacheScopeSelectedBackend,
+		ListenerProtocol:    resolution.Listener.Protocol,
+		Host:                "assets.example.test",
+		Path:                "/assets/replacement.txt",
+		QueryKey:            "",
+		RouteID:             sql.NullInt64{Int64: resolution.Route.ID, Valid: true},
+		RouteTargetID:       sql.NullInt64{Int64: resolution.Target.ID, Valid: true},
+		Method:              http.MethodGet,
+		VaryHeadersJson:     "[]",
+		ResponseHeadersJson: `{"Content-Type":["text/plain"]}`,
+		StatusCode:          http.StatusOK,
+		BodyPath:            "/tmp/replacement-token.body",
+		SizeBytes:           10,
+		StoredAt:            app.PublicCache.nextStoredAt(),
+		ExpiresAt:           time.Now().Add(time.Hour),
+	}
+	oldStoredAt := params.StoredAt
+	oldEntry, err := app.DB.UpsertPublicCacheEntry(ctx, params)
+	if err != nil {
+		t.Fatalf("insert old cache entry: %v", err)
+	}
+	if !oldEntry.StoredAt.Equal(oldStoredAt) || !oldEntry.LastAccessedAt.Equal(oldStoredAt) {
+		t.Fatalf("old stored_at round trip = stored %s/access %s, want %s", oldEntry.StoredAt, oldEntry.LastAccessedAt, oldStoredAt)
+	}
+	app.PublicCache.putIndexEntry(oldEntry)
+	oldTouchAt := time.Now().UTC()
+	app.PublicCache.touchIndexedEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
+	app.observabilityRecorderService().touchPublicCacheEntry(keyDigest, oldEntry.StoredAt, oldTouchAt)
+
+	params.StoredAt = app.PublicCache.nextStoredAt()
+	params.BodyPath = "/tmp/replacement-token-new.body"
+	replacement, err := app.DB.UpsertPublicCacheEntry(ctx, params)
+	if err != nil {
+		t.Fatalf("replace cache entry: %v", err)
+	}
+	if !replacement.StoredAt.Equal(params.StoredAt) || !replacement.LastAccessedAt.Equal(params.StoredAt) {
+		t.Fatalf("replacement stored_at round trip = stored %s/access %s, want %s", replacement.StoredAt, replacement.LastAccessedAt, params.StoredAt)
+	}
+	if !replacement.StoredAt.After(oldEntry.StoredAt) {
+		t.Fatalf("replacement token = %s, want after old token %s", replacement.StoredAt, oldEntry.StoredAt)
+	}
+	app.PublicCache.putIndexEntry(replacement)
+	app.PublicCache.touchIndexedEntry(keyDigest, oldEntry.StoredAt, oldTouchAt.Add(time.Second))
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush old cache touch: %v", err)
+	}
+
+	assertCounts := func(want int64, wantLastAccess time.Time) db.PublicCacheEntry {
+		t.Helper()
+		databaseEntry, err := app.DB.GetPublicCacheEntry(ctx, keyDigest)
+		if err != nil {
+			t.Fatalf("load replacement cache entry: %v", err)
+		}
+		app.PublicCache.mu.Lock()
+		indexedEntry := app.PublicCache.indexEntries[keyDigest].entry
+		app.PublicCache.mu.Unlock()
+		if databaseEntry.HitCount != want || indexedEntry.HitCount != want {
+			t.Fatalf("replacement hit counts = database %d/index %d, want %d", databaseEntry.HitCount, indexedEntry.HitCount, want)
+		}
+		if !databaseEntry.StoredAt.Equal(replacement.StoredAt) || !indexedEntry.StoredAt.Equal(replacement.StoredAt) {
+			t.Fatalf("replacement tokens changed = database %s/index %s, want %s", databaseEntry.StoredAt, indexedEntry.StoredAt, replacement.StoredAt)
+		}
+		if !databaseEntry.LastAccessedAt.Equal(wantLastAccess) || !indexedEntry.LastAccessedAt.Equal(wantLastAccess) {
+			t.Fatalf("replacement last access = database %s/index %s, want %s", databaseEntry.LastAccessedAt, indexedEntry.LastAccessedAt, wantLastAccess)
+		}
+		if databaseEntry.LastAccessedAt.Before(databaseEntry.StoredAt) || indexedEntry.LastAccessedAt.Before(indexedEntry.StoredAt) {
+			t.Fatalf("replacement last access regressed before stored_at: database %s/%s index %s/%s", databaseEntry.LastAccessedAt, databaseEntry.StoredAt, indexedEntry.LastAccessedAt, indexedEntry.StoredAt)
+		}
+		return databaseEntry
+	}
+	assertCounts(0, replacement.StoredAt)
+
+	newTouchAt := oldTouchAt.Add(2 * time.Second)
+	app.PublicCache.touchIndexedEntry(keyDigest, replacement.StoredAt, newTouchAt)
+	app.observabilityRecorderService().touchPublicCacheEntry(keyDigest, replacement.StoredAt, newTouchAt)
+	if err := app.flushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush replacement cache touch: %v", err)
+	}
+	assertCounts(1, newTouchAt)
+}
+
+func TestPublicCacheStoredAtTokensAreStrictlyUnique(t *testing.T) {
+	cache := newPublicProxyCache(t.TempDir())
+	const count = 256
+	tokens := make(chan time.Time, count)
+	var group sync.WaitGroup
+	for i := 0; i < count; i++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			tokens <- cache.nextStoredAt()
+		}()
+	}
+	group.Wait()
+	close(tokens)
+
+	ordered := make([]time.Time, 0, count)
+	for token := range tokens {
+		ordered = append(ordered, token)
+	}
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Before(ordered[j]) })
+	for i := 1; i < len(ordered); i++ {
+		if !ordered[i].After(ordered[i-1]) {
+			t.Fatalf("stored_at token %d = %s, want after %s", i, ordered[i], ordered[i-1])
+		}
 	}
 }
 
@@ -714,6 +832,7 @@ func TestPublicCacheStaleIndexedBodyFallsBackToMiss(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("stale-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("insert cache entry: %v", err)
@@ -775,6 +894,7 @@ func TestPublicCacheEmptyMissUsesWarmedIndex(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("later-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	})
 	if err != nil {
@@ -939,6 +1059,7 @@ func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
 			ListenerProtocol: publicListenerProtocolHTTP,
 			Host:             "assets.example",
 			Path:             "/asset",
+			StoredAt:         now.Add(-time.Minute),
 			ExpiresAt:        now.Add(time.Hour),
 		}
 		return cache, generation, fingerprint, entry, publicCacheLookupKeyFromEntry(entry), now
@@ -947,9 +1068,9 @@ func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
 	t.Run("deterministic interleaving", func(t *testing.T) {
 		cache, generation, fingerprint, staleEntry, lookup, now := newCache(t)
 		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
-		cache.touchIndexedEntry(staleEntry.KeyDigest, now.Add(time.Second))
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
 		cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
-		cache.touchIndexedEntry(staleEntry.KeyDigest, now.Add(2*time.Second))
+		cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(2*time.Second))
 
 		cache.mu.Lock()
 		indexed := cache.indexEntries[staleEntry.KeyDigest].entry
@@ -973,7 +1094,7 @@ func TestPublicCacheStaleCandidateDoesNotOverwriteIndexedHits(t *testing.T) {
 				defer group.Done()
 				<-start
 				cache.storeIndexedCandidates(lookup, []db.PublicCacheEntry{staleEntry}, now, generation, fingerprint)
-				cache.touchIndexedEntry(staleEntry.KeyDigest, now.Add(time.Second))
+				cache.touchIndexedEntry(staleEntry.KeyDigest, staleEntry.StoredAt, now.Add(time.Second))
 			}()
 		}
 		close(start)
@@ -1367,6 +1488,7 @@ func TestPublicCacheHeadServedFromCachedGet(t *testing.T) {
 		StatusCode:          http.StatusOK,
 		BodyPath:            bodyPath,
 		SizeBytes:           int64(len("head-body")),
+		StoredAt:            app.PublicCache.nextStoredAt(),
 		ExpiresAt:           time.Now().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("insert cache entry: %v", err)

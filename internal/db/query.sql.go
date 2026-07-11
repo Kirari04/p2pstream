@@ -6199,18 +6199,26 @@ func (q *Queries) TouchManagementAccessToken(ctx context.Context, id int64) erro
 
 const touchPublicCacheEntry = `-- name: TouchPublicCacheEntry :exec
 UPDATE public_cache_entries
-SET last_accessed_at = CURRENT_TIMESTAMP,
-    hit_count = hit_count + ?1
-WHERE key_digest = ?2
+SET last_accessed_at = ?1,
+    hit_count = hit_count + ?2
+WHERE key_digest = ?3
+  AND stored_at = ?4
 `
 
 type TouchPublicCacheEntryParams struct {
-	HitCount  int64  `json:"hit_count"`
-	KeyDigest string `json:"key_digest"`
+	LastAccessedAt time.Time `json:"last_accessed_at"`
+	HitCount       int64     `json:"hit_count"`
+	KeyDigest      string    `json:"key_digest"`
+	StoredAt       time.Time `json:"stored_at"`
 }
 
 func (q *Queries) TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCacheEntryParams) error {
-	_, err := q.db.ExecContext(ctx, touchPublicCacheEntry, arg.HitCount, arg.KeyDigest)
+	_, err := q.db.ExecContext(ctx, touchPublicCacheEntry,
+		arg.LastAccessedAt,
+		arg.HitCount,
+		arg.KeyDigest,
+		arg.StoredAt,
+	)
 	return err
 }
 
@@ -7955,7 +7963,7 @@ INSERT INTO public_cache_entries (
     vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
     last_accessed_at, hit_count
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, 0
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?16, ?17, ?16, 0
 )
 ON CONFLICT(key_digest) DO UPDATE SET
     rule_id = excluded.rule_id,
@@ -7972,9 +7980,9 @@ ON CONFLICT(key_digest) DO UPDATE SET
     status_code = excluded.status_code,
     body_path = excluded.body_path,
     size_bytes = excluded.size_bytes,
-    stored_at = CURRENT_TIMESTAMP,
+    stored_at = excluded.stored_at,
     expires_at = excluded.expires_at,
-    last_accessed_at = CURRENT_TIMESTAMP,
+    last_accessed_at = excluded.stored_at,
     hit_count = 0
 RETURNING key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, route_target_id, method,
           vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
@@ -7997,6 +8005,7 @@ type UpsertPublicCacheEntryParams struct {
 	StatusCode          int64         `json:"status_code"`
 	BodyPath            string        `json:"body_path"`
 	SizeBytes           int64         `json:"size_bytes"`
+	StoredAt            time.Time     `json:"stored_at"`
 	ExpiresAt           time.Time     `json:"expires_at"`
 }
 
@@ -8017,6 +8026,7 @@ func (q *Queries) UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCa
 		arg.StatusCode,
 		arg.BodyPath,
 		arg.SizeBytes,
+		arg.StoredAt,
 		arg.ExpiresAt,
 	)
 	var i PublicCacheEntry

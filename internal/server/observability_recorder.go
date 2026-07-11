@@ -44,7 +44,7 @@ type proxyRequestEvent struct {
 type observabilityRecorder struct {
 	app            *App
 	events         chan db.InsertProxyRequestEventAtParams
-	touches        chan string
+	touches        chan publicCacheTouch
 	control        chan observabilityRecorderRequest
 	done           chan struct{}
 	mu             sync.Mutex
@@ -65,15 +65,41 @@ type observabilityRecorderRequest struct {
 }
 
 type publicCacheTouchState struct {
-	hitCount      int64
-	lastFlushedAt time.Time
+	hitCount       int64
+	lastAccessedAt time.Time
+	lastFlushedAt  time.Time
+}
+
+type publicCacheTouchKey struct {
+	keyDigest string
+	storedAt  time.Time
+}
+
+type publicCacheTouch struct {
+	key        publicCacheTouchKey
+	accessedAt time.Time
+}
+
+func newPublicCacheTouch(keyDigest string, storedAt time.Time, accessedAt time.Time) publicCacheTouch {
+	storedAt = storedAt.UTC().Round(0)
+	accessedAt = accessedAt.UTC().Round(0)
+	if accessedAt.Before(storedAt) {
+		accessedAt = storedAt
+	}
+	return publicCacheTouch{
+		key: publicCacheTouchKey{
+			keyDigest: keyDigest,
+			storedAt:  storedAt,
+		},
+		accessedAt: accessedAt,
+	}
 }
 
 func newObservabilityRecorder(app *App) *observabilityRecorder {
 	return &observabilityRecorder{
 		app:     app,
 		events:  make(chan db.InsertProxyRequestEventAtParams, observabilityRecorderQueueSize),
-		touches: make(chan string, observabilityRecorderQueueSize),
+		touches: make(chan publicCacheTouch, observabilityRecorderQueueSize),
 		control: make(chan observabilityRecorderRequest),
 		done:    make(chan struct{}),
 	}
@@ -148,8 +174,8 @@ func (r *observabilityRecorder) recordProxyRequestEvent(ctx context.Context, eve
 	_ = ctx
 }
 
-func (r *observabilityRecorder) touchPublicCacheEntry(keyDigest string) {
-	if r == nil || r.app == nil || r.app.DB == nil || keyDigest == "" {
+func (r *observabilityRecorder) touchPublicCacheEntry(keyDigest string, storedAt time.Time, accessedAt time.Time) {
+	if r == nil || r.app == nil || r.app.DB == nil || keyDigest == "" || storedAt.IsZero() || accessedAt.IsZero() {
 		return
 	}
 	r.mu.Lock()
@@ -159,7 +185,7 @@ func (r *observabilityRecorder) touchPublicCacheEntry(keyDigest string) {
 	}
 	r.startLocked()
 	select {
-	case r.touches <- keyDigest:
+	case r.touches <- newPublicCacheTouch(keyDigest, storedAt, accessedAt):
 	default:
 		r.dropTouch()
 	}
@@ -295,7 +321,7 @@ func (r *observabilityRecorder) run() {
 	ticker := time.NewTicker(observabilityRecorderFlushInterval)
 	defer ticker.Stop()
 	batch := make([]db.InsertProxyRequestEventAtParams, 0, observabilityRecorderMaxBatch)
-	touches := make(map[string]*publicCacheTouchState)
+	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
 	for {
 		events := r.events
 		if len(batch) >= observabilityRecorderMaxBatch {
@@ -311,8 +337,8 @@ func (r *observabilityRecorder) run() {
 			if len(batch) >= observabilityRecorderMaxBatch {
 				r.flushBatch(context.Background(), &batch, touches, time.Now().UTC(), false)
 			}
-		case keyDigest := <-r.touches:
-			r.queuePublicCacheTouch(touches, keyDigest)
+		case touch := <-r.touches:
+			r.queuePublicCacheTouch(touches, touch)
 		case req := <-r.control:
 			eventCount := len(r.events)
 			touchCount := len(r.touches)
@@ -332,7 +358,7 @@ func (r *observabilityRecorder) run() {
 func (r *observabilityRecorder) flushQueued(
 	ctx context.Context,
 	batch *[]db.InsertProxyRequestEventAtParams,
-	touches map[string]*publicCacheTouchState,
+	touches map[publicCacheTouchKey]*publicCacheTouchState,
 	eventCount int,
 	touchCount int,
 ) error {
@@ -359,39 +385,43 @@ func (r *observabilityRecorder) flushQueued(
 	return r.flushBatch(ctx, batch, touches, time.Now().UTC(), true)
 }
 
-func (r *observabilityRecorder) queuePublicCacheTouch(touches map[string]*publicCacheTouchState, keyDigest string) {
-	if keyDigest == "" {
+func (r *observabilityRecorder) queuePublicCacheTouch(touches map[publicCacheTouchKey]*publicCacheTouchState, queued publicCacheTouch) {
+	if queued.key.keyDigest == "" || queued.key.storedAt.IsZero() || queued.accessedAt.IsZero() {
 		return
 	}
-	if touch := touches[keyDigest]; touch != nil {
+	queued = newPublicCacheTouch(queued.key.keyDigest, queued.key.storedAt, queued.accessedAt)
+	if touch := touches[queued.key]; touch != nil {
 		if touch.hitCount == math.MaxInt64 {
 			r.dropTouch()
 			return
 		}
 		touch.hitCount++
+		if queued.accessedAt.After(touch.lastAccessedAt) {
+			touch.lastAccessedAt = queued.accessedAt
+		}
 		return
 	}
 	if len(touches) >= observabilityRecorderMaxTouchKeys {
 		r.dropTouch()
 		return
 	}
-	touches[keyDigest] = &publicCacheTouchState{hitCount: 1}
+	touches[queued.key] = &publicCacheTouchState{hitCount: 1, lastAccessedAt: queued.accessedAt}
 	r.pendingTouches.Store(int64(len(touches)))
 }
 
-func (r *observabilityRecorder) prunePublicCacheTouches(touches map[string]*publicCacheTouchState, now time.Time) {
-	for keyDigest, touch := range touches {
+func (r *observabilityRecorder) prunePublicCacheTouches(touches map[publicCacheTouchKey]*publicCacheTouchState, now time.Time) {
+	for key, touch := range touches {
 		if touch.hitCount != 0 || touch.lastFlushedAt.IsZero() || now.Sub(touch.lastFlushedAt) < publicCacheTouchCoalesceInterval {
 			continue
 		}
-		delete(touches, keyDigest)
+		delete(touches, key)
 	}
 	r.pendingTouches.Store(int64(len(touches)))
 }
 
-func publicCacheTouchesToFlush(touches map[string]*publicCacheTouchState, now time.Time, force bool) []db.TouchPublicCacheEntryParams {
+func publicCacheTouchesToFlush(touches map[publicCacheTouchKey]*publicCacheTouchState, now time.Time, force bool) []db.TouchPublicCacheEntryParams {
 	var ready []db.TouchPublicCacheEntryParams
-	for keyDigest, touch := range touches {
+	for key, touch := range touches {
 		if touch.hitCount <= 0 {
 			continue
 		}
@@ -399,8 +429,10 @@ func publicCacheTouchesToFlush(touches map[string]*publicCacheTouchState, now ti
 			continue
 		}
 		ready = append(ready, db.TouchPublicCacheEntryParams{
-			HitCount:  touch.hitCount,
-			KeyDigest: keyDigest,
+			HitCount:       touch.hitCount,
+			KeyDigest:      key.keyDigest,
+			StoredAt:       key.storedAt,
+			LastAccessedAt: touch.lastAccessedAt,
 		})
 	}
 	return ready
@@ -409,7 +441,7 @@ func publicCacheTouchesToFlush(touches map[string]*publicCacheTouchState, now ti
 func (r *observabilityRecorder) flushBatch(
 	ctx context.Context,
 	batch *[]db.InsertProxyRequestEventAtParams,
-	touches map[string]*publicCacheTouchState,
+	touches map[publicCacheTouchKey]*publicCacheTouchState,
 	now time.Time,
 	forceTouches bool,
 ) error {
@@ -424,7 +456,8 @@ func (r *observabilityRecorder) flushBatch(
 	*batch = (*batch)[:0]
 	r.pendingEvents.Store(0)
 	for _, flushed := range touchBatch {
-		touch := touches[flushed.KeyDigest]
+		key := newPublicCacheTouch(flushed.KeyDigest, flushed.StoredAt, flushed.LastAccessedAt).key
+		touch := touches[key]
 		if touch == nil {
 			continue
 		}
