@@ -42,10 +42,10 @@ Conceptual table groups:
 | Public proxy | `public_listeners`, `public_routes`, `public_route_targets`, `public_agent_labels`, `public_response_templates` |
 | Target headers | `public_route_target_upstream_headers`, `public_route_target_response_headers` |
 | TLS | `public_tls_certificates`, `public_tls_dns_credentials` |
-| Controls | `public_rate_limit_rules`, `public_waf_captcha_providers`, `public_waf_rules`, `public_waf_settings`, `public_traffic_shaper_rules`, `public_cache_settings`, `public_cache_rules`, `public_cache_entries` |
+| Controls | `public_rate_limit_rules`, `public_waf_captcha_providers`, `public_waf_rules`, `public_waf_settings`, `public_geo_ip_settings`, `public_trusted_proxy_sources`, `public_traffic_shaper_rules`, `public_cache_settings`, `public_cache_rules`, `public_cache_entries` |
 | Observability | `proxy_request_events` |
 
-Upgrades migrate old public backend configuration into route targets and then drop the old backend config tables. `public_waf_settings` stores the cookie signing secret used for WAF pass, admission, and queue cookies. `proxy_request_events` includes WAF, cache, route, route target, agent, byte, status, and duration fields. The route-target-only migration resets proxy request events and proxy rollups instead of retaining legacy backend IDs. `agent_stats` includes reported agent CPU percentage for dashboard summaries and automatic WAF activation, and agent stats history is not reset by that proxy observability migration.
+Upgrades migrate old public backend configuration into route targets and then drop the old backend config tables. `public_waf_settings` stores the cookie signing secret used for WAF pass, admission, and queue cookies. GeoIP settings store the redacted-at-API MaxMind download credentials and database refresh state; trusted-proxy rows store explicit provider/custom trust plus the last valid managed CIDR snapshot. `proxy_request_events` includes WAF, cache, route, route target, agent, byte, status, and duration fields. The route-target-only migration resets proxy request events and proxy rollups instead of retaining legacy backend IDs. `agent_stats` includes reported agent CPU percentage for dashboard summaries and automatic WAF activation, and agent stats history is not reset by that proxy observability migration.
 
 ## Examples
 
@@ -56,6 +56,7 @@ p2pstream.db
 p2pstream.db-wal
 p2pstream.db-shm
 certs/
+geoip/
 ```
 
 Explicit SQLite URL for local recovery commands:

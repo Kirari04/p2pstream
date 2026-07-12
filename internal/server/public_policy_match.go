@@ -351,11 +351,24 @@ func publicPolicyMatchActivation(listener publicListenerConfig, r *http.Request)
 		"protocol":  listener.Protocol,
 		"host":      normalizeRequestHost(r.Host),
 		"path":      r.URL.Path,
-		"remote_ip": publicPolicyMatchRemoteIP(r.RemoteAddr),
+		"remote_ip": publicPolicyMatchRequestRemoteIP(r),
 		"headers":   headers,
 		"cookies":   cookies,
 		"query":     query,
 	}
+}
+
+func publicPolicyMatchRequestRemoteIP(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if _, attached := ClientIdentityFromContext(r.Context()); attached {
+		if addr, ok := ClientIdentityResolved(r.Context()); ok {
+			return addr.String()
+		}
+		return ""
+	}
+	return publicPolicyMatchRemoteIP(r.RemoteAddr)
 }
 
 func publicPolicyMatchRemoteIP(remoteAddr string) string {

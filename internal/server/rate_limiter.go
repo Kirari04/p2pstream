@@ -428,6 +428,35 @@ func (rule publicRateLimitRuleConfig) keyValues(listener publicListenerConfig, r
 }
 
 func remoteIPForRateLimit(r *http.Request) string {
+	if r == nil {
+		return rateLimitMissingValue
+	}
+	if _, attached := ClientIdentityFromContext(r.Context()); attached {
+		if addr, ok := ClientIdentityResolved(r.Context()); ok {
+			return addr.String()
+		}
+		return rateLimitMissingValue
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && host != "" {
+		return host
+	}
+	if r.RemoteAddr != "" {
+		return r.RemoteAddr
+	}
+	return rateLimitMissingValue
+}
+
+// peerIPForRequest always returns the transport peer, even when a trusted
+// proxy supplied a resolved visitor identity. It is reserved for connection-
+// level safeguards that must not be influenced by request headers.
+func peerIPForRequest(r *http.Request) string {
+	if r == nil {
+		return rateLimitMissingValue
+	}
+	if addr, ok := ClientIdentityPeer(r.Context()); ok {
+		return addr.String()
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err == nil && host != "" {
 		return host

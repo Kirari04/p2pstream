@@ -7,8 +7,15 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
+import PublicWafGeoRestrictionEditor from "@/components/editors/PublicWafGeoRestrictionEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { modalCardStyle } from "@/lib/naiveUi";
+import {
+  defaultWafGeoRestrictionForm,
+  wafGeoRestrictionFormFromProto,
+  wafGeoRestrictionPayloadFromForm,
+  wafGeoRestrictionValidationReason,
+} from "@/lib/publicWafGeoRestriction";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -28,6 +35,7 @@ import {
   PublicResponseBodyMode,
   PublicResponseTemplateKind,
   PublicWafActivationMode,
+  PublicWafGeoRestrictionMode,
   PublicWafRuleAction,
   type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -103,6 +111,7 @@ const form = reactive({
   action: PublicWafRuleAction.BLOCK,
   activationMode: PublicWafActivationMode.ALWAYS,
   match: defaultPolicyMatchForm() as PolicyMatchForm,
+  geoRestriction: defaultWafGeoRestrictionForm(),
   keyParts: [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }] as KeyPartForm[],
   captchaProviderId: "",
   captchaPassMinutes: 30,
@@ -290,6 +299,13 @@ const submitDisabledReason = computed(() => {
     return "Select a block response template.";
   }
   if (triggerValidationMessage.value) return triggerValidationMessage.value;
+  if (wafGeoRestrictionValidationReason(form.geoRestriction)) return wafGeoRestrictionValidationReason(form.geoRestriction);
+  if (form.enabled && form.geoRestriction.mode !== PublicWafGeoRestrictionMode.DISABLED && !props.config?.geoIpSettings?.enabled) {
+    return "Enable GeoIP before enabling a geographically targeted rule.";
+  }
+  if (form.enabled && form.geoRestriction.mode !== PublicWafGeoRestrictionMode.DISABLED && !props.config?.geoIpSettings?.databaseStatus?.ready) {
+    return "Load a valid GeoIP country database before enabling this rule.";
+  }
   if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
   return "";
 });
@@ -324,6 +340,7 @@ function resetForm() {
   form.action = PublicWafRuleAction.BLOCK;
   form.activationMode = PublicWafActivationMode.ALWAYS;
   form.match = defaultPolicyMatchForm();
+  form.geoRestriction = defaultWafGeoRestrictionForm();
   form.keyParts = [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
   form.captchaProviderId = firstEnabledProviderId();
   form.captchaPassMinutes = 30;
@@ -361,6 +378,7 @@ function openEdit(ruleId: bigint | string) {
   form.action = rule.action || PublicWafRuleAction.BLOCK;
   form.activationMode = rule.activationMode || PublicWafActivationMode.ALWAYS;
   form.match = policyMatchFormFromProto(rule.matchRule);
+  form.geoRestriction = wafGeoRestrictionFormFromProto(rule.geoRestriction);
   form.keyParts = rule.keyParts.length
     ? rule.keyParts.map((part) => ({ source: part.source, name: part.name }))
     : [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }];
@@ -437,6 +455,7 @@ async function submitRule() {
       action: form.action,
       activationMode: form.activationMode,
       matchRule: policyMatchRulePayload(form.match),
+      geoRestriction: wafGeoRestrictionPayloadFromForm(form.geoRestriction),
       keyParts: form.keyParts.map((part) => ({
         source: part.source,
         name: keyPartNeedsName(part.source) ? part.name.trim() : "",
@@ -539,6 +558,12 @@ defineExpose({ openCreate, openEdit, close });
       </section>
 
       <PublicPolicyMatchEditor :form="form.match" />
+      <PublicWafGeoRestrictionEditor
+        v-model="form.geoRestriction"
+        :action="form.action"
+        :geo-ip-enabled="config?.geoIpSettings?.enabled"
+        :geo-ip-ready="config?.geoIpSettings?.databaseStatus?.ready"
+      />
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
       <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">

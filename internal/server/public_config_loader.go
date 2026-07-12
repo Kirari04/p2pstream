@@ -32,6 +32,8 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		TrafficShaperRules:  publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
 		WafCaptchaProviders: publicWafCaptchaProvidersToProto(rows.WafCaptchaProviders, false),
 		WafRules:            publicWafRulesToProto(rows.WafRules),
+		GeoIpSettings:       a.publicGeoIPSettingsProto(rows.GeoIPSettings),
+		TrustedProxySources: publicTrustedProxySourcesToProto(rows.TrustedProxySources),
 		CacheSettings:       publicCacheSettingsConfigToProto(snap.CacheSettings),
 		CacheRules:          publicCacheRulesToProto(rows.CacheRules),
 		TlsDnsCredentials:   publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
@@ -237,6 +239,14 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, err
 	}
+	geoIPSettings, err := a.ensurePublicGeoIPSettings(ctx)
+	if err != nil {
+		return publicConfigRows{}, err
+	}
+	trustedProxySources, err := a.DB.ListPublicTrustedProxySources(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	cacheSettings, err := a.ensurePublicCacheSettings(ctx)
 	if err != nil {
 		return publicConfigRows{}, err
@@ -260,6 +270,8 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		WafCaptchaProviders:        wafCaptchaProviders,
 		WafRules:                   wafRules,
 		WafSettings:                wafSettings,
+		GeoIPSettings:              geoIPSettings,
+		TrustedProxySources:        trustedProxySources,
 		CacheSettings:              cacheSettings,
 		CacheRules:                 cacheRules,
 		ResponseTemplates:          responseTemplates,
@@ -267,6 +279,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 }
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
+	clientIdentity, err := trustedProxyResolverFromRows(rows.TrustedProxySources)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	snap := &publicProxySnapshot{
 		RouteTargets:        make(map[int64]publicRouteTargetConfig),
 		Agents:              make(map[int64]publicAgentConfig),
@@ -277,6 +293,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		WafCookieSecret:     []byte(rows.WafSettings.CookieSigningSecret),
 		CacheSettings:       publicCacheSettingsRowToConfig(rows.CacheSettings),
 		ResponseTemplates:   publicResponseTemplatesToConfig(rows.ResponseTemplates),
+		ClientIdentity:      clientIdentity,
 	}
 
 	routeTargetsByRoute := make(map[int64][]publicRouteTargetConfig)

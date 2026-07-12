@@ -67,6 +67,11 @@ var publicProxyStages = []publicProxyStage{
 }
 
 func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r *http.Request) *publicProxyContext {
+	var snap *publicProxySnapshot
+	if app != nil {
+		snap = app.currentPublicSnapshot()
+	}
+	r = resolvePublicRequestIdentity(snap, r)
 	var requestBytes atomic.Uint64
 	if r.Body != nil && r.Body != http.NoBody {
 		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
@@ -77,10 +82,6 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 	trace := app.newTrafficRequestTrace(r, recorder)
 	if trace != nil {
 		trace.emitReceived(listenerID)
-	}
-	var snap *publicProxySnapshot
-	if app != nil {
-		snap = app.currentPublicSnapshot()
 	}
 	return &publicProxyContext{
 		App:            app,

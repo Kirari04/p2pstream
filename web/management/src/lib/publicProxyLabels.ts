@@ -23,6 +23,7 @@ import {
   PublicTrafficShaperBudgetScope,
   PublicWafActivationMode,
   PublicWafCaptchaProviderType,
+  PublicWafGeoRestrictionMode,
   PublicWafRuleAction,
   type Agent,
   type PublicRouteTargetHealthTrace,
@@ -41,6 +42,7 @@ import {
   type PublicWafCaptchaProvider,
   type PublicWafRule,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+import { wafGeoRestrictionSummary } from "@/lib/publicWafGeoRestriction";
 
 export type TlsMethod = "manual" | "http_01" | "tls_alpn_01" | "dns_01";
 
@@ -409,15 +411,20 @@ export function wafProviderLabel(type: PublicWafCaptchaProviderType): string {
 }
 
 export function wafRuleSummary(rule: PublicWafRule, providers: readonly PublicWafCaptchaProvider[]): string {
+  let actionSummary: string;
   if (rule.action === PublicWafRuleAction.CAPTCHA) {
     const provider = providers.find((item) => item.id === rule.captchaProviderId);
-    return `provider ${provider?.name ?? "missing"} / pass ${durationMillisLabel(rule.captchaPassTtlMillis)}`;
-  }
-  if (rule.action === PublicWafRuleAction.WAITING_ROOM) {
+    actionSummary = `provider ${provider?.name ?? "missing"} / pass ${durationMillisLabel(rule.captchaPassTtlMillis)}`;
+  } else if (rule.action === PublicWafRuleAction.WAITING_ROOM) {
     const room = rule.waitingRoom;
-    return `capacity ${room?.maxAdmittedSessions?.toString() ?? "50"} / admit ${room?.admissionRatePerSecond?.toString() ?? "10"}/s`;
+    actionSummary = `capacity ${room?.maxAdmittedSessions?.toString() ?? "50"} / admit ${room?.admissionRatePerSecond?.toString() ?? "10"}/s`;
+  } else {
+    actionSummary = `response ${rule.blockResponseStatusCode.toString()}`;
   }
-  return `response ${rule.blockResponseStatusCode.toString()}`;
+  const geo = rule.geoRestriction?.mode && rule.geoRestriction.mode !== PublicWafGeoRestrictionMode.DISABLED
+    ? ` / geo ${wafGeoRestrictionSummary(rule.geoRestriction)}`
+    : "";
+  return `${actionSummary}${geo}`;
 }
 
 export function cacheTtlModeLabel(mode: PublicCacheTtlMode): string {

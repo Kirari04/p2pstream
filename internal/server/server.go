@@ -153,6 +153,7 @@ type App struct {
 	PublicWAF             *publicWAF
 	PublicCache           *publicProxyCache
 	PublicACME            *publicACMEManager
+	GeoConfigRefresher    PublicGeoConfigRefresher
 	publicConfig          *publicConfigService
 	proxyRuntime          *proxyRuntime
 	observabilityRecorder *observabilityRecorder
@@ -185,6 +186,12 @@ type App struct {
 
 	publicConfigCacheMu sync.RWMutex
 	publicConfigCache   cachedPublicConfig
+	publicGeoConfigMu   sync.Mutex
+
+	publicGeoMaintenanceMu      sync.Mutex
+	publicGeoMaintenanceStarted bool
+	publicGeoMaintenanceCancel  context.CancelFunc
+	publicGeoMaintenanceWG      sync.WaitGroup
 
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
@@ -239,6 +246,13 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
 		agentTunnelStreams:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
+	}
+	configDir := strings.TrimSpace(cfg.ConfigDir)
+	if configDir == "" {
+		configDir = config.DefaultConfigDir
+	}
+	if geoRuntime, err := NewPublicGeoRuntime(GeoIPCountryDatabasePath(configDir), nil); err == nil {
+		app.GeoConfigRefresher = geoRuntime
 	}
 	app.applyServices(newAppServices(cfg, app))
 	if database != nil {

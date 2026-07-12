@@ -44,7 +44,7 @@ Legacy `match` fields are removed from the public API. Existing stored legacy ro
 | `protocol` | string | Listener protocol, `http` or `https`. |
 | `host` | string | Normalized request host without port. |
 | `path` | string | Decoded URL path as seen by p2pstream policy layers. |
-| `remote_ip` | string | Client remote IP parsed from the connection remote address. |
+| `remote_ip` | string | Resolved visitor IP. It is the connection peer by default, or a strictly parsed visitor header only when that peer belongs to an explicitly trusted proxy source. It is empty when trusted-proxy resolution is contradictory or malformed. |
 | `headers` | map string to list string | Header names are lowercase; repeated values are preserved. |
 | `cookies` | map string to string | First cookie value by name. |
 | `query` | map string to list string | Query parameter values by name. |
@@ -213,6 +213,7 @@ p2pstream may perform an internal route-only path security match before WAF, rat
 | Regex is rejected | Use a string-literal regex, keep it within the value-size limit, compile it separately, and escape backslashes correctly inside the CEL string. |
 | Path prefix is rejected | Prefix values for `path_prefix` and builder path-prefix conditions must start with `/`. |
 | CIDR is rejected or never matches | Use a valid CIDR prefix and confirm p2pstream sees the expected client IP. |
+| `remote_ip` is empty behind a CDN | Confirm the CDN preset/custom peer CIDRs are enabled and current, and that the configured visitor-IP header is present and well formed. |
 | Route or target data is missing | CEL only sees request data. Use feature-specific route/target filters where available. |
 
 ## Related Tasks

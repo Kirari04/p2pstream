@@ -1861,7 +1861,8 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-       block_response_content_type, block_response_headers_json, created_at, updated_at
+       block_response_content_type, block_response_headers_json, created_at, updated_at,
+       geo_mode, geo_country_codes_json, geo_unknown_behavior
 FROM public_waf_rules
 ORDER BY priority ASC, id ASC;
 
@@ -1873,7 +1874,8 @@ SELECT id, name, priority, enabled, action, activation_mode, match_json, key_par
        trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
        trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
        block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-       block_response_content_type, block_response_headers_json, created_at, updated_at
+       block_response_content_type, block_response_headers_json, created_at, updated_at,
+       geo_mode, geo_country_codes_json, geo_unknown_behavior
 FROM public_waf_rules
 WHERE id = ?;
 
@@ -1912,9 +1914,12 @@ INSERT INTO public_waf_rules (
     captcha_page_template_id,
     waiting_room_page_template_id,
     block_response_content_type,
-    block_response_headers_json
+    block_response_headers_json,
+    geo_mode,
+    geo_country_codes_json,
+    geo_unknown_behavior
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
           waiting_room_max_admitted_sessions, waiting_room_admission_rate_per_second, waiting_room_admission_session_ttl_millis,
@@ -1923,7 +1928,8 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-          block_response_content_type, block_response_headers_json, created_at, updated_at;
+          block_response_content_type, block_response_headers_json, created_at, updated_at,
+          geo_mode, geo_country_codes_json, geo_unknown_behavior;
 
 -- name: UpdatePublicWafRule :one
 UPDATE public_waf_rules
@@ -1961,6 +1967,9 @@ SET name = ?,
     waiting_room_page_template_id = ?,
     block_response_content_type = ?,
     block_response_headers_json = ?,
+    geo_mode = ?,
+    geo_country_codes_json = ?,
+    geo_unknown_behavior = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_parts_json, captcha_provider_id, captcha_pass_ttl_millis,
@@ -1970,7 +1979,8 @@ RETURNING id, name, priority, enabled, action, activation_mode, match_json, key_
           trigger_route_target_active_requests, trigger_agent_active_requests, trigger_server_cpu_percent, trigger_agent_cpu_percent,
           trigger_minimum_active_millis, trigger_quiet_period_millis, block_response_status_code, block_response_body,
           block_response_body_mode, block_response_template_id, captcha_page_template_id, waiting_room_page_template_id,
-          block_response_content_type, block_response_headers_json, created_at, updated_at;
+          block_response_content_type, block_response_headers_json, created_at, updated_at,
+          geo_mode, geo_country_codes_json, geo_unknown_behavior;
 
 -- name: DeletePublicWafRule :exec
 DELETE FROM public_waf_rules
@@ -1988,6 +1998,133 @@ ON CONFLICT(id) DO UPDATE SET
     cookie_signing_secret = public_waf_settings.cookie_signing_secret,
     updated_at = public_waf_settings.updated_at
 RETURNING id, cookie_signing_secret, created_at, updated_at;
+
+-- name: GetPublicGeoIpSettings :one
+SELECT id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+       last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at
+FROM public_geo_ip_settings
+WHERE id = 1;
+
+-- name: UpsertPublicGeoIpSettingsDefaults :one
+INSERT INTO public_geo_ip_settings (id)
+VALUES (1)
+ON CONFLICT(id) DO UPDATE SET updated_at = public_geo_ip_settings.updated_at
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at;
+
+-- name: UpdatePublicGeoIpSettings :one
+UPDATE public_geo_ip_settings
+SET enabled = ?,
+    maxmind_account_id = ?,
+    maxmind_license_key = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at;
+
+-- name: SetPublicGeoIpUpdateAttempt :one
+UPDATE public_geo_ip_settings
+SET last_update_attempt_at = ?,
+    last_update_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at;
+
+-- name: SetPublicGeoIpUpdateSuccess :one
+UPDATE public_geo_ip_settings
+SET database_type = ?,
+    database_build_at = ?,
+    last_update_attempt_at = ?,
+    last_update_success_at = ?,
+    last_update_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at;
+
+-- name: SetPublicGeoIpUpdateError :one
+UPDATE public_geo_ip_settings
+SET last_update_attempt_at = ?,
+    last_update_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 1
+RETURNING id, enabled, maxmind_account_id, maxmind_license_key, database_type, database_build_at,
+          last_update_attempt_at, last_update_success_at, last_update_error, created_at, updated_at;
+
+-- name: ListPublicTrustedProxySources :many
+SELECT id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+       last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+FROM public_trusted_proxy_sources
+ORDER BY built_in DESC, name ASC, id ASC;
+
+-- name: GetPublicTrustedProxySource :one
+SELECT id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+       last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at
+FROM public_trusted_proxy_sources
+WHERE id = ?;
+
+-- name: CreatePublicTrustedProxySource :one
+INSERT INTO public_trusted_proxy_sources (
+    name, provider, built_in, enabled, cidrs_json, header_name, header_mode
+) VALUES (
+    ?, 'custom', 0, ?, ?, ?, ?
+)
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at;
+
+-- name: UpdatePublicTrustedProxySource :one
+UPDATE public_trusted_proxy_sources
+SET name = ?,
+    enabled = ?,
+    cidrs_json = ?,
+    header_name = ?,
+    header_mode = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at;
+
+-- name: SetPublicTrustedProxySourceEnabled :one
+UPDATE public_trusted_proxy_sources
+SET enabled = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at;
+
+-- name: SetPublicTrustedProxySourceRefreshAttempt :one
+UPDATE public_trusted_proxy_sources
+SET last_refresh_attempt_at = ?,
+    last_refresh_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at;
+
+-- name: SetPublicTrustedProxySourceRefreshSuccess :one
+UPDATE public_trusted_proxy_sources
+SET cidrs_json = ?,
+    last_refresh_attempt_at = ?,
+    last_refresh_success_at = ?,
+    last_refresh_error = '',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at;
+
+-- name: SetPublicTrustedProxySourceRefreshError :one
+UPDATE public_trusted_proxy_sources
+SET last_refresh_attempt_at = ?,
+    last_refresh_error = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider, built_in, enabled, cidrs_json, header_name, header_mode,
+          last_refresh_attempt_at, last_refresh_success_at, last_refresh_error, created_at, updated_at;
+
+-- name: DeletePublicTrustedProxySource :exec
+DELETE FROM public_trusted_proxy_sources
+WHERE id = ? AND built_in = 0;
 
 -- name: GetPublicCacheSettings :one
 SELECT id, enabled, max_disk_bytes, max_memory_bytes, memory_hot_object_max_bytes, max_entries, cleanup_interval_millis, created_at, updated_at

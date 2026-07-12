@@ -114,6 +114,7 @@ type publicWafRuleConfig struct {
 	Action                      string
 	ActivationMode              string
 	Match                       publicPolicyMatchConfig
+	GeoRestriction              publicWafGeoRestrictionConfig
 	KeyParts                    []publicRateLimitKeyPartConfig
 	CaptchaProviderID           int64
 	CaptchaPassTTL              time.Duration
@@ -141,6 +142,9 @@ type publicWafRuleMutationInput struct {
 	Action                               string
 	ActivationMode                       string
 	MatchJSON                            string
+	GeoMode                              string
+	GeoCountryCodesJSON                  string
+	GeoUnknownBehavior                   string
 	KeyPartsJSON                         string
 	CaptchaProviderID                    sql.NullInt64
 	CaptchaPassTTLMillis                 int64
@@ -213,6 +217,9 @@ type publicWafDecision struct {
 	CaptchaProvider       publicWafCaptchaProviderConfig
 	CaptchaChallengeToken string
 	CaptchaReturnTo       string
+	GeoCountryCode        string
+	GeoCountryKnown       bool
+	GeoRestrictionApplied bool
 }
 
 func newPublicWAF() *publicWAF {
@@ -307,6 +314,10 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 		if !rule.Enabled || !rule.matches(listener, r) {
 			continue
 		}
+		geoMatches, geoCountryCode, geoCountryKnown := evaluatePublicWafGeoRestriction(app, r, rule.GeoRestriction)
+		if !geoMatches {
+			continue
+		}
 		automaticActive := false
 		if rule.ActivationMode == publicWafActivationAutomatic {
 			w.mu.Lock()
@@ -324,7 +335,7 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 			}
 			provider, ok := snap.WafCaptchaProviders[rule.CaptchaProviderID]
 			if !ok || !provider.Enabled {
-				return publicWafDecision{
+				return publicWafDecisionWithGeo(publicWafDecision{
 					Rule:            rule,
 					Listener:        listener,
 					Action:          rule.Action,
@@ -334,10 +345,10 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 					ContentType:     defaultWafBlockContentType,
 					AutomaticActive: automaticActive,
 					ChallengeKind:   publicWafActionCaptcha,
-				}, false
+				}, rule.GeoRestriction, geoCountryCode, geoCountryKnown), false
 			}
 			returnTo := sanitizeWAFReturnTo(r.URL.RequestURI())
-			return publicWafDecision{
+			return publicWafDecisionWithGeo(publicWafDecision{
 				Rule:                  rule,
 				Listener:              listener,
 				Action:                rule.Action,
@@ -348,15 +359,15 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 				CaptchaProvider:       provider,
 				CaptchaChallengeToken: w.signCaptchaChallenge(rule, listener, r, returnTo, now),
 				CaptchaReturnTo:       returnTo,
-			}, false
+			}, rule.GeoRestriction, geoCountryCode, geoCountryKnown), false
 		case publicWafActionWaitingRoom:
 			w.mu.Lock()
 			runtime := w.runtimeLocked(rule)
 			decision, allowed := runtime.waitingRoom.evaluateLocked(w, rule, listener, r, now, automaticActive)
 			w.mu.Unlock()
-			return decision, allowed
+			return publicWafDecisionWithGeo(decision, rule.GeoRestriction, geoCountryCode, geoCountryKnown), allowed
 		default:
-			return publicWafDecision{
+			return publicWafDecisionWithGeo(publicWafDecision{
 				Rule:            rule,
 				Listener:        listener,
 				Action:          publicWafActionBlock,
@@ -367,7 +378,7 @@ func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerC
 				Headers:         wafResponseHeaders(rule.BlockResponseHeaders),
 				AutomaticActive: automaticActive,
 				ChallengeKind:   publicWafActionBlock,
-			}, false
+			}, rule.GeoRestriction, geoCountryCode, geoCountryKnown), false
 		}
 	}
 	return publicWafDecision{}, true
@@ -590,6 +601,10 @@ func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error)
 	if err != nil {
 		return publicWafRuleConfig{}, err
 	}
+	geoRestriction, err := decodeStoredPublicWafGeoRestriction(row.GeoMode, row.GeoCountryCodesJson, row.GeoUnknownBehavior)
+	if err != nil {
+		return publicWafRuleConfig{}, err
+	}
 	var keyParts []publicRateLimitKeyPartConfig
 	if strings.TrimSpace(row.KeyPartsJson) != "" {
 		if err := json.Unmarshal([]byte(row.KeyPartsJson), &keyParts); err != nil {
@@ -614,6 +629,7 @@ func publicWafRuleRowToConfig(row db.PublicWafRule) (publicWafRuleConfig, error)
 		Action:            normalizePublicWafAction(row.Action),
 		ActivationMode:    normalizePublicWafActivationMode(row.ActivationMode),
 		Match:             match,
+		GeoRestriction:    geoRestriction,
 		KeyParts:          keyParts,
 		CaptchaProviderID: nullInt64Value(row.CaptchaProviderID),
 		CaptchaPassTTL:    time.Duration(row.CaptchaPassTtlMillis) * time.Millisecond,
@@ -719,6 +735,7 @@ func publicWafRuleFingerprint(rule publicWafRuleConfig) string {
 		Action                      string
 		ActivationMode              string
 		Match                       publicPolicyMatchConfig
+		GeoRestriction              publicWafGeoRestrictionConfig
 		KeyParts                    []publicRateLimitKeyPartConfig
 		CaptchaProviderID           int64
 		CaptchaPassTTL              time.Duration
@@ -740,6 +757,7 @@ func publicWafRuleFingerprint(rule publicWafRuleConfig) string {
 		Action:                      rule.Action,
 		ActivationMode:              rule.ActivationMode,
 		Match:                       rule.Match,
+		GeoRestriction:              rule.GeoRestriction,
 		KeyParts:                    rule.KeyParts,
 		CaptchaProviderID:           rule.CaptchaProviderID,
 		CaptchaPassTTL:              rule.CaptchaPassTTL,
@@ -819,6 +837,7 @@ func publicWafRuleConfigToProto(rule publicWafRuleConfig) *p2pstreamv1.PublicWaf
 		CreatedAtUnixMillis:       rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:       rule.UpdatedAt.UnixMilli(),
 		MatchRule:                 publicPolicyMatchRuleToProto(rule.Match),
+		GeoRestriction:            publicWafGeoRestrictionToProto(rule.GeoRestriction),
 	}
 }
 
@@ -1016,6 +1035,9 @@ func (a *App) validatePublicWafRuleInput(
 		Action:                               actionString,
 		ActivationMode:                       activationModeString,
 		MatchJSON:                            string(matchJSON),
+		GeoMode:                              publicWafGeoModeDisabled,
+		GeoCountryCodesJSON:                  "[]",
+		GeoUnknownBehavior:                   publicWafGeoUnknownApplyRule,
 		KeyPartsJSON:                         string(keyPartsJSON),
 		CaptchaProviderID:                    captchaProviderNull,
 		CaptchaPassTTLMillis:                 captchaPassTTLMillis,
@@ -1317,6 +1339,8 @@ func (a *App) CreatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	a.publicGeoConfigMu.Lock()
+	defer a.publicGeoConfigMu.Unlock()
 	if err := rejectRemovedPolicyMatchField(req.Msg, 6); err != nil {
 		return nil, err
 	}
@@ -1345,6 +1369,9 @@ func (a *App) CreatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if err != nil {
 		return nil, err
 	}
+	if err := a.applyPublicWafGeoRestrictionInput(ctx, req.Msg.Enabled, req.Msg.GeoRestriction, &params); err != nil {
+		return nil, err
+	}
 	row, err := a.DB.CreatePublicWafRule(ctx, wafCreateParams(params))
 	if err != nil {
 		return nil, publicDBError(err)
@@ -1363,6 +1390,8 @@ func (a *App) UpdatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	a.publicGeoConfigMu.Lock()
+	defer a.publicGeoConfigMu.Unlock()
 	if err := rejectRemovedPolicyMatchField(req.Msg, 7); err != nil {
 		return nil, err
 	}
@@ -1391,6 +1420,21 @@ func (a *App) UpdatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if err != nil {
 		return nil, err
 	}
+	geoRestriction := req.Msg.GeoRestriction
+	if geoRestriction == nil {
+		existing, err := a.DB.GetPublicWafRule(ctx, req.Msg.Id)
+		if err != nil {
+			return nil, publicDBError(err)
+		}
+		stored, err := decodeStoredPublicWafGeoRestriction(existing.GeoMode, existing.GeoCountryCodesJson, existing.GeoUnknownBehavior)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("stored WAF geo restriction is invalid: %w", err))
+		}
+		geoRestriction = publicWafGeoRestrictionToProto(stored)
+	}
+	if err := a.applyPublicWafGeoRestrictionInput(ctx, req.Msg.Enabled, geoRestriction, &params); err != nil {
+		return nil, err
+	}
 	row, err := a.DB.UpdatePublicWafRule(ctx, wafUpdateParams(req.Msg.Id, params))
 	if err != nil {
 		return nil, publicDBError(err)
@@ -1409,6 +1453,8 @@ func (a *App) DeletePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	a.publicGeoConfigMu.Lock()
+	defer a.publicGeoConfigMu.Unlock()
 	if err := a.DB.DeletePublicWafRule(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
@@ -1426,6 +1472,9 @@ func wafCreateParams(input publicWafRuleMutationInput) db.CreatePublicWafRulePar
 		Action:                               input.Action,
 		ActivationMode:                       input.ActivationMode,
 		MatchJson:                            input.MatchJSON,
+		GeoMode:                              input.GeoMode,
+		GeoCountryCodesJson:                  input.GeoCountryCodesJSON,
+		GeoUnknownBehavior:                   input.GeoUnknownBehavior,
 		KeyPartsJson:                         input.KeyPartsJSON,
 		CaptchaProviderID:                    input.CaptchaProviderID,
 		CaptchaPassTtlMillis:                 input.CaptchaPassTTLMillis,
@@ -1466,6 +1515,9 @@ func wafUpdateParams(id int64, input publicWafRuleMutationInput) db.UpdatePublic
 		Action:                               input.Action,
 		ActivationMode:                       input.ActivationMode,
 		MatchJson:                            input.MatchJSON,
+		GeoMode:                              input.GeoMode,
+		GeoCountryCodesJson:                  input.GeoCountryCodesJSON,
+		GeoUnknownBehavior:                   input.GeoUnknownBehavior,
 		KeyPartsJson:                         input.KeyPartsJSON,
 		CaptchaProviderID:                    input.CaptchaProviderID,
 		CaptchaPassTtlMillis:                 input.CaptchaPassTTLMillis,
@@ -1511,7 +1563,7 @@ func traceResolutionFromWafDecision(decision publicWafDecision, listenerID int64
 }
 
 func wafDebugAttributes(decision publicWafDecision) map[string]string {
-	return map[string]string{
+	attributes := map[string]string{
 		"handler":              "waf",
 		"waf_rule_id":          strconv.FormatInt(decision.Rule.ID, 10),
 		"waf_rule_name":        decision.Rule.Name,
@@ -1520,6 +1572,15 @@ func wafDebugAttributes(decision publicWafDecision) map[string]string {
 		"waf_automatic_active": strconv.FormatBool(decision.AutomaticActive),
 		"waf_challenge_kind":   decision.ChallengeKind,
 	}
+	if decision.GeoRestrictionApplied {
+		attributes["waf_geo_mode"] = normalizePublicWafGeoMode(decision.Rule.GeoRestriction.Mode)
+		attributes["waf_geo_unknown_behavior"] = normalizePublicWafGeoUnknownBehavior(decision.Rule.GeoRestriction.UnknownBehavior)
+		attributes["waf_geo_country_known"] = strconv.FormatBool(decision.GeoCountryKnown)
+		if decision.GeoCountryKnown {
+			attributes["waf_geo_country"] = decision.GeoCountryCode
+		}
+	}
+	return attributes
 }
 
 func wafTraceStage(decision publicWafDecision) p2pstreamv1.TrafficTraceStage {

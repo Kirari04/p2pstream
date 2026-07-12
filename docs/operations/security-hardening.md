@@ -49,6 +49,9 @@ Use this before exposing management beyond a private network, after adding agent
    - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
 
 5. Scope WAF, rate-limit, shaper, and cache rules by host/path/method so broad policies do not catch unrelated traffic.
+6. Leave trusted-proxy providers disabled unless that provider actually connects to the public listener. When enabling one, firewall the origin to the provider's published ranges so clients cannot bypass the CDN.
+7. For custom proxies, prefer a dedicated single-IP header that the last trusted proxy overwrites. Use chain parsing only when every trusted hop and its CIDRs are understood.
+8. For geo allow-only rules, keep unknown-country handling on **Apply rule** unless an intentional fail-open path is required.
 
 ## Verification
 
@@ -71,6 +74,8 @@ Review:
 | Agents fail after restore | Restore the old management CA or update agent CA material. |
 | Everyone hits one rate-limit bucket | A front proxy may hide client IPs; place p2pstream at the edge, use `REMOTE_IP` when possible, or use only trusted application headers. Do not key on client-supplied forwarding headers. |
 | WAF does not stop network saturation | WAF is HTTP-layer only; use upstream DDoS/network protection. |
+| Client-IP headers are spoofed | p2pstream ignores them unless the network peer matches an explicitly trusted source; do not trust broad or catch-all CIDRs. |
+| GeoIP is inaccurate | Country data is approximate. Use it as a traffic policy signal, not identity or proof of physical presence. |
 
 ## Next Steps
 

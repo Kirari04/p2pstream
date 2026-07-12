@@ -158,8 +158,29 @@ async function runManagementAction(action: () => Promise<void>, successMessage?:
   isBusy.value = true;
   error.value = null;
   try {
-    await action();
-    await loadDashboard();
+    try {
+      await action();
+    } catch (actionError) {
+      // Refresh even after a failed mutation because refresh endpoints persist
+      // their attempt/error status before returning the failure.
+      await loadDashboard();
+      throw actionError;
+    }
+    // The mutation has already succeeded. A failed authoritative read-back
+    // must not be reported as a failed mutation because retrying could create
+    // duplicate resources or repeat an expensive operation.
+    try {
+      await loadDashboard({ propagateError: true });
+    } catch (refreshError) {
+      const refreshMessage = messageFromError(refreshError);
+      error.value = refreshMessage;
+      notification.warning({
+        title: "Change saved; refresh failed",
+        content: "The change was accepted, but the latest configuration could not be loaded. Refresh before retrying.",
+        duration: 7000,
+      });
+      return true;
+    }
     if (successMessage) {
       message.success(successMessage);
     }
@@ -237,7 +258,7 @@ onMounted(() => {
                 :disabled="Boolean(refreshDisabledReason)"
                 aria-label="Refresh dashboard"
                 title="Refresh dashboard"
-                @click="loadDashboard"
+                @click="() => loadDashboard()"
               >
                 <template #icon>
                   <RefreshIcon class="icon-sm" />

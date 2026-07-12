@@ -219,6 +219,24 @@ const (
 	// AgentManagementServiceDeletePublicWafRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicWafRule RPC.
 	AgentManagementServiceDeletePublicWafRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicWafRule"
+	// AgentManagementServiceUpdatePublicGeoIpSettingsProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicGeoIpSettings RPC.
+	AgentManagementServiceUpdatePublicGeoIpSettingsProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicGeoIpSettings"
+	// AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure is the fully-qualified name of the
+	// AgentManagementService's RefreshPublicGeoIpDatabase RPC.
+	AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure = "/p2pstream.v1.AgentManagementService/RefreshPublicGeoIpDatabase"
+	// AgentManagementServiceCreatePublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicTrustedProxySource RPC.
+	AgentManagementServiceCreatePublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTrustedProxySource"
+	// AgentManagementServiceUpdatePublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicTrustedProxySource RPC.
+	AgentManagementServiceUpdatePublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicTrustedProxySource"
+	// AgentManagementServiceDeletePublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicTrustedProxySource RPC.
+	AgentManagementServiceDeletePublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTrustedProxySource"
+	// AgentManagementServiceRefreshPublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's RefreshPublicTrustedProxySource RPC.
+	AgentManagementServiceRefreshPublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/RefreshPublicTrustedProxySource"
 	// AgentManagementServiceCreatePublicCacheRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicCacheRule RPC.
 	AgentManagementServiceCreatePublicCacheRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicCacheRule"
@@ -300,6 +318,12 @@ type AgentManagementServiceClient interface {
 	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
 	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
 	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
+	UpdatePublicGeoIpSettings(context.Context, *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error)
+	RefreshPublicGeoIpDatabase(context.Context, *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error)
+	CreatePublicTrustedProxySource(context.Context, *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error)
+	UpdatePublicTrustedProxySource(context.Context, *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error)
+	DeletePublicTrustedProxySource(context.Context, *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error)
+	RefreshPublicTrustedProxySource(context.Context, *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error)
 	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
 	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
 	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
@@ -690,6 +714,42 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
 			connect.WithClientOptions(opts...),
 		),
+		updatePublicGeoIpSettings: connect.NewClient[v1.UpdatePublicGeoIpSettingsRequest, v1.UpdatePublicGeoIpSettingsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicGeoIpSettingsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicGeoIpSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		refreshPublicGeoIpDatabase: connect.NewClient[v1.RefreshPublicGeoIpDatabaseRequest, v1.RefreshPublicGeoIpDatabaseResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicGeoIpDatabase")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicTrustedProxySource: connect.NewClient[v1.CreatePublicTrustedProxySourceRequest, v1.CreatePublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicTrustedProxySource: connect.NewClient[v1.UpdatePublicTrustedProxySourceRequest, v1.UpdatePublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicTrustedProxySource: connect.NewClient[v1.DeletePublicTrustedProxySourceRequest, v1.DeletePublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
+		refreshPublicTrustedProxySource: connect.NewClient[v1.RefreshPublicTrustedProxySourceRequest, v1.RefreshPublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRefreshPublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicCacheRule: connect.NewClient[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicCacheRuleProcedure,
@@ -787,6 +847,12 @@ type agentManagementServiceClient struct {
 	createPublicWafRule               *connect.Client[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse]
 	updatePublicWafRule               *connect.Client[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse]
 	deletePublicWafRule               *connect.Client[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse]
+	updatePublicGeoIpSettings         *connect.Client[v1.UpdatePublicGeoIpSettingsRequest, v1.UpdatePublicGeoIpSettingsResponse]
+	refreshPublicGeoIpDatabase        *connect.Client[v1.RefreshPublicGeoIpDatabaseRequest, v1.RefreshPublicGeoIpDatabaseResponse]
+	createPublicTrustedProxySource    *connect.Client[v1.CreatePublicTrustedProxySourceRequest, v1.CreatePublicTrustedProxySourceResponse]
+	updatePublicTrustedProxySource    *connect.Client[v1.UpdatePublicTrustedProxySourceRequest, v1.UpdatePublicTrustedProxySourceResponse]
+	deletePublicTrustedProxySource    *connect.Client[v1.DeletePublicTrustedProxySourceRequest, v1.DeletePublicTrustedProxySourceResponse]
+	refreshPublicTrustedProxySource   *connect.Client[v1.RefreshPublicTrustedProxySourceRequest, v1.RefreshPublicTrustedProxySourceResponse]
 	createPublicCacheRule             *connect.Client[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse]
 	updatePublicCacheRule             *connect.Client[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse]
 	deletePublicCacheRule             *connect.Client[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse]
@@ -1121,6 +1187,40 @@ func (c *agentManagementServiceClient) DeletePublicWafRule(ctx context.Context, 
 	return c.deletePublicWafRule.CallUnary(ctx, req)
 }
 
+// UpdatePublicGeoIpSettings calls p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings.
+func (c *agentManagementServiceClient) UpdatePublicGeoIpSettings(ctx context.Context, req *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error) {
+	return c.updatePublicGeoIpSettings.CallUnary(ctx, req)
+}
+
+// RefreshPublicGeoIpDatabase calls p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase.
+func (c *agentManagementServiceClient) RefreshPublicGeoIpDatabase(ctx context.Context, req *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error) {
+	return c.refreshPublicGeoIpDatabase.CallUnary(ctx, req)
+}
+
+// CreatePublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource.
+func (c *agentManagementServiceClient) CreatePublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error) {
+	return c.createPublicTrustedProxySource.CallUnary(ctx, req)
+}
+
+// UpdatePublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource.
+func (c *agentManagementServiceClient) UpdatePublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error) {
+	return c.updatePublicTrustedProxySource.CallUnary(ctx, req)
+}
+
+// DeletePublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource.
+func (c *agentManagementServiceClient) DeletePublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error) {
+	return c.deletePublicTrustedProxySource.CallUnary(ctx, req)
+}
+
+// RefreshPublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource.
+func (c *agentManagementServiceClient) RefreshPublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error) {
+	return c.refreshPublicTrustedProxySource.CallUnary(ctx, req)
+}
+
 // CreatePublicCacheRule calls p2pstream.v1.AgentManagementService.CreatePublicCacheRule.
 func (c *agentManagementServiceClient) CreatePublicCacheRule(ctx context.Context, req *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error) {
 	return c.createPublicCacheRule.CallUnary(ctx, req)
@@ -1211,6 +1311,12 @@ type AgentManagementServiceHandler interface {
 	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
 	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
 	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
+	UpdatePublicGeoIpSettings(context.Context, *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error)
+	RefreshPublicGeoIpDatabase(context.Context, *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error)
+	CreatePublicTrustedProxySource(context.Context, *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error)
+	UpdatePublicTrustedProxySource(context.Context, *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error)
+	DeletePublicTrustedProxySource(context.Context, *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error)
+	RefreshPublicTrustedProxySource(context.Context, *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error)
 	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
 	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
 	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
@@ -1597,6 +1703,42 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceUpdatePublicGeoIpSettingsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicGeoIpSettingsProcedure,
+		svc.UpdatePublicGeoIpSettings,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicGeoIpSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRefreshPublicGeoIpDatabaseHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure,
+		svc.RefreshPublicGeoIpDatabase,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicGeoIpDatabase")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicTrustedProxySourceProcedure,
+		svc.CreatePublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicTrustedProxySourceProcedure,
+		svc.UpdatePublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicTrustedProxySourceProcedure,
+		svc.DeletePublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRefreshPublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRefreshPublicTrustedProxySourceProcedure,
+		svc.RefreshPublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreatePublicCacheRuleHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreatePublicCacheRuleProcedure,
 		svc.CreatePublicCacheRule,
@@ -1753,6 +1895,18 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicWafRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicWafRuleProcedure:
 			agentManagementServiceDeletePublicWafRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicGeoIpSettingsProcedure:
+			agentManagementServiceUpdatePublicGeoIpSettingsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure:
+			agentManagementServiceRefreshPublicGeoIpDatabaseHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicTrustedProxySourceProcedure:
+			agentManagementServiceCreatePublicTrustedProxySourceHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicTrustedProxySourceProcedure:
+			agentManagementServiceUpdatePublicTrustedProxySourceHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicTrustedProxySourceProcedure:
+			agentManagementServiceDeletePublicTrustedProxySourceHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRefreshPublicTrustedProxySourceProcedure:
+			agentManagementServiceRefreshPublicTrustedProxySourceHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicCacheRuleProcedure:
 			agentManagementServiceCreatePublicCacheRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicCacheRuleProcedure:
@@ -2018,6 +2172,30 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicWafRule(context.Co
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicWafRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicGeoIpSettings(context.Context, *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RefreshPublicGeoIpDatabase(context.Context, *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicTrustedProxySource(context.Context, *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicTrustedProxySource(context.Context, *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicTrustedProxySource(context.Context, *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RefreshPublicTrustedProxySource(context.Context, *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error) {
