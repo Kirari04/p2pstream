@@ -67,10 +67,10 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 
 After restore:
 
-1. Open management.
-2. Confirm public listeners are running.
-3. Confirm TLS certificate mappings are ready.
-4. Confirm agents reconnect.
+1. Open management and confirm **Overview** loads.
+2. Under **Proxy → Listeners**, confirm the expected public listeners are running.
+3. Under **TLS**, confirm certificate mappings are ready.
+4. Under **Agents → Fleet**, confirm enabled agents reconnect.
 5. Send a test request through each important public hostname.
 
 ## Troubleshooting

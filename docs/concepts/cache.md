@@ -34,14 +34,16 @@ The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule
 
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
 
+Manage both parts under **Traffic Policy → Cache**. The filterable rules table determines eligibility and cache keys. The separate **Cache storage & operations** section controls shared storage budgets and cleanup, and contains the destructive purge action. Unsaved storage changes are kept distinct from the last server response so operators can review them before saving.
+
 <figure class="doc-screenshot">
-  <img src="../assets/new/cache_settings_section.png" alt="p2pstream cache settings section showing disk, memory, hot object, entry, and cleanup limits">
-  <figcaption>The cache settings section controls global storage budgets and cleanup behavior, while individual cache rules decide which public responses may be stored.</figcaption>
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing a filterable cache-rules table and separate Cache storage and operations settings">
+  <figcaption>The Cache tab separates response eligibility rules from global storage budgets, cleanup behavior, and purge operations.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and target filters, TTL, query handling, vary headers, status codes, and object limits">
-  <figcaption>The cache editor exposes both request matching and cache-safety controls, including route/target filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule drawer showing match builder, route and target filters, TTL, query handling, vary headers, status codes, and object limits">
+  <figcaption>The cache rule drawer exposes both request matching and cache-safety controls, including route/target filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
 </figure>
 
 ## Common Mistakes

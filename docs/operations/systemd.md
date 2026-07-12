@@ -4,7 +4,7 @@ Run the p2pstream release binary as a Linux systemd service, or operate an agent
 
 ## Use This When
 
-Use systemd when you install the release binary directly on a host, or when managing an agent installed from the **Agents** setup dialog.
+Use systemd when you install the release binary directly on a host, or when managing an agent installed from the **Agent Setup** modal opened from **Agents**.
 
 ## Prerequisites
 
@@ -112,7 +112,7 @@ Preview without changing the host:
 curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/uninstall-agent.sh | env P2PSTREAM_UNINSTALL_DRY_RUN=true P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash
 ```
 
-Uninstalling the host service does not remove the management record. After the remote host is removed, delete or disable the agent from **Agents**.
+Uninstalling the host service does not remove the management record. After the remote host is removed, open the agent row's **More** menu under **Agents** and delete or disable the management record.
 
 ## Verification
 

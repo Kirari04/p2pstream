@@ -27,6 +27,8 @@ An empty bind address means all interfaces. Ports must be between `1` and `65535
 
 Enabled means the listener is part of desired configuration. Running means a server socket is currently active. Disabling a listener stops its runtime. Deleting a listener requires it to be stopped or disabled first.
 
+Manage listeners under **Proxy → Listeners**. The searchable table keeps protocol, route count, bind address, and runtime state on one row. The common **Stop** or **Start** and **Edit** actions remain visible; less frequent lifecycle actions are grouped under **More**.
+
 On an empty database, p2pstream creates:
 
 | Listener | Protocol | Port |
@@ -37,13 +39,13 @@ On an empty database, p2pstream creates:
 Both use default routes with static welcome targets until you replace those targets or add more specific routes.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy listeners section showing HTTP and HTTPS listeners with protocol, bind, port, and runtime state">
-  <figcaption>The listener list separates desired configuration from runtime state, making it clear whether a public HTTP or HTTPS socket is enabled and currently running.</figcaption>
+  <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy Listeners table showing searchable HTTP and HTTPS listeners with bind addresses, route counts, runtime state, and row actions">
+  <figcaption>The compact Listeners table separates desired configuration from runtime state while keeping common runtime and edit actions on each row.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream listener editor showing protocol, bind address, port, and enabled state">
-  <figcaption>The listener editor controls the public bind. Default handling is configured as a route; container port publishing and host firewall rules still need to expose the same port outside p2pstream.</figcaption>
+  <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream Edit Listener drawer showing protocol, bind address, port, and enabled state">
+  <figcaption>The listener drawer controls the public bind. Default handling is configured as a route; container port publishing and host firewall rules still need to expose the same port outside p2pstream.</figcaption>
 </figure>
 
 ## Common Mistakes
