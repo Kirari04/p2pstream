@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { NButton, NCheckbox, NInput, NModal, NSelect } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   PublicWafCaptchaProviderType,
   type GetPublicProxyConfigResponse,
@@ -127,15 +128,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'"
-    :style="modalCardStyle('42rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('42rem')"
+    :aria-label="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'"
+    class="editor-drawer"
   >
-    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitProvider">
+    <NDrawerContent :title="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'" closable>
+    <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitProvider">
       <section class="layout-grid space-lg mq-sm-cols-two">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
@@ -143,7 +144,7 @@ defineExpose({ openCreate, openEdit, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Provider
-          <NSelect v-model:value="form.providerType" size="small" :options="providerOptions" />
+          <AccessibleSelect v-model:value="form.providerType" accessible-label="Captcha provider type" size="small" :options="providerOptions" />
         </label>
       </section>
 
@@ -167,7 +168,7 @@ defineExpose({ openCreate, openEdit, close });
         </NCheckbox>
       </section>
 
-      <div class="layout-row align-end-row space-md">
+      <div class="editor-drawer-actions layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(submitDisabledReason)" :reason="submitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
@@ -176,5 +177,6 @@ defineExpose({ openCreate, openEdit, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>

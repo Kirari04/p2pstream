@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal } from "naive-ui";
+import { NButton, NButtonGroup, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -183,15 +183,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'"
-    :style="modalCardStyle('60rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('60rem')"
+    :aria-label="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'"
+    class="editor-drawer"
   >
-    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRule">
+    <NDrawerContent :title="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'" closable>
+    <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Name
@@ -199,7 +199,7 @@ defineExpose({ openCreate, openEdit, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
-          <NInputNumber v-model:value="form.priority" size="small" required />
+          <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
         <NCheckbox v-model:checked="form.enabled" class="self-align-end">
           Enabled
@@ -207,15 +207,19 @@ defineExpose({ openCreate, openEdit, close });
       </section>
 
       <section class="layout-grid space-lg">
-        <NButtonGroup class="layout-grid cols-two" size="small">
+        <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="Traffic-shaper budget scope">
           <NButton
+            attr-type="button"
             :type="form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY ? 'primary' : 'default'"
+            :aria-pressed="form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY"
             @click="form.budgetScope = PublicTrafficShaperBudgetScope.PER_KEY"
           >
             Per key
           </NButton>
           <NButton
+            attr-type="button"
             :type="form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST ? 'primary' : 'default'"
+            :aria-pressed="form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST"
             @click="form.budgetScope = PublicTrafficShaperBudgetScope.PER_REQUEST"
           >
             Per request
@@ -225,26 +229,26 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-lg mq-sm-cols-five">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Upload KiB/s
-            <NInputNumber v-model:value="form.uploadKibPerSecond" size="small" :min="0" :step="1" />
+            <NInputNumber :show-button="false" v-model:value="form.uploadKibPerSecond" size="small" :min="0" :step="1" />
             <p class="copy-xs weight-normal normal-text letter-normal muted-text">Client-to-server bandwidth cap.</p>
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Download KiB/s
-            <NInputNumber v-model:value="form.downloadKibPerSecond" size="small" :min="0" :step="1" />
+            <NInputNumber :show-button="false" v-model:value="form.downloadKibPerSecond" size="small" :min="0" :step="1" />
             <p class="copy-xs weight-normal normal-text letter-normal muted-text">Server-to-client bandwidth cap.</p>
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Burst KiB
-            <NInputNumber v-model:value="form.burstKib" size="small" :min="0" :step="1" />
+            <NInputNumber :show-button="false" v-model:value="form.burstKib" size="small" :min="0" :step="1" />
             <p class="copy-xs weight-normal normal-text letter-normal muted-text">Extra data allowed in a burst before throttling.</p>
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Request free KiB
-            <NInputNumber v-model:value="form.requestFreeKib" size="small" :min="0" :step="1" />
+            <NInputNumber :show-button="false" v-model:value="form.requestFreeKib" size="small" :min="0" :step="1" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Response free KiB
-            <NInputNumber v-model:value="form.responseFreeKib" size="small" :min="0" :step="1" />
+            <NInputNumber :show-button="false" v-model:value="form.responseFreeKib" size="small" :min="0" :step="1" />
           </label>
         </div>
         <p class="round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-xs muted-text">
@@ -256,7 +260,7 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" :disabled-reason="keyPartsDisabledReason" />
 
-      <div class="margin-top-sm layout-row align-end-row space-md">
+      <div class="editor-drawer-actions margin-top-sm layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="shaperSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
@@ -265,7 +269,8 @@ defineExpose({ openCreate, openEdit, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped>

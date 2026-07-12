@@ -1,9 +1,20 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
 import type { TrafficNodeData } from "@/lib/trafficFlowModel";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 
-defineProps<NodeProps<TrafficNodeData>>();
+const props = defineProps<NodeProps<TrafficNodeData>>();
+
+const labelText = computed(() => diagnosticExcerpt(props.data.label || "-", 34).text);
+const labelExact = computed(() => diagnosticInspectionText(props.data.label || "-"));
+const subLabelText = computed(() => diagnosticExcerpt(props.data.subLabel || "-", 38).text);
+const subLabelExact = computed(() => diagnosticInspectionText(props.data.subLabel || "-"));
+const cacheStatusText = computed(() => diagnosticExcerpt(props.data.cacheStatus?.label || "-", 14).text);
+const agentStatusText = computed(() => diagnosticExcerpt(props.data.agentStatus?.label || "-", 18).text);
+const cacheStatusExact = computed(() => diagnosticInspectionText(props.data.cacheStatus?.label || "-"));
+const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agentStatus?.label || "-"));
 </script>
 
 <template>
@@ -16,23 +27,25 @@ defineProps<NodeProps<TrafficNodeData>>();
     ]"
   >
     <Handle type="target" :position="Position.Left" class="traffic-handle" />
-    <div class="node-label" :title="data.label">{{ data.label || "-" }}</div>
+    <bdi class="node-label" dir="ltr" :title="labelExact">{{ labelText }}</bdi>
     <span
       v-if="data.kind === 'cache' && data.cacheStatus"
       class="node-cache-badge"
       :class="`node-cache-badge-${data.cacheStatus.tone}`"
+      :title="cacheStatusExact"
     >
-      {{ data.cacheStatus.label }}
+      <bdi dir="ltr">{{ cacheStatusText }}</bdi>
     </span>
     <div class="node-meta">
-      <div class="node-sub-label" :title="data.subLabel">{{ data.subLabel || "-" }}</div>
+      <bdi class="node-sub-label" dir="ltr" :title="subLabelExact">{{ subLabelText }}</bdi>
       <span
         v-if="data.kind === 'agent' && data.agentStatus"
         class="node-status"
         :class="`node-status-${data.agentStatus.state}`"
+        :title="agentStatusExact"
       >
         <span class="node-status-dot" />
-        <span class="node-status-label">{{ data.agentStatus.label }}</span>
+        <bdi class="node-status-label" dir="ltr">{{ agentStatusText }}</bdi>
       </span>
     </div>
     <Handle type="source" :position="Position.Right" class="traffic-handle" />
@@ -130,6 +143,8 @@ defineProps<NodeProps<TrafficNodeData>>();
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .node-label {
@@ -188,6 +203,8 @@ defineProps<NodeProps<TrafficNodeData>>();
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .node-status-connected {

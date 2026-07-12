@@ -3,10 +3,11 @@ import { computed, inject, reactive, ref, watch } from "vue";
 import type { InputHTMLAttributes } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import {
   AGENT_ID_SYSTEM_LABEL_KEY,
   agentMatchesSelector,
@@ -16,7 +17,7 @@ import {
   type SelectorLabelRow,
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   PublicRouteTargetLoadBalancing,
   PublicResponseBodyMode,
@@ -582,27 +583,27 @@ defineExpose({ openCreate, openEdit, openClone, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="modalTitle"
-    :style="modalCardStyle('72rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('72rem')"
+    :aria-label="modalTitle"
+    class="editor-drawer"
   >
-    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRoute">
+    <NDrawerContent :title="modalTitle" closable>
+    <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRoute">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Listener
-          <NSelect v-model:value="routeForm.listenerId" size="small" :options="listenerOptions" required />
+          <AccessibleSelect v-model:value="routeForm.listenerId" accessible-label="Route listener" size="small" :options="listenerOptions" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Action
-          <NSelect v-model:value="routeForm.action" size="small" :options="routeActionOptions" />
+          <AccessibleSelect v-model:value="routeForm.action" accessible-label="Route action" size="small" :options="routeActionOptions" />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
-          <NInputNumber v-model:value="routeForm.priority" size="small" required />
+          <NInputNumber :show-button="false" v-model:value="routeForm.priority" size="small" required />
         </label>
         <NCheckbox v-model:checked="routeForm.enabled" class="self-align-end">
           Enabled
@@ -617,13 +618,14 @@ defineExpose({ openCreate, openEdit, openClone, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Path security
-          <NSelect v-model:value="routeForm.pathSecurityMode" size="small" :options="pathSecurityModeOptions" />
+          <AccessibleSelect v-model:value="routeForm.pathSecurityMode" accessible-label="Path security mode" size="small" :options="pathSecurityModeOptions" />
           <span class="normal-text letter-normal">Compatibility mode is for upstreams that require encoded / or \ path identifiers.</span>
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Target balancing
-          <NSelect
+          <AccessibleSelect
             v-model:value="routeForm.targetLoadBalancing"
+            accessible-label="Target balancing"
             size="small"
             :options="targetLoadBalancingOptions"
             :disabled="routeIsRedirect"
@@ -637,7 +639,7 @@ defineExpose({ openCreate, openEdit, openClone, close });
       <section v-if="routeIsRedirect" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Mode
-          <NSelect v-model:value="routeForm.redirectTargetMode" size="small" :options="redirectTargetModeOptions" />
+          <AccessibleSelect v-model:value="routeForm.redirectTargetMode" accessible-label="Redirect target mode" size="small" :options="redirectTargetModeOptions" />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Target
@@ -645,7 +647,7 @@ defineExpose({ openCreate, openEdit, openClone, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Status
-          <NInputNumber v-model:value="routeForm.redirectStatusCode" size="small" :min="300" :max="399" />
+          <NInputNumber :show-button="false" v-model:value="routeForm.redirectStatusCode" size="small" :min="300" :max="399" />
         </label>
         <NCheckbox v-model:checked="routeForm.redirectPreservePathSuffix">
           Preserve path suffix
@@ -673,15 +675,20 @@ defineExpose({ openCreate, openEdit, openClone, close });
               </label>
               <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Type
-                <NSelect v-model:value="target.targetType" size="small" :options="targetTypeOptions" />
+                <AccessibleSelect
+                  v-model:value="target.targetType"
+                  :accessible-label="`Target ${index + 1} type`"
+                  size="small"
+                  :options="targetTypeOptions"
+                />
               </label>
               <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Priority group
-                <NInputNumber v-model:value="target.priorityGroup" size="small" :min="0" />
+                <NInputNumber :show-button="false" v-model:value="target.priorityGroup" size="small" :min="0" />
               </label>
               <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Weight
-                <NInputNumber v-model:value="target.weight" size="small" :min="1" />
+                <NInputNumber :show-button="false" v-model:value="target.weight" size="small" :min="1" />
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
                 URL
@@ -689,16 +696,16 @@ defineExpose({ openCreate, openEdit, openClone, close });
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Transport
-                <NSelect
+                <AccessibleSelect
                   v-model:value="target.transport"
+                  :accessible-label="`Target ${index + 1} transport`"
                   :options="targetTransportOptions"
                   size="small"
-                  aria-label="Transport"
                 />
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.PROXY" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Header timeout ms
-                <NInputNumber v-model:value="target.responseHeaderTimeoutMillis" size="small" :min="1" />
+                <NInputNumber :show-button="false" v-model:value="target.responseHeaderTimeoutMillis" size="small" :min="1" />
               </label>
               <div v-if="target.targetType === PublicRouteTargetType.PROXY && target.transport === PublicRouteTargetTransport.AGENT" class="layout-grid space-md round-md framed frame-standard muted-bg pad-md mq-sm-span-four">
                 <div class="layout-row wrap-items align-start spread-items space-md">
@@ -708,13 +715,13 @@ defineExpose({ openCreate, openEdit, openClone, close });
                   </div>
                   <div class="layout-grid space-xs">
                     <span class="copy-xs weight-medium label-case letter-wide muted-text">Match exact agent</span>
-                    <NSelect
+                    <AccessibleSelect
                       :value="exactSelectorValue(target)"
+                      :accessible-label="`Target ${index + 1} exact agent`"
                       :options="exactAgentOptions"
                       data-testid="exact-agent-selector"
                       class="min-w-[14rem]"
                       size="small"
-                      aria-label="Match exact agent"
                       @update:value="setExactAgent(target, String($event ?? ''))"
                     />
                   </div>
@@ -775,7 +782,7 @@ defineExpose({ openCreate, openEdit, openClone, close });
               </NCheckbox>
               <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Status
-                <NInputNumber v-model:value="target.staticStatusCode" size="small" :min="100" :max="599" />
+                <NInputNumber :show-button="false" v-model:value="target.staticStatusCode" size="small" :min="100" :max="599" />
               </label>
               <label v-if="target.targetType === PublicRouteTargetType.STATIC" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-three">
                 Body
@@ -792,7 +799,7 @@ defineExpose({ openCreate, openEdit, openClone, close });
         </div>
       </section>
 
-      <div class="margin-top-sm layout-row align-end-row space-md">
+      <div class="editor-drawer-actions margin-top-sm layout-row align-end-row space-md">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="routeSubmitDisabled" :reason="routeSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="routeSubmitDisabled">
@@ -801,5 +808,6 @@ defineExpose({ openCreate, openEdit, openClone, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>

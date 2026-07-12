@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NInput, NSelect } from "naive-ui";
+import { NButton, NCheckbox, NInput } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import {
   PublicPolicyMatchBooleanOperator,
   PublicPolicyMatchConditionOperator,
@@ -120,7 +121,13 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 <template>
   <div class="policy-match-group" :class="{ nested: !root }">
     <div class="builder-toolbar">
-      <NSelect v-model:value="group.operator" class="compact-select" size="small" :options="booleanOperatorOptions" />
+      <AccessibleSelect
+        v-model:value="group.operator"
+        :accessible-label="root ? 'Root match operator' : `Match group at depth ${depth} operator`"
+        class="compact-select"
+        size="small"
+        :options="booleanOperatorOptions"
+      />
       <NCheckbox v-model:checked="group.negated" class="negate-toggle">
         Not
       </NCheckbox>
@@ -148,15 +155,17 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
           'uses-values': conditionUsesValues(condition.operator),
         }"
       >
-        <NSelect
+        <AccessibleSelect
           :value="condition.field"
+          :accessible-label="`Condition ${index + 1} field`"
           size="small"
           :options="fieldOptions"
           @update:value="(value) => { condition.field = Number(value) as PublicPolicyMatchField; onFieldChange(condition); }"
         />
         <NInput v-if="conditionNeedsName(condition.field)" v-model:value="condition.name" size="small" :placeholder="namePlaceholder(condition)" />
-        <NSelect
+        <AccessibleSelect
           :value="condition.operator"
+          :accessible-label="`Condition ${index + 1} operator`"
           class="operator-select"
           size="small"
           :options="operatorOptions"

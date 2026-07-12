@@ -48,7 +48,9 @@ defineEmits<{
   max-width: 24rem;
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
   text-align: center;
+  text-wrap: pretty;
 }
 </style>
