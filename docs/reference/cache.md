@@ -2,6 +2,8 @@
 
 Cache rules are global public proxy policy rules for public static assets.
 
+In the management UI, choose **Traffic Policy -> Cache**. The Cache tab keeps cache rules in a filterable table and places global **Cache storage & operations** in a separate section below it. The rule table summarizes match and key behavior, TTL and storage, priority and state, and actions; it is not combined with traffic shapers.
+
 ## Exact Fields And Defaults
 
 Cache rules run after route/target selection and before forwarding a cache miss upstream.
@@ -56,13 +58,13 @@ Cache rule matches inspect only request data through CEL `match_rule` rules. Emp
 Route data, target data, target health, and load-balancer state are not available inside cache match CEL. Cache-specific `route_ids` and `target_ids` remain separate filters evaluated after route/target selection.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/cache_settings_section.png" alt="p2pstream cache settings section showing disk, memory, entry, object, and cleanup limits">
-  <figcaption>Global cache settings control storage budgets and cleanup cadence; cache rules decide whether a given public response is eligible for that storage.</figcaption>
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing a filterable cache-rule table plus cache storage enabled, disk MiB, memory MiB, hot-object KiB, maximum entries, cleanup seconds, save, and purge controls">
+  <figcaption>Global cache settings control shared storage budgets and cleanup cadence; cache rules decide whether a given public response is eligible for that storage. Save pending storage changes before navigating away, and treat “Purge all cached objects” as a separate destructive operation.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing CEL match builder, route filters, target filters, TTL mode, query mode, vary headers, cache status codes, and max object bytes">
-  <figcaption>The cache rule editor keeps match criteria separate from post-routing filters and storage controls, which helps avoid accidentally caching dynamic or user-specific responses.</figcaption>
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule drawer showing CEL match builder, route filters, target filters, TTL mode, query mode, vary headers, cache status codes, and maximum object bytes">
+  <figcaption>The cache rule drawer keeps match criteria separate from post-routing filters and storage controls, which helps avoid accidentally caching dynamic or user-specific responses.</figcaption>
 </figure>
 
 ## Runtime Effects

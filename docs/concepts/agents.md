@@ -31,7 +31,7 @@ The tunnel runs Yamux keepalives over the upgraded management connection. If ano
 
 Old WebSocket agents are incompatible with this transport. Keep server and agent versions matched after the Yamux breaking change.
 
-The Agents page shows uptime from management-side connection history. It includes current connected or offline duration, uptime percentage over the observability retention window, connection and disconnect counts, and the newest connection sessions. Uptime is calculated from retained `connections` rows, clipped to the retention window and the agent creation time. If the management server restarts after a crash or forced stop, stale open connection rows are closed at startup so old sessions do not appear active forever.
+The **Agents** page puts enabled offline agents first, then supports search by name, ID, or label and filtering by state. The Fleet tab shows current connected or offline duration, uptime percentage over the observability retention window, connection and disconnect counts, load, and visible **Investigate** and **Edit** actions. Exact identity and selector details are collapsed until needed; lifecycle actions such as enable/disable, rotate, uninstall, and delete live in each row's **More** menu. The Activity tab shows the newest connection sessions and is filtered automatically when **Investigate** is selected. Uptime is calculated from retained `connections` rows, clipped to the retention window and the agent creation time. If the management server restarts after a crash or forced stop, stale open connection rows are closed at startup so old sessions do not appear active forever.
 
 By default, agents reject insecure HTTP management URLs and verify HTTPS certificates. For auto-generated management TLS, pass one of:
 
@@ -40,7 +40,7 @@ By default, agents reject insecure HTTP management URLs and verify HTTPS certifi
 | `MANAGEMENT_CA_FILE` | Path to a PEM CA bundle on the agent host. |
 | `MANAGEMENT_CA_PEM_BASE64` | Base64-encoded PEM CA bundle, useful for generated snippets. |
 
-The Agent Setup dialog can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. The Linux installer downloads the release binary, verifies the checksum, writes `/etc/p2pstream/agent.env`, enables `p2pstream-agent.service`, and restarts it. After token rotation, run the generated Linux reinstall command on the existing agent host so the new token and TLS material are loaded by a fresh process.
+The **Agent Setup** modal can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. The Linux installer downloads the release binary, verifies the checksum, writes `/etc/p2pstream/agent.env`, enables `p2pstream-agent.service`, and restarts it. After token rotation, run the generated Linux reinstall command on the existing agent host so the new token and TLS material are loaded by a fresh process.
 
 If management requires agent client certificates, configure:
 
@@ -64,11 +64,11 @@ AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 - [Systemd uninstall](../operations/systemd#uninstall-agent)
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connection state, uptime, active requests, runtime metrics, token actions, and recent sessions">
-  <figcaption>The Agents page shows connection state, uptime, active requests, runtime metrics, token rotation, enable/disable actions, and recent sessions.</figcaption>
+  <img src="../assets/new/agents_page.png" alt="p2pstream Agents Fleet tab showing attention-first agent rows, fleet metrics, search, state filtering, health, load, and row actions">
+  <figcaption>The Fleet tab puts agents needing attention first and keeps investigation and editing visible while less frequent lifecycle actions remain in the row menu.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream agent editor showing user labels and read-only system labels">
-  <figcaption>The agent editor separates user labels used by route targets from reserved system labels such as the exact-agent selector.</figcaption>
+  <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream Edit Agent drawer showing user labels and read-only system labels">
+  <figcaption>The agent drawer separates user labels used by route targets from reserved system labels such as the exact-agent selector.</figcaption>
 </figure>

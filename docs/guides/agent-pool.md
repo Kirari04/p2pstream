@@ -14,7 +14,7 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
 
 ## Steps
 
-1. Open **Agents** and create one agent per host.
+1. Open **Agents -> Fleet**, select **Add Agent**, and create one agent per host.
 
    | Agent | Suggested label |
    | --- | --- |
@@ -22,21 +22,21 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
    | `home-lab-b` | `site=home-lab` |
    | `workshop` | `site=workshop` |
 
-2. Install each agent with its generated setup command and wait until each shows connected.
+2. In each **Agent Setup** modal, copy and run the generated setup command, then wait until each agent shows connected.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connected, offline, and disabled fixture agents">
-     <figcaption>The Agents page is the pool inventory. Check connection state, uptime, active requests, labels, and recent sessions before routing traffic to an agent-selected target.</figcaption>
+     <img src="../assets/new/agents_page.png" alt="p2pstream Agents Fleet page showing fleet health and a searchable table of connected, offline, and disabled agents">
+     <figcaption>The Fleet page is the pool inventory. Check connection state, uptime, active requests, and selectors here; use the Activity tab for runtime pressure and recent connection sessions.</figcaption>
    </figure>
 
-3. Edit each agent and add user labels. Labels under `p2pstream.io/` are reserved for p2pstream and are shown read-only, but labels such as `site=home-lab`, `region=eu`, or `capacity=large` are operator-owned. Empty label values are allowed, but they should be intentional because they only match empty selector values.
+3. Select **Edit** for each agent and add user labels in the **Edit Agent** drawer. Labels under `p2pstream.io/` are reserved for p2pstream and are shown read-only, but labels such as `site=home-lab`, `region=eu`, or `capacity=large` are operator-owned. Empty label values are allowed, but they should be intentional because they only match empty selector values.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream agent editor showing editable user labels and reserved system labels">
+     <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream Edit Agent drawer showing editable user labels and a read-only exact-agent system label">
      <figcaption>Use shared labels for pools and the reserved exact-agent label only when a route must pin traffic to one specific registered agent.</figcaption>
    </figure>
 
-4. Create or edit a forward route and add an agent proxy target:
+4. Open **Proxy -> Routes**, select **Add Route** or a route's **Edit** action, then add an agent proxy target in the route drawer:
 
    | Field | Value |
    | --- | --- |
@@ -45,15 +45,16 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
    | Transport | Agent |
    | URL | `http://media.local:8096` |
    | Agent selector | `site=home-lab` |
-   | Agent load balancing | Weighted least active requests |
    | Priority group | `0` |
    | Weight | `100` |
    | Enabled | On |
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/proxy_agent_route_target_modal.png" alt="p2pstream route target editor showing an agent selector and agent load-balancing policy">
-     <figcaption>The agent target selector matches all configured labels against the same enabled connected agent, then applies the selected agent load-balancing policy.</figcaption>
+     <img src="../assets/new/proxy_agent_route_target_modal.png" alt="p2pstream Edit Route drawer showing an agent target, label selectors, exact-agent chooser, and live match preview">
+     <figcaption>The route drawer previews how many enabled and connected agents match all selector labels. The Target balancing control above the target governs route-target selection, not selection among agents.</figcaption>
    </figure>
+
+   New agent targets use round-robin selection among matching agents by default. The public configuration API supports additional agent-selection policies; the redesigned route drawer retains an existing policy but does not currently expose a control to change it.
 
 5. Add another target with a higher priority group for failover, if needed:
 
@@ -80,18 +81,18 @@ Old WebSocket agents are incompatible with Yamux-tunnel servers. Upgrade agents 
 
 ## Verification
 
-Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Traffic** tracing to confirm traffic moves across the expected agents. Use **Agents** to check each agent's labels, current uptime, offline duration, connection and disconnect counts, and recent sessions.
+Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Monitor -> Traffic** tracing to confirm traffic moves across the expected agents. Use **Agents -> Fleet** to check labels, current uptime, offline duration, and connection counts; use **Agents -> Activity** for recent connection sessions.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a traced request through route target and agent selection">
-  <figcaption>Traffic tracing shows the route target and agent selected for a request, which is the fastest way to verify that the pool selector and failover groups behave as intended.</figcaption>
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream Monitor Traffic Flow page showing traced requests across listeners, policy, routes, targets, an agent, and upstreams">
+  <figcaption>Monitor traffic tracing shows the route target and agent selected for a request, which is the fastest way to verify that the pool selector and failover groups behave as intended.</figcaption>
 </figure>
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
-| One agent receives too much traffic | Review target agent load-balancing policy and labels. |
+| One agent receives too much traffic | Review selector labels and the target's API-configured agent load-balancing policy. |
 | Requests fail from one site | Test the target URL from that agent host. |
 | Agent is skipped | Confirm it is enabled, connected, label-matched, and healthy when health checks are on. |
 | Agent disconnects while idle | Check management reverse-proxy HTTP/1.1 upgrade support and idle timeout for `p2pstream-yamux`. |

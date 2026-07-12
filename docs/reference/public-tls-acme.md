@@ -2,6 +2,8 @@
 
 Public TLS is configured per HTTPS listener with certificate mappings.
 
+In the management UI, choose **TLS** under **Configure**. Create an HTTPS listener under **Proxy -> Listeners** first, then choose **Add Certificate**. The TLS page separates certificate mappings from reusable DNS credentials and shows summary counts for HTTPS listeners, mappings, certificate errors, and DNS credentials.
+
 ## Exact Fields And Defaults
 
 Mappings include:
@@ -15,7 +17,7 @@ Mappings include:
 
 Hostname patterns support exact names and wildcards such as `*.example.com`.
 
-Manual source accepts uploaded PEM certificate/key, server file paths, or GUI-generated self-signed material. ACME source supports:
+The management UI's Manual method accepts uploaded PEM certificate/key material or generates a self-signed certificate. The management API also supports server file paths. ACME methods support:
 
 | Setting | Values |
 | --- | --- |
@@ -47,13 +49,13 @@ Uploaded and generated public certificate material is written under `${CONFIG_DI
 
 For ready ACME certificates, `next_renewal_at` is the next planned renewal time. For failed ACME certificates, `next_renewal_at` is the next automatic retry time. While a renewal is running, the next schedule is cleared until the attempt succeeds or fails.
 
-The management UI shows certificate validity when metadata is stored or the certificate file can be parsed. For ACME certificates it also shows the last attempt time, the next renewal or retry time, and the last error.
+The certificate table uses **Mapping**, **Certificate**, **Status**, and **Lifecycle** columns. It shows validity when metadata is stored or the certificate file can be parsed. For ACME certificates it also shows the last attempt time, the next renewal or retry time, the DNS credential when applicable, and the last error. Row actions renew ACME certificates, edit mappings, or delete mappings. The separate DNS Credentials table shows provider, zone ID, enabled/disabled state, and whether the secret is saved.
 
 Server logs for ACME use `component=public_acme`. Renewal entries include fields such as `cert_id`, `listener_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `expires_at`, `next_renewal_at`, and `retry_at`. Challenge tokens, DNS TXT values, DNS API tokens, and private key material are not logged.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing certificate mappings, ACME challenge type, status, renewal time, and DNS credentials">
-  <figcaption>The TLS page is the operational view for ACME status, manual certificate mappings, DNS credentials, and renewal details.</figcaption>
+  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing HTTPS listener and certificate summary cards, certificate mappings with status and lifecycle, ACME errors and retry actions, and a separate DNS credentials table">
+  <figcaption>The TLS page is the operational view for ACME status, manual certificate mappings, DNS credentials, renewal details, and certificate errors that need attention.</figcaption>
 </figure>
 
 ## Examples
@@ -77,17 +79,17 @@ DNS credential: cloudflare-example
 ```
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream TLS certificate mapping modal showing HTTP-01 ACME settings">
-  <figcaption>The HTTP-01 and TLS-ALPN-01 mapping form selects the listener, hostname pattern, ACME CA, validation method, account email, and enabled state.</figcaption>
+  <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream Edit TLS Mapping drawer showing HTTP-01 selected plus Manual, TLS-ALPN, and DNS-01 methods, listener, hostname, ACME email, CA environment, and enabled state">
+  <figcaption>The HTTP-01 and TLS-ALPN mapping form selects the listener, hostname pattern, ACME CA, validation method, account email, and enabled state.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/tls_dns_credential_modal.png" alt="p2pstream DNS credential editor showing a Cloudflare credential used for ACME DNS-01">
-  <figcaption>DNS credentials are stored separately from certificate mappings so multiple DNS-01 mappings can reuse the same Cloudflare zone credential without exposing the secret in the UI.</figcaption>
+  <img src="../assets/new/tls_dns_credential_modal.png" alt="p2pstream Edit DNS Credential drawer showing credential name, Cloudflare zone ID, saved API-token state, and enabled state">
+  <figcaption>DNS credentials are stored separately from certificate mappings so multiple DNS-01 mappings can reuse the same Cloudflare zone credential without exposing a saved secret in the UI.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream TLS certificate mapping modal showing DNS-01 challenge with Cloudflare">
+  <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream Edit TLS Mapping drawer showing DNS-01 selected with a saved Cloudflare credential">
   <figcaption>The DNS-01 mapping form uses the saved Cloudflare credential and is the required ACME path for wildcard hostnames.</figcaption>
 </figure>
 

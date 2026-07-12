@@ -13,7 +13,7 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
 
 ## Steps
 
-1. To redirect a whole host, open **Proxy -> Routes** and create:
+1. To redirect a whole host, open **Proxy -> Routes**, select **Add Route**, and create:
 
    | Field | Value |
    | --- | --- |
@@ -22,9 +22,10 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | Host pattern | `old.example.com` |
    | Path prefix | `/` |
    | Action | Redirect |
-   | Redirect mode | External origin keep path |
-   | Redirect target | `https://new.example.com` |
+   | Mode | External origin |
+   | Target | `https://new.example.com` |
    | Status | `308` |
+   | Preserve path suffix | On |
    | Preserve query | On |
 
    This sends:
@@ -34,8 +35,8 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    ```
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/proxy_redirect_route_modal.png" alt="p2pstream route editor showing an external redirect route with status and query preservation">
-     <figcaption>The redirect route editor keeps redirect mode, target, status code, path suffix preservation, and query handling with the route match that triggers it.</figcaption>
+     <img src="../assets/new/proxy_redirect_route_modal.png" alt="p2pstream Edit Route drawer showing an external-origin redirect with status, path-suffix, and query controls">
+     <figcaption>The route drawer keeps redirect mode, target, status code, path-suffix preservation, and query handling with the match that triggers it.</figcaption>
    </figure>
 
 2. To redirect a path on the same host, use same-host path mode:
@@ -44,30 +45,29 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | --- | --- |
    | Host pattern | `app.example.com` |
    | Path prefix | `/old` |
-   | Redirect mode | Same host path |
-   | Redirect target | `/new` |
+   | Mode | Same host path |
+   | Target | `/new` |
    | Status | `302` |
 
-3. To serve a static maintenance response, open the matching route in **Proxy** and add a static target:
+3. To serve a static maintenance response, open the matching route's **Edit** action under **Proxy -> Routes**, then select **Add Target** and configure a static target:
 
    | Field | Value |
    | --- | --- |
    | Name | `maintenance` |
    | Type | Static |
-   | Status code | `503` |
-   | Body source | Inline |
-   | Response body | `Maintenance in progress` |
-   | Header | `Retry-After: 300` |
+   | Status | `503` |
+   | Body | `Maintenance in progress` |
+   | Enabled | On |
 
-   For reusable HTML maintenance pages, first open **Templates**, create a **Generic body** template, then set the static target body source to **Template** and select it. Keep response headers, especially `Content-Type`, on the static target.
+   Static targets also support reusable **Generic body** templates and response headers such as `Content-Type` and `Retry-After` through the public configuration API. The redesigned route drawer retains existing template and header values but currently exposes only the inline **Body** control. Create reusable bodies under **Templates**, then use the management API when you need to attach one or configure static-response headers until those drawer controls are restored.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/proxy_static_response_target_modal.png" alt="p2pstream route target editor showing a static response backed by a response template">
-     <figcaption>The static response target returns directly from p2pstream. Use it for deliberate local responses such as maintenance pages, probes, or temporary sink routes.</figcaption>
+     <img src="../assets/new/proxy_static_response_target_modal.png" alt="p2pstream Edit Route drawer showing a static target with status, inline body, weight, priority group, and enabled controls">
+     <figcaption>A static target returns directly from p2pstream. The visible route drawer controls its status and inline body for deliberate local responses such as maintenance pages, probes, or temporary sink routes.</figcaption>
    </figure>
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/edit_template_modal.png" alt="p2pstream generic response template editor showing template name, kind, content type, body, and preview">
+     <img src="../assets/new/edit_template_modal.png" alt="p2pstream Edit Response Template drawer showing a generic-body template editor and sandboxed preview">
      <figcaption>Generic response templates centralize reusable bodies for static targets, rate-limit responses, and WAF block responses while each caller keeps control of status and headers.</figcaption>
    </figure>
 
@@ -98,7 +98,7 @@ Redirect routes should return `301`, `302`, `307`, or `308`. Static routes shoul
 | Redirect target rejected | Same-host targets must be root-relative paths; external-origin targets must be HTTP/HTTPS origins. |
 | Wrong route wins | Lower priority numbers run first. |
 | Static route affects all traffic | Narrow host/path match or disable the route after maintenance. |
-| Template option rejected | Static targets can only use generic body templates. |
+| API-configured template rejected | Static targets can only use generic body templates. |
 
 ## Next Steps
 

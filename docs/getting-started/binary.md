@@ -63,7 +63,7 @@ p2pstream agent \
   --agent-token ...
 ```
 
-Most agent installs should still use the generated **Agents** setup command so the ID, token, URL, and CA material match the registered agent.
+Most agent installs should still use the command from the **Agent Setup** modal opened from **Agents** so the ID, token, URL, and CA material match the registered agent.
 
 The release archive includes `LICENSE`, `NOTICE`, `SOURCE.txt`, and third-party notices under `third-party/`.
 
@@ -75,7 +75,7 @@ Open:
 https://proxy.example.com:8081
 ```
 
-Then confirm **Overview** loads and **Proxy** shows any configured listeners. If you run systemd, verify:
+Then confirm **Overview** loads and **Proxy -> Listeners** shows any configured listeners. If you run systemd, verify:
 
 <figure class="doc-screenshot">
   <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen shown on a fresh binary installation before the first user exists">

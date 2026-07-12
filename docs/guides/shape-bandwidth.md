@@ -9,15 +9,15 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
 ## Prerequisites
 
 - A host/path/method match that isolates the traffic to slow.
-- A byte-per-second budget for upload, download, or both.
+- A throughput budget in KiB/s for upload, download, or both.
 
 ## Steps
 
-1. Open **Traffic Policy -> Traffic Shapers** and create a rule.
+1. Open **Traffic Policy -> Traffic Shaper** and select **Add Traffic Shaper**.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shapers">
-     <figcaption>The Cache and Traffic Shapers sections sit together because both act after early deny policies and before or during route target forwarding.</figcaption>
+     <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper page showing its separate tab, rule filters, and compact rule table">
+     <figcaption>Traffic Shaper and Cache are separate Traffic Policy tabs. The execution-order strip shows shaping before route resolution and cache after route-target selection.</figcaption>
    </figure>
 
 2. Match the traffic. Example for a downloads path:
@@ -40,36 +40,36 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
 
    For public downloads, use per key and key by remote IP. For one-off large imports, per request may be simpler.
 
-4. Set byte rates:
+4. Set the KiB budgets:
 
    | Field | Value |
    | --- | --- |
-   | Download bytes per second | `1048576` |
-   | Upload bytes per second | `0` |
-   | Burst bytes | `2097152` |
-   | Request exempt bytes | `0` |
-   | Response exempt bytes | `65536` |
+   | Download KiB/s | `1024` |
+   | Upload KiB/s | `0` |
+   | Burst KiB | `2048` |
+   | Request free KiB | `0` |
+   | Response free KiB | `64` |
 
-   `0` means unlimited for upload or download rates.
+   `0` means unlimited for an upload or download rate. Free KiB are sent without delay and do not consume the shaper budget.
 
-   :::info Burst bytes
-   Burst allows a connection to temporarily exceed the configured byte-per-second rate by up to this many bytes before the token bucket enforces the limit. Use it to absorb the initial burst of a download without throttling the entire transfer from byte one. Set to `0` to disable burst.
+   :::info Burst KiB
+   Burst allows a connection to temporarily exceed the configured rate by up to this many KiB before the token bucket enforces the limit. Use it to absorb the initial burst of a download without throttling the entire transfer from byte one. Set it to `0` to disable burst.
    :::
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper editor showing request match, budget scope, key parts, upload and download byte rates, burst, and exempt bytes">
-  <figcaption>The traffic shaper editor defines which requests are slowed, whether budgets are shared per key or per request, and how much upload or download throughput is available.</figcaption>
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream Edit Traffic Shaper drawer showing per-key scope, KiB bandwidth budgets, CEL match, and key parts">
+  <figcaption>The traffic-shaper drawer defines which requests are slowed, whether budgets are shared per key or per request, and the upload, download, burst, and free-data amounts in KiB.</figcaption>
 </figure>
 
 ## Verification
 
-Download a large matching file and watch transfer speed. Use **Traffic** tracing to confirm the shaper rule is selected.
+Download a large matching file and watch transfer speed. Use **Monitor -> Traffic** tracing to confirm the shaper rule is selected.
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
-| Small responses appear unshaped | They may finish inside exempt bytes or before the rate is visible. |
+| Small responses appear unshaped | They may fit within the configured free KiB or finish before the rate is visible. |
 | Clients share bandwidth unexpectedly | Review key parts and budget scope. |
 | Rule does not match | Confirm host, path, protocol, method, and priority. |
 

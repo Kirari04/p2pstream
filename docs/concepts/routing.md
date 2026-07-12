@@ -50,13 +50,13 @@ Use **Allow encoded separators** only for routes whose upstream requires encoded
 | Absolute URL | `https://new.example.com/docs` | Redirects to the exact URL, with optional path/query preservation. |
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route editor showing host and path match fields, route action, targets, and priority">
-  <figcaption>The route editor shows the match, action, route targets, priority groups, and route priority in one place. Use it to verify that specific rules run before broad fallback routes.</figcaption>
+  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream Edit Route drawer showing host and path match fields, route action, targets, and priority">
+  <figcaption>The route drawer shows the match, action, route targets, priority groups, and route priority in one place. Use it to verify that specific rules run before broad fallback routes.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing route cards with listener, host pattern, path prefix, priority, and route targets">
-  <figcaption>The route list shows how saved routes are ordered and which targets they can select for matching requests.</figcaption>
+  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy Routes table showing listener and match, action and target summary, priority, state, and row actions">
+  <figcaption>The compact Routes table keeps each request match beside its action and target summary, with priority, state, and edit, clone, and delete actions aligned per row.</figcaption>
 </figure>
 
 ## Common Mistakes

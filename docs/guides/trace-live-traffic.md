@@ -1,6 +1,6 @@
 # Trace Live Traffic
 
-Use the Traffic page to see how a live request moves through listeners, WAF, rate limits, shapers, routes, targets, cache, agents, origin connections, and responses.
+Use **Monitor -> Traffic** to see how a live request moves through listeners, WAF, rate limits, shapers, routes, targets, cache, agents, origin connections, and responses.
 
 ## Use This When
 
@@ -14,7 +14,7 @@ Use tracing while diagnosing why a request did not match a route, hit a target, 
 
 ## Steps
 
-1. Open **Traffic**.
+1. Open **Monitor -> Traffic**.
 2. Enable **Tracing**.
 3. Select a level:
 
@@ -35,16 +35,16 @@ Use tracing while diagnosing why a request did not match a route, hit a target, 
    curl -v https://app.example.com/api/health
    ```
 
-5. Select the request in **Traffic Flow** and inspect stages and details.
+5. Select the request in **Recent traces** to open the **Trace details** drawer and inspect its outcome, resolved flow, lifecycle, and policy decisions. You can also select an active request token in the flow diagram.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow dashboard with tracing enabled and a rendered request path through policy, routing, cache, agents, and upstreams">
-  <figcaption>With tracing enabled, the Traffic view shows how sampled requests move through policy, routing, target selection, cache decisions, agents, upstreams, and responses.</figcaption>
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream Monitor Traffic Flow page with Detailed tracing enabled and request paths rendered across policy, routing, agents, and upstreams">
+  <figcaption>With Tracing enabled, Monitor's Traffic Flow view renders sampled requests across policy, routing, target selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, selected route target, cache status, headers, and response metadata">
-  <figcaption>Select a traced request to inspect the exact stages, timings, policy outcomes, route and target choices, cache decision, and response details behind the rendered path.</figcaption>
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream Trace details drawer showing request outcome, resolved flow, retained lifecycle, and policy decisions">
+  <figcaption>Select a recent trace to inspect the request outcome, exact listener, route and target choices, retained lifecycle, policy decisions, and progressively disclosed request or capture details.</figcaption>
 </figure>
 
 ## Runtime Effects
@@ -55,7 +55,7 @@ Common stages include received, WAF evaluated, rate limited, route resolved, tar
 
 ## Verification
 
-A matching request should appear in **Traffic Flow** shortly after you reproduce it. Cache is shown as a decision gateway after target selection: hits exit to response, misses and bypasses continue to the direct upstream or selected agent.
+A matching request should appear in **Recent traces** shortly after you reproduce it, while its activity is reflected in **Traffic Flow**. Cache is shown as a decision gateway after target selection: hits exit to response, while misses and bypasses continue to the direct upstream or selected agent.
 
 ## Troubleshooting
 

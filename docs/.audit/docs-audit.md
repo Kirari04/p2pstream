@@ -2,7 +2,29 @@
 
 Date: 2026-05-16
 
+Management UI follow-up: 2026-07-12
+
 Source of truth: current repo code, tests, proto, Compose, scripts, and management UI. Generated VitePress output, cache, and `node_modules` are not source truth.
+
+## Management UI Redesign Follow-Up
+
+The follow-up reviewed all 47 tracked user-facing Markdown pages against the redesigned management navigation, current Vue views and editors, and the regenerated screenshot set. It covered the Observe/Configure/System sidebar groups, Monitor Traffic and Diagnostics, Proxy Routes and Listeners, Agents Fleet and Activity, each Traffic Policy tab, Templates, TLS, Environments, and API Tokens.
+
+The pass updates task paths, button and field labels, table and drawer descriptions, screenshot alternative text and captions, and troubleshooting links. Runtime and API behavior remains documented even when a control is not currently visible in the management UI.
+
+One UI/runtime discrepancy remains visible and is called out accurately in the user-facing docs:
+
+- The route drawer preserves but does not render controls for upstream headers, upstream basic authentication, target health checks, agent-specific load balancing, or static response headers and template bodies. Those capabilities remain available through the management API.
+
+The follow-up also makes the complete certificate fingerprint visible in the trust confirmation and locks response-template kind after creation, matching the server-side trust and immutability rules.
+
+Follow-up validation:
+
+- VitePress built all 46 published content pages and generated `llms.txt`, `llms-full.txt`, and the sitemap.
+- All 113 static relative image references resolve, and the 36-entry screenshot catalog contains 36 unique existing assets.
+- The two corrected UI screenshots were regenerated with the bounded Playwright documentation workflow.
+- All 166 management UI unit tests, Vue type checking, and the production UI build passed.
+- `git diff --check` and the stale management-copy sweep passed.
 
 ## Baseline
 

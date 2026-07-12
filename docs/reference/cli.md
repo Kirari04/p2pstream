@@ -63,7 +63,7 @@ p2pstream agent [flags]
 
 `users reset-password` updates the configured SQLite database directly and revokes active sessions for that user. Run it where the same `CONFIG_DIR` or `DATABASE_URL` is available.
 
-If no management URL is provided to the agent, it guesses `https://<local-route-ip>:8081`; production agents should use an explicit URL from the Agent Setup dialog.
+If no management URL is provided to the agent, it guesses `https://<local-route-ip>:8081`; production agents should use the explicit URL from the **Agent Setup** modal opened from **Agents**.
 
 ## Examples
 

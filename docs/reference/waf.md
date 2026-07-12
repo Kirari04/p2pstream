@@ -2,6 +2,8 @@
 
 WAF rules are global public proxy rules evaluated before rate limits, traffic shapers, route resolution, and target forwarding.
 
+In the management UI, choose **Traffic Policy -> WAF**. The WAF tab contains separate dense tables for WAF rules and captcha providers, a text and enabled-state filter for rules, and the **Visitor identity & GeoIP** settings below them. The shared **Request Tester** can supply a synthetic country result to preview geographic targeting without sending a request through a public listener.
+
 ## Exact Fields And Defaults
 
 Reserved WAF endpoints:
@@ -62,16 +64,16 @@ Automatic activation defaults:
 
 ## Validation Rules
 
-Captcha providers are created under **Traffic Policy -> WAF** and support Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and not sent back to the UI after creation. Captcha rules require an enabled provider.
+Choose **Add Captcha Provider** under **Traffic Policy -> WAF** to configure Cloudflare Turnstile, hCaptcha, or Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and represented only as saved/not-saved state after creation; they are not sent back to the UI. Captcha rules require an enabled provider.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider editor showing provider type, site key, secret key saved state, and enabled state">
-  <figcaption>The captcha provider editor stores the provider credentials used by captcha WAF rules. Saved secret keys are represented by state, not echoed back in full.</figcaption>
+  <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider drawer showing provider type, site key, secret key saved state, and enabled state">
+  <figcaption>The captcha provider drawer stores the credentials used by captcha WAF rules. Saved secret keys are represented by state, not echoed back in full.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF section showing WAF rules, actions, activation modes, captcha providers, and rate limits">
-  <figcaption>The Traffic Policy page keeps WAF rules near rate limits so admins can see which early policy layer will act before route resolution.</figcaption>
+  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF tab showing a filterable WAF rule table, captcha providers, policy counts, execution order, Request Tester, and Visitor identity and GeoIP settings">
+  <figcaption>The dedicated WAF tab keeps rules and captcha providers in separate compact tables. Policy counts and the execution-order strip show where WAF acts relative to the other policy tabs.</figcaption>
 </figure>
 
 Block response template mode requires a selected `generic_body` response template.
@@ -107,14 +109,15 @@ Automatic trigger thresholds accept `0` to disable individual signals. CPU perce
 
 ## Country Restrictions
 
-Country restrictions use an automatically refreshed local MaxMind GeoLite2 Country database. They are disabled until an administrator supplies a MaxMind account ID and license key and enables GeoIP under **Traffic Policy -> WAF -> Visitor identity & GeoIP**. Database credentials are stored server-side and the license key is never returned by the management API.
+Country restrictions use an automatically refreshed local MaxMind GeoLite2 Country database. They are disabled until an administrator supplies a MaxMind account ID and license key and enables GeoIP under **Traffic Policy -> WAF**, in **Visitor identity & GeoIP**. Database credentials are stored server-side and the license key is never returned by the management API.
 
 ### Set Up GeoLite2 Country
 
 1. [Create a free GeoLite account](https://www.maxmind.com/en/geolite2/signup) and accept the terms that apply to your use.
 2. [Generate a MaxMind license key](https://support.maxmind.com/knowledge-base/articles/generate-a-maxmind-license-key). Record it when it is shown; MaxMind displays a new key only once.
-3. Enter the numeric account ID and license key in **Visitor identity & GeoIP**, enable GeoIP, and save. The first database download must succeed before an enabled geo-targeted WAF rule can be saved.
-4. Monitor the build date, last successful refresh, and error shown in the UI. p2pstream checks hourly and refreshes a ready database after 24 hours; failed downloads leave the last valid database active.
+3. Enter the numeric account ID and license key in **Visitor identity & GeoIP**, select **Enable GeoIP country lookups**, and choose **Save GeoIP settings**. Saving enabled settings performs the initial database download; the save fails if no usable database can be installed.
+4. Monitor database state, build date, last successful refresh, last attempt, and any error shown in the UI. p2pstream checks hourly and refreshes a ready database after 24 hours; failed downloads leave the last valid database active.
+5. Use **Refresh database** only when you need to force a later refresh. Pending form changes must be saved or discarded first.
 
 Permit outbound HTTPS to `download.maxmind.com` and MaxMind's current presigned-download host. MaxMind documents that host and its redirect behavior in [Updating GeoIP and GeoLite Databases](https://dev.maxmind.com/geoip/updating-databases/).
 
@@ -164,8 +167,8 @@ If the immediate peer is not trusted, forwarding headers never affect request id
 Application-level proxy trust does not prevent an attacker from reaching an exposed origin directly. Restrict the origin firewall to the selected CDN ranges whenever the deployment requires all traffic to traverse that CDN.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_waf_modal.png" alt="p2pstream WAF rule editor showing match builder, action, activation mode, response template, captcha, and waiting-room settings">
-  <figcaption>The WAF editor combines match rules, key parts, action settings, custom responses, captcha provider selection, and waiting-room automation thresholds.</figcaption>
+  <img src="../assets/new/edit_waf_modal.png" alt="p2pstream WAF rule drawer showing match builder, geographic targeting, action, activation mode, key parts, response template, captcha, and waiting-room settings">
+  <figcaption>The WAF rule drawer combines match rules, optional country targeting, key parts, action settings, custom responses, captcha provider selection, and waiting-room automation thresholds.</figcaption>
 </figure>
 
 ## Runtime Effects

@@ -42,14 +42,16 @@ ACME challenges:
 
 If no configured certificate matches a public hostname, the HTTPS listener can serve a fallback self-signed certificate. Treat that as a public deployment failure.
 
+The **TLS** page summarizes HTTPS listeners, configured certificates, certificate errors, and DNS credentials before the detail tables. Certificate rows keep mapping, challenge or certificate type, readiness, validity or retry metadata, and row actions together; ACME errors remain directly below the affected mapping.
+
 <figure class="doc-screenshot">
-  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing public certificate mappings, ACME status, DNS credentials, and certificate details">
-  <figcaption>The TLS page shows certificate mappings per HTTPS listener, their issuance status, renewal metadata, and DNS credentials used for DNS-01 validation.</figcaption>
+  <img src="../assets/new/tls_page.png" alt="p2pstream TLS page showing summary metrics, compact certificate and DNS credential tables, ACME errors, and lifecycle actions">
+  <figcaption>The TLS page keeps certificate mappings, issuance state, validity or retry metadata, actionable ACME errors, and DNS credentials visible without expanding every record.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream TLS certificate mapping modal showing DNS-01 challenge with a Cloudflare credential">
-  <figcaption>DNS-01 mappings attach wildcard-capable ACME validation to a saved DNS credential, which is separate from the HTTPS listener that serves the resulting certificate.</figcaption>
+  <img src="../assets/new/tls_dnschallenge_cloudflare_modal.png" alt="p2pstream Edit TLS Mapping drawer showing DNS-01 with a wildcard hostname and saved Cloudflare credential">
+  <figcaption>The DNS-01 mapping drawer attaches wildcard-capable ACME validation to a saved DNS credential, which is separate from the HTTPS listener that serves the resulting certificate.</figcaption>
 </figure>
 
 ## Common Mistakes

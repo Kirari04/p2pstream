@@ -195,8 +195,10 @@ defineExpose({ openCreate, openEdit, close });
             accessible-label="Response template kind"
             size="small"
             :options="kindOptions"
+            :disabled="Boolean(form.id)"
             @update:value="applyKind(Number($event) as PublicResponseTemplateKind)"
           />
+          <span v-if="form.id" class="normal-text letter-normal">Kind cannot be changed after creation.</span>
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Description

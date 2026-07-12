@@ -28,7 +28,7 @@ docker compose restart p2pstream
 3. On **Setup Admin**, create the primary administrator account.
 4. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
 5. Use a password with at least 12 characters.
-6. Log in and open **Overview**, then **Proxy** when you are ready to create listeners, routes, and route targets.
+6. Log in and open **Overview**, then use **Proxy -> Listeners** and **Proxy -> Routes** when you are ready to create public endpoints, routes, and route targets.
 
 ## Runtime Rules
 
@@ -42,7 +42,11 @@ docker compose restart p2pstream
 
 ## Verification
 
-After login, the **Overview** dashboard should load with live proxy status, request totals, traffic trends, and the main navigation for **Overview**, **Traffic**, **Proxy**, **Agents**, **Traffic Policy**, **Templates**, **TLS**, and **Settings**.
+After login, the **Overview** dashboard should load with live proxy status, request totals, and traffic trends. The sidebar is grouped as follows:
+
+- **Observe**: **Overview** and **Monitor**, with **Traffic** and **Diagnostics** under Monitor.
+- **Configure**: **Proxy**, with **Routes** and **Listeners**, plus **Agents**, **Traffic Policy**, **Templates**, and **TLS**. Traffic Policy contains separate **Rate Limits**, **WAF**, **Cache**, and **Traffic Shaper** tabs.
+- **System**: **Environments** and **API Tokens**.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen showing setup token, username, password, and confirm password fields">

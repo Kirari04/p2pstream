@@ -52,7 +52,7 @@ ports:
 
 - Docker only publishes what Compose maps; creating a listener in the UI does not create a new host mapping.
 - The application does not read a `PORT` environment variable for public listeners.
-- Public listener ports are stored in SQLite and managed through **Proxy**.
+- Public listener ports are stored in SQLite and managed through **Proxy -> Listeners**.
 - Use a pinned release tag instead of `latest` when repeatability matters.
 - Treat `staging` as mutable. It follows the current `staging` branch and can change before the final release.
 - Treat `nightly` as unstable. It follows the current `dev` branch and can change without a release note.

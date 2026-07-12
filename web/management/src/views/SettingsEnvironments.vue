@@ -747,7 +747,7 @@ function handleTrustModalUpdate(show: boolean) {
             <div class="layout-grid space-2xs">
               <p class="copy-xs weight-medium label-case letter-wide muted-text">SHA-256 Fingerprint</p>
               <code
-                class="flow-box max-full clip-text round-md framed frame-standard panel-bg pad-x-md pad-y-sm mono-text copy-xs label-case letter-wide base-text"
+                class="flow-box max-full wrap-anywhere round-md framed frame-standard panel-bg pad-x-md pad-y-sm mono-text copy-xs line-relaxed label-case letter-wide base-text"
                 :title="certificateTrustFingerprint"
               >
                 {{ formatFullFingerprint(certificateTrustFingerprint) }}
