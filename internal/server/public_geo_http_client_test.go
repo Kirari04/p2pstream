@@ -79,7 +79,9 @@ func TestMaxMindHTTPClientRejectsHTTPSDowngrade(t *testing.T) {
 	defer origin.Close()
 
 	client := maxMindTestHTTPClient()
-	if _, err := client.Get(origin.URL); err == nil {
+	resp, err := client.Get(origin.URL)
+	if err == nil {
+		_ = resp.Body.Close()
 		t.Fatal("HTTPS-to-HTTP redirect was accepted")
 	}
 	if got := insecureDestinationHits.Load(); got != 0 {
@@ -97,7 +99,9 @@ func TestMaxMindHTTPClientCapsRedirectHops(t *testing.T) {
 	defer server.Close()
 
 	client := maxMindTestHTTPClient()
-	if _, err := client.Get(server.URL); err == nil {
+	resp, err := client.Get(server.URL)
+	if err == nil {
+		_ = resp.Body.Close()
 		t.Fatal("unbounded redirect chain was accepted")
 	}
 	if got := requests.Load(); got != maxPublicGeoDownloadRedirects {

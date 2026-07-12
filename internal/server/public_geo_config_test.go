@@ -24,6 +24,7 @@ type testPublicGeoConfigRefresher struct {
 	providerCIDRs   map[TrustedProxyProvider][]netip.Prefix
 	providerErr     error
 	geoRefreshCalls int
+	geoRefreshCheck func(context.Context, string, string) error
 }
 
 type testInfoOnlyGeoRefresher struct {
@@ -42,8 +43,13 @@ func (r *testInfoOnlyGeoRefresher) GeoIPInfo() (GeoIPCountryDatabaseInfo, bool) 
 	return r.info, true
 }
 
-func (r *testPublicGeoConfigRefresher) RefreshGeoIPDatabase(context.Context, string, string) (PublicGeoIPDatabaseInfo, error) {
+func (r *testPublicGeoConfigRefresher) RefreshGeoIPDatabase(ctx context.Context, accountID, licenseKey string) (PublicGeoIPDatabaseInfo, error) {
 	r.geoRefreshCalls++
+	if r.geoRefreshCheck != nil {
+		if err := r.geoRefreshCheck(ctx, accountID, licenseKey); err != nil {
+			return PublicGeoIPDatabaseInfo{}, err
+		}
+	}
 	return r.geoInfo, r.geoErr
 }
 
@@ -124,6 +130,42 @@ func TestPublicGeoIPSettingsSecretMutationAndRedaction(t *testing.T) {
 	stored, _ = app.DB.GetPublicGeoIpSettings(ctx)
 	if stored.MaxmindLicenseKey != "replacement-secret" {
 		t.Fatalf("replacement secret = %q", stored.MaxmindLicenseKey)
+	}
+}
+
+func TestPublicGeoIPSettingsPersistBeforeRefresh(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	adminHeader := createTestAdminSession(t, app)
+	const accountID = "123456789"
+	const licenseKey = "persisted-before-refresh"
+	app.GeoConfigRefresher = &testPublicGeoConfigRefresher{
+		geoInfo: PublicGeoIPDatabaseInfo{
+			DatabaseType: "GeoLite2-Country",
+			BuildAt:      time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+		},
+		geoRefreshCheck: func(refreshCtx context.Context, gotAccountID, gotLicenseKey string) error {
+			stored, err := app.DB.GetPublicGeoIpSettings(refreshCtx)
+			if err != nil {
+				return err
+			}
+			if stored.Enabled != 1 || stored.MaxmindAccountID != accountID || stored.MaxmindLicenseKey != licenseKey {
+				return fmt.Errorf("settings at refresh = enabled:%d account:%q key:%q", stored.Enabled, stored.MaxmindAccountID, stored.MaxmindLicenseKey)
+			}
+			if gotAccountID != accountID || gotLicenseKey != licenseKey {
+				return fmt.Errorf("refresh credentials = account:%q key:%q", gotAccountID, gotLicenseKey)
+			}
+			return nil
+		},
+	}
+	req := connect.NewRequest(&p2pstreamv1.UpdatePublicGeoIpSettingsRequest{
+		Enabled:           true,
+		MaxmindAccountId:  accountID,
+		MaxmindLicenseKey: licenseKey,
+	})
+	req.Header().Set("Cookie", adminHeader.Get("Cookie"))
+	if _, err := app.UpdatePublicGeoIpSettings(ctx, req); err != nil {
+		t.Fatalf("enable GeoIP: %v", err)
 	}
 }
 

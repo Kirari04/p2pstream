@@ -380,18 +380,16 @@ func (a *App) UpdatePublicGeoIpSettings(ctx context.Context, req *connect.Reques
 			return nil, err
 		}
 	}
+	row, err := a.DB.UpdatePublicGeoIpSettings(ctx, params)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
 	var refreshInfo PublicGeoIPDatabaseInfo
 	if needsRefresh {
 		refreshInfo, err = a.performPublicGeoIPRefresh(ctx, params.MaxmindAccountID, params.MaxmindLicenseKey)
 		if err != nil {
 			return nil, err
 		}
-	}
-	row, err := a.DB.UpdatePublicGeoIpSettings(ctx, params)
-	if err != nil {
-		return nil, publicDBError(err)
-	}
-	if needsRefresh {
 		now := time.Now().UTC()
 		row, err = a.DB.SetPublicGeoIpUpdateSuccess(ctx, db.SetPublicGeoIpUpdateSuccessParams{
 			DatabaseType:        refreshInfo.DatabaseType,

@@ -166,9 +166,21 @@ async function runManagementAction(action: () => Promise<void>, successMessage?:
       await loadDashboard();
       throw actionError;
     }
-    // Do not show a success state until the authoritative configuration can be
-    // read back. Automatic polling keeps its existing non-throwing behavior.
-    await loadDashboard({ propagateError: true });
+    // The mutation has already succeeded. A failed authoritative read-back
+    // must not be reported as a failed mutation because retrying could create
+    // duplicate resources or repeat an expensive operation.
+    try {
+      await loadDashboard({ propagateError: true });
+    } catch (refreshError) {
+      const refreshMessage = messageFromError(refreshError);
+      error.value = refreshMessage;
+      notification.warning({
+        title: "Change saved; refresh failed",
+        content: "The change was accepted, but the latest configuration could not be loaded. Refresh before retrying.",
+        duration: 7000,
+      });
+      return true;
+    }
     if (successMessage) {
       message.success(successMessage);
     }
