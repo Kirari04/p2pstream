@@ -48,7 +48,7 @@ Byte rates and exempt bytes must be non-negative. Use realistic rates so operati
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper drawer showing match builder, budget scope, key parts, byte-per-second limits, burst bytes, and exempt byte settings">
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper drawer showing match builder, budget scope, key parts, KiB bandwidth limits, burst KiB, and free KiB settings">
   <figcaption>The shaper drawer configures the selected stream limits and the key used to share or isolate those limits across matching requests.</figcaption>
 </figure>
 

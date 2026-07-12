@@ -73,8 +73,8 @@ After upgrade:
 - Management UI loads.
 - **Overview** shows proxy running.
 - Expected listeners are running under **Proxy → Listeners**.
-- Enabled agents reconnect under **Agents → Fleet**.
-- ACME certificate statuses are ready under **TLS**.
+- If agents are configured, enabled agents reconnect under **Agents → Fleet**.
+- If ACME is used, certificate statuses are ready under **TLS**.
 - A test request succeeds for each important hostname.
 
 ## Troubleshooting

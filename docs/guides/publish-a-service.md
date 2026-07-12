@@ -36,7 +36,7 @@ Example:
 
    | Field | Value |
    | --- | --- |
-   | Listener | `public-https` |
+   | Listener | HTTPS listener retained or created in step 1 (`public-https` on a default install) |
    | Priority | `10` |
    | Host pattern | `app.example.com` |
    | Path prefix | `/` |

@@ -49,7 +49,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
 
 5. Scope WAF, rate-limit, shaper, and cache rules by host/path/method so broad policies do not catch unrelated traffic. Manage each policy type from its own tab under **Traffic Policy**.
-6. Under **Traffic Policy → WAF → Visitor identity & GeoIP**, leave trusted-proxy providers disabled unless that provider actually connects to the public listener. When enabling one, firewall the origin to the provider's published ranges so clients cannot bypass the CDN.
+6. Under **Traffic Policy → WAF → Visitor identity & GeoIP**, leave trusted-proxy sources disabled unless that source actually connects to the public listener. When enabling one, firewall the origin to the provider's published ranges for a preset or to the administrator-configured peer CIDRs for a custom proxy, so clients cannot bypass the trusted hop.
 7. In the same section, prefer a dedicated single-IP header for custom proxies when the last trusted proxy overwrites it. Use chain parsing only when every trusted hop and its CIDRs are understood.
 8. For geo allow-only rules, keep unknown-country handling on **Apply rule** unless an intentional fail-open path is required.
 

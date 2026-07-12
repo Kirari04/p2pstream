@@ -108,7 +108,7 @@ Full self-hosting and operations documentation is available at <https://kirari04
 
 Create an agent from **Agents** in the management UI. The **Agent Setup** modal gives you an `AGENT_ID` and one-time `AGENT_TOKEN`, then provides Linux install, Docker Compose, and CLI snippets.
 
-Agents connect to `MANAGEMENT_PUBLIC_URL`, usually `https://your-server:8081`. If p2pstream generated the management TLS certificate, use the CA material from the **Agent Setup** modal so the agent can verify management HTTPS.
+Agents connect through `MANAGEMENT_URL`, usually `https://your-server:8081`. The server's `MANAGEMENT_PUBLIC_URL` supplies that URL to generated setup snippets. If p2pstream generated the management TLS certificate, use the CA material from the **Agent Setup** modal so the agent can verify management HTTPS.
 
 For shell-installed agents, uninstall and full-purge commands are documented in the [systemd operations guide](https://kirari04.github.io/p2pstream/operations/systemd#uninstall-agent).
 

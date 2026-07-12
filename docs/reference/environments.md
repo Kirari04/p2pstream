@@ -2,7 +2,7 @@
 
 Environments let one p2pstream management console operate other p2pstream instances. Each remote environment is an HTTPS management URL plus an admin access token and a pinned certificate trust decision.
 
-The local instance is always available as the virtual **Local** environment in the header environment selector. It is not a row in the remote-environment registry. Remote environments are stored only on the control-plane instance where they are created and are managed by choosing **Environments** under **System**. The Settings page also exposes **Environments** and **API Tokens** as sibling tabs.
+The local instance is always available as the virtual **Local** environment in the header environment selector. It is not a row in the remote-environment registry. Remote environments are stored only on the control-plane instance where they are created and are managed by choosing **Environments** under **System**.
 
 ## API Tokens
 
