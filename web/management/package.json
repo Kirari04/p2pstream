@@ -30,7 +30,7 @@
     "codemirror": "^6.0.2",
     "naive-ui": "^2.44.1",
     "vue": "^3.5.35",
-    "vue-router": "5.1.0"
+    "vue-router": "5.2.0"
   },
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "^2.12.0",
