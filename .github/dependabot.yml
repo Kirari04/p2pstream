@@ -17,3 +17,8 @@ updates:
     target-branch: "dev"
     schedule:
       interval: "weekly"
+    ignore:
+      # TypeScript 7.0 has no programmatic API, so vue-tsc cannot use it.
+      # Revisit for 7.1, when the TypeScript team plans to restore that API.
+      - dependency-name: "typescript"
+        versions: ["7.0.x"]
