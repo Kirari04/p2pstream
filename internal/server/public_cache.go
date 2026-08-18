@@ -1279,7 +1279,7 @@ func (a *App) servePublicCacheHit(w http.ResponseWriter, r *http.Request, resolu
 			cacheEntryBytes(decision.Entry),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
-			proxyRequestContextFromHTTP(r),
+			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
 	if decision.Entry == nil {

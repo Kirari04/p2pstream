@@ -244,8 +244,8 @@ func TestPublicRouteRedirectTraceStages(t *testing.T) {
 	if finalEvent.GetRouteTargetId() != 0 {
 		t.Fatalf("redirect trace target id = %d, want 0", finalEvent.GetRouteTargetId())
 	}
-	if finalEvent.GetResponseHeaders()["Location"] != "/target/a?x=1" {
-		t.Fatalf("redirect trace Location header = %q", finalEvent.GetResponseHeaders()["Location"])
+	if finalEvent.GetResponseHeaders()["Location"] != "[redacted]" {
+		t.Fatalf("redirect trace Location header was not redacted: %q", finalEvent.GetResponseHeaders()["Location"])
 	}
 }
 

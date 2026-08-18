@@ -160,6 +160,35 @@ func TestLoginThrottleRecordSuccessClearsKey(t *testing.T) {
 	}
 }
 
+func TestLoginThrottleClientBucketUsesHigherFailureLimit(t *testing.T) {
+	throttle := newLoginThrottle(100)
+	now := time.Unix(1, 0)
+	key := loginThrottleClientKey("198.51.100.10")
+	for i := 0; i < loginThrottleClientMaxFailures-1; i++ {
+		throttle.recordFailureWithLimit(key, now, loginThrottleClientMaxFailures)
+	}
+	if retry := throttle.retryAfter(key, now); retry != 0 {
+		t.Fatalf("client bucket blocked early after %d failures", loginThrottleClientMaxFailures-1)
+	}
+	throttle.recordFailureWithLimit(key, now, loginThrottleClientMaxFailures)
+	if retry := throttle.retryAfter(key, now); retry <= 0 {
+		t.Fatal("client bucket did not block at configured failure limit")
+	}
+}
+
+func TestLoginThrottleBucketsKeepClientProtectionAtMinimumCapacity(t *testing.T) {
+	usernameThrottle, clientThrottle := newLoginThrottleBuckets(1)
+	now := time.Unix(1, 0)
+	clientKey := loginThrottleClientKey("198.51.100.10")
+	for i := 0; i < loginThrottleClientMaxFailures; i++ {
+		usernameThrottle.recordFailure(loginThrottleKey("198.51.100.10", "user"+strconv.Itoa(i)), now.Add(time.Duration(i)*time.Millisecond))
+		clientThrottle.recordFailureWithLimit(clientKey, now.Add(time.Duration(i)*time.Millisecond), loginThrottleClientMaxFailures)
+	}
+	if retry := clientThrottle.retryAfter(clientKey, now.Add(time.Second)); retry <= 0 {
+		t.Fatal("client-wide protection was evicted by distinct usernames")
+	}
+}
+
 func blockLoginThrottleKey(throttle *loginThrottle, key string, now time.Time) {
 	for i := 0; i < loginThrottleMaxFailures; i++ {
 		throttle.recordFailure(key, now)

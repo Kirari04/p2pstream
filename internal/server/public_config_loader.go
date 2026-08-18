@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/db"
 )
 
 func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPublicProxyConfigResponse, error) {
@@ -132,6 +134,10 @@ func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot
 	if err != nil {
 		return nil, err
 	}
+	rows.RouteTargets, err = a.migrateLegacyPublicTargetOrigins(ctx, rows.RouteTargets)
+	if err != nil {
+		return nil, err
+	}
 	snap, err := snapshotFromPublicRows(rows)
 	if err != nil {
 		return nil, err
@@ -140,12 +146,48 @@ func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot
 	return snap, nil
 }
 
+func (a *App) migrateLegacyPublicTargetOrigins(ctx context.Context, targets []db.PublicRouteTarget) ([]db.PublicRouteTarget, error) {
+	if a == nil || a.DB == nil {
+		return targets, nil
+	}
+	for i := range targets {
+		target := &targets[i]
+		if normalizePublicRouteTargetType(target.TargetType) != publicRouteTargetTypeProxy {
+			continue
+		}
+		normalized, needsMigration, err := normalizeLegacyPublicTargetOrigin(target.Url)
+		if err != nil || !needsMigration {
+			continue
+		}
+		result, err := a.DB.ExecContext(ctx, `
+			UPDATE public_route_targets
+			SET url = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE id = ? AND url = ?
+		`, normalized, target.ID, target.Url)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("normalize legacy route target origin: %w", err))
+		}
+		updated, err := result.RowsAffected()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("inspect legacy route target origin migration: %w", err))
+		}
+		if updated != 1 {
+			return nil, connect.NewError(connect.CodeAborted, errors.New("route target changed while its legacy origin was being normalized; retry"))
+		}
+		target.Url = normalized
+		log.Warn().
+			Int64("route_target_id", target.ID).
+			Str("route_target_name", target.Name).
+			Msg("Normalized ignored path, query, fragment, or credentials from a legacy route target URL")
+	}
+	return targets, nil
+}
+
 func (a *App) cachedOrLoadPublicConfig(ctx context.Context) (publicConfigRows, *publicProxySnapshot, error) {
 	if rows, snap, ok := a.cachedPublicConfig(); ok {
 		return rows, snap, nil
 	}
-	snap, err := a.loadPublicProxySnapshot(ctx)
-	if err != nil {
+	if _, err := a.loadPublicProxySnapshot(ctx); err != nil {
 		return publicConfigRows{}, nil, err
 	}
 	rows, snap, ok := a.cachedPublicConfig()

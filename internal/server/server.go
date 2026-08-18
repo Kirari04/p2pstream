@@ -144,28 +144,33 @@ type App struct {
 
 	// These service fields remain public for package tests during the extraction stack.
 	// New construction should go through appServices so they can become private later.
-	AgentHub              *agentHub
-	LoadBalancers         *loadBalancerRegistry
-	TargetHealth          *publicRouteTargetHealthMonitor
-	TrafficTracer         *trafficTracer
-	RateLimiter           *publicRateLimiter
-	TrafficShaper         *publicTrafficShaper
-	PublicWAF             *publicWAF
-	PublicCache           *publicProxyCache
-	PublicACME            *publicACMEManager
-	GeoConfigRefresher    PublicGeoConfigRefresher
-	publicConfig          *publicConfigService
-	proxyRuntime          *proxyRuntime
-	observabilityRecorder *observabilityRecorder
-	auth                  *authService
-	AgentTransports       *agentTransportPool
-	DirectTransports      *directTransportPool
-	reverseProxyBuffers   httputil.BufferPool
-	DashboardCache        *dashboardResponseCache
-	LoginThrottle         *loginThrottle
-	agentAuthLocks        *agentAuthLockMap
-	agentProxyRequests    *tunnel.StreamLimiter
-	agentTunnelStreams    *tunnel.StreamLimiter
+	AgentHub                    *agentHub
+	LoadBalancers               *loadBalancerRegistry
+	TargetHealth                *publicRouteTargetHealthMonitor
+	TrafficTracer               *trafficTracer
+	RateLimiter                 *publicRateLimiter
+	TrafficShaper               *publicTrafficShaper
+	PublicWAF                   *publicWAF
+	PublicCache                 *publicProxyCache
+	PublicACME                  *publicACMEManager
+	GeoConfigRefresher          PublicGeoConfigRefresher
+	publicConfig                *publicConfigService
+	proxyRuntime                *proxyRuntime
+	observabilityRecorder       *observabilityRecorder
+	auth                        *authService
+	AgentTransports             *agentTransportPool
+	DirectTransports            *directTransportPool
+	reverseProxyBuffers         httputil.BufferPool
+	DashboardCache              *dashboardResponseCache
+	LoginThrottle               *loginThrottle
+	clientLoginThrottle         *loginThrottle
+	agentAuthLocks              *agentAuthLockMap
+	agentProxyRequests          *tunnel.StreamLimiter
+	agentTunnelStreams          *tunnel.StreamLimiter
+	publicProxyRequests         *requestCapacityLimiter
+	publicTargetRequests        *keyedRequestCapacityLimiter
+	managementClientIdentity    *ClientIdentityResolver
+	managementClientIdentityErr error
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -237,6 +242,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
+	managementIdentity, managementIdentityErr := newManagementClientIdentityResolver(cfg)
 	app := &App{
 		Config:              cfg,
 		DB:                  database,
@@ -246,6 +252,13 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
 		agentTunnelStreams:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
+		publicProxyRequests: newRequestCapacityLimiter(cfg.PublicMaxConcurrentRequests, defaultPublicMaxConcurrentRequests),
+		publicTargetRequests: newKeyedRequestCapacityLimiter(
+			cfg.PublicMaxConcurrentPerTarget,
+			defaultPublicMaxConcurrentRequestsPerTarget,
+		),
+		managementClientIdentity:    managementIdentity,
+		managementClientIdentityErr: managementIdentityErr,
 	}
 	configDir := strings.TrimSpace(cfg.ConfigDir)
 	if configDir == "" {

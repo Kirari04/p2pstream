@@ -13,11 +13,13 @@ import (
 var (
 	errAgentDestinationForbidden = errors.New("agent destination forbidden by allowlist")
 	agentDestinationLookupIP     = lookupAgentDestinationIP
+	defaultAgentDestinationRules = []string{"127.0.0.0/8", "::1/128"}
 )
 
 type agentDestinationPolicy struct {
 	rules          []agentDestinationRule
 	hasPrefixRules bool
+	allowAny       bool
 }
 
 type agentDestinationRule struct {
@@ -53,8 +55,11 @@ func (e *agentDestinationForbiddenError) Unwrap() error {
 	return e.cause
 }
 
-func newAgentDestinationPolicy(rawRules []string) (*agentDestinationPolicy, error) {
-	policy := &agentDestinationPolicy{}
+func newAgentDestinationPolicy(rawRules []string, allowAny ...bool) (*agentDestinationPolicy, error) {
+	policy := &agentDestinationPolicy{allowAny: len(allowAny) > 0 && allowAny[0]}
+	if !policy.allowAny && !hasNonEmptyAgentDestinationRule(rawRules) {
+		rawRules = defaultAgentDestinationRules
+	}
 	for _, raw := range rawRules {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
@@ -69,10 +74,19 @@ func newAgentDestinationPolicy(rawRules []string) (*agentDestinationPolicy, erro
 		}
 		policy.rules = append(policy.rules, rule)
 	}
-	if len(policy.rules) == 0 {
-		return nil, nil
+	if policy.allowAny && len(policy.rules) > 0 {
+		return nil, errors.New("AGENT_ALLOW_ANY_TARGET=true cannot be combined with AGENT_ALLOW_TARGETS or --allow-target")
 	}
 	return policy, nil
+}
+
+func hasNonEmptyAgentDestinationRule(rawRules []string) bool {
+	for _, raw := range rawRules {
+		if strings.TrimSpace(raw) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func parseAgentAllowTarget(raw string) (agentDestinationRule, error) {
@@ -204,8 +218,11 @@ func parseAgentDestinationPort(spec string) (int, error) {
 }
 
 func (p *agentDestinationPolicy) dialAddress(ctx context.Context, network string, address string) (string, error) {
-	if p == nil || len(p.rules) == 0 {
+	if p != nil && p.allowAny {
 		return address, nil
+	}
+	if p == nil || len(p.rules) == 0 {
+		return "", agentDestinationForbidden("no destinations are allowed by the local agent policy", nil)
 	}
 	host, portText, err := net.SplitHostPort(strings.TrimSpace(address))
 	if err != nil {

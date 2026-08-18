@@ -8,13 +8,29 @@ import (
 	"testing"
 )
 
-func TestAgentDestinationPolicyAllowsWhenUnset(t *testing.T) {
+func TestAgentDestinationPolicyDefaultsToLoopback(t *testing.T) {
 	policy, err := newAgentDestinationPolicy(nil)
 	if err != nil {
 		t.Fatalf("newAgentDestinationPolicy() error = %v", err)
 	}
-	if policy != nil {
-		t.Fatalf("policy = %#v, want nil", policy)
+	if got, err := policy.dialAddress(context.Background(), "tcp", "127.0.0.1:8080"); err != nil || got != "127.0.0.1:8080" {
+		t.Fatalf("loopback dial = %q, %v", got, err)
+	}
+	if _, err := policy.dialAddress(context.Background(), "tcp", "10.0.0.5:5432"); !errors.Is(err, errAgentDestinationForbidden) {
+		t.Fatalf("non-loopback dial error = %v, want default deny", err)
+	}
+}
+
+func TestAgentDestinationPolicyAllowsOnlyWithExplicitAnyTargetOptIn(t *testing.T) {
+	policy, err := newAgentDestinationPolicy(nil, true)
+	if err != nil {
+		t.Fatalf("newAgentDestinationPolicy() error = %v", err)
+	}
+	if got, err := policy.dialAddress(context.Background(), "tcp", "10.0.0.5:5432"); err != nil || got != "10.0.0.5:5432" {
+		t.Fatalf("explicit allow-any dial = %q, %v", got, err)
+	}
+	if _, err := newAgentDestinationPolicy([]string{"127.0.0.1"}, true); err == nil {
+		t.Fatal("allow-any and allowlist combination was accepted")
 	}
 }
 

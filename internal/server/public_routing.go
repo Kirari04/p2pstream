@@ -310,7 +310,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			"redirect_target_mode": resolution.Route.RedirectTargetMode,
 		}
 		if location != "" {
-			attributes["redirect_location"] = redactSensitiveTraceURL(location)
+			attributes["redirect_location"] = trafficTraceRedactedValue
 		}
 		if trace != nil {
 			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
@@ -329,7 +329,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			sql.NullInt64{},
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
-			proxyRequestContextFromHTTP(r),
+			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
 }
@@ -365,7 +365,7 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 			0,
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
-			proxyRequestContextFromHTTP(r),
+			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
 
@@ -436,7 +436,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			cacheBytes(cacheDecision),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
-			proxyRequestContextFromHTTP(r),
+			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
 
@@ -556,6 +556,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if bodyStatus, bodyKind, bodyMessage, bodyErr := publicRequestBodyErrorForRequest(r, err); bodyErr {
+				statusCode = bodyStatus
+				errorKind = bodyKind
+				http.Error(w, bodyMessage, bodyStatus)
+				return
+			}
 			if agent != nil && requestContextCanceled(r.Context(), err) {
 				log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent target proxy cancelled by client")
 				statusCode = http.StatusGatewayTimeout
@@ -695,7 +701,11 @@ func startAgentStreamOpen(
 
 func (a *App) directTargetTransport(target publicRouteTargetConfig) http.RoundTripper {
 	if a.DirectTransports == nil {
-		return newDirectTransportPool().publicRouteTargetTransport(target)
+		maxConns := defaultPublicMaxConnectionsPerTarget
+		if a.Config != nil && a.Config.PublicMaxConnectionsPerTarget > 0 {
+			maxConns = a.Config.PublicMaxConnectionsPerTarget
+		}
+		return newDirectTransportPool(maxConns).publicRouteTargetTransport(target)
 	}
 	return a.DirectTransports.publicRouteTargetTransport(target)
 }

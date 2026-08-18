@@ -193,10 +193,10 @@ func TestRedactedProxyPathPrefix(t *testing.T) {
 	}{
 		{path: "", want: "/"},
 		{path: "/", want: "/"},
-		{path: "/api?token=secret", want: "/api"},
-		{path: "/api/users", want: "/api/users"},
-		{path: "/api/users/123/token", want: "/api/users/..."},
-		{path: "api/users/123", want: "/api/users/..."},
+		{path: "/api?token=secret", want: "/..."},
+		{path: "/api/users", want: "/..."},
+		{path: "/api/users/123/token", want: "/..."},
+		{path: "api/users/123", want: "/..."},
 	}
 	for _, tt := range tests {
 		if got := redactedProxyPathPrefix(tt.path); got != tt.want {

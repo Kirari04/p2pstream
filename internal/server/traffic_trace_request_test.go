@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net/url"
 	"strings"
 	"testing"
 
@@ -22,10 +23,49 @@ func TestFillTrafficTraceResolutionRedactsTargetOrigin(t *testing.T) {
 	if strings.Contains(event.TargetOrigin, "pass") || strings.Contains(event.TargetOrigin, "secret") {
 		t.Fatalf("target origin was not redacted: %q", event.TargetOrigin)
 	}
-	if !strings.Contains(event.TargetOrigin, "example.test") || !strings.Contains(event.TargetOrigin, "debug=true") {
+	parsed, err := url.Parse(event.TargetOrigin)
+	if err != nil {
+		t.Fatalf("parse target origin: %v", err)
+	}
+	if parsed.Host != "example.test" || parsed.User == nil || parsed.User.Username() != trafficTraceRedactedValue {
 		t.Fatalf("target origin lost non-sensitive parts: %q", event.TargetOrigin)
+	}
+	for name, values := range parsed.Query() {
+		if len(values) != 1 || values[0] != trafficTraceRedactedValue {
+			t.Fatalf("target origin query %s = %q, want redacted", name, values)
+		}
 	}
 	if event.RouteTargetId != 42 {
 		t.Fatalf("route target id = %d, want 42", event.RouteTargetId)
+	}
+}
+
+func TestTrafficTraceRedactsAllQueryValuesAndNonAllowlistedHeaders(t *testing.T) {
+	query := redactSensitiveQuery("debug=true&sig=abc123&email=user%40example.test")
+	for _, secret := range []string{"true", "abc123", "user%40example.test"} {
+		if strings.Contains(query, secret) {
+			t.Fatalf("redacted query %q retained %q", query, secret)
+		}
+	}
+
+	headers := sanitizedHeaderMap(map[string][]string{
+		"Content-Type":     {"application/json"},
+		"X-Signature":      {"secret-signature"},
+		"X-Application-Id": {"private-tenant-id"},
+		"Authorization":    {"Bearer token"},
+	})
+	if headers["Content-Type"] != "application/json" {
+		t.Fatalf("safe Content-Type header = %q", headers["Content-Type"])
+	}
+	for _, name := range []string{"X-Signature", "X-Application-Id", "Authorization"} {
+		if headers[name] != trafficTraceRedactedValue {
+			t.Fatalf("header %s = %q, want redacted", name, headers[name])
+		}
+	}
+}
+
+func TestTrafficTraceURLRedactionFailsClosed(t *testing.T) {
+	if got := redactSensitiveTraceURL("https://example.test/%zz?secret=value"); got != trafficTraceRedactedValue {
+		t.Fatalf("invalid trace URL = %q, want fully redacted", got)
 	}
 }

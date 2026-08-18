@@ -494,11 +494,11 @@ func TestEnvironmentProxyDoesNotFollowRedirectOrLeakToken(t *testing.T) {
 				t.Fatalf("environment proxy request: %v", err)
 			}
 			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusFound {
-				t.Fatalf("proxy status = %d, want %d", resp.StatusCode, http.StatusFound)
+			if resp.StatusCode != http.StatusServiceUnavailable {
+				t.Fatalf("proxy status = %d, want %d", resp.StatusCode, http.StatusServiceUnavailable)
 			}
-			if got, want := resp.Header.Get("Location"), tc.location(remoteServer.URL, attackerServer.URL); got != want {
-				t.Fatalf("Location = %q, want %q", got, want)
+			if got := resp.Header.Get("Location"); got != "" {
+				t.Fatalf("environment redirect Location leaked to browser: %q", got)
 			}
 			if got := remoteHits.Load(); got != 1 {
 				t.Fatalf("remote hits = %d, want 1", got)

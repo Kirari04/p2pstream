@@ -84,6 +84,11 @@ var agentCmd = &cobra.Command{
 		if len(allowTargets) == 0 {
 			allowTargets = splitAgentAllowTargets(os.Getenv("AGENT_ALLOW_TARGETS"))
 		}
+		allowAnyTarget, err := resolvedAgentAllowAnyTarget(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -99,6 +104,7 @@ var agentCmd = &cobra.Command{
 			TLSKeyFile:                  tlsKeyFile,
 			AllowInsecureManagement:     allowInsecureManagement,
 			AllowTargets:                allowTargets,
+			AllowAnyTarget:              allowAnyTarget,
 			TunnelMaxStreamWindowBytes:  tunnelMaxStreamWindowBytes,
 			TunnelMaxConcurrentRequests: tunnelMaxConcurrentRequests,
 		}); err != nil && ctx.Err() == nil {
@@ -106,6 +112,19 @@ var agentCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
+}
+
+// resolvedAgentAllowAnyTarget keeps an explicit false CLI flag authoritative.
+// This lets an operator tighten a persisted or inherited environment policy.
+func resolvedAgentAllowAnyTarget(cmd *cobra.Command) (bool, error) {
+	allowAnyTarget, err := cmd.Flags().GetBool("allow-any-target")
+	if err != nil {
+		return false, err
+	}
+	if !cmd.Flags().Changed("allow-any-target") {
+		allowAnyTarget = envBool("AGENT_ALLOW_ANY_TARGET")
+	}
+	return allowAnyTarget, nil
 }
 
 func init() {
@@ -122,6 +141,7 @@ func init() {
 	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
 	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", tunnel.DefaultMaxConcurrentAgentRequests, "Maximum concurrent requests served through the agent tunnel")
 	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
+	agentCmd.Flags().Bool("allow-any-target", false, "Explicitly allow management to dial any destination reachable by this agent")
 }
 
 func defaultAgentManagementURL() string {

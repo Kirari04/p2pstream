@@ -468,7 +468,10 @@ function targetPayload(target: TargetForm, index: number) {
 
 function targetValidationReason(target: TargetForm): string {
   if (!target.name.trim()) return "Every target needs a name.";
-  if (target.targetType === PublicRouteTargetType.PROXY && !target.url.trim()) return "Proxy targets need a URL.";
+  if (target.targetType === PublicRouteTargetType.PROXY && !target.url.trim()) return "Proxy targets need an origin URL.";
+  if (target.targetType === PublicRouteTargetType.PROXY && !isProxyTargetOrigin(target.url)) {
+    return "Proxy target must be an HTTP(S) origin only, such as https://upstream:8443, without credentials, a path, query, or fragment.";
+  }
   if (target.targetType === PublicRouteTargetType.PROXY && target.transport === PublicRouteTargetTransport.AGENT) {
     const selectorError = validateSelectorRows(target.selectorLabels);
     if (selectorError) return selectorError;
@@ -476,6 +479,20 @@ function targetValidationReason(target: TargetForm): string {
   if (target.weight < 1) return "Target weight must be at least 1.";
   if (target.responseHeaderTimeoutMillis < 1) return "Response-header timeout must be positive.";
   return "";
+}
+
+function isProxyTargetOrigin(value: string): boolean {
+  try {
+    const parsed = new URL(value.trim());
+    return (parsed.protocol === "http:" || parsed.protocol === "https:")
+      && parsed.username === ""
+      && parsed.password === ""
+      && (parsed.pathname === "" || parsed.pathname === "/")
+      && parsed.search === ""
+      && parsed.hash === "";
+  } catch {
+    return false;
+  }
 }
 
 function newSelectorRow(key = "", value = ""): SelectorLabelRow {

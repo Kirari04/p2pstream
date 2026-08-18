@@ -397,6 +397,16 @@ func proxyRequestContextFromHTTP(r *http.Request) proxyRequestContext {
 	}
 }
 
+func proxyRequestContextFromResolution(r *http.Request, resolution publicRouteResolution) proxyRequestContext {
+	requestContext := proxyRequestContextFromHTTP(r)
+	prefix := strings.TrimSpace(resolution.Route.PathPrefix)
+	if prefix == "" {
+		prefix = "/"
+	}
+	requestContext.PathPrefix = truncateProxyRequestContextValue(prefix, 256)
+	return requestContext
+}
+
 func redactedProxyPathPrefix(path string) string {
 	path = strings.ToValidUTF8(strings.TrimSpace(path), "")
 	if idx := strings.IndexByte(path, '?'); idx >= 0 {
@@ -408,25 +418,10 @@ func redactedProxyPathPrefix(path string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	allSegments := make([]string, 0, 3)
-	for _, segment := range strings.Split(strings.Trim(path, "/"), "/") {
-		if segment == "" {
-			continue
-		}
-		allSegments = append(allSegments, segment)
-	}
-	segments := allSegments
-	if len(segments) > 2 {
-		segments = segments[:2]
-	}
-	if len(segments) == 0 {
+	if strings.Trim(path, "/") == "" {
 		return "/"
 	}
-	prefix := "/" + strings.Join(segments, "/")
-	if len(allSegments) > len(segments) {
-		prefix += "/..."
-	}
-	return prefix
+	return "/..."
 }
 
 func truncateProxyRequestContextValue(value string, maxLen int) string {

@@ -8,11 +8,23 @@ import (
 )
 
 const (
-	loginThrottleMaxFailures    = 5
-	loginThrottleWindow         = 15 * time.Minute
-	loginThrottleBlock          = 5 * time.Minute
-	defaultLoginThrottleMaxKeys = 50000
+	loginThrottleMaxFailures       = 5
+	loginThrottleClientMaxFailures = 25
+	loginThrottleWindow            = 15 * time.Minute
+	loginThrottleBlock             = 5 * time.Minute
+	defaultLoginThrottleMaxKeys    = 50000
 )
+
+// newLoginThrottleBuckets keeps username and client address accounting
+// independent. Otherwise a single small bounded map lets each new username
+// evict the address-wide defence before it reaches its higher failure limit.
+func newLoginThrottleBuckets(maxEntries int) (username, client *loginThrottle) {
+	if maxEntries <= 0 {
+		maxEntries = defaultLoginThrottleMaxKeys
+	}
+	perBucket := max(1, maxEntries/2)
+	return newLoginThrottle(perBucket), newLoginThrottle(perBucket)
+}
 
 type loginThrottle struct {
 	mu         sync.Mutex
@@ -53,8 +65,15 @@ func (t *loginThrottle) retryAfter(key string, now time.Time) time.Duration {
 }
 
 func (t *loginThrottle) recordFailure(key string, now time.Time) {
+	t.recordFailureWithLimit(key, now, loginThrottleMaxFailures)
+}
+
+func (t *loginThrottle) recordFailureWithLimit(key string, now time.Time, maxFailures int) {
 	if t == nil || key == "" {
 		return
+	}
+	if maxFailures <= 0 {
+		maxFailures = loginThrottleMaxFailures
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -70,7 +89,7 @@ func (t *loginThrottle) recordFailure(key string, now time.Time) {
 		t.entries[key] = entry
 	}
 	entry.failures++
-	if entry.failures >= loginThrottleMaxFailures {
+	if entry.failures >= maxFailures {
 		entry.blockedUntil = now.Add(loginThrottleBlock)
 	}
 }
@@ -129,6 +148,14 @@ func (t *loginThrottle) recordSuccess(key string) {
 }
 
 func loginThrottleKey(peerAddr string, username string) string {
+	return "user\x00" + loginThrottlePeer(peerAddr) + "\x00" + strings.TrimSpace(strings.ToLower(username))
+}
+
+func loginThrottleClientKey(peerAddr string) string {
+	return "client\x00" + loginThrottlePeer(peerAddr)
+}
+
+func loginThrottlePeer(peerAddr string) string {
 	host := strings.TrimSpace(peerAddr)
 	if splitHost, _, err := net.SplitHostPort(host); err == nil {
 		host = splitHost
@@ -136,5 +163,5 @@ func loginThrottleKey(peerAddr string, username string) string {
 	if host == "" {
 		host = "unknown"
 	}
-	return host + "\x00" + strings.TrimSpace(strings.ToLower(username))
+	return host
 }

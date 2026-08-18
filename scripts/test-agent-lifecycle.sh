@@ -317,6 +317,46 @@ test_reinstall_explicitly_clears_allow_targets() {
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
 }
 
+test_installer_requires_explicit_unrestricted_agent_policy() {
+  setup_fixture
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_ANY_TARGET="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="token-one"
+  assert_contains "${CONFIG_DIR}/agent.env" 'AGENT_ALLOW_ANY_TARGET="true"'
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+
+  if run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_ANY_TARGET="true" \
+    AGENT_ALLOW_TARGETS="app.internal:443" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="token-two" >/dev/null 2>"${TEST_DIR}/allow-any.err"; then
+    fail "allow-any and allow-targets combination should fail"
+  fi
+  assert_contains "${TEST_DIR}/allow-any.err" "cannot be combined"
+}
+
+test_reinstall_explicit_false_revokes_unrestricted_policy() {
+  setup_fixture
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_ANY_TARGET="true" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="old-token"
+
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ALLOW_ANY_TARGET="false" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="new-token"
+
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_ANY_TARGET"
+  assert_not_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS"
+  assert_contains "${CONFIG_DIR}/agent.env" "AGENT_TOKEN=\"new-token\""
+}
+
 test_reinstall_preserves_effective_last_allow_targets() {
   setup_fixture
   printf '%s\n' \
@@ -717,6 +757,8 @@ run_test "explicit tunnel setting bypasses replaced value" test_explicit_tunnel_
 run_test "ambiguous tunnel preservation fails before mutation" test_ambiguous_tunnel_preservation_fails_before_mutation
 run_test "unreadable tunnel settings require explicit replacement" test_unreadable_tunnel_settings_require_explicit_replacement
 run_test "reinstall explicitly clears allow targets" test_reinstall_explicitly_clears_allow_targets
+run_test "installer requires explicit unrestricted agent policy" test_installer_requires_explicit_unrestricted_agent_policy
+run_test "explicit false revokes unrestricted policy" test_reinstall_explicit_false_revokes_unrestricted_policy
 run_test "reinstall preserves effective last allow targets" test_reinstall_preserves_effective_last_allow_targets
 run_test "reinstall preserves effective last combined policies" test_reinstall_preserves_effective_last_combined_policies
 run_test "reinstall preserves unterminated allow targets line" test_reinstall_preserves_unterminated_allow_targets_line

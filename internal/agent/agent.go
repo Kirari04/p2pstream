@@ -71,6 +71,7 @@ type Options struct {
 	TLSKeyFile                  string
 	AllowInsecureManagement     bool
 	AllowTargets                []string
+	AllowAnyTarget              bool
 	TunnelMaxStreamWindowBytes  int64
 	TunnelMaxConcurrentRequests int64
 }
@@ -88,7 +89,7 @@ func RunContext(ctx context.Context, opts Options) error {
 	if err := validateOptions(opts); err != nil {
 		return err
 	}
-	destinationPolicy, err := newAgentDestinationPolicy(opts.AllowTargets)
+	destinationPolicy, err := newAgentDestinationPolicy(opts.AllowTargets, opts.AllowAnyTarget)
 	if err != nil {
 		return err
 	}
@@ -208,7 +209,7 @@ func validateOptions(opts Options) error {
 	if err := tunnel.ValidateAggregateStreamWindowBudget(opts.TunnelMaxStreamWindowBytes, opts.TunnelMaxConcurrentRequests); err != nil {
 		return err
 	}
-	if _, err := newAgentDestinationPolicy(opts.AllowTargets); err != nil {
+	if _, err := newAgentDestinationPolicy(opts.AllowTargets, opts.AllowAnyTarget); err != nil {
 		return err
 	}
 	return nil

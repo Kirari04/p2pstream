@@ -22,12 +22,20 @@ type pooledDirectTransport struct {
 }
 
 type directTransportPool struct {
-	mu      sync.Mutex
-	entries map[directTransportKey]*pooledDirectTransport
+	mu              sync.Mutex
+	entries         map[directTransportKey]*pooledDirectTransport
+	maxConnsPerHost int
 }
 
-func newDirectTransportPool() *directTransportPool {
-	return &directTransportPool{entries: make(map[directTransportKey]*pooledDirectTransport)}
+func newDirectTransportPool(configuredMaxConns ...int) *directTransportPool {
+	maxConns := defaultPublicMaxConnectionsPerTarget
+	if len(configuredMaxConns) > 0 && configuredMaxConns[0] > 0 {
+		maxConns = configuredMaxConns[0]
+	}
+	return &directTransportPool{
+		entries:         make(map[directTransportKey]*pooledDirectTransport),
+		maxConnsPerHost: maxConns,
+	}
 }
 
 func (p *directTransportPool) publicRouteTargetTransport(target publicRouteTargetConfig) http.RoundTripper {
@@ -43,14 +51,14 @@ func (p *directTransportPool) publicRouteTargetTransport(target publicRouteTarge
 
 func (p *directTransportPool) getOrCreate(key directTransportKey, tlsSkipVerify bool, timeout time.Duration) http.RoundTripper {
 	if p == nil {
-		return newDirectPooledHTTPTransport(tlsSkipVerify, timeout)
+		return newDirectPooledHTTPTransport(tlsSkipVerify, timeout, defaultPublicMaxConnectionsPerTarget)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if existing := p.entries[key]; existing != nil && existing.transport != nil {
 		return existing.transport
 	}
-	transport := newDirectPooledHTTPTransport(tlsSkipVerify, timeout)
+	transport := newDirectPooledHTTPTransport(tlsSkipVerify, timeout, p.maxConnsPerHost)
 	p.entries[key] = &pooledDirectTransport{
 		key:       key,
 		transport: transport,
@@ -59,7 +67,9 @@ func (p *directTransportPool) getOrCreate(key directTransportKey, tlsSkipVerify 
 	return transport
 }
 
-func newDirectPooledHTTPTransport(tlsSkipVerify bool, timeout time.Duration) *http.Transport {
+const defaultPublicMaxConnectionsPerTarget = 256
+
+func newDirectPooledHTTPTransport(tlsSkipVerify bool, timeout time.Duration, configuredMaxConns ...int) *http.Transport {
 	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		base = &http.Transport{}
@@ -68,7 +78,11 @@ func newDirectPooledHTTPTransport(tlsSkipVerify bool, timeout time.Duration) *ht
 	transport.DisableKeepAlives = false
 	transport.MaxIdleConns = 1024
 	transport.MaxIdleConnsPerHost = 32
-	transport.MaxConnsPerHost = 0
+	maxConns := defaultPublicMaxConnectionsPerTarget
+	if len(configuredMaxConns) > 0 && configuredMaxConns[0] > 0 {
+		maxConns = configuredMaxConns[0]
+	}
+	transport.MaxConnsPerHost = maxConns
 	if transport.IdleConnTimeout < 90*time.Second {
 		transport.IdleConnTimeout = 90 * time.Second
 	}

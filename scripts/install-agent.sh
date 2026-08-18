@@ -411,18 +411,38 @@ validate_allow_target_inputs() {
   if [[ "${AGENT_CLEAR_ALLOW_TARGETS:-false}" == "true" && -n "${AGENT_ALLOW_TARGETS:-}" ]]; then
     fail "AGENT_CLEAR_ALLOW_TARGETS=true cannot be combined with AGENT_ALLOW_TARGETS"
   fi
+  case "${AGENT_ALLOW_ANY_TARGET:-false}" in
+    true|false) ;;
+    *) fail "AGENT_ALLOW_ANY_TARGET must be true or false" ;;
+  esac
+  if [[ "${AGENT_CLEAR_ALLOW_TARGETS:-false}" == "true" && "${AGENT_ALLOW_ANY_TARGET:-false}" == "true" ]]; then
+    fail "AGENT_CLEAR_ALLOW_TARGETS=true cannot be combined with AGENT_ALLOW_ANY_TARGET=true"
+  fi
+  if [[ -n "${AGENT_ALLOW_TARGETS:-}" && "${AGENT_ALLOW_ANY_TARGET:-false}" == "true" ]]; then
+    fail "AGENT_ALLOW_ANY_TARGET=true cannot be combined with AGENT_ALLOW_TARGETS"
+  fi
 }
 
 prepare_allow_target_preservation() {
-  EXISTING_AGENT_ENV_ASSIGNMENT=""
-  if [[ -z "${AGENT_ALLOW_TARGETS:-}" && "${AGENT_CLEAR_ALLOW_TARGETS:-false}" != "true" ]]; then
+  EXISTING_AGENT_ALLOW_TARGETS_ASSIGNMENT=""
+  EXISTING_AGENT_ALLOW_ANY_TARGET_ASSIGNMENT=""
+  # An explicitly supplied false is a policy change: it must revoke a
+  # previously persisted unrestricted setting rather than be treated as unset.
+  if [[ -z "${AGENT_ALLOW_TARGETS:-}" && ! -v AGENT_ALLOW_ANY_TARGET && "${AGENT_CLEAR_ALLOW_TARGETS:-false}" != "true" ]]; then
     load_existing_agent_env_assignment AGENT_ALLOW_TARGETS
+    EXISTING_AGENT_ALLOW_TARGETS_ASSIGNMENT="$EXISTING_AGENT_ENV_ASSIGNMENT"
+    load_existing_agent_env_assignment AGENT_ALLOW_ANY_TARGET
+    EXISTING_AGENT_ALLOW_ANY_TARGET_ASSIGNMENT="$EXISTING_AGENT_ENV_ASSIGNMENT"
+    if [[ -n "$EXISTING_AGENT_ALLOW_TARGETS_ASSIGNMENT" && -n "$EXISTING_AGENT_ALLOW_ANY_TARGET_ASSIGNMENT" ]]; then
+      fail "cannot preserve conflicting AGENT_ALLOW_TARGETS and AGENT_ALLOW_ANY_TARGET assignments from ${ENV_FILE}; provide an explicit replacement policy"
+    fi
   fi
 }
 
 write_agent_env() {
   local tmp_file="$1"
-  local preserved_allow_targets="$EXISTING_AGENT_ENV_ASSIGNMENT"
+  local preserved_allow_targets="$EXISTING_AGENT_ALLOW_TARGETS_ASSIGNMENT"
+  local preserved_allow_any_target="$EXISTING_AGENT_ALLOW_ANY_TARGET_ASSIGNMENT"
   {
     printf 'MANAGEMENT_URL=%s\n' "$(systemd_env_value "$MANAGEMENT_URL")"
     if [[ -n "${MANAGEMENT_CA_FILE:-}" ]]; then
@@ -443,6 +463,11 @@ write_agent_env() {
       printf 'AGENT_ALLOW_TARGETS=%s\n' "$(systemd_env_value "$AGENT_ALLOW_TARGETS")"
     elif [[ -n "$preserved_allow_targets" ]]; then
       printf '%s\n' "$preserved_allow_targets"
+    fi
+    if [[ "${AGENT_ALLOW_ANY_TARGET:-false}" == "true" ]]; then
+      printf 'AGENT_ALLOW_ANY_TARGET="true"\n'
+    elif [[ -n "$preserved_allow_any_target" ]]; then
+      printf '%s\n' "$preserved_allow_any_target"
     fi
     printf 'AGENT_ID=%s\n' "$(systemd_env_value "$AGENT_ID")"
     printf 'AGENT_TOKEN=%s\n' "$(systemd_env_value "$AGENT_TOKEN")"

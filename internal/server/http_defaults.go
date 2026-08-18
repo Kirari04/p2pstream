@@ -14,7 +14,8 @@ const (
 	publicReadHeaderTimeout = 5 * time.Second
 	publicIdleTimeout       = 120 * time.Second
 
-	defaultMaxHeaderBytes = 1 << 20
+	defaultManagementMaxHeaderBytes = 1 << 20
+	defaultPublicMaxHeaderBytes     = 64 << 10
 )
 
 func ConfigureManagementHTTPServer(srv *http.Server) {
@@ -25,14 +26,18 @@ func ConfigureManagementHTTPServer(srv *http.Server) {
 	srv.ReadTimeout = managementReadTimeout
 	srv.WriteTimeout = managementWriteTimeout
 	srv.IdleTimeout = managementIdleTimeout
-	srv.MaxHeaderBytes = defaultMaxHeaderBytes
+	srv.MaxHeaderBytes = defaultManagementMaxHeaderBytes
 }
 
-func configurePublicHTTPServer(srv *http.Server) {
+func configurePublicHTTPServer(srv *http.Server, configuredMaxHeaderBytes ...int) {
 	if srv == nil {
 		return
 	}
 	srv.ReadHeaderTimeout = publicReadHeaderTimeout
 	srv.IdleTimeout = publicIdleTimeout
-	srv.MaxHeaderBytes = defaultMaxHeaderBytes
+	maxHeaderBytes := defaultPublicMaxHeaderBytes
+	if len(configuredMaxHeaderBytes) > 0 && configuredMaxHeaderBytes[0] > 0 {
+		maxHeaderBytes = configuredMaxHeaderBytes[0]
+	}
+	srv.MaxHeaderBytes = maxHeaderBytes
 }

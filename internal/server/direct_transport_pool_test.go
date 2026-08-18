@@ -37,6 +37,18 @@ func TestDirectTransportPoolReusesPublicRouteTargetConnection(t *testing.T) {
 	}
 }
 
+func TestDirectTransportPoolAppliesConnectionBudget(t *testing.T) {
+	pool := newDirectTransportPool(17)
+	target := directTransportPoolTestTarget(t, 70, "http://upstream.test:9000", time.Second)
+	transport, ok := pool.publicRouteTargetTransport(target).(*http.Transport)
+	if !ok {
+		t.Fatalf("transport type = %T, want *http.Transport", pool.publicRouteTargetTransport(target))
+	}
+	if transport.MaxConnsPerHost != 17 {
+		t.Fatalf("MaxConnsPerHost = %d, want 17", transport.MaxConnsPerHost)
+	}
+}
+
 func TestDirectTransportPoolSeparatesRouteTargetsTLSAndTimeouts(t *testing.T) {
 	app := NewApp(nil, nil)
 	target := directTransportPoolTestTarget(t, 70, "http://upstream.test:9000/base?x=1", time.Second)
