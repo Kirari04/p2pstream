@@ -61,6 +61,11 @@ var serverCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize management TLS")
 		}
+		managementTLSRuntime, err := server.NewManagementTLSRuntime(cfg, database, mgmtTLSConfig, managementTLS)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize management TLS rotation")
+		}
+		app.ManagementTLS = managementTLSRuntime
 
 		p := new(http.Protocols)
 		p.SetHTTP1(true)

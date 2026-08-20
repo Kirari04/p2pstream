@@ -171,6 +171,7 @@ type App struct {
 	publicTargetRequests        *keyedRequestCapacityLimiter
 	managementClientIdentity    *ClientIdentityResolver
 	managementClientIdentityErr error
+	ManagementTLS               *ManagementTLSRuntime
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -364,7 +365,18 @@ func (a *App) ReportStats(
 		}
 	}
 
-	return connect.NewResponse(&p2pstreamv1.AgentStatsResponse{}), nil
+	response := &p2pstreamv1.AgentStatsResponse{}
+	if a.ManagementTLS != nil {
+		trustReportRecorded := true
+		if err := a.ManagementTLS.recordTrustReport(ctx, agentRow.ID, payload.ManagementTrustStatus); err != nil {
+			trustReportRecorded = false
+			log.Error().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to record agent management trust status")
+		}
+		if trustReportRecorded {
+			response.ManagementTrustUpdate = a.ManagementTLS.trustUpdate(payload.ManagementTrustStatus)
+		}
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (a *App) storeLatestAgentStats(agentID int64, stat stats.AgentStats) {

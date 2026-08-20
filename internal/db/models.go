@@ -95,6 +95,18 @@ type ManagementAccessToken struct {
 	UpdatedAt  time.Time    `json:"updated_at"`
 }
 
+type ManagementAgentTrustReport struct {
+	AgentID               int64     `json:"agent_id"`
+	InstalledGeneration   int64     `json:"installed_generation"`
+	InstalledBundleSha256 string    `json:"installed_bundle_sha256"`
+	InstallState          string    `json:"install_state"`
+	ErrorCode             string    `json:"error_code"`
+	ErrorDetail           string    `json:"error_detail"`
+	AgentVersion          string    `json:"agent_version"`
+	CapabilitiesJson      string    `json:"capabilities_json"`
+	ReportedAt            time.Time `json:"reported_at"`
+}
+
 type ObservabilityRollupState struct {
 	ID                       int64     `json:"id"`
 	ProxyBackfillUpperID     int64     `json:"proxy_backfill_upper_id"`

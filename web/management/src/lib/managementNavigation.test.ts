@@ -27,7 +27,7 @@ describe("managementNavigation", () => {
       "Cache",
       "Traffic Shaper",
     ]);
-    expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API Tokens"]);
+    expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API Tokens", "Management TLS"]);
   });
 
   test("normalizes route paths and hash-history hrefs", () => {

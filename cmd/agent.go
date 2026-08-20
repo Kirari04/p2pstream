@@ -58,6 +58,10 @@ var agentCmd = &cobra.Command{
 		if managementCAPEMBase64 == "" {
 			managementCAPEMBase64 = os.Getenv("MANAGEMENT_CA_PEM_BASE64")
 		}
+		managementTrustFile, _ := cmd.Flags().GetString("management-trust-file")
+		if managementTrustFile == "" {
+			managementTrustFile = os.Getenv("MANAGEMENT_TRUST_FILE")
+		}
 		tlsCertFile, _ := cmd.Flags().GetString("tls-cert-file")
 		if tlsCertFile == "" {
 			tlsCertFile = os.Getenv("AGENT_TLS_CERT_FILE")
@@ -100,6 +104,7 @@ var agentCmd = &cobra.Command{
 			Token:                       agentToken,
 			ManagementCAFile:            managementCAFile,
 			ManagementCAPEMBase64:       managementCAPEMBase64,
+			ManagementTrustFile:         managementTrustFile,
 			TLSCertFile:                 tlsCertFile,
 			TLSKeyFile:                  tlsKeyFile,
 			AllowInsecureManagement:     allowInsecureManagement,
@@ -135,6 +140,7 @@ func init() {
 	agentCmd.Flags().String("agent-name", "", "Optional agent display name")
 	agentCmd.Flags().String("management-ca-file", "", "PEM CA bundle used to verify the HTTPS management server")
 	agentCmd.Flags().String("management-ca-pem-base64", "", "Base64 PEM CA bundle used to verify the HTTPS management server")
+	agentCmd.Flags().String("management-trust-file", "", "Writable durable CA bundle used for management trust rotation")
 	agentCmd.Flags().String("tls-cert-file", "", "PEM client certificate for management mTLS")
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
