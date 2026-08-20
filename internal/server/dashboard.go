@@ -397,6 +397,19 @@ func proxyRequestContextFromHTTP(r *http.Request) proxyRequestContext {
 	}
 }
 
+func proxyRequestContextFromResolution(r *http.Request, resolution publicRouteResolution) proxyRequestContext {
+	requestContext := proxyRequestContextFromHTTP(r)
+	if resolution.DefaultRoute {
+		return requestContext
+	}
+	prefix := strings.TrimSpace(resolution.Route.PathPrefix)
+	if prefix == "" {
+		prefix = "/"
+	}
+	requestContext.PathPrefix = truncateProxyRequestContextValue(prefix, 256)
+	return requestContext
+}
+
 func redactedProxyPathPrefix(path string) string {
 	path = strings.ToValidUTF8(strings.TrimSpace(path), "")
 	if idx := strings.IndexByte(path, '?'); idx >= 0 {
@@ -408,25 +421,10 @@ func redactedProxyPathPrefix(path string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	allSegments := make([]string, 0, 3)
-	for _, segment := range strings.Split(strings.Trim(path, "/"), "/") {
-		if segment == "" {
-			continue
-		}
-		allSegments = append(allSegments, segment)
-	}
-	segments := allSegments
-	if len(segments) > 2 {
-		segments = segments[:2]
-	}
-	if len(segments) == 0 {
+	if strings.Trim(path, "/") == "" {
 		return "/"
 	}
-	prefix := "/" + strings.Join(segments, "/")
-	if len(allSegments) > len(segments) {
-		prefix += "/..."
-	}
-	return prefix
+	return "/..."
 }
 
 func truncateProxyRequestContextValue(value string, maxLen int) string {
@@ -616,6 +614,39 @@ func (a *App) recordProxyRequestEventWithIDsAndContext(
 	requestContext proxyRequestContext,
 ) {
 	a.recordProxyRequestEventWithPolicyIDsAndContext(ctx, statusCode, duration, errorKind, listenerID, routeID, sql.NullInt64{}, "", agentID, requestBytes, responseBytes, requestContext)
+}
+
+func (a *App) recordProxyRequestEventWithRouteTargetIDsAndContext(
+	ctx context.Context,
+	statusCode int,
+	duration time.Duration,
+	errorKind string,
+	listenerID sql.NullInt64,
+	routeID sql.NullInt64,
+	routeTargetID sql.NullInt64,
+	agentID sql.NullInt64,
+	requestBytes uint64,
+	responseBytes uint64,
+	requestContext proxyRequestContext,
+) {
+	a.recordProxyRequestEventWithRouteTargetCacheAndContext(
+		ctx,
+		statusCode,
+		duration,
+		errorKind,
+		listenerID,
+		routeID,
+		routeTargetID,
+		sql.NullInt64{},
+		"",
+		agentID,
+		sql.NullInt64{},
+		"",
+		0,
+		requestBytes,
+		responseBytes,
+		requestContext,
+	)
 }
 
 func (a *App) recordProxyRequestEventWithPolicyIDs(

@@ -55,7 +55,7 @@ var serverCmd = &cobra.Command{
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()
 		app.RegisterManagementRoutes(mgmtMux)
-		mgmtHandler := server.ManagementClientCertificateMiddleware(mgmtMux)
+		mgmtHandler := app.ManagementClientIdentityMiddleware(server.ManagementClientCertificateMiddleware(mgmtMux))
 
 		mgmtTLSConfig, managementTLS, err := server.NewManagementTLSConfig(cfg)
 		if err != nil {

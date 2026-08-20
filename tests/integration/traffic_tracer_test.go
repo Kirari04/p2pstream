@@ -205,7 +205,7 @@ func TestTrafficTraceDirectRequestStagesAndLevels(t *testing.T) {
 	)
 
 	finalEvent := events[len(events)-1]
-	if finalEvent.Query != "safe=ok&token=%5Bredacted%5D" {
+	if finalEvent.Query != "safe=%5Bredacted%5D&token=%5Bredacted%5D" {
 		t.Fatalf("detailed trace query = %q", finalEvent.Query)
 	}
 	if finalEvent.RequestHeaders != nil || finalEvent.ResponseHeaders != nil {
@@ -308,14 +308,14 @@ func TestTrafficTraceHeadersRedactSensitiveValues(t *testing.T) {
 	if upstreamEvent.RequestHeaders["Authorization"] != "[redacted]" {
 		t.Fatalf("authorization header was not redacted: %v", upstreamEvent.RequestHeaders)
 	}
-	if upstreamEvent.RequestHeaders["X-Request-Trace"] != "visible" {
-		t.Fatalf("visible request header missing: %v", upstreamEvent.RequestHeaders)
+	if upstreamEvent.RequestHeaders["X-Request-Trace"] != "[redacted]" {
+		t.Fatalf("non-allowlisted request header was not redacted: %v", upstreamEvent.RequestHeaders)
 	}
 	if upstreamEvent.ResponseHeaders["Set-Cookie"] != "[redacted]" {
 		t.Fatalf("set-cookie header was not redacted: %v", upstreamEvent.ResponseHeaders)
 	}
-	if upstreamEvent.ResponseHeaders["X-Upstream-Trace"] != "visible" {
-		t.Fatalf("visible response header missing: %v", upstreamEvent.ResponseHeaders)
+	if upstreamEvent.ResponseHeaders["X-Upstream-Trace"] != "[redacted]" {
+		t.Fatalf("non-allowlisted response header was not redacted: %v", upstreamEvent.ResponseHeaders)
 	}
 	if upstreamEvent.RequestBytes != 0 || upstreamEvent.ResponseBytes != 0 || upstreamEvent.DebugAttributes != nil {
 		t.Fatalf("headers level should not include debug fields: %+v", upstreamEvent)

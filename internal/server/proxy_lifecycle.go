@@ -343,13 +343,13 @@ func (a *App) startPublicListenerFromSnapshot(listener publicListenerConfig, sna
 		}
 		tlsSelector = selector
 		srv = &http.Server{Addr: addr, Handler: mux, TLSConfig: tlsConfig}
-		configurePublicHTTPServer(srv)
+		configurePublicHTTPServer(srv, a.Config.PublicMaxHeaderBytes)
 		serve = func(ln net.Listener) error {
 			return srv.ServeTLS(ln, "", "")
 		}
 	} else {
 		srv = &http.Server{Addr: addr, Handler: mux}
-		configurePublicHTTPServer(srv)
+		configurePublicHTTPServer(srv, a.Config.PublicMaxHeaderBytes)
 		serve = srv.Serve
 	}
 

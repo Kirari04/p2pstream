@@ -70,6 +70,7 @@ describe("agentSetupSnippets", () => {
     expect(snippet).toContain("MANAGEMENT_URL='https://mgmt.example.test'");
     expect(snippet).toContain("AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna'");
     expect(snippet).toContain("AGENT_TOKEN='token'\\''value'");
+    expect(snippet).not.toContain("AGENT_ALLOW_TARGETS");
     expect(snippet).toContain("P2PSTREAM_REPOSITORY='ExampleUser/p2pstream'");
     expect(snippet).toContain("P2PSTREAM_VERSION='latest'");
     expect(snippet).not.toContain("\n");
@@ -186,11 +187,25 @@ describe("agentSetupSnippets", () => {
     expect(snippet).toContain("command: [\"/app/p2pstream\", \"agent\"]");
     expect(snippet).toContain("MANAGEMENT_URL: \"https://mgmt.example.test\"");
     expect(snippet).toContain("AGENT_TOKEN: \"token'value\"");
+    expect(snippet).not.toContain("AGENT_ALLOW_TARGETS");
   });
 
   test("builds CLI snippet without repository fields", () => {
     const snippet = cliSnippet(baseInput);
 
     expect(snippet).toBe("MANAGEMENT_URL='https://mgmt.example.test' AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna' AGENT_TOKEN='token'\\''value' p2pstream agent");
+  });
+
+  test("uses an explicit custom agent destination allowlist", () => {
+    const input = { ...baseInput, allowTargets: ["app.internal:443", "10.0.5.0/24:8080"] };
+    expect(linuxInstallSnippet(input)).toContain("AGENT_ALLOW_TARGETS='app.internal:443,10.0.5.0/24:8080'");
+    expect(dockerComposeSnippet(input)).toContain("AGENT_ALLOW_TARGETS: \"app.internal:443,10.0.5.0/24:8080\"");
+  });
+
+  test("uses an explicit unrestricted destination opt-in", () => {
+    const input = { ...baseInput, allowAnyTarget: true };
+    expect(linuxInstallSnippet(input)).toContain("AGENT_ALLOW_ANY_TARGET=true");
+    expect(dockerComposeSnippet(input)).toContain('AGENT_ALLOW_ANY_TARGET: "true"');
+    expect(() => cliSnippet({ ...input, allowTargets: ["app.internal:443"] })).toThrow("cannot be combined");
   });
 });

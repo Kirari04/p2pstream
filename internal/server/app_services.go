@@ -7,43 +7,46 @@ import (
 )
 
 type appServices struct {
-	agentHub         *agentHub
-	loadBalancers    *loadBalancerRegistry
-	targetHealth     *publicRouteTargetHealthMonitor
-	trafficTracer    *trafficTracer
-	rateLimiter      *publicRateLimiter
-	trafficShaper    *publicTrafficShaper
-	publicWAF        *publicWAF
-	publicCache      *publicProxyCache
-	publicACME       *publicACMEManager
-	publicConfig     *publicConfigService
-	proxyRuntime     *proxyRuntime
-	observability    *observabilityRecorder
-	auth             *authService
-	agentTransports  *agentTransportPool
-	directTransports *directTransportPool
-	reverseProxyBuf  httputil.BufferPool
-	dashboardCache   *dashboardResponseCache
-	loginThrottle    *loginThrottle
-	agentAuthLocks   *agentAuthLockMap
+	agentHub            *agentHub
+	loadBalancers       *loadBalancerRegistry
+	targetHealth        *publicRouteTargetHealthMonitor
+	trafficTracer       *trafficTracer
+	rateLimiter         *publicRateLimiter
+	trafficShaper       *publicTrafficShaper
+	publicWAF           *publicWAF
+	publicCache         *publicProxyCache
+	publicACME          *publicACMEManager
+	publicConfig        *publicConfigService
+	proxyRuntime        *proxyRuntime
+	observability       *observabilityRecorder
+	auth                *authService
+	agentTransports     *agentTransportPool
+	directTransports    *directTransportPool
+	reverseProxyBuf     httputil.BufferPool
+	dashboardCache      *dashboardResponseCache
+	loginThrottle       *loginThrottle
+	clientLoginThrottle *loginThrottle
+	agentAuthLocks      *agentAuthLockMap
 }
 
 func newAppServices(cfg *config.Config, app *App) appServices {
+	usernameThrottle, clientThrottle := newLoginThrottleBuckets(cfg.LoginThrottleMaxKeys)
 	services := appServices{
-		agentHub:         newAgentHub(),
-		loadBalancers:    newLoadBalancerRegistry(),
-		targetHealth:     newPublicRouteTargetHealthMonitor(),
-		trafficTracer:    newTrafficTracer(),
-		rateLimiter:      newPublicRateLimiter(),
-		trafficShaper:    newPublicTrafficShaper(),
-		publicWAF:        newPublicWAF(),
-		publicCache:      newPublicProxyCache(cfg.PublicCacheDir),
-		agentTransports:  newAgentTransportPool(),
-		directTransports: newDirectTransportPool(),
-		reverseProxyBuf:  newReverseProxyBufferPool(),
-		dashboardCache:   newDashboardResponseCache(),
-		loginThrottle:    newLoginThrottle(cfg.LoginThrottleMaxKeys),
-		agentAuthLocks:   newAgentAuthLockMap(),
+		agentHub:            newAgentHub(),
+		loadBalancers:       newLoadBalancerRegistry(),
+		targetHealth:        newPublicRouteTargetHealthMonitor(),
+		trafficTracer:       newTrafficTracer(),
+		rateLimiter:         newPublicRateLimiter(),
+		trafficShaper:       newPublicTrafficShaper(),
+		publicWAF:           newPublicWAF(),
+		publicCache:         newPublicProxyCache(cfg.PublicCacheDir),
+		agentTransports:     newAgentTransportPool(),
+		directTransports:    newDirectTransportPool(cfg.PublicMaxConnectionsPerTarget),
+		reverseProxyBuf:     newReverseProxyBufferPool(),
+		dashboardCache:      newDashboardResponseCache(),
+		loginThrottle:       usernameThrottle,
+		clientLoginThrottle: clientThrottle,
+		agentAuthLocks:      newAgentAuthLockMap(),
 	}
 	services.agentHub.onDisconnect = func(conn *AgentConn) {
 		if app != nil && app.AgentTransports != nil {
@@ -54,7 +57,7 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 	services.publicConfig = newPublicConfigService(app, app.DB, services.targetHealth, appPublicConfigRuntime{app: app})
 	services.proxyRuntime = newProxyRuntime(app)
 	services.observability = newObservabilityRecorder(app)
-	services.auth = newAuthService(app, app.DB, services.loginThrottle)
+	services.auth = newAuthService(app, app.DB, services.loginThrottle, services.clientLoginThrottle)
 	return services
 }
 
@@ -77,5 +80,6 @@ func (a *App) applyServices(services appServices) {
 	a.reverseProxyBuffers = services.reverseProxyBuf
 	a.DashboardCache = services.dashboardCache
 	a.LoginThrottle = services.loginThrottle
+	a.clientLoginThrottle = services.clientLoginThrottle
 	a.agentAuthLocks = services.agentAuthLocks
 }

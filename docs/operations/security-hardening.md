@@ -21,7 +21,8 @@ Use this before exposing management beyond a private network, after adding agent
    - Set `MANAGEMENT_BIND_ADDRESS=127.0.0.1` only when a local reverse proxy, VPN sidecar, or SSH tunnel fronts management.
    - Prefer firewall allowlists, VPN, or a private admin network for `8081`.
    - Set `MANAGEMENT_PUBLIC_URL` to the real management URL used by browsers and agents.
-   - Set a deployment secret as `MANAGEMENT_SETUP_TOKEN` before first setup, or capture the generated startup token from trusted logs.
+   - Set at least 32 characters of cryptographically random data as `MANAGEMENT_SETUP_TOKEN` before first setup, or capture the generated startup token from trusted logs.
+   - If a reverse proxy fronts management, set `MANAGEMENT_TRUSTED_PROXY_CIDRS` only to that proxy's network ranges and choose the header/mode it actually enforces. Leave it empty for direct access; never trust a broad catch-all range.
    - Use `ENV=production` or `MANAGEMENT_COOKIE_SECURE=true` when management is accessed over HTTPS.
    - For API-only management, set `MANAGEMENT_UI_DISABLED=true`; the ConnectRPC API and agent Yamux tunnel stay available.
 
@@ -39,7 +40,7 @@ Use this before exposing management beyond a private network, after adding agent
    - Disable or delete unused agents.
    - Use agent mTLS with `MANAGEMENT_TLS_CLIENT_CA_FILE` when token-only auth is not enough.
    - Keep `AGENT_ALLOW_INSECURE_MANAGEMENT` unset except for isolated development.
-   - Set `AGENT_ALLOW_TARGETS` or repeated `--allow-target` flags when an agent should expose only specific destinations. If unset, the agent trusts the management server to request any reachable `host:port`.
+   - Set `AGENT_ALLOW_TARGETS` or repeated `--allow-target` flags for every required non-loopback destination. With no policy, the agent permits loopback only; use `AGENT_ALLOW_ANY_TARGET=true` only for intentionally unrestricted agents.
 
 4. Harden public TLS and upstreams:
 
@@ -63,7 +64,7 @@ Review:
 - First-admin setup token handling is documented for operators.
 - `MANAGEMENT_PUBLIC_URL` is correct.
 - Unused listeners and agents are disabled or deleted.
-- Agents that need a constrained blast radius have explicit target allowlists.
+- Every agent that needs non-loopback access has an explicit destination allowlist, or a documented reason for `AGENT_ALLOW_ANY_TARGET=true`.
 - Tracing is disabled after troubleshooting.
 
 ## Troubleshooting

@@ -36,7 +36,7 @@ docker compose restart p2pstream
 | --- | --- |
 | Usernames | Normalized to lowercase and limited to lowercase letters, numbers, underscores, and hyphens. |
 | Passwords | Minimum length is 12 characters. |
-| Setup token | Required only before the first admin exists. If `MANAGEMENT_SETUP_TOKEN` is unset, a generated token is printed once at startup. |
+| Setup token | Required only before the first admin exists. Configured values require at least 32 random characters. If `MANAGEMENT_SETUP_TOKEN` is unset, a generated token is printed once at startup. |
 | Sessions | Stored in SQLite and expire after 7 days. |
 | Cookie security | Session cookie is HTTP-only, SameSite Lax, and Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`. |
 

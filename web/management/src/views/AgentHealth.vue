@@ -199,6 +199,8 @@ const setupManagementCAFile = ref("");
 const setupAgentTLSCertFile = ref("/etc/p2pstream/agent.crt.pem");
 const setupAgentTLSKeyFile = ref("/etc/p2pstream/agent.key.pem");
 const setupAllowInsecureManagement = ref(false);
+const setupAgentAllowTargets = ref("");
+const setupAgentAllowAnyTarget = ref(false);
 const setupReleaseRepository = ref(defaultReleaseRepository());
 const setupReleaseVersion = ref(defaultReleaseVersion());
 const setupDockerImage = ref(defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value));
@@ -815,6 +817,8 @@ function openSetupModal(agent: Agent | null, token: string, context: "create" | 
   setupAgentTLSCertFile.value = "/etc/p2pstream/agent.crt.pem";
   setupAgentTLSKeyFile.value = "/etc/p2pstream/agent.key.pem";
   setupAllowInsecureManagement.value = false;
+  setupAgentAllowTargets.value = "";
+  setupAgentAllowAnyTarget.value = false;
   setupReleaseRepository.value = defaultReleaseRepository();
   setupReleaseVersion.value = defaultReleaseVersion();
   setupDockerImage.value = defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value);
@@ -900,6 +904,8 @@ function setupSnippetInput() {
     version: setupReleaseVersion.value,
     scriptRef: installerScriptRef(),
     dockerImage: setupDockerImage.value,
+    allowTargets: setupAgentAllowAnyTarget.value ? [] : splitSetupAgentAllowTargets(setupAgentAllowTargets.value),
+    allowAnyTarget: setupAgentAllowAnyTarget.value,
     tls: {
       enabled: managementUsesTLS.value,
       managementCAFile: embeddedManagementCAPEMBase64.value ? "" : setupManagementCAFile.value,
@@ -909,6 +915,10 @@ function setupSnippetInput() {
       allowInsecureManagement: setupAllowInsecureManagement.value,
     },
   };
+}
+
+function splitSetupAgentAllowTargets(value: string): string[] {
+  return value.split(/[\s,]+/).map((entry) => entry.trim()).filter(Boolean);
 }
 
 async function copySetupSnippet() {
@@ -1277,9 +1287,37 @@ async function copyUninstallSnippet() {
         <details class="agent-advanced-options" :open="setupAdvancedOpen" @toggle="handleSetupAdvancedToggle">
           <summary>
             <span>Advanced setup options</span>
-            <small>Repository, release, and TLS</small>
+            <small>Destination policy, repository, release, and TLS</small>
           </summary>
           <div class="agent-advanced-options__body">
+            <div class="layout-grid space-md mq-md-cols-two">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Agent Destination Allowlist
+                <NInput
+                  v-model:value="setupAgentAllowTargets"
+                  size="small"
+                  :disabled="setupAgentAllowAnyTarget"
+                  placeholder="app.internal:443, 10.0.5.0/24:8080"
+                />
+                <small class="normal-text line-normal letter-normal">
+                  Exact hostnames, IPs, or CIDRs with optional ports. Blank uses loopback-only defaults; a Linux reinstall preserves its existing policy.
+                </small>
+              </label>
+              <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Destination Scope
+                <NCheckbox v-model:checked="setupAgentAllowAnyTarget">
+                  Allow any destination reachable by this agent
+                </NCheckbox>
+                <small class="normal-text line-normal letter-normal">
+                  Use only when unrestricted network reachability is intentional and documented.
+                </small>
+              </div>
+            </div>
+
+            <div v-if="setupAgentAllowAnyTarget" class="warning-panel pad-md copy-xs line-normal">
+              Unrestricted mode lets management request connections to every destination the agent host can reach.
+            </div>
+
             <div class="layout-grid space-md mq-md-cols-two">
               <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 GitHub Repository

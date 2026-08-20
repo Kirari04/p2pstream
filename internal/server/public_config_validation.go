@@ -189,7 +189,7 @@ func (a *App) validatePublicRouteTargets(
 			targetURL := strings.TrimSpace(target.Url)
 			parsed, err := parsePublicTargetOrigin(targetURL)
 			if err != nil {
-				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("proxy route target URL must be an http or https origin"))
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("proxy route target URL must be an http or https origin: %w", err))
 			}
 			params.Url = strings.TrimRight(parsed.String(), "/")
 			if transport == publicRouteTargetTransportAgent {
@@ -641,7 +641,34 @@ func parsePublicTargetOrigin(targetOrigin string) (*url.URL, error) {
 	if parsed.Host == "" {
 		return nil, errors.New("target origin must include a host")
 	}
-	return parsed, nil
+	if parsed.User != nil {
+		return nil, errors.New("target origin must not include user information; configure upstream authentication separately")
+	}
+	if parsed.Opaque != "" || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" {
+		return nil, errors.New("target origin must not include a path, query, or fragment")
+	}
+	if parsed.Path != "" && parsed.Path != "/" {
+		return nil, errors.New("target origin must not include a path; route paths are preserved when proxying")
+	}
+	if parsed.RawPath != "" && parsed.RawPath != "/" {
+		return nil, errors.New("target origin must not include an encoded path")
+	}
+	return &url.URL{Scheme: parsed.Scheme, Host: parsed.Host}, nil
+}
+
+func normalizeLegacyPublicTargetOrigin(targetOrigin string) (string, bool, error) {
+	if parsed, err := parsePublicTargetOrigin(targetOrigin); err == nil {
+		return parsed.String(), false, nil
+	}
+	parsed, err := url.Parse(strings.TrimSpace(targetOrigin))
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return "", false, errors.New("legacy target URL does not contain a valid HTTP(S) origin")
+	}
+	origin, err := parsePublicTargetOrigin((&url.URL{Scheme: parsed.Scheme, Host: parsed.Host}).String())
+	if err != nil {
+		return "", false, err
+	}
+	return origin.String(), true, nil
 }
 
 func normalizeHostPattern(pattern string) string {

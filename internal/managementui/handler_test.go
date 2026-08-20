@@ -26,6 +26,45 @@ func TestHandlerServesDistIndex(t *testing.T) {
 	}
 }
 
+func TestHandlerSetsBrowserSecurityHeaders(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+	rec := httptest.NewRecorder()
+	NewHandler("", distDir).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if got := rec.Header().Get("Content-Security-Policy"); !strings.Contains(got, "frame-ancestors 'none'") || !strings.Contains(got, "default-src 'self'") {
+		t.Fatalf("Content-Security-Policy = %q", got)
+	}
+	for name, want := range map[string]string{
+		"X-Frame-Options":        "DENY",
+		"X-Content-Type-Options": "nosniff",
+		"Referrer-Policy":        "no-referrer",
+	} {
+		if got := rec.Header().Get(name); got != want {
+			t.Fatalf("%s = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestHandlerSetsHSTSOnlyForHTTPS(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+	handler := NewHandler("", distDir)
+
+	httpsRequest := httptest.NewRequest(http.MethodGet, "https://management.test/", nil)
+	httpsRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(httpsRecorder, httpsRequest)
+	if got := httpsRecorder.Header().Get("Strict-Transport-Security"); got != "max-age=31536000" {
+		t.Fatalf("HTTPS Strict-Transport-Security = %q", got)
+	}
+
+	httpRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(httpRecorder, httptest.NewRequest(http.MethodGet, "http://management.test/", nil))
+	if got := httpRecorder.Header().Get("Strict-Transport-Security"); got != "" {
+		t.Fatalf("HTTP Strict-Transport-Security = %q, want empty", got)
+	}
+}
+
 func TestHandlerServesDistAsset(t *testing.T) {
 	distDir := t.TempDir()
 	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")

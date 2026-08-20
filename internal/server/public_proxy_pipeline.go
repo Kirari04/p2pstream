@@ -51,6 +51,7 @@ type publicProxyContext struct {
 }
 
 var publicProxyStages = []publicProxyStage{
+	publicRequestAdmissionStage,
 	rejectGloballyInvalidPublicPathStage,
 	serveACMEChallengeStage,
 	serveWAFReservedStage,
@@ -72,14 +73,20 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 		snap = app.currentPublicSnapshot()
 	}
 	r = resolvePublicRequestIdentity(snap, r)
+	if app != nil && app.Config != nil {
+		r = applyPublicRequestBodyLimits(app.Config.PublicMaxRequestBodyBytes, app.Config.PublicRequestBodyIdleMillis, w, r)
+	} else {
+		r = applyPublicRequestBodyLimits(0, 0, w, r)
+	}
 	var requestBytes atomic.Uint64
 	if r.Body != nil && r.Body != http.NoBody {
 		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
 	}
-	recorder := &proxyResponseRecorder{ResponseWriter: w}
+	bodyState, _ := r.Context().Value(publicRequestBodyStateContextKey{}).(*publicRequestBodyState)
+	recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, requestBodyState: bodyState}
 	responseWriter := http.ResponseWriter(recorder)
 	observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
-	trace := app.newTrafficRequestTrace(r, recorder)
+	trace := app.newTrafficRequestTrace(r, recorder, publicTracePathForRequest(app, snap, listenerID, r))
 	if trace != nil {
 		trace.emitReceived(listenerID)
 	}
@@ -96,6 +103,79 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 		RequestContext: proxyRequestContextFromHTTP(r),
 		Trace:          trace,
 	}
+}
+
+func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.App != nil && ctx.App.publicProxyRequests != nil {
+		release, ok := ctx.App.publicProxyRequests.tryAcquire()
+		if !ok {
+			return rejectPublicRequestCapacity(ctx, "public_request_capacity", "Public proxy capacity reached")
+		}
+		ctx.deferCleanup(release)
+	}
+	if ctx.Request != nil && ctx.Request.ContentLength > publicRequestBodyLimit(ctx.App) {
+		return rejectPublicRequestBodyTooLarge(ctx)
+	}
+	return publicProxyStageContinue
+}
+
+func rejectPublicRequestCapacity(ctx *publicProxyContext, errorKind, message string) publicProxyStageResult {
+	ctx.ResponseWriter.Header().Set("Retry-After", "1")
+	http.Error(ctx.ResponseWriter, message, http.StatusServiceUnavailable)
+	resolution := ctx.Resolution
+	if !resolution.ListenerID.Valid {
+		resolution.ListenerID = sql.NullInt64{Int64: ctx.ListenerID, Valid: true}
+	}
+	requestContext := ctx.RequestContext
+	if resolution.Route.ID != 0 || resolution.RouteID.Valid {
+		requestContext = proxyRequestContextFromResolution(ctx.Request, resolution)
+	}
+	ctx.App.recordProxyRequestEventWithRouteTargetIDsAndContext(
+		context.Background(),
+		http.StatusServiceUnavailable,
+		time.Since(ctx.StartedAt),
+		errorKind,
+		resolution.ListenerID,
+		resolution.RouteID,
+		resolution.RouteTargetID,
+		resolution.AgentID,
+		ctx.Observability.requestBytesValue(),
+		ctx.Observability.responseBytesValue(),
+		requestContext,
+	)
+	if ctx.Trace != nil {
+		ctx.Trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED, &resolution, nil, http.StatusServiceUnavailable, errorKind, ctx.ResponseWriter.Header(), nil)
+	}
+	return publicProxyStageDone
+}
+
+func rejectPublicRequestBodyTooLarge(ctx *publicProxyContext) publicProxyStageResult {
+	http.Error(ctx.ResponseWriter, "Request body too large", http.StatusRequestEntityTooLarge)
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
+		context.Background(),
+		http.StatusRequestEntityTooLarge,
+		time.Since(ctx.StartedAt),
+		"request_body_too_large",
+		sql.NullInt64{Int64: ctx.ListenerID, Valid: true},
+		sql.NullInt64{},
+		sql.NullInt64{},
+		ctx.Observability.requestBytesValue(),
+		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
+	)
+	if ctx.Trace != nil {
+		resolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
+		ctx.Trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
+			&resolution,
+			nil,
+			http.StatusRequestEntityTooLarge,
+			"request_body_too_large",
+			ctx.ResponseWriter.Header(),
+			nil,
+		)
+	}
+	return publicProxyStageDone
 }
 
 func (ctx *publicProxyContext) run() {
@@ -622,6 +702,13 @@ func cacheLookupStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func activeTargetAccountingAndForwardStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeProxy && ctx.Resolution.RouteTargetID.Valid && ctx.App.publicTargetRequests != nil {
+		release, ok := ctx.App.publicTargetRequests.tryAcquire(ctx.Resolution.RouteTargetID.Int64)
+		if !ok {
+			return rejectPublicRequestCapacity(ctx, "route_target_capacity", "Route target capacity reached")
+		}
+		defer release()
+	}
 	if ctx.Resolution.RouteTargetID.Valid {
 		done := ctx.App.beginPublicRouteTargetRequest(ctx.Resolution.RouteTargetID.Int64)
 		defer done()

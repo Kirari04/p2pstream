@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -76,6 +77,27 @@ func TestGetDashboardIncludesCacheSummary(t *testing.T) {
 	}
 	if window.ProxyCacheStoredBytes != 300 {
 		t.Fatalf("proxy cache stored bytes = %d, want 300", window.ProxyCacheStoredBytes)
+	}
+}
+
+func TestProxyRequestContextPreservesRequestPathForDefaultRoute(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/private/value", nil)
+	resolution := publicRouteResolution{
+		DefaultRoute: true,
+		Route: publicRouteConfig{
+			PathPrefix: "/api",
+		},
+	}
+
+	got := proxyRequestContextFromResolution(req, resolution)
+	if got.PathPrefix != "/..." {
+		t.Fatalf("default route path prefix = %q, want request-derived redaction", got.PathPrefix)
+	}
+
+	resolution.DefaultRoute = false
+	got = proxyRequestContextFromResolution(req, resolution)
+	if got.PathPrefix != "/api" {
+		t.Fatalf("matched route path prefix = %q, want /api", got.PathPrefix)
 	}
 }
 
@@ -193,10 +215,10 @@ func TestRedactedProxyPathPrefix(t *testing.T) {
 	}{
 		{path: "", want: "/"},
 		{path: "/", want: "/"},
-		{path: "/api?token=secret", want: "/api"},
-		{path: "/api/users", want: "/api/users"},
-		{path: "/api/users/123/token", want: "/api/users/..."},
-		{path: "api/users/123", want: "/api/users/..."},
+		{path: "/api?token=secret", want: "/..."},
+		{path: "/api/users", want: "/..."},
+		{path: "/api/users/123/token", want: "/..."},
+		{path: "api/users/123", want: "/..."},
 	}
 	for _, tt := range tests {
 		if got := redactedProxyPathPrefix(tt.path); got != tt.want {

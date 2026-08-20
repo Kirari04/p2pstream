@@ -15,6 +15,8 @@ export type AgentSetupSnippetInput = {
   version?: string;
   scriptRef?: string;
   dockerImage?: string;
+  allowTargets?: string[];
+  allowAnyTarget?: boolean;
   tls?: AgentSetupTLSConfig;
 };
 
@@ -79,6 +81,7 @@ export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
     ...installTLSParts(input.tls),
     `AGENT_ID=${shellQuote(input.agentId)}`,
     `AGENT_TOKEN=${shellQuote(input.agentToken)}`,
+    ...shellAgentDestinationPolicyParts(input),
     `P2PSTREAM_REPOSITORY=${shellQuote(repository)}`,
     `P2PSTREAM_VERSION=${shellQuote(version)}`,
   ];
@@ -102,6 +105,7 @@ export function dockerComposeSnippet(input: AgentSetupSnippetInput): string {
 ${dockerTLSLines(input.tls)}
       AGENT_ID: ${yamlQuote(input.agentId)}
       AGENT_TOKEN: ${yamlQuote(input.agentToken)}
+${dockerAgentDestinationPolicyLine(input)}
 ${dockerTLSVolumes(input.tls)}
     restart: unless-stopped`;
 }
@@ -112,8 +116,39 @@ export function cliSnippet(input: AgentSetupSnippetInput): string {
     ...cliTLSParts(input.tls),
     `AGENT_ID=${shellQuote(input.agentId)}`,
     `AGENT_TOKEN=${shellQuote(input.agentToken)}`,
+    ...shellAgentDestinationPolicyParts(input),
   ];
   return `${parts.join(" ")} p2pstream agent`;
+}
+
+function normalizedAllowTargets(values: string[] | undefined): string {
+  const normalized = (values ?? [])
+    .map((value) => singleLine(value).trim())
+    .filter(Boolean);
+  return normalized.join(",");
+}
+
+function normalizedAgentDestinationPolicy(input: AgentSetupSnippetInput): { allowTargets: string; allowAnyTarget: boolean } {
+  const allowTargets = normalizedAllowTargets(input.allowTargets);
+  const allowAnyTarget = Boolean(input.allowAnyTarget);
+  if (allowTargets && allowAnyTarget) {
+    throw new Error("Allow any target cannot be combined with a destination allowlist.");
+  }
+  return { allowTargets, allowAnyTarget };
+}
+
+function shellAgentDestinationPolicyParts(input: AgentSetupSnippetInput): string[] {
+  const policy = normalizedAgentDestinationPolicy(input);
+  if (policy.allowAnyTarget) return ["AGENT_ALLOW_ANY_TARGET=true"];
+  if (policy.allowTargets) return [`AGENT_ALLOW_TARGETS=${shellQuote(policy.allowTargets)}`];
+  return [];
+}
+
+function dockerAgentDestinationPolicyLine(input: AgentSetupSnippetInput): string {
+  const policy = normalizedAgentDestinationPolicy(input);
+  if (policy.allowAnyTarget) return `      AGENT_ALLOW_ANY_TARGET: "true"`;
+  if (policy.allowTargets) return `      AGENT_ALLOW_TARGETS: ${yamlQuote(policy.allowTargets)}`;
+  return "";
 }
 
 export function shellQuote(value: string): string {
