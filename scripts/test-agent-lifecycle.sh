@@ -76,6 +76,7 @@ setup_fixture() {
   TEST_DIR="$(mktemp -d)"
   FAKE_BIN="${TEST_DIR}/bin"
   CONFIG_DIR="${TEST_DIR}/etc/p2pstream"
+  AGENT_STATE_DIR="${TEST_DIR}/var/lib/p2pstream-agent"
   INSTALL_PATH="${TEST_DIR}/usr/local/bin/p2pstream"
   SYSTEMD_DIR="${TEST_DIR}/systemd"
   SYSTEMCTL_LOG="${TEST_DIR}/systemctl.log"
@@ -198,6 +199,7 @@ run_installer() {
     FAKE_SYSTEMCTL_LOG="$SYSTEMCTL_LOG" \
     FAKE_COMMAND_LOG="$COMMAND_LOG" \
     P2PSTREAM_CONFIG_DIR="$CONFIG_DIR" \
+    P2PSTREAM_AGENT_STATE_DIR="$AGENT_STATE_DIR" \
     P2PSTREAM_INSTALL_PATH="$INSTALL_PATH" \
     P2PSTREAM_SYSTEMD_DIR="$SYSTEMD_DIR" \
     P2PSTREAM_REPOSITORY="ExampleUser/p2pstream" \
@@ -214,6 +216,7 @@ run_uninstaller() {
     FAKE_USER_EXISTS="1" \
     FAKE_GROUP_EXISTS="1" \
     P2PSTREAM_CONFIG_DIR="$CONFIG_DIR" \
+    P2PSTREAM_AGENT_STATE_DIR="$AGENT_STATE_DIR" \
     P2PSTREAM_INSTALL_PATH="$INSTALL_PATH" \
     P2PSTREAM_SYSTEMD_DIR="$SYSTEMD_DIR" \
     P2PSTREAM_UNINSTALL_CONFIRM="full-purge" \
@@ -235,9 +238,11 @@ test_first_install() {
   assert_exists "$INSTALL_PATH"
   assert_exists "${CONFIG_DIR}/agent.env"
   assert_exists "${CONFIG_DIR}/management-ca.pem"
+  assert_exists "${AGENT_STATE_DIR}/management-ca.pem"
   assert_exists "${SYSTEMD_DIR}/p2pstream-agent.service"
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_URL=\"https://mgmt.example.test:8081\""
   assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_CA_FILE=\"${CONFIG_DIR}/management-ca.pem\""
+  assert_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_TRUST_FILE=\"${AGENT_STATE_DIR}/management-ca.pem\""
   assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_STREAM_WINDOW_BYTES=\"4194304\""
   assert_contains "${CONFIG_DIR}/agent.env" "TUNNEL_MAX_CONCURRENT_REQUESTS=\"32\""
   assert_contains "${CONFIG_DIR}/agent.env" "AGENT_ALLOW_TARGETS=\"myapp.internal:443,10.0.5.0/24:8080\""
@@ -682,6 +687,11 @@ test_validation_failures() {
   fi
   assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must be latest, staging, or vX.Y.Z"
 
+  if run_installer P2PSTREAM_AGENT_STATE_DIR="/" MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/state-dir.err"; then
+    fail "unsafe P2PSTREAM_AGENT_STATE_DIR should fail"
+  fi
+  assert_contains "${TEST_DIR}/state-dir.err" "P2PSTREAM_AGENT_STATE_DIR"
+
   if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" TUNNEL_MAX_STREAM_WINDOW_BYTES="262143" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/window.err"; then
     fail "undersized TUNNEL_MAX_STREAM_WINDOW_BYTES should fail"
   fi
@@ -698,12 +708,33 @@ test_validation_failures() {
   assert_contains "${TEST_DIR}/allow-targets.err" "AGENT_CLEAR_ALLOW_TARGETS=true cannot be combined with AGENT_ALLOW_TARGETS"
 }
 
+test_management_trust_repair() {
+  setup_fixture
+  run_installer \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    MANAGEMENT_CA_PEM_BASE64="$(base64_value $'-----BEGIN CERTIFICATE-----\nold\n-----END CERTIFICATE-----\n')" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="token-one"
+  printf '{"generation":1}\n' >"${AGENT_STATE_DIR}/management-ca.pem.state.json"
+  : >"$SYSTEMCTL_LOG"
+
+  run_installer \
+    P2PSTREAM_REPAIR_TRUST="true" \
+    MANAGEMENT_CA_PEM_BASE64="$(base64_value $'-----BEGIN CERTIFICATE-----\nnew\n-----END CERTIFICATE-----\n')"
+
+  assert_contains "${AGENT_STATE_DIR}/management-ca.pem" "new"
+  assert_not_contains "${AGENT_STATE_DIR}/management-ca.pem" "old"
+  assert_absent "${AGENT_STATE_DIR}/management-ca.pem.state.json"
+  assert_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+}
+
 test_uninstall_full_purge() {
   setup_fixture
-  mkdir -p "${SYSTEMD_DIR}/p2pstream-agent.service.d" "$CONFIG_DIR" "$(dirname "$INSTALL_PATH")"
+  mkdir -p "${SYSTEMD_DIR}/p2pstream-agent.service.d" "$CONFIG_DIR" "$AGENT_STATE_DIR" "$(dirname "$INSTALL_PATH")"
   printf 'unit\n' >"${SYSTEMD_DIR}/p2pstream-agent.service"
   printf 'dropin\n' >"${SYSTEMD_DIR}/p2pstream-agent.service.d/override.conf"
   printf 'env\n' >"${CONFIG_DIR}/agent.env"
+  printf 'trust\n' >"${AGENT_STATE_DIR}/management-ca.pem"
   printf 'binary\n' >"$INSTALL_PATH"
 
   run_uninstaller
@@ -711,6 +742,7 @@ test_uninstall_full_purge() {
   assert_absent "${SYSTEMD_DIR}/p2pstream-agent.service"
   assert_absent "${SYSTEMD_DIR}/p2pstream-agent.service.d"
   assert_absent "$CONFIG_DIR"
+  assert_absent "$AGENT_STATE_DIR"
   assert_absent "$INSTALL_PATH"
   assert_contains "$SYSTEMCTL_LOG" "disable --now p2pstream-agent"
   assert_contains "$SYSTEMCTL_LOG" "daemon-reload"
@@ -768,6 +800,7 @@ run_test "reinstall rejects unrelated multiline context" test_reinstall_rejects_
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
 run_test "staging version downloads staging asset" test_staging_version_downloads_staging_asset
 run_test "validation failures" test_validation_failures
+run_test "management trust repair" test_management_trust_repair
 run_test "uninstall full purge" test_uninstall_full_purge
 run_test "uninstall dry-run and unsafe paths" test_uninstall_dry_run_and_unsafe_paths
 

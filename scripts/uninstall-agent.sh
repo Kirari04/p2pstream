@@ -7,6 +7,7 @@ readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
 readonly SYSTEMD_DIR="${P2PSTREAM_SYSTEMD_DIR:-/etc/systemd/system}"
 readonly SERVICE_FILE="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 readonly SERVICE_DROPIN_DIR="${SERVICE_FILE}.d"
+readonly AGENT_STATE_DIR="${P2PSTREAM_AGENT_STATE_DIR:-/var/lib/p2pstream-agent}"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
 readonly CONFIRM_VALUE="full-purge"
@@ -76,6 +77,20 @@ require_safe_install_path() {
   esac
 }
 
+require_safe_state_dir() {
+  [[ "$AGENT_STATE_DIR" =~ ^/[A-Za-z0-9._/-]+$ ]] \
+    || fail "P2PSTREAM_AGENT_STATE_DIR must be an absolute path containing only letters, numbers, dots, underscores, dashes, and slashes"
+  [[ "/${AGENT_STATE_DIR#/}/" != *"/../"* ]] \
+    || fail "P2PSTREAM_AGENT_STATE_DIR must not contain a parent-directory segment"
+  [[ "/${AGENT_STATE_DIR#/}/" != *"/./"* && "$AGENT_STATE_DIR" != *"//"* ]] \
+    || fail "P2PSTREAM_AGENT_STATE_DIR must not contain dot or repeated-slash segments"
+  case "$AGENT_STATE_DIR" in
+    ""|"/"|"/var"|"/var/lib"|"/etc"|"/usr"|"/usr/local")
+      fail "refusing to remove unsafe P2PSTREAM_AGENT_STATE_DIR: ${AGENT_STATE_DIR}"
+      ;;
+  esac
+}
+
 remove_file() {
   local path="$1"
   if [[ -e "$path" || -L "$path" ]]; then
@@ -141,12 +156,14 @@ main() {
   require_root_for_changes
   require_safe_config_dir
   require_safe_install_path
+  require_safe_state_dir
 
   info "Uninstalling p2pstream agent with full purge."
   info "Service: ${SERVICE_NAME}"
   info "Service file: ${SERVICE_FILE}"
   info "Service drop-ins: ${SERVICE_DROPIN_DIR}"
   info "Config directory: ${CONFIG_DIR}"
+  info "State directory: ${AGENT_STATE_DIR}"
   info "Binary: ${INSTALL_PATH}"
   if is_dry_run; then
     info "Dry run is enabled; no changes will be made."
@@ -157,6 +174,7 @@ main() {
   remove_dir "$SERVICE_DROPIN_DIR"
   reload_systemd
   remove_dir "$CONFIG_DIR"
+  remove_dir "$AGENT_STATE_DIR"
   remove_file "$INSTALL_PATH"
   delete_service_user
 

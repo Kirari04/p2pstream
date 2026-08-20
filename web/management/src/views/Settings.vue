@@ -9,12 +9,15 @@ const router = useRouter();
 const settingsSections = [
   { key: "environments", label: "Environments", path: "/settings/environments" },
   { key: "api-tokens", label: "API Tokens", path: "/settings/api-tokens" },
+  { key: "management-tls", label: "Management TLS", path: "/settings/management-tls" },
 ] as const;
 
 type SettingsSectionKey = typeof settingsSections[number]["key"];
 
 const activeSection = computed<SettingsSectionKey>(() =>
-  route.path.includes("/api-tokens") ? "api-tokens" : "environments",
+  route.path.includes("/management-tls")
+    ? "management-tls"
+    : route.path.includes("/api-tokens") ? "api-tokens" : "environments",
 );
 
 async function selectSection(value: string | number) {

@@ -9,6 +9,8 @@ readonly SYSTEMD_DIR="${P2PSTREAM_SYSTEMD_DIR:-/etc/systemd/system}"
 readonly SERVICE_FILE="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
 readonly MANAGEMENT_CA_PEM_FILE="${CONFIG_DIR}/management-ca.pem"
+readonly AGENT_STATE_DIR="${P2PSTREAM_AGENT_STATE_DIR:-/var/lib/p2pstream-agent}"
+readonly MANAGEMENT_TRUST_FILE="${AGENT_STATE_DIR}/management-ca.pem"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
 readonly DEFAULT_TUNNEL_MAX_STREAM_WINDOW_BYTES="2097152"
@@ -49,6 +51,20 @@ require_readable_file() {
   if [[ ! -f "$path" || ! -r "$path" ]]; then
     fail "${name} must reference a readable file: ${path}"
   fi
+}
+
+require_safe_agent_state_dir() {
+	[[ "$AGENT_STATE_DIR" =~ ^/[A-Za-z0-9._/-]+$ ]] \
+		|| fail "P2PSTREAM_AGENT_STATE_DIR must be an absolute path containing only letters, numbers, dots, underscores, dashes, and slashes"
+	[[ "/${AGENT_STATE_DIR#/}/" != *"/../"* ]] \
+		|| fail "P2PSTREAM_AGENT_STATE_DIR must not contain a parent-directory segment"
+	[[ "/${AGENT_STATE_DIR#/}/" != *"/./"* && "$AGENT_STATE_DIR" != *"//"* ]] \
+		|| fail "P2PSTREAM_AGENT_STATE_DIR must not contain dot or repeated-slash segments"
+  case "$AGENT_STATE_DIR" in
+    ""|"/"|"/var"|"/var/lib"|"/etc"|"/usr"|"/usr/local")
+      fail "refusing unsafe P2PSTREAM_AGENT_STATE_DIR: ${AGENT_STATE_DIR}"
+      ;;
+  esac
 }
 
 single_line() {
@@ -448,6 +464,7 @@ write_agent_env() {
     if [[ -n "${MANAGEMENT_CA_FILE:-}" ]]; then
       printf 'MANAGEMENT_CA_FILE=%s\n' "$(systemd_env_value "$MANAGEMENT_CA_FILE")"
     fi
+    printf 'MANAGEMENT_TRUST_FILE=%s\n' "$(systemd_env_value "$MANAGEMENT_TRUST_FILE")"
     if [[ -n "${AGENT_TLS_CERT_FILE:-}" ]]; then
       printf 'AGENT_TLS_CERT_FILE=%s\n' "$(systemd_env_value "$AGENT_TLS_CERT_FILE")"
     fi
@@ -493,6 +510,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
+ReadWritePaths=${AGENT_STATE_DIR}
 
 [Install]
 WantedBy=multi-user.target
@@ -570,6 +588,34 @@ sync_management_ca() {
   fi
 }
 
+initialize_management_trust() {
+  install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0700 "$AGENT_STATE_DIR"
+  if [[ -n "${MANAGEMENT_CA_FILE:-}" ]]; then
+    install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0644 "$MANAGEMENT_CA_FILE" "$MANAGEMENT_TRUST_FILE"
+  elif [[ ! -e "$MANAGEMENT_TRUST_FILE" ]]; then
+    install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0644 /dev/null "$MANAGEMENT_TRUST_FILE"
+  fi
+}
+
+repair_management_trust() {
+  require_env MANAGEMENT_CA_PEM_BASE64
+  [[ -f "$ENV_FILE" ]] || fail "existing agent environment not found at ${ENV_FILE}; rerun the full install command"
+  ensure_service_user
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  INSTALL_TMP_DIR="$tmp_dir"
+  trap cleanup_tmp_dir EXIT
+  decode_management_ca_pem "${tmp_dir}/management-ca.pem"
+  grep -q -- '-----BEGIN CERTIFICATE-----' "${tmp_dir}/management-ca.pem" \
+    || fail "MANAGEMENT_CA_PEM_BASE64 contains no PEM certificate"
+  install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0700 "$AGENT_STATE_DIR"
+  install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0644 "${tmp_dir}/management-ca.pem" "$MANAGEMENT_TRUST_FILE"
+  rm -f "${MANAGEMENT_TRUST_FILE}.state.json"
+  systemctl restart "$SERVICE_NAME" \
+    || fail "failed to restart ${SERVICE_NAME}; rerun the full install command"
+  printf 'p2pstream agent management trust repaired and service restarted.\n'
+}
+
 restart_service() {
   systemctl daemon-reload
   systemctl enable "$SERVICE_NAME"
@@ -599,6 +645,11 @@ main() {
   require_command uname
 
   systemctl --version >/dev/null 2>&1 || fail "systemd is required"
+  require_safe_agent_state_dir
+  if [[ "${P2PSTREAM_REPAIR_TRUST:-false}" == "true" ]]; then
+    repair_management_trust
+    return
+  fi
   require_env MANAGEMENT_URL
   require_env AGENT_ID
   require_env AGENT_TOKEN
@@ -651,6 +702,7 @@ main() {
 
   install -d -m 0755 "$CONFIG_DIR"
   sync_management_ca "$tmp_dir"
+  initialize_management_trust
   write_agent_env "${tmp_dir}/agent.env"
   install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0600 "${tmp_dir}/agent.env" "$ENV_FILE"
 

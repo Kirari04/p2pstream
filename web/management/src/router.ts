@@ -8,6 +8,7 @@ const AgentHealth = () => import('./views/AgentHealth.vue');
 const Settings = () => import('./views/Settings.vue');
 const SettingsApiTokens = () => import('./views/SettingsApiTokens.vue');
 const SettingsEnvironments = () => import('./views/SettingsEnvironments.vue');
+const SettingsManagementTls = () => import('./views/SettingsManagementTls.vue');
 const ProxyConfig = () => import('./views/ProxyConfig.vue');
 const TrafficPolicies = () => import('./views/TrafficPolicies.vue');
 const ResponseTemplates = () => import('./views/ResponseTemplates.vue');
@@ -35,6 +36,7 @@ const routes = [
     children: [
       { path: 'environments', name: 'settings-environments', component: SettingsEnvironments },
       { path: 'api-tokens', name: 'settings-api-tokens', component: SettingsApiTokens },
+      { path: 'management-tls', name: 'settings-management-tls', component: SettingsManagementTls },
     ],
   },
   { path: '/environments', redirect: '/settings/environments' },

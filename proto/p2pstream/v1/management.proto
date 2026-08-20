@@ -287,6 +287,68 @@ enum EnvironmentTrustState {
   ENVIRONMENT_TRUST_STATE_EXPIRED = 4;
 }
 
+// Management trust updates are deliberately reported separately from tunnel
+// connectivity. The server must never infer a durable CA install merely from
+// an agent being online.
+enum ManagementTrustInstallState {
+  MANAGEMENT_TRUST_INSTALL_STATE_UNSPECIFIED = 0;
+  MANAGEMENT_TRUST_INSTALL_STATE_UNSUPPORTED = 1;
+  MANAGEMENT_TRUST_INSTALL_STATE_PENDING = 2;
+  MANAGEMENT_TRUST_INSTALL_STATE_READY = 3;
+  MANAGEMENT_TRUST_INSTALL_STATE_FAILED = 4;
+}
+
+enum ManagementTrustErrorCode {
+  MANAGEMENT_TRUST_ERROR_CODE_UNSPECIFIED = 0;
+  MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE = 1;
+  MANAGEMENT_TRUST_ERROR_CODE_HOSTNAME_MISMATCH = 2;
+  MANAGEMENT_TRUST_ERROR_CODE_PERSIST_FAILED = 3;
+  MANAGEMENT_TRUST_ERROR_CODE_RELOAD_FAILED = 4;
+}
+
+enum ManagementTlsRotationPhase {
+  MANAGEMENT_TLS_ROTATION_PHASE_UNSPECIFIED = 0;
+  MANAGEMENT_TLS_ROTATION_PHASE_IDLE = 1;
+  MANAGEMENT_TLS_ROTATION_PHASE_DISTRIBUTING = 2;
+  MANAGEMENT_TLS_ROTATION_PHASE_ACTIVE = 3;
+  MANAGEMENT_TLS_ROTATION_PHASE_RETIRING = 4;
+  MANAGEMENT_TLS_ROTATION_PHASE_CLEANING_UP = 5;
+}
+
+enum ManagementTlsCleanupReason {
+  MANAGEMENT_TLS_CLEANUP_REASON_UNSPECIFIED = 0;
+  MANAGEMENT_TLS_CLEANUP_REASON_CANCELLED_STAGING = 1;
+  MANAGEMENT_TLS_CLEANUP_REASON_ROLLED_BACK_CERTIFICATE = 2;
+}
+
+enum ManagementTlsAgentRolloutState {
+  MANAGEMENT_TLS_AGENT_ROLLOUT_STATE_UNSPECIFIED = 0;
+  MANAGEMENT_TLS_AGENT_ROLLOUT_STATE_DISABLED = 1;
+  MANAGEMENT_TLS_AGENT_ROLLOUT_STATE_INCOMPATIBLE = 2;
+  MANAGEMENT_TLS_AGENT_ROLLOUT_STATE_PENDING = 3;
+  MANAGEMENT_TLS_AGENT_ROLLOUT_STATE_READY = 4;
+  MANAGEMENT_TLS_AGENT_ROLLOUT_STATE_FAILED = 5;
+  MANAGEMENT_TLS_AGENT_ROLLOUT_STATE_STRANDED = 6;
+}
+
+message ManagementTrustStatus {
+  uint64 installed_generation = 1;
+  string installed_bundle_sha256 = 2;
+  ManagementTrustInstallState state = 3;
+  ManagementTrustErrorCode error_code = 4;
+  string error_detail = 5;
+  string agent_version = 6;
+  repeated string capabilities = 7;
+}
+
+message ManagementTrustUpdate {
+  uint64 generation = 1;
+  string ca_bundle_pem = 2;
+  string bundle_sha256 = 3;
+  string server_certificate_pem = 4;
+  string management_hostname = 5;
+}
+
 message AgentStatsRequest {
   int64 memory_sys_mb = 1;
   int64 num_goroutine = 2;
@@ -299,9 +361,126 @@ message AgentStatsRequest {
   int32 active_requests = 9;
   string agent_public_id = 10;
   double cpu_percent = 11;
+  ManagementTrustStatus management_trust_status = 12;
 }
 
 message AgentStatsResponse {
+  ManagementTrustUpdate management_trust_update = 1;
+}
+
+message ManagementTlsCertificateSummary {
+  string sha256 = 1;
+  string subject = 2;
+  string issuer = 3;
+  int64 not_before_unix_millis = 4;
+  int64 not_after_unix_millis = 5;
+  repeated string dns_names = 6;
+  repeated string ip_addresses = 7;
+}
+
+message ManagementTlsAgentRollout {
+  int64 agent_id = 1;
+  string agent_public_id = 2;
+  string agent_name = 3;
+  bool enabled = 4;
+  bool connected = 5;
+  ManagementTlsAgentRolloutState state = 6;
+  uint64 installed_generation = 7;
+  string installed_bundle_sha256 = 8;
+  string agent_version = 9;
+  string error_detail = 10;
+  int64 reported_at_unix_millis = 11;
+  bool needs_trust_attention = 12;
+  bool included_in_rollout = 13;
+}
+
+message ManagementTlsRotation {
+  bool tls_enabled = 1;
+  bool managed_rotation_available = 2;
+  ManagementTlsRotationPhase phase = 3;
+  uint64 active_generation = 4;
+  uint64 rollout_generation = 5;
+  string rollout_bundle_sha256 = 6;
+  ManagementTlsCertificateSummary active_certificate = 7;
+  ManagementTlsCertificateSummary staged_certificate = 8;
+  repeated ManagementTlsAgentRollout agents = 9;
+  int32 blocking_agent_count = 10;
+  bool forced_activation = 11;
+  string repair_ca_bundle_pem = 12;
+  string status_message = 13;
+  bool trust_management_active = 14;
+  uint64 desired_trust_generation = 15;
+  string desired_trust_bundle_sha256 = 16;
+  bool forced_retirement = 17;
+  bool forced_cleanup = 18;
+  ManagementTlsCleanupReason cleanup_reason = 19;
+  int32 trust_attention_agent_count = 20;
+  bool secret_cleanup_pending = 21;
+}
+
+message GetManagementTlsRotationRequest {}
+
+message GetManagementTlsRotationResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message StageManagementTlsRotationRequest {
+  string certificate_pem = 1;
+  string private_key_pem = 2;
+  string ca_bundle_pem = 3;
+  string current_ca_bundle_pem = 4;
+}
+
+message StageManagementTlsRotationResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message GenerateManagementTlsRotationRequest {}
+
+message GenerateManagementTlsRotationResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message ActivateManagementTlsRotationRequest {
+  bool force = 1;
+}
+
+message ActivateManagementTlsRotationResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message RollbackManagementTlsRotationRequest {}
+
+message RollbackManagementTlsRotationResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message BeginManagementTlsTrustRetirementRequest {}
+
+message BeginManagementTlsTrustRetirementResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message FinalizeManagementTlsTrustRetirementRequest {
+  bool force = 1;
+}
+
+message FinalizeManagementTlsTrustRetirementResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message CancelManagementTlsRotationRequest {}
+
+message CancelManagementTlsRotationResponse {
+  ManagementTlsRotation rotation = 1;
+}
+
+message FinalizeManagementTlsTrustCleanupRequest {
+  bool force = 1;
+}
+
+message FinalizeManagementTlsTrustCleanupResponse {
+  ManagementTlsRotation rotation = 1;
 }
 
 message User {
@@ -2124,6 +2303,15 @@ message RefreshPublicTrustedProxySourceResponse {
 
 service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
+  rpc GetManagementTlsRotation(GetManagementTlsRotationRequest) returns (GetManagementTlsRotationResponse) {}
+  rpc StageManagementTlsRotation(StageManagementTlsRotationRequest) returns (StageManagementTlsRotationResponse) {}
+  rpc GenerateManagementTlsRotation(GenerateManagementTlsRotationRequest) returns (GenerateManagementTlsRotationResponse) {}
+  rpc ActivateManagementTlsRotation(ActivateManagementTlsRotationRequest) returns (ActivateManagementTlsRotationResponse) {}
+  rpc RollbackManagementTlsRotation(RollbackManagementTlsRotationRequest) returns (RollbackManagementTlsRotationResponse) {}
+  rpc BeginManagementTlsTrustRetirement(BeginManagementTlsTrustRetirementRequest) returns (BeginManagementTlsTrustRetirementResponse) {}
+  rpc FinalizeManagementTlsTrustRetirement(FinalizeManagementTlsTrustRetirementRequest) returns (FinalizeManagementTlsTrustRetirementResponse) {}
+  rpc CancelManagementTlsRotation(CancelManagementTlsRotationRequest) returns (CancelManagementTlsRotationResponse) {}
+  rpc FinalizeManagementTlsTrustCleanup(FinalizeManagementTlsTrustCleanupRequest) returns (FinalizeManagementTlsTrustCleanupResponse) {}
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
   rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
   rpc GetDashboardDiagnostics(GetDashboardDiagnosticsRequest) returns (GetDashboardDiagnosticsResponse) {}

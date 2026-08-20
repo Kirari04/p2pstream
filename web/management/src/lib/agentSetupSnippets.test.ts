@@ -163,6 +163,8 @@ describe("agentSetupSnippets", () => {
 
     expect(linuxInstallSnippet(input)).toContain("MANAGEMENT_CA_PEM_BASE64='LS0tQ0EtLS0='");
     expect(dockerComposeSnippet(input)).toContain("MANAGEMENT_CA_PEM_BASE64: \"LS0tQ0EtLS0=\"");
+    expect(dockerComposeSnippet(input)).toContain('MANAGEMENT_TRUST_FILE: "/data/management-ca.pem"');
+    expect(dockerComposeSnippet(input)).toContain("p2pstream-agent-state:/data");
     expect(cliSnippet(input)).toContain("MANAGEMENT_CA_PEM_BASE64='LS0tQ0EtLS0='");
   });
 
@@ -187,13 +189,14 @@ describe("agentSetupSnippets", () => {
     expect(snippet).toContain("command: [\"/app/p2pstream\", \"agent\"]");
     expect(snippet).toContain("MANAGEMENT_URL: \"https://mgmt.example.test\"");
     expect(snippet).toContain("AGENT_TOKEN: \"token'value\"");
+    expect(snippet).toContain("p2pstream-agent-state:");
     expect(snippet).not.toContain("AGENT_ALLOW_TARGETS");
   });
 
   test("builds CLI snippet without repository fields", () => {
     const snippet = cliSnippet(baseInput);
 
-    expect(snippet).toBe("MANAGEMENT_URL='https://mgmt.example.test' AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna' AGENT_TOKEN='token'\\''value' p2pstream agent");
+    expect(snippet).toBe("MANAGEMENT_URL='https://mgmt.example.test' MANAGEMENT_TRUST_FILE='./p2pstream-agent-state/management-ca.pem' AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna' AGENT_TOKEN='token'\\''value' p2pstream agent");
   });
 
   test("uses an explicit custom agent destination allowlist", () => {
