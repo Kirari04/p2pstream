@@ -13,6 +13,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
 import TrafficPolicyExecutionOrderStrip from "@/components/traffic-policy/TrafficPolicyExecutionOrderStrip.vue";
 import TrafficPolicyRequestPlayground from "@/components/traffic-policy/TrafficPolicyRequestPlayground.vue";
+import PublicAccessControlSettings from "@/components/traffic-policy/PublicAccessControlSettings.vue";
 import PublicVisitorIdentitySettings from "@/components/traffic-policy/PublicVisitorIdentitySettings.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
@@ -70,7 +71,7 @@ import type {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { PublicPolicyMatchRuleSchema } from "@/gen/proto/p2pstream/v1/management_pb";
 
-const policySectionKeys = ["rate-limits", "waf", "cache", "traffic-shaper"] as const;
+const policySectionKeys = ["rate-limits", "waf", "access", "cache", "traffic-shaper"] as const;
 type PolicySectionKey = typeof policySectionKeys[number];
 type PolicySectionMeta = {
   key: PolicySectionKey;
@@ -112,11 +113,14 @@ const wafCaptchaProviders = computed(() => config.value?.wafCaptchaProviders ?? 
 const trafficShaperRules = computed(() => runtimeOrderedTrafficShaperRules(config.value?.trafficShaperRules ?? []));
 const enabledRateLimitRules = computed(() => rateLimitRules.value.filter((rule) => rule.enabled).length);
 const enabledWafRules = computed(() => wafRules.value.filter((rule) => rule.enabled).length);
+const accessPolicies = computed(() => config.value?.accessPolicies ?? []);
+const enabledAccessPolicies = computed(() => accessPolicies.value.filter((policy) => policy.enabled).length);
 const enabledCacheRules = computed(() => cacheRules.value.filter((rule) => rule.enabled).length);
 const enabledTrafficShapers = computed(() => trafficShaperRules.value.filter((rule) => rule.enabled).length);
 const policyFilters = reactive<Record<PolicySectionKey, PolicyFilter>>({
   "rate-limits": { text: "", status: "all" },
   waf: { text: "", status: "all" },
+  access: { text: "", status: "all" },
   cache: { text: "", status: "all" },
   "traffic-shaper": { text: "", status: "all" },
 });
@@ -140,11 +144,13 @@ const executionStages = computed(() => [
   { key: "precheck", label: "Path Checks", description: "reserved endpoints + route security", icon: "listener" as const },
   { key: "waf", label: "WAF", description: "first matching enforceable rule", icon: "waf" as const, tags: countTags(enabledWafRules.value) },
   { key: "rate-limit", label: "Rate Limits", description: "all matching request budgets", icon: "rate-limit" as const, tags: countTags(enabledRateLimitRules.value) },
+  { key: "access", label: "Access", description: "route identity and group check", icon: "route" as const, tags: countTags(enabledAccessPolicies.value) },
   { key: "traffic-shaper", label: "Traffic Shaper", description: "first matching bandwidth budget", icon: "traffic-shaper" as const, tags: countTags(enabledTrafficShapers.value) },
   { key: "route", label: "Route / Target", description: "selected before cache", icon: "route" as const },
   { key: "cache", label: "Cache", description: "first matching cacheable request", icon: "cache" as const, tags: countTags(enabledCacheRules.value) },
   { key: "response", label: "Response", description: "upstream, cached, or terminal", icon: "response" as const },
 ]);
+const executionOrderSummary = computed(() => executionStages.value.map((stage) => stage.label).join(" → "));
 const playgroundStages = computed<TrafficPolicyPlaygroundStage[]>(() => buildTrafficPolicyPlaygroundStages({
   rateLimitRules: rateLimitRules.value,
   trafficShaperRules: trafficShaperRules.value,
@@ -193,6 +199,11 @@ const policySections: readonly PolicySectionMeta[] = [
     key: "waf",
     label: "WAF",
     description: "Block, challenge, or queue matching application traffic before it reaches routes.",
+  },
+  {
+    key: "access",
+    label: "Access",
+    description: "Authenticate protected routes and enforce identity group membership.",
   },
   {
     key: "cache",
@@ -649,7 +660,7 @@ async function deleteTrafficShaperRule(id: bigint) {
     <details class="policy-execution-disclosure">
       <summary>
         <span class="policy-execution-disclosure__label">Execution order</span>
-        <span class="policy-execution-disclosure__path">Path checks → WAF → Rate limits → Shaper → Route → Cache → Response</span>
+        <span class="policy-execution-disclosure__path">{{ executionOrderSummary }}</span>
       </summary>
       <TrafficPolicyExecutionOrderStrip
         :stages="executionStages"
@@ -1021,6 +1032,19 @@ async function deleteTrafficShaperRule(id: bigint) {
     </section>
     <PublicVisitorIdentitySettings :config="config" />
     </div>
+      </NTabPane>
+
+      <NTabPane
+        id="traffic-policy-panel-access"
+        name="access"
+        role="tabpanel"
+        aria-labelledby="traffic-policy-tab-access"
+        :tab="`Access · ${enabledAccessPolicies}/${accessPolicies.length}`"
+        :tab-props="policyTabProps('access', `Access, ${enabledCountLabel(enabledAccessPolicies, accessPolicies.length)}`)"
+      >
+        <div class="stack-lg">
+          <PublicAccessControlSettings :config="config" />
+        </div>
       </NTabPane>
 
       <NTabPane

@@ -898,6 +898,11 @@ func (a *App) checkPublicCacheWithSnapshot(snap *publicProxySnapshot, r *http.Re
 		return publicCacheDecision{Status: publicCacheStatusBypass, BypassReason: "cache_disabled"}
 	}
 	decision := publicCacheBaseDecision(r, resolution)
+	if resolution.Route.AccessPolicyID > 0 {
+		decision.Status = publicCacheStatusBypass
+		decision.BypassReason = "access_control"
+		return decision
+	}
 	if reason := publicCacheRequestBypassReason(r); reason != "" {
 		decision.Status = publicCacheStatusBypass
 		decision.BypassReason = reason

@@ -325,6 +325,7 @@ func (s *publicConfigService) createPublicRoute(
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
 		req.Msg.PathSecurityMode,
+		req.Msg.AccessPolicyId,
 		existingPublicRouteTargetSecrets{},
 	)
 	if err != nil {
@@ -377,6 +378,7 @@ func (s *publicConfigService) updatePublicRoute(
 		req.Msg.RedirectPreservePathSuffix,
 		req.Msg.RedirectPreserveQuery,
 		req.Msg.PathSecurityMode,
+		req.Msg.AccessPolicyId,
 		existingSecrets,
 	)
 	if err != nil {
@@ -451,6 +453,7 @@ func (a *App) createPublicRouteWithTargets(
 		RedirectPreservePathSuffix: params.RedirectPreservePathSuffix,
 		RedirectPreserveQuery:      params.RedirectPreserveQuery,
 		PathSecurityMode:           params.PathSecurityMode,
+		AccessPolicyID:             params.AccessPolicyID,
 		Enabled:                    params.Enabled,
 	})
 	if err != nil {

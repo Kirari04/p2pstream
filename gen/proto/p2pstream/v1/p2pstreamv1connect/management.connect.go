@@ -162,6 +162,24 @@ const (
 	// AgentManagementServiceDeletePublicRouteProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicRoute RPC.
 	AgentManagementServiceDeletePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicRoute"
+	// AgentManagementServiceCreatePublicAccessProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicAccessProvider RPC.
+	AgentManagementServiceCreatePublicAccessProviderProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicAccessProvider"
+	// AgentManagementServiceUpdatePublicAccessProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicAccessProvider RPC.
+	AgentManagementServiceUpdatePublicAccessProviderProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicAccessProvider"
+	// AgentManagementServiceDeletePublicAccessProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicAccessProvider RPC.
+	AgentManagementServiceDeletePublicAccessProviderProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicAccessProvider"
+	// AgentManagementServiceCreatePublicAccessPolicyProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicAccessPolicy RPC.
+	AgentManagementServiceCreatePublicAccessPolicyProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicAccessPolicy"
+	// AgentManagementServiceUpdatePublicAccessPolicyProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicAccessPolicy RPC.
+	AgentManagementServiceUpdatePublicAccessPolicyProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicAccessPolicy"
+	// AgentManagementServiceDeletePublicAccessPolicyProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicAccessPolicy RPC.
+	AgentManagementServiceDeletePublicAccessPolicyProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicAccessPolicy"
 	// AgentManagementServiceCreatePublicTlsDnsCredentialProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicTlsDnsCredential RPC.
 	AgentManagementServiceCreatePublicTlsDnsCredentialProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTlsDnsCredential"
@@ -299,6 +317,12 @@ type AgentManagementServiceClient interface {
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error)
+	UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error)
+	DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error)
+	CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error)
+	UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error)
+	DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error)
 	CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error)
 	UpdatePublicTlsDnsCredential(context.Context, *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error)
 	DeletePublicTlsDnsCredential(context.Context, *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error)
@@ -600,6 +624,42 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicAccessProvider: connect.NewClient[v1.CreatePublicAccessProviderRequest, v1.CreatePublicAccessProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicAccessProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicAccessProvider: connect.NewClient[v1.UpdatePublicAccessProviderRequest, v1.UpdatePublicAccessProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicAccessProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicAccessProvider: connect.NewClient[v1.DeletePublicAccessProviderRequest, v1.DeletePublicAccessProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicAccessProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicAccessPolicy: connect.NewClient[v1.CreatePublicAccessPolicyRequest, v1.CreatePublicAccessPolicyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicAccessPolicyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicAccessPolicy: connect.NewClient[v1.UpdatePublicAccessPolicyRequest, v1.UpdatePublicAccessPolicyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicAccessPolicyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicAccessPolicy: connect.NewClient[v1.DeletePublicAccessPolicyRequest, v1.DeletePublicAccessPolicyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicAccessPolicyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessPolicy")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicTlsDnsCredential: connect.NewClient[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicTlsDnsCredentialProcedure,
@@ -828,6 +888,12 @@ type agentManagementServiceClient struct {
 	createPublicRoute                 *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
 	updatePublicRoute                 *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
 	deletePublicRoute                 *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
+	createPublicAccessProvider        *connect.Client[v1.CreatePublicAccessProviderRequest, v1.CreatePublicAccessProviderResponse]
+	updatePublicAccessProvider        *connect.Client[v1.UpdatePublicAccessProviderRequest, v1.UpdatePublicAccessProviderResponse]
+	deletePublicAccessProvider        *connect.Client[v1.DeletePublicAccessProviderRequest, v1.DeletePublicAccessProviderResponse]
+	createPublicAccessPolicy          *connect.Client[v1.CreatePublicAccessPolicyRequest, v1.CreatePublicAccessPolicyResponse]
+	updatePublicAccessPolicy          *connect.Client[v1.UpdatePublicAccessPolicyRequest, v1.UpdatePublicAccessPolicyResponse]
+	deletePublicAccessPolicy          *connect.Client[v1.DeletePublicAccessPolicyRequest, v1.DeletePublicAccessPolicyResponse]
 	createPublicTlsDnsCredential      *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
 	updatePublicTlsDnsCredential      *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
 	deletePublicTlsDnsCredential      *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
@@ -1083,6 +1149,36 @@ func (c *agentManagementServiceClient) DeletePublicRoute(ctx context.Context, re
 	return c.deletePublicRoute.CallUnary(ctx, req)
 }
 
+// CreatePublicAccessProvider calls p2pstream.v1.AgentManagementService.CreatePublicAccessProvider.
+func (c *agentManagementServiceClient) CreatePublicAccessProvider(ctx context.Context, req *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error) {
+	return c.createPublicAccessProvider.CallUnary(ctx, req)
+}
+
+// UpdatePublicAccessProvider calls p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider.
+func (c *agentManagementServiceClient) UpdatePublicAccessProvider(ctx context.Context, req *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error) {
+	return c.updatePublicAccessProvider.CallUnary(ctx, req)
+}
+
+// DeletePublicAccessProvider calls p2pstream.v1.AgentManagementService.DeletePublicAccessProvider.
+func (c *agentManagementServiceClient) DeletePublicAccessProvider(ctx context.Context, req *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error) {
+	return c.deletePublicAccessProvider.CallUnary(ctx, req)
+}
+
+// CreatePublicAccessPolicy calls p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy.
+func (c *agentManagementServiceClient) CreatePublicAccessPolicy(ctx context.Context, req *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error) {
+	return c.createPublicAccessPolicy.CallUnary(ctx, req)
+}
+
+// UpdatePublicAccessPolicy calls p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy.
+func (c *agentManagementServiceClient) UpdatePublicAccessPolicy(ctx context.Context, req *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error) {
+	return c.updatePublicAccessPolicy.CallUnary(ctx, req)
+}
+
+// DeletePublicAccessPolicy calls p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy.
+func (c *agentManagementServiceClient) DeletePublicAccessPolicy(ctx context.Context, req *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error) {
+	return c.deletePublicAccessPolicy.CallUnary(ctx, req)
+}
+
 // CreatePublicTlsDnsCredential calls
 // p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential.
 func (c *agentManagementServiceClient) CreatePublicTlsDnsCredential(ctx context.Context, req *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error) {
@@ -1292,6 +1388,12 @@ type AgentManagementServiceHandler interface {
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error)
+	UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error)
+	DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error)
+	CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error)
+	UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error)
+	DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error)
 	CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error)
 	UpdatePublicTlsDnsCredential(context.Context, *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error)
 	DeletePublicTlsDnsCredential(context.Context, *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error)
@@ -1589,6 +1691,42 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicAccessProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicAccessProviderProcedure,
+		svc.CreatePublicAccessProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicAccessProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicAccessProviderProcedure,
+		svc.UpdatePublicAccessProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicAccessProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicAccessProviderProcedure,
+		svc.DeletePublicAccessProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicAccessPolicyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicAccessPolicyProcedure,
+		svc.CreatePublicAccessPolicy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicAccessPolicyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicAccessPolicyProcedure,
+		svc.UpdatePublicAccessPolicy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicAccessPolicyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicAccessPolicyProcedure,
+		svc.DeletePublicAccessPolicy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreatePublicTlsDnsCredentialHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreatePublicTlsDnsCredentialProcedure,
 		svc.CreatePublicTlsDnsCredential,
@@ -1857,6 +1995,18 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicRouteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicRouteProcedure:
 			agentManagementServiceDeletePublicRouteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicAccessProviderProcedure:
+			agentManagementServiceCreatePublicAccessProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicAccessProviderProcedure:
+			agentManagementServiceUpdatePublicAccessProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicAccessProviderProcedure:
+			agentManagementServiceDeletePublicAccessProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicAccessPolicyProcedure:
+			agentManagementServiceCreatePublicAccessPolicyHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicAccessPolicyProcedure:
+			agentManagementServiceUpdatePublicAccessPolicyHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicAccessPolicyProcedure:
+			agentManagementServiceDeletePublicAccessPolicyHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicTlsDnsCredentialProcedure:
 			agentManagementServiceCreatePublicTlsDnsCredentialHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicTlsDnsCredentialProcedure:
@@ -2096,6 +2246,30 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicRoute(context.Cont
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicRoute is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicAccessProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicAccessProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error) {

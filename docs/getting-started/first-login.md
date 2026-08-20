@@ -45,7 +45,7 @@ docker compose restart p2pstream
 After login, the **Overview** dashboard should load with live proxy status, request totals, and traffic trends. The sidebar is grouped as follows:
 
 - **Observe**: **Overview** and **Monitor**, with **Traffic** and **Diagnostics** under Monitor.
-- **Configure**: **Proxy**, with **Routes** and **Listeners**, plus **Agents**, **Traffic Policy**, **Templates**, and **TLS**. Traffic Policy contains separate **Rate Limits**, **WAF**, **Cache**, and **Traffic Shaper** tabs.
+- **Configure**: **Proxy**, with **Routes** and **Listeners**, plus **Agents**, **Traffic Policy**, **Templates**, and **TLS**. Traffic Policy contains separate **Rate Limits**, **WAF**, **Access**, **Cache**, and **Traffic Shaper** tabs.
 - **System**: **Environments** and **API Tokens**.
 
 <figure class="doc-screenshot">

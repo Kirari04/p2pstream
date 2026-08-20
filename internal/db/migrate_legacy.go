@@ -32,6 +32,7 @@ func (db *DB) runLegacyCompatibilityMigrations() error {
 		{name: "public route target schema", run: db.migrateLegacyPublicRouteTargetSchema},
 		{name: "public policy tables", run: db.migrateLegacyPublicPolicyTables},
 		{name: "public backend route targets", run: db.migrateLegacyPublicBackendsToRouteTargets},
+		{name: "public access control", run: db.migrateLegacyPublicAccessControl},
 		{name: "public policy indexes", run: db.migrateLegacyPublicPolicyIndexes},
 		{name: "policy match JSON", run: db.migrateLegacyPolicyMatchJSON},
 	}
@@ -213,6 +214,34 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		UNIQUE(bind_address, port)
 	);
 
+	CREATE TABLE IF NOT EXISTS public_access_providers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_type TEXT NOT NULL DEFAULT 'forward_auth',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		forward_auth_url TEXT NOT NULL,
+		timeout_millis INTEGER NOT NULL DEFAULT 5000,
+		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+		subject_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Preferred-Username',
+		user_header TEXT NOT NULL DEFAULT 'X-Auth-Request-User',
+		email_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Email',
+		groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
+		forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_access_policies (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE RESTRICT,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		required_groups_json TEXT NOT NULL DEFAULT '[]',
+		group_match TEXT NOT NULL DEFAULT 'any',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS public_routes (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
@@ -228,6 +257,7 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
 		redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
 		path_security_mode TEXT NOT NULL DEFAULT 'strict',
+		access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT,
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -598,6 +628,54 @@ func (db *DB) migrateLegacyPublicRoutes() error {
 		return err
 	}
 	return db.backfillPublicAgentSystemLabels()
+}
+
+func (db *DB) migrateLegacyPublicAccessControl() error {
+	if err := db.execLegacyStatements(
+		`CREATE TABLE IF NOT EXISTS public_access_providers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider_type TEXT NOT NULL DEFAULT 'forward_auth',
+			enabled INTEGER NOT NULL DEFAULT 1,
+			forward_auth_url TEXT NOT NULL,
+			timeout_millis INTEGER NOT NULL DEFAULT 5000,
+			tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+			subject_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Preferred-Username',
+			user_header TEXT NOT NULL DEFAULT 'X-Auth-Request-User',
+			email_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Email',
+			groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
+			forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS public_access_policies (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE RESTRICT,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			required_groups_json TEXT NOT NULL DEFAULT '[]',
+			group_match TEXT NOT NULL DEFAULT 'any',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+	); err != nil {
+		return err
+	}
+
+	columns, err := db.sqliteTableColumns("public_routes")
+	if err != nil {
+		return err
+	}
+	if _, exists := columns["access_policy_id"]; !exists {
+		if _, err := db.Exec(`ALTER TABLE public_routes ADD COLUMN access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT`); err != nil {
+			return err
+		}
+	}
+
+	return db.execLegacyStatements(
+		`CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id ON public_routes (access_policy_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_policies_provider_id ON public_access_policies (provider_id)`,
+	)
 }
 
 func (db *DB) migrateLegacyPublicRouteTargetSchema() error {

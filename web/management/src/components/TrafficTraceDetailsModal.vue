@@ -61,7 +61,7 @@ const outcomeTagType = computed<"success" | "warning" | "error" | "default">(() 
   const request = props.request;
   if (!request) return "default";
   if (request.stage === TrafficTraceStage.FAILED || request.stage === TrafficTraceStage.WAF_BLOCKED || request.statusCode >= 500n) return "error";
-  if (request.stage === TrafficTraceStage.RATE_LIMITED || request.statusCode >= 400n) return "warning";
+  if (request.stage === TrafficTraceStage.RATE_LIMITED || request.stage === TrafficTraceStage.ACCESS_DENIED || request.statusCode >= 400n) return "warning";
   if (request.statusCode >= 200n) return "success";
   return "default";
 });
@@ -131,9 +131,8 @@ const captureNotes = computed(() => {
 });
 
 function statusClass(status: bigint, stage: TrafficTraceStage): string {
-  if (stage === TrafficTraceStage.FAILED || stage === TrafficTraceStage.WAF_BLOCKED) return "trace-status--error";
-  if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM || stage === TrafficTraceStage.RATE_LIMITED) return "trace-status--warning";
-  if (status >= 500n) return "trace-status--error";
+  if (stage === TrafficTraceStage.FAILED || stage === TrafficTraceStage.WAF_BLOCKED || status >= 500n) return "trace-status--error";
+  if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM || stage === TrafficTraceStage.RATE_LIMITED || stage === TrafficTraceStage.ACCESS_DENIED) return "trace-status--warning";
   if (status >= 400n) return "trace-status--warning";
   if (status >= 200n) return "trace-status--success";
   return "trace-status--muted";
@@ -161,6 +160,8 @@ function stageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.RESPONSE_SENT: return "Response sent";
     case TrafficTraceStage.FAILED: return "Failed";
     case TrafficTraceStage.RATE_LIMITED: return "Rate limited";
+    case TrafficTraceStage.ACCESS_GRANTED: return "Access granted";
+    case TrafficTraceStage.ACCESS_DENIED: return "Access denied";
     default: return "Unknown";
   }
 }

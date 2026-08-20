@@ -64,6 +64,7 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
         children: [
           { key: "policy-rate-limits", label: "Rate Limits", path: "/policies/rate-limits" },
           { key: "policy-waf", label: "WAF", path: "/policies/waf" },
+          { key: "policy-access", label: "Access", path: "/policies/access" },
           { key: "policy-cache", label: "Cache", path: "/policies/cache" },
           { key: "policy-traffic-shaper", label: "Traffic Shaper", path: "/policies/traffic-shaper" },
         ],

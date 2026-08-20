@@ -22,6 +22,8 @@ type Querier interface {
 	CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
 	CreateManagementAccessToken(ctx context.Context, arg CreateManagementAccessTokenParams) (ManagementAccessToken, error)
+	CreatePublicAccessPolicy(ctx context.Context, arg CreatePublicAccessPolicyParams) (PublicAccessPolicy, error)
+	CreatePublicAccessProvider(ctx context.Context, arg CreatePublicAccessProviderParams) (PublicAccessProvider, error)
 	CreatePublicCacheRule(ctx context.Context, arg CreatePublicCacheRuleParams) (PublicCacheRule, error)
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
@@ -53,6 +55,8 @@ type Querier interface {
 	DeleteProxyRequestRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteProxyRequestStatusRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteProxyRequestTupleRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
+	DeletePublicAccessPolicy(ctx context.Context, id int64) error
+	DeletePublicAccessProvider(ctx context.Context, id int64) error
 	DeletePublicCacheEntry(ctx context.Context, keyDigest string) error
 	DeletePublicCacheEntryGeneration(ctx context.Context, arg DeletePublicCacheEntryGenerationParams) (int64, error)
 	DeletePublicCacheRule(ctx context.Context, id int64) error
@@ -87,6 +91,8 @@ type Querier interface {
 	GetObservabilityRollupState(ctx context.Context) (ObservabilityRollupState, error)
 	GetProxyRequestRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRequestRollupSummarySinceRow, error)
 	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
+	GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAccessPolicy, error)
+	GetPublicAccessProvider(ctx context.Context, id int64) (PublicAccessProvider, error)
 	GetPublicCacheEntry(ctx context.Context, keyDigest string) (PublicCacheEntry, error)
 	GetPublicCacheRule(ctx context.Context, id int64) (PublicCacheRule, error)
 	GetPublicCacheSettings(ctx context.Context) (PublicCacheSetting, error)
@@ -130,6 +136,8 @@ type Querier interface {
 	ListProxyStatusCodeRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusCodeRollupsSinceRow, error)
 	ListProxyTrafficBucketRollupsSince(ctx context.Context, arg ListProxyTrafficBucketRollupsSinceParams) ([]ListProxyTrafficBucketRollupsSinceRow, error)
 	ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error)
+	ListPublicAccessPolicies(ctx context.Context) ([]PublicAccessPolicy, error)
+	ListPublicAccessProviders(ctx context.Context) ([]PublicAccessProvider, error)
 	ListPublicCacheEntriesForCleanup(ctx context.Context, limit int64) ([]ListPublicCacheEntriesForCleanupRow, error)
 	ListPublicCacheEntryCandidates(ctx context.Context, arg ListPublicCacheEntryCandidatesParams) ([]PublicCacheEntry, error)
 	ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, error)
@@ -190,6 +198,8 @@ type Querier interface {
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateEnvironmentCheckResult(ctx context.Context, arg UpdateEnvironmentCheckResultParams) (Environment, error)
 	UpdateEnvironmentObservedCertificate(ctx context.Context, arg UpdateEnvironmentObservedCertificateParams) (Environment, error)
+	UpdatePublicAccessPolicy(ctx context.Context, arg UpdatePublicAccessPolicyParams) (PublicAccessPolicy, error)
+	UpdatePublicAccessProvider(ctx context.Context, arg UpdatePublicAccessProviderParams) (PublicAccessProvider, error)
 	UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCacheRuleParams) (PublicCacheRule, error)
 	UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error)
 	UpdatePublicGeoIpSettings(ctx context.Context, arg UpdatePublicGeoIpSettingsParams) (PublicGeoIpSetting, error)

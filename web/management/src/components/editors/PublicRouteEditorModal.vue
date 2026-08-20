@@ -103,6 +103,7 @@ const routeFormMode = ref<RouteFormMode>("create");
 const listeners = computed(() => props.config?.listeners ?? []);
 const routes = computed(() => props.config?.routes ?? []);
 const agents = computed(() => props.config?.agents ?? []);
+const accessPolicies = computed(() => props.config?.accessPolicies ?? []);
 const listenerOptions = computed(() =>
   listeners.value.map((listener) => ({
     label: listener.name,
@@ -130,6 +131,13 @@ const pathSecurityModeOptions = [
   { label: "Strict", value: PublicRoutePathSecurityMode.STRICT },
   { label: "Allow encoded separators", value: PublicRoutePathSecurityMode.ALLOW_ENCODED_SEPARATORS },
 ];
+const accessPolicyOptions = computed(() => [
+  { label: "Public · no identity check", value: "0" },
+  ...accessPolicies.value.map((policy) => ({
+    label: `${policy.name}${policy.enabled ? "" : " · disabled"}`,
+    value: policy.id.toString(),
+  })),
+]);
 const targetTransportOptions = [
   { label: "Direct", value: PublicRouteTargetTransport.DIRECT },
   { label: "Agent", value: PublicRouteTargetTransport.AGENT },
@@ -174,6 +182,7 @@ const routeForm = reactive({
   hostPattern: "",
   pathPrefix: "",
   pathSecurityMode: PublicRoutePathSecurityMode.STRICT,
+  accessPolicyId: "0",
   targetLoadBalancing: PublicRouteTargetLoadBalancing.ROUND_ROBIN,
   isDefault: false,
   targets: [] as TargetForm[],
@@ -255,6 +264,7 @@ function resetForm() {
   routeForm.hostPattern = "";
   routeForm.pathPrefix = "";
   routeForm.pathSecurityMode = PublicRoutePathSecurityMode.STRICT;
+  routeForm.accessPolicyId = "0";
   routeForm.targetLoadBalancing = PublicRouteTargetLoadBalancing.ROUND_ROBIN;
   routeForm.isDefault = false;
   routeForm.targets = [defaultTarget(0)];
@@ -347,6 +357,7 @@ function populateRouteForm(route: PublicRoute, mode: "edit" | "clone") {
   routeForm.hostPattern = route.hostPattern;
   routeForm.pathPrefix = route.pathPrefix;
   routeForm.pathSecurityMode = route.pathSecurityMode || PublicRoutePathSecurityMode.STRICT;
+  routeForm.accessPolicyId = route.accessPolicyId.toString();
   routeForm.targetLoadBalancing = route.targetLoadBalancing || PublicRouteTargetLoadBalancing.ROUND_ROBIN;
   routeForm.isDefault = route.isDefault;
   routeForm.targets = action === PublicRouteAction.REDIRECT ? [] : route.targets.map((target) => targetFormFromProto(target, mode));
@@ -558,6 +569,7 @@ async function submitRoute() {
       hostPattern: routeForm.hostPattern,
       pathPrefix: routeForm.pathPrefix,
       pathSecurityMode: routeForm.pathSecurityMode,
+      accessPolicyId: BigInt(routeForm.accessPolicyId || "0"),
       action: routeForm.action,
       targetLoadBalancing: isRedirect ? PublicRouteTargetLoadBalancing.ROUND_ROBIN : routeForm.targetLoadBalancing,
       isDefault: routeForm.isDefault,
@@ -637,6 +649,11 @@ defineExpose({ openCreate, openEdit, openClone, close });
           Path security
           <AccessibleSelect v-model:value="routeForm.pathSecurityMode" accessible-label="Path security mode" size="small" :options="pathSecurityModeOptions" />
           <span class="normal-text letter-normal">Compatibility mode is for upstreams that require encoded / or \ path identifiers.</span>
+        </label>
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          Access policy
+          <AccessibleSelect v-model:value="routeForm.accessPolicyId" accessible-label="Route access policy" size="small" :options="accessPolicyOptions" />
+          <span class="normal-text letter-normal">Protected routes fail closed and bypass shared response caching.</span>
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Target balancing
