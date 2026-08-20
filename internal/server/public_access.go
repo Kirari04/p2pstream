@@ -402,6 +402,7 @@ func publicAccessOriginalURL(r *http.Request, listener publicListenerConfig) str
 		Scheme:   scheme,
 		Host:     host,
 		Path:     publicAccessOriginalPath(r),
+		RawPath:  publicAccessOriginalRawPath(r),
 		RawQuery: publicAccessOriginalQuery(r),
 	}).String()
 }
@@ -411,6 +412,13 @@ func publicAccessOriginalPath(r *http.Request) string {
 		return "/"
 	}
 	return r.URL.Path
+}
+
+func publicAccessOriginalRawPath(r *http.Request) string {
+	if r == nil || r.URL == nil {
+		return ""
+	}
+	return r.URL.RawPath
 }
 
 func publicAccessOriginalQuery(r *http.Request) string {

@@ -150,6 +150,7 @@ const executionStages = computed(() => [
   { key: "cache", label: "Cache", description: "first matching cacheable request", icon: "cache" as const, tags: countTags(enabledCacheRules.value) },
   { key: "response", label: "Response", description: "upstream, cached, or terminal", icon: "response" as const },
 ]);
+const executionOrderSummary = computed(() => executionStages.value.map((stage) => stage.label).join(" → "));
 const playgroundStages = computed<TrafficPolicyPlaygroundStage[]>(() => buildTrafficPolicyPlaygroundStages({
   rateLimitRules: rateLimitRules.value,
   trafficShaperRules: trafficShaperRules.value,
@@ -659,7 +660,7 @@ async function deleteTrafficShaperRule(id: bigint) {
     <details class="policy-execution-disclosure">
       <summary>
         <span class="policy-execution-disclosure__label">Execution order</span>
-        <span class="policy-execution-disclosure__path">Path checks → WAF → Rate limits → Shaper → Route → Cache → Response</span>
+        <span class="policy-execution-disclosure__path">{{ executionOrderSummary }}</span>
       </summary>
       <TrafficPolicyExecutionOrderStrip
         :stages="executionStages"

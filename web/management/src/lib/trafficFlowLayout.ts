@@ -175,7 +175,11 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
   }
 
   if (request.stage === TraceStage.ACCESS_DENIED) {
-    if (request.routeId > 0n) path.push(routeKey(request.routeId));
+    if (request.routeId > 0n) {
+      path.push(routeKey(request.routeId));
+    } else if (request.defaultRoute && request.listenerId > 0n) {
+      path.push(listenerDefaultRouteKey(request.listenerId));
+    }
     path.push("response");
     return dedupeConsecutive(path);
   }
@@ -378,7 +382,9 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
     case TraceStage.ACCESS_DENIED:
       return "response";
     case TraceStage.ACCESS_GRANTED:
-      return request.routeId > 0n ? routeKey(request.routeId) : "response";
+      if (request.routeId > 0n) return routeKey(request.routeId);
+      if (request.defaultRoute && request.listenerId > 0n) return listenerDefaultRouteKey(request.listenerId);
+      return "response";
     case TraceStage.RESPONSE_SENT:
     case TraceStage.FAILED:
       return "response";

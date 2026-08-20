@@ -70,6 +70,7 @@ func (a *App) setPublicSnapshotLocked(snap *publicProxySnapshot) {
 func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyMu.Lock()
 	previous := a.publicSnapshot
+	reconcilePublicAccessProviderTransports(previous, snap)
 	a.setPublicSnapshotLocked(snap)
 	generation := a.publicSnapshotGeneration
 	a.ensureListenerStatesLocked(snap)

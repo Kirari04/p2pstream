@@ -121,6 +121,29 @@ describe("trafficFlowLayout", () => {
     ]);
   });
 
+  test("access decisions preserve the listener default-route node", () => {
+    const denied = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ACCESS_DENIED,
+    });
+    const granted = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ACCESS_GRANTED,
+    });
+    const deniedPath = buildTrafficFlowRequestPath(denied, emptyIndex());
+    const grantedPath = buildTrafficFlowRequestPath(granted, emptyIndex());
+
+    expect(deniedPath).toEqual([
+      "ingress",
+      listenerKey(1n),
+      listenerDefaultRouteKey(1n),
+      "response",
+    ]);
+    expect(targetIndexForTraceRequest(granted, grantedPath)).toBe(grantedPath.indexOf(listenerDefaultRouteKey(1n)));
+  });
+
   test("traffic-shaped request path includes shaper after rate limit", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       rateLimitRules: [rateLimitRule({ id: 9n, enabled: true })],

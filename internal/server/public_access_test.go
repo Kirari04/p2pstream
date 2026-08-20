@@ -331,6 +331,124 @@ func TestPublicAccessOriginalURLIncludesNonDefaultListenerPort(t *testing.T) {
 	}
 }
 
+func TestCheckPublicForwardAuthPreservesEscapedOriginalURL(t *testing.T) {
+	for _, requestTarget := range []string{
+		"http://app.example/private%2Fadmin?next=%2F",
+		"http://app.example/private%5Cadmin?next=%5C",
+	} {
+		t.Run(requestTarget, func(t *testing.T) {
+			var checked *http.Request
+			provider := testPublicAccessProvider(t, httpClientFunc(func(req *http.Request) (*http.Response, error) {
+				checked = req.Clone(req.Context())
+				return &http.Response{
+					StatusCode: http.StatusNoContent,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader("")),
+				}, nil
+			}))
+			incoming := httptest.NewRequest(http.MethodGet, requestTarget, nil)
+
+			if _, err := checkPublicForwardAuth(
+				context.Background(),
+				provider,
+				publicListenerConfig{Protocol: publicListenerProtocolHTTP, Port: 80},
+				incoming,
+			); err != nil {
+				t.Fatalf("check forward auth: %v", err)
+			}
+			if checked == nil {
+				t.Fatal("forward-auth request was not captured")
+			}
+			want := requestTarget
+			assertForwardedHeader(t, checked.Header, "X-Forwarded-Uri", incoming.URL.RequestURI())
+			assertForwardedHeader(t, checked.Header, "X-Original-Url", want)
+			assertForwardedHeader(t, checked.Header, "X-Auth-Request-Redirect", want)
+		})
+	}
+}
+
+func TestReconcilePublicAccessProviderTransports(t *testing.T) {
+	unchangedPreviousTransport := &testIdleConnectionsCloser{}
+	unchangedCurrentTransport := &testIdleConnectionsCloser{}
+	changedPreviousTransport := &testIdleConnectionsCloser{}
+	changedCurrentTransport := &testIdleConnectionsCloser{}
+	removedTransport := &testIdleConnectionsCloser{}
+	newTransport := &testIdleConnectionsCloser{}
+	unchangedPreviousClient := &http.Client{}
+	unchangedCurrentClient := &http.Client{}
+	changedPreviousClient := &http.Client{}
+	changedCurrentClient := &http.Client{}
+	newClient := &http.Client{}
+
+	previous := &publicProxySnapshot{AccessProviders: map[int64]publicAccessProviderConfig{
+		1: {
+			ID: 1, ForwardAuthURL: "https://auth.example.test/verify", Timeout: time.Second,
+			client: unchangedPreviousClient, transport: unchangedPreviousTransport,
+		},
+		2: {
+			ID: 2, ForwardAuthURL: "https://old-auth.example.test/verify", Timeout: time.Second,
+			client: changedPreviousClient, transport: changedPreviousTransport,
+		},
+		3: {
+			ID: 3, ForwardAuthURL: "https://removed-auth.example.test/verify", Timeout: time.Second,
+			client: &http.Client{}, transport: removedTransport,
+		},
+	}}
+	current := &publicProxySnapshot{AccessProviders: map[int64]publicAccessProviderConfig{
+		1: {
+			ID: 1, ForwardAuthURL: "https://auth.example.test/verify", Timeout: time.Second,
+			client: unchangedCurrentClient, transport: unchangedCurrentTransport,
+		},
+		2: {
+			ID: 2, ForwardAuthURL: "https://new-auth.example.test/verify", Timeout: time.Second,
+			client: changedCurrentClient, transport: changedCurrentTransport,
+		},
+		4: {
+			ID: 4, ForwardAuthURL: "https://new-provider.example.test/verify", Timeout: time.Second,
+			client: newClient, transport: newTransport,
+		},
+	}}
+
+	reconcilePublicAccessProviderTransports(previous, current)
+
+	if current.AccessProviders[1].client != unchangedPreviousClient || current.AccessProviders[1].transport != unchangedPreviousTransport {
+		t.Fatal("unchanged provider did not reuse its existing client and transport")
+	}
+	if unchangedPreviousTransport.closeCalls.Load() != 0 || unchangedCurrentTransport.closeCalls.Load() != 1 {
+		t.Fatalf(
+			"unchanged transport close calls = previous %d, replacement %d; want 0, 1",
+			unchangedPreviousTransport.closeCalls.Load(),
+			unchangedCurrentTransport.closeCalls.Load(),
+		)
+	}
+	if current.AccessProviders[2].client != changedCurrentClient || current.AccessProviders[2].transport != changedCurrentTransport {
+		t.Fatal("changed provider did not keep its replacement client and transport")
+	}
+	if changedPreviousTransport.closeCalls.Load() != 1 || changedCurrentTransport.closeCalls.Load() != 0 {
+		t.Fatalf(
+			"changed transport close calls = previous %d, replacement %d; want 1, 0",
+			changedPreviousTransport.closeCalls.Load(),
+			changedCurrentTransport.closeCalls.Load(),
+		)
+	}
+	if removedTransport.closeCalls.Load() != 1 {
+		t.Fatalf("removed transport close calls = %d, want 1", removedTransport.closeCalls.Load())
+	}
+	if current.AccessProviders[4].client != newClient || current.AccessProviders[4].transport != newTransport || newTransport.closeCalls.Load() != 0 {
+		t.Fatal("new provider transport was unexpectedly replaced or closed")
+	}
+
+	reconcilePublicAccessProviderTransports(current, nil)
+	if unchangedPreviousTransport.closeCalls.Load() != 1 || changedCurrentTransport.closeCalls.Load() != 1 || newTransport.closeCalls.Load() != 1 {
+		t.Fatalf(
+			"shutdown transport close calls = unchanged %d, changed %d, new %d; want 1 each",
+			unchangedPreviousTransport.closeCalls.Load(),
+			changedCurrentTransport.closeCalls.Load(),
+			newTransport.closeCalls.Load(),
+		)
+	}
+}
+
 func TestPublicAccessForwardedHeaderValidationRejectsSecurityHeaders(t *testing.T) {
 	for _, name := range []string{"Authorization", "Cookie", "Set-Cookie", "X-Forwarded-For", "Connection", "Content-Length"} {
 		t.Run(name, func(t *testing.T) {
@@ -415,4 +533,12 @@ type httpClientFunc func(*http.Request) (*http.Response, error)
 
 func (fn httpClientFunc) Do(req *http.Request) (*http.Response, error) {
 	return fn(req)
+}
+
+type testIdleConnectionsCloser struct {
+	closeCalls atomic.Int64
+}
+
+func (c *testIdleConnectionsCloser) CloseIdleConnections() {
+	c.closeCalls.Add(1)
 }

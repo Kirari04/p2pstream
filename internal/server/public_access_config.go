@@ -53,6 +53,11 @@ type publicAccessProviderConfig struct {
 	GroupsHeader     string
 	ForwardedHeaders []string
 	client           HTTPClient
+	transport        idleConnectionsCloser
+}
+
+type idleConnectionsCloser interface {
+	CloseIdleConnections()
 }
 
 type publicAccessPolicyConfig struct {
@@ -114,7 +119,60 @@ func publicAccessProviderRowToConfig(row db.PublicAccessProvider) (publicAccessP
 		GroupsHeader:     http.CanonicalHeaderKey(row.GroupsHeader),
 		ForwardedHeaders: headers,
 		client:           client,
+		transport:        transport,
 	}, nil
+}
+
+type publicAccessProviderTransportSignature struct {
+	ForwardAuthURL string
+	Timeout        time.Duration
+	TLSSkipVerify  bool
+}
+
+func reconcilePublicAccessProviderTransports(previous, current *publicProxySnapshot) {
+	if previous == nil || previous == current {
+		return
+	}
+	if current == nil {
+		closePublicAccessProviderIdleConnections(previous)
+		return
+	}
+	for providerID, previousProvider := range previous.AccessProviders {
+		currentProvider, ok := current.AccessProviders[providerID]
+		if ok &&
+			previousProvider.client != nil &&
+			previousProvider.transport != nil &&
+			currentProvider.transport != nil &&
+			publicAccessProviderTransportSignatureFor(previousProvider) == publicAccessProviderTransportSignatureFor(currentProvider) {
+			currentProvider.transport.CloseIdleConnections()
+			currentProvider.client = previousProvider.client
+			currentProvider.transport = previousProvider.transport
+			current.AccessProviders[providerID] = currentProvider
+			continue
+		}
+		if previousProvider.transport != nil {
+			previousProvider.transport.CloseIdleConnections()
+		}
+	}
+}
+
+func closePublicAccessProviderIdleConnections(snap *publicProxySnapshot) {
+	if snap == nil {
+		return
+	}
+	for _, provider := range snap.AccessProviders {
+		if provider.transport != nil {
+			provider.transport.CloseIdleConnections()
+		}
+	}
+}
+
+func publicAccessProviderTransportSignatureFor(provider publicAccessProviderConfig) publicAccessProviderTransportSignature {
+	return publicAccessProviderTransportSignature{
+		ForwardAuthURL: provider.ForwardAuthURL,
+		Timeout:        provider.Timeout,
+		TLSSkipVerify:  provider.TLSSkipVerify,
+	}
 }
 
 func publicAccessPolicyRowToConfig(row db.PublicAccessPolicy) (publicAccessPolicyConfig, error) {

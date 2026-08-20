@@ -131,9 +131,8 @@ const captureNotes = computed(() => {
 });
 
 function statusClass(status: bigint, stage: TrafficTraceStage): string {
-  if (stage === TrafficTraceStage.FAILED || stage === TrafficTraceStage.WAF_BLOCKED) return "trace-status--error";
+  if (stage === TrafficTraceStage.FAILED || stage === TrafficTraceStage.WAF_BLOCKED || status >= 500n) return "trace-status--error";
   if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM || stage === TrafficTraceStage.RATE_LIMITED || stage === TrafficTraceStage.ACCESS_DENIED) return "trace-status--warning";
-  if (status >= 500n) return "trace-status--error";
   if (status >= 400n) return "trace-status--warning";
   if (status >= 200n) return "trace-status--success";
   return "trace-status--muted";
