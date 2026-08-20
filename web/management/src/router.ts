@@ -42,7 +42,7 @@ const routes = [
   { path: '/proxy/:section(routes|listeners)', name: 'proxy', component: ProxyConfig },
   { path: '/proxy/:pathMatch(.*)*', redirect: '/proxy/routes' },
   { path: '/policies', redirect: '/policies/rate-limits' },
-  { path: '/policies/:section(rate-limits|waf|cache|traffic-shaper)', name: 'policies', component: TrafficPolicies },
+  { path: '/policies/:section(rate-limits|waf|access|cache|traffic-shaper)', name: 'policies', component: TrafficPolicies },
   { path: '/policies/:pathMatch(.*)*', redirect: '/policies/rate-limits' },
   { path: '/templates', name: 'templates', component: ResponseTemplates },
   { path: '/tls', name: 'tls', component: TlsConfig },

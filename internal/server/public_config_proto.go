@@ -440,6 +440,7 @@ func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, up
 		RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
 		RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
 		PathSecurityMode:           protoRoutePathSecurityModeFromString(route.PathSecurityMode),
+		AccessPolicyId:             nullInt64Value(route.AccessPolicyID),
 	}
 }
 

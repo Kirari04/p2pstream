@@ -185,6 +185,34 @@ type ProxyRequestTupleRollupMinute struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type PublicAccessPolicy struct {
+	ID                 int64     `json:"id"`
+	Name               string    `json:"name"`
+	ProviderID         int64     `json:"provider_id"`
+	Enabled            int64     `json:"enabled"`
+	RequiredGroupsJson string    `json:"required_groups_json"`
+	GroupMatch         string    `json:"group_match"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type PublicAccessProvider struct {
+	ID                   int64     `json:"id"`
+	Name                 string    `json:"name"`
+	ProviderType         string    `json:"provider_type"`
+	Enabled              int64     `json:"enabled"`
+	ForwardAuthUrl       string    `json:"forward_auth_url"`
+	TimeoutMillis        int64     `json:"timeout_millis"`
+	TlsSkipVerify        int64     `json:"tls_skip_verify"`
+	SubjectHeader        string    `json:"subject_header"`
+	UserHeader           string    `json:"user_header"`
+	EmailHeader          string    `json:"email_header"`
+	GroupsHeader         string    `json:"groups_header"`
+	ForwardedHeadersJson string    `json:"forwarded_headers_json"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+}
+
 type PublicAgentLabel struct {
 	AgentID   int64     `json:"agent_id"`
 	Key       string    `json:"key"`
@@ -308,23 +336,24 @@ type PublicResponseTemplate struct {
 }
 
 type PublicRoute struct {
-	ID                         int64     `json:"id"`
-	ListenerID                 int64     `json:"listener_id"`
-	Priority                   int64     `json:"priority"`
-	HostPattern                string    `json:"host_pattern"`
-	PathPrefix                 string    `json:"path_prefix"`
-	TargetLoadBalancing        string    `json:"target_load_balancing"`
-	IsDefault                  int64     `json:"is_default"`
-	Action                     string    `json:"action"`
-	RedirectTargetMode         string    `json:"redirect_target_mode"`
-	RedirectTarget             string    `json:"redirect_target"`
-	RedirectStatusCode         int64     `json:"redirect_status_code"`
-	RedirectPreservePathSuffix int64     `json:"redirect_preserve_path_suffix"`
-	RedirectPreserveQuery      int64     `json:"redirect_preserve_query"`
-	PathSecurityMode           string    `json:"path_security_mode"`
-	Enabled                    int64     `json:"enabled"`
-	CreatedAt                  time.Time `json:"created_at"`
-	UpdatedAt                  time.Time `json:"updated_at"`
+	ID                         int64         `json:"id"`
+	ListenerID                 int64         `json:"listener_id"`
+	Priority                   int64         `json:"priority"`
+	HostPattern                string        `json:"host_pattern"`
+	PathPrefix                 string        `json:"path_prefix"`
+	TargetLoadBalancing        string        `json:"target_load_balancing"`
+	IsDefault                  int64         `json:"is_default"`
+	Action                     string        `json:"action"`
+	RedirectTargetMode         string        `json:"redirect_target_mode"`
+	RedirectTarget             string        `json:"redirect_target"`
+	RedirectStatusCode         int64         `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
+	PathSecurityMode           string        `json:"path_security_mode"`
+	AccessPolicyID             sql.NullInt64 `json:"access_policy_id"`
+	Enabled                    int64         `json:"enabled"`
+	CreatedAt                  time.Time     `json:"created_at"`
+	UpdatedAt                  time.Time     `json:"updated_at"`
 }
 
 type PublicRouteTarget struct {

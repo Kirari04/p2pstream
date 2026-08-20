@@ -187,6 +187,34 @@ CREATE TABLE IF NOT EXISTS public_listeners (
     UNIQUE(bind_address, port)
 );
 
+CREATE TABLE IF NOT EXISTS public_access_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    provider_type TEXT NOT NULL DEFAULT 'forward_auth',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    forward_auth_url TEXT NOT NULL,
+    timeout_millis INTEGER NOT NULL DEFAULT 5000,
+    tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+    subject_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Preferred-Username',
+    user_header TEXT NOT NULL DEFAULT 'X-Auth-Request-User',
+    email_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Email',
+    groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
+    forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public_access_policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE RESTRICT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    required_groups_json TEXT NOT NULL DEFAULT '[]',
+    group_match TEXT NOT NULL DEFAULT 'any',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS public_routes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
@@ -202,6 +230,7 @@ CREATE TABLE IF NOT EXISTS public_routes (
     redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
     redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
     path_security_mode TEXT NOT NULL DEFAULT 'strict',
+    access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT,
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -577,6 +606,12 @@ WHERE status_code >= 400 OR error_kind != '';
 
 CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
 ON public_routes (listener_id, priority, id);
+
+CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id
+ON public_routes (access_policy_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_access_policies_provider_id
+ON public_access_policies (provider_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener
 ON public_routes (listener_id)

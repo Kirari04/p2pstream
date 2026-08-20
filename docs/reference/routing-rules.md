@@ -18,6 +18,7 @@ A non-default route requires at least one of:
 | `host_pattern` | Exact host or wildcard subdomain. |
 | `path_prefix` | Must start with `/` when set. |
 | `path_security_mode` | Defaults to `strict`. Use `allow_encoded_separators` only for upstreams that require encoded `/` or `\` path identifiers. |
+| `access_policy_id` | Optional reusable identity policy. Requests fail closed when its provider or policy is unavailable. |
 | `action` | `forward` or `redirect`; defaults to forward when unspecified. |
 | `target_load_balancing` | Defaults to round-robin for forward target pools. |
 | `is_default` | Marks the listener default route. One default route is allowed per listener. |
@@ -116,7 +117,9 @@ The compatibility mode is route-scoped so only the backend that needs encoded se
 
 Routes are sorted by priority ascending, then route ID ascending. If no enabled non-default route matches, the listener default route handles the request.
 
-p2pstream performs a lightweight route match before WAF, rate limits, and traffic shapers only to determine the matched route's path security mode. Target selection and load-balancer accounting still happen after those policy layers.
+p2pstream performs a lightweight route match before WAF, rate limits, access control, and traffic shapers to determine the matched route's path security mode and access policy. Target selection and load-balancer accounting still happen after those policy layers.
+
+An assigned access policy applies to forward, static, and redirect routes. Protected routes bypass shared cache. See [Identity-Aware Access](./access-control).
 
 At request time, disabled targets, unhealthy targets, invalid target configs, and unavailable agent selector matches are skipped. p2pstream selects from the lowest available priority group. If no target is usable, the response is `503`.
 

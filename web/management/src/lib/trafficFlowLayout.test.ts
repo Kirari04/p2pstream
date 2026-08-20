@@ -106,6 +106,21 @@ describe("trafficFlowLayout", () => {
     ]);
   });
 
+  test("access-denied request ends at response from the matched route", () => {
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      stage: TrafficTraceStage.ACCESS_DENIED,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, emptyIndex())).toEqual([
+      "ingress",
+      listenerKey(1n),
+      routeKey(3n),
+      "response",
+    ]);
+  });
+
   test("traffic-shaped request path includes shaper after rate limit", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       rateLimitRules: [rateLimitRule({ id: 9n, enabled: true })],

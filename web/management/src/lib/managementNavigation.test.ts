@@ -23,6 +23,7 @@ describe("managementNavigation", () => {
     expect(MANAGEMENT_NAVIGATION[1]?.items[2]?.children?.map((item) => item.label)).toEqual([
       "Rate Limits",
       "WAF",
+      "Access",
       "Cache",
       "Traffic Shaper",
     ]);

@@ -1554,18 +1554,19 @@ INSERT INTO public_routes (
     redirect_preserve_path_suffix,
     redirect_preserve_query,
     path_security_mode,
+    access_policy_id,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at;
 
 -- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC;
 
 -- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?;
 
@@ -1584,13 +1585,68 @@ SET listener_id = ?,
     redirect_preserve_path_suffix = ?,
     redirect_preserve_query = ?,
     path_security_mode = ?,
+    access_policy_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at;
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at;
 
 -- name: DeletePublicRoute :exec
 DELETE FROM public_routes
+WHERE id = ?;
+
+-- name: CreatePublicAccessProvider :one
+INSERT INTO public_access_providers (
+    name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify,
+    subject_header, user_header, email_header, groups_header, forwarded_headers_json
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at;
+
+-- name: ListPublicAccessProviders :many
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+FROM public_access_providers
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicAccessProvider :one
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+FROM public_access_providers
+WHERE id = ?;
+
+-- name: UpdatePublicAccessProvider :one
+UPDATE public_access_providers
+SET name = ?, provider_type = ?, enabled = ?, forward_auth_url = ?, timeout_millis = ?, tls_skip_verify = ?,
+    subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at;
+
+-- name: DeletePublicAccessProvider :exec
+DELETE FROM public_access_providers
+WHERE id = ?;
+
+-- name: CreatePublicAccessPolicy :one
+INSERT INTO public_access_policies (name, provider_id, enabled, required_groups_json, group_match)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at;
+
+-- name: ListPublicAccessPolicies :many
+SELECT id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+FROM public_access_policies
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicAccessPolicy :one
+SELECT id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+FROM public_access_policies
+WHERE id = ?;
+
+-- name: UpdatePublicAccessPolicy :one
+UPDATE public_access_policies
+SET name = ?, provider_id = ?, enabled = ?, required_groups_json = ?, group_match = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at;
+
+-- name: DeletePublicAccessPolicy :exec
+DELETE FROM public_access_policies
 WHERE id = ?;
 
 -- name: CreatePublicTlsDnsCredential :one

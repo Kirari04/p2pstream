@@ -150,6 +150,7 @@ type publicRouteConfig struct {
 	RedirectPreservePathSuffix bool
 	RedirectPreserveQuery      bool
 	PathSecurityMode           string
+	AccessPolicyID             int64
 	Enabled                    bool
 }
 
@@ -166,6 +167,9 @@ type publicTLSCertificateConfig struct {
 }
 
 type publicProxySnapshot struct {
+	AccessProviders     map[int64]publicAccessProviderConfig
+	AccessPolicies      map[int64]publicAccessPolicyConfig
+	AccessHeaderNames   []string
 	RouteTargets        map[int64]publicRouteTargetConfig
 	Agents              map[int64]publicAgentConfig
 	Listeners           map[int64]publicListenerConfig
@@ -523,6 +527,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		Rewrite: func(proxyReq *httputil.ProxyRequest) {
 			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
 			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In, resolution.Listener)
+			applyTrustedPublicAccessHeaders(proxyReq.Out, proxyReq.In)
 			if shaper != nil {
 				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
 			}

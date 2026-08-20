@@ -416,6 +416,99 @@ func (q *Queries) CreateManagementAccessToken(ctx context.Context, arg CreateMan
 	return i, err
 }
 
+const createPublicAccessPolicy = `-- name: CreatePublicAccessPolicy :one
+INSERT INTO public_access_policies (name, provider_id, enabled, required_groups_json, group_match)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+`
+
+type CreatePublicAccessPolicyParams struct {
+	Name               string `json:"name"`
+	ProviderID         int64  `json:"provider_id"`
+	Enabled            int64  `json:"enabled"`
+	RequiredGroupsJson string `json:"required_groups_json"`
+	GroupMatch         string `json:"group_match"`
+}
+
+func (q *Queries) CreatePublicAccessPolicy(ctx context.Context, arg CreatePublicAccessPolicyParams) (PublicAccessPolicy, error) {
+	row := q.db.QueryRowContext(ctx, createPublicAccessPolicy,
+		arg.Name,
+		arg.ProviderID,
+		arg.Enabled,
+		arg.RequiredGroupsJson,
+		arg.GroupMatch,
+	)
+	var i PublicAccessPolicy
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderID,
+		&i.Enabled,
+		&i.RequiredGroupsJson,
+		&i.GroupMatch,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicAccessProvider = `-- name: CreatePublicAccessProvider :one
+INSERT INTO public_access_providers (
+    name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify,
+    subject_header, user_header, email_header, groups_header, forwarded_headers_json
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+`
+
+type CreatePublicAccessProviderParams struct {
+	Name                 string `json:"name"`
+	ProviderType         string `json:"provider_type"`
+	Enabled              int64  `json:"enabled"`
+	ForwardAuthUrl       string `json:"forward_auth_url"`
+	TimeoutMillis        int64  `json:"timeout_millis"`
+	TlsSkipVerify        int64  `json:"tls_skip_verify"`
+	SubjectHeader        string `json:"subject_header"`
+	UserHeader           string `json:"user_header"`
+	EmailHeader          string `json:"email_header"`
+	GroupsHeader         string `json:"groups_header"`
+	ForwardedHeadersJson string `json:"forwarded_headers_json"`
+}
+
+func (q *Queries) CreatePublicAccessProvider(ctx context.Context, arg CreatePublicAccessProviderParams) (PublicAccessProvider, error) {
+	row := q.db.QueryRowContext(ctx, createPublicAccessProvider,
+		arg.Name,
+		arg.ProviderType,
+		arg.Enabled,
+		arg.ForwardAuthUrl,
+		arg.TimeoutMillis,
+		arg.TlsSkipVerify,
+		arg.SubjectHeader,
+		arg.UserHeader,
+		arg.EmailHeader,
+		arg.GroupsHeader,
+		arg.ForwardedHeadersJson,
+	)
+	var i PublicAccessProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderType,
+		&i.Enabled,
+		&i.ForwardAuthUrl,
+		&i.TimeoutMillis,
+		&i.TlsSkipVerify,
+		&i.SubjectHeader,
+		&i.UserHeader,
+		&i.EmailHeader,
+		&i.GroupsHeader,
+		&i.ForwardedHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createPublicCacheRule = `-- name: CreatePublicCacheRule :one
 INSERT INTO public_cache_rules (
     name,
@@ -682,27 +775,29 @@ INSERT INTO public_routes (
     redirect_preserve_path_suffix,
     redirect_preserve_query,
     path_security_mode,
+    access_policy_id,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 `
 
 type CreatePublicRouteParams struct {
-	ListenerID                 int64  `json:"listener_id"`
-	Priority                   int64  `json:"priority"`
-	HostPattern                string `json:"host_pattern"`
-	PathPrefix                 string `json:"path_prefix"`
-	TargetLoadBalancing        string `json:"target_load_balancing"`
-	IsDefault                  int64  `json:"is_default"`
-	Action                     string `json:"action"`
-	RedirectTargetMode         string `json:"redirect_target_mode"`
-	RedirectTarget             string `json:"redirect_target"`
-	RedirectStatusCode         int64  `json:"redirect_status_code"`
-	RedirectPreservePathSuffix int64  `json:"redirect_preserve_path_suffix"`
-	RedirectPreserveQuery      int64  `json:"redirect_preserve_query"`
-	PathSecurityMode           string `json:"path_security_mode"`
-	Enabled                    int64  `json:"enabled"`
+	ListenerID                 int64         `json:"listener_id"`
+	Priority                   int64         `json:"priority"`
+	HostPattern                string        `json:"host_pattern"`
+	PathPrefix                 string        `json:"path_prefix"`
+	TargetLoadBalancing        string        `json:"target_load_balancing"`
+	IsDefault                  int64         `json:"is_default"`
+	Action                     string        `json:"action"`
+	RedirectTargetMode         string        `json:"redirect_target_mode"`
+	RedirectTarget             string        `json:"redirect_target"`
+	RedirectStatusCode         int64         `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
+	PathSecurityMode           string        `json:"path_security_mode"`
+	AccessPolicyID             sql.NullInt64 `json:"access_policy_id"`
+	Enabled                    int64         `json:"enabled"`
 }
 
 func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error) {
@@ -720,6 +815,7 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		arg.RedirectPreservePathSuffix,
 		arg.RedirectPreserveQuery,
 		arg.PathSecurityMode,
+		arg.AccessPolicyID,
 		arg.Enabled,
 	)
 	var i PublicRoute
@@ -738,6 +834,7 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
 		&i.PathSecurityMode,
+		&i.AccessPolicyID,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1664,6 +1761,26 @@ func (q *Queries) DeleteProxyRequestTupleRollupsBefore(ctx context.Context, buck
 	return err
 }
 
+const deletePublicAccessPolicy = `-- name: DeletePublicAccessPolicy :exec
+DELETE FROM public_access_policies
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicAccessPolicy(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicAccessPolicy, id)
+	return err
+}
+
+const deletePublicAccessProvider = `-- name: DeletePublicAccessProvider :exec
+DELETE FROM public_access_providers
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicAccessProvider(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicAccessProvider, id)
+	return err
+}
+
 const deletePublicCacheEntry = `-- name: DeletePublicCacheEntry :exec
 DELETE FROM public_cache_entries
 WHERE key_digest = ?
@@ -2443,6 +2560,56 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 	return i, err
 }
 
+const getPublicAccessPolicy = `-- name: GetPublicAccessPolicy :one
+SELECT id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+FROM public_access_policies
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAccessPolicy, error) {
+	row := q.db.QueryRowContext(ctx, getPublicAccessPolicy, id)
+	var i PublicAccessPolicy
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderID,
+		&i.Enabled,
+		&i.RequiredGroupsJson,
+		&i.GroupMatch,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicAccessProvider = `-- name: GetPublicAccessProvider :one
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+FROM public_access_providers
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicAccessProvider(ctx context.Context, id int64) (PublicAccessProvider, error) {
+	row := q.db.QueryRowContext(ctx, getPublicAccessProvider, id)
+	var i PublicAccessProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderType,
+		&i.Enabled,
+		&i.ForwardAuthUrl,
+		&i.TimeoutMillis,
+		&i.TlsSkipVerify,
+		&i.SubjectHeader,
+		&i.UserHeader,
+		&i.EmailHeader,
+		&i.GroupsHeader,
+		&i.ForwardedHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPublicCacheEntry = `-- name: GetPublicCacheEntry :one
 SELECT key_digest, rule_id, scope, listener_protocol, host, path, query_key, route_id, route_target_id, method,
        vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at,
@@ -2661,7 +2828,7 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 }
 
 const getPublicRoute = `-- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?
 `
@@ -2684,6 +2851,7 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
 		&i.PathSecurityMode,
+		&i.AccessPolicyID,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -4379,6 +4547,88 @@ func (q *Queries) ListProxyTrafficBucketsSince(ctx context.Context, arg ListProx
 	return items, nil
 }
 
+const listPublicAccessPolicies = `-- name: ListPublicAccessPolicies :many
+SELECT id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+FROM public_access_policies
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListPublicAccessPolicies(ctx context.Context) ([]PublicAccessPolicy, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicAccessPolicies)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicAccessPolicy
+	for rows.Next() {
+		var i PublicAccessPolicy
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.ProviderID,
+			&i.Enabled,
+			&i.RequiredGroupsJson,
+			&i.GroupMatch,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicAccessProviders = `-- name: ListPublicAccessProviders :many
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+FROM public_access_providers
+ORDER BY name ASC, id ASC
+`
+
+func (q *Queries) ListPublicAccessProviders(ctx context.Context) ([]PublicAccessProvider, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicAccessProviders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicAccessProvider
+	for rows.Next() {
+		var i PublicAccessProvider
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.ProviderType,
+			&i.Enabled,
+			&i.ForwardAuthUrl,
+			&i.TimeoutMillis,
+			&i.TlsSkipVerify,
+			&i.SubjectHeader,
+			&i.UserHeader,
+			&i.EmailHeader,
+			&i.GroupsHeader,
+			&i.ForwardedHeadersJson,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicCacheEntriesForCleanup = `-- name: ListPublicCacheEntriesForCleanup :many
 SELECT key_digest, body_path, size_bytes
 FROM public_cache_entries
@@ -4960,7 +5210,7 @@ func (q *Queries) ListPublicRouteTargetsByRoute(ctx context.Context, routeID int
 }
 
 const listPublicRoutes = `-- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC
 `
@@ -4989,6 +5239,7 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 			&i.RedirectPreservePathSuffix,
 			&i.RedirectPreserveQuery,
 			&i.PathSecurityMode,
+			&i.AccessPolicyID,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -6983,6 +7234,103 @@ func (q *Queries) UpdateEnvironmentObservedCertificate(ctx context.Context, arg 
 	return i, err
 }
 
+const updatePublicAccessPolicy = `-- name: UpdatePublicAccessPolicy :one
+UPDATE public_access_policies
+SET name = ?, provider_id = ?, enabled = ?, required_groups_json = ?, group_match = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+`
+
+type UpdatePublicAccessPolicyParams struct {
+	Name               string `json:"name"`
+	ProviderID         int64  `json:"provider_id"`
+	Enabled            int64  `json:"enabled"`
+	RequiredGroupsJson string `json:"required_groups_json"`
+	GroupMatch         string `json:"group_match"`
+	ID                 int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicAccessPolicy(ctx context.Context, arg UpdatePublicAccessPolicyParams) (PublicAccessPolicy, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicAccessPolicy,
+		arg.Name,
+		arg.ProviderID,
+		arg.Enabled,
+		arg.RequiredGroupsJson,
+		arg.GroupMatch,
+		arg.ID,
+	)
+	var i PublicAccessPolicy
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderID,
+		&i.Enabled,
+		&i.RequiredGroupsJson,
+		&i.GroupMatch,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicAccessProvider = `-- name: UpdatePublicAccessProvider :one
+UPDATE public_access_providers
+SET name = ?, provider_type = ?, enabled = ?, forward_auth_url = ?, timeout_millis = ?, tls_skip_verify = ?,
+    subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+`
+
+type UpdatePublicAccessProviderParams struct {
+	Name                 string `json:"name"`
+	ProviderType         string `json:"provider_type"`
+	Enabled              int64  `json:"enabled"`
+	ForwardAuthUrl       string `json:"forward_auth_url"`
+	TimeoutMillis        int64  `json:"timeout_millis"`
+	TlsSkipVerify        int64  `json:"tls_skip_verify"`
+	SubjectHeader        string `json:"subject_header"`
+	UserHeader           string `json:"user_header"`
+	EmailHeader          string `json:"email_header"`
+	GroupsHeader         string `json:"groups_header"`
+	ForwardedHeadersJson string `json:"forwarded_headers_json"`
+	ID                   int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicAccessProvider(ctx context.Context, arg UpdatePublicAccessProviderParams) (PublicAccessProvider, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicAccessProvider,
+		arg.Name,
+		arg.ProviderType,
+		arg.Enabled,
+		arg.ForwardAuthUrl,
+		arg.TimeoutMillis,
+		arg.TlsSkipVerify,
+		arg.SubjectHeader,
+		arg.UserHeader,
+		arg.EmailHeader,
+		arg.GroupsHeader,
+		arg.ForwardedHeadersJson,
+		arg.ID,
+	)
+	var i PublicAccessProvider
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ProviderType,
+		&i.Enabled,
+		&i.ForwardAuthUrl,
+		&i.TimeoutMillis,
+		&i.TlsSkipVerify,
+		&i.SubjectHeader,
+		&i.UserHeader,
+		&i.EmailHeader,
+		&i.GroupsHeader,
+		&i.ForwardedHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updatePublicCacheRule = `-- name: UpdatePublicCacheRule :one
 UPDATE public_cache_rules
 SET name = ?,
@@ -7341,28 +7689,30 @@ SET listener_id = ?,
     redirect_preserve_path_suffix = ?,
     redirect_preserve_query = ?,
     path_security_mode = ?,
+    access_policy_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 `
 
 type UpdatePublicRouteParams struct {
-	ListenerID                 int64  `json:"listener_id"`
-	Priority                   int64  `json:"priority"`
-	HostPattern                string `json:"host_pattern"`
-	PathPrefix                 string `json:"path_prefix"`
-	TargetLoadBalancing        string `json:"target_load_balancing"`
-	IsDefault                  int64  `json:"is_default"`
-	Action                     string `json:"action"`
-	RedirectTargetMode         string `json:"redirect_target_mode"`
-	RedirectTarget             string `json:"redirect_target"`
-	RedirectStatusCode         int64  `json:"redirect_status_code"`
-	RedirectPreservePathSuffix int64  `json:"redirect_preserve_path_suffix"`
-	RedirectPreserveQuery      int64  `json:"redirect_preserve_query"`
-	PathSecurityMode           string `json:"path_security_mode"`
-	Enabled                    int64  `json:"enabled"`
-	ID                         int64  `json:"id"`
+	ListenerID                 int64         `json:"listener_id"`
+	Priority                   int64         `json:"priority"`
+	HostPattern                string        `json:"host_pattern"`
+	PathPrefix                 string        `json:"path_prefix"`
+	TargetLoadBalancing        string        `json:"target_load_balancing"`
+	IsDefault                  int64         `json:"is_default"`
+	Action                     string        `json:"action"`
+	RedirectTargetMode         string        `json:"redirect_target_mode"`
+	RedirectTarget             string        `json:"redirect_target"`
+	RedirectStatusCode         int64         `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
+	PathSecurityMode           string        `json:"path_security_mode"`
+	AccessPolicyID             sql.NullInt64 `json:"access_policy_id"`
+	Enabled                    int64         `json:"enabled"`
+	ID                         int64         `json:"id"`
 }
 
 func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error) {
@@ -7380,6 +7730,7 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		arg.RedirectPreservePathSuffix,
 		arg.RedirectPreserveQuery,
 		arg.PathSecurityMode,
+		arg.AccessPolicyID,
 		arg.Enabled,
 		arg.ID,
 	)
@@ -7399,6 +7750,7 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.RedirectPreservePathSuffix,
 		&i.RedirectPreserveQuery,
 		&i.PathSecurityMode,
+		&i.AccessPolicyID,
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
