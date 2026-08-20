@@ -308,25 +308,24 @@ func (s *authService) login(
 		clientThrottle = s.throttle
 	}
 	now := time.Now()
-	if retryAfter := max(s.throttle.retryAfter(throttleKey, now), clientThrottle.retryAfter(clientThrottleKey, now)); retryAfter > 0 {
+	reservation, admitted := reserveLoginThrottleAttempt(s.throttle, clientThrottle, throttleKey, clientThrottleKey, now)
+	if !admitted {
 		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("too many failed login attempts; try again later"))
 	}
+	defer reservation.release()
 	user, err := s.db.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			s.throttle.recordFailure(throttleKey, now)
-			clientThrottle.recordFailureWithLimit(clientThrottleKey, now, loginThrottleClientMaxFailures)
+			reservation.recordFailure(time.Now())
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if err := authutil.ComparePasswordHash(user.PasswordHash, req.Msg.Password); err != nil {
-		s.throttle.recordFailure(throttleKey, now)
-		clientThrottle.recordFailureWithLimit(clientThrottleKey, now, loginThrottleClientMaxFailures)
+		reservation.recordFailure(time.Now())
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 	}
-	s.throttle.recordSuccess(throttleKey)
-	clientThrottle.recordSuccess(clientThrottleKey)
+	reservation.recordSuccess()
 
 	token, tokenHash, err := newSessionToken()
 	if err != nil {

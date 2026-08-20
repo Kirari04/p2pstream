@@ -263,6 +263,9 @@ func publicTracePathForRequest(app *App, snap *publicProxySnapshot, listenerID i
 	if err != nil {
 		return redactedProxyPathPrefix(requestPath)
 	}
+	if match.DefaultRoute {
+		return redactedProxyPathPrefix(requestPath)
+	}
 	prefix := strings.TrimSpace(match.Route.PathPrefix)
 	if prefix == "" {
 		prefix = "/"

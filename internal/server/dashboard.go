@@ -399,6 +399,9 @@ func proxyRequestContextFromHTTP(r *http.Request) proxyRequestContext {
 
 func proxyRequestContextFromResolution(r *http.Request, resolution publicRouteResolution) proxyRequestContext {
 	requestContext := proxyRequestContextFromHTTP(r)
+	if resolution.DefaultRoute {
+		return requestContext
+	}
 	prefix := strings.TrimSpace(resolution.Route.PathPrefix)
 	if prefix == "" {
 		prefix = "/"
@@ -611,6 +614,39 @@ func (a *App) recordProxyRequestEventWithIDsAndContext(
 	requestContext proxyRequestContext,
 ) {
 	a.recordProxyRequestEventWithPolicyIDsAndContext(ctx, statusCode, duration, errorKind, listenerID, routeID, sql.NullInt64{}, "", agentID, requestBytes, responseBytes, requestContext)
+}
+
+func (a *App) recordProxyRequestEventWithRouteTargetIDsAndContext(
+	ctx context.Context,
+	statusCode int,
+	duration time.Duration,
+	errorKind string,
+	listenerID sql.NullInt64,
+	routeID sql.NullInt64,
+	routeTargetID sql.NullInt64,
+	agentID sql.NullInt64,
+	requestBytes uint64,
+	responseBytes uint64,
+	requestContext proxyRequestContext,
+) {
+	a.recordProxyRequestEventWithRouteTargetCacheAndContext(
+		ctx,
+		statusCode,
+		duration,
+		errorKind,
+		listenerID,
+		routeID,
+		routeTargetID,
+		sql.NullInt64{},
+		"",
+		agentID,
+		sql.NullInt64{},
+		"",
+		0,
+		requestBytes,
+		responseBytes,
+		requestContext,
+	)
 }
 
 func (a *App) recordProxyRequestEventWithPolicyIDs(

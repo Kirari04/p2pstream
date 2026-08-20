@@ -1,6 +1,8 @@
 package server
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -67,5 +69,35 @@ func TestTrafficTraceRedactsAllQueryValuesAndNonAllowlistedHeaders(t *testing.T)
 func TestTrafficTraceURLRedactionFailsClosed(t *testing.T) {
 	if got := redactSensitiveTraceURL("https://example.test/%zz?secret=value"); got != trafficTraceRedactedValue {
 		t.Fatalf("invalid trace URL = %q, want fully redacted", got)
+	}
+}
+
+func TestPublicTracePathPreservesRequestRedactionForDefaultRoute(t *testing.T) {
+	app := NewApp(nil, nil)
+	snapshot := &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: {
+			ID:      1,
+			Enabled: true,
+		}},
+		RoutesByListener: map[int64][]publicRouteConfig{1: {{
+			ID:         10,
+			Enabled:    true,
+			IsDefault:  true,
+			PathPrefix: "/api",
+		}}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/private/value", nil)
+
+	if got := publicTracePathForRequest(app, snapshot, 1, req); got != "/..." {
+		t.Fatalf("default route trace path = %q, want request-derived redaction", got)
+	}
+
+	snapshot.RoutesByListener[1] = []publicRouteConfig{{
+		ID:         11,
+		Enabled:    true,
+		PathPrefix: "/private",
+	}}
+	if got := publicTracePathForRequest(app, snapshot, 1, req); got != "/private/..." {
+		t.Fatalf("matched route trace path = %q, want /private/...", got)
 	}
 }

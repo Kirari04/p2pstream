@@ -297,6 +297,55 @@ func TestLoginThrottleBlocksRepeatedFailures(t *testing.T) {
 	requireConnectCode(t, err, connect.CodeResourceExhausted)
 }
 
+func TestLoginThrottleBoundsConcurrentPasswordVerification(t *testing.T) {
+	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
+	_, client := newTestManagementClient(t, app)
+
+	ctx := context.Background()
+	_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+		Username:   testAdminUsername,
+		Password:   testAdminPassword,
+		SetupToken: testSetupToken,
+	}))
+	if err != nil {
+		t.Fatalf("setup admin: %v", err)
+	}
+
+	const attempts = 32
+	start := make(chan struct{})
+	results := make(chan error, attempts)
+	for range attempts {
+		go func() {
+			<-start
+			_, loginErr := client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
+				Username: testAdminUsername,
+				Password: "wrong password",
+			}))
+			results <- loginErr
+		}()
+	}
+	close(start)
+
+	unauthenticated := 0
+	resourceExhausted := 0
+	for range attempts {
+		switch loginErr := <-results; connect.CodeOf(loginErr) {
+		case connect.CodeUnauthenticated:
+			unauthenticated++
+		case connect.CodeResourceExhausted:
+			resourceExhausted++
+		default:
+			t.Fatalf("unexpected concurrent login result: %v", loginErr)
+		}
+	}
+	if unauthenticated != 5 {
+		t.Fatalf("password verifications admitted = %d, want 5", unauthenticated)
+	}
+	if resourceExhausted != attempts-unauthenticated {
+		t.Fatalf("resource-exhausted responses = %d, want %d", resourceExhausted, attempts-unauthenticated)
+	}
+}
+
 func TestLoginThrottleResetsAfterSuccessfulLogin(t *testing.T) {
 	app := server.NewApp(testManagementConfig(config.Config{}), newTestDB(t))
 	_, client := newTestManagementClient(t, app)

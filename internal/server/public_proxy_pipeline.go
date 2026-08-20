@@ -130,7 +130,7 @@ func rejectPublicRequestCapacity(ctx *publicProxyContext, errorKind, message str
 	if resolution.Route.ID != 0 || resolution.RouteID.Valid {
 		requestContext = proxyRequestContextFromResolution(ctx.Request, resolution)
 	}
-	ctx.App.recordProxyRequestEventWithIDsAndContext(
+	ctx.App.recordProxyRequestEventWithRouteTargetIDsAndContext(
 		context.Background(),
 		http.StatusServiceUnavailable,
 		time.Since(ctx.StartedAt),
@@ -138,6 +138,7 @@ func rejectPublicRequestCapacity(ctx *publicProxyContext, errorKind, message str
 		resolution.ListenerID,
 		resolution.RouteID,
 		resolution.RouteTargetID,
+		resolution.AgentID,
 		ctx.Observability.requestBytesValue(),
 		ctx.Observability.responseBytesValue(),
 		requestContext,

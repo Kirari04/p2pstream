@@ -2,6 +2,8 @@ package server
 
 import (
 	"bufio"
+	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"net"
@@ -42,7 +44,10 @@ func TestPublicProxyRejectsOversizeChunkedBody(t *testing.T) {
 	if recorder.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want %d; body=%q", recorder.Code, http.StatusRequestEntityTooLarge, recorder.Body.String())
 	}
-	if app.TargetHealth != nil && app.TargetHealth.activeRequests(20) != 0 {
+	if app.TargetHealth == nil {
+		t.Fatal("TargetHealth is nil; the active-request leak assertion cannot run")
+	}
+	if app.TargetHealth.activeRequests(20) != 0 {
 		t.Fatal("oversize body leaked active target accounting")
 	}
 }
@@ -97,6 +102,83 @@ func TestPublicRequestAdmissionRejectsAtCapacityAndRecovers(t *testing.T) {
 		t.Fatal("capacity was not released")
 	} else {
 		releaseAgain()
+	}
+}
+
+func TestRouteTargetCapacityRejectionRecordsTargetNotAgent(t *testing.T) {
+	database := newServerTestDB(t)
+	app := NewApp(&config.Config{
+		PublicMaxRequestBodyBytes:    1024,
+		PublicRequestBodyIdleMillis:  30_000,
+		PublicMaxConcurrentRequests:  8,
+		PublicMaxConcurrentPerTarget: 1,
+	}, database)
+	listenerID := insertPublicListenerRow(t, app, "capacity-listener")
+	routeID := insertPublicRouteRow(t, app, listenerID)
+	targetID := insertPublicRouteTargetRow(t, app, routeID, "capacity-target")
+	origin, err := url.Parse("http://target.example")
+	if err != nil {
+		t.Fatalf("parse target origin: %v", err)
+	}
+	target := publicRouteTargetConfig{
+		ID:         targetID,
+		RouteID:    routeID,
+		Name:       "capacity-target",
+		Enabled:    true,
+		TargetType: publicRouteTargetTypeProxy,
+		Transport:  publicRouteTargetTransportDirect,
+		ParsedURL:  origin,
+	}
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{listenerID: {
+			ID:       listenerID,
+			Protocol: publicListenerProtocolHTTP,
+			Enabled:  true,
+		}},
+		RoutesByListener: map[int64][]publicRouteConfig{listenerID: {{
+			ID:               routeID,
+			Enabled:          true,
+			HostPattern:      "public.test",
+			PathPrefix:       "/api",
+			Action:           publicRouteActionForward,
+			PathSecurityMode: publicRoutePathSecurityModeStrict,
+			Targets:          []publicRouteTargetConfig{target},
+		}}},
+		RouteTargets: map[int64]publicRouteTargetConfig{targetID: target},
+	})
+
+	release, acquired := app.publicTargetRequests.tryAcquire(targetID)
+	if !acquired {
+		t.Fatal("failed to reserve route target capacity")
+	}
+	defer release()
+	recorder := httptest.NewRecorder()
+	app.publicProxyHandler(listenerID)(recorder, httptest.NewRequest(http.MethodGet, "http://public.test/api/resource", nil))
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusServiceUnavailable)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := app.FlushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+	var recordedTargetID sql.NullInt64
+	var recordedAgentID sql.NullInt64
+	var errorKind string
+	if err := database.QueryRowContext(
+		ctx,
+		"SELECT route_target_id, agent_id, error_kind FROM proxy_request_events ORDER BY id DESC LIMIT 1",
+	).Scan(&recordedTargetID, &recordedAgentID, &errorKind); err != nil {
+		t.Fatalf("query capacity event: %v", err)
+	}
+	if !recordedTargetID.Valid || recordedTargetID.Int64 != targetID {
+		t.Fatalf("route target id = %+v, want %d", recordedTargetID, targetID)
+	}
+	if recordedAgentID.Valid {
+		t.Fatalf("agent id = %+v, want unset", recordedAgentID)
+	}
+	if errorKind != "route_target_capacity" {
+		t.Fatalf("error kind = %q, want route_target_capacity", errorKind)
 	}
 }
 

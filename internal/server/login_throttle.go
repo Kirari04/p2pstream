@@ -34,8 +34,17 @@ type loginThrottle struct {
 
 type loginThrottleEntry struct {
 	failures     int
+	inFlight     int
 	windowStart  time.Time
 	blockedUntil time.Time
+}
+
+type loginThrottleReservation struct {
+	usernameThrottle *loginThrottle
+	clientThrottle   *loginThrottle
+	usernameKey      string
+	clientKey        string
+	settled          bool
 }
 
 func newLoginThrottle(maxEntries int) *loginThrottle {
@@ -62,6 +71,144 @@ func (t *loginThrottle) retryAfter(key string, now time.Time) time.Duration {
 		delete(t.entries, key)
 	}
 	return 0
+}
+
+func reserveLoginThrottleAttempt(
+	usernameThrottle *loginThrottle,
+	clientThrottle *loginThrottle,
+	usernameKey string,
+	clientKey string,
+	now time.Time,
+) (*loginThrottleReservation, bool) {
+	if !usernameThrottle.tryReserveWithLimit(usernameKey, now, loginThrottleMaxFailures) {
+		return nil, false
+	}
+	if usernameThrottle != nil && clientThrottle == usernameThrottle {
+		return &loginThrottleReservation{
+			usernameThrottle: usernameThrottle,
+			usernameKey:      usernameKey,
+		}, true
+	}
+	if !clientThrottle.tryReserveWithLimit(clientKey, now, loginThrottleClientMaxFailures) {
+		usernameThrottle.releaseReservation(usernameKey)
+		return nil, false
+	}
+	return &loginThrottleReservation{
+		usernameThrottle: usernameThrottle,
+		clientThrottle:   clientThrottle,
+		usernameKey:      usernameKey,
+		clientKey:        clientKey,
+	}, true
+}
+
+func (t *loginThrottle) tryReserveWithLimit(key string, now time.Time, maxFailures int) bool {
+	if t == nil || key == "" {
+		return true
+	}
+	if maxFailures <= 0 {
+		maxFailures = loginThrottleMaxFailures
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	entry := t.entries[key]
+	if loginThrottleEntryBlocked(entry, now) {
+		return false
+	}
+	if entry != nil && !entry.blockedUntil.IsZero() {
+		entry.failures = 0
+		entry.blockedUntil = time.Time{}
+		entry.windowStart = now
+	}
+	if entry != nil && entry.inFlight == 0 && loginThrottleEntryExpired(entry, now) {
+		delete(t.entries, key)
+		entry = nil
+	}
+	if entry == nil {
+		t.pruneLocked(now)
+		if len(t.entries) >= t.maxEntries && !t.evictOldestUnlockedEntryLocked(now) {
+			return false
+		}
+		entry = &loginThrottleEntry{windowStart: now}
+		t.entries[key] = entry
+	}
+	if entry.failures+entry.inFlight >= maxFailures {
+		return false
+	}
+	entry.inFlight++
+	return true
+}
+
+func (t *loginThrottle) releaseReservation(key string) {
+	if t == nil || key == "" {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	entry := t.entries[key]
+	if entry == nil {
+		return
+	}
+	if entry.inFlight > 0 {
+		entry.inFlight--
+	}
+	if entry.inFlight == 0 && entry.failures == 0 && entry.blockedUntil.IsZero() {
+		delete(t.entries, key)
+	}
+}
+
+func (t *loginThrottle) recordReservedFailureWithLimit(key string, now time.Time, maxFailures int) {
+	if t == nil || key == "" {
+		return
+	}
+	if maxFailures <= 0 {
+		maxFailures = loginThrottleMaxFailures
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	entry := t.entries[key]
+	if entry == nil {
+		t.pruneLocked(now)
+		if len(t.entries) >= t.maxEntries && !t.evictOldestUnlockedEntryLocked(now) {
+			return
+		}
+		entry = &loginThrottleEntry{windowStart: now}
+		t.entries[key] = entry
+	}
+	if entry.inFlight > 0 {
+		entry.inFlight--
+	}
+	entry.failures++
+	if entry.failures >= maxFailures {
+		entry.blockedUntil = now.Add(loginThrottleBlock)
+	}
+}
+
+func (r *loginThrottleReservation) release() {
+	if r == nil || r.settled {
+		return
+	}
+	r.settled = true
+	r.usernameThrottle.releaseReservation(r.usernameKey)
+	r.clientThrottle.releaseReservation(r.clientKey)
+}
+
+func (r *loginThrottleReservation) recordFailure(now time.Time) {
+	if r == nil || r.settled {
+		return
+	}
+	r.settled = true
+	r.usernameThrottle.recordReservedFailureWithLimit(r.usernameKey, now, loginThrottleMaxFailures)
+	r.clientThrottle.recordReservedFailureWithLimit(r.clientKey, now, loginThrottleClientMaxFailures)
+}
+
+func (r *loginThrottleReservation) recordSuccess() {
+	if r == nil || r.settled {
+		return
+	}
+	r.settled = true
+	r.usernameThrottle.recordSuccess(r.usernameKey)
+	r.clientThrottle.recordSuccess(r.clientKey)
 }
 
 func (t *loginThrottle) recordFailure(key string, now time.Time) {
@@ -96,7 +243,7 @@ func (t *loginThrottle) recordFailureWithLimit(key string, now time.Time, maxFai
 
 func (t *loginThrottle) pruneLocked(now time.Time) {
 	for key, entry := range t.entries {
-		if entry == nil || (!loginThrottleEntryBlocked(entry, now) && loginThrottleEntryExpired(entry, now)) {
+		if entry == nil || (entry.inFlight == 0 && !loginThrottleEntryBlocked(entry, now) && loginThrottleEntryExpired(entry, now)) {
 			delete(t.entries, key)
 		}
 	}
@@ -111,11 +258,11 @@ func (t *loginThrottle) evictOldestUnlockedEntryLocked(now time.Time) bool {
 			delete(t.entries, key)
 			return true
 		}
-		if !loginThrottleEntryBlocked(entry, now) && loginThrottleEntryExpired(entry, now) {
+		if entry.inFlight == 0 && !loginThrottleEntryBlocked(entry, now) && loginThrottleEntryExpired(entry, now) {
 			delete(t.entries, key)
 			return true
 		}
-		if loginThrottleEntryBlocked(entry, now) {
+		if loginThrottleEntryBlocked(entry, now) || entry.inFlight > 0 {
 			continue
 		}
 		if oldestKey == "" || entry.windowStart.Before(oldestStart) {
