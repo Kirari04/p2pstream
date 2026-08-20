@@ -157,6 +157,26 @@ func (t *loginThrottle) releaseReservation(key string) {
 	}
 }
 
+func (t *loginThrottle) clearReservedFailures(key string) {
+	if t == nil || key == "" {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	entry := t.entries[key]
+	if entry == nil {
+		return
+	}
+	if entry.inFlight > 0 {
+		entry.inFlight--
+	}
+	entry.failures = 0
+	entry.blockedUntil = time.Time{}
+	if entry.inFlight == 0 {
+		delete(t.entries, key)
+	}
+}
+
 func (t *loginThrottle) recordReservedFailureWithLimit(key string, now time.Time, maxFailures int) {
 	if t == nil || key == "" {
 		return
@@ -207,8 +227,8 @@ func (r *loginThrottleReservation) recordSuccess() {
 		return
 	}
 	r.settled = true
-	r.usernameThrottle.recordSuccess(r.usernameKey)
-	r.clientThrottle.recordSuccess(r.clientKey)
+	r.usernameThrottle.clearReservedFailures(r.usernameKey)
+	r.clientThrottle.releaseReservation(r.clientKey)
 }
 
 func (t *loginThrottle) recordFailure(key string, now time.Time) {

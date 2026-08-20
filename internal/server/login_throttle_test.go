@@ -288,6 +288,109 @@ func TestLoginThrottleReservationSupportsLegacySharedTracker(t *testing.T) {
 	reservation.recordSuccess()
 }
 
+func TestLoginThrottleSuccessPreservesSiblingReservations(t *testing.T) {
+	usernameThrottle, clientThrottle := newLoginThrottleBuckets(100)
+	now := time.Unix(1, 0)
+	usernameKey := loginThrottleKey("198.51.100.10", "admin")
+	clientKey := loginThrottleClientKey("198.51.100.10")
+	reservations := make([]*loginThrottleReservation, 0, loginThrottleMaxFailures)
+	for i := 0; i < loginThrottleMaxFailures; i++ {
+		reservation, admitted := reserveLoginThrottleAttempt(
+			usernameThrottle,
+			clientThrottle,
+			usernameKey,
+			clientKey,
+			now,
+		)
+		if !admitted {
+			t.Fatalf("initial reservation %d rejected", i+1)
+		}
+		reservations = append(reservations, reservation)
+	}
+
+	reservations[0].recordSuccess()
+	extra, admitted := reserveLoginThrottleAttempt(
+		usernameThrottle,
+		clientThrottle,
+		usernameKey,
+		clientKey,
+		now.Add(time.Second),
+	)
+	if !admitted {
+		t.Fatal("successful reservation did not free exactly one username slot")
+	}
+	if unexpected, admitted := reserveLoginThrottleAttempt(
+		usernameThrottle,
+		clientThrottle,
+		usernameKey,
+		clientKey,
+		now.Add(time.Second),
+	); admitted {
+		unexpected.release()
+		t.Fatal("success discarded sibling in-flight reservations")
+	}
+
+	extra.release()
+	for _, reservation := range reservations[1:] {
+		reservation.release()
+	}
+}
+
+func TestLoginThrottleSuccessPreservesClientFailureBudget(t *testing.T) {
+	usernameThrottle, clientThrottle := newLoginThrottleBuckets(100)
+	now := time.Unix(1, 0)
+	clientKey := loginThrottleClientKey("198.51.100.10")
+	adminKey := loginThrottleKey("198.51.100.10", "admin")
+
+	for i := 0; i < 4; i++ {
+		reservation, admitted := reserveLoginThrottleAttempt(
+			usernameThrottle,
+			clientThrottle,
+			adminKey,
+			clientKey,
+			now.Add(time.Duration(i)*time.Millisecond),
+		)
+		if !admitted {
+			t.Fatalf("initial failure reservation %d rejected", i+1)
+		}
+		reservation.recordFailure(now.Add(time.Duration(i) * time.Millisecond))
+	}
+	reservation, admitted := reserveLoginThrottleAttempt(
+		usernameThrottle,
+		clientThrottle,
+		adminKey,
+		clientKey,
+		now.Add(time.Second),
+	)
+	if !admitted {
+		t.Fatal("valid username reservation rejected below the failure threshold")
+	}
+	reservation.recordSuccess()
+
+	for i := 0; i < loginThrottleClientMaxFailures-4; i++ {
+		reservation, admitted = reserveLoginThrottleAttempt(
+			usernameThrottle,
+			clientThrottle,
+			loginThrottleKey("198.51.100.10", "spray"+strconv.Itoa(i)),
+			clientKey,
+			now.Add(time.Duration(i+2)*time.Second),
+		)
+		if !admitted {
+			t.Fatalf("spray failure reservation %d rejected early", i+1)
+		}
+		reservation.recordFailure(now.Add(time.Duration(i+2) * time.Second))
+	}
+	if _, admitted := reserveLoginThrottleAttempt(
+		usernameThrottle,
+		clientThrottle,
+		loginThrottleKey("198.51.100.10", "next"),
+		clientKey,
+		now.Add(time.Minute),
+	); admitted {
+		t.Fatal("successful login reset the client-wide failure budget")
+	}
+}
+
 func blockLoginThrottleKey(throttle *loginThrottle, key string, now time.Time) {
 	for i := 0; i < loginThrottleMaxFailures; i++ {
 		throttle.recordFailure(key, now)
