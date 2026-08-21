@@ -153,23 +153,26 @@ type publicProxyCache struct {
 	// storeGate lets cache writes run concurrently while making a configuration
 	// invalidation atomic with respect to the final database commit. Stores for
 	// the same digest also share a stripe because they reuse one body path.
-	storeGate       sync.RWMutex
-	storeStripes    [64]sync.Mutex
-	mu              sync.Mutex
-	settings        publicCacheSettingsConfig
-	lastCleanup     time.Time
-	memoryEntries   map[string]*publicCacheMemoryEntry
-	indexEntries    map[string]publicCacheIndexEntry
-	indexLookups    map[publicCacheLookupKey]map[string]struct{}
-	negativeLookups map[publicCacheLookupDigest]*list.Element
-	negativeOrder   *list.List
-	memoryBytes     int64
-	lastFingerprint string
-	lastStoredAt    time.Time
-	generation      uint64
-	invalidateHook  func()
-	upsertHook      func(context.Context, db.UpsertPublicCacheEntryParams) (db.PublicCacheEntry, error)
-	duplicateHook   func()
+	storeGate               sync.RWMutex
+	storeStripes            [64]sync.Mutex
+	mu                      sync.Mutex
+	settings                publicCacheSettingsConfig
+	lastCleanup             time.Time
+	memoryEntries           map[string]*publicCacheMemoryEntry
+	indexEntries            map[string]publicCacheIndexEntry
+	indexLookups            map[publicCacheLookupKey]map[string]struct{}
+	negativeLookups         map[publicCacheLookupDigest]*list.Element
+	negativeOrder           *list.List
+	memoryBytes             int64
+	storedBodyBytes         int64
+	storedEntryCount        int64
+	storageUsageInitialized bool
+	lastFingerprint         string
+	lastStoredAt            time.Time
+	generation              uint64
+	invalidateHook          func()
+	upsertHook              func(context.Context, db.UpsertPublicCacheEntryParams) (db.PublicCacheEntry, error)
+	duplicateHook           func()
 }
 
 type publicCacheMemoryEntry struct {
@@ -411,13 +414,76 @@ func (c *publicProxyCache) memoryHotObjectMaxBytesSnapshot() int64 {
 	return c.settings.MemoryHotObjectMaxBytes
 }
 
-func (c *publicProxyCache) memoryBytesSnapshot() int64 {
-	if c == nil {
-		return 0
+type publicCacheStorageUsage struct {
+	diskBytes   int64
+	memoryBytes int64
+	entries     int64
+}
+
+func (c *publicProxyCache) storageUsageSnapshot(ctx context.Context, q *db.DB) (publicCacheStorageUsage, error) {
+	if c == nil || q == nil {
+		return publicCacheStorageUsage{}, errors.New("public cache storage stats are unavailable")
+	}
+	c.mu.Lock()
+	if c.storageUsageInitialized {
+		usage := c.storageUsageLocked()
+		c.mu.Unlock()
+		return usage, nil
+	}
+	c.mu.Unlock()
+
+	// Cache writes, cleanup, and purge operations all pass through storeGate.
+	// Taking the write lock makes the one-time database aggregate an exact
+	// baseline; later mutations maintain the counters in O(1).
+	c.storeGate.Lock()
+	defer c.storeGate.Unlock()
+	if err := c.ensureStorageUsageLocked(ctx, q); err != nil {
+		return publicCacheStorageUsage{}, err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.memoryBytes
+	return c.storageUsageLocked(), nil
+}
+
+// ensureStorageUsageLocked requires the caller to hold storeGate exclusively.
+func (c *publicProxyCache) ensureStorageUsageLocked(ctx context.Context, q *db.DB) error {
+	c.mu.Lock()
+	initialized := c.storageUsageInitialized
+	c.mu.Unlock()
+	if initialized {
+		return nil
+	}
+	usage, err := q.SumPublicCacheBytes(ctx)
+	if err != nil {
+		return err
+	}
+	c.mu.Lock()
+	c.storedBodyBytes = max(0, usage.TotalBytes)
+	c.storedEntryCount = max(0, usage.EntryCount)
+	c.storageUsageInitialized = true
+	c.mu.Unlock()
+	return nil
+}
+
+func (c *publicProxyCache) storageUsageLocked() publicCacheStorageUsage {
+	return publicCacheStorageUsage{
+		diskBytes:   c.storedBodyBytes,
+		memoryBytes: c.memoryBytes,
+		entries:     c.storedEntryCount,
+	}
+}
+
+func (c *publicProxyCache) adjustStorageUsage(bodyBytesDelta, entryCountDelta int64) {
+	if c == nil || (bodyBytesDelta == 0 && entryCountDelta == 0) {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.storageUsageInitialized {
+		return
+	}
+	c.storedBodyBytes = max(0, c.storedBodyBytes+bodyBytesDelta)
+	c.storedEntryCount = max(0, c.storedEntryCount+entryCountDelta)
 }
 
 func (c *publicProxyCache) nextStoredAt() time.Time {
@@ -852,18 +918,19 @@ func (c *publicProxyCache) maybeCleanup(ctx context.Context, q *db.DB) {
 	c.mu.Unlock()
 	c.storeGate.Lock()
 	defer c.storeGate.Unlock()
+	if err := c.ensureStorageUsageLocked(ctx, q); err != nil {
+		return
+	}
 
 	rows, err := q.DeleteExpiredPublicCacheEntries(ctx, now)
 	if err == nil {
 		c.removeCacheBodies(rows)
 	}
 
-	sum, err := q.SumPublicCacheBytes(ctx)
-	if err != nil {
-		return
-	}
-	totalBytes := sum.TotalBytes
-	entryCount := sum.EntryCount
+	c.mu.Lock()
+	totalBytes := c.storedBodyBytes
+	entryCount := c.storedEntryCount
+	c.mu.Unlock()
 	for (settings.MaxDiskBytes > 0 && totalBytes > settings.MaxDiskBytes) || (settings.MaxEntries > 0 && entryCount > settings.MaxEntries) {
 		rows, err := q.ListPublicCacheEntriesForCleanup(ctx, 100)
 		if err != nil || len(rows) == 0 {
@@ -877,6 +944,7 @@ func (c *publicProxyCache) maybeCleanup(ctx context.Context, q *db.DB) {
 			_ = os.Remove(row.BodyPath)
 			totalBytes -= row.SizeBytes
 			entryCount--
+			c.adjustStorageUsage(-row.SizeBytes, -1)
 			if (settings.MaxDiskBytes <= 0 || totalBytes <= settings.MaxDiskBytes) && (settings.MaxEntries <= 0 || entryCount <= settings.MaxEntries) {
 				break
 			}
@@ -885,10 +953,13 @@ func (c *publicProxyCache) maybeCleanup(ctx context.Context, q *db.DB) {
 }
 
 func (c *publicProxyCache) removeCacheBodies(rows []db.DeleteExpiredPublicCacheEntriesRow) {
+	removedBytes := int64(0)
 	for _, row := range rows {
 		c.deleteEntry(row.KeyDigest)
 		_ = os.Remove(row.BodyPath)
+		removedBytes += row.SizeBytes
 	}
+	c.adjustStorageUsage(-removedBytes, -int64(len(rows)))
 }
 
 func (a *App) checkPublicCache(r *http.Request, resolution publicRouteResolution) publicCacheDecision {
@@ -1262,6 +1333,9 @@ func (a *App) invalidatePublicCacheEntry(entry db.PublicCacheEntry) {
 	if deleted == 0 {
 		return
 	}
+	if a.PublicCache != nil {
+		a.PublicCache.adjustStorageUsage(-entry.SizeBytes, -1)
+	}
 	if entry.BodyPath != "" {
 		_ = os.Remove(entry.BodyPath)
 	}
@@ -1496,16 +1570,17 @@ func (r *publicCacheStoreReadCloser) commit() {
 		return
 	}
 	defer r.app.PublicCache.releaseStoreGeneration(r.keyDigest)
-	if existing, err := r.app.DB.GetPublicCacheEntry(context.Background(), r.keyDigest); err == nil && existing.ExpiresAt.After(time.Now()) {
+	existing, existingErr := r.app.DB.GetPublicCacheEntry(context.Background(), r.keyDigest)
+	if existingErr == nil && existing.ExpiresAt.After(time.Now()) {
 		if r.app.PublicCache.duplicateHook != nil {
 			r.app.PublicCache.duplicateHook()
 		}
 		r.discard()
 		return
-	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	} else if existingErr != nil && !errors.Is(existingErr, sql.ErrNoRows) {
 		r.markStoreFailed()
 		r.discard()
-		log.Warn().Err(err).Str("cache_key", r.keyDigest).Msg("Failed to check for an existing public cache entry")
+		log.Warn().Err(existingErr).Str("cache_key", r.keyDigest).Msg("Failed to check for an existing public cache entry")
 		return
 	}
 	if err := r.tmp.Close(); err != nil {
@@ -1586,6 +1661,13 @@ func (r *publicCacheStoreReadCloser) commit() {
 	if backupPath != "" {
 		_ = os.Remove(backupPath)
 	}
+	storedBytesDelta := entry.SizeBytes
+	storedEntriesDelta := int64(1)
+	if existingErr == nil {
+		storedBytesDelta -= existing.SizeBytes
+		storedEntriesDelta = 0
+	}
+	r.app.PublicCache.adjustStorageUsage(storedBytesDelta, storedEntriesDelta)
 	r.app.PublicCache.putIndexEntry(entry)
 	if r.decision != nil {
 		r.decision.Status = publicCacheStatusStored
@@ -1938,21 +2020,17 @@ func publicCacheSettingsConfigToProto(settings publicCacheSettingsConfig) *p2pst
 }
 
 func (a *App) publicCacheStorageStats(ctx context.Context) (*p2pstreamv1.PublicCacheStorageStats, error) {
-	if a == nil || a.DB == nil {
+	if a == nil || a.DB == nil || a.PublicCache == nil {
 		return nil, errors.New("public cache storage stats are unavailable")
 	}
-	usage, err := a.DB.SumPublicCacheBytes(ctx)
+	usage, err := a.PublicCache.storageUsageSnapshot(ctx, a.DB)
 	if err != nil {
 		return nil, err
 	}
-	memoryBytes := int64(0)
-	if a.PublicCache != nil {
-		memoryBytes = a.PublicCache.memoryBytesSnapshot()
-	}
 	return &p2pstreamv1.PublicCacheStorageStats{
-		DiskBytesUsed:   usage.TotalBytes,
-		MemoryBytesUsed: memoryBytes,
-		EntriesUsed:     usage.EntryCount,
+		DiskBytesUsed:   usage.diskBytes,
+		MemoryBytesUsed: usage.memoryBytes,
+		EntriesUsed:     usage.entries,
 	}, nil
 }
 
@@ -2252,10 +2330,13 @@ func (a *App) purgePublicCacheEntriesByRuleID(ctx context.Context, ruleID int64)
 	if err != nil {
 		return err
 	}
+	removedBytes := int64(0)
 	for _, row := range rows {
 		a.PublicCache.deleteEntry(row.KeyDigest)
 		_ = os.Remove(row.BodyPath)
+		removedBytes += row.SizeBytes
 	}
+	a.PublicCache.adjustStorageUsage(-removedBytes, -int64(len(rows)))
 	return nil
 }
 
@@ -2341,6 +2422,7 @@ func (a *App) PurgePublicCache(ctx context.Context, req *connect.Request[p2pstre
 			purgedBytes += row.SizeBytes
 		}
 	}
+	a.PublicCache.adjustStorageUsage(-purgedBytes, -purgedEntries)
 	return connect.NewResponse(&p2pstreamv1.PurgePublicCacheResponse{PurgedEntries: purgedEntries, PurgedBytes: purgedBytes}), nil
 }
 

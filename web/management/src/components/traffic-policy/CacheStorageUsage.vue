@@ -62,11 +62,11 @@ function percentLabel(percent: number): string {
       <div>
         <div class="cache-usage__eyebrow">
           <span class="cache-usage__pulse" aria-hidden="true"></span>
-          Live cache footprint
+          Current cache footprint
         </div>
         <h4 id="cache-usage-heading">Storage usage</h4>
       </div>
-      <p>Compared with saved limits · refreshes every 5 seconds</p>
+      <p>Latest successful dashboard refresh · compared with saved limits</p>
     </div>
 
     <div v-if="usageRows.length" class="cache-usage__grid">

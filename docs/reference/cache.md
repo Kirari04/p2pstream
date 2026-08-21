@@ -47,7 +47,7 @@ For example, with **Hot object KiB** set to `256`, a cacheable 100 KiB response 
 
 The disk directory is `${CONFIG_DIR}/cache/public` by default, or the value of `PUBLIC_CACHE_DIR` when configured.
 
-The **Storage usage** panel reports the current body bytes on disk, body copies in memory, and cache-entry count. Each meter shows used, configured limit, and remaining budget and refreshes with the management UI's five-second configuration poll. “Remaining” means room within the configured cache budget; it is not the host filesystem's free-space measurement. Usage can briefly appear over a disk or entry limit until the next demand-driven cleanup pass.
+The **Storage usage** panel reports cache-accounted body bytes for the disk tier, hot body copies currently retained in memory, and cache-entry count. Each meter shows used, configured limit, and remaining budget. The values update after each successful dashboard refresh (normally every five seconds while the session is active and no edit is in progress). “Remaining” means room within the configured cache budget; it is not the host filesystem's free-space measurement. Disk usage is the logical body size tracked by cache metadata, not filesystem allocation. Usage can briefly appear over a disk or entry limit until the next demand-driven cleanup pass.
 
 ## Validation Rules
 

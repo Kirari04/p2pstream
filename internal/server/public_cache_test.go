@@ -540,6 +540,7 @@ func TestPublicCacheManagementAPIAcceptsLegacyCookieRequestFlagWithoutAcknowledg
 func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
+	assertPublicCacheStorageStats(t, app, 0, 0, 0)
 
 	originHits := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -569,6 +570,7 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	if firstDecision.Status != publicCacheStatusStored || firstDecision.StoredBytes != int64(len("asset-v1")) {
 		t.Fatalf("stored decision = status %q bytes %d", firstDecision.Status, firstDecision.StoredBytes)
 	}
+	assertPublicCacheStorageStats(t, app, int64(len("asset-v1")), int64(len("asset-v1")), 1)
 	if err := app.flushObservabilityRecorder(context.Background()); err != nil {
 		t.Fatalf("flush observability recorder: %v", err)
 	}
@@ -1034,6 +1036,64 @@ func TestPublicCacheFailedExpiredReplacementRestoresPreviousGeneration(t *testin
 	}
 }
 
+func TestPublicCacheStorageUsageTracksExpiredReplacement(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/replacement-stats.txt", nil)
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	oldBody := []byte("old")
+	oldEntry, err := storeTestPublicCacheGeneration(app, resolution, req, rule, app.PublicCache.nextStoredAt(), oldBody)
+	if err != nil {
+		t.Fatalf("store replacement-stats generation v1: %v", err)
+	}
+	assertPublicCacheStorageStats(t, app, int64(len(oldBody)), int64(len(oldBody)), 1)
+
+	oldEntry.ExpiresAt = time.Now().Add(-time.Minute)
+	if _, err := app.DB.ExecContext(context.Background(), `UPDATE public_cache_entries SET expires_at = ? WHERE key_digest = ?`, oldEntry.ExpiresAt, oldEntry.KeyDigest); err != nil {
+		t.Fatalf("expire replacement-stats generation v1: %v", err)
+	}
+	app.PublicCache.putIndexEntry(oldEntry)
+	fingerprint := publicCacheSnapshotFingerprint(snap)
+	generation, current := app.PublicCache.captureGeneration(fingerprint)
+	if !current {
+		t.Fatal("cache generation was not current before replacement")
+	}
+	decision := publicCacheDecision{
+		Rule:             rule,
+		Status:           publicCacheStatusMiss,
+		Host:             normalizeRequestHost(req.Host),
+		Path:             req.URL.EscapedPath(),
+		Cacheable:        true,
+		cacheGeneration:  generation,
+		cacheFingerprint: fingerprint,
+		cacheCurrent:     true,
+	}
+	newBody := []byte("replacement-body-is-larger")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		Body:       io.NopCloser(strings.NewReader(string(newBody))),
+	}
+	captured := app.capturePublicCacheResponseBody(context.Background(), req, resolution, &decision, resp, nil)
+	if captured == nil {
+		t.Fatal("replacement-stats response body was not captured")
+	}
+	if _, err := io.Copy(io.Discard, captured); err != nil {
+		t.Fatalf("read replacement-stats response: %v", err)
+	}
+	if err := captured.Close(); err != nil {
+		t.Fatalf("close replacement-stats response: %v", err)
+	}
+	if decision.Status != publicCacheStatusStored {
+		t.Fatalf("replacement-stats cache status = %q, want %q", decision.Status, publicCacheStatusStored)
+	}
+	assertPublicCacheStorageStats(t, app, int64(len(newBody)), int64(len(newBody)), 1)
+}
+
 func TestPublicCacheFirstWriterWinsWhileLateReaderWaits(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
@@ -1350,6 +1410,7 @@ func TestPublicCacheCleanupWaitsForActiveStoreGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("store cleanup-gate entry: %v", err)
 	}
+	assertPublicCacheStorageStats(t, app, entry.SizeBytes, entry.SizeBytes, 1)
 	entry.ExpiresAt = time.Now().Add(-time.Minute)
 	if _, err := app.DB.ExecContext(context.Background(), `UPDATE public_cache_entries SET expires_at = ? WHERE key_digest = ?`, entry.ExpiresAt, entry.KeyDigest); err != nil {
 		t.Fatalf("expire cleanup-gate entry: %v", err)
@@ -1386,6 +1447,7 @@ func TestPublicCacheCleanupWaitsForActiveStoreGeneration(t *testing.T) {
 	if _, err := os.Stat(entry.BodyPath); !os.IsNotExist(err) {
 		t.Fatalf("cleanup-gate body stat error = %v, want not exist", err)
 	}
+	assertPublicCacheStorageStats(t, app, 0, 0, 0)
 }
 
 func TestPublicCacheStorageStatsReportsDiskMemoryAndEntries(t *testing.T) {
@@ -1448,6 +1510,77 @@ func TestPublicCacheStorageStatsReportsDiskMemoryAndEntries(t *testing.T) {
 	}
 }
 
+func TestPublicCacheStorageUsageTracksExplicitPurge(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	firstBody := []byte("purge-first")
+	secondBody := []byte("purge-second-is-larger")
+	if _, err := storeTestPublicCacheGeneration(
+		app,
+		resolution,
+		httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/purge-first.txt", nil),
+		rule,
+		app.PublicCache.nextStoredAt(),
+		firstBody,
+	); err != nil {
+		t.Fatalf("store first purge fixture: %v", err)
+	}
+	if _, err := storeTestPublicCacheGeneration(
+		app,
+		resolution,
+		httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/purge-second.txt", nil),
+		rule,
+		app.PublicCache.nextStoredAt(),
+		secondBody,
+	); err != nil {
+		t.Fatalf("store second purge fixture: %v", err)
+	}
+	totalBytes := int64(len(firstBody) + len(secondBody))
+	assertPublicCacheStorageStats(t, app, totalBytes, totalBytes, 2)
+
+	header := createTestAdminSession(t, app)
+	purgeReq := connect.NewRequest(&p2pstreamv1.PurgePublicCacheRequest{All: true})
+	purgeReq.Header().Set("Cookie", header.Get("Cookie"))
+	purgeResp, err := app.PurgePublicCache(context.Background(), purgeReq)
+	if err != nil {
+		t.Fatalf("purge public cache: %v", err)
+	}
+	if purgeResp.Msg.PurgedEntries != 2 || purgeResp.Msg.PurgedBytes != totalBytes {
+		t.Fatalf("purge response = %d entries/%d bytes, want 2/%d", purgeResp.Msg.PurgedEntries, purgeResp.Msg.PurgedBytes, totalBytes)
+	}
+	assertPublicCacheStorageStats(t, app, 0, 0, 0)
+}
+
+func TestPublicCacheStorageUsageTracksRulePurge(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	body := []byte("rule-purge")
+	if _, err := storeTestPublicCacheGeneration(
+		app,
+		resolution,
+		httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/rule-purge.txt", nil),
+		snap.CacheRules[0],
+		app.PublicCache.nextStoredAt(),
+		body,
+	); err != nil {
+		t.Fatalf("store rule-purge fixture: %v", err)
+	}
+	assertPublicCacheStorageStats(t, app, int64(len(body)), int64(len(body)), 1)
+	if err := app.purgePublicCacheEntriesByRuleID(context.Background(), snap.CacheRules[0].ID); err != nil {
+		t.Fatalf("purge cache entries by rule ID: %v", err)
+	}
+	assertPublicCacheStorageStats(t, app, 0, 0, 0)
+}
+
 func TestPublicCacheGenerationInvalidationSupportsLegacyTimestamp(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
@@ -1475,6 +1608,7 @@ func TestPublicCacheGenerationInvalidationSupportsLegacyTimestamp(t *testing.T) 
 	}
 	app.PublicCache.putIndexEntry(entry)
 	app.PublicCache.putMemory(entry.KeyDigest, entry.StoredAt, []byte("legacy-generation"))
+	assertPublicCacheStorageStats(t, app, entry.SizeBytes, entry.SizeBytes, 1)
 
 	app.invalidatePublicCacheEntry(entry)
 	if _, err := app.DB.GetPublicCacheEntry(context.Background(), entry.KeyDigest); !errors.Is(err, sql.ErrNoRows) {
@@ -1486,6 +1620,7 @@ func TestPublicCacheGenerationInvalidationSupportsLegacyTimestamp(t *testing.T) 
 	if body := app.PublicCache.getMemory(entry.KeyDigest, entry.StoredAt); len(body) != 0 {
 		t.Fatalf("legacy cache generation memory remained: %q", body)
 	}
+	assertPublicCacheStorageStats(t, app, 0, 0, 0)
 }
 
 func TestPublicCacheEmptyMissUsesWarmedIndex(t *testing.T) {
@@ -2200,6 +2335,25 @@ func assertTestPublicCacheGeneration(t *testing.T, app *App, want db.PublicCache
 	}
 	if memory == nil || !memory.storedAt.Equal(want.StoredAt) || string(memory.body) != string(body) {
 		t.Fatalf("memory cache generation = %#v, want stored %s/body %q", memory, want.StoredAt, body)
+	}
+}
+
+func assertPublicCacheStorageStats(t *testing.T, app *App, diskBytes, memoryBytes, entries int64) {
+	t.Helper()
+	stats, err := app.publicCacheStorageStats(context.Background())
+	if err != nil {
+		t.Fatalf("load public cache storage stats: %v", err)
+	}
+	if stats.DiskBytesUsed != diskBytes || stats.MemoryBytesUsed != memoryBytes || stats.EntriesUsed != entries {
+		t.Fatalf(
+			"public cache storage stats = disk %d/memory %d/entries %d, want %d/%d/%d",
+			stats.DiskBytesUsed,
+			stats.MemoryBytesUsed,
+			stats.EntriesUsed,
+			diskBytes,
+			memoryBytes,
+			entries,
+		)
 	}
 }
 
