@@ -1388,6 +1388,66 @@ func TestPublicCacheCleanupWaitsForActiveStoreGeneration(t *testing.T) {
 	}
 }
 
+func TestPublicCacheStorageStatsReportsDiskMemoryAndEntries(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	snap := app.currentPublicSnapshot()
+	if snap == nil || len(snap.CacheRules) == 0 {
+		t.Fatal("test cache snapshot missing rule")
+	}
+	rule := snap.CacheRules[0]
+	memoryBody := []byte("memory-backed-cache-body")
+	diskOnlyBody := []byte("disk-only-cache-body")
+	memoryEntry, err := storeTestPublicCacheGeneration(
+		app,
+		resolution,
+		httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/memory-stats.txt", nil),
+		rule,
+		app.PublicCache.nextStoredAt(),
+		memoryBody,
+	)
+	if err != nil {
+		t.Fatalf("store memory-backed cache entry: %v", err)
+	}
+	diskOnlyEntry, err := storeTestPublicCacheGeneration(
+		app,
+		resolution,
+		httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/disk-stats.txt", nil),
+		rule,
+		app.PublicCache.nextStoredAt(),
+		diskOnlyBody,
+	)
+	if err != nil {
+		t.Fatalf("store disk-only cache entry: %v", err)
+	}
+	app.PublicCache.deleteMemory(diskOnlyEntry.KeyDigest)
+
+	stats, err := app.publicCacheStorageStats(context.Background())
+	if err != nil {
+		t.Fatalf("load public cache storage stats: %v", err)
+	}
+	if stats.DiskBytesUsed != int64(len(memoryBody)+len(diskOnlyBody)) {
+		t.Fatalf("disk bytes used = %d, want %d", stats.DiskBytesUsed, len(memoryBody)+len(diskOnlyBody))
+	}
+	if stats.MemoryBytesUsed != int64(len(memoryBody)) {
+		t.Fatalf("memory bytes used = %d, want %d", stats.MemoryBytesUsed, len(memoryBody))
+	}
+	if stats.EntriesUsed != 2 {
+		t.Fatalf("entries used = %d, want 2", stats.EntriesUsed)
+	}
+	if memoryEntry.KeyDigest == diskOnlyEntry.KeyDigest {
+		t.Fatal("cache storage stats fixture unexpectedly reused a cache key")
+	}
+	configResponse, err := app.publicProxyConfigResponse(context.Background())
+	if err != nil {
+		t.Fatalf("load public proxy config response: %v", err)
+	}
+	if configResponse.CacheStorageStats == nil || configResponse.CacheStorageStats.DiskBytesUsed != stats.DiskBytesUsed ||
+		configResponse.CacheStorageStats.MemoryBytesUsed != stats.MemoryBytesUsed || configResponse.CacheStorageStats.EntriesUsed != stats.EntriesUsed {
+		t.Fatalf("public proxy config cache storage stats = %#v, want %#v", configResponse.CacheStorageStats, stats)
+	}
+}
+
 func TestPublicCacheGenerationInvalidationSupportsLegacyTimestamp(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()

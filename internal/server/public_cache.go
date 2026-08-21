@@ -411,6 +411,15 @@ func (c *publicProxyCache) memoryHotObjectMaxBytesSnapshot() int64 {
 	return c.settings.MemoryHotObjectMaxBytes
 }
 
+func (c *publicProxyCache) memoryBytesSnapshot() int64 {
+	if c == nil {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.memoryBytes
+}
+
 func (c *publicProxyCache) nextStoredAt() time.Time {
 	now := time.Now().UTC().Round(0)
 	if c == nil {
@@ -1926,6 +1935,25 @@ func publicCacheSettingsConfigToProto(settings publicCacheSettingsConfig) *p2pst
 		CreatedAtUnixMillis:     settings.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:     settings.UpdatedAt.UnixMilli(),
 	}
+}
+
+func (a *App) publicCacheStorageStats(ctx context.Context) (*p2pstreamv1.PublicCacheStorageStats, error) {
+	if a == nil || a.DB == nil {
+		return nil, errors.New("public cache storage stats are unavailable")
+	}
+	usage, err := a.DB.SumPublicCacheBytes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	memoryBytes := int64(0)
+	if a.PublicCache != nil {
+		memoryBytes = a.PublicCache.memoryBytesSnapshot()
+	}
+	return &p2pstreamv1.PublicCacheStorageStats{
+		DiskBytesUsed:   usage.TotalBytes,
+		MemoryBytesUsed: memoryBytes,
+		EntriesUsed:     usage.EntryCount,
+	}, nil
 }
 
 func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, error) {

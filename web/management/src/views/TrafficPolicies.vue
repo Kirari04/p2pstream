@@ -15,6 +15,7 @@ import TrafficPolicyExecutionOrderStrip from "@/components/traffic-policy/Traffi
 import TrafficPolicyRequestPlayground from "@/components/traffic-policy/TrafficPolicyRequestPlayground.vue";
 import PublicAccessControlSettings from "@/components/traffic-policy/PublicAccessControlSettings.vue";
 import PublicVisitorIdentitySettings from "@/components/traffic-policy/PublicVisitorIdentitySettings.vue";
+import CacheStorageUsage from "@/components/traffic-policy/CacheStorageUsage.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
@@ -1204,6 +1205,7 @@ async function deleteTrafficShaperRule(id: bigint) {
           </div>
           <NCheckbox v-model:checked="cacheSettingsForm.enabled">Cache storage enabled</NCheckbox>
         </div>
+        <CacheStorageUsage :settings="cacheSettings" :stats="config?.cacheStorageStats" />
         <div class="policy-cache-fields">
           <label class="policy-cache-field">
             <span>Disk MiB</span>

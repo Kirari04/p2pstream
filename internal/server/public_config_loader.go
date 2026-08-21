@@ -20,6 +20,10 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	if err != nil {
 		return nil, err
 	}
+	cacheStorageStats, err := a.publicCacheStorageStats(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to load public cache storage stats")
+	}
 	routeTargetUpstreamHeaders := publicRouteTargetUpstreamHeadersByTarget(rows.RouteTargetUpstreamHeaders)
 	routeTargetResponseHeaders := publicRouteTargetResponseHeadersByTarget(rows.RouteTargetResponseHeaders)
 
@@ -39,6 +43,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		GeoIpSettings:       a.publicGeoIPSettingsProto(rows.GeoIPSettings),
 		TrustedProxySources: publicTrustedProxySourcesToProto(rows.TrustedProxySources),
 		CacheSettings:       publicCacheSettingsConfigToProto(snap.CacheSettings),
+		CacheStorageStats:   cacheStorageStats,
 		CacheRules:          publicCacheRulesToProto(rows.CacheRules),
 		TlsDnsCredentials:   publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
 		ResponseTemplates:   publicResponseTemplatesToProto(rows.ResponseTemplates),

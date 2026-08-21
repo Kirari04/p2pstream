@@ -28,16 +28,26 @@ Cache rules run after route/target selection and before forwarding a cache miss 
 | `allow_cookie_requests` | `false` | Legacy/deprecated. Cookie-bearing requests always bypass shared cache; this field may still appear for compatibility but has no runtime effect. |
 | `allow_cookie_requests_acknowledged` | `false` | Legacy acknowledgement field retained for compatibility with `allow_cookie_requests`. |
 
-Storage defaults:
+### Storage Limits
 
-| Setting | Default |
-| --- | --- |
-| Disk directory | `${CONFIG_DIR}/cache/public`, or `PUBLIC_CACHE_DIR` |
-| Max disk bytes | `1073741824` |
-| Max memory bytes | `134217728` |
-| Memory hot object max bytes | `262144` |
-| Max entries | `100000` |
-| Cleanup interval | `60000` ms |
+Cached response bodies are always written to the disk cache first. SQLite stores their metadata, while the memory cache keeps optional copies of smaller bodies for faster reads. The management UI uses binary units: one KiB is 1,024 bytes and one MiB is 1,048,576 bytes.
+
+| UI setting | Default | Meaning |
+| --- | --- | --- |
+| Cache storage enabled | enabled | Enables shared-cache lookup and storage. Disabling it bypasses the cache but does not delete existing disk objects; use **Purge all cached objects** to remove them. |
+| Disk MiB | `1024` MiB | Target budget for the combined size of cached response bodies on disk. This does not include SQLite metadata or filesystem overhead. When cleanup observes an over-budget cache, it removes least-recently-accessed entries until the cache is within budget. |
+| Memory MiB | `128` MiB | Total budget for in-memory body copies. When adding a body would exceed the budget, least-recently-used memory copies are evicted. Their disk copies remain available. |
+| Hot object KiB | `256` KiB | Maximum size of one newly stored response body that may also be copied into memory. Larger eligible responses remain disk-cached. “Hot” means eligible for the RAM tier; it is not an access-frequency score, and repeated disk hits do not promote an object into memory. This value cannot exceed **Memory MiB**. |
+| Max entries | `100000` | Target limit for cache records across all rules and cache-key variants. Each distinct query or configured `Vary` combination can create another entry. Cleanup removes least-recently-accessed entries when the count is over this limit. |
+| Cleanup seconds | `60` seconds | Minimum interval between cleanup passes. Cleanup is demand-driven by eligible cache traffic rather than an exact background schedule. A pass removes expired entries first, then least-recently-accessed entries until both the disk and entry-count budgets are satisfied. |
+
+**Disk MiB** and **Max entries** are cleanup budgets, not per-write admission limits, so usage can temporarily exceed them between cleanup passes. The cache rule's **Maximum object bytes** is the separate per-response admission limit: a response larger than that value is not cached at all.
+
+For example, with **Hot object KiB** set to `256`, a cacheable 100 KiB response is stored on disk and copied into memory. A cacheable 500 KiB response is stored only on disk. Both still count toward **Disk MiB** and **Max entries**.
+
+The disk directory is `${CONFIG_DIR}/cache/public` by default, or the value of `PUBLIC_CACHE_DIR` when configured.
+
+The **Storage usage** panel reports the current body bytes on disk, body copies in memory, and cache-entry count. Each meter shows used, configured limit, and remaining budget and refreshes with the management UI's five-second configuration poll. “Remaining” means room within the configured cache budget; it is not the host filesystem's free-space measurement. Usage can briefly appear over a disk or entry limit until the next demand-driven cleanup pass.
 
 ## Validation Rules
 
