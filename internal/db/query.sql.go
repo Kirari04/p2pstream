@@ -293,7 +293,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createAgent = `-- name: CreateAgent :one
 INSERT INTO agents (public_id, name, token_hash, enabled)
 VALUES (?, ?, ?, ?)
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type CreateAgentParams struct {
@@ -321,6 +321,8 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
@@ -2067,7 +2069,7 @@ func (q *Queries) GetActiveSessionByTokenHash(ctx context.Context, tokenHash str
 }
 
 const getAgent = `-- name: GetAgent :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE id = ?
 `
@@ -2085,12 +2087,14 @@ func (q *Queries) GetAgent(ctx context.Context, id int64) (Agent, error) {
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
 
 const getAgentByPublicID = `-- name: GetAgentByPublicID :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE public_id = ?
 `
@@ -2108,6 +2112,8 @@ func (q *Queries) GetAgentByPublicID(ctx context.Context, publicID string) (Agen
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
@@ -3515,7 +3521,7 @@ func (q *Queries) ListAgentStatRollupMinutesSince(ctx context.Context, bucketUni
 }
 
 const listAgents = `-- name: ListAgents :many
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 ORDER BY name ASC, public_id ASC, id ASC
 `
@@ -3539,6 +3545,8 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.LastDisconnectedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AgentVersion,
+			&i.AgentCommit,
 		); err != nil {
 			return nil, err
 		}
@@ -7009,7 +7017,7 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type UpdateAgentParams struct {
@@ -7031,8 +7039,32 @@ func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
+}
+
+const updateAgentBuild = `-- name: UpdateAgentBuild :exec
+UPDATE agents
+SET agent_version = ?1,
+    agent_commit = ?2
+WHERE id = ?3
+  AND (
+    agent_version != ?1
+    OR agent_commit != ?2
+  )
+`
+
+type UpdateAgentBuildParams struct {
+	AgentVersion string `json:"agent_version"`
+	AgentCommit  string `json:"agent_commit"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateAgentBuild(ctx context.Context, arg UpdateAgentBuildParams) error {
+	_, err := q.db.ExecContext(ctx, updateAgentBuild, arg.AgentVersion, arg.AgentCommit, arg.ID)
+	return err
 }
 
 const updateAgentToken = `-- name: UpdateAgentToken :one
@@ -7040,7 +7072,7 @@ UPDATE agents
 SET token_hash = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type UpdateAgentTokenParams struct {
@@ -7061,6 +7093,8 @@ func (q *Queries) UpdateAgentToken(ctx context.Context, arg UpdateAgentTokenPara
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
@@ -8671,7 +8705,7 @@ ON CONFLICT(public_id) DO UPDATE SET
     token_hash = excluded.token_hash,
     enabled = 1,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type UpsertBootstrapAgentParams struct {
@@ -8693,6 +8727,8 @@ func (q *Queries) UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapA
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }

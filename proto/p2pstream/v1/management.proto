@@ -362,6 +362,8 @@ message AgentStatsRequest {
   string agent_public_id = 10;
   double cpu_percent = 11;
   ManagementTrustStatus management_trust_status = 12;
+  string agent_version = 13;
+  string agent_commit = 14;
 }
 
 message AgentStatsResponse {
@@ -515,6 +517,8 @@ message GetStatusResponse {
   bool agent_connected = 3;
   AgentStatsSnapshot latest_agent_stats = 5;
   ProxyStatus proxy = 6;
+  string version = 7;
+  string commit = 8;
 }
 
 message ProxyStatus {
@@ -586,6 +590,8 @@ message Agent {
   int64 last_disconnected_at_unix_millis = 10;
   AgentStatsSnapshot latest_stats = 11;
   map<string, string> labels = 12;
+  string version = 13;
+  string commit = 14;
 }
 
 message PublicAgentSelector {

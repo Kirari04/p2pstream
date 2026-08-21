@@ -19,6 +19,8 @@ type Agent struct {
 	LastDisconnectedAt sql.NullTime `json:"last_disconnected_at"`
 	CreatedAt          time.Time    `json:"created_at"`
 	UpdatedAt          time.Time    `json:"updated_at"`
+	AgentVersion       string       `json:"agent_version"`
+	AgentCommit        string       `json:"agent_commit"`
 }
 
 type AgentStat struct {

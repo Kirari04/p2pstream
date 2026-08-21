@@ -38,6 +38,7 @@ import {
 } from "@/lib/dashboardStats";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
+import { agentBuildStatus, shortBuildCommit, type AgentBuildState } from "@/lib/agentVersion";
 import { modalCardStyle } from "@/lib/naiveUi";
 import type {
   Agent,
@@ -90,6 +91,9 @@ const connectedAgentCount = computed(() => uptimeSummaries.value.length
   : agents.value.filter((agent) => agent.connected).length);
 const offlineEnabledAgents = computed(() => Math.max(0, enabledAgents.value - connectedAgentCount.value));
 const activeAgentRequests = computed(() => agents.value.reduce((sum, agent) => sum + Number(agent.activeRequests || 0n), 0));
+const agentsNeedingUpdate = computed(() => agents.value.filter((agent) => buildStatusForAgent(agent).state === "update_available").length);
+const agentsWithBuildMismatch = computed(() => agents.value.filter((agent) => buildStatusForAgent(agent).state === "different").length);
+const agentsWithUnverifiedBuild = computed(() => agents.value.filter((agent) => buildStatusForAgent(agent).state === "unverified").length);
 const fleetUptime = computed(() => fleetUptimePercent(uptimeSummaries.value));
 const longestCurrentUptimeMillis = computed(() => Math.max(0, ...uptimeSummaries.value.map((summary) => Number(summary.currentUptimeMillis || 0n))));
 const recentDisconnects = computed(() => recentDisconnectCount(recentAgentConnections.value, dashboard?.value?.generatedAtUnixMillis ?? BigInt(Date.now())));
@@ -156,13 +160,14 @@ const activeAgentSectionMeta = computed(() =>
   agentSections.find((section) => section.key === activeAgentSection.value) ?? agentSections[0],
 );
 
-type AgentStateFilter = "all" | "attention" | "connected" | "disabled";
+type AgentStateFilter = "all" | "attention" | "version" | "connected" | "disabled";
 
 const agentSearch = ref("");
 const agentStateFilter = ref<AgentStateFilter>("all");
 const agentStateOptions: Array<{ label: string; value: AgentStateFilter }> = [
   { label: "All states", value: "all" },
   { label: "Needs attention (offline)", value: "attention" },
+  { label: "Version differs", value: "version" },
   { label: "Connected", value: "connected" },
   { label: "Disabled", value: "disabled" },
 ];
@@ -175,7 +180,7 @@ const filteredAgents = computed(() => {
 });
 const agentFilterActive = computed(() => Boolean(agentSearch.value.trim()) || agentStateFilter.value !== "all");
 const filteredAgentSummary = computed(() => {
-  if (!agentFilterActive.value) return `${totalAgents.value} agents · offline agents first`;
+  if (!agentFilterActive.value) return `${totalAgents.value} agents · offline and version-different agents first`;
   return `${filteredAgents.value.length} of ${totalAgents.value} agents`;
 });
 const investigatedAgentPublicId = computed(() => {
@@ -286,6 +291,7 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
         class: "agent-cell__id mono-text",
         title: diagnosticInspectionText(agent.publicId),
       }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
+      h("div", { class: "agent-cell__mobile-build" }, [renderAgentVersion(agent, true)]),
       h("details", { class: "agent-exact-details" }, [
         h("summary", {
           "aria-label": agentActionLabel("Show exact identity and selectors for", agent),
@@ -356,6 +362,12 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
           ])
         : h("p", { class: "copy-xs muted-text" }, "No runtime sample"),
     ]),
+  },
+  {
+    title: "Version",
+    key: "version",
+    width: 220,
+    render: (agent) => renderAgentVersion(agent),
   },
   {
     title: "Actions",
@@ -550,11 +562,65 @@ function sessionAgentDetail(session: AgentConnectionSession): string {
   return session.agentId > 0n ? `agent #${session.agentId.toString()}` : "";
 }
 
+function buildStatusForAgent(agent: Agent) {
+  return agentBuildStatus({
+    agentVersion: agent.version,
+    agentCommit: agent.commit,
+    serverVersion: status.value?.version,
+    serverCommit: status.value?.commit,
+  });
+}
+
+function renderAgentVersion(agent: Agent, compact = false) {
+  const build = buildStatusForAgent(agent);
+  const version = agent.version ? diagnosticExcerpt(agent.version, 32).text : "Unknown";
+  const commit = shortBuildCommit(agent.commit);
+  const serverVersion = diagnosticExcerpt(status.value?.version ?? "", 24).text;
+  const details = [
+    commit ? `build ${diagnosticInspectionText(commit)}` : "",
+    status.value?.version ? `server ${serverVersion}` : "",
+  ].filter(Boolean).join(" · ");
+  return h("div", { class: ["agent-version-cell", compact && "agent-version-cell--compact"] }, [
+    h("div", { class: "agent-version-cell__header" }, [
+      h("code", {
+        class: "mono-text agent-version-cell__value",
+        title: agent.version ? diagnosticInspectionText(agent.version) : "Agent version has not been reported",
+      }, [h("bdi", { dir: "ltr" }, version)]),
+      h(NTag, {
+        size: "small",
+        bordered: false,
+        type: agentBuildStatusType(build.state),
+      }, { default: () => build.label }),
+    ]),
+    compact ? null : h("p", { class: "agent-version-cell__detail mono-text muted-text" }, details || "Waiting for a compatible heartbeat"),
+  ]);
+}
+
+function agentBuildStatusType(state: AgentBuildState): "default" | "success" | "warning" | "info" {
+  switch (state) {
+    case "current":
+      return "success";
+    case "update_available":
+    case "different":
+    case "unverified":
+      return "warning";
+    case "ahead":
+    case "reported":
+      return "info";
+    default:
+      return "default";
+  }
+}
+
 function agentMatchesState(agent: Agent, filter: AgentStateFilter): boolean {
   const state = agentOperationalState(agent);
   switch (filter) {
     case "attention":
       return state === "offline";
+    case "version": {
+      const buildState = buildStatusForAgent(agent).state;
+      return buildState === "update_available" || buildState === "different" || buildState === "unverified";
+    }
     case "connected":
       return state === "connected";
     case "disabled":
@@ -568,6 +634,8 @@ function agentSearchText(agent: Agent): string {
   return [
     agent.name,
     agent.publicId,
+    agent.version,
+    agent.commit,
     exactAgentSelector(agent),
     ...Object.entries(agent.labels).flatMap(([key, value]) => [key, value, `${key}=${value}`]),
   ].join("\n").toLocaleLowerCase();
@@ -577,8 +645,10 @@ function compareAgentsByAttention(left: Agent, right: Agent): number {
   const rank = (agent: Agent) => {
     const state = agentOperationalState(agent);
     if (state === "offline") return 0;
-    if (state === "connected") return 1;
-    return 2;
+    const buildState = buildStatusForAgent(agent).state;
+    if (buildState === "update_available" || buildState === "different" || buildState === "unverified") return 1;
+    if (state === "connected") return 2;
+    return 3;
   };
   return rank(left) - rank(right)
     || left.name.localeCompare(right.name)
@@ -1018,6 +1088,15 @@ async function copyUninstallSnippet() {
           <NTag size="small" :bordered="false" type="info">{{ totalAgents }} registered</NTag>
           <NTag size="small" :bordered="false" type="success">{{ enabledAgents }} enabled</NTag>
           <NTag v-if="disabledAgents" size="small" :bordered="false" type="warning">{{ disabledAgents }} disabled</NTag>
+          <NTag v-if="agentsNeedingUpdate" size="small" :bordered="false" type="warning">
+            {{ agentsNeedingUpdate }} update{{ agentsNeedingUpdate === 1 ? '' : 's' }} available
+          </NTag>
+          <NTag v-if="agentsWithBuildMismatch" size="small" :bordered="false" type="warning">
+            {{ agentsWithBuildMismatch }} build mismatch{{ agentsWithBuildMismatch === 1 ? '' : 'es' }}
+          </NTag>
+          <NTag v-if="agentsWithUnverifiedBuild" size="small" :bordered="false" type="warning">
+            {{ agentsWithUnverifiedBuild }} build unverified
+          </NTag>
         </div>
       </div>
 
@@ -1070,7 +1149,7 @@ async function copyUninstallSnippet() {
           v-model:value="agentSearch"
           clearable
           size="small"
-          placeholder="Search name, ID, or label"
+          placeholder="Search name, ID, version, or label"
           :input-props="{ 'aria-label': 'Search agents' }"
           class="agent-search-input"
         >
@@ -1094,7 +1173,7 @@ async function copyUninstallSnippet() {
         :pagination="false"
         :bordered="false"
         :single-line="false"
-        :scroll-x="1040"
+        :scroll-x="1260"
         size="small"
       />
       <div v-else-if="agents.length" class="agent-filter-empty">
@@ -1665,6 +1744,10 @@ async function copyUninstallSnippet() {
   unicode-bidi: isolate;
 }
 
+.agent-cell__mobile-build {
+  display: none;
+}
+
 .agent-exact-details {
   min-width: 0;
   margin-top: 0.1rem;
@@ -1774,6 +1857,47 @@ async function copyUninstallSnippet() {
   min-width: 0;
 }
 
+.agent-version-cell {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.agent-version-cell__header {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.agent-version-cell__value {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-version-cell__detail {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-version-cell--compact {
+  gap: 0;
+}
+
 .agent-metric-line {
   display: flex;
   align-items: baseline;
@@ -1871,6 +1995,13 @@ async function copyUninstallSnippet() {
 
 .agent-setup-tabs .n-tabs-nav {
   width: min(100%, 32rem);
+}
+
+@media (max-width: 639px) {
+  .agent-cell__mobile-build {
+    display: block;
+    margin-top: 0.15rem;
+  }
 }
 
 @media (min-width: 640px) {

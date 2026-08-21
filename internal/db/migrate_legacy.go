@@ -56,7 +56,8 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		last_disconnected_at DATETIME,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-	);
+		, agent_version TEXT NOT NULL DEFAULT '',
+		agent_commit TEXT NOT NULL DEFAULT '');
 
 	CREATE TABLE IF NOT EXISTS connections (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,

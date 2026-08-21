@@ -193,6 +193,7 @@ type Querier interface {
 	TouchSession(ctx context.Context, id int64) error
 	TrustEnvironmentCertificate(ctx context.Context, arg TrustEnvironmentCertificateParams) (Environment, error)
 	UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error)
+	UpdateAgentBuild(ctx context.Context, arg UpdateAgentBuildParams) error
 	UpdateAgentToken(ctx context.Context, arg UpdateAgentTokenParams) (Agent, error)
 	UpdateConnectionDisconnected(ctx context.Context, id int64) error
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)

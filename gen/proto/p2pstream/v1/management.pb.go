@@ -2755,6 +2755,8 @@ type AgentStatsRequest struct {
 	AgentPublicId         string                 `protobuf:"bytes,10,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
 	CpuPercent            float64                `protobuf:"fixed64,11,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
 	ManagementTrustStatus *ManagementTrustStatus `protobuf:"bytes,12,opt,name=management_trust_status,json=managementTrustStatus,proto3" json:"management_trust_status,omitempty"`
+	AgentVersion          string                 `protobuf:"bytes,13,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
+	AgentCommit           string                 `protobuf:"bytes,14,opt,name=agent_commit,json=agentCommit,proto3" json:"agent_commit,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -2871,6 +2873,20 @@ func (x *AgentStatsRequest) GetManagementTrustStatus() *ManagementTrustStatus {
 		return x.ManagementTrustStatus
 	}
 	return nil
+}
+
+func (x *AgentStatsRequest) GetAgentVersion() string {
+	if x != nil {
+		return x.AgentVersion
+	}
+	return ""
+}
+
+func (x *AgentStatsRequest) GetAgentCommit() string {
+	if x != nil {
+		return x.AgentCommit
+	}
+	return ""
 }
 
 type AgentStatsResponse struct {
@@ -4356,6 +4372,8 @@ type GetStatusResponse struct {
 	AgentConnected   bool                   `protobuf:"varint,3,opt,name=agent_connected,json=agentConnected,proto3" json:"agent_connected,omitempty"`
 	LatestAgentStats *AgentStatsSnapshot    `protobuf:"bytes,5,opt,name=latest_agent_stats,json=latestAgentStats,proto3" json:"latest_agent_stats,omitempty"`
 	Proxy            *ProxyStatus           `protobuf:"bytes,6,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	Version          string                 `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	Commit           string                 `protobuf:"bytes,8,opt,name=commit,proto3" json:"commit,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -4423,6 +4441,20 @@ func (x *GetStatusResponse) GetProxy() *ProxyStatus {
 		return x.Proxy
 	}
 	return nil
+}
+
+func (x *GetStatusResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
 }
 
 type ProxyStatus struct {
@@ -4959,6 +4991,8 @@ type Agent struct {
 	LastDisconnectedAtUnixMillis int64                  `protobuf:"varint,10,opt,name=last_disconnected_at_unix_millis,json=lastDisconnectedAtUnixMillis,proto3" json:"last_disconnected_at_unix_millis,omitempty"`
 	LatestStats                  *AgentStatsSnapshot    `protobuf:"bytes,11,opt,name=latest_stats,json=latestStats,proto3" json:"latest_stats,omitempty"`
 	Labels                       map[string]string      `protobuf:"bytes,12,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Version                      string                 `protobuf:"bytes,13,opt,name=version,proto3" json:"version,omitempty"`
+	Commit                       string                 `protobuf:"bytes,14,opt,name=commit,proto3" json:"commit,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -5075,6 +5109,20 @@ func (x *Agent) GetLabels() map[string]string {
 		return x.Labels
 	}
 	return nil
+}
+
+func (x *Agent) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *Agent) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
 }
 
 type PublicAgentSelector struct {
@@ -20410,7 +20458,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\rca_bundle_pem\x18\x02 \x01(\tR\vcaBundlePem\x12#\n" +
 	"\rbundle_sha256\x18\x03 \x01(\tR\fbundleSha256\x124\n" +
 	"\x16server_certificate_pem\x18\x04 \x01(\tR\x14serverCertificatePem\x12/\n" +
-	"\x13management_hostname\x18\x05 \x01(\tR\x12managementHostname\"\x94\x04\n" +
+	"\x13management_hostname\x18\x05 \x01(\tR\x12managementHostname\"\xdc\x04\n" +
 	"\x11AgentStatsRequest\x12\"\n" +
 	"\rmemory_sys_mb\x18\x01 \x01(\x03R\vmemorySysMb\x12#\n" +
 	"\rnum_goroutine\x18\x02 \x01(\x03R\fnumGoroutine\x12\x1f\n" +
@@ -20427,7 +20475,9 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	" \x01(\tR\ragentPublicId\x12\x1f\n" +
 	"\vcpu_percent\x18\v \x01(\x01R\n" +
 	"cpuPercent\x12[\n" +
-	"\x17management_trust_status\x18\f \x01(\v2#.p2pstream.v1.ManagementTrustStatusR\x15managementTrustStatus\"q\n" +
+	"\x17management_trust_status\x18\f \x01(\v2#.p2pstream.v1.ManagementTrustStatusR\x15managementTrustStatus\x12#\n" +
+	"\ragent_version\x18\r \x01(\tR\fagentVersion\x12!\n" +
+	"\fagent_commit\x18\x0e \x01(\tR\vagentCommit\"q\n" +
 	"\x12AgentStatsResponse\x12[\n" +
 	"\x17management_trust_update\x18\x01 \x01(\v2#.p2pstream.v1.ManagementTrustUpdateR\x15managementTrustUpdate\"\x93\x02\n" +
 	"\x1fManagementTlsCertificateSummary\x12\x16\n" +
@@ -20532,13 +20582,15 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x17reported_at_unix_millis\x18\n" +
 	" \x01(\x03R\x14reportedAtUnixMillis\x12\x1f\n" +
 	"\vcpu_percent\x18\v \x01(\x01R\n" +
-	"cpuPercent\"\xa1\x02\n" +
+	"cpuPercent\"\xd3\x02\n" +
 	"\x11GetStatusResponse\x12#\n" +
 	"\rproxy_running\x18\x01 \x01(\bR\fproxyRunning\x12(\n" +
 	"\x10proxy_last_error\x18\x02 \x01(\tR\x0eproxyLastError\x12'\n" +
 	"\x0fagent_connected\x18\x03 \x01(\bR\x0eagentConnected\x12N\n" +
 	"\x12latest_agent_stats\x18\x05 \x01(\v2 .p2pstream.v1.AgentStatsSnapshotR\x10latestAgentStats\x12/\n" +
-	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxyJ\x04\b\x04\x10\x05R\rtarget_origin\"\x88\x02\n" +
+	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\x12\x18\n" +
+	"\aversion\x18\a \x01(\tR\aversion\x12\x16\n" +
+	"\x06commit\x18\b \x01(\tR\x06commitJ\x04\b\x04\x10\x05R\rtarget_origin\"\x88\x02\n" +
 	"\vProxyStatus\x12.\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x18.p2pstream.v1.ProxyStateR\x05state\x12\x1d\n" +
 	"\n" +
@@ -20586,7 +20638,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\n" +
 	"last_error\x18\x05 \x01(\tR\tlastError\x12L\n" +
 	"#passive_unhealthy_until_unix_millis\x18\x06 \x01(\x03R\x1fpassiveUnhealthyUntilUnixMillis\x12'\n" +
-	"\x0factive_requests\x18\a \x01(\x03R\x0eactiveRequests\"\xd6\x04\n" +
+	"\x0factive_requests\x18\a \x01(\x03R\x0eactiveRequests\"\x88\x05\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tpublic_id\x18\x02 \x01(\tR\bpublicId\x12\x12\n" +
@@ -20600,7 +20652,9 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	" last_disconnected_at_unix_millis\x18\n" +
 	" \x01(\x03R\x1clastDisconnectedAtUnixMillis\x12C\n" +
 	"\flatest_stats\x18\v \x01(\v2 .p2pstream.v1.AgentStatsSnapshotR\vlatestStats\x127\n" +
-	"\x06labels\x18\f \x03(\v2\x1f.p2pstream.v1.Agent.LabelsEntryR\x06labels\x1a9\n" +
+	"\x06labels\x18\f \x03(\v2\x1f.p2pstream.v1.Agent.LabelsEntryR\x06labels\x12\x18\n" +
+	"\aversion\x18\r \x01(\tR\aversion\x12\x16\n" +
+	"\x06commit\x18\x0e \x01(\tR\x06commit\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xac\x01\n" +

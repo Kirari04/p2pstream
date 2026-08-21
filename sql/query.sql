@@ -775,24 +775,24 @@ ORDER BY c.connected_at DESC, c.id DESC
 LIMIT ?;
 
 -- name: ListAgents :many
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 ORDER BY name ASC, public_id ASC, id ASC;
 
 -- name: GetAgent :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE id = ?;
 
 -- name: GetAgentByPublicID :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE public_id = ?;
 
 -- name: CreateAgent :one
 INSERT INTO agents (public_id, name, token_hash, enabled)
 VALUES (?, ?, ?, ?)
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
 
 -- name: UpdateAgent :one
 UPDATE agents
@@ -800,14 +800,24 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
 
 -- name: UpdateAgentToken :one
 UPDATE agents
 SET token_hash = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
+
+-- name: UpdateAgentBuild :exec
+UPDATE agents
+SET agent_version = sqlc.arg(agent_version),
+    agent_commit = sqlc.arg(agent_commit)
+WHERE id = sqlc.arg(id)
+  AND (
+    agent_version != sqlc.arg(agent_version)
+    OR agent_commit != sqlc.arg(agent_commit)
+  );
 
 -- name: UpsertBootstrapAgent :one
 INSERT INTO agents (public_id, name, token_hash, enabled)
@@ -817,7 +827,7 @@ ON CONFLICT(public_id) DO UPDATE SET
     token_hash = excluded.token_hash,
     enabled = 1,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
 
 -- name: MarkAgentConnected :exec
 UPDATE agents

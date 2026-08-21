@@ -96,5 +96,7 @@ function agent(overrides: Partial<Agent> = {}): Agent {
     lastDisconnectedAtUnixMillis: 0n,
     labels: {},
     ...overrides,
+    version: overrides.version ?? "",
+    commit: overrides.commit ?? "",
   };
 }

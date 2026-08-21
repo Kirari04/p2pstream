@@ -288,6 +288,8 @@ function agent(overrides: Partial<Agent>): Agent {
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
     labels: {},
+    version: "",
+    commit: "",
     ...overrides,
   } as Agent;
 }

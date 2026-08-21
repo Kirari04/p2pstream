@@ -1121,6 +1121,8 @@ func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.Process
 		BytesReceived:    bytesReceived.Swap(0),
 		BytesSent:        bytesSent.Swap(0),
 		AgentPublicId:    agentPublicID,
+		AgentVersion:     buildinfo.Version,
+		AgentCommit:      buildinfo.Commit,
 	}
 	if len(trustStores) > 0 && trustStores[0] != nil {
 		request.ManagementTrustStatus = trustStores[0].snapshot()
