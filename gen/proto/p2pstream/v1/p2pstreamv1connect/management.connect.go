@@ -69,6 +69,9 @@ const (
 	// AgentManagementServiceGetDashboardProcedure is the fully-qualified name of the
 	// AgentManagementService's GetDashboard RPC.
 	AgentManagementServiceGetDashboardProcedure = "/p2pstream.v1.AgentManagementService/GetDashboard"
+	// AgentManagementServiceGetAgentAvailabilityProcedure is the fully-qualified name of the
+	// AgentManagementService's GetAgentAvailability RPC.
+	AgentManagementServiceGetAgentAvailabilityProcedure = "/p2pstream.v1.AgentManagementService/GetAgentAvailability"
 	// AgentManagementServiceGetDashboardDiagnosticsProcedure is the fully-qualified name of the
 	// AgentManagementService's GetDashboardDiagnostics RPC.
 	AgentManagementServiceGetDashboardDiagnosticsProcedure = "/p2pstream.v1.AgentManagementService/GetDashboardDiagnostics"
@@ -291,6 +294,15 @@ const (
 	// AgentManagementServiceDeletePublicCacheRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicCacheRule RPC.
 	AgentManagementServiceDeletePublicCacheRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicCacheRule"
+	// AgentManagementServiceCreatePublicRetryRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicRetryRule RPC.
+	AgentManagementServiceCreatePublicRetryRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicRetryRule"
+	// AgentManagementServiceUpdatePublicRetryRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicRetryRule RPC.
+	AgentManagementServiceUpdatePublicRetryRuleProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicRetryRule"
+	// AgentManagementServiceDeletePublicRetryRuleProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicRetryRule RPC.
+	AgentManagementServiceDeletePublicRetryRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicRetryRule"
 	// AgentManagementServiceUpdatePublicCacheSettingsProcedure is the fully-qualified name of the
 	// AgentManagementService's UpdatePublicCacheSettings RPC.
 	AgentManagementServiceUpdatePublicCacheSettingsProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicCacheSettings"
@@ -313,6 +325,7 @@ type AgentManagementServiceClient interface {
 	FinalizeManagementTlsTrustCleanup(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
+	GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
 	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
 	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
@@ -387,6 +400,9 @@ type AgentManagementServiceClient interface {
 	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
 	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
 	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
+	CreatePublicRetryRule(context.Context, *connect.Request[v1.CreatePublicRetryRuleRequest]) (*connect.Response[v1.CreatePublicRetryRuleResponse], error)
+	UpdatePublicRetryRule(context.Context, *connect.Request[v1.UpdatePublicRetryRuleRequest]) (*connect.Response[v1.UpdatePublicRetryRuleResponse], error)
+	DeletePublicRetryRule(context.Context, *connect.Request[v1.DeletePublicRetryRuleRequest]) (*connect.Response[v1.DeletePublicRetryRuleResponse], error)
 	UpdatePublicCacheSettings(context.Context, *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error)
 	PurgePublicCache(context.Context, *connect.Request[v1.PurgePublicCacheRequest]) (*connect.Response[v1.PurgePublicCacheResponse], error)
 }
@@ -472,6 +488,12 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceGetDashboardProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
+			connect.WithClientOptions(opts...),
+		),
+		getAgentAvailability: connect.NewClient[v1.GetAgentAvailabilityRequest, v1.GetAgentAvailabilityResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetAgentAvailabilityProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentAvailability")),
 			connect.WithClientOptions(opts...),
 		),
 		getDashboardDiagnostics: connect.NewClient[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse](
@@ -918,6 +940,24 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicCacheRule")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicRetryRule: connect.NewClient[v1.CreatePublicRetryRuleRequest, v1.CreatePublicRetryRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicRetryRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicRetryRule")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicRetryRule: connect.NewClient[v1.UpdatePublicRetryRuleRequest, v1.UpdatePublicRetryRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicRetryRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicRetryRule")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicRetryRule: connect.NewClient[v1.DeletePublicRetryRuleRequest, v1.DeletePublicRetryRuleResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicRetryRuleProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRetryRule")),
+			connect.WithClientOptions(opts...),
+		),
 		updatePublicCacheSettings: connect.NewClient[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse](
 			httpClient,
 			baseURL+AgentManagementServiceUpdatePublicCacheSettingsProcedure,
@@ -947,6 +987,7 @@ type agentManagementServiceClient struct {
 	finalizeManagementTlsTrustCleanup    *connect.Client[v1.FinalizeManagementTlsTrustCleanupRequest, v1.FinalizeManagementTlsTrustCleanupResponse]
 	getStatus                            *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
 	getDashboard                         *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getAgentAvailability                 *connect.Client[v1.GetAgentAvailabilityRequest, v1.GetAgentAvailabilityResponse]
 	getDashboardDiagnostics              *connect.Client[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse]
 	getTrafficTraceSettings              *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
 	setTrafficTraceSettings              *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
@@ -1021,6 +1062,9 @@ type agentManagementServiceClient struct {
 	createPublicCacheRule                *connect.Client[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse]
 	updatePublicCacheRule                *connect.Client[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse]
 	deletePublicCacheRule                *connect.Client[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse]
+	createPublicRetryRule                *connect.Client[v1.CreatePublicRetryRuleRequest, v1.CreatePublicRetryRuleResponse]
+	updatePublicRetryRule                *connect.Client[v1.UpdatePublicRetryRuleRequest, v1.UpdatePublicRetryRuleResponse]
+	deletePublicRetryRule                *connect.Client[v1.DeletePublicRetryRuleRequest, v1.DeletePublicRetryRuleResponse]
 	updatePublicCacheSettings            *connect.Client[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse]
 	purgePublicCache                     *connect.Client[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse]
 }
@@ -1090,6 +1134,11 @@ func (c *agentManagementServiceClient) GetStatus(ctx context.Context, req *conne
 // GetDashboard calls p2pstream.v1.AgentManagementService.GetDashboard.
 func (c *agentManagementServiceClient) GetDashboard(ctx context.Context, req *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
 	return c.getDashboard.CallUnary(ctx, req)
+}
+
+// GetAgentAvailability calls p2pstream.v1.AgentManagementService.GetAgentAvailability.
+func (c *agentManagementServiceClient) GetAgentAvailability(ctx context.Context, req *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error) {
+	return c.getAgentAvailability.CallUnary(ctx, req)
 }
 
 // GetDashboardDiagnostics calls p2pstream.v1.AgentManagementService.GetDashboardDiagnostics.
@@ -1483,6 +1532,21 @@ func (c *agentManagementServiceClient) DeletePublicCacheRule(ctx context.Context
 	return c.deletePublicCacheRule.CallUnary(ctx, req)
 }
 
+// CreatePublicRetryRule calls p2pstream.v1.AgentManagementService.CreatePublicRetryRule.
+func (c *agentManagementServiceClient) CreatePublicRetryRule(ctx context.Context, req *connect.Request[v1.CreatePublicRetryRuleRequest]) (*connect.Response[v1.CreatePublicRetryRuleResponse], error) {
+	return c.createPublicRetryRule.CallUnary(ctx, req)
+}
+
+// UpdatePublicRetryRule calls p2pstream.v1.AgentManagementService.UpdatePublicRetryRule.
+func (c *agentManagementServiceClient) UpdatePublicRetryRule(ctx context.Context, req *connect.Request[v1.UpdatePublicRetryRuleRequest]) (*connect.Response[v1.UpdatePublicRetryRuleResponse], error) {
+	return c.updatePublicRetryRule.CallUnary(ctx, req)
+}
+
+// DeletePublicRetryRule calls p2pstream.v1.AgentManagementService.DeletePublicRetryRule.
+func (c *agentManagementServiceClient) DeletePublicRetryRule(ctx context.Context, req *connect.Request[v1.DeletePublicRetryRuleRequest]) (*connect.Response[v1.DeletePublicRetryRuleResponse], error) {
+	return c.deletePublicRetryRule.CallUnary(ctx, req)
+}
+
 // UpdatePublicCacheSettings calls p2pstream.v1.AgentManagementService.UpdatePublicCacheSettings.
 func (c *agentManagementServiceClient) UpdatePublicCacheSettings(ctx context.Context, req *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error) {
 	return c.updatePublicCacheSettings.CallUnary(ctx, req)
@@ -1508,6 +1572,7 @@ type AgentManagementServiceHandler interface {
 	FinalizeManagementTlsTrustCleanup(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
+	GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
 	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
 	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
@@ -1582,6 +1647,9 @@ type AgentManagementServiceHandler interface {
 	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
 	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
 	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
+	CreatePublicRetryRule(context.Context, *connect.Request[v1.CreatePublicRetryRuleRequest]) (*connect.Response[v1.CreatePublicRetryRuleResponse], error)
+	UpdatePublicRetryRule(context.Context, *connect.Request[v1.UpdatePublicRetryRuleRequest]) (*connect.Response[v1.UpdatePublicRetryRuleResponse], error)
+	DeletePublicRetryRule(context.Context, *connect.Request[v1.DeletePublicRetryRuleRequest]) (*connect.Response[v1.DeletePublicRetryRuleResponse], error)
 	UpdatePublicCacheSettings(context.Context, *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error)
 	PurgePublicCache(context.Context, *connect.Request[v1.PurgePublicCacheRequest]) (*connect.Response[v1.PurgePublicCacheResponse], error)
 }
@@ -1663,6 +1731,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceGetDashboardProcedure,
 		svc.GetDashboard,
 		connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetAgentAvailabilityHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetAgentAvailabilityProcedure,
+		svc.GetAgentAvailability,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentAvailability")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceGetDashboardDiagnosticsHandler := connect.NewUnaryHandler(
@@ -2109,6 +2183,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicCacheRule")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicRetryRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicRetryRuleProcedure,
+		svc.CreatePublicRetryRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicRetryRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicRetryRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicRetryRuleProcedure,
+		svc.UpdatePublicRetryRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicRetryRule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicRetryRuleHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicRetryRuleProcedure,
+		svc.DeletePublicRetryRule,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRetryRule")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceUpdatePublicCacheSettingsHandler := connect.NewUnaryHandler(
 		AgentManagementServiceUpdatePublicCacheSettingsProcedure,
 		svc.UpdatePublicCacheSettings,
@@ -2147,6 +2239,8 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceGetStatusHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetDashboardProcedure:
 			agentManagementServiceGetDashboardHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetAgentAvailabilityProcedure:
+			agentManagementServiceGetAgentAvailabilityHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetDashboardDiagnosticsProcedure:
 			agentManagementServiceGetDashboardDiagnosticsHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetTrafficTraceSettingsProcedure:
@@ -2295,6 +2389,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicCacheRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicCacheRuleProcedure:
 			agentManagementServiceDeletePublicCacheRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicRetryRuleProcedure:
+			agentManagementServiceCreatePublicRetryRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicRetryRuleProcedure:
+			agentManagementServiceUpdatePublicRetryRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicRetryRuleProcedure:
+			agentManagementServiceDeletePublicRetryRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicCacheSettingsProcedure:
 			agentManagementServiceUpdatePublicCacheSettingsHandler.ServeHTTP(w, r)
 		case AgentManagementServicePurgePublicCacheProcedure:
@@ -2354,6 +2454,10 @@ func (UnimplementedAgentManagementServiceHandler) GetStatus(context.Context, *co
 
 func (UnimplementedAgentManagementServiceHandler) GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetDashboard is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetAgentAvailability is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error) {
@@ -2650,6 +2754,18 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicCacheRule(context.
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicCacheRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicRetryRule(context.Context, *connect.Request[v1.CreatePublicRetryRuleRequest]) (*connect.Response[v1.CreatePublicRetryRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicRetryRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicRetryRule(context.Context, *connect.Request[v1.UpdatePublicRetryRuleRequest]) (*connect.Response[v1.UpdatePublicRetryRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicRetryRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicRetryRule(context.Context, *connect.Request[v1.DeletePublicRetryRuleRequest]) (*connect.Response[v1.DeletePublicRetryRuleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicRetryRule is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) UpdatePublicCacheSettings(context.Context, *connect.Request[v1.UpdatePublicCacheSettingsRequest]) (*connect.Response[v1.UpdatePublicCacheSettingsResponse], error) {

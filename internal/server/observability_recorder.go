@@ -26,21 +26,25 @@ const (
 )
 
 type proxyRequestEvent struct {
-	StatusCode    int
-	Duration      time.Duration
-	ErrorKind     string
-	ListenerID    sql.NullInt64
-	RouteID       sql.NullInt64
-	RouteTargetID sql.NullInt64
-	WafRuleID     sql.NullInt64
-	WafAction     string
-	AgentID       sql.NullInt64
-	CacheRuleID   sql.NullInt64
-	CacheStatus   string
-	CacheBytes    uint64
-	RequestBytes  uint64
-	ResponseBytes uint64
-	Context       proxyRequestContext
+	StatusCode     int
+	Duration       time.Duration
+	ErrorKind      string
+	ListenerID     sql.NullInt64
+	RouteID        sql.NullInt64
+	RouteTargetID  sql.NullInt64
+	WafRuleID      sql.NullInt64
+	WafAction      string
+	AgentID        sql.NullInt64
+	CacheRuleID    sql.NullInt64
+	CacheStatus    string
+	CacheBytes     uint64
+	RequestBytes   uint64
+	ResponseBytes  uint64
+	RetryRuleID    sql.NullInt64
+	RetryCount     int64
+	RetryOutcome   string
+	RetryErrorKind string
+	Context        proxyRequestContext
 }
 
 type observabilityRecorder struct {
@@ -168,24 +172,28 @@ func (r *observabilityRecorder) recordProxyRequestEvent(ctx context.Context, eve
 	r.startLocked()
 	select {
 	case r.events <- db.InsertProxyRequestEventAtParams{
-		OccurredAt:    occurredAt,
-		StatusCode:    int64(event.StatusCode),
-		DurationMs:    event.Duration.Milliseconds(),
-		ErrorKind:     event.ErrorKind,
-		Method:        event.Context.Method,
-		Host:          event.Context.Host,
-		PathPrefix:    event.Context.PathPrefix,
-		ListenerID:    event.ListenerID,
-		RouteID:       event.RouteID,
-		RouteTargetID: event.RouteTargetID,
-		WafRuleID:     event.WafRuleID,
-		WafAction:     event.WafAction,
-		AgentID:       event.AgentID,
-		RequestBytes:  int64FromUint64(event.RequestBytes),
-		ResponseBytes: int64FromUint64(event.ResponseBytes),
-		CacheRuleID:   event.CacheRuleID,
-		CacheStatus:   event.CacheStatus,
-		CacheBytes:    int64FromUint64(event.CacheBytes),
+		OccurredAt:     occurredAt,
+		StatusCode:     int64(event.StatusCode),
+		DurationMs:     event.Duration.Milliseconds(),
+		ErrorKind:      event.ErrorKind,
+		Method:         event.Context.Method,
+		Host:           event.Context.Host,
+		PathPrefix:     event.Context.PathPrefix,
+		ListenerID:     event.ListenerID,
+		RouteID:        event.RouteID,
+		RouteTargetID:  event.RouteTargetID,
+		WafRuleID:      event.WafRuleID,
+		WafAction:      event.WafAction,
+		AgentID:        event.AgentID,
+		RequestBytes:   int64FromUint64(event.RequestBytes),
+		ResponseBytes:  int64FromUint64(event.ResponseBytes),
+		CacheRuleID:    event.CacheRuleID,
+		CacheStatus:    event.CacheStatus,
+		CacheBytes:     int64FromUint64(event.CacheBytes),
+		RetryRuleID:    event.RetryRuleID,
+		RetryCount:     event.RetryCount,
+		RetryOutcome:   event.RetryOutcome,
+		RetryErrorKind: event.RetryErrorKind,
 	}:
 	default:
 		r.dropEvent()

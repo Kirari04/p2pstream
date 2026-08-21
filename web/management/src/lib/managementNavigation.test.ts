@@ -25,6 +25,7 @@ describe("managementNavigation", () => {
       "WAF",
       "Access",
       "Cache",
+      "Retries",
       "Traffic Shaper",
     ]);
     expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API Tokens", "Management TLS"]);

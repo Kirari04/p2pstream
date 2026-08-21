@@ -41,8 +41,9 @@ Direct target flow:
 7. A traffic shaper may wrap upload/download body streams.
 8. The router selects a route target, or a listener default route target if no explicit route matches.
 9. Cache rules can serve eligible unprotected proxy assets after route/target selection; protected routes bypass shared cache.
-10. The server forwards directly to the upstream origin or returns a redirect/static response.
-11. Observability records status, duration, policy IDs, listener/route/target IDs, agent ID, and byte counts.
+10. For an agent target and cache miss, the first matching retry rule defines the bounded attempt envelope.
+11. The server forwards directly, forwards through the selected agent with optional alternate-agent attempts, or returns a redirect/static response.
+12. Observability records status, duration, policy IDs, retry result, listener/route/target IDs, final agent ID, and byte counts.
 
 The early route-only match is used for path security mode and route access policy, including strict rejection of encoded path separators by default. Target selection and load-balancer state changes still happen later, after WAF, rate limits, access control, and traffic shapers.
 
@@ -54,6 +55,7 @@ Agent target flow:
 4. For matching requests, the server selects a label-matched connected agent using the target's agent load-balancing policy.
 5. The server opens one Yamux stream for the upstream TCP connection.
 6. The server-owned HTTP transport runs over that stream; the agent only dials the origin and relays bytes.
+7. If an opt-in retry rule permits the failure, the failed agent is excluded and the target's load balancer selects a different eligible agent for the next attempt.
 
 ## Common Mistakes
 
@@ -70,3 +72,4 @@ Agent target flow:
 - [Expose a home lab app](../guides/expose-a-home-lab-app)
 - [Backup and restore](../operations/backup-restore)
 - [Identity-aware access](../reference/access-control)
+- [Request retries](./request-retries)

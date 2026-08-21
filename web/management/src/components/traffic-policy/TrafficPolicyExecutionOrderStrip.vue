@@ -6,6 +6,7 @@ import {
   ListOrdered as ListOrderedIcon,
   Network as NetworkIcon,
   Route as RouteIcon,
+  RotateCcw as RetryIcon,
   Send as SendIcon,
   Server as ServerIcon,
   ShieldCheck as ShieldCheckIcon,
@@ -23,6 +24,7 @@ type ExecutionStageIcon =
   | "traffic-shaper"
   | "route"
   | "cache"
+  | "retry"
   | "target"
   | "response";
 
@@ -117,6 +119,7 @@ const iconByName: Record<ExecutionStageIcon, Component> = {
   "traffic-shaper": SlidersIcon,
   route: RouteIcon,
   cache: DatabaseIcon,
+  retry: RetryIcon,
   target: ServerIcon,
   response: SendIcon,
 };

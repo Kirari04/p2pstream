@@ -337,6 +337,12 @@ func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution
 	if resolution.CacheKeyDigest != "" {
 		event.CacheKeyDigest = resolution.CacheKeyDigest
 	}
+	if resolution.RetryRuleID != 0 {
+		event.RetryRuleId = resolution.RetryRuleID
+		event.RetryRuleName = resolution.RetryRuleName
+	}
+	event.RetryCount = resolution.RetryCount
+	event.RetryOutcome = resolution.RetryOutcome
 }
 
 func traceRouteLabel(resolution publicRouteResolution) string {
