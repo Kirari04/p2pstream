@@ -143,6 +143,55 @@ func TestCreateAgentStoresSystemAndUserLabels(t *testing.T) {
 	}
 }
 
+func TestReportStatsRecordsAgentBuildIdentity(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-build-report", "Build Reporter", "build-token")
+
+	req := connect.NewRequest(&p2pstreamv1.AgentStatsRequest{
+		AgentPublicId: agent.PublicID,
+		AgentVersion:  " v1.2.3\n",
+		AgentCommit:   " abc123\x00 ",
+	})
+	req.Header().Set("Authorization", "Bearer build-token")
+	if _, err := app.ReportStats(context.Background(), req); err != nil {
+		t.Fatalf("report agent stats with build identity: %v", err)
+	}
+
+	stored, err := database.GetAgent(context.Background(), agent.ID)
+	if err != nil {
+		t.Fatalf("load agent build identity: %v", err)
+	}
+	if stored.AgentVersion != "v1.2.3" || stored.AgentCommit != "abc123" {
+		t.Fatalf("stored agent build = %q/%q, want v1.2.3/abc123", stored.AgentVersion, stored.AgentCommit)
+	}
+	live := app.agentToProto(context.Background(), agent)
+	if live.Version != "v1.2.3" || live.Commit != "abc123" {
+		t.Fatalf("live agent build = %q/%q, want v1.2.3/abc123", live.Version, live.Commit)
+	}
+
+	restarted := NewApp(nil, database)
+	persisted := restarted.agentToProto(context.Background(), stored)
+	if persisted.Version != "v1.2.3" || persisted.Commit != "abc123" {
+		t.Fatalf("persisted agent build = %q/%q, want v1.2.3/abc123", persisted.Version, persisted.Commit)
+	}
+
+	legacyReq := connect.NewRequest(&p2pstreamv1.AgentStatsRequest{
+		AgentPublicId: agent.PublicID,
+		ManagementTrustStatus: &p2pstreamv1.ManagementTrustStatus{
+			AgentVersion: "v1.2.2",
+		},
+	})
+	legacyReq.Header().Set("Authorization", "Bearer build-token")
+	if _, err := app.ReportStats(context.Background(), legacyReq); err != nil {
+		t.Fatalf("report legacy agent build identity: %v", err)
+	}
+	legacy := app.agentToProto(context.Background(), stored)
+	if legacy.Version != "v1.2.2" || legacy.Commit != "" {
+		t.Fatalf("legacy agent build = %q/%q, want v1.2.2/empty", legacy.Version, legacy.Commit)
+	}
+}
+
 func TestCreateAgentRejectsDuplicateNormalizedLabelKeys(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(nil, database)

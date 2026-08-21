@@ -271,6 +271,7 @@ enum TrafficTraceStage {
   TRAFFIC_TRACE_STAGE_CACHE_STORED = 20;
   TRAFFIC_TRACE_STAGE_ACCESS_GRANTED = 21;
   TRAFFIC_TRACE_STAGE_ACCESS_DENIED = 22;
+  TRAFFIC_TRACE_STAGE_UPSTREAM_RETRY = 23;
 }
 
 enum EnvironmentTransport {
@@ -362,6 +363,8 @@ message AgentStatsRequest {
   string agent_public_id = 10;
   double cpu_percent = 11;
   ManagementTrustStatus management_trust_status = 12;
+  string agent_version = 13;
+  string agent_commit = 14;
 }
 
 message AgentStatsResponse {
@@ -515,6 +518,8 @@ message GetStatusResponse {
   bool agent_connected = 3;
   AgentStatsSnapshot latest_agent_stats = 5;
   ProxyStatus proxy = 6;
+  string version = 7;
+  string commit = 8;
 }
 
 message ProxyStatus {
@@ -586,6 +591,8 @@ message Agent {
   int64 last_disconnected_at_unix_millis = 10;
   AgentStatsSnapshot latest_stats = 11;
   map<string, string> labels = 12;
+  string version = 13;
+  string commit = 14;
 }
 
 message PublicAgentSelector {
@@ -954,6 +961,8 @@ message GetPublicProxyConfigResponse {
   repeated PublicTrustedProxySource trusted_proxy_sources = 19;
   repeated PublicAccessProvider access_providers = 20;
   repeated PublicAccessPolicy access_policies = 21;
+  PublicCacheStorageStats cache_storage_stats = 22;
+  repeated PublicRetryRule retry_rules = 23;
 }
 
 message PublicRouteTargetHealthTrace {
@@ -1948,6 +1957,32 @@ message AgentConnectionSession {
   bool active = 8;
 }
 
+message GetAgentAvailabilityRequest {
+  string agent_public_id = 1;
+  string window_label = 2;
+}
+
+message AgentAvailabilityInterval {
+  int64 connected_at_unix_millis = 1;
+  int64 disconnected_at_unix_millis = 2;
+  bool active = 3;
+}
+
+message GetAgentAvailabilityResponse {
+  string agent_public_id = 1;
+  string agent_name = 2;
+  string window_label = 3;
+  int64 observed_since_unix_millis = 4;
+  int64 observed_until_unix_millis = 5;
+  int64 uptime_millis = 6;
+  int64 downtime_millis = 7;
+  double uptime_percent = 8;
+  int64 disconnect_count = 9;
+  int64 longest_downtime_millis = 10;
+  bool connected = 11;
+  repeated AgentAvailabilityInterval intervals = 12;
+}
+
 message GetDashboardResponse {
   reserved 7;
   reserved "top_backends";
@@ -2013,6 +2048,10 @@ message DashboardDiagnosticsSample {
   int64 duration_ms = 11;
   uint64 request_bytes = 12;
   uint64 response_bytes = 13;
+  int64 retry_rule_id = 14;
+  int64 retry_count = 15;
+  string retry_outcome = 16;
+  string retry_error_kind = 17;
 }
 
 message GetDashboardDiagnosticsResponse {
@@ -2111,6 +2150,10 @@ message TrafficTraceEvent {
   string route_target_name = 51;
   PublicRouteTargetType route_target_type = 52;
   PublicRouteTargetTransport route_target_transport = 53;
+  int64 retry_rule_id = 54;
+  string retry_rule_name = 55;
+  int64 retry_count = 56;
+  string retry_outcome = 57;
 }
 
 message StreamTrafficTraceEventsResponse {
@@ -2301,6 +2344,91 @@ message RefreshPublicTrustedProxySourceResponse {
   PublicTrustedProxySource source = 1;
 }
 
+message PublicCacheStorageStats {
+  int64 disk_bytes_used = 1;
+  int64 memory_bytes_used = 2;
+  int64 entries_used = 3;
+}
+
+enum PublicRetryFailureMode {
+  PUBLIC_RETRY_FAILURE_MODE_UNSPECIFIED = 0;
+  PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES = 1;
+  PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES = 2;
+}
+
+enum PublicRetryBodyMode {
+  PUBLIC_RETRY_BODY_MODE_UNSPECIFIED = 0;
+  PUBLIC_RETRY_BODY_MODE_NEVER = 1;
+  PUBLIC_RETRY_BODY_MODE_BUFFERED = 2;
+}
+
+message PublicRetryRule {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  repeated string methods = 5;
+  int64 max_retries = 6;
+  PublicRetryFailureMode failure_mode = 7;
+  PublicRetryBodyMode body_mode = 8;
+  int64 max_replay_body_bytes = 9;
+  repeated int64 route_ids = 10;
+  repeated int64 target_ids = 11;
+  PublicPolicyMatchRule match_rule = 12;
+  int64 created_at_unix_millis = 13;
+  int64 updated_at_unix_millis = 14;
+}
+
+message CreatePublicRetryRuleRequest {
+  string name = 1;
+  int64 priority = 2;
+  bool enabled = 3;
+  repeated string methods = 4;
+  int64 max_retries = 5;
+  PublicRetryFailureMode failure_mode = 6;
+  PublicRetryBodyMode body_mode = 7;
+  int64 max_replay_body_bytes = 8;
+  repeated int64 route_ids = 9;
+  repeated int64 target_ids = 10;
+  PublicPolicyMatchRule match_rule = 11;
+  // Required when the rule can retry after an upstream may have observed the
+  // request, or when it includes methods with side effects.
+  bool duplicate_risk_acknowledged = 12;
+}
+
+message CreatePublicRetryRuleResponse {
+  PublicRetryRule rule = 1;
+}
+
+message UpdatePublicRetryRuleRequest {
+  int64 id = 1;
+  string name = 2;
+  int64 priority = 3;
+  bool enabled = 4;
+  repeated string methods = 5;
+  int64 max_retries = 6;
+  PublicRetryFailureMode failure_mode = 7;
+  PublicRetryBodyMode body_mode = 8;
+  int64 max_replay_body_bytes = 9;
+  repeated int64 route_ids = 10;
+  repeated int64 target_ids = 11;
+  PublicPolicyMatchRule match_rule = 12;
+  // Required when the rule can retry after an upstream may have observed the
+  // request, or when it includes methods with side effects.
+  bool duplicate_risk_acknowledged = 13;
+}
+
+message UpdatePublicRetryRuleResponse {
+  PublicRetryRule rule = 1;
+}
+
+message DeletePublicRetryRuleRequest {
+  int64 id = 1;
+}
+
+message DeletePublicRetryRuleResponse {
+}
+
 service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
   rpc GetManagementTlsRotation(GetManagementTlsRotationRequest) returns (GetManagementTlsRotationResponse) {}
@@ -2314,6 +2442,7 @@ service AgentManagementService {
   rpc FinalizeManagementTlsTrustCleanup(FinalizeManagementTlsTrustCleanupRequest) returns (FinalizeManagementTlsTrustCleanupResponse) {}
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
   rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
+  rpc GetAgentAvailability(GetAgentAvailabilityRequest) returns (GetAgentAvailabilityResponse) {}
   rpc GetDashboardDiagnostics(GetDashboardDiagnosticsRequest) returns (GetDashboardDiagnosticsResponse) {}
   rpc GetTrafficTraceSettings(GetTrafficTraceSettingsRequest) returns (GetTrafficTraceSettingsResponse) {}
   rpc SetTrafficTraceSettings(SetTrafficTraceSettingsRequest) returns (SetTrafficTraceSettingsResponse) {}
@@ -2388,6 +2517,9 @@ service AgentManagementService {
   rpc CreatePublicCacheRule(CreatePublicCacheRuleRequest) returns (CreatePublicCacheRuleResponse) {}
   rpc UpdatePublicCacheRule(UpdatePublicCacheRuleRequest) returns (UpdatePublicCacheRuleResponse) {}
   rpc DeletePublicCacheRule(DeletePublicCacheRuleRequest) returns (DeletePublicCacheRuleResponse) {}
+  rpc CreatePublicRetryRule(CreatePublicRetryRuleRequest) returns (CreatePublicRetryRuleResponse) {}
+  rpc UpdatePublicRetryRule(UpdatePublicRetryRuleRequest) returns (UpdatePublicRetryRuleResponse) {}
+  rpc DeletePublicRetryRule(DeletePublicRetryRuleRequest) returns (DeletePublicRetryRuleResponse) {}
   rpc UpdatePublicCacheSettings(UpdatePublicCacheSettingsRequest) returns (UpdatePublicCacheSettingsResponse) {}
   rpc PurgePublicCache(PurgePublicCacheRequest) returns (PurgePublicCacheResponse) {}
 }

@@ -66,6 +66,7 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
           { key: "policy-waf", label: "WAF", path: "/policies/waf" },
           { key: "policy-access", label: "Access", path: "/policies/access" },
           { key: "policy-cache", label: "Cache", path: "/policies/cache" },
+          { key: "policy-retries", label: "Retries", path: "/policies/retries" },
           { key: "policy-traffic-shaper", label: "Traffic Shaper", path: "/policies/traffic-shaper" },
         ],
       },

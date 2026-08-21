@@ -11,6 +11,11 @@ import {
   PublicPolicyMatchGroupSchema,
   PublicPolicyMatchRuleSchema,
   PublicRateLimitRuleSchema,
+  PublicRetryFailureMode,
+  PublicRetryRuleSchema,
+  PublicRouteTargetSchema,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicTrafficShaperRuleSchema,
   PublicWafActivationMode,
   PublicWafCaptchaProviderSchema,
@@ -24,6 +29,7 @@ import {
   type PublicPolicyMatchGroup,
   type PublicPolicyMatchRule,
   type PublicRateLimitRule,
+  type PublicRetryRule,
   type PublicTrafficShaperRule,
   type PublicWafCaptchaProvider,
   type PublicWafRule,
@@ -35,6 +41,7 @@ import {
   previewTrafficPolicyStages,
   runtimeOrderedCacheRules,
   runtimeOrderedRateLimitRules,
+  runtimeOrderedRetryRules,
   runtimeOrderedTrafficShaperRules,
   runtimeOrderedWafRules,
   trafficPolicyPreviewFormToRequest,
@@ -140,6 +147,11 @@ describe("trafficPolicyWorkbench", () => {
       cacheRule({ id: 2n, priority: 1n }),
       cacheRule({ id: 1n, priority: 1n }),
     ]).map((rule) => rule.id)).toEqual([1n, 2n, 3n]);
+    expect(runtimeOrderedRetryRules([
+      retryRule({ id: 3n, priority: 2n }),
+      retryRule({ id: 2n, priority: 1n }),
+      retryRule({ id: 1n, priority: 1n }),
+    ]).map((rule) => rule.id)).toEqual([1n, 2n, 3n]);
   });
 
   test("previews first-match stages and all matching rate limits", () => {
@@ -168,6 +180,14 @@ describe("trafficPolicyWorkbench", () => {
         cacheRule({ id: 30n, priority: 1n, routeIds: [11n], targetIds: [20n], matchRule: pathMatch }),
         cacheRule({ id: 31n, priority: 2n, routeIds: [10n], targetIds: [20n], matchRule: pathMatch }),
       ],
+      retryRules: [
+        retryRule({ id: 40n, priority: 1n, routeIds: [10n], targetIds: [20n], matchRule: pathMatch }),
+      ],
+      routeTargets: [create(PublicRouteTargetSchema, {
+        id: 20n,
+        targetType: PublicRouteTargetType.PROXY,
+        transport: PublicRouteTargetTransport.AGENT,
+      })],
     }, syntheticRequest({ routeId: 10n, targetId: 20n, cookies: {} }));
 
     expect(preview.waf?.rule.id).toBe(1n);
@@ -178,6 +198,25 @@ describe("trafficPolicyWorkbench", () => {
     ]);
     expect(preview.trafficShaper?.rule.id).toBe(21n);
     expect(preview.cache?.rule.id).toBe(31n);
+    expect(preview.retry?.rule.id).toBe(40n);
+  });
+
+  test("previews retry method and agent-target eligibility", () => {
+    const rule = retryRule({ id: 40n, methods: ["GET", "HEAD"] });
+    const agentTarget = create(PublicRouteTargetSchema, {
+      id: 20n,
+      targetType: PublicRouteTargetType.PROXY,
+      transport: PublicRouteTargetTransport.AGENT,
+    });
+    const directTarget = create(PublicRouteTargetSchema, {
+      id: 21n,
+      targetType: PublicRouteTargetType.PROXY,
+      transport: PublicRouteTargetTransport.DIRECT,
+    });
+
+    expect(previewTrafficPolicyStages({ retryRules: [rule], routeTargets: [agentTarget] }, syntheticRequest()).retry?.rule.id).toBe(40n);
+    expect(previewTrafficPolicyStages({ retryRules: [rule], routeTargets: [agentTarget] }, syntheticRequest({ method: "POST" })).retry).toBeNull();
+    expect(previewTrafficPolicyStages({ retryRules: [rule], routeTargets: [directTarget] }, syntheticRequest({ targetId: 21n })).retry).toBeNull();
   });
 
   test("keeps later first-match rules uncertain after an unknown selected candidate", () => {
@@ -348,11 +387,16 @@ describe("trafficPolicyWorkbench", () => {
         cacheRule({ id: 31n, priority: 1n, matchRule: pathRule("/cache") }),
         cacheRule({ id: 32n, priority: 2n, enabled: false, allowCookieRequests: true }),
       ],
+      retryRules: [
+        retryRule({ id: 40n, priority: 1n, failureMode: PublicRetryFailureMode.PRE_RESPONSE_FAILURES }),
+        retryRule({ id: 41n, priority: 1n, matchRule: pathRule("/retry") }),
+      ],
     });
 
     expect(warnings.filter((warning) => warning.code === "duplicate-priority").map((warning) => warning.policyKind).sort()).toEqual([
       "cache",
       "rate-limit",
+      "retry",
       "traffic-shaper",
       "waf",
     ]);
@@ -363,6 +407,7 @@ describe("trafficPolicyWorkbench", () => {
     expect(warnings.map((warning) => warning.code)).toContain("captcha-provider-secret-missing");
     expect(warnings.map((warning) => warning.code)).toContain("cache-settings-disabled");
     expect(warnings.map((warning) => warning.code)).toContain("cache-allows-cookie-requests");
+    expect(warnings.map((warning) => warning.code)).toContain("retry-duplicate-risk");
     expect(warnings.some((warning) => warning.ruleId === 2n && warning.code === "any-request-rule")).toBe(false);
     expect(warnings.some((warning) => warning.ruleId === 32n && warning.code === "cache-allows-cookie-requests")).toBe(false);
   });
@@ -472,6 +517,21 @@ function cacheRule(overrides: Partial<PublicCacheRule>): PublicCacheRule {
     targetIds: overrides.targetIds ?? [],
     matchRule: overrides.matchRule,
     allowCookieRequests: overrides.allowCookieRequests ?? false,
+  });
+}
+
+function retryRule(overrides: Partial<PublicRetryRule>): PublicRetryRule {
+  return create(PublicRetryRuleSchema, {
+    id: overrides.id ?? 1n,
+    name: overrides.name ?? `retry-${overrides.id?.toString() ?? "1"}`,
+    priority: overrides.priority ?? 1n,
+    enabled: overrides.enabled ?? true,
+    methods: overrides.methods ?? ["GET", "HEAD"],
+    maxRetries: overrides.maxRetries ?? 1n,
+    failureMode: overrides.failureMode ?? PublicRetryFailureMode.CONNECTION_FAILURES,
+    routeIds: overrides.routeIds ?? [],
+    targetIds: overrides.targetIds ?? [],
+    matchRule: overrides.matchRule,
   });
 }
 

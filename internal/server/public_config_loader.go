@@ -20,6 +20,10 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	if err != nil {
 		return nil, err
 	}
+	cacheStorageStats, err := a.publicCacheStorageStats(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to load public cache storage stats")
+	}
 	routeTargetUpstreamHeaders := publicRouteTargetUpstreamHeadersByTarget(rows.RouteTargetUpstreamHeaders)
 	routeTargetResponseHeaders := publicRouteTargetResponseHeadersByTarget(rows.RouteTargetResponseHeaders)
 
@@ -39,7 +43,9 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		GeoIpSettings:       a.publicGeoIPSettingsProto(rows.GeoIPSettings),
 		TrustedProxySources: publicTrustedProxySourcesToProto(rows.TrustedProxySources),
 		CacheSettings:       publicCacheSettingsConfigToProto(snap.CacheSettings),
+		CacheStorageStats:   cacheStorageStats,
 		CacheRules:          publicCacheRulesToProto(rows.CacheRules),
+		RetryRules:          publicRetryRulesToProto(rows.RetryRules),
 		TlsDnsCredentials:   publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
 		ResponseTemplates:   publicResponseTemplatesToProto(rows.ResponseTemplates),
 	}, nil
@@ -308,6 +314,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
+	retryRules, err := a.DB.ListPublicRetryRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	return publicConfigRows{
 		AccessProviders:            accessProviders,
 		AccessPolicies:             accessPolicies,
@@ -329,6 +339,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		TrustedProxySources:        trustedProxySources,
 		CacheSettings:              cacheSettings,
 		CacheRules:                 cacheRules,
+		RetryRules:                 retryRules,
 		ResponseTemplates:          responseTemplates,
 	}, nil
 }
@@ -553,6 +564,14 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		snap.CacheRules = append(snap.CacheRules, rule)
 	}
 	sortPublicCacheRules(snap.CacheRules)
+	for _, row := range rows.RetryRules {
+		rule, err := publicRetryRuleRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("retry rule %q is invalid: %w", row.Name, err))
+		}
+		snap.RetryRules = append(snap.RetryRules, rule)
+	}
+	sortPublicRetryRules(snap.RetryRules)
 	snap.CacheFingerprint = publicCacheRuntimeFingerprint(snap.CacheSettings, snap.CacheRules)
 	return snap, nil
 }

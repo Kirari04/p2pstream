@@ -46,6 +46,7 @@ describe("trafficFlowAnimation", () => {
       rateLimitRules: [],
       trafficShaperRules: [],
     cacheRules: [],
+      retryRules: [],
     accessProviders: [],
     accessPolicies: [],
       tlsDnsCredentials: [],

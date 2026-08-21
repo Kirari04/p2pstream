@@ -18,6 +18,7 @@ import (
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
+	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/managementui"
@@ -135,12 +136,14 @@ func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), boo
 }
 
 type App struct {
-	Config             *config.Config
-	DB                 *db.DB
-	StartedAt          time.Time
-	LatestAgentStats   atomic.Pointer[stats.AgentStats]
-	latestAgentStatsMu sync.RWMutex
-	latestAgentStats   map[int64]stats.AgentStats
+	Config              *config.Config
+	DB                  *db.DB
+	StartedAt           time.Time
+	LatestAgentStats    atomic.Pointer[stats.AgentStats]
+	latestAgentStatsMu  sync.RWMutex
+	latestAgentStats    map[int64]stats.AgentStats
+	latestAgentBuildsMu sync.RWMutex
+	latestAgentBuilds   map[int64]agentBuildIdentity
 
 	// These service fields remain public for package tests during the extraction stack.
 	// New construction should go through appServices so they can become private later.
@@ -169,6 +172,7 @@ type App struct {
 	agentTunnelStreams          *tunnel.StreamLimiter
 	publicProxyRequests         *requestCapacityLimiter
 	publicTargetRequests        *keyedRequestCapacityLimiter
+	retryReplayBudget           *retryReplayBudget
 	managementClientIdentity    *ClientIdentityResolver
 	managementClientIdentityErr error
 	ManagementTLS               *ManagementTLSRuntime
@@ -249,6 +253,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		DB:                  database,
 		StartedAt:           time.Now(),
 		latestAgentStats:    make(map[int64]stats.AgentStats),
+		latestAgentBuilds:   make(map[int64]agentBuildIdentity),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
@@ -258,6 +263,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 			cfg.PublicMaxConcurrentPerTarget,
 			defaultPublicMaxConcurrentRequestsPerTarget,
 		),
+		retryReplayBudget:           newRetryReplayBudget(defaultPublicRetryReplayBudgetBytes),
 		managementClientIdentity:    managementIdentity,
 		managementClientIdentityErr: managementIdentityErr,
 	}
@@ -319,6 +325,8 @@ func (a *App) ReportStats(
 	}
 
 	payload := req.Msg
+	build := agentBuildIdentityFromStats(payload)
+	a.storeLatestAgentBuild(agentRow.ID, build)
 
 	s := stats.AgentStats{
 		Timestamp:        time.Now(),
@@ -346,6 +354,13 @@ func (a *App) ReportStats(
 		Msg("Agent Health")
 
 	if a.DB != nil {
+		if err := a.DB.UpdateAgentBuild(ctx, db.UpdateAgentBuildParams{
+			AgentVersion: build.Version,
+			AgentCommit:  build.Commit,
+			ID:           agentRow.ID,
+		}); err != nil {
+			log.Error().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to record agent build identity")
+		}
 		reportedAt := time.Now().UTC()
 		err := a.insertAgentStatWithRollup(ctx, db.InsertAgentStatAtParams{
 			ReportedAt:       reportedAt,
@@ -386,6 +401,49 @@ func (a *App) storeLatestAgentStats(agentID int64, stat stats.AgentStats) {
 	}
 	a.latestAgentStats[agentID] = stat
 	a.latestAgentStatsMu.Unlock()
+}
+
+type agentBuildIdentity struct {
+	Version string
+	Commit  string
+}
+
+func agentBuildIdentityFromStats(payload *p2pstreamv1.AgentStatsRequest) agentBuildIdentity {
+	if payload == nil {
+		return agentBuildIdentity{}
+	}
+	version := payload.AgentVersion
+	if strings.TrimSpace(version) == "" && payload.ManagementTrustStatus != nil {
+		// Compatibility with agents released before build identity was promoted
+		// to a top-level heartbeat field.
+		version = payload.ManagementTrustStatus.AgentVersion
+	}
+	return agentBuildIdentity{
+		Version: truncateProxyRequestContextValue(version, 128),
+		Commit:  truncateProxyRequestContextValue(payload.AgentCommit, 128),
+	}
+}
+
+func (a *App) storeLatestAgentBuild(agentID int64, build agentBuildIdentity) {
+	if a == nil || agentID <= 0 {
+		return
+	}
+	a.latestAgentBuildsMu.Lock()
+	if a.latestAgentBuilds == nil {
+		a.latestAgentBuilds = make(map[int64]agentBuildIdentity)
+	}
+	a.latestAgentBuilds[agentID] = build
+	a.latestAgentBuildsMu.Unlock()
+}
+
+func (a *App) latestAgentBuildSnapshot(agentID int64) (agentBuildIdentity, bool) {
+	if a == nil || agentID <= 0 {
+		return agentBuildIdentity{}, false
+	}
+	a.latestAgentBuildsMu.RLock()
+	build, ok := a.latestAgentBuilds[agentID]
+	a.latestAgentBuildsMu.RUnlock()
+	return build, ok
 }
 
 func (a *App) latestAgentStatsSnapshot(agentID int64) (*p2pstreamv1.AgentStatsSnapshot, bool) {
@@ -437,6 +495,8 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 		ProxyLastError: proxyLastError,
 		AgentConnected: a.AgentHub.connectedCount() > 0,
 		Proxy:          a.proxyStatus(),
+		Version:        buildinfo.Version,
+		Commit:         buildinfo.Commit,
 	}
 
 	if latest := a.LatestAgentStats.Load(); latest != nil {

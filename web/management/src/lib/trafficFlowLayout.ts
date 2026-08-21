@@ -373,6 +373,7 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
     case TraceStage.CACHE_STORED:
       return "response";
     case TraceStage.UPSTREAM_STARTED:
+    case TraceStage.UPSTREAM_RETRY:
       if (requestTargetType(request) === PublicRouteTargetType.STATIC) return "static-response";
       if (request.agentId > 0n || requestTargetTransport(request) !== PublicRouteTargetTransport.AGENT) return "upstream";
       return request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "response";

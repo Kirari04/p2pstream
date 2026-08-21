@@ -293,7 +293,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createAgent = `-- name: CreateAgent :one
 INSERT INTO agents (public_id, name, token_hash, enabled)
 VALUES (?, ?, ?, ?)
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type CreateAgentParams struct {
@@ -321,6 +321,8 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
@@ -754,6 +756,65 @@ func (q *Queries) CreatePublicResponseTemplate(ctx context.Context, arg CreatePu
 		&i.Description,
 		&i.ContentType,
 		&i.Body,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicRetryRule = `-- name: CreatePublicRetryRule :one
+INSERT INTO public_retry_rules (
+    name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+    max_replay_body_bytes, route_ids_json, target_ids_json, match_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+`
+
+type CreatePublicRetryRuleParams struct {
+	Name               string `json:"name"`
+	Priority           int64  `json:"priority"`
+	Enabled            int64  `json:"enabled"`
+	MethodsJson        string `json:"methods_json"`
+	MaxRetries         int64  `json:"max_retries"`
+	FailureMode        string `json:"failure_mode"`
+	BodyMode           string `json:"body_mode"`
+	MaxReplayBodyBytes int64  `json:"max_replay_body_bytes"`
+	RouteIdsJson       string `json:"route_ids_json"`
+	TargetIdsJson      string `json:"target_ids_json"`
+	MatchJson          string `json:"match_json"`
+}
+
+func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRetryRuleParams) (PublicRetryRule, error) {
+	row := q.db.QueryRowContext(ctx, createPublicRetryRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.MethodsJson,
+		arg.MaxRetries,
+		arg.FailureMode,
+		arg.BodyMode,
+		arg.MaxReplayBodyBytes,
+		arg.RouteIdsJson,
+		arg.TargetIdsJson,
+		arg.MatchJson,
+	)
+	var i PublicRetryRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.MethodsJson,
+		&i.MaxRetries,
+		&i.FailureMode,
+		&i.BodyMode,
+		&i.MaxReplayBodyBytes,
+		&i.RouteIdsJson,
+		&i.TargetIdsJson,
+		&i.MatchJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1857,6 +1918,16 @@ func (q *Queries) DeletePublicResponseTemplate(ctx context.Context, id int64) er
 	return err
 }
 
+const deletePublicRetryRule = `-- name: DeletePublicRetryRule :exec
+DELETE FROM public_retry_rules
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicRetryRule(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicRetryRule, id)
+	return err
+}
+
 const deletePublicRoute = `-- name: DeletePublicRoute :exec
 DELETE FROM public_routes
 WHERE id = ?
@@ -2067,7 +2138,7 @@ func (q *Queries) GetActiveSessionByTokenHash(ctx context.Context, tokenHash str
 }
 
 const getAgent = `-- name: GetAgent :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE id = ?
 `
@@ -2085,12 +2156,14 @@ func (q *Queries) GetAgent(ctx context.Context, id int64) (Agent, error) {
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
 
 const getAgentByPublicID = `-- name: GetAgentByPublicID :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE public_id = ?
 `
@@ -2108,6 +2181,8 @@ func (q *Queries) GetAgentByPublicID(ctx context.Context, publicID string) (Agen
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
@@ -2827,6 +2902,35 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 	return i, err
 }
 
+const getPublicRetryRule = `-- name: GetPublicRetryRule :one
+SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+FROM public_retry_rules
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicRetryRule(ctx context.Context, id int64) (PublicRetryRule, error) {
+	row := q.db.QueryRowContext(ctx, getPublicRetryRule, id)
+	var i PublicRetryRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.MethodsJson,
+		&i.MaxRetries,
+		&i.FailureMode,
+		&i.BodyMode,
+		&i.MaxReplayBodyBytes,
+		&i.RouteIdsJson,
+		&i.TargetIdsJson,
+		&i.MatchJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPublicRoute = `-- name: GetPublicRoute :one
 SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 FROM public_routes
@@ -3260,30 +3364,35 @@ func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (
 
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
 type InsertProxyRequestEventParams struct {
-	StatusCode    int64         `json:"status_code"`
-	DurationMs    int64         `json:"duration_ms"`
-	ErrorKind     string        `json:"error_kind"`
-	Method        string        `json:"method"`
-	Host          string        `json:"host"`
-	PathPrefix    string        `json:"path_prefix"`
-	ListenerID    sql.NullInt64 `json:"listener_id"`
-	RouteID       sql.NullInt64 `json:"route_id"`
-	RouteTargetID sql.NullInt64 `json:"route_target_id"`
-	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
-	WafAction     string        `json:"waf_action"`
-	AgentID       sql.NullInt64 `json:"agent_id"`
-	RequestBytes  int64         `json:"request_bytes"`
-	ResponseBytes int64         `json:"response_bytes"`
-	CacheRuleID   sql.NullInt64 `json:"cache_rule_id"`
-	CacheStatus   string        `json:"cache_status"`
-	CacheBytes    int64         `json:"cache_bytes"`
+	StatusCode     int64         `json:"status_code"`
+	DurationMs     int64         `json:"duration_ms"`
+	ErrorKind      string        `json:"error_kind"`
+	Method         string        `json:"method"`
+	Host           string        `json:"host"`
+	PathPrefix     string        `json:"path_prefix"`
+	ListenerID     sql.NullInt64 `json:"listener_id"`
+	RouteID        sql.NullInt64 `json:"route_id"`
+	RouteTargetID  sql.NullInt64 `json:"route_target_id"`
+	WafRuleID      sql.NullInt64 `json:"waf_rule_id"`
+	WafAction      string        `json:"waf_action"`
+	AgentID        sql.NullInt64 `json:"agent_id"`
+	RequestBytes   int64         `json:"request_bytes"`
+	ResponseBytes  int64         `json:"response_bytes"`
+	CacheRuleID    sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus    string        `json:"cache_status"`
+	CacheBytes     int64         `json:"cache_bytes"`
+	RetryRuleID    sql.NullInt64 `json:"retry_rule_id"`
+	RetryCount     int64         `json:"retry_count"`
+	RetryOutcome   string        `json:"retry_outcome"`
+	RetryErrorKind string        `json:"retry_error_kind"`
 }
 
 func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error {
@@ -3305,38 +3414,47 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.CacheRuleID,
 		arg.CacheStatus,
 		arg.CacheBytes,
+		arg.RetryRuleID,
+		arg.RetryCount,
+		arg.RetryOutcome,
+		arg.RetryErrorKind,
 	)
 	return err
 }
 
 const insertProxyRequestEventAt = `-- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id
 `
 
 type InsertProxyRequestEventAtParams struct {
-	OccurredAt    time.Time     `json:"occurred_at"`
-	StatusCode    int64         `json:"status_code"`
-	DurationMs    int64         `json:"duration_ms"`
-	ErrorKind     string        `json:"error_kind"`
-	Method        string        `json:"method"`
-	Host          string        `json:"host"`
-	PathPrefix    string        `json:"path_prefix"`
-	ListenerID    sql.NullInt64 `json:"listener_id"`
-	RouteID       sql.NullInt64 `json:"route_id"`
-	RouteTargetID sql.NullInt64 `json:"route_target_id"`
-	WafRuleID     sql.NullInt64 `json:"waf_rule_id"`
-	WafAction     string        `json:"waf_action"`
-	AgentID       sql.NullInt64 `json:"agent_id"`
-	RequestBytes  int64         `json:"request_bytes"`
-	ResponseBytes int64         `json:"response_bytes"`
-	CacheRuleID   sql.NullInt64 `json:"cache_rule_id"`
-	CacheStatus   string        `json:"cache_status"`
-	CacheBytes    int64         `json:"cache_bytes"`
+	OccurredAt     time.Time     `json:"occurred_at"`
+	StatusCode     int64         `json:"status_code"`
+	DurationMs     int64         `json:"duration_ms"`
+	ErrorKind      string        `json:"error_kind"`
+	Method         string        `json:"method"`
+	Host           string        `json:"host"`
+	PathPrefix     string        `json:"path_prefix"`
+	ListenerID     sql.NullInt64 `json:"listener_id"`
+	RouteID        sql.NullInt64 `json:"route_id"`
+	RouteTargetID  sql.NullInt64 `json:"route_target_id"`
+	WafRuleID      sql.NullInt64 `json:"waf_rule_id"`
+	WafAction      string        `json:"waf_action"`
+	AgentID        sql.NullInt64 `json:"agent_id"`
+	RequestBytes   int64         `json:"request_bytes"`
+	ResponseBytes  int64         `json:"response_bytes"`
+	CacheRuleID    sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus    string        `json:"cache_status"`
+	CacheBytes     int64         `json:"cache_bytes"`
+	RetryRuleID    sql.NullInt64 `json:"retry_rule_id"`
+	RetryCount     int64         `json:"retry_count"`
+	RetryOutcome   string        `json:"retry_outcome"`
+	RetryErrorKind string        `json:"retry_error_kind"`
 }
 
 func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error) {
@@ -3359,10 +3477,60 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 		arg.CacheRuleID,
 		arg.CacheStatus,
 		arg.CacheBytes,
+		arg.RetryRuleID,
+		arg.RetryCount,
+		arg.RetryOutcome,
+		arg.RetryErrorKind,
 	)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const listAgentConnectionsSince = `-- name: ListAgentConnectionsSince :many
+SELECT id, connected_at, disconnected_at
+FROM connections
+WHERE agent_id = ?1
+  AND (
+    connected_at >= ?2
+    OR disconnected_at IS NULL
+    OR disconnected_at >= ?2
+  )
+ORDER BY connected_at ASC, id ASC
+`
+
+type ListAgentConnectionsSinceParams struct {
+	AgentID sql.NullInt64 `json:"agent_id"`
+	Since   time.Time     `json:"since"`
+}
+
+type ListAgentConnectionsSinceRow struct {
+	ID             int64        `json:"id"`
+	ConnectedAt    time.Time    `json:"connected_at"`
+	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+}
+
+func (q *Queries) ListAgentConnectionsSince(ctx context.Context, arg ListAgentConnectionsSinceParams) ([]ListAgentConnectionsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAgentConnectionsSince, arg.AgentID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAgentConnectionsSinceRow
+	for rows.Next() {
+		var i ListAgentConnectionsSinceRow
+		if err := rows.Scan(&i.ID, &i.ConnectedAt, &i.DisconnectedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAgentLabels = `-- name: ListAgentLabels :many
@@ -3515,7 +3683,7 @@ func (q *Queries) ListAgentStatRollupMinutesSince(ctx context.Context, bucketUni
 }
 
 const listAgents = `-- name: ListAgents :many
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 ORDER BY name ASC, public_id ASC, id ASC
 `
@@ -3539,6 +3707,8 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.LastDisconnectedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AgentVersion,
+			&i.AgentCommit,
 		); err != nil {
 			return nil, err
 		}
@@ -4920,6 +5090,51 @@ func (q *Queries) ListPublicResponseTemplates(ctx context.Context) ([]PublicResp
 	return items, nil
 }
 
+const listPublicRetryRules = `-- name: ListPublicRetryRules :many
+SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+FROM public_retry_rules
+ORDER BY priority ASC, id ASC
+`
+
+func (q *Queries) ListPublicRetryRules(ctx context.Context) ([]PublicRetryRule, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicRetryRules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicRetryRule
+	for rows.Next() {
+		var i PublicRetryRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Priority,
+			&i.Enabled,
+			&i.MethodsJson,
+			&i.MaxRetries,
+			&i.FailureMode,
+			&i.BodyMode,
+			&i.MaxReplayBodyBytes,
+			&i.RouteIdsJson,
+			&i.TargetIdsJson,
+			&i.MatchJson,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicRouteTargetResponseHeaders = `-- name: ListPublicRouteTargetResponseHeaders :many
 SELECT id, target_id, position, name, value, created_at, updated_at
 FROM public_route_target_response_headers
@@ -5622,14 +5837,18 @@ SELECT
     COALESCE(a.name, CASE WHEN pre.agent_id IS NULL THEN '' ELSE 'agent #' || pre.agent_id END) AS agent_label,
     pre.duration_ms,
     pre.request_bytes,
-    pre.response_bytes
+    pre.response_bytes,
+    pre.retry_rule_id,
+    pre.retry_count,
+    pre.retry_outcome,
+    pre.retry_error_kind
 FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
 LEFT JOIN public_routes pr ON pr.id = pre.route_id
 LEFT JOIN public_route_targets prt ON prt.id = pre.route_target_id
 LEFT JOIN agents a ON a.id = pre.agent_id
 WHERE pre.occurred_at >= ?1
-  AND (pre.status_code >= 400 OR pre.error_kind != '')
+  AND (pre.status_code >= 400 OR pre.error_kind != '' OR pre.retry_count > 0)
 ORDER BY pre.occurred_at DESC, pre.id DESC
 LIMIT ?2
 `
@@ -5640,19 +5859,23 @@ type ListRecentProxyProblemSamplesSinceParams struct {
 }
 
 type ListRecentProxyProblemSamplesSinceRow struct {
-	OccurredAt       time.Time   `json:"occurred_at"`
-	Method           string      `json:"method"`
-	Host             string      `json:"host"`
-	PathPrefix       string      `json:"path_prefix"`
-	StatusCode       int64       `json:"status_code"`
-	ErrorKind        string      `json:"error_kind"`
-	ListenerLabel    string      `json:"listener_label"`
-	RouteLabel       interface{} `json:"route_label"`
-	RouteTargetLabel string      `json:"route_target_label"`
-	AgentLabel       string      `json:"agent_label"`
-	DurationMs       int64       `json:"duration_ms"`
-	RequestBytes     int64       `json:"request_bytes"`
-	ResponseBytes    int64       `json:"response_bytes"`
+	OccurredAt       time.Time     `json:"occurred_at"`
+	Method           string        `json:"method"`
+	Host             string        `json:"host"`
+	PathPrefix       string        `json:"path_prefix"`
+	StatusCode       int64         `json:"status_code"`
+	ErrorKind        string        `json:"error_kind"`
+	ListenerLabel    string        `json:"listener_label"`
+	RouteLabel       interface{}   `json:"route_label"`
+	RouteTargetLabel string        `json:"route_target_label"`
+	AgentLabel       string        `json:"agent_label"`
+	DurationMs       int64         `json:"duration_ms"`
+	RequestBytes     int64         `json:"request_bytes"`
+	ResponseBytes    int64         `json:"response_bytes"`
+	RetryRuleID      sql.NullInt64 `json:"retry_rule_id"`
+	RetryCount       int64         `json:"retry_count"`
+	RetryOutcome     string        `json:"retry_outcome"`
+	RetryErrorKind   string        `json:"retry_error_kind"`
 }
 
 func (q *Queries) ListRecentProxyProblemSamplesSince(ctx context.Context, arg ListRecentProxyProblemSamplesSinceParams) ([]ListRecentProxyProblemSamplesSinceRow, error) {
@@ -5678,6 +5901,10 @@ func (q *Queries) ListRecentProxyProblemSamplesSince(ctx context.Context, arg Li
 			&i.DurationMs,
 			&i.RequestBytes,
 			&i.ResponseBytes,
+			&i.RetryRuleID,
+			&i.RetryCount,
+			&i.RetryOutcome,
+			&i.RetryErrorKind,
 		); err != nil {
 			return nil, err
 		}
@@ -7009,7 +7236,7 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type UpdateAgentParams struct {
@@ -7031,8 +7258,32 @@ func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
+}
+
+const updateAgentBuild = `-- name: UpdateAgentBuild :exec
+UPDATE agents
+SET agent_version = ?1,
+    agent_commit = ?2
+WHERE id = ?3
+  AND (
+    agent_version != ?1
+    OR agent_commit != ?2
+  )
+`
+
+type UpdateAgentBuildParams struct {
+	AgentVersion string `json:"agent_version"`
+	AgentCommit  string `json:"agent_commit"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateAgentBuild(ctx context.Context, arg UpdateAgentBuildParams) error {
+	_, err := q.db.ExecContext(ctx, updateAgentBuild, arg.AgentVersion, arg.AgentCommit, arg.ID)
+	return err
 }
 
 const updateAgentToken = `-- name: UpdateAgentToken :one
@@ -7040,7 +7291,7 @@ UPDATE agents
 SET token_hash = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type UpdateAgentTokenParams struct {
@@ -7061,6 +7312,8 @@ func (q *Queries) UpdateAgentToken(ctx context.Context, arg UpdateAgentTokenPara
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
@@ -7668,6 +7921,75 @@ func (q *Queries) UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePu
 		&i.Description,
 		&i.ContentType,
 		&i.Body,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicRetryRule = `-- name: UpdatePublicRetryRule :one
+UPDATE public_retry_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    methods_json = ?,
+    max_retries = ?,
+    failure_mode = ?,
+    body_mode = ?,
+    max_replay_body_bytes = ?,
+    route_ids_json = ?,
+    target_ids_json = ?,
+    match_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+`
+
+type UpdatePublicRetryRuleParams struct {
+	Name               string `json:"name"`
+	Priority           int64  `json:"priority"`
+	Enabled            int64  `json:"enabled"`
+	MethodsJson        string `json:"methods_json"`
+	MaxRetries         int64  `json:"max_retries"`
+	FailureMode        string `json:"failure_mode"`
+	BodyMode           string `json:"body_mode"`
+	MaxReplayBodyBytes int64  `json:"max_replay_body_bytes"`
+	RouteIdsJson       string `json:"route_ids_json"`
+	TargetIdsJson      string `json:"target_ids_json"`
+	MatchJson          string `json:"match_json"`
+	ID                 int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRetryRuleParams) (PublicRetryRule, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicRetryRule,
+		arg.Name,
+		arg.Priority,
+		arg.Enabled,
+		arg.MethodsJson,
+		arg.MaxRetries,
+		arg.FailureMode,
+		arg.BodyMode,
+		arg.MaxReplayBodyBytes,
+		arg.RouteIdsJson,
+		arg.TargetIdsJson,
+		arg.MatchJson,
+		arg.ID,
+	)
+	var i PublicRetryRule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Priority,
+		&i.Enabled,
+		&i.MethodsJson,
+		&i.MaxRetries,
+		&i.FailureMode,
+		&i.BodyMode,
+		&i.MaxReplayBodyBytes,
+		&i.RouteIdsJson,
+		&i.TargetIdsJson,
+		&i.MatchJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -8671,7 +8993,7 @@ ON CONFLICT(public_id) DO UPDATE SET
     token_hash = excluded.token_hash,
     enabled = 1,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 `
 
 type UpsertBootstrapAgentParams struct {
@@ -8693,6 +9015,8 @@ func (q *Queries) UpsertBootstrapAgent(ctx context.Context, arg UpsertBootstrapA
 		&i.LastDisconnectedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AgentVersion,
+		&i.AgentCommit,
 	)
 	return i, err
 }
