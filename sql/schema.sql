@@ -52,7 +52,11 @@ CREATE TABLE IF NOT EXISTS proxy_request_events (
     response_bytes INTEGER NOT NULL DEFAULT 0,
     cache_rule_id INTEGER,
     cache_status TEXT NOT NULL DEFAULT '',
-    cache_bytes INTEGER NOT NULL DEFAULT 0
+    cache_bytes INTEGER NOT NULL DEFAULT 0,
+    retry_rule_id INTEGER,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    retry_outcome TEXT NOT NULL DEFAULT '',
+    retry_error_kind TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS proxy_request_rollup_minutes (
@@ -508,6 +512,23 @@ CREATE TABLE IF NOT EXISTS public_cache_rules (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS public_retry_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    priority INTEGER NOT NULL DEFAULT 100,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    methods_json TEXT NOT NULL DEFAULT '["GET","HEAD"]',
+    max_retries INTEGER NOT NULL DEFAULT 1,
+    failure_mode TEXT NOT NULL DEFAULT 'connection_failures',
+    body_mode TEXT NOT NULL DEFAULT 'never',
+    max_replay_body_bytes INTEGER NOT NULL DEFAULT 0,
+    route_ids_json TEXT NOT NULL DEFAULT '[]',
+    target_ids_json TEXT NOT NULL DEFAULT '[]',
+    match_json TEXT NOT NULL DEFAULT '{}',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS public_cache_entries (
     key_digest TEXT PRIMARY KEY,
     rule_id INTEGER NOT NULL REFERENCES public_cache_rules(id) ON DELETE CASCADE,
@@ -603,7 +624,13 @@ ON proxy_request_events (agent_id);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem
 ON proxy_request_events (occurred_at DESC)
-WHERE status_code >= 400 OR error_kind != '';
+WHERE status_code >= 400 OR error_kind != '' OR retry_count > 0;
+
+CREATE INDEX IF NOT EXISTS idx_public_retry_rules_priority
+ON public_retry_rules (priority, id);
+
+CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id
+ON proxy_request_events (retry_rule_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
 ON public_routes (listener_id, priority, id);

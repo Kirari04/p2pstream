@@ -160,8 +160,8 @@ func TestDialViaAgentStreamCapacityFollowsConnectionLifetime(t *testing.T) {
 		t.Fatal("second dial unexpectedly returned a connection over capacity")
 	}
 	var dialErr agentDialError
-	if !errors.As(err, &dialErr) || dialErr.Kind != "agent_capacity" {
-		t.Fatalf("second dial error = %v, want agent_capacity", err)
+	if !errors.As(err, &dialErr) || dialErr.Kind != "server_capacity" {
+		t.Fatalf("second dial error = %v, want server_capacity", err)
 	}
 	fake.waitOpenRequestCount(t, 1)
 

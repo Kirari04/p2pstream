@@ -2,6 +2,9 @@ import {
   PublicPolicyMatchBooleanOperator,
   PublicPolicyMatchConditionOperator,
   PublicPolicyMatchField,
+  PublicRetryFailureMode,
+  PublicRouteTargetTransport,
+  PublicRouteTargetType,
   PublicWafActivationMode,
   PublicWafGeoRestrictionMode,
   PublicWafGeoUnknownBehavior,
@@ -12,12 +15,13 @@ import {
   type PublicPolicyMatchGroup,
   type PublicPolicyMatchRule,
   type PublicRateLimitRule,
+  type PublicRetryRule,
   type PublicTrafficShaperRule,
   type PublicWafCaptchaProvider,
   type PublicWafRule,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
-export type TrafficPolicyKind = "waf" | "rate-limit" | "traffic-shaper" | "cache";
+export type TrafficPolicyKind = "waf" | "rate-limit" | "traffic-shaper" | "cache" | "retry";
 export type TrafficPolicyMatchState = "match" | "miss" | "unknown";
 export type TrafficPolicyValueMap = Record<string, string | readonly string[] | null | undefined>;
 export type TrafficPolicyCookieMap = Record<string, string | null | undefined>;
@@ -69,6 +73,7 @@ export type TrafficPolicyStagePreview = {
   rateLimits: TrafficPolicyStageCandidate<PublicRateLimitRule>[];
   trafficShaper: TrafficPolicyStageCandidate<PublicTrafficShaperRule> | null;
   cache: TrafficPolicyStageCandidate<PublicCacheRule> | null;
+  retry: TrafficPolicyStageCandidate<PublicRetryRule> | null;
 };
 
 export type TrafficPolicyPlaygroundStageItem = {
@@ -90,7 +95,7 @@ export type TrafficPolicyPlaygroundStage = {
 
 export type TrafficPolicyWorkbenchConfig = Partial<Pick<
   GetPublicProxyConfigResponse,
-  "rateLimitRules" | "trafficShaperRules" | "wafRules" | "wafCaptchaProviders" | "cacheSettings" | "cacheRules"
+  "rateLimitRules" | "trafficShaperRules" | "wafRules" | "wafCaptchaProviders" | "cacheSettings" | "cacheRules" | "retryRules" | "routeTargets"
 >>;
 
 export type TrafficPolicyAttentionWarningCode =
@@ -101,7 +106,8 @@ export type TrafficPolicyAttentionWarningCode =
   | "captcha-provider-disabled"
   | "captcha-provider-secret-missing"
   | "cache-settings-disabled"
-  | "cache-allows-cookie-requests";
+  | "cache-allows-cookie-requests"
+  | "retry-duplicate-risk";
 
 export type TrafficPolicyAttentionWarning = {
   code: TrafficPolicyAttentionWarningCode;
@@ -146,6 +152,10 @@ export function runtimeOrderedTrafficShaperRules(rules: readonly PublicTrafficSh
 }
 
 export function runtimeOrderedCacheRules(rules: readonly PublicCacheRule[]): PublicCacheRule[] {
+  return runtimeOrderedRules(rules);
+}
+
+export function runtimeOrderedRetryRules(rules: readonly PublicRetryRule[]): PublicRetryRule[] {
   return runtimeOrderedRules(rules);
 }
 
@@ -215,6 +225,9 @@ export function previewTrafficPolicyStages(
     cache: firstMatchingCandidate(runtimeOrderedCacheRules(config.cacheRules ?? []), (rule) => {
       return evaluateCacheRule(rule, normalized, config.cacheSettings?.enabled !== false);
     }),
+    retry: firstMatchingCandidate(runtimeOrderedRetryRules(config.retryRules ?? []), (rule) => {
+      return evaluateRetryRule(rule, normalized, config);
+    }),
   };
 }
 
@@ -228,6 +241,7 @@ export function buildTrafficPolicyPlaygroundStages(
     stageFromRateLimitCandidates(runtimeOrderedRateLimitRules(config.rateLimitRules ?? []), preview.rateLimits),
     stageFromFirstCandidate("traffic-shaper", "Traffic shaper", runtimeOrderedTrafficShaperRules(config.trafficShaperRules ?? []), preview.trafficShaper),
     stageFromFirstCandidate("cache", "Cache", runtimeOrderedCacheRules(config.cacheRules ?? []), preview.cache),
+    stageFromFirstCandidate("retry", "Retries", runtimeOrderedRetryRules(config.retryRules ?? []), preview.retry),
   ];
 }
 
@@ -237,16 +251,19 @@ export function trafficPolicyAttentionWarnings(config: TrafficPolicyWorkbenchCon
   const trafficShaperRules = config.trafficShaperRules ?? [];
   const wafRules = config.wafRules ?? [];
   const cacheRules = config.cacheRules ?? [];
+  const retryRules = config.retryRules ?? [];
 
   warnings.push(...duplicatePriorityWarnings("waf", wafRules));
   warnings.push(...duplicatePriorityWarnings("rate-limit", rateLimitRules));
   warnings.push(...duplicatePriorityWarnings("traffic-shaper", trafficShaperRules));
   warnings.push(...duplicatePriorityWarnings("cache", cacheRules));
+  warnings.push(...duplicatePriorityWarnings("retry", retryRules));
 
   warnings.push(...ruleShapeWarnings("waf", wafRules));
   warnings.push(...ruleShapeWarnings("rate-limit", rateLimitRules));
   warnings.push(...ruleShapeWarnings("traffic-shaper", trafficShaperRules));
   warnings.push(...ruleShapeWarnings("cache", cacheRules));
+  warnings.push(...ruleShapeWarnings("retry", retryRules));
 
   warnings.push(...captchaProviderWarnings(wafRules, config.wafCaptchaProviders ?? []));
 
@@ -265,6 +282,16 @@ export function trafficPolicyAttentionWarnings(config: TrafficPolicyWorkbenchCon
       policyKind: "cache",
       ruleId: rule.id,
       message: `Cache rule ${ruleDisplayName(rule)} preserves the legacy Cookie opt-in flag; Cookie requests still bypass shared cache.`,
+    });
+  }
+
+  for (const rule of retryRules) {
+    if (!rule.enabled || !retryRuleHasDuplicateRisk(rule)) continue;
+    warnings.push({
+      code: "retry-duplicate-risk",
+      policyKind: "retry",
+      ruleId: rule.id,
+      message: `Retry rule ${ruleDisplayName(rule)} may repeat a request after the upstream has observed it.`,
     });
   }
 
@@ -326,6 +353,44 @@ function evaluateCacheRule(rule: PublicCacheRule, request: NormalizedTrafficPoli
     evaluateIdFilter(rule.routeIds, request.routeId, "Route filter cannot be evaluated without a synthetic route id."),
     evaluateIdFilter(rule.targetIds, request.targetId, "Target filter cannot be evaluated without a synthetic target id."),
   ]);
+}
+
+function evaluateRetryRule(
+  rule: PublicRetryRule,
+  request: NormalizedTrafficPolicyRequest,
+  config: TrafficPolicyWorkbenchConfig,
+): TrafficPolicyMatchResult {
+  if (request.method === "CONNECT" || request.method === "TRACE") {
+    return missResult(`${request.method} requests are never retried.`);
+  }
+  if (hasHeader(request.headers, "upgrade") || headerContainsToken(request.headers, "connection", "upgrade")) {
+    return missResult("Protocol upgrades are never retried.");
+  }
+  if (!(rule.methods.length === 1 && rule.methods[0] === "*") && !rule.methods.includes(request.method)) {
+    return missResult(`${request.method} is not included by this retry rule.`);
+  }
+  const targetEligibility = evaluateRetryTarget(config, request.targetId);
+  return andResults([
+    evaluateTrafficPolicyMatchForRequest(rule.matchRule, request),
+    evaluateIdFilter(rule.routeIds, request.routeId, "Route filter cannot be evaluated without a synthetic route id."),
+    evaluateIdFilter(rule.targetIds, request.targetId, "Target filter cannot be evaluated without a synthetic target id."),
+    targetEligibility,
+  ]);
+}
+
+function evaluateRetryTarget(config: TrafficPolicyWorkbenchConfig, targetId: bigint | null): TrafficPolicyMatchResult {
+  if (targetId === null) return unknownResult("Retry eligibility depends on the selected target being agent-backed.");
+  const target = config.routeTargets?.find((candidate) => candidate.id === targetId);
+  if (!target) return unknownResult("The selected target is not available in this configuration snapshot.");
+  if (target.targetType !== PublicRouteTargetType.PROXY || target.transport !== PublicRouteTargetTransport.AGENT) {
+    return missResult("Retries apply only to agent-backed proxy targets.");
+  }
+  return MATCH_RESULT;
+}
+
+function retryRuleHasDuplicateRisk(rule: PublicRetryRule): boolean {
+  return rule.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
+    rule.methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
 }
 
 function evaluateGroup(group: PublicPolicyMatchGroup, request: NormalizedTrafficPolicyRequest): TrafficPolicyMatchResult {
@@ -707,6 +772,12 @@ function hasHeader(headers: Map<string, string[]>, name: string): boolean {
 
 function headerEquals(headers: Map<string, string[]>, name: string, expected: string): boolean {
   return (headers.get(name.toLowerCase()) ?? []).some((value) => value.trim().toLowerCase() === expected);
+}
+
+function headerContainsToken(headers: Map<string, string[]>, name: string, expected: string): boolean {
+  return (headers.get(name.toLowerCase()) ?? []).some((value) => value
+    .split(",")
+    .some((token) => token.trim().toLowerCase() === expected));
 }
 
 function hasEncodedPathSeparator(path: string): boolean {

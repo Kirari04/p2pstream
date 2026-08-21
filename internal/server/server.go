@@ -172,6 +172,7 @@ type App struct {
 	agentTunnelStreams          *tunnel.StreamLimiter
 	publicProxyRequests         *requestCapacityLimiter
 	publicTargetRequests        *keyedRequestCapacityLimiter
+	retryReplayBudget           *retryReplayBudget
 	managementClientIdentity    *ClientIdentityResolver
 	managementClientIdentityErr error
 	ManagementTLS               *ManagementTLSRuntime
@@ -262,6 +263,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 			cfg.PublicMaxConcurrentPerTarget,
 			defaultPublicMaxConcurrentRequestsPerTarget,
 		),
+		retryReplayBudget:           newRetryReplayBudget(defaultPublicRetryReplayBudgetBytes),
 		managementClientIdentity:    managementIdentity,
 		managementClientIdentityErr: managementIdentityErr,
 	}

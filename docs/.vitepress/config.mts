@@ -88,6 +88,7 @@ export default defineConfig({
           { text: "Limits and Shaping", link: "/concepts/limits-and-shaping" },
           { text: "WAF", link: "/concepts/waf" },
           { text: "Public Asset Cache", link: "/concepts/cache" },
+          { text: "Request Retries", link: "/concepts/request-retries" },
           { text: "Identity-Aware Access", link: "/reference/access-control" },
           { text: "CEL Policy Matching", link: "/reference/cel" },
           { text: "Rate Limits Reference", link: "/reference/rate-limits" },

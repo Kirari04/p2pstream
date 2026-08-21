@@ -559,6 +559,10 @@ func (db *DB) migrateLegacyObservability() error {
 		`ALTER TABLE proxy_request_events ADD COLUMN method TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE proxy_request_events ADD COLUMN host TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE proxy_request_events ADD COLUMN path_prefix TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_rule_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_outcome TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_error_kind TEXT NOT NULL DEFAULT ''`,
 	); err != nil {
 		return err
 	}
@@ -570,7 +574,8 @@ func (db *DB) migrateLegacyObservability() error {
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_target_id ON proxy_request_events (route_target_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id ON proxy_request_events (route_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id ON proxy_request_events (agent_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != ''`,
+		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id ON proxy_request_events (retry_rule_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != '' OR retry_count > 0`,
 	)
 }
 
@@ -782,6 +787,29 @@ func (db *DB) migrateLegacyPublicRouteTargetSchema() error {
 }
 
 func (db *DB) migrateLegacyPublicPolicyTables() error {
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_retry_rules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			priority INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			methods_json TEXT NOT NULL DEFAULT '["GET","HEAD"]',
+			max_retries INTEGER NOT NULL DEFAULT 1,
+			failure_mode TEXT NOT NULL DEFAULT 'connection_failures',
+			body_mode TEXT NOT NULL DEFAULT 'never',
+			max_replay_body_bytes INTEGER NOT NULL DEFAULT 0,
+			route_ids_json TEXT NOT NULL DEFAULT '[]',
+			target_ids_json TEXT NOT NULL DEFAULT '[]',
+			match_json TEXT NOT NULL DEFAULT '{}',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_retry_rules_priority ON public_retry_rules (priority, id)`); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_response_templates (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1360,7 +1388,11 @@ func (db *DB) migrateProxyObservabilityTargetOnly() error {
 				response_bytes INTEGER NOT NULL DEFAULT 0,
 				cache_rule_id INTEGER,
 				cache_status TEXT NOT NULL DEFAULT '',
-				cache_bytes INTEGER NOT NULL DEFAULT 0
+				cache_bytes INTEGER NOT NULL DEFAULT 0,
+				retry_rule_id INTEGER,
+				retry_count INTEGER NOT NULL DEFAULT 0,
+				retry_outcome TEXT NOT NULL DEFAULT '',
+				retry_error_kind TEXT NOT NULL DEFAULT ''
 			)
 		`); err != nil {
 			return err
@@ -1369,6 +1401,12 @@ func (db *DB) migrateProxyObservabilityTargetOnly() error {
 			return err
 		}
 		if _, err := tx.Exec(`ALTER TABLE proxy_request_events_new RENAME TO proxy_request_events`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id ON proxy_request_events (retry_rule_id)`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != '' OR retry_count > 0`); err != nil {
 			return err
 		}
 	}

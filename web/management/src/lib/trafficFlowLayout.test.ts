@@ -447,6 +447,7 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
     rateLimitRules: [],
     trafficShaperRules: [],
     cacheRules: [],
+    retryRules: [],
     tlsCertificates: [],
     proxy: undefined,
     ...overrides,

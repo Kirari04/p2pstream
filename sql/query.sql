@@ -46,16 +46,18 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id;
 
@@ -700,14 +702,18 @@ SELECT
     COALESCE(a.name, CASE WHEN pre.agent_id IS NULL THEN '' ELSE 'agent #' || pre.agent_id END) AS agent_label,
     pre.duration_ms,
     pre.request_bytes,
-    pre.response_bytes
+    pre.response_bytes,
+    pre.retry_rule_id,
+    pre.retry_count,
+    pre.retry_outcome,
+    pre.retry_error_kind
 FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
 LEFT JOIN public_routes pr ON pr.id = pre.route_id
 LEFT JOIN public_route_targets prt ON prt.id = pre.route_target_id
 LEFT JOIN agents a ON a.id = pre.agent_id
 WHERE pre.occurred_at >= sqlc.arg(since)
-  AND (pre.status_code >= 400 OR pre.error_kind != '')
+  AND (pre.status_code >= 400 OR pre.error_kind != '' OR pre.retry_count > 0)
 ORDER BY pre.occurred_at DESC, pre.id DESC
 LIMIT sqlc.arg(limit);
 
@@ -2295,6 +2301,50 @@ RETURNING id, name, priority, enabled, match_json, route_ids_json, target_ids_js
 
 -- name: DeletePublicCacheRule :exec
 DELETE FROM public_cache_rules
+WHERE id = ?;
+
+-- name: ListPublicRetryRules :many
+SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+FROM public_retry_rules
+ORDER BY priority ASC, id ASC;
+
+-- name: GetPublicRetryRule :one
+SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+FROM public_retry_rules
+WHERE id = ?;
+
+-- name: CreatePublicRetryRule :one
+INSERT INTO public_retry_rules (
+    name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+    max_replay_body_bytes, route_ids_json, target_ids_json, match_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at;
+
+-- name: UpdatePublicRetryRule :one
+UPDATE public_retry_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    methods_json = ?,
+    max_retries = ?,
+    failure_mode = ?,
+    body_mode = ?,
+    max_replay_body_bytes = ?,
+    route_ids_json = ?,
+    target_ids_json = ?,
+    match_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at;
+
+-- name: DeletePublicRetryRule :exec
+DELETE FROM public_retry_rules
 WHERE id = ?;
 
 -- name: GetPublicCacheEntry :one

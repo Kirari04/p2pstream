@@ -64,15 +64,16 @@ import type {
   PublicCacheSettings,
   PublicPolicyMatchRule,
   PublicRateLimitRule,
+  PublicRetryRule,
   PublicRoute,
   PublicRouteTarget,
   PublicTrafficShaperRule,
   PublicWafCaptchaProvider,
   PublicWafRule,
 } from "@/gen/proto/p2pstream/v1/management_pb";
-import { PublicPolicyMatchRuleSchema } from "@/gen/proto/p2pstream/v1/management_pb";
+import { PublicPolicyMatchRuleSchema, PublicRetryBodyMode, PublicRetryFailureMode } from "@/gen/proto/p2pstream/v1/management_pb";
 
-const policySectionKeys = ["rate-limits", "waf", "access", "cache", "traffic-shaper"] as const;
+const policySectionKeys = ["rate-limits", "waf", "access", "cache", "retries", "traffic-shaper"] as const;
 type PolicySectionKey = typeof policySectionKeys[number];
 type PolicySectionMeta = {
   key: PolicySectionKey;
@@ -108,6 +109,10 @@ const {
 const config = computed(() => publicProxyConfig.value ?? null);
 const rateLimitRules = computed(() => runtimeOrderedRateLimitRules(config.value?.rateLimitRules ?? []));
 const cacheRules = computed(() => runtimeOrderedCacheRules(config.value?.cacheRules ?? []));
+const retryRules = computed(() => [...(config.value?.retryRules ?? [])].sort((left, right) => {
+  if (left.priority === right.priority) return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+  return left.priority < right.priority ? -1 : 1;
+}));
 const cacheSettings = computed(() => config.value?.cacheSettings ?? null);
 const wafRules = computed(() => runtimeOrderedWafRules(config.value?.wafRules ?? []));
 const wafCaptchaProviders = computed(() => config.value?.wafCaptchaProviders ?? []);
@@ -117,12 +122,14 @@ const enabledWafRules = computed(() => wafRules.value.filter((rule) => rule.enab
 const accessPolicies = computed(() => config.value?.accessPolicies ?? []);
 const enabledAccessPolicies = computed(() => accessPolicies.value.filter((policy) => policy.enabled).length);
 const enabledCacheRules = computed(() => cacheRules.value.filter((rule) => rule.enabled).length);
+const enabledRetryRules = computed(() => retryRules.value.filter((rule) => rule.enabled).length);
 const enabledTrafficShapers = computed(() => trafficShaperRules.value.filter((rule) => rule.enabled).length);
 const policyFilters = reactive<Record<PolicySectionKey, PolicyFilter>>({
   "rate-limits": { text: "", status: "all" },
   waf: { text: "", status: "all" },
   access: { text: "", status: "all" },
   cache: { text: "", status: "all" },
+  retries: { text: "", status: "all" },
   "traffic-shaper": { text: "", status: "all" },
 });
 const policyFilterStatusOptions = [
@@ -139,6 +146,8 @@ const policyAttention = computed(() => trafficPolicyAttentionWarnings({
   wafCaptchaProviders: wafCaptchaProviders.value,
   cacheSettings: cacheSettings.value ?? undefined,
   cacheRules: cacheRules.value,
+  retryRules: retryRules.value,
+  routeTargets: config.value?.routeTargets ?? [],
 }));
 const globalPolicyAttention = computed(() => policyAttention.value.filter((item) => item.ruleId === undefined && !item.ruleIds?.length));
 const executionStages = computed(() => [
@@ -149,6 +158,7 @@ const executionStages = computed(() => [
   { key: "traffic-shaper", label: "Traffic Shaper", description: "first matching bandwidth budget", icon: "traffic-shaper" as const, tags: countTags(enabledTrafficShapers.value) },
   { key: "route", label: "Route / Target", description: "selected before cache", icon: "route" as const },
   { key: "cache", label: "Cache", description: "first matching cacheable request", icon: "cache" as const, tags: countTags(enabledCacheRules.value) },
+  { key: "retry", label: "Retries", description: "alternate agent before response headers", icon: "retry" as const, tags: countTags(enabledRetryRules.value) },
   { key: "response", label: "Response", description: "upstream, cached, or terminal", icon: "response" as const },
 ]);
 const executionOrderSummary = computed(() => executionStages.value.map((stage) => stage.label).join(" → "));
@@ -159,10 +169,21 @@ const playgroundStages = computed<TrafficPolicyPlaygroundStage[]>(() => buildTra
   wafCaptchaProviders: wafCaptchaProviders.value,
   cacheSettings: cacheSettings.value ?? undefined,
   cacheRules: cacheRules.value,
+  retryRules: retryRules.value,
+  routeTargets: config.value?.routeTargets ?? [],
 }, previewRequest.value));
 const filteredRateLimitRules = computed(() => filterPolicyRules(rateLimitRules.value, "rate-limit", "rate-limits", rateLimitSearchText));
 const filteredWafRules = computed(() => filterPolicyRules(wafRules.value, "waf", "waf", wafSearchText));
 const filteredCacheRules = computed(() => filterPolicyRules(cacheRules.value, "cache", "cache", cacheSearchText));
+const filteredRetryRules = computed(() => {
+  const filter = policyFilters.retries;
+  const needle = filter.text.trim().toLowerCase();
+  return retryRules.value.filter((rule) => {
+    if (filter.status === "enabled" && !rule.enabled) return false;
+    if (filter.status === "disabled" && rule.enabled) return false;
+    return !needle || retrySearchText(rule).toLowerCase().includes(needle);
+  });
+});
 const filteredTrafficShaperRules = computed(() => filterPolicyRules(trafficShaperRules.value, "traffic-shaper", "traffic-shaper", trafficShaperSearchText));
 const previewRouteOptions = computed(() => (config.value?.routes ?? []).map((routeItem) => ({
   label: routeOptionLabel(routeItem),
@@ -210,6 +231,11 @@ const policySections: readonly PolicySectionMeta[] = [
     key: "cache",
     label: "Cache",
     description: "Cache public static files on the proxy after routing while keeping WAF, rate limits, and shaping active.",
+  },
+  {
+    key: "retries",
+    label: "Retries",
+    description: "Retry eligible upstream failures through a different agent in the same route target.",
   },
   {
     key: "traffic-shaper",
@@ -451,6 +477,7 @@ function warningLabel(warning: TrafficPolicyAttentionWarning): string {
     case "captcha-provider-secret-missing": return "Provider secret missing";
     case "cache-settings-disabled": return "Cache disabled";
     case "cache-allows-cookie-requests": return "Legacy Cookie flag";
+    case "retry-duplicate-risk": return "Duplicate risk";
     default: return warning.message;
   }
 }
@@ -465,6 +492,7 @@ function warningSeverity(warning: TrafficPolicyAttentionWarning): string {
     case "any-request-rule":
     case "cache-settings-disabled":
     case "cache-allows-cookie-requests":
+    case "retry-duplicate-risk":
       return "warning";
     default:
       return "info";
@@ -507,6 +535,48 @@ function cacheSearchText(rule: PublicCacheRule): string {
     cacheRuleSummary(rule),
     cacheQueryModeLabel(rule.queryMode),
     cacheRuleMatchSummary(rule),
+  ].join(" ");
+}
+
+function retryFailureModeLabel(mode: PublicRetryFailureMode): string {
+  return mode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES
+    ? "Before response headers"
+    : "Connection establishment";
+}
+
+function retryBodyModeLabel(rule: PublicRetryRule): string {
+  if (rule.bodyMode !== PublicRetryBodyMode.BUFFERED) return "No body buffer";
+  return `Replay ≤ ${bytesToKiB(rule.maxReplayBodyBytes).toLocaleString()} KiB`;
+}
+
+function retryMethodSummary(rule: PublicRetryRule): string {
+  return rule.methods.length === 1 && rule.methods[0] === "*"
+    ? "All supported methods"
+    : rule.methods.join(", ");
+}
+
+function retryScopeSummary(rule: PublicRetryRule): string {
+  const routeScope = rule.routeIds.length ? `${rule.routeIds.length.toString()} routes` : "all routes";
+  const targetScope = rule.targetIds.length ? `${rule.targetIds.length.toString()} agent targets` : "all agent targets";
+  return `${routeScope} / ${targetScope}`;
+}
+
+function retryHasDuplicateRisk(rule: PublicRetryRule): boolean {
+  return rule.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
+    rule.methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
+}
+
+function retrySearchText(rule: PublicRetryRule): string {
+  return [
+    rule.name,
+    rule.priority.toString(),
+    rule.enabled ? "enabled" : "disabled",
+    retryMethodSummary(rule),
+    retryFailureModeLabel(rule.failureMode),
+    retryBodyModeLabel(rule),
+    retryScopeSummary(rule),
+    publicPolicyMatchSummary(rule),
+    retryHasDuplicateRisk(rule) ? "duplicate risk" : "safe methods",
   ].join(" ");
 }
 
@@ -573,6 +643,14 @@ function editCacheRule(id: bigint) {
   editorHost.value?.openCacheRule(id);
 }
 
+function openAddRetryRuleModal() {
+  editorHost.value?.openCreateRetryRule();
+}
+
+function editRetryRule(id: bigint) {
+  editorHost.value?.openRetryRule(id);
+}
+
 function openAddTrafficShaperRuleModal() {
   editorHost.value?.openCreateTrafficShaperRule();
 }
@@ -606,6 +684,13 @@ async function deleteCacheRule(id: bigint) {
   if (!await confirm("Delete Cache Rule", "This cache rule will be permanently removed. Existing cached objects for the rule may be purged separately.")) return;
   await run(async () => {
     await managementClient.deletePublicCacheRule({ id });
+  });
+}
+
+async function deleteRetryRule(id: bigint) {
+  if (!await confirm("Delete Request Retry Rule", "This request retry rule will be permanently removed.")) return;
+  await run(async () => {
+    await managementClient.deletePublicRetryRule({ id });
   });
 }
 
@@ -1310,6 +1395,163 @@ async function deleteTrafficShaperRule(id: bigint) {
       </NTabPane>
 
       <NTabPane
+        id="traffic-policy-panel-retries"
+        name="retries"
+        role="tabpanel"
+        aria-labelledby="traffic-policy-tab-retries"
+        :tab="`Retries · ${enabledRetryRules}/${retryRules.length}`"
+        :tab-props="policyTabProps('retries', `Retries, ${enabledCountLabel(enabledRetryRules, retryRules.length)}`)"
+      >
+        <div class="stack-lg">
+          <section class="retry-principles" aria-labelledby="retry-principles-title">
+            <div class="retry-principles__marker" aria-hidden="true">R</div>
+            <div>
+              <h2 id="retry-principles-title">One client request, bounded upstream attempts</h2>
+              <p>
+                Retries use a different eligible agent chosen by the target's load balancer. They stay inside the selected target, stop before any response headers reach the client, and never retry HTTP status codes.
+              </p>
+            </div>
+            <div class="retry-principles__facts" aria-label="Retry invariants">
+              <span>Different agent</span>
+              <span>Same target</span>
+              <span>1–3 retries</span>
+            </div>
+          </section>
+
+          <section class="surface-card hide-overflow">
+            <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
+              <div>
+                <h2 class="copy-base weight-semibold">Request retry rules</h2>
+                <p class="margin-top-xs copy-sm muted-text">Recover from agent tunnel and VPN failures without changing route semantics.</p>
+              </div>
+              <NButton type="primary" size="small" @click="openAddRetryRuleModal">
+                <template #icon><PlusIcon class="icon-sm" /></template>
+                Add Retry Rule
+              </NButton>
+            </div>
+            <div class="policy-local-filter" aria-label="Filter request retry rules">
+              <NInput
+                v-model:value="policyFilters.retries.text"
+                size="small"
+                clearable
+                placeholder="Filter retry rules"
+                :input-props="{ 'aria-label': 'Filter retry rules by name, methods, match, scope, or failure mode' }"
+              >
+                <template #prefix><SearchIcon class="icon-sm" /></template>
+              </NInput>
+              <AccessibleSelect
+                v-model:value="policyFilters.retries.status"
+                accessible-label="Filter retry rules by state"
+                size="small"
+                :options="policyFilterStatusOptions"
+              />
+              <NButton v-if="isPolicyFilterActive('retries')" quaternary size="small" @click="clearPolicyFilter('retries')">
+                <template #icon><XIcon class="icon-sm" /></template>
+                Clear filters
+              </NButton>
+              <p class="policy-filter-result" aria-live="polite">
+                {{ policyFilterResultLabel('retries', filteredRetryRules.length, retryRules.length) }}
+              </p>
+            </div>
+
+            <div v-if="filteredRetryRules.length" class="policy-data-table" role="table" aria-label="Request retry rules">
+              <div role="rowgroup">
+                <div class="policy-data-header policy-rule-grid" role="row">
+                  <span class="policy-grid-identity" role="columnheader">Rule</span>
+                  <span class="policy-grid-match" role="columnheader">Match &amp; scope</span>
+                  <span class="policy-grid-action" role="columnheader">Attempt policy</span>
+                  <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
+                  <span class="policy-grid-actions" role="columnheader">Actions</span>
+                </div>
+              </div>
+              <div class="policy-data-rows" role="rowgroup">
+                <div
+                  v-for="rule in filteredRetryRules"
+                  :key="rule.id.toString()"
+                  class="policy-data-row policy-rule-grid"
+                  role="row"
+                >
+                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                    <span class="policy-data-label">Rule</span>
+                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                    <details class="policy-exact-disclosure">
+                      <summary>Exact values</summary>
+                      <dl>
+                        <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
+                        <div><dt>Methods</dt><dd><code dir="ltr">{{ rule.methods.join(', ') }}</code></dd></div>
+                        <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
+                        <div><dt>Scope</dt><dd>{{ retryScopeSummary(rule) }}</dd></div>
+                        <div><dt>Failure mode</dt><dd>{{ retryFailureModeLabel(rule.failureMode) }}</dd></div>
+                        <div><dt>Body replay</dt><dd>{{ retryBodyModeLabel(rule) }}</dd></div>
+                      </dl>
+                    </details>
+                  </div>
+                  <div class="policy-data-cell policy-grid-match" data-label="Match & scope" role="cell">
+                    <span class="policy-data-label">Match &amp; scope</span>
+                    <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                    <p class="policy-data-secondary mono-text" :title="retryScopeSummary(rule)">{{ retryScopeSummary(rule) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-action" data-label="Attempt policy" role="cell">
+                    <span class="policy-data-label">Attempt policy</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false" type="info">{{ rule.maxRetries.toString() }} {{ rule.maxRetries === 1n ? 'retry' : 'retries' }}</NTag>
+                      <NTag size="small" :bordered="false">{{ retryFailureModeLabel(rule.failureMode) }}</NTag>
+                    </div>
+                    <p class="policy-data-secondary mono-text" :title="retryMethodSummary(rule)">{{ retryMethodSummary(rule) }}</p>
+                    <p class="policy-data-secondary">{{ retryBodyModeLabel(rule) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                    <span class="policy-data-label">Order &amp; state</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
+                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                      </NTag>
+                    </div>
+                    <div v-if="visiblePolicyWarningsForRule('retry', rule.id).length" class="policy-data-tags">
+                      <NTag
+                        v-for="warning in visiblePolicyWarningsForRule('retry', rule.id)"
+                        :key="warning.code"
+                        size="small"
+                        :bordered="false"
+                        :type="naiveTagType(warningSeverity(warning))"
+                      >
+                        {{ warningLabel(warning) }}
+                      </NTag>
+                    </div>
+                  </div>
+                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                    <span class="policy-data-label">Actions</span>
+                    <NButton secondary size="small" aria-label="Edit retry rule" title="Edit retry rule" @click="editRetryRule(rule.id)">
+                      <template #icon><PencilIcon class="icon-sm" /></template>
+                    </NButton>
+                    <NButton type="error" size="small" aria-label="Delete retry rule" title="Delete retry rule" @click="deleteRetryRule(rule.id)">
+                      <template #icon><TrashIcon class="icon-sm" /></template>
+                    </NButton>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="divided-list">
+              <EmptyState
+                v-if="retryRules.length && !filteredRetryRules.length && isPolicyFilterActive('retries')"
+                title="No matching retry rules"
+                description="Clear or adjust the filters to show more rules."
+              />
+              <EmptyState
+                v-if="!retryRules.length"
+                title="No request retries configured"
+                description="Add an opt-in rule to retry selected requests through a different agent when an agent tunnel or VPN connection fails. GET and HEAD with one connection-only retry is the safest starting point."
+                action-label="Add Retry Rule"
+                @action="openAddRetryRuleModal"
+              />
+            </div>
+          </section>
+        </div>
+      </NTabPane>
+
+      <NTabPane
         id="traffic-policy-panel-traffic-shaper"
         name="traffic-shaper"
         role="tabpanel"
@@ -1846,6 +2088,66 @@ async function deleteTrafficShaperRule(id: bigint) {
   margin: 0;
 }
 
+.retry-principles {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 30%, var(--app-border-subtle));
+  border-left: 3px solid var(--app-accent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--app-accent) 5%, var(--app-panel));
+}
+
+.retry-principles__marker {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent);
+  border-radius: 50%;
+  color: var(--app-accent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.retry-principles h2,
+.retry-principles p {
+  margin: 0;
+}
+
+.retry-principles h2 {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.retry-principles p {
+  max-width: 76ch;
+  margin-top: 0.25rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.retry-principles__facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.retry-principles__facts span {
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 999px;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
 .policy-cache-danger h3 {
   color: var(--app-text);
   font-size: 0.875rem;
@@ -1913,6 +2215,17 @@ async function deleteTrafficShaperRule(id: bigint) {
   .policy-data-actions :deep(.n-button) {
     min-width: 2.75rem;
     min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .retry-principles {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .retry-principles__facts {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 }
 

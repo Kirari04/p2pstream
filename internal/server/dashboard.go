@@ -1225,6 +1225,10 @@ func dashboardDiagnosticsSamples(rows []db.ListRecentProxyProblemSamplesSinceRow
 			DurationMs:           row.DurationMs,
 			RequestBytes:         uint64FromInt64(row.RequestBytes),
 			ResponseBytes:        uint64FromInt64(row.ResponseBytes),
+			RetryRuleId:          nullInt64Value(row.RetryRuleID),
+			RetryCount:           row.RetryCount,
+			RetryOutcome:         row.RetryOutcome,
+			RetryErrorKind:       row.RetryErrorKind,
 		})
 	}
 	return items

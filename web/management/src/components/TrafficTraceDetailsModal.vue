@@ -117,6 +117,13 @@ const policyDecisions = computed(() => {
       detail: request.cacheStatus || "Evaluated without a captured result",
     });
   }
+  if (request.retryRuleId || request.retryRuleName || request.retryCount > 0n) {
+    decisions.push({
+      label: "Retry",
+      name: request.retryRuleName || idValue(request.retryRuleId),
+      detail: `${request.retryCount.toString()} ${request.retryCount === 1n ? "retry" : "retries"} · ${request.retryOutcome || "outcome pending"}`,
+    });
+  }
   return decisions;
 });
 
@@ -156,6 +163,7 @@ function stageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.CACHE_STORED: return "Cache stored";
     case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Traffic shaper selected";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream started";
+    case TrafficTraceStage.UPSTREAM_RETRY: return "Upstream retry";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Upstream responded";
     case TrafficTraceStage.RESPONSE_SENT: return "Response sent";
     case TrafficTraceStage.FAILED: return "Failed";

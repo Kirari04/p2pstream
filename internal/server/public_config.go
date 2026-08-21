@@ -95,6 +95,7 @@ type publicConfigRows struct {
 	TrustedProxySources        []db.PublicTrustedProxySource
 	CacheSettings              db.PublicCacheSetting
 	CacheRules                 []db.PublicCacheRule
+	RetryRules                 []db.PublicRetryRule
 	ResponseTemplates          []db.PublicResponseTemplate
 }
 

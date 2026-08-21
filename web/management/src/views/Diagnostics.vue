@@ -97,6 +97,10 @@ const selectedSampleDetails = computed(() => {
     { label: "Path prefix", value: inspectionValue(sample.pathPrefix) },
     { label: "Status", value: sampleStatusLabel(sample) },
     { label: "Error kind", value: inspectionValue(sample.errorKind) },
+    { label: "Retry rule", value: sample.retryRuleId > 0n ? `#${sample.retryRuleId.toString()}` : "(none)" },
+    { label: "Retry attempts", value: sample.retryCount.toString() },
+    { label: "Retry outcome", value: inspectionValue(sample.retryOutcome) },
+    { label: "First retry error", value: inspectionValue(sample.retryErrorKind) },
     { label: "Listener", value: inspectionValue(sample.listenerLabel) },
     { label: "Route", value: inspectionValue(sample.routeLabel) },
     { label: "Target", value: inspectionValue(sample.routeTargetLabel) },
@@ -137,6 +141,7 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
     render: (sample) => h("span", { class: "diagnostic-outcome-cell" }, [
       h("span", { class: ["status-pill", `tone-${statusTone(sample.statusCode)}`] }, sampleStatusLabel(sample)),
       attackerCell(sample.errorKind, 48),
+      sample.retryCount > 0n ? h("span", { class: "diagnostic-retry-outcome" }, retrySampleLabel(sample)) : null,
     ]),
   },
   {
@@ -247,6 +252,11 @@ function sampleStatusLabel(sample: DashboardDiagnosticsSample): string {
   return sample.statusCode > 0n ? sample.statusCode.toString() : "-";
 }
 
+function retrySampleLabel(sample: DashboardDiagnosticsSample): string {
+  const outcomeLabel = sample.retryOutcome || "attempted";
+  return `${sample.retryCount.toString()} ${sample.retryCount === 1n ? "retry" : "retries"} · ${outcomeLabel}`;
+}
+
 function openSampleDetails(sample: DashboardDiagnosticsSample) {
   selectedSample.value = sample;
   isSampleDetailsOpen.value = true;
@@ -322,6 +332,10 @@ function sampleRowBaseKey(sample: DashboardDiagnosticsSample): string {
     sample.pathPrefix,
     sample.statusCode.toString(),
     sample.errorKind,
+    sample.retryRuleId.toString(),
+    sample.retryCount.toString(),
+    sample.retryOutcome,
+    sample.retryErrorKind,
     sample.listenerLabel,
     sample.routeLabel,
     sample.routeTargetLabel,
@@ -342,7 +356,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
     <section class="diagnostics-header">
       <div>
         <h3>Diagnostics</h3>
-        <p>Proxy outcomes, response distribution, failure dimensions, and recent problem samples.</p>
+        <p>Proxy outcomes, response distribution, failure dimensions, and recent failure or retry samples.</p>
       </div>
       <div class="header-controls">
         <NButtonGroup class="window-tabs" role="group" aria-label="Diagnostics window" size="small">
@@ -510,7 +524,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         <div class="panel-heading diagnostics-samples-heading">
           <div>
             <h4>Recent Samples</h4>
-            <p>Newest non-success responses and proxy/internal failures.</p>
+            <p>Newest non-success responses, proxy failures, and requests recovered by agent retry.</p>
           </div>
           <div v-if="selectedDimension" class="sample-filter">
             <span>Filtered by {{ selectedDimension.title }}</span>
@@ -533,7 +547,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         <NEmpty
           v-else
           size="small"
-          :description="recentSamples.length ? 'No retained samples match the selected failure dimension.' : 'No recent problem samples in this window.'"
+          :description="recentSamples.length ? 'No retained samples match the selected failure dimension.' : 'No recent failure or retry samples in this window.'"
         >
           <template v-if="selectedDimension" #extra>
             <NButton secondary size="small" attr-type="button" @click="selectedDimension = null">Clear sample filter</NButton>
@@ -1042,6 +1056,13 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
   gap: 0.5rem;
+}
+
+.diagnostic-retry-outcome {
+  grid-column: 1 / -1;
+  color: var(--app-accent);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
 }
 
 .diagnostic-flow-line {

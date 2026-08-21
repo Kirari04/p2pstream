@@ -28,6 +28,7 @@ type Querier interface {
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	CreatePublicResponseTemplate(ctx context.Context, arg CreatePublicResponseTemplateParams) (PublicResponseTemplate, error)
+	CreatePublicRetryRule(ctx context.Context, arg CreatePublicRetryRuleParams) (PublicRetryRule, error)
 	CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error)
 	CreatePublicRouteTarget(ctx context.Context, arg CreatePublicRouteTargetParams) (PublicRouteTarget, error)
 	CreatePublicRouteTargetResponseHeader(ctx context.Context, arg CreatePublicRouteTargetResponseHeaderParams) (PublicRouteTargetResponseHeader, error)
@@ -63,6 +64,7 @@ type Querier interface {
 	DeletePublicListener(ctx context.Context, id int64) error
 	DeletePublicRateLimitRule(ctx context.Context, id int64) error
 	DeletePublicResponseTemplate(ctx context.Context, id int64) error
+	DeletePublicRetryRule(ctx context.Context, id int64) error
 	DeletePublicRoute(ctx context.Context, id int64) error
 	DeletePublicRouteTarget(ctx context.Context, id int64) error
 	DeletePublicRouteTargetResponseHeaders(ctx context.Context, targetID int64) error
@@ -101,6 +103,7 @@ type Querier interface {
 	GetPublicRateLimitRule(ctx context.Context, id int64) (PublicRateLimitRule, error)
 	GetPublicResponseTemplate(ctx context.Context, id int64) (PublicResponseTemplate, error)
 	GetPublicResponseTemplateByName(ctx context.Context, name string) (PublicResponseTemplate, error)
+	GetPublicRetryRule(ctx context.Context, id int64) (PublicRetryRule, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
 	GetPublicRouteTarget(ctx context.Context, id int64) (PublicRouteTarget, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
@@ -145,6 +148,7 @@ type Querier interface {
 	ListPublicListeners(ctx context.Context) ([]PublicListener, error)
 	ListPublicRateLimitRules(ctx context.Context) ([]PublicRateLimitRule, error)
 	ListPublicResponseTemplates(ctx context.Context) ([]PublicResponseTemplate, error)
+	ListPublicRetryRules(ctx context.Context) ([]PublicRetryRule, error)
 	ListPublicRouteTargetResponseHeaders(ctx context.Context) ([]PublicRouteTargetResponseHeader, error)
 	ListPublicRouteTargetResponseHeadersByTarget(ctx context.Context, targetID int64) ([]PublicRouteTargetResponseHeader, error)
 	ListPublicRouteTargetUpstreamHeaders(ctx context.Context) ([]PublicRouteTargetUpstreamHeader, error)
@@ -208,6 +212,7 @@ type Querier interface {
 	UpdatePublicListener(ctx context.Context, arg UpdatePublicListenerParams) (PublicListener, error)
 	UpdatePublicRateLimitRule(ctx context.Context, arg UpdatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
 	UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error)
+	UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRetryRuleParams) (PublicRetryRule, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
 	UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicRouteTargetParams) (PublicRouteTarget, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)

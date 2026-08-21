@@ -199,6 +199,7 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
     rateLimitRules: [],
     trafficShaperRules: [],
     cacheRules: [],
+    retryRules: [],
     tlsDnsCredentials: [],
     wafCaptchaProviders: [],
     wafRules: [],
