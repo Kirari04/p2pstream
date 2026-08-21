@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/buildinfo"
 )
 
 type fakeAgentStatsReportClient struct {
@@ -29,6 +30,13 @@ func TestAgentStatsMemoryUsesSysNotAlloc(t *testing.T) {
 	}
 	if got := agentStatsMemorySysMB(mem); got != 34 {
 		t.Fatalf("agentStatsMemorySysMB() = %d, want 34", got)
+	}
+}
+
+func TestAgentStatsRequestIncludesBuildIdentity(t *testing.T) {
+	req := buildAgentStatsRequest("agent-build-test", nil)
+	if req.AgentVersion != buildinfo.Version || req.AgentCommit != buildinfo.Commit {
+		t.Fatalf("agent build identity = %q/%q, want %q/%q", req.AgentVersion, req.AgentCommit, buildinfo.Version, buildinfo.Commit)
 	}
 }
 

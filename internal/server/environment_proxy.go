@@ -29,6 +29,7 @@ const environmentProxyPrefix = "/environments/"
 var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"GetStatus":                         {},
 	"GetDashboard":                      {},
+	"GetAgentAvailability":              {},
 	"GetDashboardDiagnostics":           {},
 	"GetTrafficTraceSettings":           {},
 	"SetTrafficTraceSettings":           {},
@@ -76,6 +77,9 @@ var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"CreatePublicTrafficShaperRule":     {},
 	"UpdatePublicTrafficShaperRule":     {},
 	"DeletePublicTrafficShaperRule":     {},
+	"CreatePublicRetryRule":             {},
+	"UpdatePublicRetryRule":             {},
+	"DeletePublicRetryRule":             {},
 	"CreatePublicWafCaptchaProvider":    {},
 	"UpdatePublicWafCaptchaProvider":    {},
 	"DeletePublicWafCaptchaProvider":    {},

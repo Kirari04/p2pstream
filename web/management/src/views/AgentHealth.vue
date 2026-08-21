@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, inject, ref, watch } from "vue";
+import { computed, h, inject, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NAlert, NButton, NCheckbox, NDataTable, NDropdown, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns, DropdownDividerOption, DropdownOption } from "naive-ui";
@@ -16,6 +16,7 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import AgentAvailabilityChart from "@/components/AgentAvailabilityChart.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
 import { dashboardKey, isBusyKey, publicProxyConfigKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
@@ -38,11 +39,16 @@ import {
 } from "@/lib/dashboardStats";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { messageFromError } from "@/lib/errors";
+import { sessionForAvailabilitySegment } from "@/lib/agentAvailability";
+import type { AvailabilitySegment, AvailabilityWindow } from "@/lib/agentAvailability";
+import { agentBuildStatus, shortBuildCommit, type AgentBuildState } from "@/lib/agentVersion";
+import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import type {
   Agent,
   AgentConnectionSession,
   AgentUptimeSummary,
+  GetAgentAvailabilityResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
@@ -90,6 +96,9 @@ const connectedAgentCount = computed(() => uptimeSummaries.value.length
   : agents.value.filter((agent) => agent.connected).length);
 const offlineEnabledAgents = computed(() => Math.max(0, enabledAgents.value - connectedAgentCount.value));
 const activeAgentRequests = computed(() => agents.value.reduce((sum, agent) => sum + Number(agent.activeRequests || 0n), 0));
+const agentsNeedingUpdate = computed(() => agents.value.filter((agent) => buildStatusForAgent(agent).state === "update_available").length);
+const agentsWithBuildMismatch = computed(() => agents.value.filter((agent) => buildStatusForAgent(agent).state === "different").length);
+const agentsWithUnverifiedBuild = computed(() => agents.value.filter((agent) => buildStatusForAgent(agent).state === "unverified").length);
 const fleetUptime = computed(() => fleetUptimePercent(uptimeSummaries.value));
 const longestCurrentUptimeMillis = computed(() => Math.max(0, ...uptimeSummaries.value.map((summary) => Number(summary.currentUptimeMillis || 0n))));
 const recentDisconnects = computed(() => recentDisconnectCount(recentAgentConnections.value, dashboard?.value?.generatedAtUnixMillis ?? BigInt(Date.now())));
@@ -156,13 +165,14 @@ const activeAgentSectionMeta = computed(() =>
   agentSections.find((section) => section.key === activeAgentSection.value) ?? agentSections[0],
 );
 
-type AgentStateFilter = "all" | "attention" | "connected" | "disabled";
+type AgentStateFilter = "all" | "attention" | "version" | "connected" | "disabled";
 
 const agentSearch = ref("");
 const agentStateFilter = ref<AgentStateFilter>("all");
 const agentStateOptions: Array<{ label: string; value: AgentStateFilter }> = [
   { label: "All states", value: "all" },
   { label: "Needs attention (offline)", value: "attention" },
+  { label: "Version differs", value: "version" },
   { label: "Connected", value: "connected" },
   { label: "Disabled", value: "disabled" },
 ];
@@ -175,7 +185,7 @@ const filteredAgents = computed(() => {
 });
 const agentFilterActive = computed(() => Boolean(agentSearch.value.trim()) || agentStateFilter.value !== "all");
 const filteredAgentSummary = computed(() => {
-  if (!agentFilterActive.value) return `${totalAgents.value} agents · offline agents first`;
+  if (!agentFilterActive.value) return `${totalAgents.value} agents · offline and version-different agents first`;
   return `${filteredAgents.value.length} of ${totalAgents.value} agents`;
 });
 const investigatedAgentPublicId = computed(() => {
@@ -187,6 +197,19 @@ const filteredAgentConnections = computed(() => {
   if (!investigatedAgentPublicId.value) return recentAgentConnections.value;
   return recentAgentConnections.value.filter((session) => session.agentPublicId === investigatedAgentPublicId.value);
 });
+const activityAgentOptions = computed(() => agents.value.map((agent) => ({
+  label: `${agent.name} · ${agent.publicId}`,
+  value: agent.publicId,
+})));
+const availabilityWindow = ref<AvailabilityWindow>("24h");
+const availability = ref<GetAgentAvailabilityResponse | null>(null);
+const availabilityLoading = ref(false);
+const availabilityError = ref("");
+const availabilityRetry = ref(0);
+const sessionPage = ref(1);
+const highlightedSessionId = ref("");
+const inspectedSegmentSummary = ref("");
+let availabilityRequestSequence = 0;
 
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const openAgentActionMenuId = ref("");
@@ -214,7 +237,7 @@ const uninstallReleaseRepository = ref(defaultReleaseRepository());
 const uninstallCopyLabel = ref("Copy");
 let uninstallCopyReset: number | undefined;
 
-const sessionPagination = { pageSize: 12 };
+const sessionPagination = computed(() => ({ page: sessionPage.value, pageSize: 12 }));
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
@@ -286,6 +309,7 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
         class: "agent-cell__id mono-text",
         title: diagnosticInspectionText(agent.publicId),
       }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
+      h("div", { class: "agent-cell__mobile-build" }, [renderAgentVersion(agent, true)]),
       h("details", { class: "agent-exact-details" }, [
         h("summary", {
           "aria-label": agentActionLabel("Show exact identity and selectors for", agent),
@@ -356,6 +380,12 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
           ])
         : h("p", { class: "copy-xs muted-text" }, "No runtime sample"),
     ]),
+  },
+  {
+    title: "Version",
+    key: "version",
+    width: 220,
+    render: (agent) => renderAgentVersion(agent),
   },
   {
     title: "Actions",
@@ -465,6 +495,25 @@ watch(managementUsesTLS, (usesTLS) => {
   }
 });
 
+watch(
+  [
+    activeAgentSection,
+    investigatedAgentPublicId,
+    availabilityWindow,
+    () => dashboard?.value?.generatedAtUnixMillis ?? 0n,
+    availabilityRetry,
+  ],
+  () => void loadAgentAvailability(),
+  { immediate: true },
+);
+
+watch([investigatedAgentPublicId, availabilityWindow], clearInspectedAvailabilitySegment);
+
+watch(filteredAgentConnections, (sessions) => {
+  const maxPage = Math.max(1, Math.ceil(sessions.length / 12));
+  if (sessionPage.value > maxPage) sessionPage.value = maxPage;
+});
+
 function bigIntLabel(value: bigint | undefined): string {
   if (value === undefined) return "0";
   return new Intl.NumberFormat().format(Number(value));
@@ -550,11 +599,65 @@ function sessionAgentDetail(session: AgentConnectionSession): string {
   return session.agentId > 0n ? `agent #${session.agentId.toString()}` : "";
 }
 
+function buildStatusForAgent(agent: Agent) {
+  return agentBuildStatus({
+    agentVersion: agent.version,
+    agentCommit: agent.commit,
+    serverVersion: status.value?.version,
+    serverCommit: status.value?.commit,
+  });
+}
+
+function renderAgentVersion(agent: Agent, compact = false) {
+  const build = buildStatusForAgent(agent);
+  const version = agent.version ? diagnosticExcerpt(agent.version, 32).text : "Unknown";
+  const commit = shortBuildCommit(agent.commit);
+  const serverVersion = diagnosticExcerpt(status.value?.version ?? "", 24).text;
+  const details = [
+    commit ? `build ${diagnosticInspectionText(commit)}` : "",
+    status.value?.version ? `server ${serverVersion}` : "",
+  ].filter(Boolean).join(" · ");
+  return h("div", { class: ["agent-version-cell", compact && "agent-version-cell--compact"] }, [
+    h("div", { class: "agent-version-cell__header" }, [
+      h("code", {
+        class: "mono-text agent-version-cell__value",
+        title: agent.version ? diagnosticInspectionText(agent.version) : "Agent version has not been reported",
+      }, [h("bdi", { dir: "ltr" }, version)]),
+      h(NTag, {
+        size: "small",
+        bordered: false,
+        type: agentBuildStatusType(build.state),
+      }, { default: () => build.label }),
+    ]),
+    compact ? null : h("p", { class: "agent-version-cell__detail mono-text muted-text" }, details || "Waiting for a compatible heartbeat"),
+  ]);
+}
+
+function agentBuildStatusType(state: AgentBuildState): "default" | "success" | "warning" | "info" {
+  switch (state) {
+    case "current":
+      return "success";
+    case "update_available":
+    case "different":
+    case "unverified":
+      return "warning";
+    case "ahead":
+    case "reported":
+      return "info";
+    default:
+      return "default";
+  }
+}
+
 function agentMatchesState(agent: Agent, filter: AgentStateFilter): boolean {
   const state = agentOperationalState(agent);
   switch (filter) {
     case "attention":
       return state === "offline";
+    case "version": {
+      const buildState = buildStatusForAgent(agent).state;
+      return buildState === "update_available" || buildState === "different" || buildState === "unverified";
+    }
     case "connected":
       return state === "connected";
     case "disabled":
@@ -568,6 +671,8 @@ function agentSearchText(agent: Agent): string {
   return [
     agent.name,
     agent.publicId,
+    agent.version,
+    agent.commit,
     exactAgentSelector(agent),
     ...Object.entries(agent.labels).flatMap(([key, value]) => [key, value, `${key}=${value}`]),
   ].join("\n").toLocaleLowerCase();
@@ -577,8 +682,10 @@ function compareAgentsByAttention(left: Agent, right: Agent): number {
   const rank = (agent: Agent) => {
     const state = agentOperationalState(agent);
     if (state === "offline") return 0;
-    if (state === "connected") return 1;
-    return 2;
+    const buildState = buildStatusForAgent(agent).state;
+    if (buildState === "update_available" || buildState === "different" || buildState === "unverified") return 1;
+    if (state === "connected") return 2;
+    return 3;
   };
   return rank(left) - rank(right)
     || left.name.localeCompare(right.name)
@@ -604,6 +711,83 @@ async function investigateAgent(agent: Agent) {
 
 async function clearInvestigatedAgent() {
   await router.replace({ path: "/agent/activity" });
+}
+
+async function selectActivityAgent(agentPublicId: string) {
+  if (agentPublicId === investigatedAgentPublicId.value) return;
+  await router.replace({ path: "/agent/activity", query: { agent: agentPublicId } });
+}
+
+async function loadAgentAvailability() {
+  const requestSequence = ++availabilityRequestSequence;
+  const agentPublicId = investigatedAgentPublicId.value;
+  const windowLabel = availabilityWindow.value;
+  if (activeAgentSection.value !== "activity" || !agentPublicId) {
+    availability.value = null;
+    availabilityError.value = "";
+    availabilityLoading.value = false;
+    return;
+  }
+
+  if (availability.value?.agentPublicId !== agentPublicId || availability.value?.windowLabel !== windowLabel) {
+    availability.value = null;
+  }
+  availabilityLoading.value = true;
+  availabilityError.value = "";
+  try {
+    const response = await managementClient.getAgentAvailability({
+      agentPublicId,
+      windowLabel,
+    });
+    if (requestSequence !== availabilityRequestSequence) return;
+    availability.value = response;
+  } catch (error) {
+    if (requestSequence !== availabilityRequestSequence) return;
+    availabilityError.value = messageFromError(error);
+  } finally {
+    if (requestSequence === availabilityRequestSequence) availabilityLoading.value = false;
+  }
+}
+
+function retryAgentAvailability() {
+  availabilityRetry.value += 1;
+}
+
+function inspectAvailabilitySegment(segment: AvailabilitySegment) {
+  const duration = formatLongDuration(segment.endMillis - segment.startMillis);
+  const state = segment.state === "online" ? "Online session" : "Outage";
+  const match = sessionForAvailabilitySegment(segment, filteredAgentConnections.value);
+  if (!match) {
+    highlightedSessionId.value = "";
+    inspectedSegmentSummary.value = `${state} · ${duration} · outside the recent session table`;
+    return;
+  }
+
+  const relation = match.relation === "reconnect"
+    ? "reconnect highlighted"
+    : match.relation === "disconnect"
+      ? "disconnect highlighted"
+      : "session highlighted";
+  inspectedSegmentSummary.value = `${state} · ${duration} · ${relation}`;
+  highlightedSessionId.value = match.session.id.toString();
+  const sessionIndex = filteredAgentConnections.value.findIndex((session) => session.id === match.session.id);
+  if (sessionIndex >= 0) sessionPage.value = Math.floor(sessionIndex / 12) + 1;
+  void revealHighlightedSession();
+}
+
+function clearInspectedAvailabilitySegment() {
+  highlightedSessionId.value = "";
+  inspectedSegmentSummary.value = "";
+}
+
+async function revealHighlightedSession() {
+  await nextTick();
+  window.requestAnimationFrame(() => {
+    const row = document.querySelector<HTMLElement>(`[data-session-id="${highlightedSessionId.value}"]`);
+    if (!row) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+  });
 }
 
 function agentUserLabels(agent: Agent) {
@@ -731,6 +915,15 @@ function agentRowProps(agent: Agent): Record<string, string> {
 
 function sessionRowKey(session: AgentConnectionSession): string {
   return session.id.toString();
+}
+
+function sessionRowProps(session: AgentConnectionSession): Record<string, string> {
+  const highlighted = highlightedSessionId.value === session.id.toString();
+  return {
+    "data-session-id": session.id.toString(),
+    class: highlighted ? "agent-session-row--highlighted" : "",
+    "aria-current": highlighted ? "true" : "false",
+  };
 }
 
 function deleteAgentDisabledReason(agent: Agent): string {
@@ -1018,6 +1211,15 @@ async function copyUninstallSnippet() {
           <NTag size="small" :bordered="false" type="info">{{ totalAgents }} registered</NTag>
           <NTag size="small" :bordered="false" type="success">{{ enabledAgents }} enabled</NTag>
           <NTag v-if="disabledAgents" size="small" :bordered="false" type="warning">{{ disabledAgents }} disabled</NTag>
+          <NTag v-if="agentsNeedingUpdate" size="small" :bordered="false" type="warning">
+            {{ agentsNeedingUpdate }} update{{ agentsNeedingUpdate === 1 ? '' : 's' }} available
+          </NTag>
+          <NTag v-if="agentsWithBuildMismatch" size="small" :bordered="false" type="warning">
+            {{ agentsWithBuildMismatch }} build mismatch{{ agentsWithBuildMismatch === 1 ? '' : 'es' }}
+          </NTag>
+          <NTag v-if="agentsWithUnverifiedBuild" size="small" :bordered="false" type="warning">
+            {{ agentsWithUnverifiedBuild }} build unverified
+          </NTag>
         </div>
       </div>
 
@@ -1039,6 +1241,20 @@ async function copyUninstallSnippet() {
         </div>
       </div>
     </section>
+
+    <AgentAvailabilityChart
+      v-if="activeAgentSection === 'activity'"
+      :availability="availability"
+      :selected-agent-id="investigatedAgentPublicId"
+      :agent-options="activityAgentOptions"
+      :window="availabilityWindow"
+      :loading="availabilityLoading"
+      :error="availabilityError"
+      @select-agent="selectActivityAgent"
+      @update:window="availabilityWindow = $event"
+      @inspect-segment="inspectAvailabilitySegment"
+      @retry="retryAgentAvailability"
+    />
 
     <section v-if="activeAgentSection === 'activity'" class="surface-card agent-runtime-card">
       <div class="agent-section-header">
@@ -1070,7 +1286,7 @@ async function copyUninstallSnippet() {
           v-model:value="agentSearch"
           clearable
           size="small"
-          placeholder="Search name, ID, or label"
+          placeholder="Search name, ID, version, or label"
           :input-props="{ 'aria-label': 'Search agents' }"
           class="agent-search-input"
         >
@@ -1094,7 +1310,7 @@ async function copyUninstallSnippet() {
         :pagination="false"
         :bordered="false"
         :single-line="false"
-        :scroll-x="1040"
+        :scroll-x="1260"
         size="small"
       />
       <div v-else-if="agents.length" class="agent-filter-empty">
@@ -1131,6 +1347,10 @@ async function copyUninstallSnippet() {
               Clear
             </NButton>
           </div>
+          <div v-if="inspectedSegmentSummary" class="agent-chart-selection">
+            <NTag size="small" :bordered="false" type="info">{{ inspectedSegmentSummary }}</NTag>
+            <NButton text size="tiny" attr-type="button" @click="clearInspectedAvailabilitySegment">Clear selection</NButton>
+          </div>
           <NTag size="small" :bordered="false" type="default">{{ filteredAgentConnections.length }} sessions</NTag>
         </div>
       </div>
@@ -1139,11 +1359,13 @@ async function copyUninstallSnippet() {
         :columns="sessionColumns"
         :data="filteredAgentConnections"
         :row-key="sessionRowKey"
+        :row-props="sessionRowProps"
         :pagination="sessionPagination"
         :bordered="false"
         :single-line="false"
         :scroll-x="870"
         size="small"
+        @update:page="sessionPage = $event"
       />
       <EmptyState
         v-else
@@ -1169,6 +1391,7 @@ async function copyUninstallSnippet() {
       preset="card"
       title="Rotate Agent Token"
       :style="modalCardStyle('34rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       @update:show="handleRotateModalUpdate"
     >
@@ -1199,6 +1422,7 @@ async function copyUninstallSnippet() {
       preset="card"
       title="Agent Uninstall"
       :style="modalCardStyle('46rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       @update:show="handleUninstallModalUpdate"
     >
@@ -1244,6 +1468,7 @@ async function copyUninstallSnippet() {
       preset="card"
       :title="setupModalTitle"
       :style="modalCardStyle('48rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       :mask-closable="false"
       :close-on-esc="false"
@@ -1597,7 +1822,15 @@ async function copyUninstallSnippet() {
   gap: 0.35rem;
 }
 
-.agent-investigation-filter .n-tag {
+.agent-chart-selection {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.agent-investigation-filter .n-tag,
+.agent-chart-selection .n-tag {
   min-width: 0;
   max-width: 20rem;
   overflow: hidden;
@@ -1609,6 +1842,14 @@ async function copyUninstallSnippet() {
 .agent-table-card .n-data-table-th,
 .agent-table-card .n-data-table-td {
   padding: 0.7rem 0.75rem;
+}
+
+.agent-table-card .n-data-table-tr.agent-session-row--highlighted .n-data-table-td {
+  background: color-mix(in srgb, var(--app-accent) 11%, var(--app-panel)) !important;
+}
+
+.agent-table-card .n-data-table-tr.agent-session-row--highlighted .n-data-table-td:first-child {
+  box-shadow: inset 3px 0 0 var(--app-accent);
 }
 
 .agent-runtime-grid {
@@ -1663,6 +1904,10 @@ async function copyUninstallSnippet() {
   text-overflow: ellipsis;
   white-space: nowrap;
   unicode-bidi: isolate;
+}
+
+.agent-cell__mobile-build {
+  display: none;
 }
 
 .agent-exact-details {
@@ -1774,6 +2019,47 @@ async function copyUninstallSnippet() {
   min-width: 0;
 }
 
+.agent-version-cell {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.agent-version-cell__header {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.agent-version-cell__value {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-version-cell__detail {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-version-cell--compact {
+  gap: 0;
+}
+
 .agent-metric-line {
   display: flex;
   align-items: baseline;
@@ -1871,6 +2157,13 @@ async function copyUninstallSnippet() {
 
 .agent-setup-tabs .n-tabs-nav {
   width: min(100%, 32rem);
+}
+
+@media (max-width: 639px) {
+  .agent-cell__mobile-build {
+    display: block;
+    margin-top: 0.15rem;
+  }
 }
 
 @media (min-width: 640px) {

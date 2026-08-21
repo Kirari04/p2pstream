@@ -110,6 +110,12 @@ func TestMigrationCreatesMultiAgentRoutingSchema(t *testing.T) {
 	if !containsString(agentStatColumns, "cpu_percent") {
 		t.Fatalf("agent_stats missing cpu_percent in %v", agentStatColumns)
 	}
+	agentColumns := tableColumns(t, database, "agents")
+	for _, column := range []string{"agent_version", "agent_commit"} {
+		if !containsString(agentColumns, column) {
+			t.Fatalf("agents missing column %s in %v", column, agentColumns)
+		}
+	}
 	for _, index := range []string{
 		"idx_proxy_request_events_route_id",
 		"idx_proxy_request_events_agent_id",
@@ -362,6 +368,7 @@ func TestMigrationUpgradesLegacySchemaWithAgentColumns(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	for table, columns := range map[string][]string{
+		"agents":               {"agent_version", "agent_commit"},
 		"connections":          {"agent_id"},
 		"agent_stats":          {"agent_id", "req_internal_error", "cpu_percent"},
 		"proxy_request_events": {"agent_id", "listener_id", "route_id", "route_target_id", "waf_rule_id", "waf_action", "request_bytes", "response_bytes", "cache_rule_id", "cache_status", "cache_bytes", "method", "host", "path_prefix"},

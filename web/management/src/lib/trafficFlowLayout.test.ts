@@ -447,6 +447,7 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
     rateLimitRules: [],
     trafficShaperRules: [],
     cacheRules: [],
+    retryRules: [],
     tlsCertificates: [],
     proxy: undefined,
     ...overrides,
@@ -546,6 +547,8 @@ function agent(overrides: Partial<Agent>): Agent {
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
     labels: {},
+    version: "",
+    commit: "",
     ...overrides,
   } as Agent;
 }

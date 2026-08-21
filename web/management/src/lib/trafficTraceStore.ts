@@ -258,6 +258,10 @@ export class TrafficTraceStore {
     request.cacheRuleName = event.cacheRuleName || request.cacheRuleName;
     request.cacheStatus = event.cacheStatus || request.cacheStatus;
     request.cacheKeyDigest = event.cacheKeyDigest || request.cacheKeyDigest;
+    request.retryRuleId = event.retryRuleId || request.retryRuleId;
+    request.retryRuleName = event.retryRuleName || request.retryRuleName;
+    request.retryCount = event.retryCount || request.retryCount;
+    request.retryOutcome = event.retryOutcome || request.retryOutcome;
     request.lastSeenAt = now;
     request.lastEventSequence = event.sequence;
     request.version += 1;
@@ -371,6 +375,10 @@ export function newTraceRequest(requestId: string, now = Date.now()): TraceReque
     cacheRuleName: "",
     cacheStatus: "",
     cacheKeyDigest: "",
+    retryRuleId: 0n,
+    retryRuleName: "",
+    retryCount: 0n,
+    retryOutcome: "",
     visible: true,
     completedAt: null,
     latestEvent: null,
@@ -417,6 +425,7 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.CACHE_STORED: return "Cache stored";
     case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Shaper";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream";
+    case TrafficTraceStage.UPSTREAM_RETRY: return "Retry";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Responded";
     case TrafficTraceStage.RESPONSE_SENT: return "Done";
     case TrafficTraceStage.FAILED: return "Failed";
@@ -454,6 +463,10 @@ export function traceFlowLabel(request: TraceRequest): string {
   if (request.cacheRuleName || request.cacheRuleId > 0n || request.cacheStatus) {
     const label = request.cacheRuleName ? `Cache: ${request.cacheRuleName}` : "Cache";
     parts.push(request.cacheStatus ? `${label} (${request.cacheStatus})` : label);
+  }
+  if (request.retryRuleName || request.retryRuleId > 0n || request.retryCount > 0n) {
+    const label = request.retryRuleName ? `Retry: ${request.retryRuleName}` : "Retry";
+    parts.push(request.retryOutcome ? `${label} (${request.retryOutcome})` : label);
   }
   if (request.routeLabel || request.defaultRoute) {
     parts.push(request.routeLabel || "Default route");
