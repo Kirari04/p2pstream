@@ -39,7 +39,7 @@ import {
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 import { agentBuildStatus, shortBuildCommit, type AgentBuildState } from "@/lib/agentVersion";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import type {
   Agent,
   AgentConnectionSession,
@@ -1248,6 +1248,7 @@ async function copyUninstallSnippet() {
       preset="card"
       title="Rotate Agent Token"
       :style="modalCardStyle('34rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       @update:show="handleRotateModalUpdate"
     >
@@ -1278,6 +1279,7 @@ async function copyUninstallSnippet() {
       preset="card"
       title="Agent Uninstall"
       :style="modalCardStyle('46rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       @update:show="handleUninstallModalUpdate"
     >
@@ -1323,6 +1325,7 @@ async function copyUninstallSnippet() {
       preset="card"
       :title="setupModalTitle"
       :style="modalCardStyle('48rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       :mask-closable="false"
       :close-on-esc="false"

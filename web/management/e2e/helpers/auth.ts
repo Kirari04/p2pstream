@@ -16,7 +16,7 @@ export type AuthenticateOptions = {
 
 export const defaultUsername = "admin";
 export const defaultPassword = "playwright-password";
-export const defaultSetupToken = "playwright-setup-token";
+export const defaultSetupToken = "playwright-setup-token-not-for-production";
 
 export async function authenticate(page: Page, appBaseURL: string, options: AuthenticateOptions = {}) {
   const managementPort = options.managementPort ?? process.env.PLAYWRIGHT_MANAGEMENT_PORT ?? "19081";
