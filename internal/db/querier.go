@@ -117,6 +117,7 @@ type Querier interface {
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
 	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error)
+	ListAgentConnectionsSince(ctx context.Context, arg ListAgentConnectionsSinceParams) ([]ListAgentConnectionsSinceRow, error)
 	ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error)
 	ListAgentLabelsByAgent(ctx context.Context, agentID int64) ([]PublicAgentLabel, error)
 	ListAgentStatRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListAgentStatRollupMinutesSinceRow, error)

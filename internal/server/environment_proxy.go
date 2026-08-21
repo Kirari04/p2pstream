@@ -29,6 +29,7 @@ const environmentProxyPrefix = "/environments/"
 var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"GetStatus":                         {},
 	"GetDashboard":                      {},
+	"GetAgentAvailability":              {},
 	"GetDashboardDiagnostics":           {},
 	"GetTrafficTraceSettings":           {},
 	"SetTrafficTraceSettings":           {},

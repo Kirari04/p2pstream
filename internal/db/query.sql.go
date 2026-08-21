@@ -3371,6 +3371,52 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 	return id, err
 }
 
+const listAgentConnectionsSince = `-- name: ListAgentConnectionsSince :many
+SELECT id, connected_at, disconnected_at
+FROM connections
+WHERE agent_id = ?1
+  AND (
+    connected_at >= ?2
+    OR disconnected_at IS NULL
+    OR disconnected_at >= ?2
+  )
+ORDER BY connected_at ASC, id ASC
+`
+
+type ListAgentConnectionsSinceParams struct {
+	AgentID sql.NullInt64 `json:"agent_id"`
+	Since   time.Time     `json:"since"`
+}
+
+type ListAgentConnectionsSinceRow struct {
+	ID             int64        `json:"id"`
+	ConnectedAt    time.Time    `json:"connected_at"`
+	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+}
+
+func (q *Queries) ListAgentConnectionsSince(ctx context.Context, arg ListAgentConnectionsSinceParams) ([]ListAgentConnectionsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAgentConnectionsSince, arg.AgentID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAgentConnectionsSinceRow
+	for rows.Next() {
+		var i ListAgentConnectionsSinceRow
+		if err := rows.Scan(&i.ID, &i.ConnectedAt, &i.DisconnectedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAgentLabels = `-- name: ListAgentLabels :many
 SELECT agent_id, key, value, source, created_at, updated_at
 FROM public_agent_labels

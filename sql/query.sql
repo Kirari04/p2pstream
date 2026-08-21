@@ -761,6 +761,17 @@ WHERE c.connected_at >= ?
    OR c.disconnected_at >= ?
 ORDER BY c.connected_at ASC;
 
+-- name: ListAgentConnectionsSince :many
+SELECT id, connected_at, disconnected_at
+FROM connections
+WHERE agent_id = sqlc.arg(agent_id)
+  AND (
+    connected_at >= sqlc.arg(since)
+    OR disconnected_at IS NULL
+    OR disconnected_at >= sqlc.arg(since)
+  )
+ORDER BY connected_at ASC, id ASC;
+
 -- name: ListRecentConnections :many
 SELECT
     c.id,

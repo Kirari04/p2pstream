@@ -34,6 +34,12 @@ const (
 	diagnosticsMaxSampleLimit     = int64(100)
 )
 
+var agentAvailabilityWindows = map[string]time.Duration{
+	"24h": 24 * time.Hour,
+	"7d":  7 * 24 * time.Hour,
+	"30d": 30 * 24 * time.Hour,
+}
+
 func (a *App) GetDashboard(
 	ctx context.Context,
 	req *connect.Request[p2pstreamv1.GetDashboardRequest],
@@ -55,6 +61,52 @@ func (a *App) GetDashboard(
 		return nil, err
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (a *App) GetAgentAvailability(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.GetAgentAvailabilityRequest],
+) (*connect.Response[p2pstreamv1.GetAgentAvailabilityResponse], error) {
+	if _, err := a.requireUser(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	if a.DB == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for agent availability"))
+	}
+
+	publicID, err := validateAgentPublicID(req.Msg.GetAgentPublicId())
+	if err != nil {
+		return nil, err
+	}
+	label, window, err := agentAvailabilityWindow(req.Msg.GetWindowLabel())
+	if err != nil {
+		return nil, err
+	}
+	agent, err := a.DB.GetAgentByPublicID(ctx, publicID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("agent not found"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	resp, err := a.agentAvailability(ctx, agent, label, window, time.Now().UTC())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func agentAvailabilityWindow(label string) (string, time.Duration, error) {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		label = "24h"
+	}
+	window, ok := agentAvailabilityWindows[label]
+	if !ok {
+		return "", 0, connect.NewError(connect.CodeInvalidArgument, errors.New("availability window must be 24h, 7d, or 30d"))
+	}
+	return label, window, nil
 }
 
 func (a *App) GetDashboardDiagnostics(
@@ -1503,7 +1555,146 @@ func (a *App) recentAgentConnectionSessions(ctx context.Context, now time.Time) 
 	return sessions, nil
 }
 
+func (a *App) agentAvailability(
+	ctx context.Context,
+	agent db.Agent,
+	windowLabel string,
+	window time.Duration,
+	now time.Time,
+) (*p2pstreamv1.GetAgentAvailabilityResponse, error) {
+	now = now.UTC()
+	retentionSince := now.AddDate(0, 0, -a.observabilityRetentionDays()).UTC()
+	observedSince := maxTime(now.Add(-window), retentionSince)
+	observedSince = maxTime(observedSince, agent.CreatedAt.UTC())
+	if observedSince.After(now) {
+		observedSince = now
+	}
+
+	rows, err := a.DB.ListAgentConnectionsSince(ctx, db.ListAgentConnectionsSinceParams{
+		AgentID: sql.NullInt64{Int64: agent.ID, Valid: true},
+		Since:   observedSince,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	connected := false
+	var activeConnection *AgentConn
+	if a.AgentHub != nil {
+		activeConnection = a.AgentHub.connectedByID(agent.ID)
+		connected = activeConnection != nil
+	}
+
+	intervals := make([]dashboardTimeInterval, 0, len(rows)+1)
+	disconnectCount := int64(0)
+	for _, row := range rows {
+		end := now
+		if row.DisconnectedAt.Valid {
+			end = row.DisconnectedAt.Time.UTC()
+		}
+		start := maxTime(row.ConnectedAt.UTC(), observedSince)
+		if end.After(now) {
+			end = now
+		}
+		if end.After(start) {
+			intervals = append(intervals, dashboardTimeInterval{start: start, end: end})
+		}
+		if row.DisconnectedAt.Valid {
+			disconnectedAt := row.DisconnectedAt.Time.UTC()
+			if !disconnectedAt.Before(observedSince) && !disconnectedAt.After(now) {
+				disconnectCount++
+			}
+		}
+	}
+
+	// The hub is the source of truth for live state. Include its current interval
+	// if the database insert is not yet visible to this request.
+	if activeConnection != nil && !activeConnection.ConnectedAt.IsZero() {
+		start := maxTime(activeConnection.ConnectedAt.UTC(), observedSince)
+		if now.After(start) {
+			intervals = append(intervals, dashboardTimeInterval{start: start, end: now})
+		}
+	}
+
+	merged := mergeDashboardTimeIntervals(intervals)
+	uptimeMillis := sumMergedIntervalMillis(merged)
+	observedMillis := dashboardDurationMillis(observedSince, now)
+	if uptimeMillis > observedMillis {
+		uptimeMillis = observedMillis
+	}
+	downtimeMillis := observedMillis - uptimeMillis
+	if downtimeMillis < 0 {
+		downtimeMillis = 0
+	}
+	uptimePercent := float64(0)
+	if observedMillis > 0 {
+		uptimePercent = float64(uptimeMillis) / float64(observedMillis)
+	}
+
+	protoIntervals := make([]*p2pstreamv1.AgentAvailabilityInterval, 0, len(merged))
+	for _, interval := range merged {
+		protoIntervals = append(protoIntervals, &p2pstreamv1.AgentAvailabilityInterval{
+			ConnectedAtUnixMillis:    interval.start.UnixMilli(),
+			DisconnectedAtUnixMillis: interval.end.UnixMilli(),
+			Active:                   connected && interval.end.Equal(now),
+		})
+	}
+
+	return &p2pstreamv1.GetAgentAvailabilityResponse{
+		AgentPublicId:           agent.PublicID,
+		AgentName:               agent.Name,
+		WindowLabel:             windowLabel,
+		ObservedSinceUnixMillis: observedSince.UnixMilli(),
+		ObservedUntilUnixMillis: now.UnixMilli(),
+		UptimeMillis:            uptimeMillis,
+		DowntimeMillis:          downtimeMillis,
+		UptimePercent:           uptimePercent,
+		DisconnectCount:         disconnectCount,
+		LongestDowntimeMillis:   longestDashboardGapMillis(observedSince, now, merged),
+		Connected:               connected,
+		Intervals:               protoIntervals,
+	}, nil
+}
+
+func mergeDashboardTimeIntervals(intervals []dashboardTimeInterval) []dashboardTimeInterval {
+	if len(intervals) == 0 {
+		return nil
+	}
+	merged := make([]dashboardTimeInterval, 0, len(intervals))
+	for _, interval := range intervals {
+		if !interval.end.After(interval.start) {
+			continue
+		}
+		if len(merged) == 0 || interval.start.After(merged[len(merged)-1].end) {
+			merged = append(merged, interval)
+			continue
+		}
+		if interval.end.After(merged[len(merged)-1].end) {
+			merged[len(merged)-1].end = interval.end
+		}
+	}
+	return merged
+}
+
+func longestDashboardGapMillis(start time.Time, end time.Time, intervals []dashboardTimeInterval) int64 {
+	cursor := start
+	longest := int64(0)
+	for _, interval := range intervals {
+		if interval.start.After(cursor) {
+			longest = max(longest, dashboardDurationMillis(cursor, interval.start))
+		}
+		if interval.end.After(cursor) {
+			cursor = interval.end
+		}
+	}
+	if end.After(cursor) {
+		longest = max(longest, dashboardDurationMillis(cursor, end))
+	}
+	return longest
+}
+
 func sumMergedIntervalMillis(intervals []dashboardTimeInterval) int64 {
+	intervals = mergeDashboardTimeIntervals(intervals)
 	if len(intervals) == 0 {
 		return 0
 	}

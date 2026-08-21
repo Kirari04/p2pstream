@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, inject, ref, watch } from "vue";
+import { computed, h, inject, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NAlert, NButton, NCheckbox, NDataTable, NDropdown, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns, DropdownDividerOption, DropdownOption } from "naive-ui";
@@ -16,6 +16,7 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import AgentAvailabilityChart from "@/components/AgentAvailabilityChart.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
 import { dashboardKey, isBusyKey, publicProxyConfigKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
@@ -38,12 +39,16 @@ import {
 } from "@/lib/dashboardStats";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
+import { messageFromError } from "@/lib/errors";
+import { sessionForAvailabilitySegment } from "@/lib/agentAvailability";
+import type { AvailabilitySegment, AvailabilityWindow } from "@/lib/agentAvailability";
 import { agentBuildStatus, shortBuildCommit, type AgentBuildState } from "@/lib/agentVersion";
 import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import type {
   Agent,
   AgentConnectionSession,
   AgentUptimeSummary,
+  GetAgentAvailabilityResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const managementClient = useManagementClient();
@@ -192,6 +197,19 @@ const filteredAgentConnections = computed(() => {
   if (!investigatedAgentPublicId.value) return recentAgentConnections.value;
   return recentAgentConnections.value.filter((session) => session.agentPublicId === investigatedAgentPublicId.value);
 });
+const activityAgentOptions = computed(() => agents.value.map((agent) => ({
+  label: `${agent.name} · ${agent.publicId}`,
+  value: agent.publicId,
+})));
+const availabilityWindow = ref<AvailabilityWindow>("24h");
+const availability = ref<GetAgentAvailabilityResponse | null>(null);
+const availabilityLoading = ref(false);
+const availabilityError = ref("");
+const availabilityRetry = ref(0);
+const sessionPage = ref(1);
+const highlightedSessionId = ref("");
+const inspectedSegmentSummary = ref("");
+let availabilityRequestSequence = 0;
 
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const openAgentActionMenuId = ref("");
@@ -219,7 +237,7 @@ const uninstallReleaseRepository = ref(defaultReleaseRepository());
 const uninstallCopyLabel = ref("Copy");
 let uninstallCopyReset: number | undefined;
 
-const sessionPagination = { pageSize: 12 };
+const sessionPagination = computed(() => ({ page: sessionPage.value, pageSize: 12 }));
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
 const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setupManagementUrl.value));
@@ -477,6 +495,25 @@ watch(managementUsesTLS, (usesTLS) => {
   }
 });
 
+watch(
+  [
+    activeAgentSection,
+    investigatedAgentPublicId,
+    availabilityWindow,
+    () => dashboard?.value?.generatedAtUnixMillis ?? 0n,
+    availabilityRetry,
+  ],
+  () => void loadAgentAvailability(),
+  { immediate: true },
+);
+
+watch([investigatedAgentPublicId, availabilityWindow], clearInspectedAvailabilitySegment);
+
+watch(filteredAgentConnections, (sessions) => {
+  const maxPage = Math.max(1, Math.ceil(sessions.length / 12));
+  if (sessionPage.value > maxPage) sessionPage.value = maxPage;
+});
+
 function bigIntLabel(value: bigint | undefined): string {
   if (value === undefined) return "0";
   return new Intl.NumberFormat().format(Number(value));
@@ -676,6 +713,83 @@ async function clearInvestigatedAgent() {
   await router.replace({ path: "/agent/activity" });
 }
 
+async function selectActivityAgent(agentPublicId: string) {
+  if (agentPublicId === investigatedAgentPublicId.value) return;
+  await router.replace({ path: "/agent/activity", query: { agent: agentPublicId } });
+}
+
+async function loadAgentAvailability() {
+  const requestSequence = ++availabilityRequestSequence;
+  const agentPublicId = investigatedAgentPublicId.value;
+  const windowLabel = availabilityWindow.value;
+  if (activeAgentSection.value !== "activity" || !agentPublicId) {
+    availability.value = null;
+    availabilityError.value = "";
+    availabilityLoading.value = false;
+    return;
+  }
+
+  if (availability.value?.agentPublicId !== agentPublicId || availability.value?.windowLabel !== windowLabel) {
+    availability.value = null;
+  }
+  availabilityLoading.value = true;
+  availabilityError.value = "";
+  try {
+    const response = await managementClient.getAgentAvailability({
+      agentPublicId,
+      windowLabel,
+    });
+    if (requestSequence !== availabilityRequestSequence) return;
+    availability.value = response;
+  } catch (error) {
+    if (requestSequence !== availabilityRequestSequence) return;
+    availabilityError.value = messageFromError(error);
+  } finally {
+    if (requestSequence === availabilityRequestSequence) availabilityLoading.value = false;
+  }
+}
+
+function retryAgentAvailability() {
+  availabilityRetry.value += 1;
+}
+
+function inspectAvailabilitySegment(segment: AvailabilitySegment) {
+  const duration = formatLongDuration(segment.endMillis - segment.startMillis);
+  const state = segment.state === "online" ? "Online session" : "Outage";
+  const match = sessionForAvailabilitySegment(segment, filteredAgentConnections.value);
+  if (!match) {
+    highlightedSessionId.value = "";
+    inspectedSegmentSummary.value = `${state} · ${duration} · outside the recent session table`;
+    return;
+  }
+
+  const relation = match.relation === "reconnect"
+    ? "reconnect highlighted"
+    : match.relation === "disconnect"
+      ? "disconnect highlighted"
+      : "session highlighted";
+  inspectedSegmentSummary.value = `${state} · ${duration} · ${relation}`;
+  highlightedSessionId.value = match.session.id.toString();
+  const sessionIndex = filteredAgentConnections.value.findIndex((session) => session.id === match.session.id);
+  if (sessionIndex >= 0) sessionPage.value = Math.floor(sessionIndex / 12) + 1;
+  void revealHighlightedSession();
+}
+
+function clearInspectedAvailabilitySegment() {
+  highlightedSessionId.value = "";
+  inspectedSegmentSummary.value = "";
+}
+
+async function revealHighlightedSession() {
+  await nextTick();
+  window.requestAnimationFrame(() => {
+    const row = document.querySelector<HTMLElement>(`[data-session-id="${highlightedSessionId.value}"]`);
+    if (!row) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+  });
+}
+
 function agentUserLabels(agent: Agent) {
   return userAgentLabelPairs(agent.labels);
 }
@@ -801,6 +915,15 @@ function agentRowProps(agent: Agent): Record<string, string> {
 
 function sessionRowKey(session: AgentConnectionSession): string {
   return session.id.toString();
+}
+
+function sessionRowProps(session: AgentConnectionSession): Record<string, string> {
+  const highlighted = highlightedSessionId.value === session.id.toString();
+  return {
+    "data-session-id": session.id.toString(),
+    class: highlighted ? "agent-session-row--highlighted" : "",
+    "aria-current": highlighted ? "true" : "false",
+  };
 }
 
 function deleteAgentDisabledReason(agent: Agent): string {
@@ -1119,6 +1242,20 @@ async function copyUninstallSnippet() {
       </div>
     </section>
 
+    <AgentAvailabilityChart
+      v-if="activeAgentSection === 'activity'"
+      :availability="availability"
+      :selected-agent-id="investigatedAgentPublicId"
+      :agent-options="activityAgentOptions"
+      :window="availabilityWindow"
+      :loading="availabilityLoading"
+      :error="availabilityError"
+      @select-agent="selectActivityAgent"
+      @update:window="availabilityWindow = $event"
+      @inspect-segment="inspectAvailabilitySegment"
+      @retry="retryAgentAvailability"
+    />
+
     <section v-if="activeAgentSection === 'activity'" class="surface-card agent-runtime-card">
       <div class="agent-section-header">
         <div>
@@ -1210,6 +1347,10 @@ async function copyUninstallSnippet() {
               Clear
             </NButton>
           </div>
+          <div v-if="inspectedSegmentSummary" class="agent-chart-selection">
+            <NTag size="small" :bordered="false" type="info">{{ inspectedSegmentSummary }}</NTag>
+            <NButton text size="tiny" attr-type="button" @click="clearInspectedAvailabilitySegment">Clear selection</NButton>
+          </div>
           <NTag size="small" :bordered="false" type="default">{{ filteredAgentConnections.length }} sessions</NTag>
         </div>
       </div>
@@ -1218,11 +1359,13 @@ async function copyUninstallSnippet() {
         :columns="sessionColumns"
         :data="filteredAgentConnections"
         :row-key="sessionRowKey"
+        :row-props="sessionRowProps"
         :pagination="sessionPagination"
         :bordered="false"
         :single-line="false"
         :scroll-x="870"
         size="small"
+        @update:page="sessionPage = $event"
       />
       <EmptyState
         v-else
@@ -1679,7 +1822,15 @@ async function copyUninstallSnippet() {
   gap: 0.35rem;
 }
 
-.agent-investigation-filter .n-tag {
+.agent-chart-selection {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.agent-investigation-filter .n-tag,
+.agent-chart-selection .n-tag {
   min-width: 0;
   max-width: 20rem;
   overflow: hidden;
@@ -1691,6 +1842,14 @@ async function copyUninstallSnippet() {
 .agent-table-card .n-data-table-th,
 .agent-table-card .n-data-table-td {
   padding: 0.7rem 0.75rem;
+}
+
+.agent-table-card .n-data-table-tr.agent-session-row--highlighted .n-data-table-td {
+  background: color-mix(in srgb, var(--app-accent) 11%, var(--app-panel)) !important;
+}
+
+.agent-table-card .n-data-table-tr.agent-session-row--highlighted .n-data-table-td:first-child {
+  box-shadow: inset 3px 0 0 var(--app-accent);
 }
 
 .agent-runtime-grid {

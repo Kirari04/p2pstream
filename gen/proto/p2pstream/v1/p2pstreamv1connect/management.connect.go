@@ -69,6 +69,9 @@ const (
 	// AgentManagementServiceGetDashboardProcedure is the fully-qualified name of the
 	// AgentManagementService's GetDashboard RPC.
 	AgentManagementServiceGetDashboardProcedure = "/p2pstream.v1.AgentManagementService/GetDashboard"
+	// AgentManagementServiceGetAgentAvailabilityProcedure is the fully-qualified name of the
+	// AgentManagementService's GetAgentAvailability RPC.
+	AgentManagementServiceGetAgentAvailabilityProcedure = "/p2pstream.v1.AgentManagementService/GetAgentAvailability"
 	// AgentManagementServiceGetDashboardDiagnosticsProcedure is the fully-qualified name of the
 	// AgentManagementService's GetDashboardDiagnostics RPC.
 	AgentManagementServiceGetDashboardDiagnosticsProcedure = "/p2pstream.v1.AgentManagementService/GetDashboardDiagnostics"
@@ -313,6 +316,7 @@ type AgentManagementServiceClient interface {
 	FinalizeManagementTlsTrustCleanup(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
+	GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
 	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
 	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
@@ -472,6 +476,12 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceGetDashboardProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
+			connect.WithClientOptions(opts...),
+		),
+		getAgentAvailability: connect.NewClient[v1.GetAgentAvailabilityRequest, v1.GetAgentAvailabilityResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetAgentAvailabilityProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentAvailability")),
 			connect.WithClientOptions(opts...),
 		),
 		getDashboardDiagnostics: connect.NewClient[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse](
@@ -947,6 +957,7 @@ type agentManagementServiceClient struct {
 	finalizeManagementTlsTrustCleanup    *connect.Client[v1.FinalizeManagementTlsTrustCleanupRequest, v1.FinalizeManagementTlsTrustCleanupResponse]
 	getStatus                            *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
 	getDashboard                         *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getAgentAvailability                 *connect.Client[v1.GetAgentAvailabilityRequest, v1.GetAgentAvailabilityResponse]
 	getDashboardDiagnostics              *connect.Client[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse]
 	getTrafficTraceSettings              *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
 	setTrafficTraceSettings              *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
@@ -1090,6 +1101,11 @@ func (c *agentManagementServiceClient) GetStatus(ctx context.Context, req *conne
 // GetDashboard calls p2pstream.v1.AgentManagementService.GetDashboard.
 func (c *agentManagementServiceClient) GetDashboard(ctx context.Context, req *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
 	return c.getDashboard.CallUnary(ctx, req)
+}
+
+// GetAgentAvailability calls p2pstream.v1.AgentManagementService.GetAgentAvailability.
+func (c *agentManagementServiceClient) GetAgentAvailability(ctx context.Context, req *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error) {
+	return c.getAgentAvailability.CallUnary(ctx, req)
 }
 
 // GetDashboardDiagnostics calls p2pstream.v1.AgentManagementService.GetDashboardDiagnostics.
@@ -1508,6 +1524,7 @@ type AgentManagementServiceHandler interface {
 	FinalizeManagementTlsTrustCleanup(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
+	GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
 	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
 	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
@@ -1663,6 +1680,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceGetDashboardProcedure,
 		svc.GetDashboard,
 		connect.WithSchema(agentManagementServiceMethods.ByName("GetDashboard")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetAgentAvailabilityHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetAgentAvailabilityProcedure,
+		svc.GetAgentAvailability,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentAvailability")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceGetDashboardDiagnosticsHandler := connect.NewUnaryHandler(
@@ -2147,6 +2170,8 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceGetStatusHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetDashboardProcedure:
 			agentManagementServiceGetDashboardHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetAgentAvailabilityProcedure:
+			agentManagementServiceGetAgentAvailabilityHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetDashboardDiagnosticsProcedure:
 			agentManagementServiceGetDashboardDiagnosticsHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetTrafficTraceSettingsProcedure:
@@ -2354,6 +2379,10 @@ func (UnimplementedAgentManagementServiceHandler) GetStatus(context.Context, *co
 
 func (UnimplementedAgentManagementServiceHandler) GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetDashboard is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetAgentAvailability is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error) {

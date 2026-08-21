@@ -1955,6 +1955,32 @@ message AgentConnectionSession {
   bool active = 8;
 }
 
+message GetAgentAvailabilityRequest {
+  string agent_public_id = 1;
+  string window_label = 2;
+}
+
+message AgentAvailabilityInterval {
+  int64 connected_at_unix_millis = 1;
+  int64 disconnected_at_unix_millis = 2;
+  bool active = 3;
+}
+
+message GetAgentAvailabilityResponse {
+  string agent_public_id = 1;
+  string agent_name = 2;
+  string window_label = 3;
+  int64 observed_since_unix_millis = 4;
+  int64 observed_until_unix_millis = 5;
+  int64 uptime_millis = 6;
+  int64 downtime_millis = 7;
+  double uptime_percent = 8;
+  int64 disconnect_count = 9;
+  int64 longest_downtime_millis = 10;
+  bool connected = 11;
+  repeated AgentAvailabilityInterval intervals = 12;
+}
+
 message GetDashboardResponse {
   reserved 7;
   reserved "top_backends";
@@ -2327,6 +2353,7 @@ service AgentManagementService {
   rpc FinalizeManagementTlsTrustCleanup(FinalizeManagementTlsTrustCleanupRequest) returns (FinalizeManagementTlsTrustCleanupResponse) {}
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
   rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
+  rpc GetAgentAvailability(GetAgentAvailabilityRequest) returns (GetAgentAvailabilityResponse) {}
   rpc GetDashboardDiagnostics(GetDashboardDiagnosticsRequest) returns (GetDashboardDiagnosticsResponse) {}
   rpc GetTrafficTraceSettings(GetTrafficTraceSettingsRequest) returns (GetTrafficTraceSettingsResponse) {}
   rpc SetTrafficTraceSettings(SetTrafficTraceSettingsRequest) returns (SetTrafficTraceSettingsResponse) {}
