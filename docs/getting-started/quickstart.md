@@ -58,7 +58,7 @@ The management server uses HTTPS by default. In auto mode, p2pstream creates a l
 
 ## Verification
 
-The first browser visit should show **Setup Admin**. After setup, **Overview** should load and the **Proxy** page should show the seeded `public-http` and `public-https` listeners plus default routes with static welcome targets.
+The first browser visit should show **Setup Admin**. After setup, **Overview** should load. **Proxy -> Listeners** should show the seeded `public-http` and `public-https` listeners, while **Proxy -> Routes** should show the default routes with static welcome targets.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen showing setup token, username, password, and confirm password fields">
@@ -66,8 +66,8 @@ The first browser visit should show **Setup Admin**. After setup, **Overview** s
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing seeded default routes and route targets">
-  <figcaption>The seeded Proxy routes give a new install a known default runtime state. Replace the welcome targets with real routes before serving production traffic.</figcaption>
+  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy Routes page showing a compact table of seeded default routes and their route targets">
+  <figcaption>The Proxy Routes page gives a new install a known default runtime state. Replace the welcome targets with real routes before serving production traffic.</figcaption>
 </figure>
 
 On a new database, p2pstream seeds:
@@ -88,7 +88,7 @@ The seeded static targets serve a local `Welcome to p2pstream proxy` page. Repla
 | Browser cannot connect | Confirm `docker ps`, host firewall, and `P2PSTREAM_MANAGEMENT_PORT`. |
 | Certificate warning | Expected with auto management TLS until the generated CA is trusted. |
 | Agent snippets use the wrong URL | Fix `MANAGEMENT_PUBLIC_URL` and restart with `docker compose up -d`. |
-| Public listener does not answer | Confirm the listener exists in **Proxy** and the port is published by Compose. |
+| Public listener does not answer | Confirm the listener exists under **Proxy -> Listeners**, is enabled and running, and its port is published by Compose. |
 
 See [Troubleshooting](../operations/troubleshooting) for route, TLS, agent, and cache-specific checks.
 

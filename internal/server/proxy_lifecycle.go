@@ -16,12 +16,14 @@ import (
 )
 
 const (
-	publicListenerProtocolHTTP  = "http"
-	publicListenerProtocolHTTPS = "https"
+	publicListenerProtocolHTTP    = "http"
+	publicListenerProtocolHTTPS   = "https"
+	publicListenerShutdownTimeout = 10 * time.Second
 )
 
 type publicListenerRuntime struct {
 	Server       *http.Server
+	TLSSelector  *publicTLSSelectorStore
 	State        p2pstreamv1.ProxyState
 	LastError    string
 	StartedAt    time.Time
@@ -71,7 +73,7 @@ func (a *App) startProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) 
 	}
 
 	a.proxyMu.Lock()
-	a.publicSnapshot = snap
+	a.setPublicSnapshotLocked(snap)
 	a.proxyServiceActive = true
 	a.ensureListenerStatesLocked(snap)
 	a.proxyState = p2pstreamv1.ProxyState_PROXY_STATE_STARTING
@@ -111,13 +113,14 @@ func (a *App) stopProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
 
 	var shutdownErr error
 	for _, stop := range stops {
-		err := stop.Server.Shutdown(ctx)
+		err := shutdownPublicHTTPServer(ctx, stop.Server, publicListenerShutdownTimeout)
 		if err != nil {
 			shutdownErr = errors.Join(shutdownErr, err)
 		}
 		a.proxyMu.Lock()
 		if runtime := a.publicListenerState[stop.ID]; runtime != nil && runtime.Server == stop.Server {
 			runtime.Server = nil
+			runtime.TLSSelector = nil
 			runtime.StoppedAt = time.Now()
 			if err != nil {
 				runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_ERROR
@@ -136,6 +139,13 @@ func (a *App) stopProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
 	if a.TargetHealth != nil {
 		a.TargetHealth.reconcile(a, nil, false)
 	}
+	if a.DirectTransports != nil {
+		a.DirectTransports.closeAll()
+	}
+	closePublicAccessProviderIdleConnections(a.currentPublicSnapshot())
+	if err := a.FlushObservabilityRecorder(ctx); err != nil {
+		log.Warn().Err(err).Msg("Failed to flush observability recorder after stopping proxy")
+	}
 	if shutdownErr != nil {
 		return status, connect.NewError(connect.CodeInternal, shutdownErr)
 	}
@@ -145,6 +155,131 @@ func (a *App) stopProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
 type publicListenerStop struct {
 	ID     int64
 	Server *http.Server
+}
+
+func shutdownPublicHTTPServer(ctx context.Context, srv *http.Server, timeout time.Duration) error {
+	if srv == nil {
+		return nil
+	}
+	shutdownCtx, cancel := publicListenerShutdownContext(ctx, timeout)
+	defer cancel()
+	err := srv.Shutdown(shutdownCtx)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		log.Warn().Err(err).Dur("timeout", timeout).Msg("Public listener graceful shutdown interrupted; forcing close")
+		if closeErr := srv.Close(); closeErr != nil {
+			return errors.Join(err, closeErr)
+		}
+		return nil
+	}
+	return err
+}
+
+func publicListenerShutdownContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if timeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
+type publicTLSSelectorRefresh struct {
+	listenerID   int64
+	listenerName string
+	generation   uint64
+	snapshot     *publicProxySnapshot
+	server       *http.Server
+	selector     *publicTLSSelectorStore
+}
+
+func (a *App) refreshRunningPublicTLSSelectors(snap *publicProxySnapshot, generation uint64) {
+	if a == nil || snap == nil {
+		return
+	}
+	updates := make([]publicTLSSelectorRefresh, 0)
+	a.proxyMu.Lock()
+	if a.publicSnapshot != snap || a.publicSnapshotGeneration != generation {
+		a.proxyMu.Unlock()
+		return
+	}
+	for listenerID, listener := range snap.Listeners {
+		if listener.Protocol != publicListenerProtocolHTTPS {
+			continue
+		}
+		runtime := a.publicListenerState[listenerID]
+		if runtime == nil || runtime.Server == nil || runtime.TLSSelector == nil || runtime.State == p2pstreamv1.ProxyState_PROXY_STATE_STOPPING {
+			continue
+		}
+		updates = append(updates, publicTLSSelectorRefresh{
+			listenerID:   listenerID,
+			listenerName: listener.Name,
+			generation:   generation,
+			snapshot:     snap,
+			server:       runtime.Server,
+			selector:     runtime.TLSSelector,
+		})
+	}
+	a.proxyMu.Unlock()
+
+	for _, update := range updates {
+		selector, err := update.selector.buildRefresh(update.listenerID, snap, a.PublicACME)
+		if hook := a.publicTLSSelectorRefreshBeforePublish; hook != nil {
+			hook(update.generation)
+		}
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Int64("listener_id", update.listenerID).
+				Str("listener", update.listenerName).
+				Msg("Failed to refresh public TLS certificate selector")
+			a.markPublicTLSSelectorRefreshError(update, err)
+			continue
+		}
+		a.publishPublicTLSSelectorRefresh(update, selector)
+	}
+}
+
+func (a *App) publicTLSSelectorRefreshCurrentLocked(update publicTLSSelectorRefresh) (*publicListenerRuntime, bool) {
+	if a.publicSnapshot != update.snapshot || a.publicSnapshotGeneration != update.generation {
+		return nil, false
+	}
+	runtime := a.publicListenerState[update.listenerID]
+	if runtime == nil || runtime.Server != update.server || runtime.TLSSelector != update.selector || runtime.Server == nil || runtime.State == p2pstreamv1.ProxyState_PROXY_STATE_STOPPING {
+		return nil, false
+	}
+	return runtime, true
+}
+
+func (a *App) markPublicTLSSelectorRefreshError(update publicTLSSelectorRefresh, err error) {
+	a.proxyMu.Lock()
+	defer a.proxyMu.Unlock()
+	runtime, ok := a.publicTLSSelectorRefreshCurrentLocked(update)
+	if !ok {
+		return
+	}
+	// The listener is still serving with its last known-good selector. Keep it
+	// addressable so a retry cannot orphan the live server by starting a second
+	// listener on the same address.
+	runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_RUNNING
+	runtime.LastError = "refresh TLS certificates: " + err.Error()
+	a.proxyStatusLocked()
+}
+
+func (a *App) publishPublicTLSSelectorRefresh(update publicTLSSelectorRefresh, selector *publicTLSSelector) {
+	a.proxyMu.Lock()
+	defer a.proxyMu.Unlock()
+	runtime, ok := a.publicTLSSelectorRefreshCurrentLocked(update)
+	if !ok {
+		return
+	}
+	update.selector.publish(selector)
+	runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_RUNNING
+	runtime.LastError = ""
+	a.proxyStatusLocked()
 }
 
 func (a *App) startPublicListenerRuntime(ctx context.Context, listenerID int64, activateService bool) (*p2pstreamv1.PublicListenerStatus, error) {
@@ -177,7 +312,7 @@ func (a *App) startPublicListenerRuntime(ctx context.Context, listenerID int64, 
 		a.proxyMu.Unlock()
 		return status, connect.NewError(connect.CodeFailedPrecondition, errors.New("listener is disabled"))
 	}
-	if runtime.Server != nil && runtime.State == p2pstreamv1.ProxyState_PROXY_STATE_RUNNING {
+	if runtime.Server != nil {
 		status := a.publicListenerStatusLocked(listenerID)
 		a.proxyStatusLocked()
 		a.proxyMu.Unlock()
@@ -200,20 +335,22 @@ func (a *App) startPublicListenerFromSnapshot(listener publicListenerConfig, sna
 
 	var srv *http.Server
 	var serve func(net.Listener) error
+	var tlsSelector *publicTLSSelectorStore
 	if listener.Protocol == publicListenerProtocolHTTPS {
-		tlsConfig, err := newPublicTLSConfig(listener.ID, snap, a.PublicACME)
+		tlsConfig, selector, err := newPublicTLSConfigWithSelectorStore(listener.ID, snap, a.PublicACME)
 		if err != nil {
 			a.setPublicListenerError(listener.ID, err)
 			return a.getPublicListenerStatus(listener.ID), nil
 		}
+		tlsSelector = selector
 		srv = &http.Server{Addr: addr, Handler: mux, TLSConfig: tlsConfig}
-		configurePublicHTTPServer(srv)
+		configurePublicHTTPServer(srv, a.Config.PublicMaxHeaderBytes)
 		serve = func(ln net.Listener) error {
 			return srv.ServeTLS(ln, "", "")
 		}
 	} else {
 		srv = &http.Server{Addr: addr, Handler: mux}
-		configurePublicHTTPServer(srv)
+		configurePublicHTTPServer(srv, a.Config.PublicMaxHeaderBytes)
 		serve = srv.Serve
 	}
 
@@ -227,6 +364,7 @@ func (a *App) startPublicListenerFromSnapshot(listener publicListenerConfig, sna
 	a.proxyMu.Lock()
 	runtime := a.ensureListenerStateLocked(listener.ID)
 	runtime.Server = srv
+	runtime.TLSSelector = tlsSelector
 	runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_RUNNING
 	runtime.LastError = ""
 	runtime.StartedAt = time.Now()
@@ -248,6 +386,7 @@ func (a *App) startPublicListenerFromSnapshot(listener publicListenerConfig, sna
 			a.proxyMu.Lock()
 			if runtime := a.publicListenerState[listener.ID]; runtime != nil && runtime.Server == srv {
 				runtime.Server = nil
+				runtime.TLSSelector = nil
 				runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_ERROR
 				runtime.LastError = errMsg
 				runtime.StoppedAt = time.Now()
@@ -271,6 +410,7 @@ func (a *App) stopPublicListenerRuntime(ctx context.Context, listenerID int64) (
 	}
 	runtime := a.ensureListenerStateLocked(listenerID)
 	if runtime.Server == nil {
+		runtime.TLSSelector = nil
 		runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_STOPPED
 		status := a.publicListenerStatusLocked(listenerID)
 		a.proxyStatusLocked()
@@ -282,12 +422,13 @@ func (a *App) stopPublicListenerRuntime(ctx context.Context, listenerID int64) (
 	a.proxyStatusLocked()
 	a.proxyMu.Unlock()
 
-	err := srv.Shutdown(ctx)
+	err := shutdownPublicHTTPServer(ctx, srv, publicListenerShutdownTimeout)
 
 	a.proxyMu.Lock()
 	runtime = a.ensureListenerStateLocked(listenerID)
 	if runtime.Server == srv {
 		runtime.Server = nil
+		runtime.TLSSelector = nil
 		runtime.StoppedAt = time.Now()
 		if err != nil {
 			runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_ERROR
@@ -318,6 +459,7 @@ func (a *App) setPublicListenerError(listenerID int64, err error) {
 	a.proxyMu.Lock()
 	runtime := a.ensureListenerStateLocked(listenerID)
 	runtime.Server = nil
+	runtime.TLSSelector = nil
 	runtime.State = p2pstreamv1.ProxyState_PROXY_STATE_ERROR
 	runtime.LastError = err.Error()
 	runtime.StoppedAt = time.Now()

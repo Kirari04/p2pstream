@@ -120,7 +120,11 @@ func normalizePublicRouteTargetUpstreamResponseHeaderTimeoutMillis(timeoutMillis
 	return timeoutMillis
 }
 
-func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstreamv1.PublicRouteTarget) ([]publicRouteTargetMutationInput, error) {
+func (a *App) validatePublicRouteTargets(
+	ctx context.Context,
+	targets []*p2pstreamv1.PublicRouteTarget,
+	existingSecrets existingPublicRouteTargetSecrets,
+) ([]publicRouteTargetMutationInput, error) {
 	if len(targets) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("forwarding route requires at least one target"))
 	}
@@ -185,7 +189,7 @@ func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstre
 			targetURL := strings.TrimSpace(target.Url)
 			parsed, err := parsePublicTargetOrigin(targetURL)
 			if err != nil {
-				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("proxy route target URL must be an http or https origin"))
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("proxy route target URL must be an http or https origin: %w", err))
 			}
 			params.Url = strings.TrimRight(parsed.String(), "/")
 			if transport == publicRouteTargetTransportAgent {
@@ -197,11 +201,11 @@ func (a *App) validatePublicRouteTargets(ctx context.Context, targets []*p2pstre
 			} else {
 				params.AgentSelectorJson = "{}"
 			}
-			upstreamHeaders, err = validatePublicRouteTargetUpstreamHeaders(target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled)
+			upstreamHeaders, err = validatePublicRouteTargetUpstreamHeaders(target.Id, target.UpstreamRequestHeaders, target.UpstreamBasicAuth != nil && target.UpstreamBasicAuth.Enabled, existingSecrets)
 			if err != nil {
 				return nil, err
 			}
-			authEnabled, authUsername, authPassword, err := validatePublicRouteTargetBasicAuth(target.UpstreamBasicAuth)
+			authEnabled, authUsername, authPassword, err := validatePublicRouteTargetBasicAuth(target.Id, target.UpstreamBasicAuth, existingSecrets)
 			if err != nil {
 				return nil, err
 			}
@@ -334,6 +338,8 @@ func (a *App) validatePublicRouteInput(
 	redirectPreservePathSuffix bool,
 	redirectPreserveQuery bool,
 	pathSecurityMode p2pstreamv1.PublicRoutePathSecurityMode,
+	accessPolicyID int64,
+	existingSecrets existingPublicRouteTargetSecrets,
 ) (db.UpdatePublicRouteParams, []publicRouteTargetMutationInput, error) {
 	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
 		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
@@ -359,6 +365,14 @@ func (a *App) validatePublicRouteInput(
 	if err != nil {
 		return db.UpdatePublicRouteParams{}, nil, err
 	}
+	if accessPolicyID < 0 {
+		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("access policy ID cannot be negative"))
+	}
+	if accessPolicyID > 0 {
+		if _, err := a.DB.GetPublicAccessPolicy(ctx, accessPolicyID); err != nil {
+			return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+		}
+	}
 	targetLoadBalancingString := publicRouteTargetLoadBalancingRoundRobin
 	var routeTargets []publicRouteTargetMutationInput
 	redirectMode := ""
@@ -371,7 +385,7 @@ func (a *App) validatePublicRouteInput(
 		if err != nil {
 			return db.UpdatePublicRouteParams{}, nil, err
 		}
-		routeTargets, err = a.validatePublicRouteTargets(ctx, targets)
+		routeTargets, err = a.validatePublicRouteTargets(ctx, targets, existingSecrets)
 		if err != nil {
 			return db.UpdatePublicRouteParams{}, nil, err
 		}
@@ -407,6 +421,7 @@ func (a *App) validatePublicRouteInput(
 		RedirectPreservePathSuffix: boolInt(redirectPreservePathSuffix),
 		RedirectPreserveQuery:      boolInt(redirectPreserveQuery),
 		PathSecurityMode:           pathSecurityModeString,
+		AccessPolicyID:             publicAccessPolicyID(accessPolicyID),
 		Enabled:                    boolInt(enabled),
 	}, routeTargets, nil
 }
@@ -463,8 +478,10 @@ func validatePublicStaticHeaders(headers []*p2pstreamv1.PublicHeader) ([]publicR
 }
 
 func validatePublicRouteTargetUpstreamHeaders(
+	targetID int64,
 	headers []*p2pstreamv1.PublicRouteTargetUpstreamHeader,
 	basicAuthEnabled bool,
+	existingSecrets existingPublicRouteTargetSecrets,
 ) ([]publicRouteTargetUpstreamHeaderInput, error) {
 	resp := make([]publicRouteTargetUpstreamHeaderInput, 0, len(headers))
 	seen := make(map[string]struct{}, len(headers))
@@ -493,8 +510,12 @@ func validatePublicRouteTargetUpstreamHeaders(
 
 		sensitive := header.Sensitive || isForcedSensitiveUpstreamHeader(name)
 		value := header.Value
-		if sensitive && !header.ValueSet {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sensitive upstream request header %q requires a value", name))
+		if sensitive && value == "" {
+			if existingValue, ok := existingSensitiveUpstreamHeaderValueForUpdate(existingSecrets, header.Id, targetID, name); ok {
+				value = existingValue
+			} else {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sensitive upstream request header %q requires a value", name))
+			}
 		}
 		if err := validateUpstreamHeaderValue(name, value); err != nil {
 			return nil, err
@@ -509,7 +530,27 @@ func validatePublicRouteTargetUpstreamHeaders(
 	return resp, nil
 }
 
-func validatePublicRouteTargetBasicAuth(auth *p2pstreamv1.PublicRouteTargetBasicAuth) (int64, string, string, error) {
+func existingSensitiveUpstreamHeaderValueForUpdate(
+	existingSecrets existingPublicRouteTargetSecrets,
+	headerID int64,
+	targetID int64,
+	name string,
+) (string, bool) {
+	if headerID <= 0 || targetID <= 0 || existingSecrets.UpstreamHeaders == nil {
+		return "", false
+	}
+	existing, ok := existingSecrets.UpstreamHeaders[headerID]
+	if !ok || existing.TargetID != targetID || !strings.EqualFold(existing.Name, name) {
+		return "", false
+	}
+	return existing.Value, true
+}
+
+func validatePublicRouteTargetBasicAuth(
+	targetID int64,
+	auth *p2pstreamv1.PublicRouteTargetBasicAuth,
+	existingSecrets existingPublicRouteTargetSecrets,
+) (int64, string, string, error) {
 	if auth == nil || !auth.Enabled {
 		return 0, "", "", nil
 	}
@@ -525,8 +566,12 @@ func validatePublicRouteTargetBasicAuth(auth *p2pstreamv1.PublicRouteTargetBasic
 	}
 
 	password := auth.Password
-	if !auth.PasswordSet || password == "" {
-		return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password is required"))
+	if password == "" {
+		if existingPassword, ok := existingSecrets.BasicAuthPasswords[targetID]; ok && targetID > 0 {
+			password = existingPassword
+		} else {
+			return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password is required"))
+		}
 	}
 	if strings.ContainsAny(password, "\r\n") || !utf8.ValidString(password) {
 		return 0, "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("upstream basic auth password must be valid UTF-8 without CR or LF"))
@@ -606,7 +651,34 @@ func parsePublicTargetOrigin(targetOrigin string) (*url.URL, error) {
 	if parsed.Host == "" {
 		return nil, errors.New("target origin must include a host")
 	}
-	return parsed, nil
+	if parsed.User != nil {
+		return nil, errors.New("target origin must not include user information; configure upstream authentication separately")
+	}
+	if parsed.Opaque != "" || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" {
+		return nil, errors.New("target origin must not include a path, query, or fragment")
+	}
+	if parsed.Path != "" && parsed.Path != "/" {
+		return nil, errors.New("target origin must not include a path; route paths are preserved when proxying")
+	}
+	if parsed.RawPath != "" && parsed.RawPath != "/" {
+		return nil, errors.New("target origin must not include an encoded path")
+	}
+	return &url.URL{Scheme: parsed.Scheme, Host: parsed.Host}, nil
+}
+
+func normalizeLegacyPublicTargetOrigin(targetOrigin string) (string, bool, error) {
+	if parsed, err := parsePublicTargetOrigin(targetOrigin); err == nil {
+		return parsed.String(), false, nil
+	}
+	parsed, err := url.Parse(strings.TrimSpace(targetOrigin))
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return "", false, errors.New("legacy target URL does not contain a valid HTTP(S) origin")
+	}
+	origin, err := parsePublicTargetOrigin((&url.URL{Scheme: parsed.Scheme, Host: parsed.Host}).String())
+	if err != nil {
+		return "", false, err
+	}
+	return origin.String(), true, nil
 }
 
 func normalizeHostPattern(pattern string) string {

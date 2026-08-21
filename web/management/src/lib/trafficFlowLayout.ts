@@ -174,6 +174,16 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
     return dedupeConsecutive(path);
   }
 
+  if (request.stage === TraceStage.ACCESS_DENIED) {
+    if (request.routeId > 0n) {
+      path.push(routeKey(request.routeId));
+    } else if (request.defaultRoute && request.listenerId > 0n) {
+      path.push(listenerDefaultRouteKey(request.listenerId));
+    }
+    path.push("response");
+    return dedupeConsecutive(path);
+  }
+
   if (requestUsesTrafficShaperNode(request, index)) {
     path.push(TRAFFIC_SHAPER_KEY);
   }
@@ -294,6 +304,7 @@ export function isTerminalTraceRequest(request: TraceRequest): boolean {
   return request.stage === TraceStage.RESPONSE_SENT ||
     request.stage === TraceStage.FAILED ||
     request.stage === TraceStage.RATE_LIMITED ||
+    request.stage === TraceStage.ACCESS_DENIED ||
     isWafTerminalStage(request.stage);
 }
 
@@ -368,6 +379,11 @@ function nodeKeyForTraceStage(request: TraceRequest): string {
     case TraceStage.UPSTREAM_RESPONDED:
       return requestTargetType(request) === PublicRouteTargetType.STATIC ? "static-response" : "upstream";
     case TraceStage.RATE_LIMITED:
+    case TraceStage.ACCESS_DENIED:
+      return "response";
+    case TraceStage.ACCESS_GRANTED:
+      if (request.routeId > 0n) return routeKey(request.routeId);
+      if (request.defaultRoute && request.listenerId > 0n) return listenerDefaultRouteKey(request.listenerId);
       return "response";
     case TraceStage.RESPONSE_SENT:
     case TraceStage.FAILED:

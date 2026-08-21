@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { Check as CheckIcon } from "@lucide/vue";
-import { Pencil as PencilIcon } from "@lucide/vue";
+import { MoreHorizontal as MoreIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
-import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NSelect, NTag, useNotification } from "naive-ui";
-import type { DataTableColumns } from "naive-ui";
+import { NButton, NButtonGroup, NCheckbox, NDataTable, NDrawer, NDrawerContent, NDropdown, NInput, NInputNumber, NModal, NTag, useNotification } from "naive-ui";
+import type { DataTableColumns, DropdownOption } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref } from "vue";
 import { localManagementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
+import EmptyState from "@/components/EmptyState.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { environmentsKey, isBusyKey, reloadEnvironmentsKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
+import { editorDrawerWidth, modalCardStyle, naiveTagType } from "@/lib/naiveUi";
 import type {
   Agent,
   Environment,
@@ -42,6 +44,7 @@ interface EnvironmentTestResult {
 const localAgents = ref<Agent[]>([]);
 const isLoading = ref(false);
 const testingEnvironmentId = ref("");
+const activeEnvironmentMenuId = ref("");
 const isEnvironmentModalOpen = ref(false);
 const certificateTrustEnvironment = ref<Environment | null>(null);
 const operationError = ref("");
@@ -77,11 +80,20 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Environment",
     key: "environment",
-    minWidth: 260,
-    render: (environment) => h("div", [
-      h("p", { class: "weight-medium base-text" }, environment.name),
-      h("p", { class: "max-auth-width clip-text mono-text copy-xs muted-text" }, environment.managementUrl),
-      h("div", { class: "margin-top-sm layout-row space-sm" }, [
+    minWidth: 300,
+    render: (environment) => h("div", { class: "layout-grid space-xs min-width-zero" }, [
+      h("bdi", {
+        class: "clip-text weight-medium base-text",
+        dir: "ltr",
+        title: diagnosticInspectionText(environment.name),
+      }, diagnosticExcerpt(environment.name, 56).text),
+      h("bdi", {
+        class: "clip-text mono-text copy-xs muted-text",
+        dir: "ltr",
+        title: diagnosticInspectionText(environment.managementUrl),
+      }, diagnosticExcerpt(environment.managementUrl, 88).text),
+      h("div", { class: "layout-row wrap-items space-sm" }, [
+        h(NTag, { size: "small", bordered: false, type: "default" }, { default: () => transportLabel(environment.transport) }),
         !environment.enabled
           ? h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Disabled" })
           : null,
@@ -89,17 +101,9 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
           ? h(NTag, { size: "small", bordered: false, type: "default" }, { default: () => "Token" })
           : null,
       ]),
-    ]),
-  },
-  {
-    title: "Transport",
-    key: "transport",
-    minWidth: 180,
-    render: (environment) => h("div", [
-      h("p", { class: "base-text" }, transportLabel(environment.transport)),
       environment.transport === EnvironmentTransport.AGENT
-        ? h("p", { class: "mono-text copy-xs muted-text" }, [
-          environment.agentName || `agent #${environment.agentId.toString()}`,
+        ? h("p", { class: "clip-text mono-text copy-xs muted-text" }, [
+          diagnosticExcerpt(environment.agentName || `agent #${environment.agentId.toString()}`, 60).text,
           " ",
           h("span", { class: environment.agentConnected ? "success-text" : "warning-text" }, environment.agentConnected ? "connected" : "offline"),
         ])
@@ -107,20 +111,13 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
     ]),
   },
   {
-    title: "Trust",
+    title: "Trust & certificate",
     key: "trust",
-    width: 120,
-    render: (environment) => h(
-      NTag,
-      { size: "small", bordered: false, type: naiveTagType(trustSeverity(environment.trustState)) },
-      { default: () => trustLabel(environment.trustState) },
-    ),
-  },
-  {
-    title: "Certificate",
-    key: "certificate",
-    minWidth: 260,
-    render: (environment) => h("div", { class: "layout-grid max-token-width space-xs" }, [
+    minWidth: 320,
+    render: (environment) => h("div", { class: "layout-grid min-width-zero space-xs" }, [
+      h(NTag, { size: "small", bordered: false, type: naiveTagType(trustSeverity(environment.trustState)), class: "fit-width" }, {
+        default: () => trustLabel(environment.trustState),
+      }),
       h("p", { class: "clip-text copy-xs base-text", title: certificateSubject(certificateForEnvironment(environment)) }, certificateSubject(certificateForEnvironment(environment))),
       h(
         "code",
@@ -130,28 +127,33 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         },
         [h("span", { class: "clip-text" }, formatFingerprint(certificateFingerprintForEnvironment(environment)))],
       ),
-      h("p", { class: "copy-xs muted-text" }, `Expires ${formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis)}`),
+      certificateForEnvironment(environment)
+        ? h("p", { class: "copy-xs muted-text" }, `Expires ${formatDate(certificateForEnvironment(environment)?.notAfterUnixMillis)}`)
+        : null,
     ]),
   },
   {
-    title: "Test Result",
+    title: "Reachability",
     key: "testResult",
-    minWidth: 220,
-    render: (environment) => h("div", { class: "layout-grid max-content-sm space-xs", "aria-live": "polite" }, [
+    minWidth: 230,
+    render: (environment) => h("div", { class: "layout-grid min-width-zero space-xs", "aria-live": "polite" }, [
       h(
         NTag,
-        { size: "small", bordered: false, type: naiveTagType(testResultSeverity(environment)) },
+        { size: "small", bordered: false, type: naiveTagType(testResultSeverity(environment)), class: "fit-width" },
         { default: () => testResultLabel(environment) },
       ),
-      h("p", { class: "mono-text copy-xs base-text" }, formatDate(testResultCheckedAt(environment))),
+      testResultCheckedAt(environment)
+        ? h("p", { class: "mono-text copy-xs base-text" }, formatDate(testResultCheckedAt(environment)))
+        : null,
       testResultMessage(environment)
         ? h(
-          "p",
+          "bdi",
           {
             class: ["clip-text copy-xs", testResultState(environment) === "error" ? "error-text" : "muted-text"],
-            title: testResultMessage(environment),
+            dir: "ltr",
+            title: diagnosticInspectionText(testResultMessage(environment)),
           },
-          testResultMessage(environment),
+          diagnosticExcerpt(testResultMessage(environment), 76).text,
         )
         : null,
     ]),
@@ -159,25 +161,21 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Actions",
     key: "actions",
-    width: 300,
+    width: 290,
     align: "right",
-    render: (environment) => h("div", { class: "layout-row align-end-row space-sm" }, [
+    render: (environment) => h("div", { class: "layout-row align-center align-end-row space-sm" }, [
       h(NButton, {
         secondary: true,
         size: "small",
-        "aria-label": "Discover certificate",
-        title: "Discover certificate",
-        disabled: Boolean(busyDisabledReason.value),
-        onClick: () => void discoverCertificate(environment),
-      }, { icon: () => h(RefreshIcon, { class: "icon-sm" }) }),
-      h(NButton, {
-        secondary: true,
-        size: "small",
-        "aria-label": "Trust certificate",
-        title: "Trust certificate",
-        disabled: Boolean(busyDisabledReason.value) || !environment.observedCertificate?.sha256Fingerprint,
-        onClick: () => trustCertificate(environment),
-      }, { icon: () => h(CheckIcon, { class: "icon-sm" }) }),
+        "aria-label": `${environmentCertificateActionLabel(environment)} for ${safeEnvironmentName(environment)}`,
+        disabled: Boolean(environmentCertificateActionDisabledReason(environment)),
+        onClick: () => runEnvironmentCertificateAction(environment),
+      }, {
+        icon: () => environmentCertificateAction(environment) === "trust"
+          ? h(CheckIcon, { class: "icon-sm" })
+          : h(RefreshIcon, { class: "icon-sm" }),
+        default: () => environmentCertificateActionLabel(environment),
+      }),
       h(
         DisabledHint,
         { disabled: Boolean(testEnvironmentDisabledReason(environment)), reason: testEnvironmentDisabledReason(environment) },
@@ -185,28 +183,40 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
           default: () => h(NButton, {
             secondary: true,
             size: "small",
+            "aria-label": `${isEnvironmentTesting(environment) ? "Testing" : "Test"} ${safeEnvironmentName(environment)}`,
             loading: isEnvironmentTesting(environment),
             disabled: Boolean(testEnvironmentDisabledReason(environment)),
             onClick: () => void testEnvironment(environment),
           }, { default: () => isEnvironmentTesting(environment) ? "Testing" : "Test" }),
         },
       ),
-      h(NButton, {
-        secondary: true,
-        size: "small",
-        "aria-label": "Edit environment",
-        title: "Edit environment",
-        disabled: Boolean(busyDisabledReason.value),
-        onClick: () => openEditEnvironment(environment),
-      }, { icon: () => h(PencilIcon, { class: "icon-sm" }) }),
-      h(NButton, {
-        type: "error",
-        size: "small",
-        "aria-label": "Delete environment",
-        title: "Delete environment",
-        disabled: Boolean(busyDisabledReason.value),
-        onClick: () => void deleteEnvironment(environment),
-      }, { icon: () => h(TrashIcon, { class: "icon-sm" }) }),
+      h(NDropdown, {
+        trigger: "click",
+        options: environmentMenuOptions(),
+        show: activeEnvironmentMenuId.value === environmentKey(environment),
+        menuProps: () => ({
+          id: environmentMenuId(environment),
+          role: "menu",
+          "aria-label": `Actions for ${safeEnvironmentName(environment)}`,
+        }),
+        "onUpdate:show": (show: boolean) => {
+          activeEnvironmentMenuId.value = show ? environmentKey(environment) : "";
+        },
+        onSelect: (key: string | number) => handleEnvironmentMenuSelect(environment, String(key)),
+      }, {
+        default: () => h(NButton, {
+          secondary: true,
+          size: "small",
+          "aria-label": `More actions for ${safeEnvironmentName(environment)}`,
+          "aria-controls": environmentMenuId(environment),
+          "aria-expanded": activeEnvironmentMenuId.value === environmentKey(environment),
+          "aria-haspopup": "menu",
+          disabled: Boolean(busyDisabledReason.value),
+        }, {
+          icon: () => h(MoreIcon, { class: "icon-sm" }),
+          default: () => "More",
+        }),
+      }),
     ]),
   },
 ]);
@@ -258,6 +268,72 @@ function openEditEnvironment(environment: Environment) {
   isEnvironmentModalOpen.value = true;
 }
 
+function safeEnvironmentName(environment: Environment): string {
+  return diagnosticExcerpt(environment.name, 48).text;
+}
+
+function environmentCertificateAction(environment: Environment): "discover" | "trust" {
+  if (
+    environment.trustState !== EnvironmentTrustState.TRUSTED
+    && Boolean(environment.observedCertificate?.sha256Fingerprint)
+  ) {
+    return "trust";
+  }
+  return "discover";
+}
+
+function environmentCertificateActionLabel(environment: Environment): string {
+  if (environmentCertificateAction(environment) === "trust") return "Review trust";
+  return certificateForEnvironment(environment) ? "Refresh certificate" : "Discover certificate";
+}
+
+function environmentCertificateActionDisabledReason(environment: Environment): string {
+  if (busyDisabledReason.value) return busyDisabledReason.value;
+  if (environmentCertificateAction(environment) === "trust" && !environment.observedCertificate?.sha256Fingerprint) {
+    return "Discover this environment's certificate first.";
+  }
+  return "";
+}
+
+function runEnvironmentCertificateAction(environment: Environment) {
+  if (environmentCertificateActionDisabledReason(environment)) return;
+  if (environmentCertificateAction(environment) === "trust") {
+    void trustCertificate(environment);
+    return;
+  }
+  void discoverCertificate(environment);
+}
+
+function environmentMenuOptions(): DropdownOption[] {
+  const disabled = Boolean(busyDisabledReason.value);
+  return [
+    {
+      label: "Edit environment",
+      key: "edit",
+      disabled,
+      props: { role: "menuitem", "aria-disabled": disabled ? "true" : "false" },
+    },
+    {
+      label: "Delete environment",
+      key: "delete",
+      disabled,
+      props: { role: "menuitem", "aria-disabled": disabled ? "true" : "false" },
+    },
+  ];
+}
+
+function environmentMenuId(environment: Environment): string {
+  return `environment-actions-${environmentKey(environment)}`;
+}
+
+function handleEnvironmentMenuSelect(environment: Environment, key: string) {
+  if (key === "edit") {
+    openEditEnvironment(environment);
+    return;
+  }
+  if (key === "delete") void deleteEnvironment(environment);
+}
+
 async function submitEnvironment() {
   await runLocalAction(async () => {
     const timeout = environmentForm.responseHeaderTimeoutMillis;
@@ -289,7 +365,7 @@ async function submitEnvironment() {
 async function deleteEnvironment(environment: Environment) {
   const confirmed = await confirmDialog.confirm(
     "Delete Environment",
-    `Delete "${environment.name}"?`,
+    `Delete "${diagnosticInspectionText(environment.name)}"? This removes the saved endpoint and access token from this instance.`,
     "Delete",
   );
   if (!confirmed) return;
@@ -362,7 +438,7 @@ async function testEnvironment(environment: Environment) {
     };
     notification.success({
       title: "Environment reachable",
-      content: `${environment.name} responded successfully.`,
+      content: `${diagnosticInspectionText(environment.name)} responded successfully.`,
       duration: 3000,
     });
   } catch (err) {
@@ -374,7 +450,7 @@ async function testEnvironment(environment: Environment) {
     };
     notification.error({
       title: "Environment test failed",
-      content: message,
+      content: diagnosticInspectionText(message),
       duration: 5000,
     });
   } finally {
@@ -503,15 +579,16 @@ function certificateFingerprintForEnvironment(environment: Environment): string 
 
 function certificateSubject(cert: EnvironmentCertificate | undefined): string {
   if (!cert) return "No certificate discovered";
-  return cert.subject || cert.dnsNames[0] || cert.ipAddresses[0] || "Unknown subject";
+  return diagnosticInspectionText(cert.subject || cert.dnsNames[0] || cert.ipAddresses[0] || "Unknown subject");
 }
 
 function certificateSanSummary(cert: EnvironmentCertificate | undefined): string {
   if (!cert) return "";
   const names = [...cert.dnsNames, ...cert.ipAddresses];
   if (!names.length) return "";
-  if (names.length <= 2) return names.join(", ");
-  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+  const safeNames = names.map(diagnosticInspectionText);
+  if (safeNames.length <= 2) return safeNames.join(", ");
+  return `${safeNames.slice(0, 2).join(", ")} +${safeNames.length - 2}`;
 }
 
 function formatFingerprint(value: string): string {
@@ -519,6 +596,12 @@ function formatFingerprint(value: string): string {
   if (!normalized) return "-";
   if (normalized.length <= 28) return normalized;
   return `${normalized.slice(0, 12)}...${normalized.slice(-12)}`;
+}
+
+function formatFullFingerprint(value: string): string {
+  const normalized = value.replaceAll(":", "").trim().toUpperCase();
+  if (!normalized) return "-";
+  return normalized.match(/.{1,2}/g)?.join(":") ?? normalized;
 }
 
 function formatDate(value: bigint | undefined): string {
@@ -544,7 +627,7 @@ function handleTrustModalUpdate(show: boolean) {
         <p class="copy-sm muted-text">Remote management endpoints, routing, and certificate trust.</p>
       </div>
       <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-        <NButton secondary size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
+        <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
           <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
           Add Environment
         </NButton>
@@ -552,33 +635,47 @@ function handleTrustModalUpdate(show: boolean) {
     </div>
 
     <div v-if="operationError" class="round-md framed error-border panel-bg pad-lg copy-sm error-text">
-      {{ operationError }}
+      <bdi dir="ltr">{{ diagnosticInspectionText(operationError) }}</bdi>
     </div>
 
     <section class="surface-card hide-overflow">
-      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg">
-        <h5 class="copy-sm weight-semibold label-case letter-widest muted-text">Registered Environments</h5>
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-md">
+        <div>
+          <h5 class="copy-sm weight-semibold base-text">Registered environments</h5>
+          <p class="margin-top-xs copy-xs muted-text">Trust and reachability are checked independently for every endpoint.</p>
+        </div>
+        <NTag size="small" :bordered="false">{{ environments.length }} total</NTag>
       </div>
       <NDataTable
+        v-if="environments.length || isLoading"
         :columns="environmentColumns"
         :data="environments"
         :row-key="environmentRowKey"
         :pagination="false"
         :bordered="false"
         :single-line="false"
-        :scroll-x="1120"
+        :scroll-x="1140"
+        :loading="isLoading"
         size="small"
+      />
+      <EmptyState
+        v-else
+        title="No remote environments"
+        description="Add an environment to operate another p2pstream instance from this management panel."
+        action-label="Add Environment"
+        @action="openCreateEnvironment"
       />
     </section>
 
-    <NModal
+    <NDrawer
       v-model:show="isEnvironmentModalOpen"
-      preset="card"
-      :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'"
-      :style="modalCardStyle('42rem')"
-      :bordered="false"
+      placement="right"
+      :width="editorDrawerWidth('42rem')"
+      :aria-label="environmentForm.id ? 'Edit Environment' : 'Add Environment'"
+      class="editor-drawer"
     >
-      <form class="layout-grid max-modal-height space-lg scroll-y pad-right-xs" @submit.prevent="submitEnvironment">
+      <NDrawerContent :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'" closable>
+      <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitEnvironment">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
           <NInput v-model:value="environmentForm.name" size="small" required />
@@ -603,7 +700,7 @@ function handleTrustModalUpdate(show: boolean) {
         </div>
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Local Agent
-          <NSelect v-model:value="environmentForm.agentId" size="small" :options="localAgentOptions" required />
+          <AccessibleSelect v-model:value="environmentForm.agentId" accessible-label="Local agent" size="small" :options="localAgentOptions" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Access Token
@@ -616,19 +713,20 @@ function handleTrustModalUpdate(show: boolean) {
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Response Header Timeout
-          <NInputNumber v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
+          <NInputNumber :show-button="false" v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
         </label>
         <NCheckbox v-model:checked="environmentForm.enabled">
           Enabled
         </NCheckbox>
-        <div class="margin-top-lg layout-row align-end-row space-md">
+        <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isEnvironmentModalOpen = false">Cancel</NButton>
           <NButton type="primary" attr-type="submit" :disabled="Boolean(busyDisabledReason)">
             {{ environmentForm.id ? 'Save Changes' : 'Create Environment' }}
           </NButton>
         </div>
       </form>
-    </NModal>
+      </NDrawerContent>
+    </NDrawer>
     <NModal
       :show="Boolean(certificateTrustEnvironment)"
       preset="card"
@@ -642,17 +740,17 @@ function handleTrustModalUpdate(show: boolean) {
           <div class="layout-grid space-lg">
             <div class="layout-grid space-2xs">
               <p class="copy-xs weight-medium label-case letter-wide muted-text">Environment</p>
-              <p class="clip-text copy-sm base-text" :title="certificateTrustEnvironment?.name">
-                {{ certificateTrustEnvironment?.name }}
+              <p class="clip-text copy-sm base-text" :title="diagnosticInspectionText(certificateTrustEnvironment?.name ?? '')">
+                {{ diagnosticInspectionText(certificateTrustEnvironment?.name ?? "") }}
               </p>
             </div>
             <div class="layout-grid space-2xs">
               <p class="copy-xs weight-medium label-case letter-wide muted-text">SHA-256 Fingerprint</p>
               <code
-                class="flow-box max-full clip-text round-md framed frame-standard panel-bg pad-x-md pad-y-sm mono-text copy-xs label-case letter-wide base-text"
+                class="flow-box max-full wrap-anywhere round-md framed frame-standard panel-bg pad-x-md pad-y-sm mono-text copy-xs line-relaxed label-case letter-wide base-text"
                 :title="certificateTrustFingerprint"
               >
-                {{ formatFingerprint(certificateTrustFingerprint) }}
+                {{ formatFullFingerprint(certificateTrustFingerprint) }}
               </code>
             </div>
             <div class="layout-grid space-2xs">
@@ -663,8 +761,8 @@ function handleTrustModalUpdate(show: boolean) {
             </div>
             <div v-if="certificateTrustCertificate?.issuer" class="layout-grid space-2xs">
               <p class="copy-xs weight-medium label-case letter-wide muted-text">Issuer</p>
-              <p class="clip-text copy-sm base-text" :title="certificateTrustCertificate.issuer">
-                {{ certificateTrustCertificate.issuer }}
+              <p class="clip-text copy-sm base-text" :title="diagnosticInspectionText(certificateTrustCertificate.issuer)">
+                {{ diagnosticInspectionText(certificateTrustCertificate.issuer) }}
               </p>
             </div>
             <div v-if="certificateSanSummary(certificateTrustCertificate)" class="layout-grid space-2xs">

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NInput, NSelect } from "naive-ui";
+import { NButton, NInput } from "naive-ui";
 import DisabledHint from "@/components/DisabledHint.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { PublicRateLimitKeySource } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type KeyPartForm = {
@@ -62,7 +63,13 @@ function removeDisabledReason(): string {
     </div>
     <div class="layout-grid space-sm">
       <div v-for="(part, index) in keyParts" :key="index" class="layout-grid space-sm mq-sm-two-auto">
-        <NSelect v-model:value="part.source" size="small" :options="keySourceOptions" :disabled="Boolean(disabledReason)" />
+        <AccessibleSelect
+          v-model:value="part.source"
+          :accessible-label="`Key part ${index + 1} source`"
+          size="small"
+          :options="keySourceOptions"
+          :disabled="Boolean(disabledReason)"
+        />
         <DisabledHint full-width :disabled="Boolean(disabledReason || keyPartNameDisabledReason(part.source))" :reason="disabledReason || keyPartNameDisabledReason(part.source)">
           <NInput
             v-model:value="part.name"

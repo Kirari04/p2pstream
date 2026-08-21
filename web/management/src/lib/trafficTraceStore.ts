@@ -421,6 +421,8 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.RESPONSE_SENT: return "Done";
     case TrafficTraceStage.FAILED: return "Failed";
     case TrafficTraceStage.RATE_LIMITED: return "Rate limited";
+    case TrafficTraceStage.ACCESS_GRANTED: return "Access granted";
+    case TrafficTraceStage.ACCESS_DENIED: return "Access denied";
     default: return "Waiting";
   }
 }
@@ -430,6 +432,7 @@ export function requestStatusClass(request: Pick<TraceRequest, "stage" | "status
   if (request.stage === TrafficTraceStage.WAF_BLOCKED) return "trace-status--error";
   if (request.stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || request.stage === TrafficTraceStage.WAF_WAITING_ROOM) return "trace-status--warning";
   if (request.stage === TrafficTraceStage.RATE_LIMITED) return "trace-status--warning";
+  if (request.stage === TrafficTraceStage.ACCESS_DENIED) return "trace-status--warning";
   const status = Number(request.statusCode);
   if (status >= 500) return "trace-status--error";
   if (status >= 400) return "trace-status--warning";
@@ -474,7 +477,8 @@ export function formatDuration(value: bigint | undefined): string {
 export function isTerminalStage(stage: TrafficTraceStage): boolean {
   return stage === TrafficTraceStage.RESPONSE_SENT ||
     stage === TrafficTraceStage.FAILED ||
-    stage === TrafficTraceStage.RATE_LIMITED;
+    stage === TrafficTraceStage.RATE_LIMITED ||
+    stage === TrafficTraceStage.ACCESS_DENIED;
 }
 
 export function isEmptyStats(stats: TraceRenderStats): boolean {

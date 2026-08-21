@@ -1,18 +1,69 @@
 package tunnel
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"time"
 
 	"github.com/hashicorp/yamux"
 )
 
+const (
+	DefaultMaxStreamWindowSizeBytes    = int64(2 * 1024 * 1024)
+	MaxStreamWindowSizeBytesLimit      = int64(64 * 1024 * 1024)
+	DefaultMaxConcurrentAgentRequests  = int64(64)
+	MaxConcurrentAgentRequestsLimit    = int64(2048)
+	MaxAggregateStreamWindowBytesLimit = int64(512 * 1024 * 1024)
+)
+
 func DefaultYamuxConfig(logger yamux.Logger) *yamux.Config {
+	cfg, _ := NewYamuxConfig(logger, 0)
+	return cfg
+}
+
+func NormalizeMaxConcurrentAgentRequests(requests int64) (int64, error) {
+	if requests == 0 {
+		requests = DefaultMaxConcurrentAgentRequests
+	}
+	if requests < 1 {
+		return 0, errors.New("TUNNEL_MAX_CONCURRENT_REQUESTS must be at least 1")
+	}
+	if requests > MaxConcurrentAgentRequestsLimit {
+		return 0, fmt.Errorf("TUNNEL_MAX_CONCURRENT_REQUESTS must be less than or equal to %d", MaxConcurrentAgentRequestsLimit)
+	}
+	return requests, nil
+}
+
+func ValidateAggregateStreamWindowBudget(windowBytes int64, requests int64) error {
+	window, err := NormalizeMaxStreamWindowSizeBytes(windowBytes)
+	if err != nil {
+		return err
+	}
+	requests, err = NormalizeMaxConcurrentAgentRequests(requests)
+	if err != nil {
+		return err
+	}
+	if int64(window) > MaxAggregateStreamWindowBytesLimit/requests {
+		return fmt.Errorf(
+			"TUNNEL_MAX_STREAM_WINDOW_BYTES times TUNNEL_MAX_CONCURRENT_REQUESTS must be less than or equal to %d bytes",
+			MaxAggregateStreamWindowBytesLimit,
+		)
+	}
+	return nil
+}
+
+func NewYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64) (*yamux.Config, error) {
 	cfg := yamux.DefaultConfig()
 	cfg.AcceptBacklog = 256
 	cfg.EnableKeepAlive = true
 	cfg.KeepAliveInterval = 20 * time.Second
 	cfg.ConnectionWriteTimeout = 10 * time.Second
+	maxStreamWindowSize, err := NormalizeMaxStreamWindowSizeBytes(maxStreamWindowSizeBytes)
+	if err != nil {
+		return nil, err
+	}
+	cfg.MaxStreamWindowSize = maxStreamWindowSize
 	cfg.StreamOpenTimeout = 10 * time.Second
 	cfg.StreamCloseTimeout = 30 * time.Second
 	if logger != nil {
@@ -22,5 +73,19 @@ func DefaultYamuxConfig(logger yamux.Logger) *yamux.Config {
 		cfg.Logger = nil
 		cfg.LogOutput = io.Discard
 	}
-	return cfg
+	return cfg, nil
+}
+
+func NormalizeMaxStreamWindowSizeBytes(sizeBytes int64) (uint32, error) {
+	if sizeBytes == 0 {
+		sizeBytes = DefaultMaxStreamWindowSizeBytes
+	}
+	min := int64(yamux.DefaultConfig().MaxStreamWindowSize)
+	if sizeBytes < min {
+		return 0, fmt.Errorf("TUNNEL_MAX_STREAM_WINDOW_BYTES must be at least %d bytes", min)
+	}
+	if sizeBytes > MaxStreamWindowSizeBytesLimit {
+		return 0, fmt.Errorf("TUNNEL_MAX_STREAM_WINDOW_BYTES must be less than or equal to %d bytes", MaxStreamWindowSizeBytesLimit)
+	}
+	return uint32(sizeBytes), nil
 }

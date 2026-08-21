@@ -66,8 +66,8 @@ func TestE2E_ReportStats(t *testing.T) {
 		t.Fatal("Expected stats to be stored in app, got nil")
 	}
 
-	if stats.AllocAllocated != 100 {
-		t.Errorf("Expected memory 100, got %d", stats.AllocAllocated)
+	if stats.MemorySysMB != 100 {
+		t.Errorf("Expected memory 100, got %d", stats.MemorySysMB)
 	}
 	if stats.ReqSuccess != 10 {
 		t.Errorf("Expected 10 successful reqs, got %d", stats.ReqSuccess)
@@ -98,7 +98,7 @@ func TestE2E_GetStatus(t *testing.T) {
 	app.LatestAgentStats.Store(&stats.AgentStats{
 		Timestamp:        time.UnixMilli(1700000000123),
 		NumGoroutine:     7,
-		AllocAllocated:   128,
+		MemorySysMB:      128,
 		ActiveRequests:   4,
 		ReqSuccess:       11,
 		ReqClientError:   2,

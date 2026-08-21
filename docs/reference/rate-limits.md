@@ -2,6 +2,8 @@
 
 Rate limit rules are global public proxy rules evaluated after WAF rules and before traffic shapers and route resolution.
 
+In the management UI, choose **Traffic Policy -> Rate Limits**. The Rate Limits tab has its own rule count, text and enabled-state filters, and compact columns for the rule, match and key, budget and response, priority and state, and actions. The shared **Request Tester** previews how a synthetic request moves through all policy stages without sending it through the public listener.
+
 ## Exact Fields And Defaults
 
 | Setting | Default or limit |
@@ -65,7 +67,9 @@ Key sources:
 - cookie,
 - query parameter.
 
-`REMOTE_IP` is the only built-in client-IP identity source. It uses the peer address seen by p2pstream. `HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Behind another reverse proxy, place p2pstream where it sees the real client address or use only trusted application headers; trusted-proxy parsing is not available yet.
+`REMOTE_IP` is the only built-in client-IP identity source. It uses the connection peer by default. When that peer belongs to an enabled source under **Traffic Policy -> WAF -> Visitor identity & GeoIP**, it uses the strictly resolved visitor address instead. Missing, malformed, or contradictory headers from a trusted source produce an unknown visitor address rather than falling back to attacker-controlled input.
+
+`HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Configure proxy/CDN trust in **Visitor identity & GeoIP** rather than copying a client-IP header into a generic key part.
 
 Before upgrading from an older version that allowed arbitrary header key parts, inspect stored rules:
 
@@ -79,13 +83,8 @@ WHERE lower(key_parts_json) LIKE '%forwarded%'
 ```
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy rate limits section showing rule priority, match summaries, algorithms, budgets, and enabled state">
-  <figcaption>The Rate Limits section shows the active budgets beside nearby WAF controls, making priority and match breadth easier to audit.</figcaption>
-</figure>
-
-<figure class="doc-screenshot">
-  <img src="../assets/new/edit_ratelimit_modal.png" alt="p2pstream rate-limit rule editor showing match builder, algorithm, limit, window, burst, key parts, and response settings">
-  <figcaption>The rate-limit editor configures the request match, key parts, algorithm, budget, and denial response served when the selected bucket is exhausted.</figcaption>
+  <img src="../assets/new/edit_ratelimit_modal.png" alt="p2pstream Edit Rate Limit drawer showing name, priority, enabled state, algorithm choices, limit, window, burst, a live budget preview, and CEL match">
+  <figcaption>The visible drawer viewport keeps algorithm choice, budget fields, a live behavior preview, and the request match together. Key and denial-response controls continue below the captured area.</figcaption>
 </figure>
 
 ## Runtime Effects

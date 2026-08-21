@@ -3,10 +3,13 @@ package agent
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"net"
@@ -15,8 +18,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 )
 
 func TestManagementTunnelURL(t *testing.T) {
@@ -243,6 +250,18 @@ func TestManagementHTTPClientValidation(t *testing.T) {
 			name: "unsupported scheme",
 			opts: Options{ManagementURL: "unix:///tmp/socket"},
 		},
+		{
+			name: "small tunnel stream window",
+			opts: Options{ManagementURL: "https://example.test", TunnelMaxStreamWindowBytes: 1},
+		},
+		{
+			name: "excessive concurrent tunnel requests",
+			opts: Options{ManagementURL: "https://example.test", TunnelMaxConcurrentRequests: 2049},
+		},
+		{
+			name: "aggregate tunnel receive window",
+			opts: Options{ManagementURL: "https://example.test", TunnelMaxStreamWindowBytes: 64 * 1024 * 1024, TunnelMaxConcurrentRequests: 9},
+		},
 	}
 
 	for _, tt := range tests {
@@ -264,6 +283,217 @@ func TestManagementHTTPClientAllowsExplicitInsecureHTTP(t *testing.T) {
 	}
 	if client == nil {
 		t.Fatal("managementHTTPClient() returned nil client")
+	}
+}
+
+func TestManagementTrustStoreValidatesPersistsReloadsAndAcknowledges(t *testing.T) {
+	caCert, caKey := agentTestCA(t)
+	serverCertPEM, _ := agentTestCertificate(t, caCert, caKey, agentTestCertificateOptions{
+		dnsNames: []string{"localhost"},
+		usage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	})
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw})
+	normalized := normalizeAgentCertificateBundle(string(caPEM))
+	digest := sha256.Sum256([]byte(normalized))
+	trustFile := filepath.Join(t.TempDir(), "state", "management-ca.pem")
+	store, err := newManagementTrustStore(Options{
+		ManagementURL:       "https://localhost:8081",
+		ManagementTrustFile: trustFile,
+	})
+	if err != nil {
+		t.Fatalf("create trust store: %v", err)
+	}
+	update := &p2pstreamv1.ManagementTrustUpdate{
+		Generation:           7,
+		CaBundlePem:          string(caPEM),
+		BundleSha256:         hex.EncodeToString(digest[:]),
+		ServerCertificatePem: string(serverCertPEM),
+		ManagementHostname:   "localhost",
+	}
+	if err := store.apply(update); err != nil {
+		t.Fatalf("apply trust update: %v", err)
+	}
+	status := store.snapshot()
+	if status.State != p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_READY || status.InstalledGeneration != 7 || status.InstalledBundleSha256 != update.BundleSha256 {
+		t.Fatalf("unexpected acknowledged status: %+v", status)
+	}
+	readback, err := os.ReadFile(trustFile)
+	if err != nil {
+		t.Fatalf("read durable trust file: %v", err)
+	}
+	if string(readback) != normalized {
+		t.Fatal("durable trust readback differs from normalized update")
+	}
+
+	restarted, err := newManagementTrustStore(Options{ManagementURL: "https://localhost:8081", ManagementTrustFile: trustFile})
+	if err != nil {
+		t.Fatalf("reload trust store: %v", err)
+	}
+	if got := restarted.snapshot(); got.InstalledGeneration != 7 || got.InstalledBundleSha256 != update.BundleSha256 {
+		t.Fatalf("reloaded status = %+v", got)
+	}
+	if err := store.apply(&p2pstreamv1.ManagementTrustUpdate{Generation: 6, BundleSha256: strings.Repeat("0", sha256.Size*2)}); err == nil {
+		t.Fatal("stale trust generation unexpectedly replaced newer durable trust")
+	}
+	stateRaw, err := os.ReadFile(trustFile + ".state.json")
+	if err != nil {
+		t.Fatalf("read durable generation after stale update: %v", err)
+	}
+	var diskState managementTrustDiskState
+	if err := json.Unmarshal(stateRaw, &diskState); err != nil {
+		t.Fatalf("parse durable generation after stale update: %v", err)
+	}
+	if diskState.Generation != 7 || diskState.SHA256 != update.BundleSha256 {
+		t.Fatalf("stale update changed durable trust state: %+v", diskState)
+	}
+}
+
+func TestManagementTrustStoreRejectsCertificateForDifferentHostname(t *testing.T) {
+	caCert, caKey := agentTestCA(t)
+	serverCertPEM, _ := agentTestCertificate(t, caCert, caKey, agentTestCertificateOptions{
+		dnsNames: []string{"other.example.test"},
+		usage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	})
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw})
+	normalized := normalizeAgentCertificateBundle(string(caPEM))
+	digest := sha256.Sum256([]byte(normalized))
+	store, err := newManagementTrustStore(Options{ManagementURL: "https://localhost:8081", ManagementTrustFile: filepath.Join(t.TempDir(), "trust.pem")})
+	if err != nil {
+		t.Fatalf("create trust store: %v", err)
+	}
+	err = store.apply(&p2pstreamv1.ManagementTrustUpdate{Generation: 2, CaBundlePem: string(caPEM), BundleSha256: hex.EncodeToString(digest[:]), ServerCertificatePem: string(serverCertPEM), ManagementHostname: "localhost"})
+	if err == nil {
+		t.Fatal("expected hostname mismatch to be rejected")
+	}
+	status := store.snapshot()
+	if status.State != p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_FAILED || status.ErrorCode != p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_HOSTNAME_MISMATCH {
+		t.Fatalf("unexpected failure status: %+v", status)
+	}
+}
+
+func TestManagementTrustStoreRejectsMixedPEMAndUnparsedData(t *testing.T) {
+	caCert, _ := agentTestCA(t)
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw})
+	caPEM = append(caPEM, []byte("unexpected trailing data\n")...)
+	caPath := agentWriteTestFile(t, "mixed-ca.pem", caPEM)
+	if _, err := newManagementTrustStore(Options{ManagementURL: "https://localhost:8081", ManagementCAFile: caPath}); err == nil {
+		t.Fatal("mixed PEM and unparsed trust data was accepted")
+	}
+}
+
+func TestManagementTrustStoreKeepsLiveTLSConnectivityAcrossRotationAndRetirement(t *testing.T) {
+	oldCA, oldCAKey := agentTestCA(t)
+	newCA, newCAKey := agentTestCA(t)
+	oldCertPEM, oldKeyPEM := agentTestCertificate(t, oldCA, oldCAKey, agentTestCertificateOptions{
+		dnsNames: []string{"localhost"},
+		usage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	})
+	newCertPEM, newKeyPEM := agentTestCertificate(t, newCA, newCAKey, agentTestCertificateOptions{
+		dnsNames: []string{"localhost"},
+		usage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	})
+	oldPair, err := tls.X509KeyPair(oldCertPEM, oldKeyPEM)
+	if err != nil {
+		t.Fatalf("load old server pair: %v", err)
+	}
+	newPair, err := tls.X509KeyPair(newCertPEM, newKeyPEM)
+	if err != nil {
+		t.Fatalf("load new server pair: %v", err)
+	}
+	var activeCertificate atomic.Pointer[tls.Certificate]
+	activeCertificate.Store(&oldPair)
+
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	srv.TLS = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return activeCertificate.Load(), nil
+		},
+	}
+	srv.StartTLS()
+	defer srv.Close()
+	managementURL := strings.Replace(srv.URL, "127.0.0.1", "localhost", 1)
+
+	oldCAPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: oldCA.Raw}))
+	newCAPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: newCA.Raw}))
+	trustFile := filepath.Join(t.TempDir(), "state", "management-ca.pem")
+	if err := atomicWriteAgentTrustFile(trustFile, []byte(oldCAPEM), 0644); err != nil {
+		t.Fatalf("seed old trust: %v", err)
+	}
+	opts := Options{ManagementURL: managementURL, ManagementTrustFile: trustFile}
+	store, err := newManagementTrustStore(opts)
+	if err != nil {
+		t.Fatalf("create trust store: %v", err)
+	}
+	client, err := managementHTTPClientWithTrust(opts, store)
+	if err != nil {
+		t.Fatalf("create management client: %v", err)
+	}
+	request := func(wantSuccess bool) {
+		t.Helper()
+		response, requestErr := client.Get(managementURL)
+		if response != nil {
+			response.Body.Close()
+		}
+		if wantSuccess && requestErr != nil {
+			t.Fatalf("management request failed: %v", requestErr)
+		}
+		if !wantSuccess && requestErr == nil {
+			t.Fatal("management request unexpectedly trusted the retired CA")
+		}
+	}
+	request(true)
+
+	dualBundle := normalizeAgentCertificateBundle(oldCAPEM, newCAPEM)
+	dualDigest := sha256.Sum256([]byte(dualBundle))
+	if err := store.apply(&p2pstreamv1.ManagementTrustUpdate{
+		Generation:           2,
+		CaBundlePem:          dualBundle,
+		BundleSha256:         hex.EncodeToString(dualDigest[:]),
+		ServerCertificatePem: string(newCertPEM),
+		ManagementHostname:   "127.0.0.1",
+	}); err != nil {
+		t.Fatalf("install dual trust: %v", err)
+	}
+	activeCertificate.Store(&newPair)
+	store.closeIdleConnections()
+	request(true)
+
+	activeBundle := normalizeAgentCertificateBundle(newCAPEM)
+	activeDigest := sha256.Sum256([]byte(activeBundle))
+	if err := store.apply(&p2pstreamv1.ManagementTrustUpdate{
+		Generation:           3,
+		CaBundlePem:          activeBundle,
+		BundleSha256:         hex.EncodeToString(activeDigest[:]),
+		ServerCertificatePem: string(newCertPEM),
+		ManagementHostname:   "127.0.0.1",
+	}); err != nil {
+		t.Fatalf("retire old trust: %v", err)
+	}
+	activeCertificate.Store(&oldPair)
+	store.closeIdleConnections()
+	request(false)
+	activeCertificate.Store(&newPair)
+	store.closeIdleConnections()
+	request(true)
+
+	restarted, err := newManagementTrustStore(opts)
+	if err != nil {
+		t.Fatalf("reload retired trust: %v", err)
+	}
+	restartedClient, err := managementHTTPClientWithTrust(opts, restarted)
+	if err != nil {
+		t.Fatalf("create restarted management client: %v", err)
+	}
+	response, err := restartedClient.Get(managementURL)
+	if err != nil {
+		t.Fatalf("restarted agent did not trust active certificate: %v", err)
+	}
+	response.Body.Close()
+	if status := restarted.snapshot(); status.InstalledGeneration != 3 || status.InstalledBundleSha256 != hex.EncodeToString(activeDigest[:]) {
+		t.Fatalf("restarted durable trust status = %+v", status)
 	}
 }
 

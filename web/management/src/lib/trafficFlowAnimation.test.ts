@@ -9,6 +9,7 @@ import { createTrafficFlowConfigIndex } from "@/lib/trafficFlowLayout";
 import {
   initialFrameStressState,
   nextFrameStressState,
+  requestLabel,
   renderedTokenCap,
   shouldEnqueueCacheStorePulse,
 } from "@/lib/trafficFlowAnimation";
@@ -44,10 +45,13 @@ describe("trafficFlowAnimation", () => {
       routeTargets: [],
       rateLimitRules: [],
       trafficShaperRules: [],
-      cacheRules: [],
+    cacheRules: [],
+    accessProviders: [],
+    accessPolicies: [],
       tlsDnsCredentials: [],
       wafCaptchaProviders: [],
       wafRules: [],
+      trustedProxySources: [],
       responseTemplates: [],
       tlsCertificates: [],
       proxy: undefined,
@@ -65,6 +69,20 @@ describe("trafficFlowAnimation", () => {
     expect(shouldEnqueueCacheStorePulse(request, index, seen)).toBe(true);
     expect(shouldEnqueueCacheStorePulse(request, index, seen)).toBe(false);
     expect(seen.has("cache-store")).toBe(true);
+  });
+
+  test("bounds and isolates attacker-controlled request labels used by controls", () => {
+    const request = traceRequest({
+      method: "GET\\literal\u202e",
+      path: `/${"x".repeat(300)}\nnext`,
+    });
+
+    const label = requestLabel(request);
+    expect(label).not.toContain("\u202e");
+    expect(label).not.toContain("\n");
+    expect(label).toContain("GET\\\\literal\\u{202E}");
+    expect(Array.from(label).length).toBeLessThanOrEqual(180);
+    expect(label.endsWith("…")).toBe(true);
   });
 });
 

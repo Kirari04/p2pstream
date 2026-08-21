@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
+
+	"p2pstream/internal/tunnel"
 )
 
 const (
@@ -21,31 +24,42 @@ const (
 )
 
 type Config struct {
-	ManagementPort              string `env:"MANAGEMENT_PORT" envDefault:"8081"`
-	ManagementBindAddress       string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
-	ConfigDir                   string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
-	DatabaseURL                 string `env:"DATABASE_URL"`
-	Env                         string `env:"ENV" envDefault:"development"` // development or production
-	ManagementUIDisabled        bool   `env:"MANAGEMENT_UI_DISABLED" envDefault:"false"`
-	ManagementUIDevProxy        string `env:"MANAGEMENT_UI_DEV_PROXY"`
-	ManagementUIDistDir         string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
-	ManagementCookieSecure      bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
-	ManagementTLSCertFile       string `env:"MANAGEMENT_TLS_CERT_FILE"`
-	ManagementTLSKeyFile        string `env:"MANAGEMENT_TLS_KEY_FILE"`
-	ManagementTLSClientCAFile   string `env:"MANAGEMENT_TLS_CLIENT_CA_FILE"`
-	ManagementTLSMode           string `env:"MANAGEMENT_TLS_MODE" envDefault:"auto"`
-	ManagementAllowInsecureHTTP bool   `env:"MANAGEMENT_ALLOW_INSECURE_HTTP" envDefault:"false"`
-	ManagementPublicURL         string `env:"MANAGEMENT_PUBLIC_URL"`
-	ManagementSetupToken        string `env:"MANAGEMENT_SETUP_TOKEN"`
-	ManagementAdvertiseHost     string `env:"MANAGEMENT_ADVERTISE_HOST"`
-	ManagementTLSExtraHosts     string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
-	PublicCacheDir              string `env:"PUBLIC_CACHE_DIR"`
-	BootstrapAgentID            string `env:"BOOTSTRAP_AGENT_ID"`
-	BootstrapAgentName          string `env:"BOOTSTRAP_AGENT_NAME"`
-	BootstrapAgentToken         string `env:"BOOTSTRAP_AGENT_TOKEN"`
-	ObservabilityRetentionDays  int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
-	ObservabilityMaxRows        int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
-	LoginThrottleMaxKeys        int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
+	ManagementPort                string `env:"MANAGEMENT_PORT" envDefault:"8081"`
+	ManagementBindAddress         string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
+	ConfigDir                     string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
+	DatabaseURL                   string `env:"DATABASE_URL"`
+	Env                           string `env:"ENV" envDefault:"development"` // development or production
+	ManagementUIDisabled          bool   `env:"MANAGEMENT_UI_DISABLED" envDefault:"false"`
+	ManagementUIDevProxy          string `env:"MANAGEMENT_UI_DEV_PROXY"`
+	ManagementUIDistDir           string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
+	ManagementCookieSecure        bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
+	ManagementTLSCertFile         string `env:"MANAGEMENT_TLS_CERT_FILE"`
+	ManagementTLSKeyFile          string `env:"MANAGEMENT_TLS_KEY_FILE"`
+	ManagementTLSClientCAFile     string `env:"MANAGEMENT_TLS_CLIENT_CA_FILE"`
+	ManagementTLSMode             string `env:"MANAGEMENT_TLS_MODE" envDefault:"auto"`
+	ManagementAllowInsecureHTTP   bool   `env:"MANAGEMENT_ALLOW_INSECURE_HTTP" envDefault:"false"`
+	ManagementPublicURL           string `env:"MANAGEMENT_PUBLIC_URL"`
+	ManagementSetupToken          string `env:"MANAGEMENT_SETUP_TOKEN"`
+	ManagementTrustedProxyCIDRs   string `env:"MANAGEMENT_TRUSTED_PROXY_CIDRS"`
+	ManagementClientIPHeader      string `env:"MANAGEMENT_CLIENT_IP_HEADER" envDefault:"X-Forwarded-For"`
+	ManagementClientIPMode        string `env:"MANAGEMENT_CLIENT_IP_MODE" envDefault:"trusted_chain"`
+	ManagementAdvertiseHost       string `env:"MANAGEMENT_ADVERTISE_HOST"`
+	ManagementTLSExtraHosts       string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
+	PublicCacheDir                string `env:"PUBLIC_CACHE_DIR"`
+	PublicMaxHeaderBytes          int    `env:"PUBLIC_MAX_HEADER_BYTES" envDefault:"65536"`
+	PublicMaxRequestBodyBytes     int64  `env:"PUBLIC_MAX_REQUEST_BODY_BYTES" envDefault:"1073741824"`
+	PublicRequestBodyIdleMillis   int64  `env:"PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS" envDefault:"30000"`
+	PublicMaxConcurrentRequests   int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"2048"`
+	PublicMaxConcurrentPerTarget  int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET" envDefault:"256"`
+	PublicMaxConnectionsPerTarget int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"256"`
+	BootstrapAgentID              string `env:"BOOTSTRAP_AGENT_ID"`
+	BootstrapAgentName            string `env:"BOOTSTRAP_AGENT_NAME"`
+	BootstrapAgentToken           string `env:"BOOTSTRAP_AGENT_TOKEN"`
+	ObservabilityRetentionDays    int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
+	ObservabilityMaxRows          int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
+	LoginThrottleMaxKeys          int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
+	TunnelMaxStreamWindowBytes    int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"2097152"`
+	TunnelMaxConcurrentRequests   int64  `env:"TUNNEL_MAX_CONCURRENT_REQUESTS" envDefault:"64"`
 
 	CertsDir                        string `env:"-"`
 	ManagementTLSEnabled            bool   `env:"-"`
@@ -108,14 +122,50 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.LoginThrottleMaxKeys <= 0 {
 		return errors.New("LOGIN_THROTTLE_MAX_KEYS must be greater than 0")
 	}
+	if cfg.PublicMaxHeaderBytes < 16*1024 || cfg.PublicMaxHeaderBytes > 1024*1024 {
+		return errors.New("PUBLIC_MAX_HEADER_BYTES must be between 16384 and 1048576")
+	}
+	if cfg.PublicMaxRequestBodyBytes < 1 || cfg.PublicMaxRequestBodyBytes > 1<<40 {
+		return errors.New("PUBLIC_MAX_REQUEST_BODY_BYTES must be between 1 and 1099511627776")
+	}
+	if cfg.PublicRequestBodyIdleMillis < 5000 || cfg.PublicRequestBodyIdleMillis > 10*60*1000 {
+		return errors.New("PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS must be between 5000 and 600000")
+	}
+	if cfg.PublicMaxConcurrentRequests < 1 || cfg.PublicMaxConcurrentRequests > 100000 {
+		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS must be between 1 and 100000")
+	}
+	if cfg.PublicMaxConcurrentPerTarget < 1 || cfg.PublicMaxConcurrentPerTarget > cfg.PublicMaxConcurrentRequests {
+		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET must be between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
+	}
+	if cfg.PublicMaxConnectionsPerTarget < 1 || cfg.PublicMaxConnectionsPerTarget > 65535 {
+		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be between 1 and 65535")
+	}
+	if err := tunnel.ValidateAggregateStreamWindowBudget(cfg.TunnelMaxStreamWindowBytes, cfg.TunnelMaxConcurrentRequests); err != nil {
+		return err
+	}
 	cfg.ManagementTLSCertFile = strings.TrimSpace(cfg.ManagementTLSCertFile)
 	cfg.ManagementTLSKeyFile = strings.TrimSpace(cfg.ManagementTLSKeyFile)
 	cfg.ManagementTLSClientCAFile = strings.TrimSpace(cfg.ManagementTLSClientCAFile)
 	cfg.ManagementTLSMode = strings.ToLower(strings.TrimSpace(cfg.ManagementTLSMode))
 	cfg.ManagementPublicURL = strings.TrimSpace(cfg.ManagementPublicURL)
 	cfg.ManagementSetupToken = strings.TrimSpace(cfg.ManagementSetupToken)
+	cfg.ManagementTrustedProxyCIDRs = strings.TrimSpace(cfg.ManagementTrustedProxyCIDRs)
+	cfg.ManagementClientIPHeader = strings.TrimSpace(cfg.ManagementClientIPHeader)
+	cfg.ManagementClientIPMode = strings.ToLower(strings.TrimSpace(cfg.ManagementClientIPMode))
 	cfg.ManagementAdvertiseHost = strings.TrimSpace(cfg.ManagementAdvertiseHost)
 	cfg.ManagementTLSExtraHosts = strings.TrimSpace(cfg.ManagementTLSExtraHosts)
+	cfg.BootstrapAgentID = strings.TrimSpace(cfg.BootstrapAgentID)
+	cfg.BootstrapAgentName = strings.TrimSpace(cfg.BootstrapAgentName)
+	cfg.BootstrapAgentToken = strings.TrimSpace(cfg.BootstrapAgentToken)
+	if err := validateConfiguredSecret("MANAGEMENT_SETUP_TOKEN", cfg.ManagementSetupToken); err != nil {
+		return err
+	}
+	if err := validateConfiguredSecret("BOOTSTRAP_AGENT_TOKEN", cfg.BootstrapAgentToken); err != nil {
+		return err
+	}
+	if err := validateManagementTrustedProxyConfig(cfg); err != nil {
+		return err
+	}
 	if cfg.ManagementTLSMode == "" {
 		cfg.ManagementTLSMode = "auto"
 	}
@@ -154,6 +204,72 @@ func validateManagementTLSConfig(cfg *Config) error {
 		}
 	}
 	return nil
+}
+
+func validateConfiguredSecret(name, value string) error {
+	if value == "" {
+		return nil
+	}
+	if len(value) < 32 {
+		return fmt.Errorf("%s must contain at least 32 characters; generate configured secrets with cryptographically random data", name)
+	}
+	if len(value) > 4096 {
+		return fmt.Errorf("%s must not exceed 4096 characters", name)
+	}
+	return nil
+}
+
+func validateManagementTrustedProxyConfig(cfg *Config) error {
+	if cfg.ManagementClientIPHeader == "" || !validHTTPHeaderName(cfg.ManagementClientIPHeader) {
+		return errors.New("MANAGEMENT_CLIENT_IP_HEADER must be a valid HTTP header name")
+	}
+	switch cfg.ManagementClientIPMode {
+	case "single_ip", "trusted_chain":
+	default:
+		return errors.New("MANAGEMENT_CLIENT_IP_MODE must be single_ip or trusted_chain")
+	}
+	for _, raw := range splitConfigList(cfg.ManagementTrustedProxyCIDRs) {
+		prefix, err := netip.ParsePrefix(raw)
+		if err != nil || !prefix.IsValid() || prefix.Addr().Zone() != "" {
+			return fmt.Errorf("MANAGEMENT_TRUSTED_PROXY_CIDRS contains invalid CIDR %q", raw)
+		}
+		bits := prefix.Bits()
+		if prefix.Addr().Is4In6() {
+			bits -= 96
+		}
+		if bits < 0 || bits > prefix.Addr().Unmap().BitLen() {
+			return fmt.Errorf("MANAGEMENT_TRUSTED_PROXY_CIDRS contains invalid CIDR %q", raw)
+		}
+		if bits == 0 {
+			return fmt.Errorf("MANAGEMENT_TRUSTED_PROXY_CIDRS must not trust an entire address family (%q)", raw)
+		}
+	}
+	return nil
+}
+
+func splitConfigList(value string) []string {
+	return strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\r' || r == '\n'
+	})
+}
+
+func validHTTPHeaderName(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			continue
+		}
+		switch c {
+		case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func prepareConfigDir(configDir, certsDir string) error {

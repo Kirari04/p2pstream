@@ -18,6 +18,11 @@ import (
 	"p2pstream/internal/server"
 )
 
+const (
+	serverShutdownTimeout             = 5 * time.Second
+	observabilityRecorderCloseTimeout = 5 * time.Second
+)
+
 var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start the p2pstream proxy server",
@@ -38,16 +43,29 @@ var serverCmd = &cobra.Command{
 
 		app := server.NewApp(cfg, database)
 		defer app.CloseAgentTransports()
+		defer func() {
+			if err := app.ClosePublicGeoRuntime(); err != nil {
+				log.Warn().Err(err).Msg("Failed to close GeoIP runtime")
+			}
+		}()
+		if err := app.LoadPublicGeoRuntime(); err != nil && !os.IsNotExist(err) {
+			log.Warn().Err(err).Msg("Failed to load the existing GeoIP country database")
+		}
 
 		// Setup Management Server
 		mgmtMux := http.NewServeMux()
 		app.RegisterManagementRoutes(mgmtMux)
-		mgmtHandler := server.ManagementClientCertificateMiddleware(mgmtMux)
+		mgmtHandler := app.ManagementClientIdentityMiddleware(server.ManagementClientCertificateMiddleware(mgmtMux))
 
 		mgmtTLSConfig, managementTLS, err := server.NewManagementTLSConfig(cfg)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize management TLS")
 		}
+		managementTLSRuntime, err := server.NewManagementTLSRuntime(cfg, database, mgmtTLSConfig, managementTLS)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize management TLS rotation")
+		}
+		app.ManagementTLS = managementTLSRuntime
 
 		p := new(http.Protocols)
 		p.SetHTTP1(true)
@@ -70,6 +88,7 @@ var serverCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		app.StartObservabilityMaintenance(ctx)
+		app.StartPublicGeoMaintenance(ctx)
 
 		if app.PublicACME != nil {
 			app.PublicACME.Start(ctx)
@@ -109,8 +128,7 @@ var serverCmd = &cobra.Command{
 		<-ctx.Done()
 		log.Info().Msg("Shutting down servers gracefully...")
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), serverShutdownTimeout)
 
 		var shutdownErrs []error
 		if _, err := app.StopProxyListener(shutdownCtx); err != nil {
@@ -119,6 +137,15 @@ var serverCmd = &cobra.Command{
 		if err := mgmtSrv.Shutdown(shutdownCtx); err != nil {
 			shutdownErrs = append(shutdownErrs, err)
 		}
+		cancelShutdown()
+
+		// Listener shutdown can consume its entire shared deadline. Give the
+		// recorder an independent bounded chance to persist already-queued data.
+		recorderCloseCtx, cancelRecorderClose := context.WithTimeout(context.Background(), observabilityRecorderCloseTimeout)
+		if err := app.CloseObservabilityRecorder(recorderCloseCtx); err != nil {
+			shutdownErrs = append(shutdownErrs, err)
+		}
+		cancelRecorderClose()
 
 		if len(shutdownErrs) > 0 {
 			log.Error().Errs("errors", shutdownErrs).Msg("Errors during shutdown")

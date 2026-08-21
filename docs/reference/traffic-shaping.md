@@ -2,6 +2,8 @@
 
 Traffic shaper rules limit upload and/or download throughput for matching requests.
 
+In the management UI, choose **Traffic Policy -> Traffic Shaper**. Traffic shapers have a dedicated tab with a rule count, text and enabled-state filters, and compact columns for the rule, match and key, budget and scope, priority and state, and actions. They are not combined with cache rules; use the adjacent **Cache** tab for cache eligibility and storage.
+
 ## Exact Fields And Defaults
 
 | Setting | Default | Description |
@@ -41,13 +43,13 @@ WHERE lower(key_parts_json) LIKE '%forwarded%'
 Byte rates and exempt bytes must be non-negative. Use realistic rates so operational debugging remains clear.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shaper rules">
-  <figcaption>The Traffic Policy page lists traffic shapers next to cache rules so admins can review streaming limits and cache behavior from the same post-routing policy area.</figcaption>
+  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper tab showing a filterable rule table with match and key, upload and download budget, scope, priority, state, and actions">
+  <figcaption>The dedicated Traffic Shaper tab keeps bandwidth rules dense and scannable while the policy tabs and execution-order strip show their relationship to rate limits, routing, and cache.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper rule editor showing match builder, budget scope, key parts, byte-per-second limits, burst bytes, and exempt byte settings">
-  <figcaption>The shaper editor configures the selected stream limits and the key used to share or isolate those limits across matching requests.</figcaption>
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper drawer showing match builder, budget scope, key parts, KiB bandwidth limits, burst KiB, and free KiB settings">
+  <figcaption>The shaper drawer configures the selected stream limits and the key used to share or isolate those limits across matching requests.</figcaption>
 </figure>
 
 ## Runtime Effects

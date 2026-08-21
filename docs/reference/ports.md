@@ -2,6 +2,8 @@
 
 p2pstream uses separate ports for public listeners and management.
 
+Create or edit public endpoints under **Proxy -> Listeners** in the management UI. The listener table combines name and bind address, protocol and route count, runtime state, and actions. Starting, stopping, enabling, or disabling an application listener does not change Docker or host firewall mappings.
+
 ## Exact Fields And Defaults
 
 | Port | Default use |

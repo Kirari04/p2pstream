@@ -341,7 +341,8 @@ func publicRouteTargetUpstreamHeadersToProto(headers []db.PublicRouteTargetUpstr
 	resp := make([]*p2pstreamv1.PublicRouteTargetUpstreamHeader, 0, len(headers))
 	for _, header := range headers {
 		value := header.Value
-		if header.Sensitive != 0 {
+		sensitive := header.Sensitive != 0
+		if sensitive {
 			value = ""
 		}
 		resp = append(resp, &p2pstreamv1.PublicRouteTargetUpstreamHeader{
@@ -349,8 +350,8 @@ func publicRouteTargetUpstreamHeadersToProto(headers []db.PublicRouteTargetUpstr
 			TargetId:  header.TargetID,
 			Name:      header.Name,
 			Value:     value,
-			Sensitive: header.Sensitive != 0,
-			ValueSet:  true,
+			Sensitive: sensitive,
+			ValueSet:  !sensitive,
 			Position:  header.Position,
 		})
 	}
@@ -439,6 +440,7 @@ func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, up
 		RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
 		RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
 		PathSecurityMode:           protoRoutePathSecurityModeFromString(route.PathSecurityMode),
+		AccessPolicyId:             nullInt64Value(route.AccessPolicyID),
 	}
 }
 

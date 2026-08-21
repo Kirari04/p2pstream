@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
+import { NButton, NButtonGroup, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicRateLimitPreview from "@/components/editors/PublicRateLimitPreview.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -220,15 +221,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'"
-    :style="modalCardStyle('60rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('60rem')"
+    :aria-label="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'"
+    class="editor-drawer"
   >
-    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRule">
+    <NDrawerContent :title="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'" closable>
+    <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Name
@@ -236,7 +237,7 @@ defineExpose({ openCreate, openEdit, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
-          <NInputNumber v-model:value="form.priority" size="small" required />
+          <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
         <NCheckbox v-model:checked="form.enabled" class="self-align-end">
           Enabled
@@ -244,11 +245,13 @@ defineExpose({ openCreate, openEdit, close });
       </section>
 
       <section class="layout-grid space-lg">
-        <NButtonGroup class="layout-grid cols-two mq-sm-cols-four" size="small">
+        <NButtonGroup class="layout-grid cols-two mq-sm-cols-four" size="small" role="group" aria-label="Rate-limit algorithm">
           <NButton
             v-for="option in algorithmOptions"
             :key="option.value"
+            attr-type="button"
             :type="form.algorithm === option.value ? 'primary' : 'default'"
+            :aria-pressed="form.algorithm === option.value"
             @click="form.algorithm = option.value"
           >
             {{ option.label }}
@@ -257,18 +260,18 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-lg mq-sm-cols-three">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Limit
-            <NInputNumber v-model:value="form.limit" size="small" :min="1" required />
+            <NInputNumber :show-button="false" v-model:value="form.limit" size="small" :min="1" required />
             <p class="copy-xs weight-normal normal-text letter-normal muted-text">Max requests allowed per window.</p>
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Window seconds
-            <NInputNumber v-model:value="form.windowSeconds" size="small" :min="1" :step="1" required />
+            <NInputNumber :show-button="false" v-model:value="form.windowSeconds" size="small" :min="1" :step="1" required />
             <p class="copy-xs weight-normal normal-text letter-normal muted-text">Duration of each rate limit window.</p>
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Burst
             <DisabledHint full-width :disabled="Boolean(burstDisabledReason)" :reason="burstDisabledReason">
-              <NInputNumber
+              <NInputNumber :show-button="false"
                 v-model:value="form.burst"
                 size="small"
                 :min="0"
@@ -296,7 +299,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-lg mq-sm-cols-three">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Status
-            <NInputNumber v-model:value="form.responseStatusCode" size="small" :min="400" :max="599" />
+            <NInputNumber :show-button="false" v-model:value="form.responseStatusCode" size="small" :min="400" :max="599" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
             Content type
@@ -306,15 +309,19 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-md round-md framed frame-standard muted-bg pad-md">
           <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Body source
-            <NButtonGroup class="layout-grid cols-two" size="small">
+            <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="Rate-limit response body source">
               <NButton
+                attr-type="button"
                 :type="form.responseBodyMode === PublicResponseBodyMode.INLINE ? 'primary' : 'default'"
+                :aria-pressed="form.responseBodyMode === PublicResponseBodyMode.INLINE"
                 @click="form.responseBodyMode = PublicResponseBodyMode.INLINE"
               >
                 Inline
               </NButton>
               <NButton
+                attr-type="button"
                 :type="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'primary' : 'default'"
+                :aria-pressed="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE"
                 @click="form.responseBodyMode = PublicResponseBodyMode.TEMPLATE"
               >
                 Template
@@ -323,8 +330,9 @@ defineExpose({ openCreate, openEdit, close });
           </div>
           <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Template
-            <NSelect
+            <AccessibleSelect
               v-model:value="form.responseBodyTemplateId"
+              accessible-label="Rate limit response template"
               size="small"
               :options="genericTemplateOptions"
               :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
@@ -358,7 +366,7 @@ defineExpose({ openCreate, openEdit, close });
         </div>
       </section>
 
-      <div class="layout-row align-end-row space-md">
+      <div class="editor-drawer-actions layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="rateLimitSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
@@ -367,7 +375,8 @@ defineExpose({ openCreate, openEdit, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped>

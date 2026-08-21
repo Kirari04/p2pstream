@@ -17,12 +17,15 @@ import (
 
 type proxyResponseRecorder struct {
 	http.ResponseWriter
-	statusCode int
-	bytes      uint64
+	statusCode       int
+	bytes            uint64
+	request          *http.Request
+	requestBodyState *publicRequestBodyState
 }
 
 func (r *proxyResponseRecorder) WriteHeader(statusCode int) {
 	if r.statusCode == 0 {
+		r.closeConnectionForUnreadRequestBody()
 		r.statusCode = statusCode
 	}
 	r.ResponseWriter.WriteHeader(statusCode)
@@ -30,6 +33,7 @@ func (r *proxyResponseRecorder) WriteHeader(statusCode int) {
 
 func (r *proxyResponseRecorder) Write(data []byte) (int, error) {
 	if r.statusCode == 0 {
+		r.closeConnectionForUnreadRequestBody()
 		r.statusCode = http.StatusOK
 	}
 	n, err := r.ResponseWriter.Write(data)
@@ -39,6 +43,7 @@ func (r *proxyResponseRecorder) Write(data []byte) (int, error) {
 
 func (r *proxyResponseRecorder) ReadFrom(src io.Reader) (int64, error) {
 	if r.statusCode == 0 {
+		r.closeConnectionForUnreadRequestBody()
 		r.statusCode = http.StatusOK
 	}
 	if readerFrom, ok := r.ResponseWriter.(io.ReaderFrom); ok {
@@ -49,6 +54,18 @@ func (r *proxyResponseRecorder) ReadFrom(src io.Reader) (int64, error) {
 	n, err := io.Copy(r.ResponseWriter, src)
 	r.bytes += uint64(n)
 	return n, err
+}
+
+// net/http otherwise drains unread HTTP/1 request bodies before it writes an
+// early response. That drain bypasses handler wrappers, so an incomplete
+// chunked upload could hold a rejected request forever. Closing only those
+// affected keep-alive connections avoids the drain while preserving normal
+// requests whose known-length bodies have been fully consumed.
+func (r *proxyResponseRecorder) closeConnectionForUnreadRequestBody() {
+	if r == nil || r.request == nil || r.request.ProtoMajor >= 2 || r.requestBodyState == nil || r.requestBodyState.complete.Load() {
+		return
+	}
+	r.Header().Set("Connection", "close")
 }
 
 func (r *proxyResponseRecorder) Flush() {
@@ -95,7 +112,7 @@ type trafficRequestTrace struct {
 	recorder       *proxyResponseRecorder
 }
 
-func (a *App) newTrafficRequestTrace(r *http.Request, recorder *proxyResponseRecorder) *trafficRequestTrace {
+func (a *App) newTrafficRequestTrace(r *http.Request, recorder *proxyResponseRecorder, safePath string) *trafficRequestTrace {
 	if a == nil || a.TrafficTracer == nil {
 		return nil
 	}
@@ -107,9 +124,8 @@ func (a *App) newTrafficRequestTrace(r *http.Request, recorder *proxyResponseRec
 	if err != nil {
 		requestID = uuid.New()
 	}
-	path := r.URL.EscapedPath()
-	if path == "" {
-		path = "/"
+	if safePath == "" {
+		safePath = "/"
 	}
 	trace := &trafficRequestTrace{
 		tracer:    a.TrafficTracer,
@@ -118,7 +134,7 @@ func (a *App) newTrafficRequestTrace(r *http.Request, recorder *proxyResponseRec
 		level:     level,
 		method:    r.Method,
 		host:      r.Host,
-		path:      path,
+		path:      safePath,
 		query:     redactSensitiveQuery(r.URL.RawQuery),
 		recorder:  recorder,
 	}
@@ -209,7 +225,7 @@ func redactSensitiveTraceURL(rawURL string) string {
 	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return rawURL
+		return trafficTraceRedactedValue
 	}
 	if parsed.User != nil {
 		parsed.User = url.User(trafficTraceRedactedValue)
@@ -227,22 +243,40 @@ func redactSensitiveQuery(rawQuery string) string {
 		return ""
 	}
 	for key := range values {
-		if traceQueryKeyIsSensitive(key) {
-			values[key] = []string{trafficTraceRedactedValue}
-		}
+		values[key] = []string{trafficTraceRedactedValue}
 	}
 	return values.Encode()
 }
 
-func traceQueryKeyIsSensitive(key string) bool {
-	lower := strings.ToLower(key)
-	return strings.Contains(lower, "token") ||
-		strings.Contains(lower, "secret") ||
-		strings.Contains(lower, "password") ||
-		strings.Contains(lower, "key") ||
-		strings.Contains(lower, "auth") ||
-		strings.Contains(lower, "code") ||
-		strings.Contains(lower, "session")
+func publicTracePathForRequest(app *App, snap *publicProxySnapshot, listenerID int64, r *http.Request) string {
+	if r == nil || r.URL == nil {
+		return "/"
+	}
+	requestPath := r.URL.Path
+	if requestPath == "" {
+		requestPath = "/"
+	}
+	if app == nil || snap == nil {
+		return redactedProxyPathPrefix(requestPath)
+	}
+	match, err := app.matchPublicRouteInSnapshot(snap, listenerID, r)
+	if err != nil {
+		return redactedProxyPathPrefix(requestPath)
+	}
+	if match.DefaultRoute {
+		return redactedProxyPathPrefix(requestPath)
+	}
+	prefix := strings.TrimSpace(match.Route.PathPrefix)
+	if prefix == "" {
+		prefix = "/"
+	}
+	if requestPath == prefix || (prefix == "/" && requestPath == "/") {
+		return prefix
+	}
+	if prefix == "/" {
+		return "/..."
+	}
+	return strings.TrimRight(prefix, "/") + "/..."
 }
 
 func fillTrafficTraceResolution(event *p2pstreamv1.TrafficTraceEvent, resolution publicRouteResolution) {

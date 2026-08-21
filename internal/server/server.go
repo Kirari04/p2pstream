@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"database/sql"
+	"net"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,14 +26,112 @@ import (
 )
 
 type AgentConn struct {
-	AgentID        int64
-	PublicID       string
-	Name           string
-	Session        *yamux.Session
-	Done           chan struct{}
-	ActiveRequests atomic.Int64
-	ConnectedAt    time.Time
-	ConnectionDBID int64
+	AgentID                  int64
+	PublicID                 string
+	Name                     string
+	Session                  *yamux.Session
+	Done                     chan struct{}
+	doneOnce                 sync.Once
+	streamOpenMu             sync.Mutex
+	streamOpenGate           chan struct{}
+	streamOpenAdmissionLimit int
+	ActiveRequests           atomic.Int64
+	ConnectedAt              time.Time
+	ConnectionDBID           int64
+}
+
+type agentTunnelReadGateConn struct {
+	net.Conn
+	ready       chan struct{}
+	readOnce    sync.Once
+	releaseOnce sync.Once
+}
+
+func (c *agentTunnelReadGateConn) Read(p []byte) (int, error) {
+	c.readOnce.Do(func() { <-c.ready })
+	return c.Conn.Read(p)
+}
+
+func (c *agentTunnelReadGateConn) Close() error {
+	c.releaseReads()
+	return c.Conn.Close()
+}
+
+func (c *agentTunnelReadGateConn) releaseReads() {
+	c.releaseOnce.Do(func() { close(c.ready) })
+}
+
+func (c *AgentConn) signalDone() {
+	if c == nil || c.Done == nil {
+		return
+	}
+	c.doneOnce.Do(func() {
+		select {
+		case <-c.Done:
+			// Keep compatibility with test and embedded callers that supplied an
+			// already-closed channel without going through signalDone.
+		default:
+			close(c.Done)
+		}
+	})
+}
+
+func (c *AgentConn) streamOpenAdmissionGate() chan struct{} {
+	if c == nil {
+		return nil
+	}
+	c.streamOpenMu.Lock()
+	defer c.streamOpenMu.Unlock()
+	if c.streamOpenGate != nil {
+		return c.streamOpenGate
+	}
+	maxAdmissions := tunnel.DefaultYamuxConfig(nil).AcceptBacklog
+	if maxAdmissions < 1 {
+		maxAdmissions = 1
+	}
+	limit := c.streamOpenAdmissionLimit
+	if limit < 1 || limit > maxAdmissions {
+		limit = maxAdmissions
+	}
+	c.streamOpenGate = make(chan struct{}, limit)
+	return c.streamOpenGate
+}
+
+func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), bool) {
+	if c == nil {
+		return nil, false
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	gate := c.streamOpenAdmissionGate()
+	select {
+	case gate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, false
+	case <-c.Done:
+		return nil, false
+	}
+
+	// A ready gate and cancellation can race in the select above. Check again
+	// before the caller is allowed to create an Open goroutine.
+	select {
+	case <-ctx.Done():
+		<-gate
+		return nil, false
+	default:
+	}
+	select {
+	case <-c.Done:
+		<-gate
+		return nil, false
+	default:
+	}
+
+	var releaseOnce sync.Once
+	return func() {
+		releaseOnce.Do(func() { <-gate })
+	}, true
 }
 
 type App struct {
@@ -44,23 +144,34 @@ type App struct {
 
 	// These service fields remain public for package tests during the extraction stack.
 	// New construction should go through appServices so they can become private later.
-	AgentHub              *agentHub
-	LoadBalancers         *loadBalancerRegistry
-	TargetHealth          *publicRouteTargetHealthMonitor
-	TrafficTracer         *trafficTracer
-	RateLimiter           *publicRateLimiter
-	TrafficShaper         *publicTrafficShaper
-	PublicWAF             *publicWAF
-	PublicCache           *publicProxyCache
-	PublicACME            *publicACMEManager
-	publicConfig          *publicConfigService
-	proxyRuntime          *proxyRuntime
-	observabilityRecorder *observabilityRecorder
-	auth                  *authService
-	AgentTransports       *agentTransportPool
-	DashboardCache        *dashboardResponseCache
-	LoginThrottle         *loginThrottle
-	agentAuthLocks        *agentAuthLockMap
+	AgentHub                    *agentHub
+	LoadBalancers               *loadBalancerRegistry
+	TargetHealth                *publicRouteTargetHealthMonitor
+	TrafficTracer               *trafficTracer
+	RateLimiter                 *publicRateLimiter
+	TrafficShaper               *publicTrafficShaper
+	PublicWAF                   *publicWAF
+	PublicCache                 *publicProxyCache
+	PublicACME                  *publicACMEManager
+	GeoConfigRefresher          PublicGeoConfigRefresher
+	publicConfig                *publicConfigService
+	proxyRuntime                *proxyRuntime
+	observabilityRecorder       *observabilityRecorder
+	auth                        *authService
+	AgentTransports             *agentTransportPool
+	DirectTransports            *directTransportPool
+	reverseProxyBuffers         httputil.BufferPool
+	DashboardCache              *dashboardResponseCache
+	LoginThrottle               *loginThrottle
+	clientLoginThrottle         *loginThrottle
+	agentAuthLocks              *agentAuthLockMap
+	agentProxyRequests          *tunnel.StreamLimiter
+	agentTunnelStreams          *tunnel.StreamLimiter
+	publicProxyRequests         *requestCapacityLimiter
+	publicTargetRequests        *keyedRequestCapacityLimiter
+	managementClientIdentity    *ClientIdentityResolver
+	managementClientIdentityErr error
+	ManagementTLS               *ManagementTLSRuntime
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -70,20 +181,30 @@ type App struct {
 	generatedSetupToken string
 	setupTokenLogOnce   sync.Once
 
-	proxyMu             sync.Mutex
-	proxyServiceActive  bool
-	proxyState          p2pstreamv1.ProxyState
-	proxyLastError      string
-	publicSnapshot      *publicProxySnapshot
-	publicListenerState map[int64]*publicListenerRuntime
+	proxyMu                  sync.Mutex
+	proxyServiceActive       bool
+	proxyState               p2pstreamv1.ProxyState
+	proxyLastError           string
+	publicSnapshot           *publicProxySnapshot
+	publicSnapshotPtr        atomic.Pointer[publicProxySnapshot]
+	publicSnapshotGeneration uint64
+	publicListenerState      map[int64]*publicListenerRuntime
 
 	publicConfigCacheMu sync.RWMutex
 	publicConfigCache   cachedPublicConfig
+	publicGeoConfigMu   sync.Mutex
+
+	publicGeoMaintenanceMu      sync.Mutex
+	publicGeoMaintenanceStarted bool
+	publicGeoMaintenanceCancel  context.CancelFunc
+	publicGeoMaintenanceWG      sync.WaitGroup
 
 	observabilityMu          sync.Mutex
 	observabilityLastCleanup time.Time
 
-	agentTunnelBeforeFinalAuth func(db.Agent)
+	agentTunnelBeforeFinalAuth            func(db.Agent)
+	agentDisconnectAfterHubRemoval        func(*AgentConn, bool)
+	publicTLSSelectorRefreshBeforePublish func(uint64)
 }
 
 type agentAuthLockMap struct {
@@ -122,6 +243,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
+	managementIdentity, managementIdentityErr := newManagementClientIdentityResolver(cfg)
 	app := &App{
 		Config:              cfg,
 		DB:                  database,
@@ -129,6 +251,22 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		latestAgentStats:    make(map[int64]stats.AgentStats),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
+		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
+		agentTunnelStreams:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
+		publicProxyRequests: newRequestCapacityLimiter(cfg.PublicMaxConcurrentRequests, defaultPublicMaxConcurrentRequests),
+		publicTargetRequests: newKeyedRequestCapacityLimiter(
+			cfg.PublicMaxConcurrentPerTarget,
+			defaultPublicMaxConcurrentRequestsPerTarget,
+		),
+		managementClientIdentity:    managementIdentity,
+		managementClientIdentityErr: managementIdentityErr,
+	}
+	configDir := strings.TrimSpace(cfg.ConfigDir)
+	if configDir == "" {
+		configDir = config.DefaultConfigDir
+	}
+	if geoRuntime, err := NewPublicGeoRuntime(GeoIPCountryDatabasePath(configDir), nil); err == nil {
+		app.GeoConfigRefresher = geoRuntime
 	}
 	app.applyServices(newAppServices(cfg, app))
 	if database != nil {
@@ -185,7 +323,7 @@ func (a *App) ReportStats(
 	s := stats.AgentStats{
 		Timestamp:        time.Now(),
 		NumGoroutine:     int(payload.NumGoroutine),
-		AllocAllocated:   uint64(payload.MemorySysMb),
+		MemorySysMB:      uint64(payload.MemorySysMb),
 		ActiveRequests:   payload.ActiveRequests,
 		CPUPercent:       payload.CpuPercent,
 		ReqSuccess:       int32(payload.ReqSuccess),
@@ -227,7 +365,18 @@ func (a *App) ReportStats(
 		}
 	}
 
-	return connect.NewResponse(&p2pstreamv1.AgentStatsResponse{}), nil
+	response := &p2pstreamv1.AgentStatsResponse{}
+	if a.ManagementTLS != nil {
+		trustReportRecorded := true
+		if err := a.ManagementTLS.recordTrustReport(ctx, agentRow.ID, payload.ManagementTrustStatus); err != nil {
+			trustReportRecorded = false
+			log.Error().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to record agent management trust status")
+		}
+		if trustReportRecorded {
+			response.ManagementTrustUpdate = a.ManagementTLS.trustUpdate(payload.ManagementTrustStatus)
+		}
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (a *App) storeLatestAgentStats(agentID int64, stat stats.AgentStats) {
@@ -251,7 +400,7 @@ func (a *App) latestAgentStatsSnapshot(agentID int64) (*p2pstreamv1.AgentStatsSn
 
 func agentStatsSnapshotFromRuntime(stat stats.AgentStats) *p2pstreamv1.AgentStatsSnapshot {
 	return &p2pstreamv1.AgentStatsSnapshot{
-		MemorySysMb:          int64(stat.AllocAllocated),
+		MemorySysMb:          int64(stat.MemorySysMB),
 		NumGoroutine:         int64(stat.NumGoroutine),
 		ReqSuccess:           int64(stat.ReqSuccess),
 		ReqClientError:       int64(stat.ReqClientError),
@@ -349,18 +498,18 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	agentRow = finalAgentRow
 
-	if existing := a.AgentHub.connectedByID(agentRow.ID); existing != nil {
-		log.Warn().Str("agent", agentRow.PublicID).Msg("Rejecting duplicate agent connection")
-		http.Error(w, "agent is already connected", http.StatusConflict)
-		return
-	}
-
 	agent := &AgentConn{
 		AgentID:     agentRow.ID,
 		PublicID:    agentRow.PublicID,
 		Name:        agentRow.Name,
 		Done:        make(chan struct{}),
 		ConnectedAt: time.Now(),
+	}
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, a.Config.TunnelMaxStreamWindowBytes)
+	if err != nil {
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid agent tunnel yamux configuration")
+		http.Error(w, "invalid agent tunnel configuration", http.StatusInternalServerError)
+		return
 	}
 
 	rawConn, rw, err := hijacker.Hijack()
@@ -385,12 +534,28 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := yamux.Server(rawConn, tunnel.DefaultYamuxConfig(nil))
+	// Yamux starts its receive loop before Server returns. Hold reads until
+	// GoAway has set localGoAway so even a SYN sent during session setup is RST
+	// instead of entering the unbudgeted accept backlog.
+	gatedConn := &agentTunnelReadGateConn{Conn: rawConn, ready: make(chan struct{})}
+	session, err := yamux.Server(gatedConn, yamuxConfig)
 	if err != nil {
+		gatedConn.releaseReads()
 		_ = rawConn.Close()
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to initialize agent tunnel session")
 		return
 	}
+	// Agent tunnel streams are always server-initiated. Fence the session before
+	// exposing it so unsolicited agent SYNs are rejected instead of occupying
+	// Yamux's unbudgeted accept backlog.
+	if err := session.GoAway(); err != nil {
+		gatedConn.releaseReads()
+		_ = session.Close()
+		_ = rawConn.Close()
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to restrict agent tunnel stream direction")
+		return
+	}
+	gatedConn.releaseReads()
 	agent.Session = session
 
 	if a.DB != nil {
@@ -404,7 +569,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Msg("Failed to insert connection into DB")
 		}
 	}
-	if err := a.AgentHub.connect(agent); err != nil {
+	displaced, err := a.AgentHub.replace(agent)
+	if err != nil {
 		_ = session.Close()
 		if a.DB != nil && agent.ConnectionDBID > 0 {
 			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
@@ -414,20 +580,16 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update rejected agent disconnected timestamp")
 			}
 		}
-		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Rejecting duplicate agent connection")
+		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to register agent tunnel")
 		return
 	}
-	unlockAgentAuth()
-
-	cleanupAgent := func() {
-		a.AgentHub.disconnect(agent)
-		if a.TargetHealth != nil {
-			a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
-		}
+	for _, old := range displaced {
+		a.retireDisplacedAgentConnection(old)
 	}
 	if a.TargetHealth != nil {
 		a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
 	}
+	unlockAgentAuth()
 
 	log.Info().
 		Str("remote_addr", r.RemoteAddr).
@@ -441,21 +603,62 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			_ = session.Close()
 		case <-session.CloseChan():
 		}
-		cleanupAgent()
+		a.cleanupAgentConnection(agent)
 		log.Info().
 			Str("agent", agent.PublicID).
 			Int64("duration_ms", time.Since(agent.ConnectedAt).Milliseconds()).
 			Int64("active_requests", agent.ActiveRequests.Load()).
 			Msg("Agent tunnel disconnected")
-		if a.DB != nil && agent.ConnectionDBID > 0 {
-			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
-				log.Warn().Err(err).Msg("Failed to update disconnection time")
-			}
+	}()
+}
+
+func (a *App) cleanupAgentConnection(agent *AgentConn) bool {
+	if a == nil || agent == nil {
+		return false
+	}
+	unlock := a.lockAgentAuth(agent.AgentID)
+	defer unlock()
+
+	disconnected := false
+	if a.AgentHub != nil {
+		disconnected = a.AgentHub.disconnect(agent)
+	}
+	if hook := a.agentDisconnectAfterHubRemoval; hook != nil {
+		hook(agent, disconnected)
+	}
+	if disconnected && a.TargetHealth != nil {
+		a.TargetHealth.recordAgentDisconnectedForAll(agent.AgentID)
+	}
+	if a.DB != nil && agent.ConnectionDBID > 0 {
+		if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
+			log.Warn().Err(err).Msg("Failed to update disconnection time")
+		}
+		if disconnected {
 			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
 				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update agent disconnected timestamp")
 			}
 		}
-	}()
+	}
+	return disconnected
+}
+
+func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
+	if agent == nil {
+		return
+	}
+	log.Warn().
+		Str("agent", agent.PublicID).
+		Int64("active_requests", agent.ActiveRequests.Load()).
+		Msg("Replacing existing agent tunnel with newer authenticated connection")
+	if a.AgentTransports != nil {
+		a.AgentTransports.closeAgentConnection(agent)
+	}
+	agent.signalDone()
+	if agent.Session != nil {
+		if err := agent.Session.Close(); err != nil {
+			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to close displaced agent tunnel session")
+		}
+	}
 }
 
 func headerHasToken(header http.Header, name string, want string) bool {

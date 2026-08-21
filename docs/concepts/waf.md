@@ -20,7 +20,9 @@ Use WAF rules for broad HTTP load reduction, login pressure, bot checks, tempora
 
 ## Runtime Behavior
 
-Rules are ordered by priority, then ID. The first enabled matching rule wins. Match fields reuse the same policy matcher model as rate limits: method, protocol, host pattern, path prefix, headers, cookies, and query parameters. Key parts identify a visitor or policy bucket and default to remote IP.
+Rules are ordered by priority, then ID. The first enabled matching rule wins. Match fields reuse the same policy matcher model as rate limits: method, protocol, host pattern, path prefix, headers, cookies, and query parameters. An optional country restriction further narrows a WAF rule using a local GeoLite2 database. Key parts identify a visitor or policy bucket and default to remote IP.
+
+When a CDN or reverse proxy sits in front, administrators can explicitly trust Cloudflare, Bunny, CloudFront, or custom peer CIDRs. p2pstream accepts the configured visitor-IP header only after the connection peer passes that trust check; no provider is trusted by default.
 
 p2pstream supports Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2 checkbox providers. Captcha verification uses the provider `siteverify` endpoint with a 3 second timeout. On success, p2pstream sets a signed `p2pstream_waf_<rule_id>` pass cookie and redirects with `303 See Other`.
 
@@ -32,9 +34,11 @@ Custom waiting-room pages must include <code v-pre>{{ .queue_position }}</code> 
 
 Automatic waiting-room activation can use request rate, traffic spike, proxy active requests, target active requests, agent active requests, server CPU, and agent CPU pressure signals.
 
+Manage these controls under **Traffic Policy → WAF**. The filterable WAF rules table and captcha providers appear first. **Visitor identity & GeoIP** is a separate section on the same tab because its trusted-source and country-database settings affect WAF country restrictions and any policy keyed by resolved client identity. Use **Request Tester** to validate a representative request against the current policy configuration.
+
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_waf_modal.png" alt="p2pstream WAF rule editor showing request match, block, captcha, waiting-room, activation, and template controls">
-  <figcaption>The WAF editor shows how a single rule combines request matching, action selection, visitor keying, response templates, captcha providers, and automatic waiting-room triggers.</figcaption>
+  <img src="../assets/new/edit_waf_modal.png" alt="p2pstream Edit WAF Rule drawer showing action, activation mode, CEL request match, and geographic targeting">
+  <figcaption>The visible drawer viewport keeps action and activation choices beside request matching and optional geographic targeting; visitor keys and action-specific controls continue below it.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
@@ -46,7 +50,9 @@ Automatic waiting-room activation can use request rate, traffic spike, proxy act
 
 - Treating WAF as volumetric DDoS protection; saturated links and L3/L4 attacks require upstream protection.
 - Challenging `POST` or upload clients that cannot resubmit after the browser receives a pass/admission cookie.
-- Using remote IP only when a front proxy makes all clients look identical.
+- Using remote IP without explicitly configuring the front proxy that makes all clients look identical.
+- Enabling a trusted CDN while leaving the origin directly reachable from the internet.
+- Using fail-open unknown-country handling for an allow-only rule without intending that bypass.
 - Leaving automatic waiting-room trigger thresholds too broad for normal traffic.
 - Selecting a generic body template for a captcha or waiting-room page; those actions require WAF page template kinds.
 

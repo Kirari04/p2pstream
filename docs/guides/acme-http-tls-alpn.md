@@ -20,9 +20,9 @@ The hostname must be a publicly resolvable fully-qualified domain name. `localho
 ## Steps
 
 1. Open **Proxy -> Listeners**.
-2. For HTTP-01, ensure an HTTP listener is enabled and running on container port `80`.
-3. For TLS-ALPN-01, ensure an HTTPS listener is enabled and running on container port `443`.
-4. Open **TLS** and add a certificate mapping:
+2. For HTTP-01, ensure an HTTP listener is enabled and running on container port `80`; use **More -> Enable listener** and **Start** as needed.
+3. For TLS-ALPN-01, ensure an HTTPS listener is enabled and running on container port `443`; use **More -> Enable listener** and **Start** as needed.
+4. Open **TLS**, select **Add Certificate**, and create a certificate mapping:
 
    | Field | Value |
    | --- | --- |
@@ -34,8 +34,8 @@ The hostname must be a publicly resolvable fully-qualified domain name. `localho
    | Enabled | On |
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream TLS certificate mapping modal showing HTTP challenge, Let's Encrypt CA, hostname pattern, and listener selection">
-     <figcaption>The ACME mapping dialog ties the hostname pattern to an HTTPS listener and selects the HTTP-01 or TLS-ALPN-01 validation method and Let's Encrypt CA.</figcaption>
+     <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream Edit TLS Mapping drawer showing HTTP-01, Let's Encrypt staging, a hostname pattern, and HTTPS listener">
+     <figcaption>The TLS mapping drawer ties the hostname pattern to an HTTPS listener and selects the HTTP-01 or TLS-ALPN validation method and Let's Encrypt CA environment.</figcaption>
    </figure>
 
 ## Verification
@@ -52,7 +52,7 @@ curl -I https://app.example.com
 
 | Symptom | Check |
 | --- | --- |
-| Status stays error | Open **TLS** and read `last_error`. |
+| Status stays error | Open **TLS** and read the mapping's **Last error** row. |
 | HTTP-01 fails | DNS and firewall must send port `80` to the p2pstream HTTP listener. |
 | TLS-ALPN-01 fails | DNS and firewall must send port `443` to the p2pstream HTTPS listener. |
 | Wildcard rejected | Use DNS-01 with a Cloudflare DNS credential. |

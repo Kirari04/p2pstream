@@ -139,12 +139,13 @@ func (s *publicTrafficShaper) reconcile(snap *publicProxySnapshot) {
 }
 
 func (a *App) selectPublicTrafficShaper(listenerID int64, r *http.Request) (publicTrafficShaperDecision, bool) {
+	return a.selectPublicTrafficShaperWithSnapshot(a.currentPublicSnapshot(), listenerID, r)
+}
+
+func (a *App) selectPublicTrafficShaperWithSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicTrafficShaperDecision, bool) {
 	if a == nil || a.TrafficShaper == nil {
 		return publicTrafficShaperDecision{}, false
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil || len(snap.TrafficShaperRules) == 0 {
 		return publicTrafficShaperDecision{}, false
 	}
@@ -159,20 +160,22 @@ func (s *publicTrafficShaper) evaluate(rules []publicTrafficShaperRuleConfig, li
 	if len(rules) == 0 {
 		return publicTrafficShaperDecision{}, false
 	}
-	ordered := append([]publicTrafficShaperRuleConfig(nil), rules...)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		if ordered[i].Priority == ordered[j].Priority {
-			return ordered[i].ID < ordered[j].ID
-		}
-		return ordered[i].Priority < ordered[j].Priority
-	})
-	for _, rule := range ordered {
+	for _, rule := range rules {
 		if !rule.Enabled || !rule.matches(listener, r) {
 			continue
 		}
 		return s.decisionForRule(rule, listener, r, now), true
 	}
 	return publicTrafficShaperDecision{}, false
+}
+
+func sortPublicTrafficShaperRules(rules []publicTrafficShaperRuleConfig) {
+	sort.SliceStable(rules, func(i, j int) bool {
+		if rules[i].Priority == rules[j].Priority {
+			return rules[i].ID < rules[j].ID
+		}
+		return rules[i].Priority < rules[j].Priority
+	})
 }
 
 func (s *publicTrafficShaper) decisionForRule(rule publicTrafficShaperRuleConfig, listener publicListenerConfig, r *http.Request, now time.Time) publicTrafficShaperDecision {

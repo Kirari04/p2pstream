@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Eye as EyeIcon } from "@lucide/vue";
 import { EyeOff as EyeSlashIcon } from "@lucide/vue";
+import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NDataTable, NDatePicker, NInput, NModal, NTag } from "naive-ui";
+import { NButton, NCheckbox, NDataTable, NDatePicker, NDrawer, NDrawerContent, NInput, NModal, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
+import type { InputInst } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref, watch } from "vue";
 import {
   isBusyKey,
@@ -14,9 +16,11 @@ import {
 } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
+import { editorDrawerWidth, modalCardStyle, naiveTagType } from "@/lib/naiveUi";
 import type { ManagementAccessToken } from "@/gen/proto/p2pstream/v1/management_pb";
 import { messageFromError } from "@/lib/errors";
 
@@ -26,13 +30,17 @@ const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0
 const selectedEnvironmentLabel = inject(selectedEnvironmentLabelKey, computed(() => "Local"));
 const selectedEnvironmentBlocked = inject(selectedEnvironmentBlockedKey, computed(() => ""));
 const revokeTokenDialog = useConfirmDialog();
+const discardIssuedTokenDialog = useConfirmDialog();
 
 const tokens = ref<ManagementAccessToken[]>([]);
 const isLoading = ref(false);
 const refreshQueued = ref(false);
+const isCreateTokenDrawerOpen = ref(false);
+const tokenNameInput = ref<InputInst | null>(null);
 const issuedToken = ref("");
 const isIssuedTokenModalOpen = ref(false);
 const isIssuedTokenVisible = ref(false);
+const issuedTokenWasCopied = ref(false);
 const tokenCopyLabel = ref("Copy Token");
 const operationError = ref("");
 const issuedTokenVisiblePrefix = computed(() => issuedToken.value.slice(0, Math.min(10, issuedToken.value.length)));
@@ -59,8 +67,11 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
     title: "Name",
     key: "name",
     minWidth: 180,
-    ellipsis: { tooltip: true },
-    render: (token) => token.name,
+    render: (token) => h("bdi", {
+      class: "clip-text base-text",
+      dir: "ltr",
+      title: diagnosticInspectionText(token.name),
+    }, diagnosticExcerpt(token.name, 64).text),
   },
   {
     title: "Expires",
@@ -77,11 +88,11 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
   {
     title: "Status",
     key: "status",
-    width: 120,
+    width: 140,
     render: (token) => h(
       NTag,
-      { size: "small", bordered: false, type: naiveTagType(token.enabled ? "success" : "warn") },
-      { default: () => token.enabled ? "Enabled" : "Disabled" },
+      { size: "small", bordered: false, type: naiveTagType(tokenStatusSeverity(token)) },
+      { default: () => tokenStatusLabel(token) },
     ),
   },
   {
@@ -98,8 +109,7 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
           {
             type: "error",
             size: "small",
-            "aria-label": "Revoke token",
-            title: "Revoke token",
+            "aria-label": `Revoke ${diagnosticExcerpt(token.name, 48).text}`,
             disabled: Boolean(actionDisabledReason.value),
             onClick: () => void deleteToken(token),
           },
@@ -116,6 +126,8 @@ onMounted(() => {
 
 watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
   revokeTokenDialog.handleCancel();
+  discardIssuedTokenDialog.handleCancel();
+  isCreateTokenDrawerOpen.value = false;
   clearIssuedToken();
   operationError.value = "";
   tokens.value = [];
@@ -182,7 +194,9 @@ async function createToken() {
     });
     issuedToken.value = resp.token;
     isIssuedTokenVisible.value = false;
+    issuedTokenWasCopied.value = false;
     tokenCopyLabel.value = "Copy Token";
+    isCreateTokenDrawerOpen.value = false;
     isIssuedTokenModalOpen.value = true;
     tokenForm.name = "";
     tokenForm.expiresAtUnixMillis = null;
@@ -195,6 +209,7 @@ async function copyIssuedToken() {
   if (!issuedToken.value) return;
   try {
     await navigator.clipboard.writeText(issuedToken.value);
+    issuedTokenWasCopied.value = true;
     tokenCopyLabel.value = "Copied";
   } catch (err) {
     operationError.value = messageFromError(err);
@@ -207,12 +222,37 @@ function clearIssuedToken() {
   isIssuedTokenModalOpen.value = false;
   isIssuedTokenVisible.value = false;
   tokenCopyLabel.value = "Copy Token";
+  issuedTokenWasCopied.value = false;
+}
+
+function openCreateTokenDrawer() {
+  tokenForm.name = "";
+  tokenForm.expiresAtUnixMillis = null;
+  tokenForm.enabled = true;
+  operationError.value = "";
+  isCreateTokenDrawerOpen.value = true;
+}
+
+function focusCreateTokenName() {
+  tokenNameInput.value?.focus();
+}
+
+async function requestClearIssuedToken() {
+  if (issuedToken.value && !issuedTokenWasCopied.value) {
+    const confirmed = await discardIssuedTokenDialog.confirm(
+      "Close Without Copying?",
+      "This token is shown only once. Closing now will permanently discard it.",
+      "Discard Token",
+    );
+    if (!confirmed) return;
+  }
+  clearIssuedToken();
 }
 
 async function deleteToken(token: ManagementAccessToken) {
   const confirmed = await revokeTokenDialog.confirm(
     "Revoke API Token",
-    `Revoke "${token.name}"?`,
+    `Revoke "${diagnosticInspectionText(token.name)}"? Integrations using it will immediately lose access.`,
     "Revoke",
   );
   if (!confirmed) return;
@@ -252,13 +292,28 @@ function formatDate(value: bigint | undefined): string {
   return new Date(Number(value)).toLocaleString();
 }
 
+function tokenStatusLabel(token: ManagementAccessToken): string {
+  if (!token.enabled) return "Disabled";
+  const expiry = Number(token.expiresAtUnixMillis || 0n);
+  if (expiry > 0 && expiry <= Date.now()) return "Expired";
+  if (expiry > 0 && expiry - Date.now() <= 7 * 24 * 60 * 60 * 1000) return "Expires soon";
+  return "Enabled";
+}
+
+function tokenStatusSeverity(token: ManagementAccessToken): "success" | "warn" | "danger" {
+  const label = tokenStatusLabel(token);
+  if (label === "Expired") return "danger";
+  if (label === "Disabled" || label === "Expires soon") return "warn";
+  return "success";
+}
+
 
 function tokenRowKey(token: ManagementAccessToken): string {
   return token.id.toString();
 }
 
 function handleIssuedTokenModalUpdate(show: boolean) {
-  if (!show) clearIssuedToken();
+  if (!show) void requestClearIssuedToken();
 }
 </script>
 
@@ -267,68 +322,47 @@ function handleIssuedTokenModalUpdate(show: boolean) {
     <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
         <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">API Tokens</h4>
-        <p class="copy-sm muted-text">Admin API credentials for {{ selectedEnvironmentLabel }}.</p>
+        <p class="copy-sm muted-text">Admin API credentials for <bdi dir="ltr">{{ diagnosticInspectionText(selectedEnvironmentLabel) }}</bdi>.</p>
       </div>
-      <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
-        <NButton
-          secondary
-          size="small"
-          aria-label="Refresh API tokens"
-          title="Refresh API tokens"
-          :disabled="Boolean(actionDisabledReason)"
-          :loading="isLoading"
-          @click="refreshTokens"
-        >
-          <template #icon><RefreshIcon class="icon-sm icon-sm" /></template>
-        </NButton>
-      </DisabledHint>
+      <div class="layout-row wrap-items space-sm">
+        <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
+          <NButton
+            secondary
+            size="small"
+            aria-label="Refresh API tokens"
+            :disabled="Boolean(actionDisabledReason)"
+            :loading="isLoading"
+            @click="refreshTokens"
+          >
+            <template #icon><RefreshIcon class="icon-sm" /></template>
+            Refresh
+          </NButton>
+        </DisabledHint>
+        <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
+          <NButton type="primary" size="small" :disabled="Boolean(actionDisabledReason)" @click="openCreateTokenDrawer">
+            <template #icon><PlusIcon class="icon-sm" /></template>
+            Create Token
+          </NButton>
+        </DisabledHint>
+      </div>
     </div>
 
     <div v-if="selectedEnvironmentBlocked" class="round-md framed warning-border panel-bg pad-lg copy-sm warning-text">
-      {{ selectedEnvironmentBlocked }}
+      <bdi dir="ltr">{{ diagnosticInspectionText(selectedEnvironmentBlocked) }}</bdi>
     </div>
     <div v-if="operationError" class="round-md framed error-border panel-bg pad-lg copy-sm error-text">
-      {{ operationError }}
+      <bdi dir="ltr">{{ diagnosticInspectionText(operationError) }}</bdi>
     </div>
 
-    <section class="layout-grid space-2xl settings-token-grid">
-      <div class="surface-card pad-xl">
-        <h5 class="margin-bottom-lg copy-sm weight-semibold label-case letter-widest muted-text">Create API Token</h5>
-        <form class="layout-grid space-lg" @submit.prevent="createToken">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Name
-            <NInput
-              v-model:value="tokenForm.name"
-              size="small"
-              required
-              :disabled="Boolean(actionDisabledReason)"
-            />
-          </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Expires
-            <NDatePicker
-              v-model:value="tokenForm.expiresAtUnixMillis"
-              type="datetime"
-              clearable
-              size="small"
-              :disabled="Boolean(actionDisabledReason)"
-            />
-          </label>
-          <NCheckbox v-model:checked="tokenForm.enabled" :disabled="Boolean(actionDisabledReason)">
-            Enabled
-          </NCheckbox>
-          <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
-            <NButton type="primary" attr-type="submit" :disabled="Boolean(actionDisabledReason)">
-              Create Token
-            </NButton>
-          </DisabledHint>
-        </form>
-      </div>
-
-      <div class="surface-card hide-overflow">
-        <div class="divider-bottom frame-standard pad-x-xl pad-y-lg">
-          <h5 class="copy-sm weight-semibold label-case letter-widest muted-text">API Tokens</h5>
+    <section class="surface-card hide-overflow">
+      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-md">
+        <div>
+          <h5 class="copy-sm weight-semibold base-text">Issued tokens</h5>
+          <p class="margin-top-xs copy-xs muted-text">Review usage and revoke credentials that are no longer needed.</p>
         </div>
+        <NTag size="small" :bordered="false">{{ tokens.length }} total</NTag>
+      </div>
+      <template v-if="tokens.length || isLoading">
         <NDataTable
           :columns="tokenColumns"
           :data="tokens"
@@ -337,10 +371,67 @@ function handleIssuedTokenModalUpdate(show: boolean) {
           :bordered="false"
           :single-line="false"
           :scroll-x="760"
+          :loading="isLoading"
           size="small"
         />
-      </div>
+      </template>
+      <EmptyState
+        v-else
+        title="No API tokens"
+        description="Create a scoped management credential when an integration needs API access. The secret is shown only once."
+        action-label="Create Token"
+        @action="openCreateTokenDrawer"
+      />
     </section>
+
+    <NDrawer
+      v-model:show="isCreateTokenDrawerOpen"
+      placement="right"
+      :width="editorDrawerWidth('32rem')"
+      aria-label="Create API Token"
+      class="editor-drawer"
+      @after-enter="focusCreateTokenName"
+    >
+      <NDrawerContent title="Create API Token" closable>
+        <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="createToken">
+          <p class="copy-sm muted-text">The secret is revealed once after creation. Store it before closing the confirmation.</p>
+          <div class="layout-grid space-xs">
+            <label for="create-api-token-name" class="copy-xs weight-medium muted-text">Name</label>
+            <NInput
+              ref="tokenNameInput"
+              v-model:value="tokenForm.name"
+              size="small"
+              placeholder="Deployment automation"
+              required
+              :input-props="{ id: 'create-api-token-name', name: 'token-name' }"
+              :disabled="Boolean(actionDisabledReason)"
+            />
+          </div>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Expires
+            <NDatePicker
+              v-model:value="tokenForm.expiresAtUnixMillis"
+              type="datetime"
+              clearable
+              size="small"
+              :disabled="Boolean(actionDisabledReason)"
+            />
+            <span class="copy-xs muted-text">Optional. Tokens without an expiry remain valid until revoked.</span>
+          </label>
+          <NCheckbox v-model:checked="tokenForm.enabled" :disabled="Boolean(actionDisabledReason)">
+            Enable immediately
+          </NCheckbox>
+          <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
+            <NButton secondary attr-type="button" @click="isCreateTokenDrawerOpen = false">Cancel</NButton>
+            <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
+              <NButton type="primary" attr-type="submit" :disabled="Boolean(actionDisabledReason)" :loading="isLoading">
+                Create Token
+              </NButton>
+            </DisabledHint>
+          </div>
+        </form>
+      </NDrawerContent>
+    </NDrawer>
 
     <NModal
       :show="isIssuedTokenModalOpen"
@@ -348,6 +439,8 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       title="API Token Created"
       :style="modalCardStyle('38rem')"
       :bordered="false"
+      :mask-closable="false"
+      :close-on-esc="false"
       @update:show="handleIssuedTokenModalUpdate"
     >
       <div class="stack-md">
@@ -368,7 +461,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
         </div>
 
         <div class="layout-row layout-column-reverse space-md mq-sm-row mq-sm-end">
-          <NButton secondary attr-type="button" @click="clearIssuedToken">Done</NButton>
+          <NButton secondary attr-type="button" @click="requestClearIssuedToken">Done</NButton>
           <NButton
             secondary
             attr-type="button"

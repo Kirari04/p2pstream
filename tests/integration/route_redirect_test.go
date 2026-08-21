@@ -164,6 +164,9 @@ func TestPublicRouteRedirectResponses(t *testing.T) {
 			if got := resp.Header.Get("Location"); got != tt.wantLoc {
 				t.Fatalf("Location = %q, want %q", got, tt.wantLoc)
 			}
+			if err := app.FlushObservabilityRecorder(context.Background()); err != nil {
+				t.Fatalf("flush observability recorder: %v", err)
+			}
 
 			var routeID sql.NullInt64
 			var routeTargetID sql.NullInt64
@@ -241,8 +244,8 @@ func TestPublicRouteRedirectTraceStages(t *testing.T) {
 	if finalEvent.GetRouteTargetId() != 0 {
 		t.Fatalf("redirect trace target id = %d, want 0", finalEvent.GetRouteTargetId())
 	}
-	if finalEvent.GetResponseHeaders()["Location"] != "/target/a?x=1" {
-		t.Fatalf("redirect trace Location header = %q", finalEvent.GetResponseHeaders()["Location"])
+	if finalEvent.GetResponseHeaders()["Location"] != "[redacted]" {
+		t.Fatalf("redirect trace Location header was not redacted: %q", finalEvent.GetResponseHeaders()["Location"])
 	}
 }
 

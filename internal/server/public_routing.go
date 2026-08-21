@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"errors"
 	"io"
@@ -26,6 +25,8 @@ import (
 var errNoRouteBackendAvailable = errors.New("no route backend available")
 var errNoRouteTargetAvailable = errors.New("no route target available")
 var errNoPublicRouteAvailable = errors.New("no public route available")
+
+var agentOpenHandshakeTimeout = 10 * time.Second
 
 type publicRouteTargetHealthConfig struct {
 	ID                            int64
@@ -149,6 +150,7 @@ type publicRouteConfig struct {
 	RedirectPreservePathSuffix bool
 	RedirectPreserveQuery      bool
 	PathSecurityMode           string
+	AccessPolicyID             int64
 	Enabled                    bool
 }
 
@@ -165,6 +167,9 @@ type publicTLSCertificateConfig struct {
 }
 
 type publicProxySnapshot struct {
+	AccessProviders     map[int64]publicAccessProviderConfig
+	AccessPolicies      map[int64]publicAccessPolicyConfig
+	AccessHeaderNames   []string
 	RouteTargets        map[int64]publicRouteTargetConfig
 	Agents              map[int64]publicAgentConfig
 	Listeners           map[int64]publicListenerConfig
@@ -177,7 +182,9 @@ type publicProxySnapshot struct {
 	WafCookieSecret     []byte
 	CacheSettings       publicCacheSettingsConfig
 	CacheRules          []publicCacheRuleConfig
+	CacheFingerprint    string
 	ResponseTemplates   map[int64]publicResponseTemplateConfig
+	ClientIdentity      *ClientIdentityResolver
 }
 
 type publicRouteResolution struct {
@@ -307,7 +314,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			"redirect_target_mode": resolution.Route.RedirectTargetMode,
 		}
 		if location != "" {
-			attributes["redirect_location"] = redactSensitiveTraceURL(location)
+			attributes["redirect_location"] = trafficTraceRedactedValue
 		}
 		if trace != nil {
 			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
@@ -326,7 +333,7 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 			sql.NullInt64{},
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
-			proxyRequestContextFromHTTP(r),
+			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
 }
@@ -362,7 +369,7 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 			0,
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
-			proxyRequestContextFromHTTP(r),
+			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
 
@@ -433,7 +440,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			cacheBytes(cacheDecision),
 			observability.requestBytesValue(),
 			observability.responseBytesValue(),
-			proxyRequestContextFromHTTP(r),
+			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
 
@@ -458,6 +465,14 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				"load_balancer": resolution.Target.AgentLoadBalancing,
 			})
 		}
+		releaseAgentRequest, ok := a.agentProxyRequests.TryAcquire()
+		if !ok {
+			statusCode = http.StatusServiceUnavailable
+			errorKind = "agent_request_capacity"
+			http.Error(w, "Agent tunnel capacity reached", http.StatusServiceUnavailable)
+			return
+		}
+		defer releaseAgentRequest()
 		agent.ActiveRequests.Add(1)
 		defer agent.ActiveRequests.Add(-1)
 	}
@@ -501,15 +516,18 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		)
 	}
 
-	transport := directProxyTransport(resolution.Target.TLSSkipVerify, resolution.Target.UpstreamResponseHeaderTimeout)
+	var transport http.RoundTripper
 	if agent != nil {
 		transport = a.agentTargetTransport(agent, resolution.Target)
 		r = r.WithContext(withAgentDialRequestID(r.Context(), id.String()))
+	} else {
+		transport = a.directTargetTransport(resolution.Target)
 	}
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(proxyReq *httputil.ProxyRequest) {
 			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
 			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In, resolution.Listener)
+			applyTrustedPublicAccessHeaders(proxyReq.Out, proxyReq.In)
 			if shaper != nil {
 				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
 			}
@@ -543,6 +561,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if bodyStatus, bodyKind, bodyMessage, bodyErr := publicRequestBodyErrorForRequest(r, err); bodyErr {
+				statusCode = bodyStatus
+				errorKind = bodyKind
+				http.Error(w, bodyMessage, bodyStatus)
+				return
+			}
 			if agent != nil && requestContextCanceled(r.Context(), err) {
 				log.Debug().Err(err).Str("req_id", id.String()).Msg("Agent target proxy cancelled by client")
 				statusCode = http.StatusGatewayTimeout
@@ -588,6 +612,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 					http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
 					return
 				}
+				if dialErr.Kind == "agent_capacity" {
+					statusCode = http.StatusServiceUnavailable
+					errorKind = "agent_capacity"
+					http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+					return
+				}
 				statusCode = http.StatusBadGateway
 				if dialErr.Kind == "" {
 					errorKind = "agent_dial_failed"
@@ -605,7 +635,8 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 			}
 		},
-		Transport: transport,
+		Transport:  transport,
+		BufferPool: a.reverseProxyBufferPool(),
 	}
 	proxy.ServeHTTP(w, r)
 }
@@ -613,6 +644,11 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 type agentDialError struct {
 	Kind string
 	Err  string
+}
+
+type agentStreamOpenResult struct {
+	conn net.Conn
+	err  error
 }
 
 func (e agentDialError) Error() string {
@@ -629,55 +665,89 @@ func (a *App) agentTargetTransport(agent *AgentConn, target publicRouteTargetCon
 	return a.AgentTransports.publicRouteTargetTransport(a, agent, target)
 }
 
+func startAgentStreamOpen(
+	ctx context.Context,
+	agent *AgentConn,
+	open func() (net.Conn, error),
+) <-chan agentStreamOpenResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	release, admitted := agent.acquireStreamOpenAdmission(ctx)
+	if !admitted {
+		return nil
+	}
+	// Keep this channel unbuffered so ownership cannot be transferred after the
+	// caller has stopped receiving. A buffered result channel can accept a
+	// delayed successful Open even when ctx is already done, leaking that stream.
+	results := make(chan agentStreamOpenResult)
+	go func() {
+		// Cancellation only abandons this caller. The permit remains held until
+		// Yamux Open itself returns so blocked opens cannot accumulate unbounded
+		// goroutines behind the session's finite AcceptBacklog.
+		defer release()
+		conn, err := open()
+		release()
+		result := agentStreamOpenResult{conn: conn, err: err}
+		select {
+		case results <- result:
+		case <-ctx.Done():
+			if conn != nil {
+				_ = conn.Close()
+			}
+		case <-agent.Done:
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+	return results
+}
+
+func (a *App) directTargetTransport(target publicRouteTargetConfig) http.RoundTripper {
+	if a.DirectTransports == nil {
+		maxConns := defaultPublicMaxConnectionsPerTarget
+		if a.Config != nil && a.Config.PublicMaxConnectionsPerTarget > 0 {
+			maxConns = a.Config.PublicMaxConnectionsPerTarget
+		}
+		return newDirectTransportPool(maxConns).publicRouteTargetTransport(target)
+	}
+	return a.DirectTransports.publicRouteTargetTransport(target)
+}
+
 func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string, address string, requestID string) (net.Conn, error) {
 	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
 		return nil, errAgentDisconnected
 	}
-	openCh := make(chan struct {
-		conn net.Conn
-		err  error
-	}, 1)
-	openDone := make(chan struct{})
-	stopOpenWatch := func() {
-		select {
-		case <-openDone:
-		default:
-			close(openDone)
-		}
+	releaseStream, ok := a.agentTunnelStreams.TryAcquire()
+	if !ok {
+		return nil, agentDialError{Kind: "agent_capacity", Err: "server tunnel stream capacity reached"}
 	}
+	releaseOnReturn := true
+	defer func() {
+		if releaseOnReturn {
+			releaseStream()
+		}
+	}()
 	session := agent.Session
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = session.Close()
-		case <-agent.Done:
-			_ = session.Close()
-		case <-openDone:
-		}
-	}()
-	go func() {
+	openCh := startAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
 		conn, err := session.Open()
-		result := struct {
-			conn net.Conn
-			err  error
-		}{conn: conn, err: err}
-		select {
-		case openCh <- result:
-		case <-ctx.Done():
-			if conn != nil {
-				_ = conn.Close()
-			}
-		case <-agent.Done:
-			if conn != nil {
-				_ = conn.Close()
-			}
+		if err != nil {
+			releaseStream()
+			return nil, err
 		}
-	}()
+		return newAgentTunnelStreamConn(conn, releaseStream), nil
+	})
+	if openCh != nil {
+		// The Open callback now owns the slot. On failure it releases directly;
+		// on success the wrapped stream holds it through close and peer drain,
+		// including when a cancelled caller abandons a delayed successful Open.
+		releaseOnReturn = false
+	}
 
 	var conn net.Conn
 	select {
 	case result := <-openCh:
-		stopOpenWatch()
 		if result.err != nil {
 			if agent != nil {
 				log.Debug().
@@ -691,8 +761,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		}
 		conn = result.conn
 	case <-ctx.Done():
-		_ = agent.Session.Close()
-		stopOpenWatch()
 		if agent != nil {
 			log.Debug().
 				Err(ctx.Err()).
@@ -704,7 +772,6 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 		return nil, ctx.Err()
 	case <-agent.Done:
 		_ = agent.Session.Close()
-		stopOpenWatch()
 		log.Debug().
 			Str("request_id", requestID).
 			Str("agent", agent.PublicID).
@@ -712,10 +779,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 			Msg("Agent disconnected before tunnel stream opened")
 		return nil, errAgentDisconnected
 	}
-
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = conn.SetDeadline(deadline)
-	}
+	_ = conn.SetDeadline(agentOpenHandshakeDeadline(ctx, time.Now()))
 	handshakeDone := make(chan struct{})
 	stopHandshakeWatch := func() {
 		select {
@@ -737,12 +801,12 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	req := tunnel.NewOpenRequest(requestID, network, address)
 	if err := tunnel.WriteOpenRequest(conn, req); err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, agentOpenHandshakeError(ctx, err)
 	}
 	resp, err := tunnel.ReadOpenResponse(conn)
 	if err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, agentOpenHandshakeError(ctx, err)
 	}
 	if !resp.OK {
 		_ = conn.Close()
@@ -758,6 +822,27 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	return conn, nil
 }
 
+func agentOpenHandshakeDeadline(ctx context.Context, now time.Time) time.Time {
+	deadline := now.Add(agentOpenHandshakeTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		return ctxDeadline
+	}
+	return deadline
+}
+
+func agentOpenHandshakeError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+		return err
+	}
+	if isTimeoutError(err) || (ctx != nil && errors.Is(ctx.Err(), context.DeadlineExceeded)) {
+		return agentDialError{Kind: "dial_timeout", Err: err.Error()}
+	}
+	return err
+}
+
 func redactAgentDialAddress(address string) string {
 	_, port, err := net.SplitHostPort(strings.TrimSpace(address))
 	if err != nil {
@@ -770,7 +855,15 @@ func redactAgentDialAddress(address string) string {
 }
 
 func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
-	candidates := a.eligibleTargetAgentCandidates(target)
+	snap := a.currentPublicSnapshot()
+	if snap == nil {
+		return nil
+	}
+	return a.selectTargetAgentFromSnapshot(snap, target)
+}
+
+func (a *App) selectTargetAgentFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig) *AgentConn {
+	candidates := a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -781,13 +874,15 @@ func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
 }
 
 func (a *App) eligibleTargetAgentCandidates(target publicRouteTargetConfig) []backendAgentCandidate {
-	if a == nil || a.AgentHub == nil {
+	snap := a.currentPublicSnapshot()
+	if snap == nil {
 		return nil
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
-	if snap == nil {
+	return a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
+}
+
+func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig) []backendAgentCandidate {
+	if a == nil || a.AgentHub == nil || snap == nil {
 		return nil
 	}
 	candidates := make([]backendAgentCandidate, 0, len(snap.Agents))
@@ -841,10 +936,17 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 	if err == nil {
 		return false
 	}
+	var dialErr agentDialError
+	if errors.As(err, &dialErr) && (dialErr.Kind == "agent_capacity" || dialErr.Kind == "dial_forbidden") {
+		return false
+	}
 	return !requestContextCanceled(requestCtx, err)
 }
 
-func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+func (a *App) selectRouteTarget(snap *publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+	if snap == nil {
+		return publicRouteTargetConfig{}, nil, false
+	}
 	candidates := make([]routeTargetCandidate, 0, len(route.Targets))
 	lowestPriorityGroupSet := false
 	lowestPriorityGroup := int64(0)
@@ -864,12 +966,13 @@ func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfi
 		if target.PriorityGroup != lowestPriorityGroup || !a.targetEligibleForRoute(snap, target) {
 			continue
 		}
+		// Active request counts are local to this proxy process; least-active balancing is per-process.
 		candidates = append(candidates, routeTargetCandidate{
 			Target:         target,
 			TargetID:       target.ID,
 			Position:       target.Position,
 			Weight:         target.Weight,
-			ActiveRequests: 0,
+			ActiveRequests: a.TargetHealth.activeRequests(target.ID),
 		})
 	}
 	if len(candidates) == 0 {
@@ -886,14 +989,14 @@ func (a *App) selectRouteTarget(snap publicProxySnapshot, route publicRouteConfi
 	if selected.Target.Transport != publicRouteTargetTransportAgent {
 		return selected.Target, nil, true
 	}
-	agent := a.selectTargetAgent(selected.Target)
+	agent := a.selectTargetAgentFromSnapshot(snap, selected.Target)
 	if agent == nil {
 		return publicRouteTargetConfig{}, nil, false
 	}
 	return selected.Target, agent, true
 }
 
-func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
+func (a *App) targetEligibleForRoute(snap *publicProxySnapshot, target publicRouteTargetConfig) bool {
 	if !target.Enabled {
 		return false
 	}
@@ -912,8 +1015,8 @@ func (a *App) targetEligibleForRoute(snap publicProxySnapshot, target publicRout
 	return true
 }
 
-func (a *App) targetHasEligibleAgent(snap publicProxySnapshot, target publicRouteTargetConfig) bool {
-	if a == nil || a.AgentHub == nil {
+func (a *App) targetHasEligibleAgent(snap *publicProxySnapshot, target publicRouteTargetConfig) bool {
+	if a == nil || a.AgentHub == nil || snap == nil {
 		return false
 	}
 	for agentID, agentConfig := range snap.Agents {
@@ -984,12 +1087,28 @@ func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, lis
 	if outReq == nil {
 		return
 	}
+	if outReq.Header == nil {
+		outReq.Header = make(http.Header)
+	}
 	for _, name := range []string{
+		"Cf-Connecting-Ip",
+		"Cf-Connecting-Ipv6",
+		"Cloudfront-Viewer-Address",
+		"Fastly-Client-Ip",
+		"Fly-Client-Ip",
 		"Forwarded",
+		"True-Client-Ip",
+		"X-Appengine-User-Ip",
+		"X-Azure-Clientip",
+		"X-Client-Ip",
+		"X-Cluster-Client-Ip",
+		"X-Envoy-External-Address",
+		"X-Forwarded-Client-Ip",
 		"X-Forwarded-For",
 		"X-Forwarded-Host",
 		"X-Forwarded-Proto",
 		"X-Forwarded-Port",
+		"X-Original-Forwarded-For",
 		"X-Real-Ip",
 	} {
 		outReq.Header.Del(name)
@@ -997,7 +1116,17 @@ func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, lis
 	if inReq == nil {
 		return
 	}
-	clientIP := remoteAddrIP(inReq.RemoteAddr)
+	for _, name := range ClientIdentityHeaderNames(inReq.Context()) {
+		outReq.Header.Del(name)
+	}
+	clientIP := ""
+	if _, attached := ClientIdentityFromContext(inReq.Context()); attached {
+		if addr, ok := ClientIdentityResolved(inReq.Context()); ok {
+			clientIP = addr.String()
+		}
+	} else {
+		clientIP = remoteAddrIP(inReq.RemoteAddr)
+	}
 	if clientIP != "" {
 		outReq.Header.Set("X-Forwarded-For", clientIP)
 		outReq.Header.Set("X-Real-IP", clientIP)
@@ -1048,11 +1177,12 @@ func (a *App) resolvePublicRoute(listenerID int64, r *http.Request) (publicRoute
 }
 
 func (a *App) matchPublicRoute(listenerID int64, r *http.Request) (publicRouteMatch, error) {
+	return a.matchPublicRouteInSnapshot(a.currentPublicSnapshot(), listenerID, r)
+}
+
+func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicRouteMatch, error) {
 	host := normalizeRequestHost(r.Host)
 
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil {
 		return publicRouteMatch{}, errors.New("public proxy config is not loaded")
 	}
@@ -1121,7 +1251,7 @@ func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteRe
 			RouteID:      routeID,
 		}, nil
 	}
-	target, agent, ok := a.selectRouteTarget(*match.Snapshot, matchedRoute)
+	target, agent, ok := a.selectRouteTarget(match.Snapshot, matchedRoute)
 	if !ok {
 		return publicRouteResolution{}, errNoRouteTargetAvailable
 	}
@@ -1295,21 +1425,7 @@ func mergeRedirectQuery(configuredQuery string, incomingQuery string, preserveIn
 }
 
 func directProxyTransport(tlsSkipVerify bool, responseHeaderTimeout time.Duration) http.RoundTripper {
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return http.DefaultTransport
-	}
-	transport := base.Clone()
-	transport.ResponseHeaderTimeout = normalizeUpstreamResponseHeaderTimeout(responseHeaderTimeout)
-	if tlsSkipVerify {
-		if transport.TLSClientConfig == nil {
-			transport.TLSClientConfig = &tls.Config{}
-		} else {
-			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
-		}
-		transport.TLSClientConfig.InsecureSkipVerify = true
-	}
-	return transport
+	return newDirectProxyHTTPTransport(tlsSkipVerify, responseHeaderTimeout)
 }
 
 func normalizeUpstreamResponseHeaderTimeout(timeout time.Duration) time.Duration {

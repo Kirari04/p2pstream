@@ -38,9 +38,14 @@ p2pstream agent [flags]
 | `--agent-name` | `AGENT_NAME` | Optional display name. |
 | `--management-ca-file` | `MANAGEMENT_CA_FILE` | PEM CA bundle for management HTTPS. |
 | `--management-ca-pem-base64` | `MANAGEMENT_CA_PEM_BASE64` | Base64 PEM CA bundle for management HTTPS. |
+| `--management-trust-file` | `MANAGEMENT_TRUST_FILE` | Writable durable CA bundle used for acknowledged management certificate rotation. |
 | `--tls-cert-file` | `AGENT_TLS_CERT_FILE` | Client certificate for management mTLS. |
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
+| `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum Yamux receive window per tunnel stream. |
+| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Maximum concurrent requests handled by the agent tunnel. |
+| `--allow-target` | `AGENT_ALLOW_TARGETS` | Opt-in destination allowlist entry. Repeat the flag, or separate env entries with commas/whitespace. |
+| `--allow-any-target` | `AGENT_ALLOW_ANY_TARGET` | Explicitly permit any destination reachable by the agent. |
 
 ## Validation Rules
 
@@ -48,6 +53,12 @@ p2pstream agent [flags]
 - Use only one password source: prompt, `--password-env`, or `--password-file`.
 - `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
+- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `67108864`.
+- `--tunnel-max-concurrent-requests` must be between `1` and `2048`.
+- The stream window multiplied by `--tunnel-max-concurrent-requests` cannot exceed `536870912` bytes.
+- When neither an allowlist nor `--allow-any-target`/`AGENT_ALLOW_ANY_TARGET=true` is set, the agent permits only IPv4 and IPv6 loopback destinations.
+- `--allow-any-target` cannot be combined with `--allow-target` entries.
+- Allow target entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges, such as `myapp.internal:443`, `10.0.5.0/24:8080`, or `metrics.internal:9000-9010`. IPv6 entries with ports must use brackets, for example `[2001:db8::/64]:8443`.
 
 ## Runtime Effects
 
@@ -55,7 +66,7 @@ p2pstream agent [flags]
 
 `users reset-password` updates the configured SQLite database directly and revokes active sessions for that user. Run it where the same `CONFIG_DIR` or `DATABASE_URL` is available.
 
-If no management URL is provided to the agent, it guesses `https://<local-route-ip>:8081`; production agents should use an explicit URL from the Agent Setup dialog.
+If no management URL is provided to the agent, it guesses `https://<local-route-ip>:8081`; production agents should use the explicit URL from the **Agent Setup** modal opened from **Agents**.
 
 ## Examples
 
@@ -87,8 +98,11 @@ Agent:
 p2pstream agent \
   --management-url https://proxy.example.com:8081 \
   --management-ca-file /etc/p2pstream/management-ca.pem \
+  --management-trust-file ./p2pstream-agent-state/management-ca.pem \
   --agent-id agent-abc123 \
-  --agent-token "$AGENT_TOKEN"
+  --agent-token "$AGENT_TOKEN" \
+  --allow-target myapp.internal:443 \
+  --allow-target 10.0.5.0/24:8080
 ```
 
 ## Related Tasks

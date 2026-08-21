@@ -12,4 +12,5 @@ web/management/test-results/
 web/management/playwright-report/
 docs/.plans/
 SECURITY_AUDIT.md
+SECURITY_CONTEXT.md
 AGENTS.md

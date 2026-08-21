@@ -52,7 +52,7 @@ ports:
 
 - Docker only publishes what Compose maps; creating a listener in the UI does not create a new host mapping.
 - The application does not read a `PORT` environment variable for public listeners.
-- Public listener ports are stored in SQLite and managed through **Proxy**.
+- Public listener ports are stored in SQLite and managed through **Proxy -> Listeners**.
 - Use a pinned release tag instead of `latest` when repeatability matters.
 - Treat `staging` as mutable. It follows the current `staging` branch and can change before the final release.
 - Treat `nightly` as unstable. It follows the current `dev` branch and can change without a release note.
@@ -102,9 +102,14 @@ services:
     environment:
       MANAGEMENT_URL: "https://proxy.example.com:8081"
       MANAGEMENT_CA_PEM_BASE64: "..."
+      MANAGEMENT_TRUST_FILE: "/data/management-ca.pem"
       AGENT_ID: "agent-..."
       AGENT_TOKEN: "..."
+    volumes:
+      - p2pstream-agent-state:/data
     restart: unless-stopped
+volumes:
+  p2pstream-agent-state:
 ```
 
 ## Related Tasks

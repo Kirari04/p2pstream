@@ -75,6 +75,8 @@ const (
 var publicNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 type publicConfigRows struct {
+	AccessProviders            []db.PublicAccessProvider
+	AccessPolicies             []db.PublicAccessPolicy
 	Agents                     []db.Agent
 	AgentLabels                []db.PublicAgentLabel
 	Listeners                  []db.PublicListener
@@ -89,6 +91,8 @@ type publicConfigRows struct {
 	WafCaptchaProviders        []db.PublicWafCaptchaProvider
 	WafRules                   []db.PublicWafRule
 	WafSettings                db.PublicWafSetting
+	GeoIPSettings              db.PublicGeoIpSetting
+	TrustedProxySources        []db.PublicTrustedProxySource
 	CacheSettings              db.PublicCacheSetting
 	CacheRules                 []db.PublicCacheRule
 	ResponseTemplates          []db.PublicResponseTemplate
@@ -110,6 +114,17 @@ type publicRouteTargetUpstreamHeaderInput struct {
 	Name      string
 	Value     string
 	Sensitive int64
+}
+
+type existingSensitiveUpstreamHeaderValue struct {
+	TargetID int64
+	Name     string
+	Value    string
+}
+
+type existingPublicRouteTargetSecrets struct {
+	UpstreamHeaders    map[int64]existingSensitiveUpstreamHeaderValue
+	BasicAuthPasswords map[int64]string
 }
 
 type publicRouteTargetMutationInput struct {

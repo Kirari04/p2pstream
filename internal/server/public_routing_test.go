@@ -40,13 +40,13 @@ func TestDottedHostWithPortMatchesRouteAndPolicyKey(t *testing.T) {
 	target := publicRouteTargetConfig{ID: 20, RouteID: 10, Enabled: true, TargetType: publicRouteTargetTypeStatic}
 	route := publicRouteConfig{ID: 10, Enabled: true, HostPattern: "app.example", Targets: []publicRouteTargetConfig{target}}
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
 		},
 		RouteTargets: map[int64]publicRouteTargetConfig{20: target},
-	}
+	})
 
 	resolution, err := app.resolvePublicRoute(1, req)
 	if err != nil {
@@ -136,6 +136,59 @@ func TestApplyTrustedForwardedHeadersCanonicalizesHostAndPort(t *testing.T) {
 			assertNoAttackerForwardingValues(t, outReq.Header)
 		})
 	}
+}
+
+func TestProxyRouteTargetRequestUsesAppReverseProxyBufferPool(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("proxied"))
+	}))
+	defer upstream.Close()
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	pool := &countingReverseProxyBufferPool{}
+	app := NewApp(nil, nil)
+	app.reverseProxyBuffers = pool
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/app", nil)
+
+	app.proxyDirectTargetRequest(rec, req, publicRouteResolution{
+		Listener: publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+		Target: publicRouteTargetConfig{
+			ID:         20,
+			Name:       "buffered",
+			Enabled:    true,
+			TargetType: publicRouteTargetTypeProxy,
+			Transport:  publicRouteTargetTransportDirect,
+			ParsedURL:  origin,
+		},
+	}, nil, nil, nil, proxyRequestObservability{})
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "proxied" {
+		t.Fatalf("response = status %d body %q, want 200 proxied", rec.Code, rec.Body.String())
+	}
+	if got := pool.gets.Load(); got == 0 {
+		t.Fatal("reverse proxy did not get a copy buffer from the app pool")
+	}
+	if got := pool.puts.Load(); got == 0 {
+		t.Fatal("reverse proxy did not return a copy buffer to the app pool")
+	}
+}
+
+type countingReverseProxyBufferPool struct {
+	gets atomic.Int64
+	puts atomic.Int64
+}
+
+func (p *countingReverseProxyBufferPool) Get() []byte {
+	p.gets.Add(1)
+	return make([]byte, reverseProxyCopyBufferSize)
+}
+
+func (p *countingReverseProxyBufferPool) Put([]byte) {
+	p.puts.Add(1)
 }
 
 func TestPublicProxyForwardsCanonicalHostAndConfiguredPort(t *testing.T) {
@@ -365,11 +418,11 @@ func TestPublicProxyPlainSafePathStillWorks(t *testing.T) {
 
 func TestPublicProxyNoRouteUsesStrictEncodedSeparatorPolicy(t *testing.T) {
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners:        map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{1: {}},
 		WafCookieSecret:  []byte("test-secret"),
-	}
+	})
 	handler := app.publicProxyHandler(1)
 
 	safe := httptest.NewRecorder()
@@ -424,7 +477,7 @@ func TestPublicProxyEarlyRoutePathMatchDoesNotAdvanceLoadBalancer(t *testing.T) 
 	wafRule.Match = mustPublicPolicyMatchCEL(t, `path_prefix(path, "/blocked")`)
 	wafRule.Fingerprint = publicWafRuleFingerprint(wafRule)
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	snap := &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
@@ -436,7 +489,8 @@ func TestPublicProxyEarlyRoutePathMatchDoesNotAdvanceLoadBalancer(t *testing.T) 
 		WafRules:        []publicWafRuleConfig{wafRule},
 		WafCookieSecret: []byte("test-secret"),
 	}
-	app.PublicWAF.reconcile(app.publicSnapshot)
+	setPublicSnapshotForTest(t, app, snap)
+	app.PublicWAF.reconcile(snap)
 	handler := app.publicProxyHandler(1)
 
 	blocked := httptest.NewRecorder()
@@ -634,7 +688,7 @@ func newTestPublicPathProxyWithMode(t *testing.T, pathPrefix string, wafRules []
 		Targets:          []publicRouteTargetConfig{target},
 	}
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
@@ -642,7 +696,7 @@ func newTestPublicPathProxyWithMode(t *testing.T, pathPrefix string, wafRules []
 		RouteTargets:    map[int64]publicRouteTargetConfig{target.ID: target},
 		WafRules:        wafRules,
 		WafCookieSecret: []byte("test-secret"),
-	}
+	})
 	return app, app.publicProxyHandler(1), &hits, &lastPath
 }
 
@@ -678,13 +732,13 @@ func newTestForwardedHeaderProxy(t *testing.T, listenerProtocol string, listener
 		Targets:          []publicRouteTargetConfig{target},
 	}
 	app := NewApp(nil, nil)
-	app.publicSnapshot = &publicProxySnapshot{
+	setPublicSnapshotForTest(t, app, &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: listenerProtocol, Port: listenerPort, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{
 			1: {route},
 		},
 		RouteTargets: map[int64]publicRouteTargetConfig{target.ID: target},
-	}
+	})
 	return app.publicProxyHandler(1), captured
 }
 

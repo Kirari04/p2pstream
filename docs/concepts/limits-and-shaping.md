@@ -41,13 +41,13 @@ Traffic shaping uses byte-per-second token buckets. `per_key` shares a bucket fo
 Cache rules store eligible public `GET`/`HEAD` responses for proxy targets after route/target selection. Cache hits still pass through WAF, rate limits, and traffic shaping first.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy page showing WAF rules and rate limits with priorities, matches, actions, and enabled state">
-  <figcaption>The WAF and Rate Limits sections show the early policy layers that can block, challenge, queue, or reject traffic before routing.</figcaption>
+  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF tab showing filterable WAF rules, captcha providers, and Visitor identity and GeoIP settings">
+  <figcaption>The WAF tab keeps filterable WAF rules and captcha providers above the separate Visitor identity &amp; GeoIP configuration used by country restrictions and client identity.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy page showing cache rules and traffic shapers with priorities, match summaries, rates, and cache controls">
-  <figcaption>The Cache and Traffic Shapers sections show the later controls that shape matched streams or serve eligible proxy assets after target selection.</figcaption>
+  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper tab showing a filterable compact rule table with matches, budgets, scope, priority, and state">
+  <figcaption>Traffic Shaper has its own tab and filter. Cache rules and cache storage operations remain on the separate Cache tab because cache is evaluated after route and target selection.</figcaption>
 </figure>
 
 ## Common Mistakes

@@ -13,11 +13,11 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
 
 ## Steps
 
-1. Open **Traffic Policy -> Rate Limits** and create a rule.
+1. Open **Traffic Policy -> Rate Limits** and select **Add Rate-Limit Rule**.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy page showing WAF rules and rate limits">
-     <figcaption>The WAF and Rate Limits sections are grouped together because both evaluate before route resolution and can reject or challenge a request before it reaches an upstream.</figcaption>
+     <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF page showing separate Rate Limits, WAF, Cache, and Traffic Shaper tabs">
+     <figcaption>Rate Limits and WAF are separate Traffic Policy tabs. Both evaluate before route resolution and can reject or challenge a request before it reaches an upstream.</figcaption>
    </figure>
 
 2. Configure the match:
@@ -38,7 +38,7 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
    | --- | --- |
    | Algorithm | Sliding window |
    | Limit | `10` |
-   | Window | `60000` ms |
+   | Window seconds | `60` |
    | Burst | `0` |
 
    For APIs that should allow short bursts, use token bucket:
@@ -47,7 +47,7 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
    | --- | --- |
    | Algorithm | Token bucket |
    | Limit | `120` |
-   | Window | `60000` ms |
+   | Window seconds | `60` |
    | Burst | `240` |
 
 4. Configure key parts. Key parts are concatenated with `|` and hashed — each unique combination gets its own counter. Default key is remote IP. Add key parts when you need a more specific budget:
@@ -62,20 +62,20 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
    | Field | Value |
    | --- | --- |
    | Status | `429` |
-   | Content-Type | `text/plain; charset=utf-8` |
+   | Content type | `text/plain; charset=utf-8` |
    | Body source | Inline |
    | Body | `Rate limit exceeded` |
 
    To reuse the same denial body across rules, open **Templates**, create a **Generic body** template, then set the rate-limit response body source to **Template** and select it. The rate-limit rule still controls the response status, content type, generated rate-limit headers, and custom response headers.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_ratelimit_modal.png" alt="p2pstream rate-limit editor showing a route-specific match, sliding window algorithm, key parts, and custom response settings">
-  <figcaption>The rate-limit editor is where the route match, client key, algorithm, budget, and denial response are reviewed before the rule starts rejecting matching requests.</figcaption>
+  <img src="../assets/new/edit_ratelimit_modal.png" alt="p2pstream Edit Rate Limit drawer showing the sliding-window preview, CEL match, key parts, and rule budget">
+  <figcaption>The rate-limit drawer combines its algorithm preview, match, client key, request budget, and denied response so the complete rule can be reviewed before saving.</figcaption>
 </figure>
 
 ## Verification
 
-Send repeated matching requests and watch **Overview -> Problem Signals** or **Traffic** tracing. A limited request should return `429` and should not reach route/target selection.
+Send repeated matching requests and watch **Overview -> Problem Signals** or **Monitor -> Traffic** tracing. A limited request should return `429` and should not reach route/target selection.
 
 ## Troubleshooting
 

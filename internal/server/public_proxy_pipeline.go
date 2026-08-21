@@ -28,6 +28,7 @@ type publicProxyContext struct {
 	App        *App
 	ListenerID int64
 	StartedAt  time.Time
+	Snapshot   *publicProxySnapshot
 
 	Writer         http.ResponseWriter
 	ResponseWriter http.ResponseWriter
@@ -50,6 +51,7 @@ type publicProxyContext struct {
 }
 
 var publicProxyStages = []publicProxyStage{
+	publicRequestAdmissionStage,
 	rejectGloballyInvalidPublicPathStage,
 	serveACMEChallengeStage,
 	serveWAFReservedStage,
@@ -57,6 +59,7 @@ var publicProxyStages = []publicProxyStage{
 	beginWAFPressureStage,
 	wafPolicyStage,
 	rateLimitStage,
+	publicAccessControlStage,
 	trafficShaperStage,
 	routeResolutionStage,
 	redirectStage,
@@ -66,14 +69,25 @@ var publicProxyStages = []publicProxyStage{
 }
 
 func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r *http.Request) *publicProxyContext {
+	var snap *publicProxySnapshot
+	if app != nil {
+		snap = app.currentPublicSnapshot()
+	}
+	r = resolvePublicRequestIdentity(snap, r)
+	if app != nil && app.Config != nil {
+		r = applyPublicRequestBodyLimits(app.Config.PublicMaxRequestBodyBytes, app.Config.PublicRequestBodyIdleMillis, w, r)
+	} else {
+		r = applyPublicRequestBodyLimits(0, 0, w, r)
+	}
 	var requestBytes atomic.Uint64
 	if r.Body != nil && r.Body != http.NoBody {
 		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
 	}
-	recorder := &proxyResponseRecorder{ResponseWriter: w}
+	bodyState, _ := r.Context().Value(publicRequestBodyStateContextKey{}).(*publicRequestBodyState)
+	recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, requestBodyState: bodyState}
 	responseWriter := http.ResponseWriter(recorder)
 	observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
-	trace := app.newTrafficRequestTrace(r, recorder)
+	trace := app.newTrafficRequestTrace(r, recorder, publicTracePathForRequest(app, snap, listenerID, r))
 	if trace != nil {
 		trace.emitReceived(listenerID)
 	}
@@ -81,6 +95,7 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 		App:            app,
 		ListenerID:     listenerID,
 		StartedAt:      time.Now(),
+		Snapshot:       snap,
 		Writer:         w,
 		ResponseWriter: responseWriter,
 		Recorder:       recorder,
@@ -89,6 +104,79 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 		RequestContext: proxyRequestContextFromHTTP(r),
 		Trace:          trace,
 	}
+}
+
+func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.App != nil && ctx.App.publicProxyRequests != nil {
+		release, ok := ctx.App.publicProxyRequests.tryAcquire()
+		if !ok {
+			return rejectPublicRequestCapacity(ctx, "public_request_capacity", "Public proxy capacity reached")
+		}
+		ctx.deferCleanup(release)
+	}
+	if ctx.Request != nil && ctx.Request.ContentLength > publicRequestBodyLimit(ctx.App) {
+		return rejectPublicRequestBodyTooLarge(ctx)
+	}
+	return publicProxyStageContinue
+}
+
+func rejectPublicRequestCapacity(ctx *publicProxyContext, errorKind, message string) publicProxyStageResult {
+	ctx.ResponseWriter.Header().Set("Retry-After", "1")
+	http.Error(ctx.ResponseWriter, message, http.StatusServiceUnavailable)
+	resolution := ctx.Resolution
+	if !resolution.ListenerID.Valid {
+		resolution.ListenerID = sql.NullInt64{Int64: ctx.ListenerID, Valid: true}
+	}
+	requestContext := ctx.RequestContext
+	if resolution.Route.ID != 0 || resolution.RouteID.Valid {
+		requestContext = proxyRequestContextFromResolution(ctx.Request, resolution)
+	}
+	ctx.App.recordProxyRequestEventWithRouteTargetIDsAndContext(
+		context.Background(),
+		http.StatusServiceUnavailable,
+		time.Since(ctx.StartedAt),
+		errorKind,
+		resolution.ListenerID,
+		resolution.RouteID,
+		resolution.RouteTargetID,
+		resolution.AgentID,
+		ctx.Observability.requestBytesValue(),
+		ctx.Observability.responseBytesValue(),
+		requestContext,
+	)
+	if ctx.Trace != nil {
+		ctx.Trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED, &resolution, nil, http.StatusServiceUnavailable, errorKind, ctx.ResponseWriter.Header(), nil)
+	}
+	return publicProxyStageDone
+}
+
+func rejectPublicRequestBodyTooLarge(ctx *publicProxyContext) publicProxyStageResult {
+	http.Error(ctx.ResponseWriter, "Request body too large", http.StatusRequestEntityTooLarge)
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
+		context.Background(),
+		http.StatusRequestEntityTooLarge,
+		time.Since(ctx.StartedAt),
+		"request_body_too_large",
+		sql.NullInt64{Int64: ctx.ListenerID, Valid: true},
+		sql.NullInt64{},
+		sql.NullInt64{},
+		ctx.Observability.requestBytesValue(),
+		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
+	)
+	if ctx.Trace != nil {
+		resolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
+		ctx.Trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
+			&resolution,
+			nil,
+			http.StatusRequestEntityTooLarge,
+			"request_body_too_large",
+			ctx.ResponseWriter.Header(),
+			nil,
+		)
+	}
+	return publicProxyStageDone
 }
 
 func (ctx *publicProxyContext) run() {
@@ -126,7 +214,7 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 		return publicProxyStageContinue
 	}
 	if !ctx.PathIssues.hasEncodedSeparator() {
-		match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+		match, err := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 		if err != nil {
 			match.Err = err
 		}
@@ -134,7 +222,7 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 		ctx.HasRouteMatch = true
 		return publicProxyStageContinue
 	}
-	match, err := ctx.App.matchPublicRoute(ctx.ListenerID, ctx.Request)
+	match, err := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if err != nil {
 		match.Err = err
 		ctx.RouteMatch = match
@@ -289,7 +377,7 @@ func serveACMEChallengeStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func serveWAFReservedStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, handled := ctx.App.servePublicWAFReserved(ctx.ResponseWriter, ctx.Request, ctx.ListenerID)
+	decision, handled := ctx.App.servePublicWAFReservedWithSnapshot(ctx.Snapshot, ctx.ResponseWriter, ctx.Request, ctx.ListenerID)
 	if !handled {
 		return publicProxyStageContinue
 	}
@@ -337,7 +425,7 @@ func beginWAFPressureStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, allowed := ctx.App.checkPublicWAF(ctx.ListenerID, ctx.Request)
+	decision, allowed := ctx.App.checkPublicWAFWithSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if allowed {
 		return publicProxyStageContinue
 	}
@@ -379,7 +467,7 @@ func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, allowed := ctx.App.checkPublicRateLimits(ctx.ListenerID, ctx.Request)
+	decision, allowed := ctx.App.checkPublicRateLimitsWithSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if allowed {
 		return publicProxyStageContinue
 	}
@@ -423,7 +511,7 @@ func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func trafficShaperStage(ctx *publicProxyContext) publicProxyStageResult {
-	decision, ok := ctx.App.selectPublicTrafficShaper(ctx.ListenerID, ctx.Request)
+	decision, ok := ctx.App.selectPublicTrafficShaperWithSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if !ok {
 		return publicProxyStageContinue
 	}
@@ -465,7 +553,12 @@ func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.HasRouteMatch {
 		resolution, err = ctx.App.resolvePublicRouteFromMatch(ctx.RouteMatch)
 	} else {
-		resolution, err = ctx.App.resolvePublicRoute(ctx.ListenerID, ctx.Request)
+		match, matchErr := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
+		if matchErr != nil {
+			err = matchErr
+		} else {
+			resolution, err = ctx.App.resolvePublicRouteFromMatch(match)
+		}
 	}
 	if err != nil {
 		statusCode := http.StatusBadGateway
@@ -547,7 +640,12 @@ func cacheLookupStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.Resolution.Target.TargetType != publicRouteTargetTypeProxy {
 		return publicProxyStageContinue
 	}
-	decision := ctx.App.checkPublicCache(ctx.Request, ctx.Resolution)
+	decision := ctx.App.checkPublicCacheWithSnapshot(ctx.Snapshot, ctx.Request, ctx.Resolution)
+	if decision.Status == publicCacheStatusHit && !ctx.App.preparePublicCacheHitBody(ctx.Request, &decision) {
+		decision.Status = publicCacheStatusMiss
+		decision.Entry = nil
+		decision.HitBody = nil
+	}
 	applyCacheResolutionFields(&ctx.Resolution, decision)
 	if ctx.Trace != nil {
 		ctx.Trace.emit(
@@ -605,6 +703,13 @@ func cacheLookupStage(ctx *publicProxyContext) publicProxyStageResult {
 }
 
 func activeTargetAccountingAndForwardStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeProxy && ctx.Resolution.RouteTargetID.Valid && ctx.App.publicTargetRequests != nil {
+		release, ok := ctx.App.publicTargetRequests.tryAcquire(ctx.Resolution.RouteTargetID.Int64)
+		if !ok {
+			return rejectPublicRequestCapacity(ctx, "route_target_capacity", "Route target capacity reached")
+		}
+		defer release()
+	}
 	if ctx.Resolution.RouteTargetID.Valid {
 		done := ctx.App.beginPublicRouteTargetRequest(ctx.Resolution.RouteTargetID.Int64)
 		defer done()

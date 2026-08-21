@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,20 +24,75 @@ import (
 
 const environmentProxyPrefix = "/environments/"
 
-var disallowedEnvironmentProxyMethods = map[string]struct{}{
-	"ReportStats":                    {},
-	"GetSetupState":                  {},
-	"SetupAdmin":                     {},
-	"Login":                          {},
-	"Logout":                         {},
-	"GetCurrentUser":                 {},
-	"ListEnvironments":               {},
-	"CreateEnvironment":              {},
-	"UpdateEnvironment":              {},
-	"DeleteEnvironment":              {},
-	"DiscoverEnvironmentCertificate": {},
-	"TrustEnvironmentCertificate":    {},
-	"TestEnvironment":                {},
+// Unknown procedures are denied by default. New RPCs must be reviewed before
+// they become reachable through a parent environment.
+var allowedEnvironmentProxyMethods = map[string]struct{}{
+	"GetStatus":                         {},
+	"GetDashboard":                      {},
+	"GetDashboardDiagnostics":           {},
+	"GetTrafficTraceSettings":           {},
+	"SetTrafficTraceSettings":           {},
+	"StreamTrafficTraceEvents":          {},
+	"StartProxy":                        {},
+	"StopProxy":                         {},
+	"GetPublicProxyConfig":              {},
+	"CreatePublicResponseTemplate":      {},
+	"UpdatePublicResponseTemplate":      {},
+	"DeletePublicResponseTemplate":      {},
+	"ListPublicRouteTargetHealthTraces": {},
+	"CreateAgent":                       {},
+	"UpdateAgent":                       {},
+	"DeleteAgent":                       {},
+	"RotateAgentToken":                  {},
+	"CreateManagementAccessToken":       {},
+	"ListManagementAccessTokens":        {},
+	"DeleteManagementAccessToken":       {},
+	"CreatePublicListener":              {},
+	"UpdatePublicListener":              {},
+	"DeletePublicListener":              {},
+	"EnablePublicListener":              {},
+	"DisablePublicListener":             {},
+	"StartPublicListener":               {},
+	"StopPublicListener":                {},
+	"CreatePublicRoute":                 {},
+	"UpdatePublicRoute":                 {},
+	"DeletePublicRoute":                 {},
+	"CreatePublicAccessProvider":        {},
+	"UpdatePublicAccessProvider":        {},
+	"DeletePublicAccessProvider":        {},
+	"CreatePublicAccessPolicy":          {},
+	"UpdatePublicAccessPolicy":          {},
+	"DeletePublicAccessPolicy":          {},
+	"CreatePublicTlsDnsCredential":      {},
+	"UpdatePublicTlsDnsCredential":      {},
+	"DeletePublicTlsDnsCredential":      {},
+	"CreatePublicTlsCertificate":        {},
+	"UpdatePublicTlsCertificate":        {},
+	"DeletePublicTlsCertificate":        {},
+	"RenewPublicTlsCertificate":         {},
+	"CreatePublicRateLimitRule":         {},
+	"UpdatePublicRateLimitRule":         {},
+	"DeletePublicRateLimitRule":         {},
+	"CreatePublicTrafficShaperRule":     {},
+	"UpdatePublicTrafficShaperRule":     {},
+	"DeletePublicTrafficShaperRule":     {},
+	"CreatePublicWafCaptchaProvider":    {},
+	"UpdatePublicWafCaptchaProvider":    {},
+	"DeletePublicWafCaptchaProvider":    {},
+	"CreatePublicWafRule":               {},
+	"UpdatePublicWafRule":               {},
+	"DeletePublicWafRule":               {},
+	"UpdatePublicGeoIpSettings":         {},
+	"RefreshPublicGeoIpDatabase":        {},
+	"CreatePublicTrustedProxySource":    {},
+	"UpdatePublicTrustedProxySource":    {},
+	"DeletePublicTrustedProxySource":    {},
+	"RefreshPublicTrustedProxySource":   {},
+	"CreatePublicCacheRule":             {},
+	"UpdatePublicCacheRule":             {},
+	"DeletePublicCacheRule":             {},
+	"UpdatePublicCacheSettings":         {},
+	"PurgePublicCache":                  {},
 }
 
 type environmentAuthRoundTripper struct {
@@ -67,8 +123,12 @@ func (a *App) environmentProxyHandler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		if _, blocked := disallowedEnvironmentProxyMethods[method]; blocked {
+		if _, allowed := allowedEnvironmentProxyMethods[method]; !allowed {
 			writeConnectError(w, connect.CodePermissionDenied, "management method cannot be proxied to an environment")
+			return
+		}
+		if r.Method != http.MethodPost {
+			writeConnectError(w, connect.CodeInvalidArgument, "environment proxy only accepts POST requests")
 			return
 		}
 		env, err := a.DB.GetEnvironment(r.Context(), envID)
@@ -99,10 +159,32 @@ func (a *App) environmentProxyHandler() http.Handler {
 			return
 		}
 		defer resp.Body.Close()
+		if !isEnvironmentProxyResponseContentTypeAllowed(resp.Header.Get("Content-Type")) {
+			writeConnectError(w, connect.CodeUnavailable, "environment returned an unsupported response content type")
+			return
+		}
 		copyEnvironmentProxyHeader(w.Header(), resp.Header)
+		// Environment responses are data for Connect clients, never documents at
+		// the parent management origin. These headers prevent MIME sniffing and
+		// sandbox a browser that is navigated to a proxied API endpoint.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.Copy(w, resp.Body)
 	})
+}
+
+func isEnvironmentProxyResponseContentTypeAllowed(value string) bool {
+	mediaType, _, err := mime.ParseMediaType(value)
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(mediaType) {
+	case "application/json", "application/proto", "application/connect+json", "application/connect+proto":
+		return true
+	default:
+		return false
+	}
 }
 
 func parseEnvironmentProxyPath(path string) (int64, string, bool) {
@@ -302,8 +384,9 @@ func environmentProcedureURL(baseURL string, procedurePath string, rawQuery stri
 
 func cloneEnvironmentProxyHeader(src http.Header) http.Header {
 	dst := make(http.Header, len(src))
+	connectionHeaders := environmentConnectionHeaderNames(src)
 	for k, values := range src {
-		if isHopByHopHeader(k) || strings.EqualFold(k, "Cookie") || strings.EqualFold(k, "Authorization") {
+		if isHopByHopHeader(k) || environmentHeaderNameInSet(k, connectionHeaders) || strings.EqualFold(k, "Cookie") || strings.EqualFold(k, "Authorization") {
 			continue
 		}
 		dst[k] = append([]string(nil), values...)
@@ -312,13 +395,41 @@ func cloneEnvironmentProxyHeader(src http.Header) http.Header {
 }
 
 func copyEnvironmentProxyHeader(dst http.Header, src http.Header) {
+	connectionHeaders := environmentConnectionHeaderNames(src)
 	for k, values := range src {
-		if isHopByHopHeader(k) {
+		if isHopByHopHeader(k) || environmentHeaderNameInSet(k, connectionHeaders) || isEnvironmentBrowserStateHeader(k) {
 			continue
 		}
 		for _, value := range values {
 			dst.Add(k, value)
 		}
+	}
+}
+
+func environmentConnectionHeaderNames(header http.Header) map[string]struct{} {
+	names := make(map[string]struct{})
+	for _, value := range header.Values("Connection") {
+		for _, name := range strings.Split(value, ",") {
+			name = strings.ToLower(strings.TrimSpace(name))
+			if name != "" {
+				names[name] = struct{}{}
+			}
+		}
+	}
+	return names
+}
+
+func environmentHeaderNameInSet(name string, names map[string]struct{}) bool {
+	_, ok := names[strings.ToLower(strings.TrimSpace(name))]
+	return ok
+}
+
+func isEnvironmentBrowserStateHeader(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "set-cookie", "set-cookie2", "clear-site-data", "location", "content-security-policy", "content-security-policy-report-only", "content-disposition", "refresh":
+		return true
+	default:
+		return false
 	}
 }
 

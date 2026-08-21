@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"p2pstream/internal/config"
@@ -50,11 +51,30 @@ func TestNewManagementTLSConfigAutoGeneratesVerifiableCertificate(t *testing.T) 
 	if !roots.AppendCertsFromPEM([]byte(cfg.ManagementCAPEM)) {
 		t.Fatal("management CA PEM did not parse")
 	}
+	caCert, err := parseLeafCertificate([]byte(cfg.ManagementCAPEM))
+	if err != nil {
+		t.Fatalf("parse management CA certificate: %v", err)
+	}
+	assertECDSAP256Certificate(t, caCert)
+	if strings.Contains(strings.ToLower(caCert.Subject.String()), "p2pstream") {
+		t.Fatalf("auto management CA subject fingerprints the product: %s", caCert.Subject.String())
+	}
+
 	cert, err := x509.ParseCertificate(tlsConfig.Certificates[0].Certificate[0])
 	if err != nil {
 		t.Fatalf("parse server certificate: %v", err)
 	}
-	for _, host := range []string{"10.42.0.5", "localhost", "server", "p2pstream.local", "example.test", "192.0.2.10"} {
+	assertECDSAP256Certificate(t, cert)
+	if strings.Contains(strings.ToLower(cert.Subject.String()), "p2pstream") {
+		t.Fatalf("auto management certificate subject fingerprints the product: %s", cert.Subject.String())
+	}
+	keyPEM, err := os.ReadFile(filepath.Join(cfg.CertsDir, "management", "server.key.pem"))
+	if err != nil {
+		t.Fatalf("read generated management key: %v", err)
+	}
+	assertECDSAP256PrivateKeyPEM(t, keyPEM)
+
+	for _, host := range []string{"10.42.0.5", "localhost", "server", "example.test", "192.0.2.10"} {
 		if _, err := cert.Verify(x509.VerifyOptions{Roots: roots, DNSName: host}); err != nil {
 			t.Fatalf("generated management certificate did not verify for %s: %v", host, err)
 		}

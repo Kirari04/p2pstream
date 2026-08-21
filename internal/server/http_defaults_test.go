@@ -20,8 +20,8 @@ func TestManagementHTTPServerDefaults(t *testing.T) {
 	if srv.IdleTimeout != managementIdleTimeout {
 		t.Fatalf("IdleTimeout = %s, want %s", srv.IdleTimeout, managementIdleTimeout)
 	}
-	if srv.MaxHeaderBytes != defaultMaxHeaderBytes {
-		t.Fatalf("MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, defaultMaxHeaderBytes)
+	if srv.MaxHeaderBytes != defaultManagementMaxHeaderBytes {
+		t.Fatalf("MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, defaultManagementMaxHeaderBytes)
 	}
 }
 
@@ -40,7 +40,11 @@ func TestPublicHTTPServerDefaultsPreserveStreaming(t *testing.T) {
 	if srv.IdleTimeout != publicIdleTimeout {
 		t.Fatalf("IdleTimeout = %s, want %s", srv.IdleTimeout, publicIdleTimeout)
 	}
-	if srv.MaxHeaderBytes != defaultMaxHeaderBytes {
-		t.Fatalf("MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, defaultMaxHeaderBytes)
+	if srv.MaxHeaderBytes != defaultPublicMaxHeaderBytes {
+		t.Fatalf("MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, defaultPublicMaxHeaderBytes)
+	}
+	configurePublicHTTPServer(srv, 128<<10)
+	if srv.MaxHeaderBytes != 128<<10 {
+		t.Fatalf("configured MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, 128<<10)
 	}
 }

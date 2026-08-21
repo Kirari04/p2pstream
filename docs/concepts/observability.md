@@ -8,7 +8,7 @@ Observability combines retained proxy request events, agent stats, dashboard sum
 
 ## When It Matters
 
-Use observability when checking whether traffic is flowing, which routes are hot, which agents are serving requests, why a request failed, or whether cache/WAF/rate/shaping policies were selected.
+Use observability when checking whether traffic is flowing, which routes are hot, which agents are serving requests, why a request failed, or whether cache/WAF/rate/shaping policies were selected. The management UI groups live tools under **Monitor**, with **Traffic** for request paths and **Diagnostics** for ranked failures and retained samples.
 
 ## Runtime Behavior
 
@@ -37,7 +37,8 @@ Use Headers and Debug temporarily because they can expose operational details an
 
 - Leaving high-volume tracing enabled after troubleshooting.
 - Expecting deleted old events to remain beyond `OBSERVABILITY_RETENTION_DAYS`.
-- Looking only at Overview when **Traffic** tracing is needed for stage-level behavior.
+- Looking only at **Overview** when **Monitor → Traffic** is needed for stage-level behavior.
+- Opening traces one by one when **Monitor → Diagnostics** can rank the failing listener, route, target, agent, status, or error dimension first.
 
 ## Related Links
 
@@ -51,8 +52,10 @@ Use Headers and Debug temporarily because they can expose operational details an
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a live request path through listener, WAF, rate limit, shaper, route, target, cache, agent, upstream, and response">
-  <figcaption>Traffic Flow renders a sampled visualization of recorded request paths across listeners, policy checks, route and target selection, cache decisions, agents, upstreams, and responses.</figcaption>
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream Monitor Traffic page showing tracing controls, trace state, a live request-flow diagram, pause action, and keyboard node list">
+  <figcaption>Monitor → Traffic can pause live updates, search or filter recent traces, and render sampled request paths across listeners, policies, route and target selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
-The request details modal complements the flow diagram when one stage needs deeper inspection. Use it to check timing, selected rule and target IDs, cache status, response metadata, and the trace attributes available at the selected tracing level.
+The trace-details drawer complements the flow diagram when one request needs deeper inspection. It starts with the outcome, resolved flow, lifecycle, and policy decisions; exact headers, raw attributes, and debug data remain progressively disclosed at the tracing levels that capture them.
+
+**Monitor → Diagnostics** ranks retained failure dimensions and recent samples for the selected dashboard window. Filter by a dimension before opening an exact sample in its details drawer; refresh or retry when the snapshot is stale or unavailable.

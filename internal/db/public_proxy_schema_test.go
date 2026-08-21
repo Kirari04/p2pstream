@@ -49,6 +49,11 @@ func TestMigrationUpgradesLegacyTLSCertificateSchema(t *testing.T) {
 	if !indexExists(t, database, "idx_public_tls_certificates_dns_credential_id") {
 		t.Fatal("expected idx_public_tls_certificates_dns_credential_id after migration")
 	}
+	for _, unexpected := range []string{"geo_mode", "geo_country_codes_json", "geo_unknown_behavior"} {
+		if containsString(tableColumns(t, database, "public_tls_dns_credentials"), unexpected) {
+			t.Fatalf("public_tls_dns_credentials unexpectedly contains WAF column %s", unexpected)
+		}
+	}
 	cert, err := database.GetPublicTlsCertificate(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("get migrated cert: %v", err)

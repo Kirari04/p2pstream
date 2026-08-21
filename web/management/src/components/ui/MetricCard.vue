@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { NCard } from "naive-ui";
-
 const props = withDefaults(defineProps<{
   label: string;
   value: string;
@@ -19,26 +17,34 @@ const toneClass = {
 </script>
 
 <template>
-  <NCard :bordered="true" size="small" class="metric-card">
-    <p class="metric-card__label">{{ label }}</p>
-    <p class="metric-card__value" :class="toneClass">{{ value }}</p>
-  </NCard>
+  <div class="metric-card">
+    <span class="metric-card__label">{{ label }}</span>
+    <strong class="metric-card__value" :class="toneClass">{{ value }}</strong>
+  </div>
 </template>
 
 <style scoped>
 .metric-card__label {
-  margin: 0;
   color: var(--app-text-muted);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0;
-  text-transform: uppercase;
+}
+
+.metric-card {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
 }
 
 .metric-card__value {
-  margin: 0.5rem 0 0;
-  font-size: 1.5rem;
+  overflow: hidden;
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
   letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -26,6 +26,45 @@ func TestHandlerServesDistIndex(t *testing.T) {
 	}
 }
 
+func TestHandlerSetsBrowserSecurityHeaders(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+	rec := httptest.NewRecorder()
+	NewHandler("", distDir).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if got := rec.Header().Get("Content-Security-Policy"); !strings.Contains(got, "frame-ancestors 'none'") || !strings.Contains(got, "default-src 'self'") {
+		t.Fatalf("Content-Security-Policy = %q", got)
+	}
+	for name, want := range map[string]string{
+		"X-Frame-Options":        "DENY",
+		"X-Content-Type-Options": "nosniff",
+		"Referrer-Policy":        "no-referrer",
+	} {
+		if got := rec.Header().Get(name); got != want {
+			t.Fatalf("%s = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestHandlerSetsHSTSOnlyForHTTPS(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+	handler := NewHandler("", distDir)
+
+	httpsRequest := httptest.NewRequest(http.MethodGet, "https://management.test/", nil)
+	httpsRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(httpsRecorder, httpsRequest)
+	if got := httpsRecorder.Header().Get("Strict-Transport-Security"); got != "max-age=31536000" {
+		t.Fatalf("HTTPS Strict-Transport-Security = %q", got)
+	}
+
+	httpRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(httpRecorder, httptest.NewRequest(http.MethodGet, "http://management.test/", nil))
+	if got := httpRecorder.Header().Get("Strict-Transport-Security"); got != "" {
+		t.Fatalf("HTTP Strict-Transport-Security = %q, want empty", got)
+	}
+}
+
 func TestHandlerServesDistAsset(t *testing.T) {
 	distDir := t.TempDir()
 	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
@@ -49,6 +88,7 @@ func TestHandlerFallsBackToIndexForSPARoute(t *testing.T) {
 	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
 
 	req := httptest.NewRequest(http.MethodGet, "/settings", nil)
+	req.Header.Set("Accept", "text/html")
 	rec := httptest.NewRecorder()
 
 	NewHandler("", distDir).ServeHTTP(rec, req)
@@ -58,6 +98,42 @@ func TestHandlerFallsBackToIndexForSPARoute(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "app shell") {
 		t.Fatalf("expected index fallback, got %q", rec.Body.String())
+	}
+}
+
+func TestHandlerReturnsNotFoundForMissingAsset(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/missing.js", nil)
+	req.Header.Set("Accept", "*/*")
+	rec := httptest.NewRecorder()
+
+	NewHandler("", distDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "app shell") {
+		t.Fatalf("missing asset fell back to index: %q", rec.Body.String())
+	}
+}
+
+func TestHandlerReturnsNotFoundForNonHTMLSPARouteRequest(t *testing.T) {
+	distDir := t.TempDir()
+	writeFile(t, filepath.Join(distDir, "index.html"), "<html>app shell</html>")
+
+	req := httptest.NewRequest(http.MethodGet, "/settings", nil)
+	req.Header.Set("Accept", "application/json")
+	rec := httptest.NewRecorder()
+
+	NewHandler("", distDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "app shell") {
+		t.Fatalf("non-HTML request fell back to index: %q", rec.Body.String())
 	}
 }
 
@@ -83,15 +159,15 @@ func TestHandlerDoesNotServeTraversalOutsideDist(t *testing.T) {
 
 			NewHandler("", distDir).ServeHTTP(rec, req)
 
-			if rec.Code != http.StatusOK {
-				t.Fatalf("expected status 200, got %d", rec.Code)
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("expected status 404, got %d", rec.Code)
 			}
 			body := rec.Body.String()
 			if strings.Contains(body, "outside-secret") {
 				t.Fatalf("served file outside dist for %q: %q", target, body)
 			}
-			if !strings.Contains(body, "app shell") {
-				t.Fatalf("expected index fallback for %q, got %q", target, body)
+			if strings.Contains(body, "app shell") {
+				t.Fatalf("traversal path fell back to index for %q: %q", target, body)
 			}
 		})
 	}
