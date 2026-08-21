@@ -19,14 +19,18 @@ Proxy targets have a transport:
 | Agent | The server selects a connected agent by label selector, then uses that agent to dial the upstream TCP origin. |
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy page showing routes with direct, agent, static, redirect, and fallback targets">
-  <figcaption>The Proxy routes view shows route matches, priorities, target health, and whether traffic is forwarded, redirected, or answered with a static response.</figcaption>
+  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy Routes table showing direct, agent, static, redirect, default, and fallback route summaries">
+  <figcaption>The compact Routes table shows each listener and match beside its action, target summary, priority, state, and row actions.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream route target editor showing target type, transport, URL, health check, load balancing, and timeout controls">
-  <figcaption>The target editor contains the destination details for a forward route, including transport, upstream URL, health checks, failover group, weight, and timeout behavior.</figcaption>
+  <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream Edit Route drawer showing a direct proxy target with URL, priority group, weight, response-header timeout, TLS verification, and enabled state">
+  <figcaption>The Edit Route drawer keeps each target beside its route. The visible target summary covers destination, transport, failover group, weight, response-header timeout, TLS verification, and enabled state.</figcaption>
 </figure>
+
+::: info Advanced target fields
+The public configuration API also supports upstream request headers, basic authentication, health checks, agent-specific load balancing, and static response headers or template bodies. The current route drawer preserves existing values for those fields but does not expose controls to add or change them. Use the management API for those settings until the drawer controls are restored.
+:::
 
 ## Runtime Behavior
 

@@ -22,7 +22,7 @@ Example:
 
 ## Steps
 
-1. In **Proxy**, keep or create an HTTPS listener:
+1. Open **Proxy -> Listeners**. Keep the seeded HTTPS listener, or select **Add Listener** to create one:
 
    | Field | Value |
    | --- | --- |
@@ -32,18 +32,18 @@ Example:
    | Port | `443` |
    | Enabled | On |
 
-2. Create a route for the hostname:
+2. Open **Proxy -> Routes**, select **Add Route**, and create a route for the hostname:
 
    | Field | Value |
    | --- | --- |
-   | Listener | `public-https` |
+   | Listener | HTTPS listener retained or created in step 1 (`public-https` on a default install) |
    | Priority | `10` |
    | Host pattern | `app.example.com` |
    | Path prefix | `/` |
    | Action | Forward |
    | Enabled | On |
 
-3. Add a proxy target to that route:
+3. In the **Add Route** drawer, add a proxy target to that route:
 
    | Field | Value |
    | --- | --- |
@@ -53,17 +53,17 @@ Example:
    | URL | `https://app.internal:8443` |
    | Priority group | `0` |
    | Weight | `100` |
-   | TLS skip verify | Off unless this is a controlled internal certificate exception |
+   | Skip TLS verify | Off unless this is a controlled internal certificate exception |
    | Enabled | On |
 
-   If the upstream needs custom headers, use target upstream request headers. If it needs HTTP basic auth, use target upstream basic auth instead of manually adding `Authorization`.
+   The public configuration API also supports upstream request headers, upstream basic authentication, and target health checks. The redesigned route drawer retains existing values for those fields but does not currently expose controls to add or change them; use the management API when you need to configure them.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/proxy_direct_route_modal.png" alt="p2pstream route editor showing a direct proxy target for an app route">
-     <figcaption>The direct target editor is where the server-owned upstream URL, load-balancing settings, timeout, health check, and origin TLS policy are reviewed before publishing the route.</figcaption>
+     <img src="../assets/new/proxy_direct_route_modal.png" alt="p2pstream Edit Route drawer showing a direct proxy target with its URL, transport, timeout, weight, and TLS verification control">
+     <figcaption>The route drawer keeps the match and its targets together. For a direct target, review the server-owned upstream URL, transport, response-header timeout, weight, and origin TLS verification policy before saving.</figcaption>
    </figure>
 
-4. Open **TLS** and add a certificate mapping for `app.example.com`.
+4. Open **TLS**, select **Add Certificate**, and create a certificate mapping for `app.example.com`.
 
    | Validation path | Use when |
    | --- | --- |
@@ -72,8 +72,8 @@ Example:
    | DNS-01 | You need wildcard certificates or cannot expose validation ports. |
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream TLS certificate mapping modal showing HTTP challenge, Let's Encrypt CA, hostname pattern, and listener selection">
-     <figcaption>The TLS mapping dialog binds the public hostname to the HTTPS listener and selects the ACME validation method and CA.</figcaption>
+     <img src="../assets/new/tls_httpchallenge_letsencrypt_modal.png" alt="p2pstream Edit TLS Mapping drawer showing HTTP-01, Let's Encrypt staging, a hostname pattern, and HTTPS listener">
+     <figcaption>The TLS mapping drawer binds the public hostname to the HTTPS listener and selects the ACME validation method and CA environment.</figcaption>
    </figure>
 
 ## Verification
@@ -84,11 +84,11 @@ Run:
 curl -I https://app.example.com
 ```
 
-Then check **Overview** for request counts and status classes. If you need request-stage details, open **Traffic**, enable tracing, repeat the request, and inspect the selected route target.
+Then check **Overview** for request counts and status classes. If you need request-stage details, open **Monitor -> Traffic**, enable **Tracing**, repeat the request, and inspect the selected route target in **Recent traces**.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing route target and upstream response metadata">
-  <figcaption>The trace details modal confirms which route and target handled the request, whether cache was involved, and what response metadata came back from the upstream.</figcaption>
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream Trace details drawer showing the request outcome, resolved listener, route and target, lifecycle, and policy decisions">
+  <figcaption>The Trace details drawer confirms which listener, route, and target handled the request, whether cache or traffic-shaping policy was involved, and the retained request lifecycle.</figcaption>
 </figure>
 
 ## Troubleshooting

@@ -66,6 +66,7 @@ import {
 import type { GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TrafficFlowEditRequest } from "@/types/trafficFlowEdit";
 import type { TraceRequest } from "@/types/trafficTrace";
+import { diagnosticInspectionText } from "@/lib/diagnosticText";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
@@ -190,6 +191,15 @@ const flowEdges = computed<Edge[]>(() =>
     };
   }),
 );
+
+const accessibleFlowNodes = computed(() => layout.value.nodes.map((node) => ({
+  key: node.key,
+  kind: node.kind.replaceAll("-", " "),
+  label: diagnosticInspectionText(node.label || "-"),
+  subLabel: diagnosticInspectionText(node.subLabel || "-"),
+  status: diagnosticInspectionText(node.cacheStatus?.label || node.agentStatus?.label || ""),
+  editTargets: node.editTargets,
+})));
 
 const edgeRoutes = computed(() => buildTrafficFlowEdgeRoutes(layout.value));
 
@@ -602,8 +612,17 @@ function handleNodeClick(event: NodeMouseEvent) {
   if (!targets.length) return;
   emit("edit-node", {
     nodeKey: event.node.id,
-    nodeLabel: data?.label || event.node.id,
+    nodeLabel: diagnosticInspectionText(data?.label || event.node.id),
     targets,
+  });
+}
+
+function editAccessibleNode(node: (typeof accessibleFlowNodes.value)[number]) {
+  if (!node.editTargets.length) return;
+  emit("edit-node", {
+    nodeKey: node.key,
+    nodeLabel: node.label,
+    targets: node.editTargets,
   });
 }
 
@@ -627,64 +646,94 @@ function clamp(value: number, min: number, max: number): number {
 </script>
 
 <template>
-  <div ref="flowShellRef" class="traffic-flow-shell" :class="{ 'traffic-flow-stressed': isAnimationStressed }">
-    <div class="flow-status">
-      <span>{{ visualTokens.length }} rendered</span>
-      <span v-if="skippedVisualizations" class="flow-overflow">+{{ skippedVisualizations }} not rendered</span>
-      <NButton size="tiny" secondary @click="fitDiagram()">Fit</NButton>
-    </div>
+  <section class="traffic-flow-region" aria-label="Traffic flow diagram">
+    <div ref="flowShellRef" class="traffic-flow-shell" :class="{ 'traffic-flow-stressed': isAnimationStressed }">
+      <div class="flow-status">
+        <span>{{ visualTokens.length }} rendered</span>
+        <span v-if="skippedVisualizations" class="flow-overflow">+{{ skippedVisualizations }} not rendered</span>
+        <NButton size="small" secondary attr-type="button" aria-label="Fit traffic flow to view" @click="fitDiagram()">Fit</NButton>
+      </div>
 
-    <VueFlow
-      :id="FLOW_ID"
-      class="traffic-vue-flow"
-      :nodes="flowNodes"
-      :edges="flowEdges"
-      :node-types="nodeTypes"
-      :edge-types="edgeTypes"
-      :nodes-draggable="false"
-      :nodes-connectable="false"
-      :elements-selectable="false"
-      :pan-on-drag="true"
-      :zoom-on-scroll="true"
-      :zoom-on-pinch="true"
-      :zoom-on-double-click="false"
-      :min-zoom="0.16"
-      :max-zoom="1.4"
-      :fit-view-on-init="true"
-      :delete-key-code="null"
-      :selection-key-code="null"
-      :multi-selection-key-code="null"
-      @node-click="handleNodeClick"
-    />
-
-    <div class="traffic-token-layer">
-      <NButton
-        v-for="view in tokenViews"
-        :key="view.token.requestId"
-        attr-type="button"
-        class="traffic-token"
-        :class="[view.colorClass, view.nearCache ? 'traffic-token-cache-near' : '']"
-        :style="{
-          transform: `translate3d(${view.x}px, ${view.y}px, 0) translate(-50%, -50%)`,
-          opacity: view.opacity,
-        }"
-        :aria-label="`Open trace details for ${view.label}`"
-        @click="emit('select', view.token.request)"
-      >
-        <span class="traffic-token-halo" />
-        <span class="traffic-token-dot" />
-      </NButton>
-      <span
-        v-for="pulse in cacheStorePulseViews"
-        :key="pulse.id"
-        class="traffic-cache-store-pulse"
-        :style="{
-          transform: `translate3d(${pulse.x}px, ${pulse.y}px, 0) translate(-50%, -50%)`,
-          opacity: pulse.opacity,
-        }"
+      <VueFlow
+        :id="FLOW_ID"
+        class="traffic-vue-flow"
+        :nodes="flowNodes"
+        :edges="flowEdges"
+        :node-types="nodeTypes"
+        :edge-types="edgeTypes"
+        :nodes-draggable="false"
+        :nodes-connectable="false"
+        :elements-selectable="false"
+        :pan-on-drag="true"
+        :zoom-on-scroll="true"
+        :zoom-on-pinch="true"
+        :zoom-on-double-click="false"
+        :min-zoom="0.16"
+        :max-zoom="1.4"
+        :fit-view-on-init="true"
+        :delete-key-code="null"
+        :selection-key-code="null"
+        :multi-selection-key-code="null"
+        aria-label="Visual traffic flow. Use the synchronized node list below for keyboard access."
+        @node-click="handleNodeClick"
       />
+
+      <div class="traffic-token-layer">
+        <NButton
+          v-for="view in tokenViews"
+          :key="view.token.requestId"
+          attr-type="button"
+          class="traffic-token"
+          :class="[view.colorClass, view.nearCache ? 'traffic-token-cache-near' : '']"
+          :style="{
+            transform: `translate3d(${view.x}px, ${view.y}px, 0) translate(-50%, -50%)`,
+            opacity: view.opacity,
+          }"
+          :aria-label="`Open trace details for ${view.label}`"
+          @click="emit('select', view.token.request)"
+        >
+          <span class="traffic-token-halo" />
+          <span class="traffic-token-dot" />
+        </NButton>
+        <span
+          v-for="pulse in cacheStorePulseViews"
+          :key="pulse.id"
+          class="traffic-cache-store-pulse"
+          :style="{
+            transform: `translate3d(${pulse.x}px, ${pulse.y}px, 0) translate(-50%, -50%)`,
+            opacity: pulse.opacity,
+          }"
+        />
+      </div>
     </div>
-  </div>
+
+    <details class="traffic-node-index">
+      <summary>Keyboard node list <span>{{ accessibleFlowNodes.length }} nodes</span></summary>
+      <p>Values below are exact, with invisible characters and backslashes shown explicitly.</p>
+      <ul>
+        <li v-for="node in accessibleFlowNodes" :key="node.key">
+          <button
+            v-if="node.editTargets.length"
+            type="button"
+            :aria-label="`Edit ${node.kind} ${node.label}`"
+            @click="editAccessibleNode(node)"
+          >
+            <span class="traffic-node-index__kind">{{ node.kind }}</span>
+            <bdi dir="ltr">{{ node.label }}</bdi>
+            <small><bdi dir="ltr">{{ node.subLabel }}</bdi></small>
+            <small v-if="node.status" class="traffic-node-index__status"><bdi dir="ltr">Status: {{ node.status }}</bdi></small>
+            <span class="traffic-node-index__action">Edit</span>
+          </button>
+          <div v-else>
+            <span class="traffic-node-index__kind">{{ node.kind }}</span>
+            <bdi dir="ltr">{{ node.label }}</bdi>
+            <small><bdi dir="ltr">{{ node.subLabel }}</bdi></small>
+            <small v-if="node.status" class="traffic-node-index__status"><bdi dir="ltr">Status: {{ node.status }}</bdi></small>
+          </div>
+        </li>
+      </ul>
+    </details>
+  </section>
 </template>
 
 <style scoped>
@@ -701,6 +750,11 @@ function clamp(value: number, min: number, max: number): number {
     linear-gradient(90deg, var(--app-border-subtle) 1px, transparent 1px),
     var(--app-panel-muted);
   background-size: 32px 32px;
+}
+
+.traffic-flow-region {
+  display: grid;
+  gap: 0.5rem;
 }
 
 .traffic-vue-flow {
@@ -762,14 +816,117 @@ function clamp(value: number, min: number, max: number): number {
   position: absolute;
   top: 0;
   left: 0;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   border: 0;
   background: transparent;
   padding: 0;
   pointer-events: auto;
   transition: opacity 160ms ease;
   will-change: transform, opacity;
+}
+
+.traffic-node-index {
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-panel-muted);
+}
+
+.traffic-node-index summary {
+  display: flex;
+  min-height: 2.5rem;
+  cursor: pointer;
+  list-style-position: inside;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0.75rem;
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.traffic-node-index summary span,
+.traffic-node-index > p {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.traffic-node-index > p {
+  margin: 0;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 0.625rem 0.75rem;
+}
+
+.traffic-node-index ul {
+  display: grid;
+  max-height: 18rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0 0.75rem 0.75rem;
+  list-style: none;
+}
+
+.traffic-node-index li {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.traffic-node-index li > div,
+.traffic-node-index li > button {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  border: 0;
+  background: transparent;
+  padding: 0.625rem 0;
+  color: var(--app-text);
+  text-align: left;
+}
+
+.traffic-node-index li > button {
+  cursor: pointer;
+}
+
+.traffic-node-index li > button:hover {
+  color: var(--app-accent);
+}
+
+.traffic-node-index bdi {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  direction: ltr;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  unicode-bidi: isolate;
+}
+
+.traffic-node-index small {
+  min-width: 0;
+  grid-column: 2;
+  color: var(--app-text-muted);
+}
+
+.traffic-node-index__status {
+  grid-column: 2;
+}
+
+.traffic-node-index__kind {
+  color: var(--app-text-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.traffic-node-index__action {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  color: var(--app-accent);
+  font-size: 0.75rem;
+  font-weight: 650;
 }
 
 .traffic-token-dot,
@@ -931,6 +1088,36 @@ function clamp(value: number, min: number, max: number): number {
   .flow-status {
     left: 12px;
     right: auto;
+  }
+
+  .traffic-node-index li > div,
+  .traffic-node-index li > button {
+    grid-template-columns: 1fr auto;
+  }
+
+  .traffic-node-index__kind {
+    grid-column: 1 / -1;
+  }
+
+  .traffic-node-index small {
+    grid-column: 1;
+  }
+
+  .traffic-node-index__status {
+    grid-column: 1;
+  }
+
+  .traffic-node-index__action {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+  }
+}
+
+@media (pointer: coarse) {
+  .flow-status :deep(.n-button),
+  .traffic-node-index summary,
+  .traffic-node-index li > button {
+    min-height: 44px;
   }
 }
 

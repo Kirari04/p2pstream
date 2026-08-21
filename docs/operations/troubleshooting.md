@@ -25,16 +25,16 @@ sudo journalctl -u p2pstream -f
 sudo journalctl -u p2pstream-agent -f
 ```
 
-When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the request, and then turn tracing off.
+When diagnosing public traffic, open **Monitor → Traffic**, enable tracing, reproduce the request, and then turn tracing off. Pause live updates when you need a stable list, then search or filter the recent traces before opening one.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream traffic flow view showing a traced request through listener, policy, route, cache, agent, upstream, and response stages">
-  <figcaption>Use the Traffic flow view while reproducing a request to see which stage handled, rejected, cached, or failed the request.</figcaption>
+  <figcaption>Use Monitor → Traffic while reproducing a request to see which stage handled, rejected, cached, or failed it.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream traffic trace request details modal showing stage timing, route target, cache status, headers, and response metadata">
-  <figcaption>The trace details modal is the fastest way to inspect route matching, selected target, cache outcome, agent selection, upstream timing, and response status for a single request.</figcaption>
+  <img src="../assets/new/traffic_trace_request_details.png" alt="p2pstream trace-details drawer showing outcome, resolved listener route and target, lifecycle, and policy decisions">
+  <figcaption>The trace-details drawer starts with outcome and resolved flow, then exposes lifecycle, policy decisions, capture limits, headers, and raw or debug data progressively.</figcaption>
 </figure>
 
 ## Management UI Will Not Open
@@ -75,8 +75,8 @@ When diagnosing public traffic, open **Traffic**, enable tracing, reproduce the 
 | Insecure URL | HTTP requires `AGENT_ALLOW_INSECURE_MANAGEMENT=true`, intended for development only. |
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/agents_page.png" alt="p2pstream Agents page showing connected, offline, and disabled agents with runtime and connection history">
-  <figcaption>The Agents page shows whether an agent is connected, offline, disabled, recently disconnected, or missing recent connection history.</figcaption>
+  <img src="../assets/new/agents_page.png" alt="p2pstream Agents Fleet tab sorted with enabled offline agents first and showing health, reliability, load, and row actions">
+  <figcaption>Use the attention-first Fleet tab to find offline or degraded agents, then select Investigate to open their filtered connection activity.</figcaption>
 </figure>
 
 ## Public Listener Fails To Bind
@@ -186,7 +186,7 @@ The target response-header timeout limits only the wait for first upstream heade
 
 | Cause | Fix |
 | --- | --- |
-| p2pstream sees one proxy IP | Place p2pstream at the edge, use `REMOTE_IP` when it reflects the client, or add host/path/method/application-header key parts. Do not key on client-supplied forwarding headers. |
+| p2pstream sees one proxy IP | Under **Traffic Policy → WAF → Visitor identity & GeoIP**, enable only the actual CDN preset or configure the proxy's peer CIDRs and overwritten client-IP header. Otherwise keep using peer identity or non-forwarding application keys. |
 | Rule too broad | Add host/path/method matchers. |
 | Priority conflict | Move specific rules to lower priority numbers. |
 
@@ -194,11 +194,13 @@ The target response-header timeout limits only the wait for first upstream heade
 
 | Cause | Fix |
 | --- | --- |
-| Rule too broad | Narrow the WAF match by host, path, method, header, cookie, or query parameter. |
+| Rule too broad | Narrow the WAF match by host, path, method, header, cookie, query parameter, or country restriction. |
 | Priority conflict | Lower priority numbers win. Adjust priorities or matches. |
 | Captcha provider unavailable | Confirm the provider is enabled and site key/secret key match upstream configuration. |
 | Waiting room stays active | Check trigger thresholds, active request counts, server CPU, and agent CPU in the dashboard. Use `0` to disable an automatic signal. |
-| All clients share one queue identity | Use `REMOTE_IP` when p2pstream sees the client address, or use trusted application-header key parts. Avoid client-controlled forwarding headers; trusted-proxy parsing is not available yet. |
+| All clients share one queue identity | Enable the actual CDN/custom trusted source and verify its peer ranges and visitor-IP header are healthy. Untrusted forwarding headers are intentionally ignored. |
+| Geo rule treats every visitor as unknown | Check GeoIP database readiness, the trusted-source refresh state, the immediate peer CIDR, and the expected client-IP header. |
+| Geo rule allows unresolved visitors | Change unknown-country behavior from **Bypass geo restriction** to **Apply rule** for fail-closed enforcement. |
 | Large form or upload must be retried | Captcha and waiting-room admission use `303` redirects and do not replay request bodies. |
 
 ## Trace Stream Reconnects
@@ -206,13 +208,13 @@ The target response-header timeout limits only the wait for first upstream heade
 | Cause | Fix |
 | --- | --- |
 | Management connection interrupted | Check browser network and management logs. |
-| Server restarted | Reopen **Traffic** after restart. |
+| Server restarted | Reopen **Monitor → Traffic** after restart. |
 | Too much trace volume | Use Basic or Detailed level and clear old traces. |
 | Auth session expired | Log in again. |
 
 ## Verification
 
-After applying a fix, rerun the exact failing request, check **Overview** status classes, and use **Traffic** tracing only long enough to confirm the request path.
+After applying a fix, rerun the exact failing request, check **Overview** status classes, and use **Monitor → Traffic** only long enough to confirm the request path. For a cluster of failures, start in **Monitor → Diagnostics** and filter the ranked dimension before opening a sample.
 
 ## Next Steps
 

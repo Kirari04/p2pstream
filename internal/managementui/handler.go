@@ -15,11 +15,11 @@ import (
 // normal operation it serves the built dist directory from disk.
 func NewHandler(devProxyURL, distDir string) http.Handler {
 	if devProxyURL != "" {
-		return newDevProxy(devProxyURL)
+		return withManagementUISecurityHeaders(newDevProxy(devProxyURL), true)
 	}
 
 	distFS := os.DirFS(distDir)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !managementUIFileExists(distFS, "index.html") {
 			http.Error(w, "management UI not built", http.StatusServiceUnavailable)
 			return
@@ -29,12 +29,51 @@ func NewHandler(devProxyURL, distDir string) http.Handler {
 			if serveManagementUIFile(w, r, distFS, relPath) {
 				return
 			}
+			if !shouldServeManagementUIIndex(r, relPath) {
+				http.NotFound(w, r)
+				return
+			}
+		} else if !shouldServeManagementUIIndex(r, "") {
+			http.NotFound(w, r)
+			return
 		}
 		if serveManagementUIFile(w, r, distFS, "index.html") {
 			return
 		}
 
 		http.Error(w, "management UI not built", http.StatusServiceUnavailable)
+	})
+	return withManagementUISecurityHeaders(handler, false)
+}
+
+func withManagementUISecurityHeaders(next http.Handler, development bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		scriptSrc := "script-src 'self'"
+		connectSrc := "connect-src 'self'"
+		if development {
+			scriptSrc += " 'unsafe-eval'"
+			connectSrc += " ws: wss:"
+		}
+		w.Header().Set("Content-Security-Policy", strings.Join([]string{
+			"default-src 'self'",
+			"base-uri 'none'",
+			"frame-ancestors 'none'",
+			"form-action 'self'",
+			"object-src 'none'",
+			scriptSrc,
+			"style-src 'self' 'unsafe-inline'",
+			"img-src 'self' data:",
+			"font-src 'self'",
+			connectSrc,
+		}, "; "))
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()")
+		if r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -53,6 +92,40 @@ func managementUIAssetPath(requestPath string) string {
 		return ""
 	}
 	return relPath
+}
+
+func shouldServeManagementUIIndex(r *http.Request, relPath string) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	if looksLikeManagementUIAssetPath(relPath) {
+		return false
+	}
+	return managementUIAcceptsHTML(r.Header.Get("Accept"))
+}
+
+func looksLikeManagementUIAssetPath(relPath string) bool {
+	if relPath == "" {
+		return false
+	}
+	return path.Ext(relPath) != "" || relPath == "assets" || strings.HasPrefix(relPath, "assets/")
+}
+
+func managementUIAcceptsHTML(accept string) bool {
+	if strings.TrimSpace(accept) == "" {
+		return true
+	}
+	for _, part := range strings.Split(accept, ",") {
+		mediaType := strings.TrimSpace(part)
+		if semi := strings.IndexByte(mediaType, ';'); semi >= 0 {
+			mediaType = strings.TrimSpace(mediaType[:semi])
+		}
+		switch mediaType {
+		case "text/html", "application/xhtml+xml", "*/*":
+			return true
+		}
+	}
+	return false
 }
 
 func serveManagementUIFile(w http.ResponseWriter, r *http.Request, distFS fs.FS, name string) bool {

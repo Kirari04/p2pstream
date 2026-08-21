@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -59,6 +60,144 @@ func TestDirectTargetHealthStillChecksFromServer(t *testing.T) {
 	waitForHealthStatus(t, monitor, 1, p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY)
 	if !monitor.available(backend) {
 		t.Fatal("backend should be available after explicit health recovery")
+	}
+}
+
+func TestDirectTargetHealthCheckReusesPooledTransportConnection(t *testing.T) {
+	var newConnections atomic.Int64
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			t.Fatalf("direct health path = %q, want /health", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+
+	backend := testHealthTarget(t, 2, publicRouteTargetTransportDirect, srv.URL+"/base?ignored=true")
+	monitor := newPublicRouteTargetHealthMonitor()
+	t.Cleanup(func() { monitor.closeDirectHealthTransports() })
+
+	for i := 0; i < 3; i++ {
+		attempt := monitor.runPublicRouteTargetHealthCheck(context.Background(), backend)
+		if attempt.Err != nil {
+			t.Fatalf("health check %d failed: kind=%s err=%v", i, attempt.ErrorKind, attempt.Err)
+		}
+		if attempt.DebugAttributes["transport"] != "direct_pool" {
+			t.Fatalf("health check %d transport = %q, want direct_pool", i, attempt.DebugAttributes["transport"])
+		}
+	}
+
+	if got := newConnections.Load(); got != 1 {
+		t.Fatalf("new upstream connections = %d, want 1", got)
+	}
+	if got := monitor.directTransports.len(); got != 1 {
+		t.Fatalf("direct health transport pool len = %d, want 1", got)
+	}
+}
+
+func TestDirectHealthTransportPoolEvictsStaleTargetKeys(t *testing.T) {
+	monitor := newPublicRouteTargetHealthMonitor()
+	t.Cleanup(func() { monitor.closeDirectHealthTransports() })
+	backend := testHealthTarget(t, 3, publicRouteTargetTransportDirect, "http://127.0.0.1:8080/base?token=secret")
+
+	first := monitor.directTransports.transport(backend, publicRouteTargetHealthCheckTimeout(backend))
+	if got := monitor.directTransports.len(); got != 1 {
+		t.Fatalf("direct health transport pool len = %d, want 1", got)
+	}
+
+	requestOnlyChange := backend
+	requestOnlyChange.HealthCheck.Path = "/ready"
+	requestOnlyChange.HealthCheck.Method = http.MethodHead
+	requestOnlyChange.UpstreamRequestHeaders = []publicRequestHeader{{Name: "X-Health", Value: "ok"}}
+	monitor.closeStaleDirectHealthTransports(requestOnlyChange)
+	if got := monitor.directTransports.len(); got != 1 {
+		t.Fatalf("pool len after request-only change = %d, want 1", got)
+	}
+	if reused := monitor.directTransports.transport(requestOnlyChange, publicRouteTargetHealthCheckTimeout(requestOnlyChange)); reused != first {
+		t.Fatal("request-only health check changes should reuse the existing transport")
+	}
+
+	timeoutChange := backend
+	timeoutChange.HealthCheck.Timeout = 2 * time.Second
+	monitor.closeStaleDirectHealthTransports(timeoutChange)
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after timeout change cleanup = %d, want 0", got)
+	}
+	second := monitor.directTransports.transport(timeoutChange, publicRouteTargetHealthCheckTimeout(timeoutChange))
+	if second == first {
+		t.Fatal("timeout change reused stale direct health transport")
+	}
+
+	originChange := timeoutChange
+	originChange.TargetOrigin = "http://127.0.0.1:8081/other?token=secret"
+	parsedOrigin, err := url.Parse(originChange.TargetOrigin)
+	if err != nil {
+		t.Fatalf("parse changed origin: %v", err)
+	}
+	originChange.ParsedOrigin = parsedOrigin
+	monitor.closeStaleDirectHealthTransports(originChange)
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after origin change cleanup = %d, want 0", got)
+	}
+
+	_ = monitor.directTransports.transport(originChange, publicRouteTargetHealthCheckTimeout(originChange))
+	monitor.closeDirectHealthTransportsForTarget(originChange.ID)
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after target cleanup = %d, want 0", got)
+	}
+}
+
+func TestDirectHealthGenerationPreventsStaleTransportResurrection(t *testing.T) {
+	monitor := newPublicRouteTargetHealthMonitor()
+	t.Cleanup(func() { monitor.closeDirectHealthTransports() })
+	oldTarget := testHealthTarget(t, 4, publicRouteTargetTransportDirect, "http://127.0.0.1:8080")
+	monitor.reconcile(nil, testHealthSnapshot(oldTarget), false)
+
+	monitor.mu.Lock()
+	state := monitor.states[oldTarget.ID]
+	state.directCheckRunning = true
+	state.directGeneration = 41
+	monitor.mu.Unlock()
+	_ = monitor.directTransports.transport(oldTarget, publicRouteTargetHealthCheckTimeout(oldTarget))
+
+	newTarget := oldTarget
+	newTarget.TargetOrigin = "http://127.0.0.1:8081"
+	parsedOrigin, err := url.Parse(newTarget.TargetOrigin)
+	if err != nil {
+		t.Fatalf("parse changed origin: %v", err)
+	}
+	newTarget.ParsedOrigin = parsedOrigin
+	monitor.reconcile(nil, testHealthSnapshot(newTarget), false)
+
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("pool len after reconcile = %d, want 0", got)
+	}
+	if _, _, ok := monitor.directCheckForGeneration(oldTarget.ID, 41); ok {
+		t.Fatal("stale health-loop generation remained eligible after reconcile")
+	}
+	if got := monitor.directTransports.len(); got != 0 {
+		t.Fatalf("stale generation recreated %d transports, want 0", got)
+	}
+
+	failedAttempt := newPublicRouteTargetHealthCheckAttempt(oldTarget)
+	failedAttempt.fail("request_failed", errors.New("old target failed"))
+	finishPublicRouteTargetHealthCheckAttempt(&failedAttempt)
+	monitor.recordDirectExplicitCheckForGeneration(oldTarget.ID, 41, failedAttempt)
+	monitor.mu.Lock()
+	snapshot := directHealthSnapshot(monitor.states[oldTarget.ID], true)
+	monitor.mu.Unlock()
+	if snapshot == nil || snapshot.Status != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN {
+		t.Fatalf("stale result changed current health snapshot: %+v", snapshot)
+	}
+	traces, _ := monitor.listHealthTraces(oldTarget.ID, 0, 10, false)
+	if len(traces) != 0 {
+		t.Fatalf("stale result created %d traces, want 0", len(traces))
 	}
 }
 
@@ -362,9 +501,7 @@ func TestAgentPoolSelectionSkipsDisconnectedAssignments(t *testing.T) {
 	for i := int64(1); i <= 5; i++ {
 		snap.Agents[i] = publicAgentConfig{ID: i, PublicID: "agent-" + strconv.FormatInt(i, 10), Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.TargetHealth.reconcile(app, snap, false)
 	for i := int64(1); i <= 4; i++ {
 		agent := testAgentConn(i, "agent-"+strconv.FormatInt(i, 10))
@@ -408,7 +545,7 @@ func TestAgentPoolHealthCheckAllAgentsUnhealthyMakesBackendUnavailable(t *testin
 			2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 		},
 	}
-	if _, _, ok := app.selectRouteTarget(snap, route); ok {
+	if _, _, ok := app.selectRouteTarget(&snap, route); ok {
 		t.Fatal("route target should be unavailable when all agents are unhealthy")
 	}
 }
@@ -442,9 +579,7 @@ func TestDefaultBackendRequiresEligibleAgent(t *testing.T) {
 		Listeners:        map[int64]publicListenerConfig{10: {ID: 10, Enabled: true}},
 		RoutesByListener: map[int64][]publicRouteConfig{10: {route}},
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
 	_, err = app.resolvePublicRoute(10, req)
@@ -478,9 +613,49 @@ func TestRouteFallbackSelectedWhenPrimaryAgentPoolUnavailable(t *testing.T) {
 	app.TargetHealth.reconcile(app, &snap, false)
 	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
 
-	selected, _, ok := app.selectRouteTarget(snap, route)
+	selected, _, ok := app.selectRouteTarget(&snap, route)
 	if !ok || selected.ID != fallbackTarget.ID {
 		t.Fatalf("route target selection = target=%d ok=%v, want fallback %d", selected.ID, ok, fallbackTarget.ID)
+	}
+}
+
+func TestRouteTargetLeastActiveUsesTargetHealthCounters(t *testing.T) {
+	app := NewApp(nil, nil)
+	busy := publicRouteTargetConfig{
+		ID:            91,
+		Enabled:       true,
+		TargetType:    publicRouteTargetTypeStatic,
+		Position:      0,
+		Weight:        1,
+		PriorityGroup: 0,
+	}
+	idle := publicRouteTargetConfig{
+		ID:            92,
+		Enabled:       true,
+		TargetType:    publicRouteTargetTypeStatic,
+		Position:      1,
+		Weight:        1,
+		PriorityGroup: 0,
+	}
+	route := publicRouteConfig{
+		ID:                  91,
+		Enabled:             true,
+		Action:              publicRouteActionForward,
+		TargetLoadBalancing: publicRouteTargetLoadBalancingLeastActiveRequests,
+		Targets:             []publicRouteTargetConfig{busy, idle},
+	}
+	snap := publicProxySnapshot{
+		RouteTargets: map[int64]publicRouteTargetConfig{
+			busy.ID: busy,
+			idle.ID: idle,
+		},
+	}
+	done := app.TargetHealth.beginRequest(busy.ID)
+	t.Cleanup(done)
+
+	selected, _, ok := app.selectRouteTarget(&snap, route)
+	if !ok || selected.ID != idle.ID {
+		t.Fatalf("route target selection = target=%d ok=%v, want idle target %d", selected.ID, ok, idle.ID)
 	}
 }
 
@@ -745,7 +920,7 @@ func TestRouteKeepsBackendEligibleAfterPassiveFailureWhenHealthDisabled(t *testi
 		Action:  publicRouteActionForward,
 		Targets: []publicRouteTargetConfig{target},
 	}
-	selected, _, ok := app.selectRouteTarget(snap, route)
+	selected, _, ok := app.selectRouteTarget(&snap, route)
 	if !ok || selected.ID != target.ID {
 		t.Fatalf("route target selection = target=%d ok=%v, want target %d", selected.ID, ok, target.ID)
 	}
@@ -820,9 +995,7 @@ func testAgentPoolAppWithHealth(t *testing.T, healthEnabled bool) (*App, publicR
 		1: {ID: 1, PublicID: "agent-a", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 		2: {ID: 2, PublicID: "agent-b", Enabled: true, Labels: map[string]string{"pool": "health-test"}},
 	}
-	app.proxyMu.Lock()
-	app.publicSnapshot = snap
-	app.proxyMu.Unlock()
+	setPublicSnapshotForTest(t, app, snap)
 	app.TargetHealth.reconcile(app, snap, false)
 	for _, agent := range []*AgentConn{testAgentConn(1, "agent-a"), testAgentConn(2, "agent-b")} {
 		if err := app.AgentHub.connect(agent); err != nil {

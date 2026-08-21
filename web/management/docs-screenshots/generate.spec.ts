@@ -84,7 +84,7 @@ test.describe("docs screenshots", () => {
       });
 
       await logOut(page);
-      await expect(page.getByRole("heading", { name: "Login", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Log in", exact: true })).toBeVisible();
       await capture(page, "login_page.png");
 
       await authenticate(page, appBaseURL, {
@@ -112,7 +112,7 @@ test.describe("docs screenshots", () => {
       await gotoApp(page, "/#/overview", "Proxy Overview");
       await capture(page, "dashboard_overview.png");
 
-      await gotoApp(page, "/#/traffic", "Traffic Flow");
+      await gotoApp(page, "/#/monitor/traffic", "Traffic Flow");
       await sendPublicProxyTraffic(page.request, httpPort);
       await expect(page.getByText("app.example.test").first()).toBeVisible({ timeout: 20_000 });
       await capture(page, "live_traffic_diagram_tracing.png");
@@ -120,12 +120,14 @@ test.describe("docs screenshots", () => {
       await capture(page, "traffic_trace_request_details.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/proxy", "Proxy");
+      await gotoApp(page, "/#/proxy/listeners", "Proxy");
+      await expect(page.getByRole("button", { name: /^Edit / }).first()).toBeVisible();
       await capture(page, "proxy_listeners.png");
-      await openFirstButton(page, "Edit listener", "Edit Listener");
+      await openFirstButton(page, /^Edit /, "Edit Listener");
       await capture(page, "proxy_edit_interface_listener_modal.png");
       await closeModal(page);
 
+      await gotoApp(page, "/#/proxy/routes", "Proxy");
       await page.getByRole("heading", { name: "Routes" }).scrollIntoViewIfNeeded();
       await capture(page, "proxy_backends_and_routes.png");
 
@@ -157,7 +159,12 @@ test.describe("docs screenshots", () => {
       await closeModal(page);
       await createAgentSetupScreenshot(page);
 
-      await gotoApp(page, "/#/policies", "Traffic Policy");
+      await gotoApp(page, "/#/policies/rate-limits", "Traffic Policy");
+      await openFirstButton(page, "Edit rate-limit rule", "Edit Rate Limit");
+      await capture(page, "edit_ratelimit_modal.png");
+      await closeModal(page);
+
+      await gotoApp(page, "/#/policies/waf", "Traffic Policy");
       await capture(page, "traffic_policies_waf_and_ratelimits.png");
       await openFirstButton(page, "Edit captcha provider", "Edit Captcha Provider");
       await capture(page, "waf_captcha_provider_modal.png");
@@ -165,17 +172,15 @@ test.describe("docs screenshots", () => {
       await openFirstButton(page, "Edit WAF rule", "Edit WAF Rule");
       await capture(page, "edit_waf_modal.png");
       await closeModal(page);
-      await openFirstButton(page, "Edit rate-limit rule", "Edit Rate Limit");
-      await capture(page, "edit_ratelimit_modal.png");
-      await closeModal(page);
 
-      await page.getByRole("heading", { name: "Cache", exact: true }).first().scrollIntoViewIfNeeded();
+      await gotoApp(page, "/#/policies/cache", "Traffic Policy");
       await capture(page, "cache_settings_section.png");
-      await page.getByRole("heading", { name: "Traffic Shaper", exact: true }).first().scrollIntoViewIfNeeded();
-      await capture(page, "traffic_policies_cache_and_trafficshaper.png");
       await openFirstButton(page, "Edit cache rule", "Edit Cache Rule");
       await capture(page, "edit_cache_modal.png");
       await closeModal(page);
+
+      await gotoApp(page, "/#/policies/traffic-shaper", "Traffic Policy");
+      await capture(page, "traffic_policies_cache_and_trafficshaper.png");
       await openFirstButton(page, "Edit traffic-shaper rule", "Edit Traffic Shaper");
       await capture(page, "edit_traffic_shaper.png");
       await closeModal(page);
@@ -206,7 +211,7 @@ test.describe("docs screenshots", () => {
 
       await gotoApp(page, "/#/settings/environments", "Environments");
       await capture(page, "environment_settings_page.png");
-      await openFirstButton(page, "Edit environment", "Edit Environment");
+      await openFirstEnvironmentEditor(page);
       await capture(page, "settings_environment_editor_modal.png");
       await closeModal(page);
       await openTrustCertificate(page);
@@ -271,9 +276,16 @@ async function logOut(page: Page) {
   await page.getByRole("button", { name: "Log out" }).last().click();
 }
 
-async function openFirstButton(page: Page, buttonName: string, modalTitle: string) {
+async function openFirstButton(page: Page, buttonName: string | RegExp, modalTitle: string) {
   await page.getByRole("button", { name: buttonName }).first().click();
   await expect(page.getByText(modalTitle)).toBeVisible({ timeout: 10_000 });
+  await waitForSettled(page);
+}
+
+async function openFirstEnvironmentEditor(page: Page) {
+  await page.getByRole("button", { name: /^More actions for / }).first().click();
+  await page.getByRole("menuitem", { name: "Edit environment", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Edit Environment", exact: true })).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }
 
@@ -328,13 +340,16 @@ async function createAgentSetupScreenshot(page: Page) {
   await page.getByRole("button", { name: "Create Agent" }).click();
   await expect(page.getByRole("heading", { name: "Agent Setup", exact: true })).toBeVisible({ timeout: 10_000 });
   await capture(page, "new_agent_modal_setup.png");
-  await closeModal(page);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByText("Close Without Copying?", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Discard Token", exact: true }).click();
 }
 
 async function openTrustCertificate(page: Page) {
-  const trustButton = page.getByRole("button", { name: "Trust certificate" }).first();
-  if (await trustButton.isDisabled().catch(() => false)) {
-    await page.getByRole("button", { name: "Discover certificate" }).first().click();
+  let trustButton = page.getByRole("button", { name: /^Review trust for / }).first();
+  if (!await trustButton.isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: /^Discover certificate for / }).first().click();
+    trustButton = page.getByRole("button", { name: /^Review trust for / }).first();
     await expect(trustButton).toBeEnabled({ timeout: 15_000 });
   }
   await trustButton.click();

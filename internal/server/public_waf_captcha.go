@@ -73,6 +73,10 @@ func isPublicWAFReservedPath(path string) bool {
 }
 
 func (a *App) servePublicWAFReserved(w http.ResponseWriter, r *http.Request, listenerID int64) (publicWafDecision, bool) {
+	return a.servePublicWAFReservedWithSnapshot(a.currentPublicSnapshot(), w, r, listenerID)
+}
+
+func (a *App) servePublicWAFReservedWithSnapshot(snap *publicProxySnapshot, w http.ResponseWriter, r *http.Request, listenerID int64) (publicWafDecision, bool) {
 	if !isPublicWAFReservedPath(r.URL.Path) {
 		return publicWafDecision{}, false
 	}
@@ -81,9 +85,9 @@ func (a *App) servePublicWAFReserved(w http.ResponseWriter, r *http.Request, lis
 	}
 	switch r.URL.Path {
 	case publicWafCaptchaVerifyPath:
-		return a.servePublicWAFCaptchaVerify(w, r, listenerID), true
+		return a.servePublicWAFCaptchaVerifyWithSnapshot(snap, w, r, listenerID), true
 	case publicWafWaitingRoomPath, publicWafWaitingRoomStatusPath:
-		return a.servePublicWAFWaitingRoomStatus(w, r, listenerID), true
+		return a.servePublicWAFWaitingRoomStatusWithSnapshot(snap, w, r, listenerID), true
 	default:
 		http.NotFound(w, r)
 		return publicWafDecision{StatusCode: http.StatusNotFound, ErrorKind: "waf_reserved_not_found"}, true
@@ -98,7 +102,7 @@ func (a *App) rateLimitPublicWAFReservedEndpoint(w http.ResponseWriter, r *http.
 	if r != nil && r.URL != nil {
 		path = r.URL.Path
 	}
-	retryAfter, allowed := a.PublicWAF.reservedEndpointLimiter.allow(listenerID, path, remoteIPForRateLimit(r), time.Now())
+	retryAfter, allowed := a.PublicWAF.reservedEndpointLimiter.allow(listenerID, path, peerIPForRequest(r), time.Now())
 	if allowed {
 		return publicWafDecision{}, false
 	}
@@ -127,6 +131,10 @@ func publicWafReservedRateLimitDecision(listenerID int64, path string, retryAfte
 }
 
 func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request, listenerID int64) publicWafDecision {
+	return a.servePublicWAFCaptchaVerifyWithSnapshot(a.currentPublicSnapshot(), w, r, listenerID)
+}
+
+func (a *App) servePublicWAFCaptchaVerifyWithSnapshot(snap *publicProxySnapshot, w http.ResponseWriter, r *http.Request, listenerID int64) publicWafDecision {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -161,7 +169,7 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 	if token == "" {
 		token = strings.TrimSpace(r.Form.Get("g-recaptcha-response"))
 	}
-	decision, rule, provider, ok := a.wafRuleAndProvider(ruleID, listenerID)
+	decision, rule, provider, ok := a.wafRuleAndProviderFromSnapshot(snap, ruleID, listenerID)
 	if !ok {
 		http.Error(w, "captcha rule unavailable", http.StatusServiceUnavailable)
 		return decision
@@ -224,9 +232,10 @@ func (a *App) servePublicWAFCaptchaVerify(w http.ResponseWriter, r *http.Request
 }
 
 func (a *App) wafRuleAndProvider(ruleID int64, listenerID int64) (publicWafDecision, publicWafRuleConfig, publicWafCaptchaProviderConfig, bool) {
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
+	return a.wafRuleAndProviderFromSnapshot(a.currentPublicSnapshot(), ruleID, listenerID)
+}
+
+func (a *App) wafRuleAndProviderFromSnapshot(snap *publicProxySnapshot, ruleID int64, listenerID int64) (publicWafDecision, publicWafRuleConfig, publicWafCaptchaProviderConfig, bool) {
 	decision := publicWafDecision{
 		Listener:   publicListenerConfig{ID: listenerID},
 		Action:     publicWafActionCaptcha,

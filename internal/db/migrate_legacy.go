@@ -32,6 +32,7 @@ func (db *DB) runLegacyCompatibilityMigrations() error {
 		{name: "public route target schema", run: db.migrateLegacyPublicRouteTargetSchema},
 		{name: "public policy tables", run: db.migrateLegacyPublicPolicyTables},
 		{name: "public backend route targets", run: db.migrateLegacyPublicBackendsToRouteTargets},
+		{name: "public access control", run: db.migrateLegacyPublicAccessControl},
 		{name: "public policy indexes", run: db.migrateLegacyPublicPolicyIndexes},
 		{name: "policy match JSON", run: db.migrateLegacyPolicyMatchJSON},
 	}
@@ -78,6 +79,21 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		bytes_tx INTEGER NOT NULL,
 		cpu_percent REAL NOT NULL DEFAULT 0
 	);
+
+	CREATE TABLE IF NOT EXISTS management_agent_trust_reports (
+		agent_id INTEGER PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
+		installed_generation INTEGER NOT NULL DEFAULT 0,
+		installed_bundle_sha256 TEXT NOT NULL DEFAULT '',
+		install_state TEXT NOT NULL DEFAULT 'unsupported',
+		error_code TEXT NOT NULL DEFAULT '',
+		error_detail TEXT NOT NULL DEFAULT '',
+		agent_version TEXT NOT NULL DEFAULT '',
+		capabilities_json TEXT NOT NULL DEFAULT '[]',
+		reported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_management_agent_trust_reports_reported_at
+	ON management_agent_trust_reports (reported_at);
 
 		CREATE TABLE IF NOT EXISTS proxy_request_events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -213,6 +229,34 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		UNIQUE(bind_address, port)
 	);
 
+	CREATE TABLE IF NOT EXISTS public_access_providers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_type TEXT NOT NULL DEFAULT 'forward_auth',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		forward_auth_url TEXT NOT NULL,
+		timeout_millis INTEGER NOT NULL DEFAULT 5000,
+		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+		subject_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Preferred-Username',
+		user_header TEXT NOT NULL DEFAULT 'X-Auth-Request-User',
+		email_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Email',
+		groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
+		forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_access_policies (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE RESTRICT,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		required_groups_json TEXT NOT NULL DEFAULT '[]',
+		group_match TEXT NOT NULL DEFAULT 'any',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS public_routes (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
@@ -228,6 +272,7 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
 		redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
 		path_security_mode TEXT NOT NULL DEFAULT 'strict',
+		access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT,
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -600,6 +645,54 @@ func (db *DB) migrateLegacyPublicRoutes() error {
 	return db.backfillPublicAgentSystemLabels()
 }
 
+func (db *DB) migrateLegacyPublicAccessControl() error {
+	if err := db.execLegacyStatements(
+		`CREATE TABLE IF NOT EXISTS public_access_providers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider_type TEXT NOT NULL DEFAULT 'forward_auth',
+			enabled INTEGER NOT NULL DEFAULT 1,
+			forward_auth_url TEXT NOT NULL,
+			timeout_millis INTEGER NOT NULL DEFAULT 5000,
+			tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+			subject_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Preferred-Username',
+			user_header TEXT NOT NULL DEFAULT 'X-Auth-Request-User',
+			email_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Email',
+			groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
+			forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS public_access_policies (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE RESTRICT,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			required_groups_json TEXT NOT NULL DEFAULT '[]',
+			group_match TEXT NOT NULL DEFAULT 'any',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+	); err != nil {
+		return err
+	}
+
+	columns, err := db.sqliteTableColumns("public_routes")
+	if err != nil {
+		return err
+	}
+	if _, exists := columns["access_policy_id"]; !exists {
+		if _, err := db.Exec(`ALTER TABLE public_routes ADD COLUMN access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT`); err != nil {
+			return err
+		}
+	}
+
+	return db.execLegacyStatements(
+		`CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id ON public_routes (access_policy_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_policies_provider_id ON public_access_policies (provider_id)`,
+	)
+}
+
 func (db *DB) migrateLegacyPublicRouteTargetSchema() error {
 	if err := db.prepareLegacyPublicBackendMigration(); err != nil {
 		return err
@@ -835,6 +928,64 @@ func (db *DB) migrateLegacyPublicPolicyTables() error {
 		return err
 	}
 	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_geo_ip_settings (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			enabled INTEGER NOT NULL DEFAULT 0,
+			maxmind_account_id TEXT NOT NULL DEFAULT '',
+			maxmind_license_key TEXT NOT NULL DEFAULT '',
+			database_type TEXT NOT NULL DEFAULT '',
+			database_build_at DATETIME,
+			last_update_attempt_at DATETIME,
+			last_update_success_at DATETIME,
+			last_update_error TEXT NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		INSERT INTO public_geo_ip_settings (id)
+		SELECT 1
+		WHERE NOT EXISTS (SELECT 1 FROM public_geo_ip_settings WHERE id = 1)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_trusted_proxy_sources (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider TEXT NOT NULL DEFAULT 'custom',
+			built_in INTEGER NOT NULL DEFAULT 0,
+			enabled INTEGER NOT NULL DEFAULT 0,
+			cidrs_json TEXT NOT NULL DEFAULT '[]',
+			header_name TEXT NOT NULL,
+			header_mode TEXT NOT NULL DEFAULT 'single_ip',
+			last_refresh_attempt_at DATETIME,
+			last_refresh_success_at DATETIME,
+			last_refresh_error TEXT NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	for _, stmt := range []string{
+		`INSERT INTO public_trusted_proxy_sources (name, provider, built_in, enabled, cidrs_json, header_name, header_mode)
+		 SELECT 'Cloudflare', 'cloudflare', 1, 0, '[]', 'CF-Connecting-IP', 'single_ip'
+		 WHERE NOT EXISTS (SELECT 1 FROM public_trusted_proxy_sources WHERE provider = 'cloudflare' AND built_in = 1)`,
+		`INSERT INTO public_trusted_proxy_sources (name, provider, built_in, enabled, cidrs_json, header_name, header_mode)
+		 SELECT 'Bunny', 'bunny', 1, 0, '[]', 'X-Real-IP', 'single_ip'
+		 WHERE NOT EXISTS (SELECT 1 FROM public_trusted_proxy_sources WHERE provider = 'bunny' AND built_in = 1)`,
+		`INSERT INTO public_trusted_proxy_sources (name, provider, built_in, enabled, cidrs_json, header_name, header_mode)
+		 SELECT 'CloudFront', 'cloudfront', 1, 0, '[]', 'X-Forwarded-For', 'trusted_chain'
+		 WHERE NOT EXISTS (SELECT 1 FROM public_trusted_proxy_sources WHERE provider = 'cloudfront' AND built_in = 1)`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_cache_settings (
 			id INTEGER PRIMARY KEY CHECK (id = 1),
 			enabled INTEGER NOT NULL DEFAULT 1,
@@ -901,6 +1052,9 @@ func (db *DB) migrateLegacyPublicPolicyTables() error {
 		`ALTER TABLE public_waf_rules ADD COLUMN block_response_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
 		`ALTER TABLE public_waf_rules ADD COLUMN captcha_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
 		`ALTER TABLE public_waf_rules ADD COLUMN waiting_room_page_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`,
+		`ALTER TABLE public_waf_rules ADD COLUMN geo_mode TEXT NOT NULL DEFAULT 'disabled'`,
+		`ALTER TABLE public_waf_rules ADD COLUMN geo_country_codes_json TEXT NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE public_waf_rules ADD COLUMN geo_unknown_behavior TEXT NOT NULL DEFAULT 'apply_rule'`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
@@ -945,6 +1099,9 @@ func (db *DB) migrateLegacyPublicBackendsToRouteTargets() error {
 }
 
 func (db *DB) migrateLegacyPublicPolicyIndexes() error {
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_public_trusted_proxy_sources_builtin_provider ON public_trusted_proxy_sources (provider) WHERE built_in = 1`); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_waf_rules_priority ON public_waf_rules (priority, id)`); err != nil {
 		return err
 	}

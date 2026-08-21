@@ -19,6 +19,7 @@ The server runs the management UI/API, public proxy runtime, SQLite storage, pub
 | Management UI/API | Serves the Vue UI, ConnectRPC API, and authenticated agent Yamux tunnel on `MANAGEMENT_PORT`, default `8081`. |
 | Public listeners | Bind configured HTTP/HTTPS ports and receive public user traffic. |
 | WAF | Applies ordered block, captcha, and waiting-room rules before rate limits and routing. |
+| Access control | Uses a route-assigned forward-auth provider and optional group policy to protect public resources. |
 | Router | Selects a route by listener, host, path prefix, and priority. |
 | Target executor | Forwards directly, returns static responses, redirects, or sends requests to a label-selected agent. |
 | SQLite | Stores users, sessions, agents, public proxy config, TLS metadata, and observability events. |
@@ -36,13 +37,14 @@ Direct target flow:
 3. p2pstream performs a route-only match to enforce the matched route's path security mode.
 4. WAF rules may block, require captcha, or place the visitor in a waiting room.
 5. Rate limit rules run before route resolution.
-6. A traffic shaper may wrap upload/download body streams.
-7. The router selects a route target, or a listener default route target if no explicit route matches.
-8. Cache rules can serve eligible proxy assets after route/target selection.
-9. The server forwards directly to the upstream origin or returns a redirect/static response.
-10. Observability records status, duration, policy IDs, listener/route/target IDs, agent ID, and byte counts.
+6. If the early-matched route has an access policy, its provider authenticates the request and its optional group requirements authorize it.
+7. A traffic shaper may wrap upload/download body streams.
+8. The router selects a route target, or a listener default route target if no explicit route matches.
+9. Cache rules can serve eligible unprotected proxy assets after route/target selection; protected routes bypass shared cache.
+10. The server forwards directly to the upstream origin or returns a redirect/static response.
+11. Observability records status, duration, policy IDs, listener/route/target IDs, agent ID, and byte counts.
 
-The early route-only match is used for path security mode, including strict rejection of encoded path separators by default. Target selection and load-balancer state changes still happen later, after WAF, rate limits, and traffic shapers.
+The early route-only match is used for path security mode and route access policy, including strict rejection of encoded path separators by default. Target selection and load-balancer state changes still happen later, after WAF, rate limits, access control, and traffic shapers.
 
 Agent target flow:
 
@@ -67,3 +69,4 @@ Agent target flow:
 - [Publish a service](../guides/publish-a-service)
 - [Expose a home lab app](../guides/expose-a-home-lab-app)
 - [Backup and restore](../operations/backup-restore)
+- [Identity-aware access](../reference/access-control)

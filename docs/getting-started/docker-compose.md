@@ -79,7 +79,7 @@ Use this page after the quickstart when you need to change ports, understand wha
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 
 :::warning New listeners must be published explicitly
-Docker only exposes ports listed under `ports`. If you create an additional listener on container port `8088` in the p2pstream UI, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
+Docker only exposes ports listed under `ports`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
 
 ```yaml
 ports:
@@ -102,8 +102,8 @@ docker compose logs -f p2pstream
 Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should show proxy state, listeners, routes, targets, TLS counts, and recent traffic once requests arrive.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy listeners section showing seeded HTTP and HTTPS listeners">
-  <figcaption>The seeded listeners are the runtime objects behind the Compose port mappings. If you add another listener, publish that container port in Compose before expecting external traffic.</figcaption>
+  <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy Listeners page showing a searchable table of seeded HTTP and HTTPS public listeners">
+  <figcaption>The Proxy Listeners page shows each listener's bind address, protocol, routes, and state. If you add another listener, publish that container port in Compose before expecting external traffic.</figcaption>
 </figure>
 
 ## Troubleshooting

@@ -36,6 +36,33 @@ const (
 	// AgentManagementServiceReportStatsProcedure is the fully-qualified name of the
 	// AgentManagementService's ReportStats RPC.
 	AgentManagementServiceReportStatsProcedure = "/p2pstream.v1.AgentManagementService/ReportStats"
+	// AgentManagementServiceGetManagementTlsRotationProcedure is the fully-qualified name of the
+	// AgentManagementService's GetManagementTlsRotation RPC.
+	AgentManagementServiceGetManagementTlsRotationProcedure = "/p2pstream.v1.AgentManagementService/GetManagementTlsRotation"
+	// AgentManagementServiceStageManagementTlsRotationProcedure is the fully-qualified name of the
+	// AgentManagementService's StageManagementTlsRotation RPC.
+	AgentManagementServiceStageManagementTlsRotationProcedure = "/p2pstream.v1.AgentManagementService/StageManagementTlsRotation"
+	// AgentManagementServiceGenerateManagementTlsRotationProcedure is the fully-qualified name of the
+	// AgentManagementService's GenerateManagementTlsRotation RPC.
+	AgentManagementServiceGenerateManagementTlsRotationProcedure = "/p2pstream.v1.AgentManagementService/GenerateManagementTlsRotation"
+	// AgentManagementServiceActivateManagementTlsRotationProcedure is the fully-qualified name of the
+	// AgentManagementService's ActivateManagementTlsRotation RPC.
+	AgentManagementServiceActivateManagementTlsRotationProcedure = "/p2pstream.v1.AgentManagementService/ActivateManagementTlsRotation"
+	// AgentManagementServiceRollbackManagementTlsRotationProcedure is the fully-qualified name of the
+	// AgentManagementService's RollbackManagementTlsRotation RPC.
+	AgentManagementServiceRollbackManagementTlsRotationProcedure = "/p2pstream.v1.AgentManagementService/RollbackManagementTlsRotation"
+	// AgentManagementServiceBeginManagementTlsTrustRetirementProcedure is the fully-qualified name of
+	// the AgentManagementService's BeginManagementTlsTrustRetirement RPC.
+	AgentManagementServiceBeginManagementTlsTrustRetirementProcedure = "/p2pstream.v1.AgentManagementService/BeginManagementTlsTrustRetirement"
+	// AgentManagementServiceFinalizeManagementTlsTrustRetirementProcedure is the fully-qualified name
+	// of the AgentManagementService's FinalizeManagementTlsTrustRetirement RPC.
+	AgentManagementServiceFinalizeManagementTlsTrustRetirementProcedure = "/p2pstream.v1.AgentManagementService/FinalizeManagementTlsTrustRetirement"
+	// AgentManagementServiceCancelManagementTlsRotationProcedure is the fully-qualified name of the
+	// AgentManagementService's CancelManagementTlsRotation RPC.
+	AgentManagementServiceCancelManagementTlsRotationProcedure = "/p2pstream.v1.AgentManagementService/CancelManagementTlsRotation"
+	// AgentManagementServiceFinalizeManagementTlsTrustCleanupProcedure is the fully-qualified name of
+	// the AgentManagementService's FinalizeManagementTlsTrustCleanup RPC.
+	AgentManagementServiceFinalizeManagementTlsTrustCleanupProcedure = "/p2pstream.v1.AgentManagementService/FinalizeManagementTlsTrustCleanup"
 	// AgentManagementServiceGetStatusProcedure is the fully-qualified name of the
 	// AgentManagementService's GetStatus RPC.
 	AgentManagementServiceGetStatusProcedure = "/p2pstream.v1.AgentManagementService/GetStatus"
@@ -162,6 +189,24 @@ const (
 	// AgentManagementServiceDeletePublicRouteProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicRoute RPC.
 	AgentManagementServiceDeletePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicRoute"
+	// AgentManagementServiceCreatePublicAccessProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicAccessProvider RPC.
+	AgentManagementServiceCreatePublicAccessProviderProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicAccessProvider"
+	// AgentManagementServiceUpdatePublicAccessProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicAccessProvider RPC.
+	AgentManagementServiceUpdatePublicAccessProviderProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicAccessProvider"
+	// AgentManagementServiceDeletePublicAccessProviderProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicAccessProvider RPC.
+	AgentManagementServiceDeletePublicAccessProviderProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicAccessProvider"
+	// AgentManagementServiceCreatePublicAccessPolicyProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicAccessPolicy RPC.
+	AgentManagementServiceCreatePublicAccessPolicyProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicAccessPolicy"
+	// AgentManagementServiceUpdatePublicAccessPolicyProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicAccessPolicy RPC.
+	AgentManagementServiceUpdatePublicAccessPolicyProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicAccessPolicy"
+	// AgentManagementServiceDeletePublicAccessPolicyProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicAccessPolicy RPC.
+	AgentManagementServiceDeletePublicAccessPolicyProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicAccessPolicy"
 	// AgentManagementServiceCreatePublicTlsDnsCredentialProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicTlsDnsCredential RPC.
 	AgentManagementServiceCreatePublicTlsDnsCredentialProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTlsDnsCredential"
@@ -219,6 +264,24 @@ const (
 	// AgentManagementServiceDeletePublicWafRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicWafRule RPC.
 	AgentManagementServiceDeletePublicWafRuleProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicWafRule"
+	// AgentManagementServiceUpdatePublicGeoIpSettingsProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicGeoIpSettings RPC.
+	AgentManagementServiceUpdatePublicGeoIpSettingsProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicGeoIpSettings"
+	// AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure is the fully-qualified name of the
+	// AgentManagementService's RefreshPublicGeoIpDatabase RPC.
+	AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure = "/p2pstream.v1.AgentManagementService/RefreshPublicGeoIpDatabase"
+	// AgentManagementServiceCreatePublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicTrustedProxySource RPC.
+	AgentManagementServiceCreatePublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicTrustedProxySource"
+	// AgentManagementServiceUpdatePublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicTrustedProxySource RPC.
+	AgentManagementServiceUpdatePublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicTrustedProxySource"
+	// AgentManagementServiceDeletePublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicTrustedProxySource RPC.
+	AgentManagementServiceDeletePublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicTrustedProxySource"
+	// AgentManagementServiceRefreshPublicTrustedProxySourceProcedure is the fully-qualified name of the
+	// AgentManagementService's RefreshPublicTrustedProxySource RPC.
+	AgentManagementServiceRefreshPublicTrustedProxySourceProcedure = "/p2pstream.v1.AgentManagementService/RefreshPublicTrustedProxySource"
 	// AgentManagementServiceCreatePublicCacheRuleProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicCacheRule RPC.
 	AgentManagementServiceCreatePublicCacheRuleProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicCacheRule"
@@ -239,6 +302,15 @@ const (
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
 type AgentManagementServiceClient interface {
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
+	GetManagementTlsRotation(context.Context, *connect.Request[v1.GetManagementTlsRotationRequest]) (*connect.Response[v1.GetManagementTlsRotationResponse], error)
+	StageManagementTlsRotation(context.Context, *connect.Request[v1.StageManagementTlsRotationRequest]) (*connect.Response[v1.StageManagementTlsRotationResponse], error)
+	GenerateManagementTlsRotation(context.Context, *connect.Request[v1.GenerateManagementTlsRotationRequest]) (*connect.Response[v1.GenerateManagementTlsRotationResponse], error)
+	ActivateManagementTlsRotation(context.Context, *connect.Request[v1.ActivateManagementTlsRotationRequest]) (*connect.Response[v1.ActivateManagementTlsRotationResponse], error)
+	RollbackManagementTlsRotation(context.Context, *connect.Request[v1.RollbackManagementTlsRotationRequest]) (*connect.Response[v1.RollbackManagementTlsRotationResponse], error)
+	BeginManagementTlsTrustRetirement(context.Context, *connect.Request[v1.BeginManagementTlsTrustRetirementRequest]) (*connect.Response[v1.BeginManagementTlsTrustRetirementResponse], error)
+	FinalizeManagementTlsTrustRetirement(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustRetirementRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustRetirementResponse], error)
+	CancelManagementTlsRotation(context.Context, *connect.Request[v1.CancelManagementTlsRotationRequest]) (*connect.Response[v1.CancelManagementTlsRotationResponse], error)
+	FinalizeManagementTlsTrustCleanup(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
@@ -281,6 +353,12 @@ type AgentManagementServiceClient interface {
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error)
+	UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error)
+	DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error)
+	CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error)
+	UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error)
+	DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error)
 	CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error)
 	UpdatePublicTlsDnsCredential(context.Context, *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error)
 	DeletePublicTlsDnsCredential(context.Context, *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error)
@@ -300,6 +378,12 @@ type AgentManagementServiceClient interface {
 	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
 	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
 	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
+	UpdatePublicGeoIpSettings(context.Context, *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error)
+	RefreshPublicGeoIpDatabase(context.Context, *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error)
+	CreatePublicTrustedProxySource(context.Context, *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error)
+	UpdatePublicTrustedProxySource(context.Context, *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error)
+	DeletePublicTrustedProxySource(context.Context, *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error)
+	RefreshPublicTrustedProxySource(context.Context, *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error)
 	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
 	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
 	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
@@ -322,6 +406,60 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceReportStatsProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("ReportStats")),
+			connect.WithClientOptions(opts...),
+		),
+		getManagementTlsRotation: connect.NewClient[v1.GetManagementTlsRotationRequest, v1.GetManagementTlsRotationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetManagementTlsRotationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetManagementTlsRotation")),
+			connect.WithClientOptions(opts...),
+		),
+		stageManagementTlsRotation: connect.NewClient[v1.StageManagementTlsRotationRequest, v1.StageManagementTlsRotationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceStageManagementTlsRotationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("StageManagementTlsRotation")),
+			connect.WithClientOptions(opts...),
+		),
+		generateManagementTlsRotation: connect.NewClient[v1.GenerateManagementTlsRotationRequest, v1.GenerateManagementTlsRotationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGenerateManagementTlsRotationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GenerateManagementTlsRotation")),
+			connect.WithClientOptions(opts...),
+		),
+		activateManagementTlsRotation: connect.NewClient[v1.ActivateManagementTlsRotationRequest, v1.ActivateManagementTlsRotationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceActivateManagementTlsRotationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ActivateManagementTlsRotation")),
+			connect.WithClientOptions(opts...),
+		),
+		rollbackManagementTlsRotation: connect.NewClient[v1.RollbackManagementTlsRotationRequest, v1.RollbackManagementTlsRotationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRollbackManagementTlsRotationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RollbackManagementTlsRotation")),
+			connect.WithClientOptions(opts...),
+		),
+		beginManagementTlsTrustRetirement: connect.NewClient[v1.BeginManagementTlsTrustRetirementRequest, v1.BeginManagementTlsTrustRetirementResponse](
+			httpClient,
+			baseURL+AgentManagementServiceBeginManagementTlsTrustRetirementProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("BeginManagementTlsTrustRetirement")),
+			connect.WithClientOptions(opts...),
+		),
+		finalizeManagementTlsTrustRetirement: connect.NewClient[v1.FinalizeManagementTlsTrustRetirementRequest, v1.FinalizeManagementTlsTrustRetirementResponse](
+			httpClient,
+			baseURL+AgentManagementServiceFinalizeManagementTlsTrustRetirementProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("FinalizeManagementTlsTrustRetirement")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelManagementTlsRotation: connect.NewClient[v1.CancelManagementTlsRotationRequest, v1.CancelManagementTlsRotationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCancelManagementTlsRotationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CancelManagementTlsRotation")),
+			connect.WithClientOptions(opts...),
+		),
+		finalizeManagementTlsTrustCleanup: connect.NewClient[v1.FinalizeManagementTlsTrustCleanupRequest, v1.FinalizeManagementTlsTrustCleanupResponse](
+			httpClient,
+			baseURL+AgentManagementServiceFinalizeManagementTlsTrustCleanupProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("FinalizeManagementTlsTrustCleanup")),
 			connect.WithClientOptions(opts...),
 		),
 		getStatus: connect.NewClient[v1.GetStatusRequest, v1.GetStatusResponse](
@@ -576,6 +714,42 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicAccessProvider: connect.NewClient[v1.CreatePublicAccessProviderRequest, v1.CreatePublicAccessProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicAccessProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicAccessProvider: connect.NewClient[v1.UpdatePublicAccessProviderRequest, v1.UpdatePublicAccessProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicAccessProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicAccessProvider: connect.NewClient[v1.DeletePublicAccessProviderRequest, v1.DeletePublicAccessProviderResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicAccessProviderProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessProvider")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicAccessPolicy: connect.NewClient[v1.CreatePublicAccessPolicyRequest, v1.CreatePublicAccessPolicyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicAccessPolicyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicAccessPolicy: connect.NewClient[v1.UpdatePublicAccessPolicyRequest, v1.UpdatePublicAccessPolicyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicAccessPolicyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicAccessPolicy: connect.NewClient[v1.DeletePublicAccessPolicyRequest, v1.DeletePublicAccessPolicyResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicAccessPolicyProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessPolicy")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicTlsDnsCredential: connect.NewClient[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicTlsDnsCredentialProcedure,
@@ -690,6 +864,42 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
 			connect.WithClientOptions(opts...),
 		),
+		updatePublicGeoIpSettings: connect.NewClient[v1.UpdatePublicGeoIpSettingsRequest, v1.UpdatePublicGeoIpSettingsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicGeoIpSettingsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicGeoIpSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		refreshPublicGeoIpDatabase: connect.NewClient[v1.RefreshPublicGeoIpDatabaseRequest, v1.RefreshPublicGeoIpDatabaseResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicGeoIpDatabase")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicTrustedProxySource: connect.NewClient[v1.CreatePublicTrustedProxySourceRequest, v1.CreatePublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicTrustedProxySource: connect.NewClient[v1.UpdatePublicTrustedProxySourceRequest, v1.UpdatePublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicTrustedProxySource: connect.NewClient[v1.DeletePublicTrustedProxySourceRequest, v1.DeletePublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
+		refreshPublicTrustedProxySource: connect.NewClient[v1.RefreshPublicTrustedProxySourceRequest, v1.RefreshPublicTrustedProxySourceResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRefreshPublicTrustedProxySourceProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicTrustedProxySource")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicCacheRule: connect.NewClient[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicCacheRuleProcedure,
@@ -725,78 +935,151 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 
 // agentManagementServiceClient implements AgentManagementServiceClient.
 type agentManagementServiceClient struct {
-	reportStats                       *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
-	getStatus                         *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
-	getDashboard                      *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
-	getDashboardDiagnostics           *connect.Client[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse]
-	getTrafficTraceSettings           *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
-	setTrafficTraceSettings           *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
-	streamTrafficTraceEvents          *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
-	getSetupState                     *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
-	setupAdmin                        *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
-	login                             *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	logout                            *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	getCurrentUser                    *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
-	startProxy                        *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
-	stopProxy                         *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
-	getPublicProxyConfig              *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
-	createPublicResponseTemplate      *connect.Client[v1.CreatePublicResponseTemplateRequest, v1.CreatePublicResponseTemplateResponse]
-	updatePublicResponseTemplate      *connect.Client[v1.UpdatePublicResponseTemplateRequest, v1.UpdatePublicResponseTemplateResponse]
-	deletePublicResponseTemplate      *connect.Client[v1.DeletePublicResponseTemplateRequest, v1.DeletePublicResponseTemplateResponse]
-	listPublicRouteTargetHealthTraces *connect.Client[v1.ListPublicRouteTargetHealthTracesRequest, v1.ListPublicRouteTargetHealthTracesResponse]
-	createAgent                       *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
-	updateAgent                       *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
-	deleteAgent                       *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
-	rotateAgentToken                  *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
-	createManagementAccessToken       *connect.Client[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse]
-	listManagementAccessTokens        *connect.Client[v1.ListManagementAccessTokensRequest, v1.ListManagementAccessTokensResponse]
-	deleteManagementAccessToken       *connect.Client[v1.DeleteManagementAccessTokenRequest, v1.DeleteManagementAccessTokenResponse]
-	listEnvironments                  *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
-	createEnvironment                 *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
-	updateEnvironment                 *connect.Client[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse]
-	deleteEnvironment                 *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
-	discoverEnvironmentCertificate    *connect.Client[v1.DiscoverEnvironmentCertificateRequest, v1.DiscoverEnvironmentCertificateResponse]
-	trustEnvironmentCertificate       *connect.Client[v1.TrustEnvironmentCertificateRequest, v1.TrustEnvironmentCertificateResponse]
-	testEnvironment                   *connect.Client[v1.TestEnvironmentRequest, v1.TestEnvironmentResponse]
-	createPublicListener              *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
-	updatePublicListener              *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
-	deletePublicListener              *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
-	enablePublicListener              *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
-	disablePublicListener             *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
-	startPublicListener               *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
-	stopPublicListener                *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
-	createPublicRoute                 *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
-	updatePublicRoute                 *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
-	deletePublicRoute                 *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
-	createPublicTlsDnsCredential      *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
-	updatePublicTlsDnsCredential      *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
-	deletePublicTlsDnsCredential      *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
-	createPublicTlsCertificate        *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
-	updatePublicTlsCertificate        *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
-	deletePublicTlsCertificate        *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
-	renewPublicTlsCertificate         *connect.Client[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse]
-	createPublicRateLimitRule         *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
-	updatePublicRateLimitRule         *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
-	deletePublicRateLimitRule         *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
-	createPublicTrafficShaperRule     *connect.Client[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse]
-	updatePublicTrafficShaperRule     *connect.Client[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse]
-	deletePublicTrafficShaperRule     *connect.Client[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse]
-	createPublicWafCaptchaProvider    *connect.Client[v1.CreatePublicWafCaptchaProviderRequest, v1.CreatePublicWafCaptchaProviderResponse]
-	updatePublicWafCaptchaProvider    *connect.Client[v1.UpdatePublicWafCaptchaProviderRequest, v1.UpdatePublicWafCaptchaProviderResponse]
-	deletePublicWafCaptchaProvider    *connect.Client[v1.DeletePublicWafCaptchaProviderRequest, v1.DeletePublicWafCaptchaProviderResponse]
-	createPublicWafRule               *connect.Client[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse]
-	updatePublicWafRule               *connect.Client[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse]
-	deletePublicWafRule               *connect.Client[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse]
-	createPublicCacheRule             *connect.Client[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse]
-	updatePublicCacheRule             *connect.Client[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse]
-	deletePublicCacheRule             *connect.Client[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse]
-	updatePublicCacheSettings         *connect.Client[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse]
-	purgePublicCache                  *connect.Client[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse]
+	reportStats                          *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
+	getManagementTlsRotation             *connect.Client[v1.GetManagementTlsRotationRequest, v1.GetManagementTlsRotationResponse]
+	stageManagementTlsRotation           *connect.Client[v1.StageManagementTlsRotationRequest, v1.StageManagementTlsRotationResponse]
+	generateManagementTlsRotation        *connect.Client[v1.GenerateManagementTlsRotationRequest, v1.GenerateManagementTlsRotationResponse]
+	activateManagementTlsRotation        *connect.Client[v1.ActivateManagementTlsRotationRequest, v1.ActivateManagementTlsRotationResponse]
+	rollbackManagementTlsRotation        *connect.Client[v1.RollbackManagementTlsRotationRequest, v1.RollbackManagementTlsRotationResponse]
+	beginManagementTlsTrustRetirement    *connect.Client[v1.BeginManagementTlsTrustRetirementRequest, v1.BeginManagementTlsTrustRetirementResponse]
+	finalizeManagementTlsTrustRetirement *connect.Client[v1.FinalizeManagementTlsTrustRetirementRequest, v1.FinalizeManagementTlsTrustRetirementResponse]
+	cancelManagementTlsRotation          *connect.Client[v1.CancelManagementTlsRotationRequest, v1.CancelManagementTlsRotationResponse]
+	finalizeManagementTlsTrustCleanup    *connect.Client[v1.FinalizeManagementTlsTrustCleanupRequest, v1.FinalizeManagementTlsTrustCleanupResponse]
+	getStatus                            *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
+	getDashboard                         *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
+	getDashboardDiagnostics              *connect.Client[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse]
+	getTrafficTraceSettings              *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
+	setTrafficTraceSettings              *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
+	streamTrafficTraceEvents             *connect.Client[v1.StreamTrafficTraceEventsRequest, v1.StreamTrafficTraceEventsResponse]
+	getSetupState                        *connect.Client[v1.GetSetupStateRequest, v1.GetSetupStateResponse]
+	setupAdmin                           *connect.Client[v1.SetupAdminRequest, v1.SetupAdminResponse]
+	login                                *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout                               *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getCurrentUser                       *connect.Client[v1.GetCurrentUserRequest, v1.GetCurrentUserResponse]
+	startProxy                           *connect.Client[v1.StartProxyRequest, v1.StartProxyResponse]
+	stopProxy                            *connect.Client[v1.StopProxyRequest, v1.StopProxyResponse]
+	getPublicProxyConfig                 *connect.Client[v1.GetPublicProxyConfigRequest, v1.GetPublicProxyConfigResponse]
+	createPublicResponseTemplate         *connect.Client[v1.CreatePublicResponseTemplateRequest, v1.CreatePublicResponseTemplateResponse]
+	updatePublicResponseTemplate         *connect.Client[v1.UpdatePublicResponseTemplateRequest, v1.UpdatePublicResponseTemplateResponse]
+	deletePublicResponseTemplate         *connect.Client[v1.DeletePublicResponseTemplateRequest, v1.DeletePublicResponseTemplateResponse]
+	listPublicRouteTargetHealthTraces    *connect.Client[v1.ListPublicRouteTargetHealthTracesRequest, v1.ListPublicRouteTargetHealthTracesResponse]
+	createAgent                          *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
+	updateAgent                          *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
+	deleteAgent                          *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
+	rotateAgentToken                     *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
+	createManagementAccessToken          *connect.Client[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse]
+	listManagementAccessTokens           *connect.Client[v1.ListManagementAccessTokensRequest, v1.ListManagementAccessTokensResponse]
+	deleteManagementAccessToken          *connect.Client[v1.DeleteManagementAccessTokenRequest, v1.DeleteManagementAccessTokenResponse]
+	listEnvironments                     *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
+	createEnvironment                    *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
+	updateEnvironment                    *connect.Client[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse]
+	deleteEnvironment                    *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
+	discoverEnvironmentCertificate       *connect.Client[v1.DiscoverEnvironmentCertificateRequest, v1.DiscoverEnvironmentCertificateResponse]
+	trustEnvironmentCertificate          *connect.Client[v1.TrustEnvironmentCertificateRequest, v1.TrustEnvironmentCertificateResponse]
+	testEnvironment                      *connect.Client[v1.TestEnvironmentRequest, v1.TestEnvironmentResponse]
+	createPublicListener                 *connect.Client[v1.CreatePublicListenerRequest, v1.CreatePublicListenerResponse]
+	updatePublicListener                 *connect.Client[v1.UpdatePublicListenerRequest, v1.UpdatePublicListenerResponse]
+	deletePublicListener                 *connect.Client[v1.DeletePublicListenerRequest, v1.DeletePublicListenerResponse]
+	enablePublicListener                 *connect.Client[v1.EnablePublicListenerRequest, v1.EnablePublicListenerResponse]
+	disablePublicListener                *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
+	startPublicListener                  *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
+	stopPublicListener                   *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
+	createPublicRoute                    *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
+	updatePublicRoute                    *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
+	deletePublicRoute                    *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
+	createPublicAccessProvider           *connect.Client[v1.CreatePublicAccessProviderRequest, v1.CreatePublicAccessProviderResponse]
+	updatePublicAccessProvider           *connect.Client[v1.UpdatePublicAccessProviderRequest, v1.UpdatePublicAccessProviderResponse]
+	deletePublicAccessProvider           *connect.Client[v1.DeletePublicAccessProviderRequest, v1.DeletePublicAccessProviderResponse]
+	createPublicAccessPolicy             *connect.Client[v1.CreatePublicAccessPolicyRequest, v1.CreatePublicAccessPolicyResponse]
+	updatePublicAccessPolicy             *connect.Client[v1.UpdatePublicAccessPolicyRequest, v1.UpdatePublicAccessPolicyResponse]
+	deletePublicAccessPolicy             *connect.Client[v1.DeletePublicAccessPolicyRequest, v1.DeletePublicAccessPolicyResponse]
+	createPublicTlsDnsCredential         *connect.Client[v1.CreatePublicTlsDnsCredentialRequest, v1.CreatePublicTlsDnsCredentialResponse]
+	updatePublicTlsDnsCredential         *connect.Client[v1.UpdatePublicTlsDnsCredentialRequest, v1.UpdatePublicTlsDnsCredentialResponse]
+	deletePublicTlsDnsCredential         *connect.Client[v1.DeletePublicTlsDnsCredentialRequest, v1.DeletePublicTlsDnsCredentialResponse]
+	createPublicTlsCertificate           *connect.Client[v1.CreatePublicTlsCertificateRequest, v1.CreatePublicTlsCertificateResponse]
+	updatePublicTlsCertificate           *connect.Client[v1.UpdatePublicTlsCertificateRequest, v1.UpdatePublicTlsCertificateResponse]
+	deletePublicTlsCertificate           *connect.Client[v1.DeletePublicTlsCertificateRequest, v1.DeletePublicTlsCertificateResponse]
+	renewPublicTlsCertificate            *connect.Client[v1.RenewPublicTlsCertificateRequest, v1.RenewPublicTlsCertificateResponse]
+	createPublicRateLimitRule            *connect.Client[v1.CreatePublicRateLimitRuleRequest, v1.CreatePublicRateLimitRuleResponse]
+	updatePublicRateLimitRule            *connect.Client[v1.UpdatePublicRateLimitRuleRequest, v1.UpdatePublicRateLimitRuleResponse]
+	deletePublicRateLimitRule            *connect.Client[v1.DeletePublicRateLimitRuleRequest, v1.DeletePublicRateLimitRuleResponse]
+	createPublicTrafficShaperRule        *connect.Client[v1.CreatePublicTrafficShaperRuleRequest, v1.CreatePublicTrafficShaperRuleResponse]
+	updatePublicTrafficShaperRule        *connect.Client[v1.UpdatePublicTrafficShaperRuleRequest, v1.UpdatePublicTrafficShaperRuleResponse]
+	deletePublicTrafficShaperRule        *connect.Client[v1.DeletePublicTrafficShaperRuleRequest, v1.DeletePublicTrafficShaperRuleResponse]
+	createPublicWafCaptchaProvider       *connect.Client[v1.CreatePublicWafCaptchaProviderRequest, v1.CreatePublicWafCaptchaProviderResponse]
+	updatePublicWafCaptchaProvider       *connect.Client[v1.UpdatePublicWafCaptchaProviderRequest, v1.UpdatePublicWafCaptchaProviderResponse]
+	deletePublicWafCaptchaProvider       *connect.Client[v1.DeletePublicWafCaptchaProviderRequest, v1.DeletePublicWafCaptchaProviderResponse]
+	createPublicWafRule                  *connect.Client[v1.CreatePublicWafRuleRequest, v1.CreatePublicWafRuleResponse]
+	updatePublicWafRule                  *connect.Client[v1.UpdatePublicWafRuleRequest, v1.UpdatePublicWafRuleResponse]
+	deletePublicWafRule                  *connect.Client[v1.DeletePublicWafRuleRequest, v1.DeletePublicWafRuleResponse]
+	updatePublicGeoIpSettings            *connect.Client[v1.UpdatePublicGeoIpSettingsRequest, v1.UpdatePublicGeoIpSettingsResponse]
+	refreshPublicGeoIpDatabase           *connect.Client[v1.RefreshPublicGeoIpDatabaseRequest, v1.RefreshPublicGeoIpDatabaseResponse]
+	createPublicTrustedProxySource       *connect.Client[v1.CreatePublicTrustedProxySourceRequest, v1.CreatePublicTrustedProxySourceResponse]
+	updatePublicTrustedProxySource       *connect.Client[v1.UpdatePublicTrustedProxySourceRequest, v1.UpdatePublicTrustedProxySourceResponse]
+	deletePublicTrustedProxySource       *connect.Client[v1.DeletePublicTrustedProxySourceRequest, v1.DeletePublicTrustedProxySourceResponse]
+	refreshPublicTrustedProxySource      *connect.Client[v1.RefreshPublicTrustedProxySourceRequest, v1.RefreshPublicTrustedProxySourceResponse]
+	createPublicCacheRule                *connect.Client[v1.CreatePublicCacheRuleRequest, v1.CreatePublicCacheRuleResponse]
+	updatePublicCacheRule                *connect.Client[v1.UpdatePublicCacheRuleRequest, v1.UpdatePublicCacheRuleResponse]
+	deletePublicCacheRule                *connect.Client[v1.DeletePublicCacheRuleRequest, v1.DeletePublicCacheRuleResponse]
+	updatePublicCacheSettings            *connect.Client[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse]
+	purgePublicCache                     *connect.Client[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse]
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
 func (c *agentManagementServiceClient) ReportStats(ctx context.Context, req *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error) {
 	return c.reportStats.CallUnary(ctx, req)
+}
+
+// GetManagementTlsRotation calls p2pstream.v1.AgentManagementService.GetManagementTlsRotation.
+func (c *agentManagementServiceClient) GetManagementTlsRotation(ctx context.Context, req *connect.Request[v1.GetManagementTlsRotationRequest]) (*connect.Response[v1.GetManagementTlsRotationResponse], error) {
+	return c.getManagementTlsRotation.CallUnary(ctx, req)
+}
+
+// StageManagementTlsRotation calls p2pstream.v1.AgentManagementService.StageManagementTlsRotation.
+func (c *agentManagementServiceClient) StageManagementTlsRotation(ctx context.Context, req *connect.Request[v1.StageManagementTlsRotationRequest]) (*connect.Response[v1.StageManagementTlsRotationResponse], error) {
+	return c.stageManagementTlsRotation.CallUnary(ctx, req)
+}
+
+// GenerateManagementTlsRotation calls
+// p2pstream.v1.AgentManagementService.GenerateManagementTlsRotation.
+func (c *agentManagementServiceClient) GenerateManagementTlsRotation(ctx context.Context, req *connect.Request[v1.GenerateManagementTlsRotationRequest]) (*connect.Response[v1.GenerateManagementTlsRotationResponse], error) {
+	return c.generateManagementTlsRotation.CallUnary(ctx, req)
+}
+
+// ActivateManagementTlsRotation calls
+// p2pstream.v1.AgentManagementService.ActivateManagementTlsRotation.
+func (c *agentManagementServiceClient) ActivateManagementTlsRotation(ctx context.Context, req *connect.Request[v1.ActivateManagementTlsRotationRequest]) (*connect.Response[v1.ActivateManagementTlsRotationResponse], error) {
+	return c.activateManagementTlsRotation.CallUnary(ctx, req)
+}
+
+// RollbackManagementTlsRotation calls
+// p2pstream.v1.AgentManagementService.RollbackManagementTlsRotation.
+func (c *agentManagementServiceClient) RollbackManagementTlsRotation(ctx context.Context, req *connect.Request[v1.RollbackManagementTlsRotationRequest]) (*connect.Response[v1.RollbackManagementTlsRotationResponse], error) {
+	return c.rollbackManagementTlsRotation.CallUnary(ctx, req)
+}
+
+// BeginManagementTlsTrustRetirement calls
+// p2pstream.v1.AgentManagementService.BeginManagementTlsTrustRetirement.
+func (c *agentManagementServiceClient) BeginManagementTlsTrustRetirement(ctx context.Context, req *connect.Request[v1.BeginManagementTlsTrustRetirementRequest]) (*connect.Response[v1.BeginManagementTlsTrustRetirementResponse], error) {
+	return c.beginManagementTlsTrustRetirement.CallUnary(ctx, req)
+}
+
+// FinalizeManagementTlsTrustRetirement calls
+// p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustRetirement.
+func (c *agentManagementServiceClient) FinalizeManagementTlsTrustRetirement(ctx context.Context, req *connect.Request[v1.FinalizeManagementTlsTrustRetirementRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustRetirementResponse], error) {
+	return c.finalizeManagementTlsTrustRetirement.CallUnary(ctx, req)
+}
+
+// CancelManagementTlsRotation calls
+// p2pstream.v1.AgentManagementService.CancelManagementTlsRotation.
+func (c *agentManagementServiceClient) CancelManagementTlsRotation(ctx context.Context, req *connect.Request[v1.CancelManagementTlsRotationRequest]) (*connect.Response[v1.CancelManagementTlsRotationResponse], error) {
+	return c.cancelManagementTlsRotation.CallUnary(ctx, req)
+}
+
+// FinalizeManagementTlsTrustCleanup calls
+// p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustCleanup.
+func (c *agentManagementServiceClient) FinalizeManagementTlsTrustCleanup(ctx context.Context, req *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error) {
+	return c.finalizeManagementTlsTrustCleanup.CallUnary(ctx, req)
 }
 
 // GetStatus calls p2pstream.v1.AgentManagementService.GetStatus.
@@ -1017,6 +1300,36 @@ func (c *agentManagementServiceClient) DeletePublicRoute(ctx context.Context, re
 	return c.deletePublicRoute.CallUnary(ctx, req)
 }
 
+// CreatePublicAccessProvider calls p2pstream.v1.AgentManagementService.CreatePublicAccessProvider.
+func (c *agentManagementServiceClient) CreatePublicAccessProvider(ctx context.Context, req *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error) {
+	return c.createPublicAccessProvider.CallUnary(ctx, req)
+}
+
+// UpdatePublicAccessProvider calls p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider.
+func (c *agentManagementServiceClient) UpdatePublicAccessProvider(ctx context.Context, req *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error) {
+	return c.updatePublicAccessProvider.CallUnary(ctx, req)
+}
+
+// DeletePublicAccessProvider calls p2pstream.v1.AgentManagementService.DeletePublicAccessProvider.
+func (c *agentManagementServiceClient) DeletePublicAccessProvider(ctx context.Context, req *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error) {
+	return c.deletePublicAccessProvider.CallUnary(ctx, req)
+}
+
+// CreatePublicAccessPolicy calls p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy.
+func (c *agentManagementServiceClient) CreatePublicAccessPolicy(ctx context.Context, req *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error) {
+	return c.createPublicAccessPolicy.CallUnary(ctx, req)
+}
+
+// UpdatePublicAccessPolicy calls p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy.
+func (c *agentManagementServiceClient) UpdatePublicAccessPolicy(ctx context.Context, req *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error) {
+	return c.updatePublicAccessPolicy.CallUnary(ctx, req)
+}
+
+// DeletePublicAccessPolicy calls p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy.
+func (c *agentManagementServiceClient) DeletePublicAccessPolicy(ctx context.Context, req *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error) {
+	return c.deletePublicAccessPolicy.CallUnary(ctx, req)
+}
+
 // CreatePublicTlsDnsCredential calls
 // p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential.
 func (c *agentManagementServiceClient) CreatePublicTlsDnsCredential(ctx context.Context, req *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error) {
@@ -1121,6 +1434,40 @@ func (c *agentManagementServiceClient) DeletePublicWafRule(ctx context.Context, 
 	return c.deletePublicWafRule.CallUnary(ctx, req)
 }
 
+// UpdatePublicGeoIpSettings calls p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings.
+func (c *agentManagementServiceClient) UpdatePublicGeoIpSettings(ctx context.Context, req *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error) {
+	return c.updatePublicGeoIpSettings.CallUnary(ctx, req)
+}
+
+// RefreshPublicGeoIpDatabase calls p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase.
+func (c *agentManagementServiceClient) RefreshPublicGeoIpDatabase(ctx context.Context, req *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error) {
+	return c.refreshPublicGeoIpDatabase.CallUnary(ctx, req)
+}
+
+// CreatePublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource.
+func (c *agentManagementServiceClient) CreatePublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error) {
+	return c.createPublicTrustedProxySource.CallUnary(ctx, req)
+}
+
+// UpdatePublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource.
+func (c *agentManagementServiceClient) UpdatePublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error) {
+	return c.updatePublicTrustedProxySource.CallUnary(ctx, req)
+}
+
+// DeletePublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource.
+func (c *agentManagementServiceClient) DeletePublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error) {
+	return c.deletePublicTrustedProxySource.CallUnary(ctx, req)
+}
+
+// RefreshPublicTrustedProxySource calls
+// p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource.
+func (c *agentManagementServiceClient) RefreshPublicTrustedProxySource(ctx context.Context, req *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error) {
+	return c.refreshPublicTrustedProxySource.CallUnary(ctx, req)
+}
+
 // CreatePublicCacheRule calls p2pstream.v1.AgentManagementService.CreatePublicCacheRule.
 func (c *agentManagementServiceClient) CreatePublicCacheRule(ctx context.Context, req *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error) {
 	return c.createPublicCacheRule.CallUnary(ctx, req)
@@ -1150,6 +1497,15 @@ func (c *agentManagementServiceClient) PurgePublicCache(ctx context.Context, req
 // service.
 type AgentManagementServiceHandler interface {
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
+	GetManagementTlsRotation(context.Context, *connect.Request[v1.GetManagementTlsRotationRequest]) (*connect.Response[v1.GetManagementTlsRotationResponse], error)
+	StageManagementTlsRotation(context.Context, *connect.Request[v1.StageManagementTlsRotationRequest]) (*connect.Response[v1.StageManagementTlsRotationResponse], error)
+	GenerateManagementTlsRotation(context.Context, *connect.Request[v1.GenerateManagementTlsRotationRequest]) (*connect.Response[v1.GenerateManagementTlsRotationResponse], error)
+	ActivateManagementTlsRotation(context.Context, *connect.Request[v1.ActivateManagementTlsRotationRequest]) (*connect.Response[v1.ActivateManagementTlsRotationResponse], error)
+	RollbackManagementTlsRotation(context.Context, *connect.Request[v1.RollbackManagementTlsRotationRequest]) (*connect.Response[v1.RollbackManagementTlsRotationResponse], error)
+	BeginManagementTlsTrustRetirement(context.Context, *connect.Request[v1.BeginManagementTlsTrustRetirementRequest]) (*connect.Response[v1.BeginManagementTlsTrustRetirementResponse], error)
+	FinalizeManagementTlsTrustRetirement(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustRetirementRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustRetirementResponse], error)
+	CancelManagementTlsRotation(context.Context, *connect.Request[v1.CancelManagementTlsRotationRequest]) (*connect.Response[v1.CancelManagementTlsRotationResponse], error)
+	FinalizeManagementTlsTrustCleanup(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error)
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
@@ -1192,6 +1548,12 @@ type AgentManagementServiceHandler interface {
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
+	CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error)
+	UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error)
+	DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error)
+	CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error)
+	UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error)
+	DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error)
 	CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error)
 	UpdatePublicTlsDnsCredential(context.Context, *connect.Request[v1.UpdatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.UpdatePublicTlsDnsCredentialResponse], error)
 	DeletePublicTlsDnsCredential(context.Context, *connect.Request[v1.DeletePublicTlsDnsCredentialRequest]) (*connect.Response[v1.DeletePublicTlsDnsCredentialResponse], error)
@@ -1211,6 +1573,12 @@ type AgentManagementServiceHandler interface {
 	CreatePublicWafRule(context.Context, *connect.Request[v1.CreatePublicWafRuleRequest]) (*connect.Response[v1.CreatePublicWafRuleResponse], error)
 	UpdatePublicWafRule(context.Context, *connect.Request[v1.UpdatePublicWafRuleRequest]) (*connect.Response[v1.UpdatePublicWafRuleResponse], error)
 	DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error)
+	UpdatePublicGeoIpSettings(context.Context, *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error)
+	RefreshPublicGeoIpDatabase(context.Context, *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error)
+	CreatePublicTrustedProxySource(context.Context, *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error)
+	UpdatePublicTrustedProxySource(context.Context, *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error)
+	DeletePublicTrustedProxySource(context.Context, *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error)
+	RefreshPublicTrustedProxySource(context.Context, *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error)
 	CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error)
 	UpdatePublicCacheRule(context.Context, *connect.Request[v1.UpdatePublicCacheRuleRequest]) (*connect.Response[v1.UpdatePublicCacheRuleResponse], error)
 	DeletePublicCacheRule(context.Context, *connect.Request[v1.DeletePublicCacheRuleRequest]) (*connect.Response[v1.DeletePublicCacheRuleResponse], error)
@@ -1229,6 +1597,60 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceReportStatsProcedure,
 		svc.ReportStats,
 		connect.WithSchema(agentManagementServiceMethods.ByName("ReportStats")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetManagementTlsRotationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetManagementTlsRotationProcedure,
+		svc.GetManagementTlsRotation,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetManagementTlsRotation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceStageManagementTlsRotationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceStageManagementTlsRotationProcedure,
+		svc.StageManagementTlsRotation,
+		connect.WithSchema(agentManagementServiceMethods.ByName("StageManagementTlsRotation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGenerateManagementTlsRotationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGenerateManagementTlsRotationProcedure,
+		svc.GenerateManagementTlsRotation,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GenerateManagementTlsRotation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceActivateManagementTlsRotationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceActivateManagementTlsRotationProcedure,
+		svc.ActivateManagementTlsRotation,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ActivateManagementTlsRotation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRollbackManagementTlsRotationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRollbackManagementTlsRotationProcedure,
+		svc.RollbackManagementTlsRotation,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RollbackManagementTlsRotation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceBeginManagementTlsTrustRetirementHandler := connect.NewUnaryHandler(
+		AgentManagementServiceBeginManagementTlsTrustRetirementProcedure,
+		svc.BeginManagementTlsTrustRetirement,
+		connect.WithSchema(agentManagementServiceMethods.ByName("BeginManagementTlsTrustRetirement")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceFinalizeManagementTlsTrustRetirementHandler := connect.NewUnaryHandler(
+		AgentManagementServiceFinalizeManagementTlsTrustRetirementProcedure,
+		svc.FinalizeManagementTlsTrustRetirement,
+		connect.WithSchema(agentManagementServiceMethods.ByName("FinalizeManagementTlsTrustRetirement")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCancelManagementTlsRotationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCancelManagementTlsRotationProcedure,
+		svc.CancelManagementTlsRotation,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CancelManagementTlsRotation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceFinalizeManagementTlsTrustCleanupHandler := connect.NewUnaryHandler(
+		AgentManagementServiceFinalizeManagementTlsTrustCleanupProcedure,
+		svc.FinalizeManagementTlsTrustCleanup,
+		connect.WithSchema(agentManagementServiceMethods.ByName("FinalizeManagementTlsTrustCleanup")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceGetStatusHandler := connect.NewUnaryHandler(
@@ -1483,6 +1905,42 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicRoute")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicAccessProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicAccessProviderProcedure,
+		svc.CreatePublicAccessProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicAccessProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicAccessProviderProcedure,
+		svc.UpdatePublicAccessProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicAccessProviderHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicAccessProviderProcedure,
+		svc.DeletePublicAccessProvider,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessProvider")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicAccessPolicyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicAccessPolicyProcedure,
+		svc.CreatePublicAccessPolicy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicAccessPolicyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicAccessPolicyProcedure,
+		svc.UpdatePublicAccessPolicy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicAccessPolicyHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicAccessPolicyProcedure,
+		svc.DeletePublicAccessPolicy,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreatePublicTlsDnsCredentialHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreatePublicTlsDnsCredentialProcedure,
 		svc.CreatePublicTlsDnsCredential,
@@ -1597,6 +2055,42 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicWafRule")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceUpdatePublicGeoIpSettingsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicGeoIpSettingsProcedure,
+		svc.UpdatePublicGeoIpSettings,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicGeoIpSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRefreshPublicGeoIpDatabaseHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure,
+		svc.RefreshPublicGeoIpDatabase,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicGeoIpDatabase")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicTrustedProxySourceProcedure,
+		svc.CreatePublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicTrustedProxySourceProcedure,
+		svc.UpdatePublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicTrustedProxySourceProcedure,
+		svc.DeletePublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRefreshPublicTrustedProxySourceHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRefreshPublicTrustedProxySourceProcedure,
+		svc.RefreshPublicTrustedProxySource,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RefreshPublicTrustedProxySource")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreatePublicCacheRuleHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreatePublicCacheRuleProcedure,
 		svc.CreatePublicCacheRule,
@@ -1631,6 +2125,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		switch r.URL.Path {
 		case AgentManagementServiceReportStatsProcedure:
 			agentManagementServiceReportStatsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetManagementTlsRotationProcedure:
+			agentManagementServiceGetManagementTlsRotationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceStageManagementTlsRotationProcedure:
+			agentManagementServiceStageManagementTlsRotationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGenerateManagementTlsRotationProcedure:
+			agentManagementServiceGenerateManagementTlsRotationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceActivateManagementTlsRotationProcedure:
+			agentManagementServiceActivateManagementTlsRotationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRollbackManagementTlsRotationProcedure:
+			agentManagementServiceRollbackManagementTlsRotationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceBeginManagementTlsTrustRetirementProcedure:
+			agentManagementServiceBeginManagementTlsTrustRetirementHandler.ServeHTTP(w, r)
+		case AgentManagementServiceFinalizeManagementTlsTrustRetirementProcedure:
+			agentManagementServiceFinalizeManagementTlsTrustRetirementHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCancelManagementTlsRotationProcedure:
+			agentManagementServiceCancelManagementTlsRotationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceFinalizeManagementTlsTrustCleanupProcedure:
+			agentManagementServiceFinalizeManagementTlsTrustCleanupHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetStatusProcedure:
 			agentManagementServiceGetStatusHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetDashboardProcedure:
@@ -1715,6 +2227,18 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicRouteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicRouteProcedure:
 			agentManagementServiceDeletePublicRouteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicAccessProviderProcedure:
+			agentManagementServiceCreatePublicAccessProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicAccessProviderProcedure:
+			agentManagementServiceUpdatePublicAccessProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicAccessProviderProcedure:
+			agentManagementServiceDeletePublicAccessProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicAccessPolicyProcedure:
+			agentManagementServiceCreatePublicAccessPolicyHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicAccessPolicyProcedure:
+			agentManagementServiceUpdatePublicAccessPolicyHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicAccessPolicyProcedure:
+			agentManagementServiceDeletePublicAccessPolicyHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicTlsDnsCredentialProcedure:
 			agentManagementServiceCreatePublicTlsDnsCredentialHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicTlsDnsCredentialProcedure:
@@ -1753,6 +2277,18 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicWafRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicWafRuleProcedure:
 			agentManagementServiceDeletePublicWafRuleHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicGeoIpSettingsProcedure:
+			agentManagementServiceUpdatePublicGeoIpSettingsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRefreshPublicGeoIpDatabaseProcedure:
+			agentManagementServiceRefreshPublicGeoIpDatabaseHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicTrustedProxySourceProcedure:
+			agentManagementServiceCreatePublicTrustedProxySourceHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicTrustedProxySourceProcedure:
+			agentManagementServiceUpdatePublicTrustedProxySourceHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicTrustedProxySourceProcedure:
+			agentManagementServiceDeletePublicTrustedProxySourceHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRefreshPublicTrustedProxySourceProcedure:
+			agentManagementServiceRefreshPublicTrustedProxySourceHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicCacheRuleProcedure:
 			agentManagementServiceCreatePublicCacheRuleHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicCacheRuleProcedure:
@@ -1774,6 +2310,42 @@ type UnimplementedAgentManagementServiceHandler struct{}
 
 func (UnimplementedAgentManagementServiceHandler) ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ReportStats is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetManagementTlsRotation(context.Context, *connect.Request[v1.GetManagementTlsRotationRequest]) (*connect.Response[v1.GetManagementTlsRotationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetManagementTlsRotation is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) StageManagementTlsRotation(context.Context, *connect.Request[v1.StageManagementTlsRotationRequest]) (*connect.Response[v1.StageManagementTlsRotationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StageManagementTlsRotation is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GenerateManagementTlsRotation(context.Context, *connect.Request[v1.GenerateManagementTlsRotationRequest]) (*connect.Response[v1.GenerateManagementTlsRotationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GenerateManagementTlsRotation is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ActivateManagementTlsRotation(context.Context, *connect.Request[v1.ActivateManagementTlsRotationRequest]) (*connect.Response[v1.ActivateManagementTlsRotationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ActivateManagementTlsRotation is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RollbackManagementTlsRotation(context.Context, *connect.Request[v1.RollbackManagementTlsRotationRequest]) (*connect.Response[v1.RollbackManagementTlsRotationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RollbackManagementTlsRotation is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) BeginManagementTlsTrustRetirement(context.Context, *connect.Request[v1.BeginManagementTlsTrustRetirementRequest]) (*connect.Response[v1.BeginManagementTlsTrustRetirementResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.BeginManagementTlsTrustRetirement is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) FinalizeManagementTlsTrustRetirement(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustRetirementRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustRetirementResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustRetirement is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CancelManagementTlsRotation(context.Context, *connect.Request[v1.CancelManagementTlsRotationRequest]) (*connect.Response[v1.CancelManagementTlsRotationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CancelManagementTlsRotation is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) FinalizeManagementTlsTrustCleanup(context.Context, *connect.Request[v1.FinalizeManagementTlsTrustCleanupRequest]) (*connect.Response[v1.FinalizeManagementTlsTrustCleanupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustCleanup is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error) {
@@ -1944,6 +2516,30 @@ func (UnimplementedAgentManagementServiceHandler) DeletePublicRoute(context.Cont
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicRoute is not implemented"))
 }
 
+func (UnimplementedAgentManagementServiceHandler) CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicAccessProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicAccessProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy is not implemented"))
+}
+
 func (UnimplementedAgentManagementServiceHandler) CreatePublicTlsDnsCredential(context.Context, *connect.Request[v1.CreatePublicTlsDnsCredentialRequest]) (*connect.Response[v1.CreatePublicTlsDnsCredentialResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential is not implemented"))
 }
@@ -2018,6 +2614,30 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicWafRule(context.Co
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicWafRule(context.Context, *connect.Request[v1.DeletePublicWafRuleRequest]) (*connect.Response[v1.DeletePublicWafRuleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicWafRule is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicGeoIpSettings(context.Context, *connect.Request[v1.UpdatePublicGeoIpSettingsRequest]) (*connect.Response[v1.UpdatePublicGeoIpSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RefreshPublicGeoIpDatabase(context.Context, *connect.Request[v1.RefreshPublicGeoIpDatabaseRequest]) (*connect.Response[v1.RefreshPublicGeoIpDatabaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicTrustedProxySource(context.Context, *connect.Request[v1.CreatePublicTrustedProxySourceRequest]) (*connect.Response[v1.CreatePublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicTrustedProxySource(context.Context, *connect.Request[v1.UpdatePublicTrustedProxySourceRequest]) (*connect.Response[v1.UpdatePublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicTrustedProxySource(context.Context, *connect.Request[v1.DeletePublicTrustedProxySourceRequest]) (*connect.Response[v1.DeletePublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RefreshPublicTrustedProxySource(context.Context, *connect.Request[v1.RefreshPublicTrustedProxySourceRequest]) (*connect.Response[v1.RefreshPublicTrustedProxySourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicCacheRule(context.Context, *connect.Request[v1.CreatePublicCacheRuleRequest]) (*connect.Response[v1.CreatePublicCacheRuleResponse], error) {

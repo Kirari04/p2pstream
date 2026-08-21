@@ -15,6 +15,8 @@ export type AgentSetupSnippetInput = {
   version?: string;
   scriptRef?: string;
   dockerImage?: string;
+  allowTargets?: string[];
+  allowAnyTarget?: boolean;
   tls?: AgentSetupTLSConfig;
 };
 
@@ -79,6 +81,7 @@ export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
     ...installTLSParts(input.tls),
     `AGENT_ID=${shellQuote(input.agentId)}`,
     `AGENT_TOKEN=${shellQuote(input.agentToken)}`,
+    ...shellAgentDestinationPolicyParts(input),
     `P2PSTREAM_REPOSITORY=${shellQuote(repository)}`,
     `P2PSTREAM_VERSION=${shellQuote(version)}`,
   ];
@@ -100,10 +103,14 @@ export function dockerComposeSnippet(input: AgentSetupSnippetInput): string {
     environment:
       MANAGEMENT_URL: ${yamlQuote(normalizeManagementUrl(input.managementUrl))}
 ${dockerTLSLines(input.tls)}
+      MANAGEMENT_TRUST_FILE: "/data/management-ca.pem"
       AGENT_ID: ${yamlQuote(input.agentId)}
       AGENT_TOKEN: ${yamlQuote(input.agentToken)}
+${dockerAgentDestinationPolicyLine(input)}
 ${dockerTLSVolumes(input.tls)}
-    restart: unless-stopped`;
+    restart: unless-stopped
+volumes:
+  p2pstream-agent-state:`;
 }
 
 export function cliSnippet(input: AgentSetupSnippetInput): string {
@@ -112,8 +119,39 @@ export function cliSnippet(input: AgentSetupSnippetInput): string {
     ...cliTLSParts(input.tls),
     `AGENT_ID=${shellQuote(input.agentId)}`,
     `AGENT_TOKEN=${shellQuote(input.agentToken)}`,
+    ...shellAgentDestinationPolicyParts(input),
   ];
   return `${parts.join(" ")} p2pstream agent`;
+}
+
+function normalizedAllowTargets(values: string[] | undefined): string {
+  const normalized = (values ?? [])
+    .map((value) => singleLine(value).trim())
+    .filter(Boolean);
+  return normalized.join(",");
+}
+
+function normalizedAgentDestinationPolicy(input: AgentSetupSnippetInput): { allowTargets: string; allowAnyTarget: boolean } {
+  const allowTargets = normalizedAllowTargets(input.allowTargets);
+  const allowAnyTarget = Boolean(input.allowAnyTarget);
+  if (allowTargets && allowAnyTarget) {
+    throw new Error("Allow any target cannot be combined with a destination allowlist.");
+  }
+  return { allowTargets, allowAnyTarget };
+}
+
+function shellAgentDestinationPolicyParts(input: AgentSetupSnippetInput): string[] {
+  const policy = normalizedAgentDestinationPolicy(input);
+  if (policy.allowAnyTarget) return ["AGENT_ALLOW_ANY_TARGET=true"];
+  if (policy.allowTargets) return [`AGENT_ALLOW_TARGETS=${shellQuote(policy.allowTargets)}`];
+  return [];
+}
+
+function dockerAgentDestinationPolicyLine(input: AgentSetupSnippetInput): string {
+  const policy = normalizedAgentDestinationPolicy(input);
+  if (policy.allowAnyTarget) return `      AGENT_ALLOW_ANY_TARGET: "true"`;
+  if (policy.allowTargets) return `      AGENT_ALLOW_TARGETS: ${yamlQuote(policy.allowTargets)}`;
+  return "";
 }
 
 export function shellQuote(value: string): string {
@@ -159,9 +197,11 @@ function dockerTLSLines(tls: AgentSetupTLSConfig | undefined): string {
 }
 
 function dockerTLSVolumes(tls: AgentSetupTLSConfig | undefined): string {
-  if (!tls?.managementCAFile && !tls?.agentTLSCertFile && !tls?.agentTLSKeyFile) return "";
-  return `    volumes:
-      - /etc/p2pstream:/etc/p2pstream:ro`;
+  const lines = ["    volumes:", "      - p2pstream-agent-state:/data"];
+  if (tls?.managementCAFile || tls?.agentTLSCertFile || tls?.agentTLSKeyFile) {
+    lines.push("      - /etc/p2pstream:/etc/p2pstream:ro");
+  }
+  return lines.join("\n");
 }
 
 function installTLSParts(tls: AgentSetupTLSConfig | undefined): string[] {
@@ -185,7 +225,8 @@ function installTLSParts(tls: AgentSetupTLSConfig | undefined): string[] {
 }
 
 function cliTLSParts(tls: AgentSetupTLSConfig | undefined): string[] {
-  if (!hasTLS(tls)) return [];
+	const trustFile = `MANAGEMENT_TRUST_FILE='./p2pstream-agent-state/management-ca.pem'`;
+	if (!hasTLS(tls)) return [trustFile];
   const parts: string[] = [];
   if (tls?.managementCAPEMBase64) {
     parts.push(`MANAGEMENT_CA_PEM_BASE64=${shellQuote(tls.managementCAPEMBase64)}`);
@@ -201,5 +242,6 @@ function cliTLSParts(tls: AgentSetupTLSConfig | undefined): string[] {
   if (tls?.allowInsecureManagement) {
     parts.push(`AGENT_ALLOW_INSECURE_MANAGEMENT=true`);
   }
+	parts.push(trustFile);
   return parts;
 }

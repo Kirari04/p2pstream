@@ -95,6 +95,18 @@ type ManagementAccessToken struct {
 	UpdatedAt  time.Time    `json:"updated_at"`
 }
 
+type ManagementAgentTrustReport struct {
+	AgentID               int64     `json:"agent_id"`
+	InstalledGeneration   int64     `json:"installed_generation"`
+	InstalledBundleSha256 string    `json:"installed_bundle_sha256"`
+	InstallState          string    `json:"install_state"`
+	ErrorCode             string    `json:"error_code"`
+	ErrorDetail           string    `json:"error_detail"`
+	AgentVersion          string    `json:"agent_version"`
+	CapabilitiesJson      string    `json:"capabilities_json"`
+	ReportedAt            time.Time `json:"reported_at"`
+}
+
 type ObservabilityRollupState struct {
 	ID                       int64     `json:"id"`
 	ProxyBackfillUpperID     int64     `json:"proxy_backfill_upper_id"`
@@ -185,6 +197,34 @@ type ProxyRequestTupleRollupMinute struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type PublicAccessPolicy struct {
+	ID                 int64     `json:"id"`
+	Name               string    `json:"name"`
+	ProviderID         int64     `json:"provider_id"`
+	Enabled            int64     `json:"enabled"`
+	RequiredGroupsJson string    `json:"required_groups_json"`
+	GroupMatch         string    `json:"group_match"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type PublicAccessProvider struct {
+	ID                   int64     `json:"id"`
+	Name                 string    `json:"name"`
+	ProviderType         string    `json:"provider_type"`
+	Enabled              int64     `json:"enabled"`
+	ForwardAuthUrl       string    `json:"forward_auth_url"`
+	TimeoutMillis        int64     `json:"timeout_millis"`
+	TlsSkipVerify        int64     `json:"tls_skip_verify"`
+	SubjectHeader        string    `json:"subject_header"`
+	UserHeader           string    `json:"user_header"`
+	EmailHeader          string    `json:"email_header"`
+	GroupsHeader         string    `json:"groups_header"`
+	ForwardedHeadersJson string    `json:"forwarded_headers_json"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+}
+
 type PublicAgentLabel struct {
 	AgentID   int64     `json:"agent_id"`
 	Key       string    `json:"key"`
@@ -250,6 +290,20 @@ type PublicCacheSetting struct {
 	UpdatedAt               time.Time `json:"updated_at"`
 }
 
+type PublicGeoIpSetting struct {
+	ID                  int64        `json:"id"`
+	Enabled             int64        `json:"enabled"`
+	MaxmindAccountID    string       `json:"maxmind_account_id"`
+	MaxmindLicenseKey   string       `json:"maxmind_license_key"`
+	DatabaseType        string       `json:"database_type"`
+	DatabaseBuildAt     sql.NullTime `json:"database_build_at"`
+	LastUpdateAttemptAt sql.NullTime `json:"last_update_attempt_at"`
+	LastUpdateSuccessAt sql.NullTime `json:"last_update_success_at"`
+	LastUpdateError     string       `json:"last_update_error"`
+	CreatedAt           time.Time    `json:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at"`
+}
+
 type PublicListener struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
@@ -294,23 +348,24 @@ type PublicResponseTemplate struct {
 }
 
 type PublicRoute struct {
-	ID                         int64     `json:"id"`
-	ListenerID                 int64     `json:"listener_id"`
-	Priority                   int64     `json:"priority"`
-	HostPattern                string    `json:"host_pattern"`
-	PathPrefix                 string    `json:"path_prefix"`
-	TargetLoadBalancing        string    `json:"target_load_balancing"`
-	IsDefault                  int64     `json:"is_default"`
-	Action                     string    `json:"action"`
-	RedirectTargetMode         string    `json:"redirect_target_mode"`
-	RedirectTarget             string    `json:"redirect_target"`
-	RedirectStatusCode         int64     `json:"redirect_status_code"`
-	RedirectPreservePathSuffix int64     `json:"redirect_preserve_path_suffix"`
-	RedirectPreserveQuery      int64     `json:"redirect_preserve_query"`
-	PathSecurityMode           string    `json:"path_security_mode"`
-	Enabled                    int64     `json:"enabled"`
-	CreatedAt                  time.Time `json:"created_at"`
-	UpdatedAt                  time.Time `json:"updated_at"`
+	ID                         int64         `json:"id"`
+	ListenerID                 int64         `json:"listener_id"`
+	Priority                   int64         `json:"priority"`
+	HostPattern                string        `json:"host_pattern"`
+	PathPrefix                 string        `json:"path_prefix"`
+	TargetLoadBalancing        string        `json:"target_load_balancing"`
+	IsDefault                  int64         `json:"is_default"`
+	Action                     string        `json:"action"`
+	RedirectTargetMode         string        `json:"redirect_target_mode"`
+	RedirectTarget             string        `json:"redirect_target"`
+	RedirectStatusCode         int64         `json:"redirect_status_code"`
+	RedirectPreservePathSuffix int64         `json:"redirect_preserve_path_suffix"`
+	RedirectPreserveQuery      int64         `json:"redirect_preserve_query"`
+	PathSecurityMode           string        `json:"path_security_mode"`
+	AccessPolicyID             sql.NullInt64 `json:"access_policy_id"`
+	Enabled                    int64         `json:"enabled"`
+	CreatedAt                  time.Time     `json:"created_at"`
+	UpdatedAt                  time.Time     `json:"updated_at"`
 }
 
 type PublicRouteTarget struct {
@@ -419,6 +474,22 @@ type PublicTrafficShaperRule struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
+type PublicTrustedProxySource struct {
+	ID                   int64        `json:"id"`
+	Name                 string       `json:"name"`
+	Provider             string       `json:"provider"`
+	BuiltIn              int64        `json:"built_in"`
+	Enabled              int64        `json:"enabled"`
+	CidrsJson            string       `json:"cidrs_json"`
+	HeaderName           string       `json:"header_name"`
+	HeaderMode           string       `json:"header_mode"`
+	LastRefreshAttemptAt sql.NullTime `json:"last_refresh_attempt_at"`
+	LastRefreshSuccessAt sql.NullTime `json:"last_refresh_success_at"`
+	LastRefreshError     string       `json:"last_refresh_error"`
+	CreatedAt            time.Time    `json:"created_at"`
+	UpdatedAt            time.Time    `json:"updated_at"`
+}
+
 type PublicWafCaptchaProvider struct {
 	ID           int64     `json:"id"`
 	Name         string    `json:"name"`
@@ -468,6 +539,9 @@ type PublicWafRule struct {
 	BlockResponseHeadersJson             string        `json:"block_response_headers_json"`
 	CreatedAt                            time.Time     `json:"created_at"`
 	UpdatedAt                            time.Time     `json:"updated_at"`
+	GeoMode                              string        `json:"geo_mode"`
+	GeoCountryCodesJson                  string        `json:"geo_country_codes_json"`
+	GeoUnknownBehavior                   string        `json:"geo_unknown_behavior"`
 }
 
 type PublicWafSetting struct {

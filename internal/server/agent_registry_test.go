@@ -321,6 +321,178 @@ func TestRotateAgentTokenClosesTunnelConnection(t *testing.T) {
 	waitForAgentHubConnection(t, app, agent.ID, true)
 }
 
+func TestAgentTunnelRejectsAgentInitiatedStreams(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-stream-direction", "Stream Direction", "token")
+	mux := http.NewServeMux()
+	app.RegisterManagementRoutes(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	agentSession, conn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "token")
+	if err != nil {
+		t.Fatalf("dial agent tunnel: %v", err)
+	}
+	defer conn.Close()
+	defer agentSession.Close()
+	waitForAgentHubConnection(t, app, agent.ID, true)
+
+	serverAgent := app.AgentHub.connectedByID(agent.ID)
+	if serverAgent == nil || serverAgent.Session == nil {
+		t.Fatal("agent tunnel session was not registered")
+	}
+
+	// A ping round trip is an ordering barrier: the agent must process the
+	// server's GoAway frame before the later ping response can arrive.
+	if _, err := agentSession.Ping(); err != nil {
+		t.Fatalf("ping agent tunnel after server GoAway: %v", err)
+	}
+	if stream, err := agentSession.Open(); !errors.Is(err, yamux.ErrRemoteGoAway) {
+		if stream != nil {
+			_ = stream.Close()
+		}
+		t.Fatalf("agent-initiated stream error = %v, want %v", err, yamux.ErrRemoteGoAway)
+	}
+	assertYamuxStreamCounts(t, serverAgent.Session, agentSession, 0)
+
+	acceptedCh := make(chan net.Conn, 1)
+	acceptErrCh := make(chan error, 1)
+	go func() {
+		stream, err := agentSession.Accept()
+		if err != nil {
+			acceptErrCh <- err
+			return
+		}
+		acceptedCh <- stream
+	}()
+
+	serverStream, err := serverAgent.Session.Open()
+	if err != nil {
+		t.Fatalf("open server-initiated stream: %v", err)
+	}
+	var agentStream net.Conn
+	select {
+	case agentStream = <-acceptedCh:
+	case err := <-acceptErrCh:
+		_ = serverStream.Close()
+		t.Fatalf("accept server-initiated stream: %v", err)
+	case <-time.After(2 * time.Second):
+		_ = serverStream.Close()
+		t.Fatal("timed out accepting server-initiated stream")
+	}
+
+	if err := serverStream.Close(); err != nil {
+		t.Fatalf("close server stream: %v", err)
+	}
+	if err := agentStream.Close(); err != nil {
+		t.Fatalf("close agent stream: %v", err)
+	}
+	assertYamuxStreamCounts(t, serverAgent.Session, agentSession, 0)
+}
+
+func TestAgentTunnelReadGateRejectsSYNQueuedBeforeGoAway(t *testing.T) {
+	serverConn, rawAgentConn := newAgentRegistryLocalTCPPair(t)
+	gatedConn := &agentTunnelReadGateConn{Conn: serverConn, ready: make(chan struct{})}
+	t.Cleanup(gatedConn.releaseReads)
+	serverSession, err := yamux.Server(gatedConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("create server session: %v", err)
+	}
+	defer serverSession.Close()
+
+	agentSession, err := yamux.Client(rawAgentConn, tunnel.DefaultYamuxConfig(nil))
+	if err != nil {
+		t.Fatalf("create agent session: %v", err)
+	}
+	defer agentSession.Close()
+
+	type openResult struct {
+		stream net.Conn
+		err    error
+	}
+	openCh := make(chan openResult, 1)
+	go func() {
+		stream, err := agentSession.Open()
+		openCh <- openResult{stream: stream, err: err}
+	}()
+
+	var preGoAwayStream net.Conn
+	select {
+	case result := <-openCh:
+		if result.err != nil {
+			t.Fatalf("prebuffer pre-GoAway agent SYN: %v", result.err)
+		}
+		if result.stream == nil {
+			t.Fatal("pre-GoAway agent SYN returned a nil stream")
+		}
+		preGoAwayStream = result.stream
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out prebuffering pre-GoAway agent SYN")
+	}
+	defer preGoAwayStream.Close()
+	if got := serverSession.NumStreams(); got != 0 {
+		t.Fatalf("server streams before releasing read gate = %d, want 0", got)
+	}
+
+	if err := serverSession.GoAway(); err != nil {
+		t.Fatalf("send server GoAway: %v", err)
+	}
+	gatedConn.releaseReads()
+
+	// The ping response follows the GoAway and RST frames on the server wire,
+	// so its completion proves the queued SYN has been rejected and drained.
+	if _, err := agentSession.Ping(); err != nil {
+		t.Fatalf("ping after releasing read gate: %v", err)
+	}
+	if err := preGoAwayStream.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set rejected stream deadline: %v", err)
+	}
+	if _, err := preGoAwayStream.Read(make([]byte, 1)); !errors.Is(err, yamux.ErrConnectionReset) {
+		t.Fatalf("pre-GoAway agent stream read error = %v, want %v", err, yamux.ErrConnectionReset)
+	}
+	assertYamuxStreamCounts(t, serverSession, agentSession, 0)
+
+	if stream, err := agentSession.Open(); !errors.Is(err, yamux.ErrRemoteGoAway) {
+		if stream != nil {
+			_ = stream.Close()
+		}
+		t.Fatalf("post-GoAway agent stream error = %v, want %v", err, yamux.ErrRemoteGoAway)
+	}
+
+	acceptedCh := make(chan net.Conn, 1)
+	acceptErrCh := make(chan error, 1)
+	go func() {
+		stream, err := agentSession.Accept()
+		if err != nil {
+			acceptErrCh <- err
+			return
+		}
+		acceptedCh <- stream
+	}()
+	serverStream, err := serverSession.Open()
+	if err != nil {
+		t.Fatalf("open server stream after GoAway: %v", err)
+	}
+	var agentStream net.Conn
+	select {
+	case agentStream = <-acceptedCh:
+	case err := <-acceptErrCh:
+		_ = serverStream.Close()
+		t.Fatalf("accept server stream after GoAway: %v", err)
+	case <-time.After(2 * time.Second):
+		_ = serverStream.Close()
+		t.Fatal("timed out accepting server stream after GoAway")
+	}
+	if err := serverStream.Close(); err != nil {
+		t.Fatalf("close server stream after GoAway: %v", err)
+	}
+	if err := agentStream.Close(); err != nil {
+		t.Fatalf("close agent stream after GoAway: %v", err)
+	}
+	assertYamuxStreamCounts(t, serverSession, agentSession, 0)
+}
+
 func TestAgentTunnelRechecksTokenBeforeRegisteringAfterRotation(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
@@ -478,7 +650,7 @@ func TestAgentTunnelRejectsWrongVersion(t *testing.T) {
 	}
 }
 
-func TestAgentTunnelRejectsDuplicateConnection(t *testing.T) {
+func TestAgentTunnelReplacesDuplicateConnection(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
 	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-duplicate", "Duplicate Tunnel", "token")
@@ -494,16 +666,259 @@ func TestAgentTunnelRejectsDuplicateConnection(t *testing.T) {
 	defer firstConn.Close()
 	defer firstSession.Close()
 	waitForAgentHubConnection(t, app, agent.ID, true)
+	firstHubConn := app.AgentHub.connectedByID(agent.ID)
+	if firstHubConn == nil {
+		t.Fatal("first tunnel was not registered in the hub")
+	}
 
-	_, secondConn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "token")
-	if secondConn != nil {
-		secondConn.Close()
+	secondSession, secondConn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "token")
+	if err != nil {
+		t.Fatalf("dial second tunnel: %v", err)
 	}
-	if err == nil {
-		t.Fatal("second tunnel connected, want duplicate rejection")
+	defer secondConn.Close()
+	defer secondSession.Close()
+	waitForAgentHubConnectionReplaced(t, app, agent.ID, firstHubConn)
+	secondHubConn := app.AgentHub.connectedByID(agent.ID)
+	if secondHubConn == nil {
+		t.Fatal("second tunnel was not registered in the hub")
 	}
-	if !strings.Contains(err.Error(), "409") {
-		t.Fatalf("duplicate tunnel error = %v, want status 409", err)
+	if secondHubConn == firstHubConn {
+		t.Fatal("hub still points at first tunnel after replacement")
+	}
+	assertAgentDoneClosed(t, firstHubConn)
+	assertAgentDoneOpen(t, secondHubConn)
+	waitForYamuxSessionClosed(t, firstSession)
+	waitForConnectionDisconnected(t, database, firstHubConn.ConnectionDBID)
+	assertOnlyOpenAgentConnection(t, database, agent.ID, secondHubConn.ConnectionDBID)
+
+	connected, err := database.GetAgent(context.Background(), agent.ID)
+	if err != nil {
+		t.Fatalf("get agent after reconnect: %v", err)
+	}
+	if !connected.LastConnectedAt.Valid {
+		t.Fatal("agent last_connected_at is not set after reconnect")
+	}
+	if connected.LastDisconnectedAt.Valid && connected.LastDisconnectedAt.Time.After(secondHubConn.ConnectedAt) {
+		t.Fatalf("agent was marked disconnected after replacement: disconnected_at=%s second_connected_at=%s", connected.LastDisconnectedAt.Time, secondHubConn.ConnectedAt)
+	}
+}
+
+func TestAgentConnSignalDoneIsConcurrentAndIdempotent(t *testing.T) {
+	conn := &AgentConn{Done: make(chan struct{})}
+	const callers = 64
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			conn.signalDone()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	conn.signalDone()
+	assertAgentDoneClosed(t, conn)
+}
+
+func TestAgentReplacementSerializesPriorDisconnectSideEffects(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-replace-serialized", "Serialized Replacement", "token")
+	old := agentRegistryTestConn(agent)
+	old.ConnectedAt = time.Now()
+	old.ConnectionDBID = insertAgentConnectionForTest(t, database, agent.ID)
+	if err := database.MarkAgentConnected(context.Background(), agent.ID); err != nil {
+		t.Fatalf("mark old agent connected: %v", err)
+	}
+	if err := app.AgentHub.connect(old); err != nil {
+		t.Fatalf("connect old agent: %v", err)
+	}
+	target := agentReplacementTransportTarget()
+	_ = app.agentTargetTransport(old, target)
+
+	hubRemoved := make(chan struct{})
+	releaseCleanup := make(chan struct{})
+	var hookOnce sync.Once
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(releaseCleanup) })
+	app.agentDisconnectAfterHubRemoval = func(conn *AgentConn, disconnected bool) {
+		if conn != old || !disconnected {
+			return
+		}
+		hookOnce.Do(func() {
+			close(hubRemoved)
+			<-releaseCleanup
+		})
+	}
+	cleanupDone := make(chan bool, 1)
+	go func() {
+		cleanupDone <- app.cleanupAgentConnection(old)
+	}()
+	select {
+	case <-hubRemoved:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for old connection to leave hub")
+	}
+
+	app.agentAuthLocks.mu.Lock()
+	lifecycleLock := app.agentAuthLocks.locks[agent.ID]
+	app.agentAuthLocks.mu.Unlock()
+	if lifecycleLock == nil {
+		t.Fatal("agent lifecycle lock was not created")
+	}
+	if lifecycleLock.TryLock() {
+		lifecycleLock.Unlock()
+		t.Fatal("disconnect side effects did not retain the agent lifecycle lock")
+	}
+
+	type replacementResult struct {
+		conn *AgentConn
+		err  error
+	}
+	replacementStarted := make(chan struct{})
+	replacementDone := make(chan replacementResult, 1)
+	go func() {
+		close(replacementStarted)
+		unlock := app.lockAgentAuth(agent.ID)
+		defer unlock()
+		newConn := agentRegistryTestConn(agent)
+		newConn.ConnectedAt = time.Now()
+		connectionID, err := insertAgentConnection(database, agent.ID)
+		if err != nil {
+			replacementDone <- replacementResult{err: err}
+			return
+		}
+		newConn.ConnectionDBID = connectionID
+		if err := database.MarkAgentConnected(context.Background(), agent.ID); err != nil {
+			replacementDone <- replacementResult{err: err}
+			return
+		}
+		displaced, err := app.AgentHub.replace(newConn)
+		if err != nil {
+			replacementDone <- replacementResult{err: err}
+			return
+		}
+		if len(displaced) != 0 {
+			replacementDone <- replacementResult{err: fmt.Errorf("unexpected displaced connections: %d", len(displaced))}
+			return
+		}
+		_ = app.agentTargetTransport(newConn, target)
+		replacementDone <- replacementResult{conn: newConn}
+	}()
+	<-replacementStarted
+	releaseOnce.Do(func() { close(releaseCleanup) })
+
+	if disconnected := <-cleanupDone; !disconnected {
+		t.Fatal("old current connection was not disconnected")
+	}
+	var result replacementResult
+	select {
+	case result = <-replacementDone:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for serialized replacement")
+	}
+	if result.err != nil {
+		t.Fatalf("replace agent after disconnect: %v", result.err)
+	}
+	if got := app.AgentHub.connectedByID(agent.ID); got != result.conn {
+		t.Fatalf("hub connection = %#v, want replacement %#v", got, result.conn)
+	}
+	assertAgentTransportPoolConnection(t, app.AgentTransports, result.conn)
+	assertOnlyOpenAgentConnection(t, database, agent.ID, result.conn.ConnectionDBID)
+	row, err := database.GetAgent(context.Background(), agent.ID)
+	if err != nil {
+		t.Fatalf("get agent after serialized replacement: %v", err)
+	}
+	if row.LastDisconnectedAt.Valid && row.LastConnectedAt.Valid && row.LastDisconnectedAt.Time.After(row.LastConnectedAt.Time) {
+		t.Fatalf("agent disconnect timestamp %s is after replacement connect timestamp %s", row.LastDisconnectedAt.Time, row.LastConnectedAt.Time)
+	}
+}
+
+func TestStaleAgentCleanupCannotAffectReplacementSideEffects(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-replace-stale-cleanup", "Stale Cleanup", "token")
+	old := agentRegistryTestConn(agent)
+	old.ConnectionDBID = insertAgentConnectionForTest(t, database, agent.ID)
+	if err := app.AgentHub.connect(old); err != nil {
+		t.Fatalf("connect old agent: %v", err)
+	}
+	target := agentReplacementTransportTarget()
+	_ = app.agentTargetTransport(old, target)
+
+	newConn := agentRegistryTestConn(agent)
+	newConn.ConnectedAt = time.Now()
+	newConn.ConnectionDBID = insertAgentConnectionForTest(t, database, agent.ID)
+	if err := database.MarkAgentConnected(context.Background(), agent.ID); err != nil {
+		t.Fatalf("mark replacement connected: %v", err)
+	}
+	unlock := app.lockAgentAuth(agent.ID)
+	displaced, err := app.AgentHub.replace(newConn)
+	if err != nil {
+		unlock()
+		t.Fatalf("replace agent: %v", err)
+	}
+	for _, conn := range displaced {
+		app.retireDisplacedAgentConnection(conn)
+	}
+	_ = app.agentTargetTransport(newConn, target)
+	unlock()
+
+	if disconnected := app.cleanupAgentConnection(old); disconnected {
+		t.Fatal("stale cleanup disconnected the replacement")
+	}
+	if got := app.AgentHub.connectedByID(agent.ID); got != newConn {
+		t.Fatalf("hub connection = %#v, want replacement %#v", got, newConn)
+	}
+	assertAgentTransportPoolConnection(t, app.AgentTransports, newConn)
+	assertOnlyOpenAgentConnection(t, database, agent.ID, newConn.ConnectionDBID)
+	row, err := database.GetAgent(context.Background(), agent.ID)
+	if err != nil {
+		t.Fatalf("get agent after stale cleanup: %v", err)
+	}
+	if row.LastDisconnectedAt.Valid {
+		t.Fatalf("stale cleanup marked replacement disconnected at %s", row.LastDisconnectedAt.Time)
+	}
+}
+
+func insertAgentConnectionForTest(t *testing.T, database *db.DB, agentID int64) int64 {
+	t.Helper()
+	id, err := insertAgentConnection(database, agentID)
+	if err != nil {
+		t.Fatalf("insert agent connection: %v", err)
+	}
+	return id
+}
+
+func insertAgentConnection(database *db.DB, agentID int64) (int64, error) {
+	id, err := database.InsertConnection(context.Background(), sql.NullInt64{Int64: agentID, Valid: true})
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+func agentReplacementTransportTarget() publicRouteTargetConfig {
+	return publicRouteTargetConfig{
+		ID:                            900,
+		URL:                           "http://replacement.test:9000",
+		UpstreamResponseHeaderTimeout: time.Second,
+	}
+}
+
+func assertAgentTransportPoolConnection(t *testing.T, pool *agentTransportPool, want *AgentConn) {
+	t.Helper()
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	if len(pool.entries) != 1 {
+		t.Fatalf("agent transport entries = %d, want 1", len(pool.entries))
+	}
+	for _, entry := range pool.entries {
+		if entry == nil || entry.agent != want {
+			t.Fatalf("pooled transport agent = %#v, want %#v", entry, want)
+		}
 	}
 }
 
@@ -596,16 +1011,76 @@ func dialAgentRegistryTestTunnel(serverURL string, publicID string, token string
 		conn.Close()
 		return nil, nil, fmt.Errorf("agent tunnel upgrade header = %q", got)
 	}
-	if reader.Buffered() > 0 {
-		conn.Close()
-		return nil, nil, fmt.Errorf("agent tunnel response left %d buffered bytes", reader.Buffered())
-	}
-	session, err := yamux.Client(conn, tunnel.DefaultYamuxConfig(nil))
+	bufferedConn := &agentRegistryBufferedConn{Conn: conn, reader: reader}
+	session, err := yamux.Client(bufferedConn, tunnel.DefaultYamuxConfig(nil))
 	if err != nil {
 		conn.Close()
 		return nil, nil, err
 	}
-	return session, conn, nil
+	return session, bufferedConn, nil
+}
+
+type agentRegistryBufferedConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+func (c *agentRegistryBufferedConn) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
+}
+
+func newAgentRegistryLocalTCPPair(t *testing.T) (net.Conn, net.Conn) {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for local TCP pair: %v", err)
+	}
+	defer listener.Close()
+
+	type acceptResult struct {
+		conn net.Conn
+		err  error
+	}
+	acceptedCh := make(chan acceptResult, 1)
+	go func() {
+		conn, err := listener.Accept()
+		acceptedCh <- acceptResult{conn: conn, err: err}
+	}()
+
+	agentConn, err := net.DialTimeout("tcp", listener.Addr().String(), 2*time.Second)
+	if err != nil {
+		t.Fatalf("dial local TCP pair: %v", err)
+	}
+	select {
+	case result := <-acceptedCh:
+		if result.err != nil {
+			_ = agentConn.Close()
+			t.Fatalf("accept local TCP pair: %v", result.err)
+		}
+		return result.conn, agentConn
+	case <-time.After(2 * time.Second):
+		_ = agentConn.Close()
+		t.Fatal("timed out accepting local TCP pair")
+		return nil, nil
+	}
+}
+
+func assertYamuxStreamCounts(t *testing.T, serverSession *yamux.Session, agentSession *yamux.Session, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if serverSession.NumStreams() == want && agentSession.NumStreams() == want {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf(
+		"yamux stream counts = server %d/agent %d, want %d/%d",
+		serverSession.NumStreams(),
+		agentSession.NumStreams(),
+		want,
+		want,
+	)
 }
 
 func rotateAgentTokenForTest(t *testing.T, app *App, header http.Header, agentID int64) *connect.Response[p2pstreamv1.RotateAgentTokenResponse] {
@@ -650,6 +1125,19 @@ func waitForAgentHubConnection(t *testing.T, app *App, agentID int64, wantConnec
 	t.Fatalf("agent connected state did not become %v", wantConnected)
 }
 
+func waitForAgentHubConnectionReplaced(t *testing.T, app *App, agentID int64, old *AgentConn) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		connected := app.AgentHub.connectedByID(agentID)
+		if connected != nil && connected != old {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("agent hub connection was not replaced")
+}
+
 func waitForConnectionDisconnected(t *testing.T, database *db.DB, connID int64) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -664,6 +1152,38 @@ func waitForConnectionDisconnected(t *testing.T, database *db.DB, connID int64) 
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("connection %d disconnected_at was not set", connID)
+}
+
+func assertOnlyOpenAgentConnection(t *testing.T, database *db.DB, agentID int64, wantConnID int64) {
+	t.Helper()
+	rows, err := database.QueryContext(context.Background(), `SELECT id FROM connections WHERE agent_id = ? AND disconnected_at IS NULL`, agentID)
+	if err != nil {
+		t.Fatalf("list open agent connections: %v", err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			t.Fatalf("scan open connection id: %v", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate open connections: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != wantConnID {
+		t.Fatalf("open connection ids = %+v, want [%d]", ids, wantConnID)
+	}
+}
+
+func waitForYamuxSessionClosed(t *testing.T, session *yamux.Session) {
+	t.Helper()
+	select {
+	case <-session.CloseChan():
+	case <-time.After(2 * time.Second):
+		t.Fatal("yamux session did not close")
+	}
 }
 
 type failingHijackResponseWriter struct {

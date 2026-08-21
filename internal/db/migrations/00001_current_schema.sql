@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS public_routes (
     redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
     redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
     path_security_mode TEXT NOT NULL DEFAULT 'strict',
+    access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT,
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -530,6 +531,9 @@ WHERE status_code >= 400 OR error_kind != '';
 
 CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
 ON public_routes (listener_id, priority, id);
+
+CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id
+ON public_routes (access_policy_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener
 ON public_routes (listener_id)

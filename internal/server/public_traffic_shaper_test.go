@@ -22,7 +22,9 @@ func TestPublicTrafficShaperSelectsFirstMatchingRule(t *testing.T) {
 
 	later := testTrafficShaperRule(1, "later", 100, publicTrafficShaperBudgetScopePerKey, 0, 1024)
 	first := testTrafficShaperRule(2, "first", 10, publicTrafficShaperBudgetScopePerKey, 0, 512)
-	decision, ok := shaper.evaluate([]publicTrafficShaperRuleConfig{later, first}, listener, req, time.Unix(1, 0))
+	rules := []publicTrafficShaperRuleConfig{later, first}
+	sortPublicTrafficShaperRules(rules)
+	decision, ok := shaper.evaluate(rules, listener, req, time.Unix(1, 0))
 	if !ok {
 		t.Fatal("expected matching shaper")
 	}

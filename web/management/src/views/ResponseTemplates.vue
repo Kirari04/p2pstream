@@ -143,27 +143,61 @@ async function deleteTemplate(template: PublicResponseTemplate) {
       </div>
     </section>
 
-    <section class="surface-card hide-overflow">
-      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg">
-        <h4 class="copy-sm weight-semibold label-case letter-widest muted-text">Templates</h4>
+    <section class="surface-card template-table-shell">
+      <div class="template-table-toolbar">
+        <div>
+          <h4 class="copy-sm weight-semibold base-text">Templates</h4>
+          <p class="copy-xs muted-text">Reusable bodies and the policies that reference them.</p>
+        </div>
+        <span class="template-table-count copy-xs muted-text">{{ templates.length }} total</span>
       </div>
-      <div class="divided-list">
+      <div
+        v-if="templates.length"
+        class="template-table"
+        role="table"
+        aria-label="Response templates"
+        :aria-rowcount="templates.length + 1"
+        aria-colcount="6"
+      >
+        <div class="template-table-header" role="row">
+          <span role="columnheader">Template</span>
+          <span role="columnheader">Kind</span>
+          <span role="columnheader">Usage</span>
+          <span role="columnheader">Required placeholders</span>
+          <span role="columnheader">Updated</span>
+          <span role="columnheader" class="template-actions-heading">Actions</span>
+        </div>
         <div
           v-for="template in templates"
           :key="template.id.toString()"
           :data-testid="`template-row-${template.id.toString()}`"
-          class="layout-grid space-md pad-x-xl pad-y-lg mq-lg-one-auto"
+          class="template-table-row"
+          role="row"
         >
-          <div class="min-width-zero">
-            <div class="layout-row min-width-zero wrap-items align-center space-sm">
-              <p class="clip-text copy-sm weight-medium base-text">{{ template.name }}</p>
-              <NTag size="small" :bordered="false" type="info">{{ kindLabel(template.kind) }}</NTag>
-              <NTag size="small" :bordered="false" :type="naiveTagType(usageCount(template) ? 'warn' : 'info')">{{ usageCount(template).toString() }} uses</NTag>
-            </div>
-            <p class="margin-top-xs clip-text copy-xs muted-text">{{ template.description || template.contentType || "No description" }}</p>
-            <p class="margin-top-xs clip-text mono-text copy-xs muted-text">Required: {{ requiredPlaceholderLabel(template.kind) }} / updated {{ formatUpdatedAt(template) }}</p>
+          <div class="template-name-cell" role="cell">
+            <p class="template-primary-text copy-sm weight-medium base-text">{{ template.name }}</p>
+            <p class="template-secondary-text copy-xs muted-text">{{ template.description || "No description" }}</p>
           </div>
-          <div class="layout-row space-sm mq-lg-end">
+          <div class="template-kind-cell" role="cell">
+            <span class="template-cell-label copy-xs muted-text">Kind</span>
+            <NTag size="small" :bordered="false" type="info">{{ kindLabel(template.kind) }}</NTag>
+            <span class="template-content-type copy-xs muted-text">{{ template.contentType || "Default content type" }}</span>
+          </div>
+          <div class="template-usage-cell" role="cell">
+            <span class="template-cell-label copy-xs muted-text">Usage</span>
+            <NTag size="small" :bordered="false" :type="naiveTagType(usageCount(template) ? 'warn' : 'info')">
+              {{ usageCount(template).toString() }} {{ usageCount(template) === 1 ? "reference" : "references" }}
+            </NTag>
+          </div>
+          <div class="template-required-cell" role="cell">
+            <span class="template-cell-label copy-xs muted-text">Required</span>
+            <code class="template-placeholder copy-xs">{{ requiredPlaceholderLabel(template.kind) }}</code>
+          </div>
+          <div class="template-updated-cell" role="cell">
+            <span class="template-cell-label copy-xs muted-text">Updated</span>
+            <span class="copy-xs muted-text">{{ formatUpdatedAt(template) }}</span>
+          </div>
+          <div class="template-actions" role="cell">
             <NButton secondary size="small" aria-label="Edit template" title="Edit template" @click="openEdit(template)">
               <template #icon><PencilIcon class="icon-sm icon-sm" /></template>
             </NButton>
@@ -181,14 +215,14 @@ async function deleteTemplate(template: PublicResponseTemplate) {
             </DisabledHint>
           </div>
         </div>
-        <EmptyState
-          v-if="!templates.length"
-          title="No response templates"
-          description="Create reusable bodies for static targets, rate limits, WAF blocks, captcha pages, and waiting-room pages."
-          action-label="Add Template"
-          @action="openCreate()"
-        />
       </div>
+      <EmptyState
+        v-else
+        title="No response templates"
+        description="Create reusable bodies for static targets, rate limits, WAF blocks, captcha pages, and waiting-room pages."
+        action-label="Add Template"
+        @action="openCreate()"
+      />
     </section>
 
     <section class="layout-grid space-md mq-sm-cols-three">
@@ -200,3 +234,225 @@ async function deleteTemplate(template: PublicResponseTemplate) {
     <PublicResponseTemplateEditorModal ref="editor" />
   </div>
 </template>
+
+<style scoped>
+.template-table-shell {
+  container-type: inline-size;
+  overflow: hidden;
+}
+
+.template-table-toolbar {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.template-table-toolbar > div {
+  min-width: 0;
+}
+
+.template-table-toolbar p {
+  margin-top: 0.125rem;
+}
+
+.template-table-count {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.template-table-header,
+.template-table-row {
+  display: grid;
+  grid-template-columns:
+    minmax(13rem, 1.4fr)
+    minmax(8.5rem, 0.8fr)
+    minmax(7.5rem, 0.65fr)
+    minmax(14rem, 1.15fr)
+    minmax(9.5rem, 0.8fr)
+    4.75rem;
+  align-items: center;
+  column-gap: 1rem;
+}
+
+.template-table-header {
+  min-height: 2.25rem;
+  padding: 0.375rem 1rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.template-table-row {
+  min-height: 4rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  transition: background-color 0.15s ease-out;
+}
+
+.template-table-row:last-child {
+  border-bottom: 0;
+}
+
+.template-table-row:hover {
+  background: var(--app-panel-muted);
+}
+
+.template-table-row > *,
+.template-name-cell,
+.template-kind-cell,
+.template-usage-cell,
+.template-required-cell,
+.template-updated-cell {
+  min-width: 0;
+}
+
+.template-primary-text,
+.template-secondary-text,
+.template-content-type,
+.template-placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+.template-secondary-text {
+  margin-top: 0.125rem;
+}
+
+.template-kind-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+}
+
+.template-content-type {
+  display: block;
+  max-width: 100%;
+}
+
+.template-usage-cell,
+.template-required-cell,
+.template-updated-cell {
+  display: flex;
+  align-items: center;
+}
+
+.template-placeholder {
+  display: block;
+  max-width: 100%;
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
+}
+
+.template-cell-label {
+  display: none;
+  font-weight: 500;
+}
+
+.template-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.template-actions-heading {
+  text-align: right;
+}
+
+@container (max-width: 62rem) {
+  .template-table-header {
+    display: none;
+  }
+
+  .template-table-row {
+    grid-template:
+      "name name actions" auto
+      "kind usage usage" auto
+      "required required updated" auto /
+      minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 0.625rem 1rem;
+    min-height: 0;
+    padding-block: 0.75rem;
+  }
+
+  .template-name-cell {
+    grid-area: name;
+  }
+
+  .template-kind-cell {
+    grid-area: kind;
+  }
+
+  .template-usage-cell {
+    grid-area: usage;
+  }
+
+  .template-required-cell {
+    grid-area: required;
+  }
+
+  .template-updated-cell {
+    grid-area: updated;
+  }
+
+  .template-actions {
+    grid-area: actions;
+    align-self: start;
+  }
+
+  .template-kind-cell,
+  .template-usage-cell,
+  .template-required-cell,
+  .template-updated-cell {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .template-cell-label {
+    display: block;
+  }
+}
+
+@container (max-width: 38rem) {
+  .template-table-toolbar {
+    padding-inline: 0.75rem;
+  }
+
+  .template-table-row {
+    grid-template:
+      "name actions" auto
+      "kind kind" auto
+      "usage updated" auto
+      "required required" auto /
+      minmax(0, 1fr) auto;
+    padding-inline: 0.75rem;
+  }
+
+  .template-required-cell {
+    padding-top: 0.125rem;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .template-actions :deep(.n-button) {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .template-table-row {
+    transition: none;
+  }
+}
+</style>

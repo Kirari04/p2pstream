@@ -12,9 +12,9 @@ import ManagementApp from "./ManagementApp.vue";
 import { useThemeMode } from "@/composables/useThemeMode";
 import { darkThemeOverrides, lightThemeOverrides } from "@/theme/naive";
 
-const { themeMode } = useThemeMode();
-const activeTheme = computed(() => themeMode.value === "dark" ? darkTheme : undefined);
-const activeThemeOverrides = computed(() => themeMode.value === "dark" ? darkThemeOverrides : lightThemeOverrides);
+const { resolvedThemeMode } = useThemeMode();
+const activeTheme = computed(() => resolvedThemeMode.value === "dark" ? darkTheme : undefined);
+const activeThemeOverrides = computed(() => resolvedThemeMode.value === "dark" ? darkThemeOverrides : lightThemeOverrides);
 </script>
 
 <template>

@@ -179,12 +179,13 @@ func (l *publicRateLimiter) reconcile(snap *publicProxySnapshot) {
 }
 
 func (a *App) checkPublicRateLimits(listenerID int64, r *http.Request) (publicRateLimitDecision, bool) {
+	return a.checkPublicRateLimitsWithSnapshot(a.currentPublicSnapshot(), listenerID, r)
+}
+
+func (a *App) checkPublicRateLimitsWithSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicRateLimitDecision, bool) {
 	if a == nil || a.RateLimiter == nil {
 		return publicRateLimitDecision{}, true
 	}
-	a.proxyMu.Lock()
-	snap := a.publicSnapshot
-	a.proxyMu.Unlock()
 	if snap == nil || len(snap.RateLimitRules) == 0 {
 		return publicRateLimitDecision{}, true
 	}
@@ -199,16 +200,8 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 	if len(rules) == 0 {
 		return publicRateLimitDecision{}, true
 	}
-	ordered := append([]publicRateLimitRuleConfig(nil), rules...)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		if ordered[i].Priority == ordered[j].Priority {
-			return ordered[i].ID < ordered[j].ID
-		}
-		return ordered[i].Priority < ordered[j].Priority
-	})
-
-	candidates := make([]publicRateLimitEvaluationCandidate, 0, len(ordered))
-	for _, rule := range ordered {
+	candidates := make([]publicRateLimitEvaluationCandidate, 0, len(rules))
+	for _, rule := range rules {
 		if !rule.Enabled || !rule.matches(listener, r) {
 			continue
 		}
@@ -256,6 +249,15 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 		}
 	}
 	return publicRateLimitDecision{}, true
+}
+
+func sortPublicRateLimitRules(rules []publicRateLimitRuleConfig) {
+	sort.SliceStable(rules, func(i, j int) bool {
+		if rules[i].Priority == rules[j].Priority {
+			return rules[i].ID < rules[j].ID
+		}
+		return rules[i].Priority < rules[j].Priority
+	})
 }
 
 func (l *publicRateLimiter) pruneLocked(now time.Time) {
@@ -426,6 +428,35 @@ func (rule publicRateLimitRuleConfig) keyValues(listener publicListenerConfig, r
 }
 
 func remoteIPForRateLimit(r *http.Request) string {
+	if r == nil {
+		return rateLimitMissingValue
+	}
+	if _, attached := ClientIdentityFromContext(r.Context()); attached {
+		if addr, ok := ClientIdentityResolved(r.Context()); ok {
+			return addr.String()
+		}
+		return rateLimitMissingValue
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && host != "" {
+		return host
+	}
+	if r.RemoteAddr != "" {
+		return r.RemoteAddr
+	}
+	return rateLimitMissingValue
+}
+
+// peerIPForRequest always returns the transport peer, even when a trusted
+// proxy supplied a resolved visitor identity. It is reserved for connection-
+// level safeguards that must not be influenced by request headers.
+func peerIPForRequest(r *http.Request) string {
+	if r == nil {
+		return rateLimitMissingValue
+	}
+	if addr, ok := ClientIdentityPeer(r.Context()); ok {
+		return addr.String()
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err == nil && host != "" {
 		return host

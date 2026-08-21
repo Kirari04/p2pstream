@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -45,10 +46,15 @@ func TestRegisteredAgentTunnelAuthAndDuplicates(t *testing.T) {
 	}
 	defer sessionA.Close()
 
-	duplicate, _, err := dialAgentTunnel(context.Background(), mgmtSrv.URL, agentA.GetPublicId(), tokenA, nil)
-	if err == nil {
-		_ = duplicate.Close()
-		t.Fatal("expected duplicate agent connection to fail")
+	replacementA, _, err := dialAgentTunnel(context.Background(), mgmtSrv.URL, agentA.GetPublicId(), tokenA, nil)
+	if err != nil {
+		t.Fatalf("dial replacement agent A: %v", err)
+	}
+	defer replacementA.Close()
+	select {
+	case <-sessionA.CloseChan():
+	case <-time.After(2 * time.Second):
+		t.Fatal("original agent A tunnel did not close after replacement")
 	}
 
 	sessionB, _, err := dialAgentTunnel(context.Background(), mgmtSrv.URL, agentB.GetPublicId(), tokenB, nil)

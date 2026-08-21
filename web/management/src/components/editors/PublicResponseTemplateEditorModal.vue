@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, inject, reactive, ref } from "vue";
-import { NButton, NInput, NModal, NSelect } from "naive-ui";
+import { computed, defineAsyncComponent, inject, reactive, ref } from "vue";
+import { NButton, NDrawer, NDrawerContent, NInput } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
-import HtmlTemplateEditor from "@/components/editors/HtmlTemplateEditor.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   PublicResponseTemplateKind,
   type PublicResponseTemplate,
@@ -14,6 +14,7 @@ import {
 
 const managementClient = useManagementClient();
 
+const HtmlTemplateEditor = defineAsyncComponent(() => import("@/components/editors/HtmlTemplateEditor.vue"));
 
 const emit = defineEmits<{
   (event: "saved"): void;
@@ -173,15 +174,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="modalTitle"
-    :style="modalCardStyle('72rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('72rem')"
+    :aria-label="modalTitle"
+    class="editor-drawer"
   >
-    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submit">
+    <NDrawerContent :title="modalTitle" closable>
+    <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submit">
       <section class="layout-grid space-lg response-template-form-grid">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
@@ -189,7 +190,15 @@ defineExpose({ openCreate, openEdit, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Kind
-          <NSelect :value="form.kind" size="small" :options="kindOptions" @update:value="applyKind(Number($event) as PublicResponseTemplateKind)" />
+          <AccessibleSelect
+            :value="form.kind"
+            accessible-label="Response template kind"
+            size="small"
+            :options="kindOptions"
+            :disabled="Boolean(form.id)"
+            @update:value="applyKind(Number($event) as PublicResponseTemplateKind)"
+          />
+          <span v-if="form.id" class="normal-text letter-normal">Kind cannot be changed after creation.</span>
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Description
@@ -203,7 +212,7 @@ defineExpose({ openCreate, openEdit, close });
 
       <HtmlTemplateEditor v-model="form.body" :kind="form.kind" :content-type="form.contentType" />
 
-      <div class="layout-row align-end-row space-md">
+      <div class="editor-drawer-actions layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason">
           <NButton type="primary" attr-type="submit" :disabled="Boolean(disabledReason)">
@@ -212,5 +221,6 @@ defineExpose({ openCreate, openEdit, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>

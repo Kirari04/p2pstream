@@ -115,6 +115,24 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.LoginThrottleMaxKeys != 50_000 {
 		t.Fatalf("LoginThrottleMaxKeys = %d, want 50000", cfg.LoginThrottleMaxKeys)
 	}
+	if cfg.TunnelMaxStreamWindowBytes != 2*1024*1024 {
+		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 2097152", cfg.TunnelMaxStreamWindowBytes)
+	}
+	if cfg.TunnelMaxConcurrentRequests != 64 {
+		t.Fatalf("TunnelMaxConcurrentRequests = %d, want 64", cfg.TunnelMaxConcurrentRequests)
+	}
+	if cfg.PublicMaxHeaderBytes != 64*1024 {
+		t.Fatalf("PublicMaxHeaderBytes = %d, want 65536", cfg.PublicMaxHeaderBytes)
+	}
+	if cfg.PublicMaxRequestBodyBytes != 1<<30 {
+		t.Fatalf("PublicMaxRequestBodyBytes = %d, want 1073741824", cfg.PublicMaxRequestBodyBytes)
+	}
+	if cfg.PublicRequestBodyIdleMillis != 30_000 {
+		t.Fatalf("PublicRequestBodyIdleMillis = %d, want 30000", cfg.PublicRequestBodyIdleMillis)
+	}
+	if cfg.PublicMaxConcurrentRequests != 2048 || cfg.PublicMaxConcurrentPerTarget != 256 || cfg.PublicMaxConnectionsPerTarget != 256 {
+		t.Fatalf("public capacity defaults = %d/%d/%d, want 2048/256/256", cfg.PublicMaxConcurrentRequests, cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConnectionsPerTarget)
+	}
 }
 
 func TestLoadRespectsExplicitManagementBindAddress(t *testing.T) {
@@ -132,6 +150,46 @@ func TestLoadRespectsExplicitManagementBindAddress(t *testing.T) {
 }
 
 func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
+	t.Run("weak configured secrets rejected", func(t *testing.T) {
+		for _, name := range []string{"MANAGEMENT_SETUP_TOKEN", "BOOTSTRAP_AGENT_TOKEN"} {
+			t.Run(name, func(t *testing.T) {
+				workDir := isolatedConfigTestDir(t)
+				t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+				t.Setenv(name, "short")
+				if name == "BOOTSTRAP_AGENT_TOKEN" {
+					t.Setenv("BOOTSTRAP_AGENT_ID", "bootstrap")
+					t.Setenv("BOOTSTRAP_AGENT_NAME", "Bootstrap")
+				}
+				if _, err := Load(); err == nil || !strings.Contains(err.Error(), "at least 32 characters") {
+					t.Fatalf("Load() error = %v, want configured-secret rejection", err)
+				}
+			})
+		}
+	})
+
+	t.Run("unsafe management trusted proxy rejected", func(t *testing.T) {
+		for _, cidr := range []string{"0.0.0.0/0", "::/0", "::ffff:0:0/96"} {
+			t.Run(cidr, func(t *testing.T) {
+				workDir := isolatedConfigTestDir(t)
+				t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+				t.Setenv("MANAGEMENT_TRUSTED_PROXY_CIDRS", cidr)
+				if _, err := Load(); err == nil || !strings.Contains(err.Error(), "entire address family") {
+					t.Fatalf("Load() error = %v, want unsafe trusted-proxy rejection", err)
+				}
+			})
+		}
+	})
+
+	t.Run("invalid public capacity relationship rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS", "8")
+		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET", "9")
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PER_TARGET") {
+			t.Fatalf("Load() error = %v, want per-target capacity rejection", err)
+		}
+	})
+
 	t.Run("observability max rows may be disabled explicitly", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
@@ -163,6 +221,37 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 
 		if _, err := Load(); err == nil {
 			t.Fatal("expected zero LOGIN_THROTTLE_MAX_KEYS to fail")
+		}
+	})
+
+	t.Run("small tunnel stream window rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "1")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected small TUNNEL_MAX_STREAM_WINDOW_BYTES to fail")
+		}
+	})
+
+	t.Run("large tunnel stream window rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108865")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected large TUNNEL_MAX_STREAM_WINDOW_BYTES to fail")
+		}
+	})
+
+	t.Run("aggregate tunnel window budget rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108864")
+		t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "9")
+
+		if _, err := Load(); err == nil {
+			t.Fatal("expected aggregate tunnel receive-window budget to fail")
 		}
 	})
 }
@@ -340,6 +429,18 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "MANAGEMENT_ADVERTISE_HOST")
 	unsetEnv(t, "MANAGEMENT_TLS_EXTRA_HOSTS")
 	unsetEnv(t, "MANAGEMENT_SETUP_TOKEN")
+	unsetEnv(t, "MANAGEMENT_TRUSTED_PROXY_CIDRS")
+	unsetEnv(t, "MANAGEMENT_CLIENT_IP_HEADER")
+	unsetEnv(t, "MANAGEMENT_CLIENT_IP_MODE")
+	unsetEnv(t, "PUBLIC_MAX_HEADER_BYTES")
+	unsetEnv(t, "PUBLIC_MAX_REQUEST_BODY_BYTES")
+	unsetEnv(t, "PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS")
+	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS")
+	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET")
+	unsetEnv(t, "PUBLIC_MAX_CONNECTIONS_PER_TARGET")
+	unsetEnv(t, "BOOTSTRAP_AGENT_ID")
+	unsetEnv(t, "BOOTSTRAP_AGENT_NAME")
+	unsetEnv(t, "BOOTSTRAP_AGENT_TOKEN")
 	unsetEnv(t, "OBSERVABILITY_MAX_ROWS")
 	unsetEnv(t, "LOGIN_THROTTLE_MAX_KEYS")
 	return workDir

@@ -294,24 +294,38 @@ func (s *authService) login(
 	}
 
 	username := authutil.NormalizeUsername(req.Msg.Username)
-	throttleKey := loginThrottleKey(req.Peer().Addr, username)
+	identity, hasIdentity := ClientIdentityFromContext(ctx)
+	clientKey, identityErr := managementLoginClientKey(identity, hasIdentity, req.Peer().Addr)
+	if identityErr != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, identityErr)
+	}
+	throttleKey := loginThrottleKey(clientKey, username)
+	clientThrottleKey := loginThrottleClientKey(clientKey)
+	clientThrottle := s.clientThrottle
+	if clientThrottle == nil {
+		// NewApp always supplies an independent client tracker. Keep direct
+		// package-level App construction usable in older tests and embeddings.
+		clientThrottle = s.throttle
+	}
 	now := time.Now()
-	if retryAfter := s.throttle.retryAfter(throttleKey, now); retryAfter > 0 {
+	reservation, admitted := reserveLoginThrottleAttempt(s.throttle, clientThrottle, throttleKey, clientThrottleKey, now)
+	if !admitted {
 		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("too many failed login attempts; try again later"))
 	}
+	defer reservation.release()
 	user, err := s.db.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			s.throttle.recordFailure(throttleKey, now)
+			reservation.recordFailure(time.Now())
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if err := authutil.ComparePasswordHash(user.PasswordHash, req.Msg.Password); err != nil {
-		s.throttle.recordFailure(throttleKey, now)
+		reservation.recordFailure(time.Now())
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 	}
-	s.throttle.recordSuccess(throttleKey)
+	reservation.recordSuccess()
 
 	token, tokenHash, err := newSessionToken()
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
@@ -56,6 +57,13 @@ func (s *publicConfigService) createPublicTlsDnsCredential(
 	})
 	if err != nil {
 		return nil, publicDBError(err)
+	}
+	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
+		log.Warn().
+			Err(err).
+			Int64("credential_id", credential.ID).
+			Str("credential", credential.Name).
+			Msg("Failed to refresh public proxy after TLS DNS credential create")
 	}
 	return connect.NewResponse(&p2pstreamv1.CreatePublicTlsDnsCredentialResponse{Credential: publicTLSDNSCredentialToProto(credential)}), nil
 }
@@ -176,7 +184,6 @@ func (s *publicConfigService) createPublicTlsCertificate(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	a.queuePublicACMECertificateIssue(cert, publicACMETriggerConfigChange)
 	return connect.NewResponse(&p2pstreamv1.CreatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
@@ -244,10 +251,6 @@ func (s *publicConfigService) updatePublicTlsCertificate(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	if existing.ListenerID != cert.ListenerID {
-		_, _ = a.restartTLSListenerIfActive(ctx, existing.ListenerID)
-	}
-	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	a.queuePublicACMECertificateIssue(cert, publicACMETriggerConfigChange)
 	return connect.NewResponse(&p2pstreamv1.UpdatePublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil
 }
@@ -267,8 +270,7 @@ func (s *publicConfigService) deletePublicTlsCertificate(
 	req *connect.Request[p2pstreamv1.DeletePublicTlsCertificateRequest],
 ) (*connect.Response[p2pstreamv1.DeletePublicTlsCertificateResponse], error) {
 	a := s.app
-	cert, err := s.db.GetPublicTlsCertificate(ctx, req.Msg.Id)
-	if err != nil {
+	if _, err := s.db.GetPublicTlsCertificate(ctx, req.Msg.Id); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := s.db.DeletePublicTlsCertificate(ctx, req.Msg.Id); err != nil {
@@ -277,7 +279,6 @@ func (s *publicConfigService) deletePublicTlsCertificate(
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
-	_, _ = a.restartTLSListenerIfActive(ctx, cert.ListenerID)
 	return connect.NewResponse(&p2pstreamv1.DeletePublicTlsCertificateResponse{}), nil
 }
 
@@ -312,6 +313,10 @@ func (s *publicConfigService) renewPublicTlsCertificate(
 	})
 	if err != nil {
 		return nil, publicDBError(err)
+	}
+	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
+		publicACMELogCertificate(log.Warn().Err(err), cert, publicACMETriggerManual, publicACMEStageRefreshProxySnapshot).
+			Msg("Failed to refresh public proxy after ACME certificate manual renewal")
 	}
 	a.queuePublicACMECertificateIssue(cert, publicACMETriggerManual)
 	return connect.NewResponse(&p2pstreamv1.RenewPublicTlsCertificateResponse{TlsCertificate: publicTLSCertificateToProto(cert)}), nil

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { NButton, NCheckbox, NInput, NInputNumber, NModal, NSelect } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   PublicListenerProtocol,
   type GetPublicProxyConfigResponse,
@@ -113,15 +114,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
-    :style="modalCardStyle('36rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('36rem')"
+    :aria-label="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+    class="editor-drawer"
   >
-    <form @submit.prevent="submitListener" class="layout-grid max-modal-height space-lg scroll-y pad-right-xs mq-sm-cols-two">
+    <NDrawerContent :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'" closable>
+    <form @submit.prevent="submitListener" class="editor-drawer-form layout-grid space-lg mq-sm-cols-two">
       <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Name
         <NInput v-model:value="listenerForm.name" size="small" required />
@@ -133,18 +134,18 @@ defineExpose({ openCreate, openEdit, close });
       </label>
       <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Port
-        <NInputNumber v-model:value="listenerForm.port" size="small" :min="1" :max="65535" required />
+        <NInputNumber :show-button="false" v-model:value="listenerForm.port" size="small" :min="1" :max="65535" required />
         <p class="copy-xs weight-normal normal-text letter-normal muted-text">Ports below 1024 may require elevated privileges.</p>
       </label>
       <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
         Protocol
-        <NSelect v-model:value="listenerForm.protocol" size="small" :options="protocolOptions" />
+        <AccessibleSelect v-model:value="listenerForm.protocol" accessible-label="Listener protocol" size="small" :options="protocolOptions" />
         <p class="copy-xs weight-normal normal-text letter-normal muted-text">Choose HTTPS to enable TLS termination.</p>
       </label>
       <NCheckbox v-model:checked="listenerForm.enabled" class="margin-top-sm mq-sm-span-two">
         Enabled
       </NCheckbox>
-      <div class="mq-sm-span-two margin-top-lg layout-row align-end-row space-md">
+      <div class="editor-drawer-actions mq-sm-span-two margin-top-lg layout-row align-end-row space-md">
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(listenerSubmitDisabledReason)" :reason="listenerSubmitDisabledReason">
           <NButton
@@ -157,5 +158,6 @@ defineExpose({ openCreate, openEdit, close });
         </DisabledHint>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>

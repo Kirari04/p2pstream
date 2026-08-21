@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
+import {
+  ArrowRight as ArrowRightIcon,
+  CircleAlert as ErrorIcon,
+  ShieldCheck as HealthyIcon,
+  TriangleAlert as WarningIcon,
+} from "@lucide/vue";
 import { NButton, NButtonGroup, NDataTable } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { dashboardKey, publicProxyConfigKey } from "@/composables/managementContextKeys";
@@ -23,13 +29,13 @@ import {
   formatPercent,
   fleetUptimePercent,
   nonSuccessRequests,
-  proxyFailureRequests,
   requestsPerSecond,
   statusClassCounts,
   successRate,
   windowByLabel,
   type DashboardTrafficBucketView,
 } from "@/lib/dashboardStats";
+import { deriveOverviewAttention } from "@/lib/overviewAttention";
 
 type HotspotTab = "listeners" | "targets" | "routes" | "agents";
 
@@ -50,7 +56,6 @@ const hasAnyProxyEvents = computed(() => allWindows.value.some((window) => windo
 
 const proxyState = computed(() => status.value?.proxy?.state ?? ProxyState.UNSPECIFIED);
 const proxyIsRunning = computed(() => proxyState.value === ProxyState.RUNNING || status.value?.proxyRunning === true);
-const proxyError = computed(() => status.value?.proxy?.lastError || status.value?.proxyLastError || "");
 const listeners = computed(() => config.value?.listeners ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const routeTargets = computed(() => config.value?.routeTargets ?? []);
@@ -72,6 +77,11 @@ const maxBucketRequests = computed(() => Math.max(1, ...trafficBuckets.value.map
 const cacheLookups = computed(() => cacheLookupRequests(selectedWindow.value));
 const cacheActivity = computed(() => cacheActivityRequests(selectedWindow.value));
 const cacheHasActivity = computed(() => cacheActivity.value > 0n);
+const attentionItems = computed(() => deriveOverviewAttention({
+  status: status.value,
+  config: config.value,
+  trafficWindow: selectedWindow.value,
+}));
 
 const hotspotTabs: Array<{ key: HotspotTab; label: string }> = [
   { key: "listeners", label: "Listeners" },
@@ -215,9 +225,10 @@ function errorKindLabel(value: string): string {
     .join(" ");
 }
 
-function bucketHeight(bucket: DashboardTrafficBucketView): string {
-  if (bucket.requests === 0n) return "0%";
-  return `${Math.max(8, Math.round((Number(bucket.requests) / maxBucketRequests.value) * 100)).toString()}%`;
+function bucketBarStyle(bucket: DashboardTrafficBucketView): Record<string, string> {
+  if (bucket.requests === 0n) return { transform: "scaleY(0)" };
+  const percent = Math.max(8, Math.round((Number(bucket.requests) / maxBucketRequests.value) * 100));
+  return { transform: `scaleY(${(percent / 100).toString()})` };
 }
 
 function bucketErrorHeight(bucket: DashboardTrafficBucketView): string {
@@ -240,16 +251,15 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   <div v-if="dashboardValue && status" class="overview-page">
     <section class="overview-header">
       <div>
-        <h3>Proxy Overview</h3>
-        <p>Operational stats from retained proxy request events.</p>
+        <h1>Proxy Overview</h1>
+        <p>Health, traffic, and configuration signals for the selected environment.</p>
       </div>
-      <NButtonGroup class="window-tabs" role="tablist" aria-label="Dashboard window" size="small">
+      <NButtonGroup class="window-tabs" role="group" aria-label="Dashboard window" size="small">
         <NButton
           v-for="window in windowLabels"
           :key="window"
           attr-type="button"
-          role="tab"
-          :aria-selected="selectedWindowLabel === window"
+          :aria-pressed="selectedWindowLabel === window"
           :type="selectedWindowLabel === window ? 'primary' : 'default'"
           @click="selectedWindowLabel = window"
         >
@@ -258,51 +268,158 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
       </NButtonGroup>
     </section>
 
-    <section class="overview-grid metric-strip">
-      <div class="metric-card">
-        <p class="metric-kicker">Proxy</p>
-        <div class="metric-value">
-          <span class="signal-dot" :class="proxyStateClass(proxyState)" />
-          {{ proxyStateLabel(proxyState) }}
+    <section class="status-summary" aria-labelledby="proxy-health-title">
+      <div class="status-summary__identity">
+        <p id="proxy-health-title">Proxy health</p>
+        <div class="status-summary__state">
+          <span class="signal-dot" :class="proxyStateClass(proxyState)" aria-hidden="true" />
+          <strong>{{ proxyStateLabel(proxyState) }}</strong>
         </div>
-        <p class="metric-subline">{{ runningListeners }}/{{ enabledListeners }} listeners running</p>
+        <span>{{ runningListeners }}/{{ enabledListeners }} listeners running</span>
       </div>
 
-      <div class="metric-card">
-        <p class="metric-kicker">Requests</p>
-        <div class="metric-value">{{ formatNumber(selectedWindow?.proxyRequests) }}</div>
-        <p class="metric-subline">{{ selectedRequestRate() }}</p>
+      <dl class="status-summary__facts">
+        <div>
+          <dt>Requests</dt>
+          <dd>{{ formatNumber(selectedWindow?.proxyRequests) }}</dd>
+          <small>{{ selectedRequestRate() }}</small>
+        </div>
+        <div>
+          <dt>Success</dt>
+          <dd>{{ formatPercent(successRate(selectedWindow)) }}</dd>
+          <small>{{ formatNumber(nonSuccessRequests(selectedWindow)) }} non-success</small>
+        </div>
+        <div>
+          <dt>Latency</dt>
+          <dd>{{ formatDuration(selectedWindow?.proxyAvgDurationMs) }}</dd>
+          <small>pMax {{ formatDuration(selectedWindow?.proxyMaxDurationMs) }}</small>
+        </div>
+        <div>
+          <dt>Throughput</dt>
+          <dd>{{ selectedDownloadRate() }}</dd>
+          <small>up {{ selectedUploadRate() }}</small>
+        </div>
+        <div>
+          <dt>Agents</dt>
+          <dd>{{ connectedAgents }}/{{ enabledAgents }}</dd>
+          <small>{{ agentsMetricSubline() }}</small>
+        </div>
+      </dl>
+    </section>
+
+    <section class="attention-panel" aria-labelledby="attention-title" aria-live="polite">
+      <div class="attention-panel__heading">
+        <div>
+          <h2 id="attention-title">Needs attention</h2>
+          <p>Runtime and configuration signals that may affect public traffic.</p>
+        </div>
+        <span v-if="attentionItems.length" class="attention-panel__count">
+          {{ attentionItems.length }} {{ attentionItems.length === 1 ? "signal" : "signals" }}
+        </span>
       </div>
 
-      <div class="metric-card">
-        <p class="metric-kicker">Success</p>
-        <div class="metric-value success-text">{{ formatPercent(successRate(selectedWindow)) }}</div>
-        <p class="metric-subline">{{ formatNumber(nonSuccessRequests(selectedWindow)) }} non-success / {{ formatNumber(proxyFailureRequests(selectedWindow)) }} proxy failures</p>
+      <div v-if="attentionItems.length" class="attention-list">
+        <article v-for="item in attentionItems" :key="item.key" class="attention-row" :class="`attention-row--${item.severity}`">
+          <ErrorIcon v-if="item.severity === 'error'" class="attention-row__icon" aria-hidden="true" />
+          <WarningIcon v-else class="attention-row__icon" aria-hidden="true" />
+          <div class="attention-row__copy">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.detail }}</p>
+          </div>
+          <router-link :to="item.actionRoute" class="attention-row__action">
+            {{ item.actionLabel }}
+            <ArrowRightIcon aria-hidden="true" />
+          </router-link>
+        </article>
       </div>
 
-      <div class="metric-card">
-        <p class="metric-kicker">Latency</p>
-        <div class="metric-value">{{ formatDuration(selectedWindow?.proxyAvgDurationMs) }}</div>
-        <p class="metric-subline">max {{ formatDuration(selectedWindow?.proxyMaxDurationMs) }}</p>
+      <div v-else class="attention-healthy">
+        <HealthyIcon aria-hidden="true" />
+        <div>
+          <h3>No urgent signals</h3>
+          <p>The proxy, enabled listeners, connected agents, and traffic policy checks look healthy.</p>
+        </div>
+        <router-link to="/monitor/diagnostics" class="attention-row__action">
+          Open diagnostics
+          <ArrowRightIcon aria-hidden="true" />
+        </router-link>
+      </div>
+    </section>
+
+    <section v-if="!hasAnyProxyEvents" class="empty-panel">
+      <div>
+        <h2>No proxy requests recorded yet.</h2>
+        <p>Start a listener and send traffic through the proxy to populate these metrics.</p>
+      </div>
+    </section>
+
+    <section class="overview-main-grid">
+      <div class="dashboard-panel trend-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Traffic Trend</h2>
+            <p>Last 60 minutes, grouped into five-minute buckets.</p>
+          </div>
+          <span class="signal-pill">{{ formatNumber(trafficBuckets.reduce((sum, bucket) => sum + bucket.requests, 0n)) }} req</span>
+        </div>
+
+        <div v-if="trafficBuckets.some((bucket) => bucket.requests > 0n)" class="trend-bars" aria-hidden="true">
+          <div
+            v-for="bucket in trafficBuckets"
+            :key="bucket.bucketUnixMillis.toString()"
+            class="trend-slot"
+            :title="bucketTitle(bucket)"
+          >
+            <div class="trend-track">
+              <div class="trend-bar" :style="bucketBarStyle(bucket)">
+                <div class="trend-error" :style="{ height: bucketErrorHeight(bucket) }" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <ul v-if="trafficBuckets.some((bucket) => bucket.requests > 0n)" class="visually-hidden" aria-label="Traffic trend values">
+          <li v-for="bucket in trafficBuckets" :key="`accessible-${bucket.bucketUnixMillis.toString()}`">
+            {{ bucketTitle(bucket) }}
+          </li>
+        </ul>
+        <div v-else class="stable-empty">No proxy traffic in the last hour.</div>
       </div>
 
-      <div class="metric-card">
-        <p class="metric-kicker">Throughput</p>
-        <div class="metric-value">{{ selectedDownloadRate() }}</div>
-        <p class="metric-subline">up {{ selectedUploadRate() }}</p>
-      </div>
+      <div class="dashboard-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Problem Signals</h2>
+            <p>Selected window plus last-hour error kinds.</p>
+          </div>
+          <div class="panel-actions">
+            <router-link to="/monitor/diagnostics" class="diagnostics-link">View diagnostics</router-link>
+            <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
+              {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
+            </span>
+          </div>
+        </div>
 
-      <div class="metric-card">
-        <p class="metric-kicker">Agents</p>
-        <div class="metric-value">{{ connectedAgents }}/{{ enabledAgents }}</div>
-        <p class="metric-subline">{{ agentsMetricSubline() }}</p>
+        <div class="status-class-grid">
+          <div v-for="label in ['2xx', '3xx', '4xx', '5xx']" :key="label" class="status-class">
+            <span>{{ label }}</span>
+            <strong>{{ formatNumber(statusCounts[label]) }}</strong>
+          </div>
+        </div>
+
+        <div class="error-list">
+          <div v-for="error in dashboardValue.topErrorKinds" :key="error.label" class="error-row" :title="error.label">
+            <span>{{ errorKindLabel(error.label) }}</span>
+            <strong>{{ formatNumber(error.requests) }}</strong>
+          </div>
+          <div v-if="!dashboardValue.topErrorKinds.length" class="stable-empty compact">No proxy failures in the last hour.</div>
+        </div>
       </div>
     </section>
 
     <section class="dashboard-panel cache-panel">
       <div class="panel-heading">
         <div>
-          <h4>Cache Behavior</h4>
+          <h2>Cache Behavior</h2>
           <p>Selected window, based on retained proxy request events.</p>
         </div>
         <span class="signal-pill" :class="cacheHasActivity ? '' : 'warn'">
@@ -336,88 +453,18 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
       <p v-if="!cacheHasActivity" class="cache-empty">No cache activity in this window.</p>
     </section>
 
-    <section v-if="!hasAnyProxyEvents" class="empty-panel">
-      <div>
-        <h4>No proxy requests recorded yet.</h4>
-        <p>Start a listener and send traffic through the proxy to populate these metrics.</p>
-      </div>
-    </section>
-
-    <section class="overview-main-grid">
-      <div class="dashboard-panel trend-panel">
-        <div class="panel-heading">
-          <div>
-            <h4>Traffic Trend</h4>
-            <p>Last 60 minutes, grouped into five-minute buckets.</p>
-          </div>
-          <span class="signal-pill">{{ formatNumber(trafficBuckets.reduce((sum, bucket) => sum + bucket.requests, 0n)) }} req</span>
-        </div>
-
-        <div v-if="trafficBuckets.some((bucket) => bucket.requests > 0n)" class="trend-bars">
-          <div
-            v-for="bucket in trafficBuckets"
-            :key="bucket.bucketUnixMillis.toString()"
-            class="trend-slot"
-            :title="bucketTitle(bucket)"
-          >
-            <div class="trend-track">
-              <div class="trend-bar" :style="{ height: bucketHeight(bucket) }">
-                <div class="trend-error" :style="{ height: bucketErrorHeight(bucket) }" />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div v-else class="stable-empty">No proxy traffic in the last hour.</div>
-      </div>
-
-      <div class="dashboard-panel">
-        <div class="panel-heading">
-          <div>
-            <h4>Problem Signals</h4>
-            <p>Selected window plus last-hour error kinds.</p>
-          </div>
-          <div class="panel-actions">
-            <router-link to="/monitor/diagnostics" class="diagnostics-link">View diagnostics</router-link>
-            <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
-              {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
-            </span>
-          </div>
-        </div>
-
-        <div class="status-class-grid">
-          <div v-for="label in ['2xx', '3xx', '4xx', '5xx']" :key="label" class="status-class">
-            <span>{{ label }}</span>
-            <strong>{{ formatNumber(statusCounts[label]) }}</strong>
-          </div>
-        </div>
-
-        <div class="error-list">
-          <div v-if="proxyError" class="error-row">
-            <span>Proxy last error</span>
-            <strong>{{ proxyError }}</strong>
-          </div>
-          <div v-for="error in dashboardValue.topErrorKinds" :key="error.label" class="error-row" :title="error.label">
-            <span>{{ errorKindLabel(error.label) }}</span>
-            <strong>{{ formatNumber(error.requests) }}</strong>
-          </div>
-          <div v-if="!proxyError && !dashboardValue.topErrorKinds.length" class="stable-empty compact">No proxy failures in the last hour.</div>
-        </div>
-      </div>
-    </section>
-
     <section class="dashboard-panel">
       <div class="panel-heading">
         <div>
-          <h4>Hotspots</h4>
+          <h2>Hotspots</h2>
           <p>Top in the last hour.</p>
         </div>
-        <NButtonGroup class="mini-tabs" role="tablist" aria-label="Hotspot dimension" size="small">
+        <NButtonGroup class="mini-tabs" role="group" aria-label="Hotspot dimension" size="small">
           <NButton
             v-for="tab in hotspotTabs"
             :key="tab.key"
             attr-type="button"
-            role="tab"
-            :aria-selected="activeHotspotTab === tab.key"
+            :aria-pressed="activeHotspotTab === tab.key"
             :type="activeHotspotTab === tab.key ? 'primary' : 'default'"
             @click="activeHotspotTab = tab.key"
           >
@@ -441,7 +488,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
     <section class="dashboard-panel">
       <div class="panel-heading">
         <div>
-          <h4>Configuration Snapshot</h4>
+          <h2>Configuration Snapshot</h2>
           <p>Current proxy objects loaded in management config.</p>
         </div>
       </div>
@@ -597,8 +644,8 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   background: var(--app-border-subtle);
 }
 
-.panel-heading h4,
-.empty-panel h4 {
+.panel-heading h2,
+.empty-panel h2 {
   color: var(--app-text);
   font-size: 0.95rem;
   font-weight: 700;
@@ -650,13 +697,11 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .trend-bar {
   position: relative;
   width: 100%;
+  height: 100%;
   min-height: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--app-accent) 76%, var(--app-panel)),
-    var(--app-accent)
-  );
-  transition: height 160ms ease;
+  background: var(--app-accent);
+  transform-origin: bottom center;
+  transition: transform 160ms ease;
 }
 
 .trend-error {
@@ -879,6 +924,329 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   .trend-bars {
     gap: 0.25rem;
     height: 9rem;
+  }
+}
+
+/* Health-first command center */
+
+.overview-page {
+  gap: 1.75rem;
+}
+
+.overview-header h1 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.overview-header p {
+  max-width: 65ch;
+  margin: 0.375rem 0 0;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.status-summary {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-panel);
+}
+
+.status-summary__identity {
+  display: grid;
+  align-content: center;
+  gap: 0.25rem;
+  padding: 1rem;
+  background: var(--app-panel-muted);
+}
+
+.status-summary__identity > p,
+.status-summary__facts dt {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-summary__identity > span,
+.status-summary__facts small {
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-summary__state {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-summary__state strong {
+  font-size: 1.125rem;
+  font-weight: 650;
+}
+
+.status-summary__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.status-summary__facts > div {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.875rem 1rem;
+}
+
+.status-summary__facts > div:nth-child(odd) {
+  border-right: 1px solid var(--app-border-subtle);
+}
+
+.status-summary__facts > div:last-child {
+  grid-column: 1 / -1;
+  border-bottom: 0;
+}
+
+.status-summary__facts dd {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.attention-panel {
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-panel);
+}
+
+.attention-panel__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.125rem;
+}
+
+.attention-panel__heading h2,
+.attention-row h3,
+.attention-healthy h3 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.attention-panel__heading p,
+.attention-row p,
+.attention-healthy p {
+  max-width: 70ch;
+  margin: 0.25rem 0 0;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.attention-panel__count {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-warning) 12%, var(--app-panel));
+  color: var(--app-warning);
+  font-size: 0.75rem;
+  font-weight: 650;
+  padding: 0.25rem 0.625rem;
+}
+
+.attention-list {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.attention-row,
+.attention-healthy {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.875rem 1.125rem;
+}
+
+.attention-row + .attention-row {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.attention-row--error {
+  background: color-mix(in srgb, var(--app-error) 5%, var(--app-panel));
+}
+
+.attention-row--warning {
+  background: color-mix(in srgb, var(--app-warning) 5%, var(--app-panel));
+}
+
+.attention-row__icon,
+.attention-healthy > svg {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.125rem;
+  flex: 0 0 auto;
+}
+
+.attention-row--error .attention-row__icon {
+  color: var(--app-error);
+}
+
+.attention-row--warning .attention-row__icon {
+  color: var(--app-warning);
+}
+
+.attention-row__copy {
+  min-width: 0;
+}
+
+.attention-row__action {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  grid-column: 2;
+  justify-self: start;
+  border-radius: 6px;
+  color: var(--app-accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.attention-row__action:hover {
+  color: color-mix(in srgb, var(--app-accent) 80%, var(--app-text));
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.attention-row__action:focus-visible {
+  outline: 3px solid var(--app-focus);
+  outline-offset: 2px;
+}
+
+.attention-row__action svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.attention-healthy {
+  border-top: 1px solid var(--app-border-subtle);
+  background: color-mix(in srgb, var(--app-success) 5%, var(--app-panel));
+}
+
+.attention-healthy > svg {
+  color: var(--app-success);
+}
+
+.dashboard-panel,
+.empty-panel {
+  border-radius: 10px;
+  background: var(--app-panel);
+}
+
+.dashboard-panel {
+  gap: 1.125rem;
+  padding: 1.125rem;
+}
+
+.panel-heading h2,
+.empty-panel h2 {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.status-class,
+.snapshot-item,
+.cache-stat {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.25rem 0.75rem;
+}
+
+.status-class + .status-class,
+.snapshot-item + .snapshot-item,
+.cache-stat + .cache-stat {
+  border-left: 1px solid var(--app-border-subtle);
+}
+
+.trend-track {
+  border: 0;
+  background: var(--app-panel-muted);
+}
+
+.stable-empty {
+  border-color: var(--app-border-subtle);
+  background: transparent;
+}
+
+@media (min-width: 640px) {
+  .status-summary {
+    grid-template-columns: minmax(10rem, 0.9fr) minmax(0, 3.1fr);
+  }
+
+  .status-summary__facts {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .status-summary__facts > div,
+  .status-summary__facts > div:nth-child(odd) {
+    border-right: 1px solid var(--app-border-subtle);
+    border-bottom: 0;
+  }
+
+  .status-summary__facts > div:last-child {
+    grid-column: auto;
+    border-right: 0;
+  }
+
+  .attention-row,
+  .attention-healthy {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .attention-row__action {
+    grid-column: 3;
+    justify-self: end;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 639px) {
+  .attention-panel__heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attention-panel__count {
+    align-self: flex-start;
+  }
+
+  .status-class + .status-class:nth-child(odd),
+  .snapshot-item + .snapshot-item:nth-child(odd),
+  .cache-stat + .cache-stat:nth-child(odd) {
+    border-left: 0;
   }
 }
 </style>

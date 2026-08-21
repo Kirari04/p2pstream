@@ -5,7 +5,7 @@ import "time"
 type AgentStats struct {
 	Timestamp      time.Time `json:"timestamp"`
 	NumGoroutine   int       `json:"num_goroutine"`
-	AllocAllocated uint64    `json:"memory_allocated_mb"`
+	MemorySysMB    uint64    `json:"memory_sys_mb"`
 	ActiveRequests int32     `json:"active_requests"`
 	CPUPercent     float64   `json:"cpu_percent"`
 

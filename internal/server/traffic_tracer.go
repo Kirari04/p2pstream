@@ -359,13 +359,10 @@ func sanitizedHeaderMap(header http.Header) map[string]string {
 }
 
 func traceHeaderIsSensitive(name string) bool {
-	lower := strings.ToLower(name)
-	switch lower {
-	case "authorization", "proxy-authorization", "cookie", "set-cookie":
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "accept", "accept-encoding", "accept-language", "cache-control", "content-encoding", "content-length", "content-type", "host", "if-modified-since", "if-none-match", "pragma", "range", "user-agent":
+		return false
+	default:
 		return true
 	}
-	return strings.Contains(lower, "token") ||
-		strings.Contains(lower, "secret") ||
-		strings.Contains(lower, "password") ||
-		strings.Contains(lower, "key")
 }

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { NButton, NCheckbox, NDynamicTags, NInput, NInputNumber, NModal, NRadioButton, NRadioGroup, NSelect, NTransfer } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NDynamicTags, NInput, NInputNumber, NRadioButton, NRadioGroup, NTransfer } from "naive-ui";
 import type { TransferOption } from "naive-ui";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   defaultPolicyMatchForm,
   policyMatchFormFromProto,
@@ -155,7 +156,7 @@ const submitDisabledReason = computed(() => {
   if (varyHeadersValidationReason.value) return varyHeadersValidationReason.value;
   if (cacheStatusCodesValidationReason.value) return cacheStatusCodesValidationReason.value;
   if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
-  if (form.allowCookieRequests && !form.allowCookieRequestsAcknowledged) return "Acknowledge the Cookie cache key behavior.";
+  if (form.allowCookieRequests && !form.allowCookieRequestsAcknowledged) return "Acknowledge the legacy Cookie flag behavior.";
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -421,15 +422,15 @@ defineExpose({ openCreate, openEdit, close });
 </script>
 
 <template>
-  <NModal
+  <NDrawer
     v-model:show="isOpen"
-    preset="card"
-    :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'"
-    :style="modalCardStyle('64rem')"
-    :bordered="false"
-    size="huge"
+    placement="right"
+    :width="editorDrawerWidth('64rem')"
+    :aria-label="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'"
+    class="editor-drawer"
   >
-    <form class="layout-grid max-modal-height space-xl scroll-y pad-right-xs" @submit.prevent="submitRule">
+    <NDrawerContent :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'" closable>
+    <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
           Name
@@ -437,7 +438,7 @@ defineExpose({ openCreate, openEdit, close });
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Priority
-          <NInputNumber v-model:value="form.priority" size="small" required />
+          <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
         <NCheckbox v-model:checked="form.enabled" class="self-align-end">
           Enabled
@@ -449,13 +450,13 @@ defineExpose({ openCreate, openEdit, close });
       <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
         <h4 class="copy-sm weight-semibold base-text">Cache behavior</h4>
         <p class="copy-xs line-normal muted-text">
-          Authorization requests are always bypassed. Cookie requests are cached only when this rule allows them. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
+          Authorization and Cookie requests always bypass shared cache. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
         <NCheckbox v-model:checked="form.allowCookieRequests" class="round-md framed frame-standard muted-bg pad-md">
           <span class="layout-grid space-2xs">
-            <span class="weight-medium base-text">Cache requests with Cookie headers</span>
+            <span class="weight-medium base-text">Preserve legacy Cookie opt-in flag</span>
             <span class="copy-xs line-normal muted-text">
-              Enable this only for public static asset rules. Cookie values are ignored and are never part of the cache key.
+              This compatibility flag has no runtime effect; Cookie requests still bypass shared cache.
             </span>
           </span>
         </NCheckbox>
@@ -465,32 +466,32 @@ defineExpose({ openCreate, openEdit, close });
           class="round-md framed frame-standard panel-bg pad-md"
         >
           <span class="layout-grid space-2xs">
-            <span class="weight-medium base-text">I understand Cookie is ignored in this cache key</span>
+            <span class="weight-medium base-text">I understand Cookie requests still bypass cache</span>
             <span class="copy-xs line-normal muted-text">
-              Only use this for responses that are identical for every visitor, even when the request includes cookies.
+              Keep this only when preserving legacy configuration shape; clear it for new cache rules.
             </span>
           </span>
         </NCheckbox>
         <div class="layout-grid space-lg mq-sm-cols-four">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             TTL mode
-            <NSelect v-model:value="form.ttlMode" size="small" :options="ttlModeOptions" />
+            <AccessibleSelect v-model:value="form.ttlMode" accessible-label="TTL mode" size="small" :options="ttlModeOptions" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Default TTL minutes
-            <NInputNumber v-model:value="form.ttlMinutes" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.ttlMinutes" size="small" :min="1" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Scope
-            <NSelect v-model:value="form.scope" size="small" :options="scopeOptions" />
+            <AccessibleSelect v-model:value="form.scope" accessible-label="Cache scope" size="small" :options="scopeOptions" />
           </label>
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             Max object MiB
-            <NInputNumber v-model:value="form.maxObjectMiB" size="small" :min="1" />
+            <NInputNumber :show-button="false" v-model:value="form.maxObjectMiB" size="small" :min="1" />
           </label>
         </div>
         <p class="copy-xs line-normal muted-text">
-          Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored, even when cookie requests are enabled above.
+          Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored.
         </p>
       </section>
 
@@ -633,14 +634,15 @@ defineExpose({ openCreate, openEdit, close });
         </NCheckbox>
       </section>
 
-      <div class="layout-row align-end-row space-md divider-top frame-standard pad-top-lg">
+      <div class="editor-drawer-actions layout-row align-end-row space-md divider-top frame-standard pad-top-lg">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <NButton type="primary" attr-type="submit" :disabled="submitDisabled" :title="submitDisabledReason">
           {{ form.id ? 'Save Rule' : 'Create Rule' }}
         </NButton>
       </div>
     </form>
-  </NModal>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped>

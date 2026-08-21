@@ -11,6 +11,13 @@
   "devDependencies": {
     "medium-zoom": "^1.1.0",
     "vitepress": "1.6.4",
-    "vitepress-plugin-llms": "^1.12.2"
+    "vitepress-plugin-llms": "^1.13.5"
+  },
+  "overrides": {
+    "linkify-it": "5.0.2",
+    "markdown-it": "14.3.0",
+    "nanoid": "3.3.18",
+    "postcss": "8.5.26",
+    "vite": "6.4.3"
   }
 }

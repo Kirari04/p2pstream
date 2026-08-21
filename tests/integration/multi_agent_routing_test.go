@@ -207,6 +207,9 @@ func TestAgentPoolBackendsRouteOnlyToAssignedAgents(t *testing.T) {
 	baseURL := "http://" + publicListenerBoundAddress(t, status, listener.ID)
 	assertAgentRequest(t, baseURL+"/a")
 	assertAgentRequest(t, baseURL+"/b")
+	if err := app.FlushObservabilityRecorder(context.Background()); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
 	assertSelectedAgents(t, database, []int64{agentA.GetId(), agentB.GetId()})
 
 	cancel()

@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/db"
 )
 
 func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPublicProxyConfigResponse, error) {
@@ -22,6 +24,8 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 	routeTargetResponseHeaders := publicRouteTargetResponseHeadersByTarget(rows.RouteTargetResponseHeaders)
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
+		AccessProviders:     publicAccessProvidersToProto(rows.AccessProviders),
+		AccessPolicies:      publicAccessPoliciesToProto(rows.AccessPolicies),
 		Listeners:           publicListenersToProto(rows.Listeners),
 		Routes:              publicRoutesToProto(rows.Routes, rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		RouteTargets:        publicRouteTargetsToProto(rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
@@ -32,6 +36,8 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		TrafficShaperRules:  publicTrafficShaperRulesToProto(rows.TrafficShaperRules),
 		WafCaptchaProviders: publicWafCaptchaProvidersToProto(rows.WafCaptchaProviders, false),
 		WafRules:            publicWafRulesToProto(rows.WafRules),
+		GeoIpSettings:       a.publicGeoIPSettingsProto(rows.GeoIPSettings),
+		TrustedProxySources: publicTrustedProxySourcesToProto(rows.TrustedProxySources),
 		CacheSettings:       publicCacheSettingsConfigToProto(snap.CacheSettings),
 		CacheRules:          publicCacheRulesToProto(rows.CacheRules),
 		TlsDnsCredentials:   publicTLSDNSCredentialsToProto(rows.TLSDNSCredentials),
@@ -48,13 +54,31 @@ func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	return nil
 }
 
+func (a *App) currentPublicSnapshot() *publicProxySnapshot {
+	if a == nil {
+		return nil
+	}
+	return a.publicSnapshotPtr.Load()
+}
+
+func (a *App) setPublicSnapshotLocked(snap *publicProxySnapshot) {
+	a.publicSnapshot = snap
+	a.publicSnapshotPtr.Store(snap)
+	a.publicSnapshotGeneration++
+}
+
 func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 	a.proxyMu.Lock()
-	a.publicSnapshot = snap
+	previous := a.publicSnapshot
+	reconcilePublicAccessProviderTransports(previous, snap)
+	a.setPublicSnapshotLocked(snap)
+	generation := a.publicSnapshotGeneration
 	a.ensureListenerStatesLocked(snap)
 	a.proxyStatusLocked()
 	active := a.proxyServiceActive
 	a.proxyMu.Unlock()
+	a.reconcileRouteTargetTransports(previous, snap)
+	a.refreshRunningPublicTLSSelectors(snap, generation)
 	a.LoadBalancers.reconcile(snap)
 	if a.TargetHealth != nil {
 		a.TargetHealth.reconcile(a, snap, active)
@@ -69,12 +93,51 @@ func (a *App) applyPublicProxySnapshot(snap *publicProxySnapshot) {
 		a.PublicWAF.reconcile(snap)
 	}
 	if a.PublicCache != nil {
-		a.PublicCache.reconcile(snap.CacheSettings)
+		a.PublicCache.reconcile(snap.CacheSettings, snap.CacheRules)
+	}
+}
+
+type routeTargetTransportSignature struct {
+	Transport                   string
+	TargetOrigin                string
+	TLSSkipVerify               bool
+	ResponseHeaderTimeoutMillis int64
+}
+
+func (a *App) reconcileRouteTargetTransports(previous *publicProxySnapshot, current *publicProxySnapshot) {
+	if previous == nil {
+		return
+	}
+	for targetID, previousTarget := range previous.RouteTargets {
+		currentTarget, ok := current.RouteTargets[targetID]
+		if ok && routeTargetTransportSignatureFor(previousTarget) == routeTargetTransportSignatureFor(currentTarget) {
+			continue
+		}
+		if a.DirectTransports != nil {
+			a.DirectTransports.closeRouteTarget(targetID)
+		}
+		if a.AgentTransports != nil {
+			a.AgentTransports.closeRouteTarget(targetID)
+		}
+	}
+}
+
+func routeTargetTransportSignatureFor(target publicRouteTargetConfig) routeTargetTransportSignature {
+	timeout := normalizeUpstreamResponseHeaderTimeout(target.UpstreamResponseHeaderTimeout)
+	return routeTargetTransportSignature{
+		Transport:                   target.Transport,
+		TargetOrigin:                routeTargetTransportOrigin(target),
+		TLSSkipVerify:               target.TLSSkipVerify,
+		ResponseHeaderTimeoutMillis: int64(timeout / time.Millisecond),
 	}
 }
 
 func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot, error) {
 	rows, err := a.loadPublicConfigRows(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows.RouteTargets, err = a.migrateLegacyPublicTargetOrigins(ctx, rows.RouteTargets)
 	if err != nil {
 		return nil, err
 	}
@@ -86,12 +149,48 @@ func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot
 	return snap, nil
 }
 
+func (a *App) migrateLegacyPublicTargetOrigins(ctx context.Context, targets []db.PublicRouteTarget) ([]db.PublicRouteTarget, error) {
+	if a == nil || a.DB == nil {
+		return targets, nil
+	}
+	for i := range targets {
+		target := &targets[i]
+		if normalizePublicRouteTargetType(target.TargetType) != publicRouteTargetTypeProxy {
+			continue
+		}
+		normalized, needsMigration, err := normalizeLegacyPublicTargetOrigin(target.Url)
+		if err != nil || !needsMigration {
+			continue
+		}
+		result, err := a.DB.ExecContext(ctx, `
+			UPDATE public_route_targets
+			SET url = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE id = ? AND url = ?
+		`, normalized, target.ID, target.Url)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("normalize legacy route target origin: %w", err))
+		}
+		updated, err := result.RowsAffected()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("inspect legacy route target origin migration: %w", err))
+		}
+		if updated != 1 {
+			return nil, connect.NewError(connect.CodeAborted, errors.New("route target changed while its legacy origin was being normalized; retry"))
+		}
+		target.Url = normalized
+		log.Warn().
+			Int64("route_target_id", target.ID).
+			Str("route_target_name", target.Name).
+			Msg("Normalized ignored path, query, fragment, or credentials from a legacy route target URL")
+	}
+	return targets, nil
+}
+
 func (a *App) cachedOrLoadPublicConfig(ctx context.Context) (publicConfigRows, *publicProxySnapshot, error) {
 	if rows, snap, ok := a.cachedPublicConfig(); ok {
 		return rows, snap, nil
 	}
-	snap, err := a.loadPublicProxySnapshot(ctx)
-	if err != nil {
+	if _, err := a.loadPublicProxySnapshot(ctx); err != nil {
 		return publicConfigRows{}, nil, err
 	}
 	rows, snap, ok := a.cachedPublicConfig()
@@ -124,6 +223,14 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	}
 	if err := a.ensurePublicProxySeeded(ctx); err != nil {
 		return publicConfigRows{}, err
+	}
+	accessProviders, err := a.DB.ListPublicAccessProviders(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	accessPolicies, err := a.DB.ListPublicAccessPolicies(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
 	responseTemplates, err := a.DB.ListPublicResponseTemplates(ctx)
 	if err != nil {
@@ -185,6 +292,14 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, err
 	}
+	geoIPSettings, err := a.ensurePublicGeoIPSettings(ctx)
+	if err != nil {
+		return publicConfigRows{}, err
+	}
+	trustedProxySources, err := a.DB.ListPublicTrustedProxySources(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	cacheSettings, err := a.ensurePublicCacheSettings(ctx)
 	if err != nil {
 		return publicConfigRows{}, err
@@ -194,6 +309,8 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
 	return publicConfigRows{
+		AccessProviders:            accessProviders,
+		AccessPolicies:             accessPolicies,
 		Agents:                     agents,
 		AgentLabels:                agentLabels,
 		Listeners:                  listeners,
@@ -208,6 +325,8 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		WafCaptchaProviders:        wafCaptchaProviders,
 		WafRules:                   wafRules,
 		WafSettings:                wafSettings,
+		GeoIPSettings:              geoIPSettings,
+		TrustedProxySources:        trustedProxySources,
 		CacheSettings:              cacheSettings,
 		CacheRules:                 cacheRules,
 		ResponseTemplates:          responseTemplates,
@@ -215,7 +334,13 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 }
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
+	clientIdentity, err := trustedProxyResolverFromRows(rows.TrustedProxySources)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	snap := &publicProxySnapshot{
+		AccessProviders:     make(map[int64]publicAccessProviderConfig),
+		AccessPolicies:      make(map[int64]publicAccessPolicyConfig),
 		RouteTargets:        make(map[int64]publicRouteTargetConfig),
 		Agents:              make(map[int64]publicAgentConfig),
 		Listeners:           make(map[int64]publicListenerConfig),
@@ -225,6 +350,25 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		WafCookieSecret:     []byte(rows.WafSettings.CookieSigningSecret),
 		CacheSettings:       publicCacheSettingsRowToConfig(rows.CacheSettings),
 		ResponseTemplates:   publicResponseTemplatesToConfig(rows.ResponseTemplates),
+		ClientIdentity:      clientIdentity,
+	}
+	for _, row := range rows.AccessProviders {
+		provider, err := publicAccessProviderRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access provider %q is invalid: %w", row.Name, err))
+		}
+		snap.AccessProviders[provider.ID] = provider
+	}
+	snap.AccessHeaderNames = publicAccessConfiguredHeaderNames(snap)
+	for _, row := range rows.AccessPolicies {
+		policy, err := publicAccessPolicyRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access policy %q is invalid: %w", row.Name, err))
+		}
+		if _, ok := snap.AccessProviders[policy.ProviderID]; !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access policy %q references a missing provider", row.Name))
+		}
+		snap.AccessPolicies[policy.ID] = policy
 	}
 
 	routeTargetsByRoute := make(map[int64][]publicRouteTargetConfig)
@@ -330,6 +474,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			RedirectPreservePathSuffix: route.RedirectPreservePathSuffix != 0,
 			RedirectPreserveQuery:      route.RedirectPreserveQuery != 0,
 			PathSecurityMode:           normalizePublicRoutePathSecurityMode(route.PathSecurityMode),
+			AccessPolicyID:             nullInt64Value(route.AccessPolicyID),
 			Enabled:                    route.Enabled != 0,
 		})
 	}
@@ -363,6 +508,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		rule.Fingerprint = publicRateLimitRuleFingerprint(rule)
 		snap.RateLimitRules = append(snap.RateLimitRules, rule)
 	}
+	sortPublicRateLimitRules(snap.RateLimitRules)
 	for _, row := range rows.TrafficShaperRules {
 		rule, err := publicTrafficShaperRuleRowToConfig(row)
 		if err != nil {
@@ -370,6 +516,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		}
 		snap.TrafficShaperRules = append(snap.TrafficShaperRules, rule)
 	}
+	sortPublicTrafficShaperRules(snap.TrafficShaperRules)
 	for _, row := range rows.WafCaptchaProviders {
 		provider := publicWafCaptchaProviderRowToConfig(row, true)
 		snap.WafCaptchaProviders[provider.ID] = provider
@@ -397,6 +544,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		rule.Fingerprint = publicWafRuleFingerprint(rule)
 		snap.WafRules = append(snap.WafRules, rule)
 	}
+	sortPublicWafRules(snap.WafRules)
 	for _, row := range rows.CacheRules {
 		rule, err := publicCacheRuleRowToConfig(row)
 		if err != nil {
@@ -404,6 +552,8 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		}
 		snap.CacheRules = append(snap.CacheRules, rule)
 	}
+	sortPublicCacheRules(snap.CacheRules)
+	snap.CacheFingerprint = publicCacheRuntimeFingerprint(snap.CacheSettings, snap.CacheRules)
 	return snap, nil
 }
 
@@ -428,15 +578,4 @@ func (a *App) reconcilePublicListenerAfterMutation(ctx context.Context, listener
 		return a.restartPublicListenerRuntime(ctx, listenerID)
 	}
 	return a.getPublicListenerStatus(listenerID), nil
-}
-
-func (a *App) restartTLSListenerIfActive(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
-	a.proxyMu.Lock()
-	runtime := a.publicListenerState[listenerID]
-	running := runtime != nil && runtime.Server != nil
-	a.proxyMu.Unlock()
-	if !running {
-		return a.getPublicListenerStatus(listenerID), nil
-	}
-	return a.restartPublicListenerRuntime(ctx, listenerID)
 }

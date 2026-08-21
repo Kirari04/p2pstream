@@ -1,15 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"p2pstream/internal/agent"
+	"p2pstream/internal/tunnel"
 )
 
 var agentCmd = &cobra.Command{
@@ -53,6 +58,10 @@ var agentCmd = &cobra.Command{
 		if managementCAPEMBase64 == "" {
 			managementCAPEMBase64 = os.Getenv("MANAGEMENT_CA_PEM_BASE64")
 		}
+		managementTrustFile, _ := cmd.Flags().GetString("management-trust-file")
+		if managementTrustFile == "" {
+			managementTrustFile = os.Getenv("MANAGEMENT_TRUST_FILE")
+		}
 		tlsCertFile, _ := cmd.Flags().GetString("tls-cert-file")
 		if tlsCertFile == "" {
 			tlsCertFile = os.Getenv("AGENT_TLS_CERT_FILE")
@@ -65,22 +74,62 @@ var agentCmd = &cobra.Command{
 		if !allowInsecureManagement {
 			allowInsecureManagement = envBool("AGENT_ALLOW_INSECURE_MANAGEMENT")
 		}
+		tunnelMaxStreamWindowBytes, err := agentTunnelMaxStreamWindowBytes(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		tunnelMaxConcurrentRequests, err := agentTunnelMaxConcurrentRequests(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		allowTargets, _ := cmd.Flags().GetStringArray("allow-target")
+		if len(allowTargets) == 0 {
+			allowTargets = splitAgentAllowTargets(os.Getenv("AGENT_ALLOW_TARGETS"))
+		}
+		allowAnyTarget, err := resolvedAgentAllowAnyTarget(cmd)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
 
-		if err := agent.Run(agent.Options{
-			ManagementURL:           mgmtURL,
-			PublicID:                agentID,
-			Name:                    agentName,
-			Token:                   agentToken,
-			ManagementCAFile:        managementCAFile,
-			ManagementCAPEMBase64:   managementCAPEMBase64,
-			TLSCertFile:             tlsCertFile,
-			TLSKeyFile:              tlsKeyFile,
-			AllowInsecureManagement: allowInsecureManagement,
-		}); err != nil {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		if err := agent.RunContext(ctx, agent.Options{
+			ManagementURL:               mgmtURL,
+			PublicID:                    agentID,
+			Name:                        agentName,
+			Token:                       agentToken,
+			ManagementCAFile:            managementCAFile,
+			ManagementCAPEMBase64:       managementCAPEMBase64,
+			ManagementTrustFile:         managementTrustFile,
+			TLSCertFile:                 tlsCertFile,
+			TLSKeyFile:                  tlsKeyFile,
+			AllowInsecureManagement:     allowInsecureManagement,
+			AllowTargets:                allowTargets,
+			AllowAnyTarget:              allowAnyTarget,
+			TunnelMaxStreamWindowBytes:  tunnelMaxStreamWindowBytes,
+			TunnelMaxConcurrentRequests: tunnelMaxConcurrentRequests,
+		}); err != nil && ctx.Err() == nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
 		}
 	},
+}
+
+// resolvedAgentAllowAnyTarget keeps an explicit false CLI flag authoritative.
+// This lets an operator tighten a persisted or inherited environment policy.
+func resolvedAgentAllowAnyTarget(cmd *cobra.Command) (bool, error) {
+	allowAnyTarget, err := cmd.Flags().GetBool("allow-any-target")
+	if err != nil {
+		return false, err
+	}
+	if !cmd.Flags().Changed("allow-any-target") {
+		allowAnyTarget = envBool("AGENT_ALLOW_ANY_TARGET")
+	}
+	return allowAnyTarget, nil
 }
 
 func init() {
@@ -91,9 +140,14 @@ func init() {
 	agentCmd.Flags().String("agent-name", "", "Optional agent display name")
 	agentCmd.Flags().String("management-ca-file", "", "PEM CA bundle used to verify the HTTPS management server")
 	agentCmd.Flags().String("management-ca-pem-base64", "", "Base64 PEM CA bundle used to verify the HTTPS management server")
+	agentCmd.Flags().String("management-trust-file", "", "Writable durable CA bundle used for management trust rotation")
 	agentCmd.Flags().String("tls-cert-file", "", "PEM client certificate for management mTLS")
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
+	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
+	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", tunnel.DefaultMaxConcurrentAgentRequests, "Maximum concurrent requests served through the agent tunnel")
+	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
+	agentCmd.Flags().Bool("allow-any-target", false, "Explicitly allow management to dial any destination reachable by this agent")
 }
 
 func defaultAgentManagementURL() string {
@@ -159,4 +213,48 @@ func envBool(key string) bool {
 	default:
 		return false
 	}
+}
+
+func agentTunnelMaxStreamWindowBytes(cmd *cobra.Command) (int64, error) {
+	if cmd.Flags().Changed("tunnel-max-stream-window-bytes") {
+		return cmd.Flags().GetInt64("tunnel-max-stream-window-bytes")
+	}
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MAX_STREAM_WINDOW_BYTES"))
+	if raw == "" {
+		return tunnel.DefaultMaxStreamWindowSizeBytes, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid TUNNEL_MAX_STREAM_WINDOW_BYTES %q: %w", raw, err)
+	}
+	return value, nil
+}
+
+func agentTunnelMaxConcurrentRequests(cmd *cobra.Command) (int64, error) {
+	if cmd.Flags().Changed("tunnel-max-concurrent-requests") {
+		return cmd.Flags().GetInt64("tunnel-max-concurrent-requests")
+	}
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MAX_CONCURRENT_REQUESTS"))
+	if raw == "" {
+		return tunnel.DefaultMaxConcurrentAgentRequests, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid TUNNEL_MAX_CONCURRENT_REQUESTS %q: %w", raw, err)
+	}
+	return value, nil
+}
+
+func splitAgentAllowTargets(value string) []string {
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\t' || r == ' '
+	})
+	targets := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field != "" {
+			targets = append(targets, field)
+		}
+	}
+	return targets
 }

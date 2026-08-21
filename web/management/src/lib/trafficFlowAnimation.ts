@@ -20,6 +20,7 @@ import {
 import { pointAtMotionDistance, type MotionNodeBox, type MotionPlan, type MotionPoint } from "@/lib/trafficMotion";
 import { TrafficTraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TraceRequest } from "@/types/trafficTrace";
+import { diagnosticExcerpt } from "@/lib/diagnosticText";
 
 export type FrameStressState = {
   previousFrameAt: number | null;
@@ -54,7 +55,7 @@ export function statusForRequest(request: TraceRequest): VisualTokenStatus {
 }
 
 export function requestLabel(request: TraceRequest): string {
-  return `${request.method || "REQUEST"} ${request.path || "/"}`;
+  return diagnosticExcerpt(`${request.method || "REQUEST"} ${request.path || "/"}`, 180).text;
 }
 
 export function createVisualToken(input: {

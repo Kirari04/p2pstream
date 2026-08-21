@@ -26,7 +26,7 @@ Requests are never cached when they include:
 - WebSocket or other upgrade headers,
 - methods other than `GET` or `HEAD`.
 
-Requests with `Cookie` bypass cache by default. A cache rule can explicitly enable `allow_cookie_requests` for precise public asset matches, such as hashed JavaScript, CSS, images, or fonts. Cookie values are ignored for the cache key and are never stored.
+Requests with `Cookie` always bypass shared cache. The legacy `allow_cookie_requests` field may still appear in older configuration, but it is preserved only for compatibility and has no runtime effect.
 
 Responses are never cached when they include `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, a disallowed status code, or a body larger than the rule maximum object size.
 
@@ -34,14 +34,16 @@ The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule
 
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
 
+Manage both parts under **Traffic Policy → Cache**. The filterable rules table determines eligibility and cache keys. The separate **Cache storage & operations** section controls shared storage budgets and cleanup, and contains the destructive purge action. Unsaved storage changes are kept distinct from the last server response so operators can review them before saving.
+
 <figure class="doc-screenshot">
-  <img src="../assets/new/cache_settings_section.png" alt="p2pstream cache settings section showing disk, memory, hot object, entry, and cleanup limits">
-  <figcaption>The cache settings section controls global storage budgets and cleanup behavior, while individual cache rules decide which public responses may be stored.</figcaption>
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing a filterable cache-rules table and separate Cache storage and operations settings">
+  <figcaption>The Cache tab separates response eligibility rules from global storage budgets, cleanup behavior, and purge operations.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule editor showing match builder, route and target filters, TTL, query handling, vary headers, status codes, and object limits">
-  <figcaption>The cache editor exposes both request matching and cache-safety controls, including route/target filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
+  <img src="../assets/new/edit_cache_modal.png" alt="p2pstream cache rule drawer showing match builder, route and target filters, TTL, query handling, vary headers, status codes, and object limits">
+  <figcaption>The cache rule drawer exposes both request matching and cache-safety controls, including route/target filters, TTL mode, query-key behavior, vary headers, cookie handling, and object limits.</figcaption>
 </figure>
 
 ## Common Mistakes
