@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS proxy_request_events (
     retry_rule_id INTEGER,
     retry_count INTEGER NOT NULL DEFAULT 0,
     retry_outcome TEXT NOT NULL DEFAULT '',
-    retry_error_kind TEXT NOT NULL DEFAULT ''
+    retry_error_kind TEXT NOT NULL DEFAULT '',
+    retry_failed_agent_id INTEGER REFERENCES agents(id)
 );
 
 CREATE TABLE IF NOT EXISTS proxy_request_rollup_minutes (
@@ -80,6 +81,24 @@ CREATE TABLE IF NOT EXISTS proxy_request_rollup_minutes (
     cache_stored_bytes INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS proxy_retry_rollup_minutes (
+    bucket_unix_millis INTEGER NOT NULL,
+    retry_rule_id INTEGER NOT NULL,
+    failed_agent_id INTEGER NOT NULL DEFAULT 0,
+    error_kind TEXT NOT NULL DEFAULT '',
+    matched_requests INTEGER NOT NULL DEFAULT 0,
+    retried_requests INTEGER NOT NULL DEFAULT 0,
+    retry_attempts INTEGER NOT NULL DEFAULT 0,
+    recovered_requests INTEGER NOT NULL DEFAULT 0,
+    exhausted_requests INTEGER NOT NULL DEFAULT 0,
+    skipped_requests INTEGER NOT NULL DEFAULT 0,
+    duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+    retried_duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind)
 );
 
 CREATE TABLE IF NOT EXISTS proxy_request_tuple_rollup_minutes (
@@ -631,6 +650,17 @@ ON public_retry_rules (priority, id);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id
 ON proxy_request_events (retry_rule_id);
+
+CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_rule
+ON proxy_retry_rollup_minutes (retry_rule_id, bucket_unix_millis);
+
+CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_failed_agent
+ON proxy_retry_rollup_minutes (failed_agent_id, bucket_unix_millis)
+WHERE failed_agent_id != 0;
+
+CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_error_kind
+ON proxy_retry_rollup_minutes (error_kind, bucket_unix_millis)
+WHERE error_kind != '';
 
 CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
 ON public_routes (listener_id, priority, id);

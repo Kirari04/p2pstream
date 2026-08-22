@@ -2052,6 +2052,50 @@ message DashboardDiagnosticsSample {
   int64 retry_count = 15;
   string retry_outcome = 16;
   string retry_error_kind = 17;
+  string retry_failed_agent_label = 18;
+}
+
+message DashboardRetryHealthSummary {
+  int64 matched_requests = 1;
+  int64 retried_requests = 2;
+  int64 retry_attempts = 3;
+  int64 recovered_requests = 4;
+  int64 exhausted_requests = 5;
+  int64 skipped_requests = 6;
+  int64 avg_matched_duration_ms = 7;
+  int64 avg_retried_duration_ms = 8;
+}
+
+message DashboardRetryTrendBucket {
+  int64 bucket_unix_millis = 1;
+  int64 matched_requests = 2;
+  int64 retried_requests = 3;
+  int64 retry_attempts = 4;
+  int64 recovered_requests = 5;
+  int64 exhausted_requests = 6;
+  int64 skipped_requests = 7;
+}
+
+message DashboardRetryRuleSummary {
+  int64 id = 1;
+  string label = 2;
+  int64 matched_requests = 3;
+  int64 retried_requests = 4;
+  int64 retry_attempts = 5;
+  int64 recovered_requests = 6;
+  int64 exhausted_requests = 7;
+  int64 skipped_requests = 8;
+  int64 avg_retried_duration_ms = 9;
+}
+
+message DashboardRetryFailureSummary {
+  int64 id = 1;
+  string label = 2;
+  int64 affected_requests = 3;
+  int64 retry_attempts = 4;
+  int64 recovered_requests = 5;
+  int64 exhausted_requests = 6;
+  int64 skipped_requests = 7;
 }
 
 message GetDashboardDiagnosticsResponse {
@@ -2066,6 +2110,11 @@ message GetDashboardDiagnosticsResponse {
   repeated DashboardProxyDimensionSummary problem_route_targets = 9;
   repeated DashboardProxyDimensionSummary problem_agents = 10;
   repeated DashboardDiagnosticsSample recent_samples = 11;
+  DashboardRetryHealthSummary retry_health = 12;
+  repeated DashboardRetryTrendBucket retry_trend = 13;
+  repeated DashboardRetryRuleSummary retry_rules = 14;
+  repeated DashboardRetryFailureSummary retry_failed_agents = 15;
+  repeated DashboardRetryFailureSummary retry_error_kinds = 16;
 }
 
 message TrafficTraceSettings {

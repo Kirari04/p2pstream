@@ -114,7 +114,7 @@ func TestPublicAgentRetryUsesDifferentAgentAfterDialFailure(t *testing.T) {
 	if len(attempts) != 2 || attempts[0] != first.AgentID || attempts[1] != second.AgentID {
 		t.Fatalf("attempted agents = %v, want [%d %d]", attempts, first.AgentID, second.AgentID)
 	}
-	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FinalAgent != second {
+	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FinalAgent != second || result.FirstFailedAgent != first {
 		t.Fatalf("retry result = %+v", result)
 	}
 }

@@ -56,6 +56,7 @@ type Querier interface {
 	DeleteProxyRequestRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteProxyRequestStatusRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeleteProxyRequestTupleRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
+	DeleteProxyRetryRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeletePublicAccessPolicy(ctx context.Context, id int64) error
 	DeletePublicAccessProvider(ctx context.Context, id int64) error
 	DeletePublicCacheEntry(ctx context.Context, keyDigest string) error
@@ -93,6 +94,7 @@ type Querier interface {
 	GetObservabilityRollupState(ctx context.Context) (ObservabilityRollupState, error)
 	GetProxyRequestRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRequestRollupSummarySinceRow, error)
 	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
+	GetProxyRetryRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRetryRollupSummarySinceRow, error)
 	GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAccessPolicy, error)
 	GetPublicAccessProvider(ctx context.Context, id int64) (PublicAccessProvider, error)
 	GetPublicCacheEntry(ctx context.Context, keyDigest string) (PublicCacheEntry, error)
@@ -135,6 +137,10 @@ type Querier interface {
 	ListProblemProxyRoutesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProblemProxyRoutesRollupsSinceRow, error)
 	ListProxyRequestRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRequestRollupMinutesSinceRow, error)
 	ListProxyRequestTupleRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRequestTupleRollupMinutesSinceRow, error)
+	ListProxyRetryErrorKindRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryErrorKindRollupsSinceRow, error)
+	ListProxyRetryFailedAgentRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryFailedAgentRollupsSinceRow, error)
+	ListProxyRetryRuleRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryRuleRollupsSinceRow, error)
+	ListProxyRetryTrendRollupsSince(ctx context.Context, arg ListProxyRetryTrendRollupsSinceParams) ([]ListProxyRetryTrendRollupsSinceRow, error)
 	ListProxyStatusClassesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusClassesRollupsSinceRow, error)
 	ListProxyStatusClassesSince(ctx context.Context, occurredAt time.Time) ([]ListProxyStatusClassesSinceRow, error)
 	ListProxyStatusCodeRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusCodeRollupsSinceRow, error)
@@ -231,6 +237,7 @@ type Querier interface {
 	UpsertProxyRequestRollupMinute(ctx context.Context, arg UpsertProxyRequestRollupMinuteParams) error
 	UpsertProxyRequestStatusRollupMinute(ctx context.Context, arg UpsertProxyRequestStatusRollupMinuteParams) error
 	UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg UpsertProxyRequestTupleRollupMinuteParams) error
+	UpsertProxyRetryRollupMinute(ctx context.Context, arg UpsertProxyRetryRollupMinuteParams) error
 	UpsertPublicCacheEntry(ctx context.Context, arg UpsertPublicCacheEntryParams) (PublicCacheEntry, error)
 	UpsertPublicCacheSettingsDefaults(ctx context.Context) (PublicCacheSetting, error)
 	UpsertPublicGeoIpSettingsDefaults(ctx context.Context) (PublicGeoIpSetting, error)

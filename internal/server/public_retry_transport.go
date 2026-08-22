@@ -54,6 +54,7 @@ func (b *retryReplayBudget) tryAcquire(size int64) (func(), bool) {
 type publicRetryAttemptResult struct {
 	Rule                *publicRetryRuleConfig
 	FinalAgent          *AgentConn
+	FirstFailedAgent    *AgentConn
 	RetryCount          int64
 	Outcome             string
 	FirstErrorKind      string
@@ -359,6 +360,7 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 		rt.result.LastErrorKind = errorKind
 		if rt.result.FirstErrorKind == "" {
 			rt.result.FirstErrorKind = errorKind
+			rt.result.FirstFailedAgent = agent
 		}
 		if shouldMarkAgentPassiveFailure(req.Context(), attemptErr) {
 			rt.app.markPublicRouteTargetAgentPassiveFailure(rt.resolution.Target.ID, agent.AgentID, attemptErr)
