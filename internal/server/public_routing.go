@@ -455,6 +455,9 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			event.RetryCount = retryResult.RetryCount
 			event.RetryOutcome = retryResult.Outcome
 			event.RetryErrorKind = retryResult.FirstErrorKind
+			if retryResult.FirstFailedAgent != nil {
+				event.RetryFailedAgentID = sql.NullInt64{Int64: retryResult.FirstFailedAgent.AgentID, Valid: true}
+			}
 		}
 		a.recordProxyRequestEvent(context.Background(), event)
 	}()

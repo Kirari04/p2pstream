@@ -120,29 +120,30 @@ type ObservabilityRollupState struct {
 }
 
 type ProxyRequestEvent struct {
-	ID             int64         `json:"id"`
-	OccurredAt     time.Time     `json:"occurred_at"`
-	StatusCode     int64         `json:"status_code"`
-	DurationMs     int64         `json:"duration_ms"`
-	ErrorKind      string        `json:"error_kind"`
-	Method         string        `json:"method"`
-	Host           string        `json:"host"`
-	PathPrefix     string        `json:"path_prefix"`
-	ListenerID     sql.NullInt64 `json:"listener_id"`
-	RouteTargetID  sql.NullInt64 `json:"route_target_id"`
-	RouteID        sql.NullInt64 `json:"route_id"`
-	WafRuleID      sql.NullInt64 `json:"waf_rule_id"`
-	WafAction      string        `json:"waf_action"`
-	AgentID        sql.NullInt64 `json:"agent_id"`
-	RequestBytes   int64         `json:"request_bytes"`
-	ResponseBytes  int64         `json:"response_bytes"`
-	CacheRuleID    sql.NullInt64 `json:"cache_rule_id"`
-	CacheStatus    string        `json:"cache_status"`
-	CacheBytes     int64         `json:"cache_bytes"`
-	RetryRuleID    sql.NullInt64 `json:"retry_rule_id"`
-	RetryCount     int64         `json:"retry_count"`
-	RetryOutcome   string        `json:"retry_outcome"`
-	RetryErrorKind string        `json:"retry_error_kind"`
+	ID                 int64         `json:"id"`
+	OccurredAt         time.Time     `json:"occurred_at"`
+	StatusCode         int64         `json:"status_code"`
+	DurationMs         int64         `json:"duration_ms"`
+	ErrorKind          string        `json:"error_kind"`
+	Method             string        `json:"method"`
+	Host               string        `json:"host"`
+	PathPrefix         string        `json:"path_prefix"`
+	ListenerID         sql.NullInt64 `json:"listener_id"`
+	RouteTargetID      sql.NullInt64 `json:"route_target_id"`
+	RouteID            sql.NullInt64 `json:"route_id"`
+	WafRuleID          sql.NullInt64 `json:"waf_rule_id"`
+	WafAction          string        `json:"waf_action"`
+	AgentID            sql.NullInt64 `json:"agent_id"`
+	RequestBytes       int64         `json:"request_bytes"`
+	ResponseBytes      int64         `json:"response_bytes"`
+	CacheRuleID        sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus        string        `json:"cache_status"`
+	CacheBytes         int64         `json:"cache_bytes"`
+	RetryRuleID        sql.NullInt64 `json:"retry_rule_id"`
+	RetryCount         int64         `json:"retry_count"`
+	RetryOutcome       string        `json:"retry_outcome"`
+	RetryErrorKind     string        `json:"retry_error_kind"`
+	RetryFailedAgentID sql.NullInt64 `json:"retry_failed_agent_id"`
 }
 
 type ProxyRequestRollupMinute struct {
@@ -201,6 +202,23 @@ type ProxyRequestTupleRollupMinute struct {
 	ResponseBytes    int64     `json:"response_bytes"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type ProxyRetryRollupMinute struct {
+	BucketUnixMillis     int64     `json:"bucket_unix_millis"`
+	RetryRuleID          int64     `json:"retry_rule_id"`
+	FailedAgentID        int64     `json:"failed_agent_id"`
+	ErrorKind            string    `json:"error_kind"`
+	MatchedRequests      int64     `json:"matched_requests"`
+	RetriedRequests      int64     `json:"retried_requests"`
+	RetryAttempts        int64     `json:"retry_attempts"`
+	RecoveredRequests    int64     `json:"recovered_requests"`
+	ExhaustedRequests    int64     `json:"exhausted_requests"`
+	SkippedRequests      int64     `json:"skipped_requests"`
+	DurationMsSum        int64     `json:"duration_ms_sum"`
+	RetriedDurationMsSum int64     `json:"retried_duration_ms_sum"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type PublicAccessPolicy struct {

@@ -47,19 +47,38 @@ LIMIT 1;
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
     status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
-    retry_rule_id, retry_count, retry_outcome, retry_error_kind
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
     occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
-    retry_rule_id, retry_count, retry_outcome, retry_error_kind
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id;
+
+-- name: UpsertProxyRetryRollupMinute :exec
+INSERT INTO proxy_retry_rollup_minutes (
+    bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind,
+    matched_requests, retried_requests, retry_attempts, recovered_requests,
+    exhausted_requests, skipped_requests, duration_ms_sum, retried_duration_ms_sum
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind) DO UPDATE SET
+    matched_requests = proxy_retry_rollup_minutes.matched_requests + excluded.matched_requests,
+    retried_requests = proxy_retry_rollup_minutes.retried_requests + excluded.retried_requests,
+    retry_attempts = proxy_retry_rollup_minutes.retry_attempts + excluded.retry_attempts,
+    recovered_requests = proxy_retry_rollup_minutes.recovered_requests + excluded.recovered_requests,
+    exhausted_requests = proxy_retry_rollup_minutes.exhausted_requests + excluded.exhausted_requests,
+    skipped_requests = proxy_retry_rollup_minutes.skipped_requests + excluded.skipped_requests,
+    duration_ms_sum = proxy_retry_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    retried_duration_ms_sum = proxy_retry_rollup_minutes.retried_duration_ms_sum + excluded.retried_duration_ms_sum,
+    updated_at = CURRENT_TIMESTAMP;
 
 -- name: UpsertProxyRequestRollupMinute :exec
 INSERT INTO proxy_request_rollup_minutes (
@@ -681,6 +700,82 @@ FROM proxy_request_tuple_rollup_minutes
 WHERE bucket_unix_millis >= ?
 ORDER BY bucket_unix_millis ASC;
 
+-- name: GetProxyRetryRollupSummarySince :one
+SELECT
+    CAST(COALESCE(SUM(matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(skipped_requests), 0) AS INTEGER) AS skipped_requests,
+    CAST(CASE WHEN COALESCE(SUM(matched_requests), 0) > 0 THEN COALESCE(SUM(duration_ms_sum), 0) / SUM(matched_requests) ELSE 0 END AS INTEGER) AS avg_matched_duration_ms,
+    CAST(CASE WHEN COALESCE(SUM(retried_requests), 0) > 0 THEN COALESCE(SUM(retried_duration_ms_sum), 0) / SUM(retried_requests) ELSE 0 END AS INTEGER) AS avg_retried_duration_ms
+FROM proxy_retry_rollup_minutes
+WHERE bucket_unix_millis >= ?;
+
+-- name: ListProxyRetryTrendRollupsSince :many
+SELECT
+    CAST((bucket_unix_millis / (CAST(sqlc.arg(bucket_seconds) AS INTEGER) * 1000)) * (CAST(sqlc.arg(bucket_seconds) AS INTEGER) * 1000) AS INTEGER) AS bucket_unix_millis,
+    CAST(COALESCE(SUM(matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes
+WHERE bucket_unix_millis >= sqlc.arg(since_unix_millis)
+GROUP BY 1
+ORDER BY bucket_unix_millis ASC;
+
+-- name: ListProxyRetryRuleRollupsSince :many
+SELECT
+    r.retry_rule_id AS id,
+    COALESCE(prr.name, 'deleted rule #' || r.retry_rule_id) AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(r.retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests,
+    CAST(CASE WHEN COALESCE(SUM(r.retried_requests), 0) > 0 THEN COALESCE(SUM(r.retried_duration_ms_sum), 0) / SUM(r.retried_requests) ELSE 0 END AS INTEGER) AS avg_retried_duration_ms
+FROM proxy_retry_rollup_minutes r
+LEFT JOIN public_retry_rules prr ON prr.id = r.retry_rule_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.retry_rule_id, prr.name
+ORDER BY retried_requests DESC, exhausted_requests DESC, matched_requests DESC, id ASC;
+
+-- name: ListProxyRetryFailedAgentRollupsSince :many
+SELECT
+    r.failed_agent_id AS id,
+    COALESCE(a.name, 'deleted agent #' || r.failed_agent_id) AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS affected_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes r
+LEFT JOIN agents a ON a.id = r.failed_agent_id
+WHERE r.bucket_unix_millis >= ?
+  AND r.failed_agent_id != 0
+GROUP BY r.failed_agent_id, a.name
+ORDER BY affected_requests DESC, exhausted_requests DESC, retry_attempts DESC, id ASC
+LIMIT 10;
+
+-- name: ListProxyRetryErrorKindRollupsSince :many
+SELECT
+    r.error_kind AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS affected_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes r
+WHERE r.bucket_unix_millis >= ?
+  AND r.error_kind != ''
+GROUP BY r.error_kind
+ORDER BY affected_requests DESC, exhausted_requests DESC, retry_attempts DESC, label ASC
+LIMIT 10;
+
 -- name: ListRecentProxyProblemSamplesSince :many
 SELECT
     pre.occurred_at,
@@ -706,12 +801,14 @@ SELECT
     pre.retry_rule_id,
     pre.retry_count,
     pre.retry_outcome,
-    pre.retry_error_kind
+    pre.retry_error_kind,
+    COALESCE(failed_agent.name, CASE WHEN pre.retry_failed_agent_id IS NULL THEN '' ELSE 'deleted agent #' || pre.retry_failed_agent_id END) AS retry_failed_agent_label
 FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
 LEFT JOIN public_routes pr ON pr.id = pre.route_id
 LEFT JOIN public_route_targets prt ON prt.id = pre.route_target_id
 LEFT JOIN agents a ON a.id = pre.agent_id
+LEFT JOIN agents failed_agent ON failed_agent.id = pre.retry_failed_agent_id
 WHERE pre.occurred_at >= sqlc.arg(since)
   AND (pre.status_code >= 400 OR pre.error_kind != '' OR pre.retry_count > 0)
 ORDER BY pre.occurred_at DESC, pre.id DESC
@@ -954,6 +1051,10 @@ WHERE bucket_unix_millis < ?;
 
 -- name: DeleteProxyRequestStatusRollupsBefore :exec
 DELETE FROM proxy_request_status_rollup_minutes
+WHERE bucket_unix_millis < ?;
+
+-- name: DeleteProxyRetryRollupsBefore :exec
+DELETE FROM proxy_retry_rollup_minutes
 WHERE bucket_unix_millis < ?;
 
 -- name: DeleteAgentStatRollupsBefore :exec
