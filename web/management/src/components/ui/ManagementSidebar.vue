@@ -46,6 +46,7 @@ const icons: Record<string, Component> = {
   tls: TlsIcon,
   environments: EnvironmentIcon,
   "api-tokens": TokenIcon,
+  "management-tls": TlsIcon,
 };
 
 function itemIcon(item: ManagementNavigationItem): Component {

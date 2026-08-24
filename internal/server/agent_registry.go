@@ -457,6 +457,12 @@ func (a *App) agentToProtoWithLatestStats(ctx context.Context, agent db.Agent, u
 		LastConnectedAtUnixMillis:    nullTimeUnixMillis(agent.LastConnectedAt),
 		LastDisconnectedAtUnixMillis: nullTimeUnixMillis(agent.LastDisconnectedAt),
 		Labels:                       map[string]string{},
+		Version:                      agent.AgentVersion,
+		Commit:                       agent.AgentCommit,
+	}
+	if build, ok := a.latestAgentBuildSnapshot(agent.ID); ok {
+		resp.Version = build.Version
+		resp.Commit = build.Commit
 	}
 	if a.DB != nil {
 		labels, err := a.DB.ListAgentLabelsByAgent(ctx, agent.ID)

@@ -40,6 +40,7 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 	totals := make(map[int64]db.UpsertProxyRequestRollupMinuteParams)
 	tuples := make(map[proxyRequestTupleRollupKey]db.UpsertProxyRequestTupleRollupMinuteParams)
 	statuses := make(map[proxyRequestStatusRollupKey]db.UpsertProxyRequestStatusRollupMinuteParams)
+	retries := make(map[proxyRetryRollupKey]db.UpsertProxyRetryRollupMinuteParams)
 	for _, event := range events {
 		if _, err := qtx.InsertProxyRequestEventAt(ctx, event); err != nil {
 			return err
@@ -48,6 +49,9 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 		mergeProxyRequestRollup(totals, total)
 		mergeProxyRequestTupleRollup(tuples, tuple)
 		mergeProxyRequestStatusRollup(statuses, status)
+		if retry, ok := proxyRetryRollupParams(event); ok {
+			mergeProxyRetryRollup(retries, retry)
+		}
 	}
 	for _, total := range totals {
 		if err := qtx.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
@@ -61,6 +65,11 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 	}
 	for _, status := range statuses {
 		if err := qtx.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
+			return err
+		}
+	}
+	for _, retry := range retries {
+		if err := qtx.UpsertProxyRetryRollupMinute(ctx, retry); err != nil {
 			return err
 		}
 	}
@@ -88,6 +97,13 @@ type proxyRequestTupleRollupKey struct {
 type proxyRequestStatusRollupKey struct {
 	BucketUnixMillis int64
 	StatusCode       int64
+}
+
+type proxyRetryRollupKey struct {
+	BucketUnixMillis int64
+	RetryRuleID      int64
+	FailedAgentID    int64
+	ErrorKind        string
 }
 
 func mergeProxyRequestRollup(totals map[int64]db.UpsertProxyRequestRollupMinuteParams, next db.UpsertProxyRequestRollupMinuteParams) {
@@ -163,6 +179,29 @@ func mergeProxyRequestStatusRollup(statuses map[proxyRequestStatusRollupKey]db.U
 	current.RequestBytes += next.RequestBytes
 	current.ResponseBytes += next.ResponseBytes
 	statuses[key] = current
+}
+
+func mergeProxyRetryRollup(retries map[proxyRetryRollupKey]db.UpsertProxyRetryRollupMinuteParams, next db.UpsertProxyRetryRollupMinuteParams) {
+	key := proxyRetryRollupKey{
+		BucketUnixMillis: next.BucketUnixMillis,
+		RetryRuleID:      next.RetryRuleID,
+		FailedAgentID:    next.FailedAgentID,
+		ErrorKind:        next.ErrorKind,
+	}
+	current, ok := retries[key]
+	if !ok {
+		retries[key] = next
+		return
+	}
+	current.MatchedRequests += next.MatchedRequests
+	current.RetriedRequests += next.RetriedRequests
+	current.RetryAttempts += next.RetryAttempts
+	current.RecoveredRequests += next.RecoveredRequests
+	current.ExhaustedRequests += next.ExhaustedRequests
+	current.SkippedRequests += next.SkippedRequests
+	current.DurationMsSum += next.DurationMsSum
+	current.RetriedDurationMsSum += next.RetriedDurationMsSum
+	retries[key] = current
 }
 
 func (a *App) insertAgentStatWithRollup(ctx context.Context, stat db.InsertAgentStatAtParams) error {
@@ -271,6 +310,31 @@ func proxyRequestRollupParams(event db.InsertProxyRequestEventAtParams) (db.Upse
 		ResponseBytes:    event.ResponseBytes,
 	}
 	return total, tuple, status
+}
+
+func proxyRetryRollupParams(event db.InsertProxyRequestEventAtParams) (db.UpsertProxyRetryRollupMinuteParams, bool) {
+	if !event.RetryRuleID.Valid {
+		return db.UpsertProxyRetryRollupMinuteParams{}, false
+	}
+	retried := int64Bool(event.RetryCount > 0)
+	retriedDuration := int64(0)
+	if retried != 0 {
+		retriedDuration = event.DurationMs
+	}
+	return db.UpsertProxyRetryRollupMinuteParams{
+		BucketUnixMillis:     rollupBucketUnixMillis(event.OccurredAt),
+		RetryRuleID:          event.RetryRuleID.Int64,
+		FailedAgentID:        nullInt64Value(event.RetryFailedAgentID),
+		ErrorKind:            event.RetryErrorKind,
+		MatchedRequests:      1,
+		RetriedRequests:      retried,
+		RetryAttempts:        event.RetryCount,
+		RecoveredRequests:    int64Bool(event.RetryOutcome == publicRetryOutcomeRecovered),
+		ExhaustedRequests:    int64Bool(event.RetryOutcome == publicRetryOutcomeExhausted),
+		SkippedRequests:      int64Bool(event.RetryOutcome == publicRetryOutcomeSkipped),
+		DurationMsSum:        event.DurationMs,
+		RetriedDurationMsSum: retriedDuration,
+	}, true
 }
 
 func (a *App) observabilityRollupsReady(ctx context.Context) (bool, error) {

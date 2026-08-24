@@ -20,8 +20,9 @@ Policy match timing depends on the feature using the matcher:
 | Rate limits | After WAF, before traffic shaping and route resolution. |
 | Traffic shapers | After WAF and rate limits, before route/target forwarding. |
 | Cache | After route/target selection, before upstream forwarding. |
+| Retries | After route/target selection and a cache miss, before agent upstream attempts. |
 
-Cache `route_ids` and `target_ids` are separate post-routing filters. They are not CEL variables.
+Cache and retry `route_ids` and `target_ids` are separate post-routing filters. They are not CEL variables.
 
 ## API Shape
 

@@ -133,6 +133,18 @@ test("protects an uncopied one-time agent setup command", async ({ page, context
   await expect(advancedSetup).not.toHaveAttribute("open", "");
   await expect(page.getByLabel("GitHub Repository")).not.toBeVisible();
 
+  await page.setViewportSize({ width: 962, height: 700 });
+  await advancedSetup.click();
+  await expect(page.getByLabel("GitHub Repository")).toBeVisible();
+  const setupScroller = page.locator(".n-modal.n-card > .n-card-content");
+  await expect(setupScroller).toBeVisible();
+  const setupScrollRange = await setupScroller.evaluate((element) => element.scrollHeight - element.clientHeight);
+  expect(setupScrollRange).toBeGreaterThan(0);
+  await setupScroller.hover();
+  await page.mouse.wheel(0, 900);
+  await expect.poll(() => setupScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(page.getByRole("button", { name: "Copy install command", exact: true })).toBeVisible();
+
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByText("Close Without Copying?", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();

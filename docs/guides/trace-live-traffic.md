@@ -55,7 +55,7 @@ Common stages include received, WAF evaluated, rate limited, route resolved, tar
 
 ## Verification
 
-A matching request should appear in **Recent traces** shortly after you reproduce it, while its activity is reflected in **Traffic Flow**. Cache is shown as a decision gateway after target selection: hits exit to response, while misses and bypasses continue to the direct upstream or selected agent.
+A matching request should appear in **Recent traces** shortly after you reproduce it, while its activity is reflected in **Traffic Flow**. Cache is shown as a decision gateway after target selection: hits exit to response, while misses and bypasses continue to the direct upstream or selected agent. Agent failover emits an **Upstream retry** stage and the trace details show the retry rule, attempt count, and final outcome.
 
 ## Troubleshooting
 
@@ -70,3 +70,4 @@ A matching request should appear in **Recent traces** shortly after you reproduc
 - [Observability](../concepts/observability)
 - [Troubleshooting](../operations/troubleshooting)
 - [Cache reference](../reference/cache)
+- [Request retries](../concepts/request-retries)

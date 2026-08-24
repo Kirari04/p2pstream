@@ -1,10 +1,15 @@
 package agent
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -26,6 +32,7 @@ import (
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
+	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
@@ -67,6 +74,7 @@ type Options struct {
 	Token                       string
 	ManagementCAFile            string
 	ManagementCAPEMBase64       string
+	ManagementTrustFile         string
 	TLSCertFile                 string
 	TLSKeyFile                  string
 	AllowInsecureManagement     bool
@@ -93,7 +101,11 @@ func RunContext(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
-	managementClient, err := managementHTTPClient(opts)
+	trustStore, err := newManagementTrustStore(opts)
+	if err != nil {
+		return err
+	}
+	managementClient, err := managementHTTPClientWithTrust(opts, trustStore)
 	if err != nil {
 		return err
 	}
@@ -112,7 +124,7 @@ func RunContext(ctx context.Context, opts Options) error {
 	statsDone := make(chan struct{})
 	go func() {
 		defer close(statsDone)
-		startStatsReporter(runCtx, managementClient, opts.ManagementURL, opts.PublicID, opts.Token)
+		startStatsReporter(runCtx, managementClient, opts.ManagementURL, opts.PublicID, opts.Token, trustStore)
 	}()
 	defer func() {
 		cancel()
@@ -232,11 +244,394 @@ func managementTunnelURL(mgmtURL string) (string, error) {
 }
 
 func managementHTTPClient(opts Options) (*http.Client, error) {
+	trustStore, err := newManagementTrustStore(opts)
+	if err != nil {
+		return nil, err
+	}
+	return managementHTTPClientWithTrust(opts, trustStore)
+}
+
+type managementTrustDiskState struct {
+	Generation uint64 `json:"generation"`
+	SHA256     string `json:"sha256"`
+}
+
+type managementTrustStore struct {
+	mu             sync.RWMutex
+	managementHost string
+	allowUpdates   bool
+	persistFile    string
+	bundlePEM      string
+	status         p2pstreamv1.ManagementTrustStatus
+	roots          atomic.Pointer[x509.CertPool]
+	transportsMu   sync.Mutex
+	transports     []*http.Transport
+}
+
+func newManagementTrustStore(opts Options) (*managementTrustStore, error) {
+	parsed, err := url.Parse(strings.TrimSpace(opts.ManagementURL))
+	if err != nil {
+		return nil, fmt.Errorf("parse management URL for trust store: %w", err)
+	}
+	store := &managementTrustStore{
+		managementHost: parsed.Hostname(),
+		allowUpdates:   parsed.Scheme == "https",
+		persistFile:    strings.TrimSpace(opts.ManagementTrustFile),
+		status: p2pstreamv1.ManagementTrustStatus{
+			State:        p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_READY,
+			AgentVersion: buildinfo.Version,
+			Capabilities: []string{"management-trust-v1"},
+		},
+	}
+	if !store.allowUpdates {
+		store.status.State = p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_UNSUPPORTED
+		store.status.Capabilities = nil
+	}
+	var bundles []string
+	if caFile := strings.TrimSpace(opts.ManagementCAFile); caFile != "" {
+		raw, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("read management CA file: %w", err)
+		}
+		bundles = append(bundles, string(raw))
+	}
+	if caBase64 := strings.TrimSpace(opts.ManagementCAPEMBase64); caBase64 != "" {
+		raw, err := base64.StdEncoding.DecodeString(caBase64)
+		if err != nil {
+			raw, err = base64.RawStdEncoding.DecodeString(caBase64)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode MANAGEMENT_CA_PEM_BASE64: %w", err)
+		}
+		bundles = append(bundles, string(raw))
+	}
+	if store.persistFile != "" {
+		if raw, err := os.ReadFile(store.persistFile); err == nil {
+			bundles = []string{string(raw)}
+			var disk managementTrustDiskState
+			if stateRaw, stateErr := os.ReadFile(store.persistFile + ".state.json"); stateErr == nil && json.Unmarshal(stateRaw, &disk) == nil {
+				store.status.InstalledGeneration = disk.Generation
+				store.status.InstalledBundleSha256 = disk.SHA256
+			}
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("read durable management trust bundle: %w", err)
+		}
+	}
+	validatedBundles := make([]string, 0, len(bundles))
+	for _, bundle := range bundles {
+		if strings.TrimSpace(bundle) == "" {
+			continue
+		}
+		normalized, err := validateAgentCABundle(bundle)
+		if err != nil {
+			return nil, err
+		}
+		validatedBundles = append(validatedBundles, normalized)
+	}
+	store.bundlePEM = normalizeAgentCertificateBundle(validatedBundles...)
+	roots, err := managementRootPool(store.bundlePEM)
+	if err != nil {
+		return nil, err
+	}
+	store.roots.Store(roots)
+	if store.bundlePEM != "" {
+		digest := sha256.Sum256([]byte(store.bundlePEM))
+		actual := hex.EncodeToString(digest[:])
+		if store.status.InstalledBundleSha256 == "" || store.status.InstalledBundleSha256 != actual {
+			store.status.InstalledGeneration = 0
+			store.status.InstalledBundleSha256 = actual
+		}
+	} else {
+		store.status.InstalledGeneration = 0
+		store.status.InstalledBundleSha256 = ""
+	}
+	return store, nil
+}
+
+func normalizeAgentCertificateBundle(bundles ...string) string {
+	seen := make(map[string]struct{})
+	var result strings.Builder
+	for _, bundle := range bundles {
+		rest := []byte(bundle)
+		for {
+			block, remaining := pem.Decode(rest)
+			if block == nil {
+				break
+			}
+			rest = remaining
+			if block.Type != "CERTIFICATE" {
+				continue
+			}
+			digest := sha256.Sum256(block.Bytes)
+			key := hex.EncodeToString(digest[:])
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			result.Write(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: block.Bytes}))
+		}
+	}
+	return result.String()
+}
+
+func validateAgentCABundle(bundle string) (string, error) {
+	rest := []byte(bundle)
+	var normalized strings.Builder
+	found := false
+	for len(bytes.TrimSpace(rest)) > 0 {
+		rest = bytes.TrimSpace(rest)
+		if !bytes.HasPrefix(rest, []byte("-----BEGIN CERTIFICATE-----")) {
+			return "", errors.New("management trust bundle contains data other than PEM certificates")
+		}
+		block, remaining := pem.Decode(rest)
+		if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+			return "", errors.New("management trust bundle contains an invalid PEM certificate block")
+		}
+		rest = remaining
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return "", fmt.Errorf("parse management CA certificate: %w", err)
+		}
+		if !cert.IsCA {
+			return "", fmt.Errorf("management trust certificate %q is not a CA", cert.Subject.String())
+		}
+		found = true
+		normalized.Write(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: block.Bytes}))
+	}
+	if !found {
+		return "", errors.New("management trust bundle contains no PEM certificates")
+	}
+	return normalizeAgentCertificateBundle(normalized.String()), nil
+}
+
+func managementRootPool(customPEM string) (*x509.CertPool, error) {
+	roots, err := x509.SystemCertPool()
+	if err != nil {
+		roots = x509.NewCertPool()
+	}
+	if customPEM != "" && !roots.AppendCertsFromPEM([]byte(customPEM)) {
+		return nil, errors.New("management trust bundle contains no PEM certificates")
+	}
+	return roots, nil
+}
+
+func (s *managementTrustStore) verifyConnection(state tls.ConnectionState) error {
+	if len(state.PeerCertificates) == 0 {
+		return errors.New("management server presented no certificate")
+	}
+	roots := s.roots.Load()
+	if roots == nil {
+		return errors.New("management trust roots are unavailable")
+	}
+	intermediates := x509.NewCertPool()
+	for _, cert := range state.PeerCertificates[1:] {
+		intermediates.AddCert(cert)
+	}
+	_, err := state.PeerCertificates[0].Verify(x509.VerifyOptions{
+		Roots: roots, Intermediates: intermediates, DNSName: s.managementHost,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	})
+	return err
+}
+
+func (s *managementTrustStore) registerTransport(transport *http.Transport) {
+	if s == nil || transport == nil {
+		return
+	}
+	s.transportsMu.Lock()
+	s.transports = append(s.transports, transport)
+	s.transportsMu.Unlock()
+}
+
+func (s *managementTrustStore) closeIdleConnections() {
+	s.transportsMu.Lock()
+	transports := append([]*http.Transport(nil), s.transports...)
+	s.transportsMu.Unlock()
+	for _, transport := range transports {
+		transport.CloseIdleConnections()
+	}
+}
+
+func (s *managementTrustStore) snapshot() *p2pstreamv1.ManagementTrustStatus {
+	if s == nil {
+		return &p2pstreamv1.ManagementTrustStatus{State: p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_UNSUPPORTED}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return &p2pstreamv1.ManagementTrustStatus{
+		InstalledGeneration:   s.status.InstalledGeneration,
+		InstalledBundleSha256: s.status.InstalledBundleSha256,
+		State:                 s.status.State,
+		ErrorCode:             s.status.ErrorCode,
+		ErrorDetail:           s.status.ErrorDetail,
+		AgentVersion:          s.status.AgentVersion,
+		Capabilities:          append([]string(nil), s.status.Capabilities...),
+	}
+}
+
+func (s *managementTrustStore) fail(code p2pstreamv1.ManagementTrustErrorCode, err error) error {
+	s.mu.Lock()
+	s.status.State = p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_FAILED
+	s.status.ErrorCode = code
+	s.status.ErrorDetail = err.Error()
+	s.mu.Unlock()
+	return err
+}
+
+func (s *managementTrustStore) apply(update *p2pstreamv1.ManagementTrustUpdate) error {
+	if s == nil || update == nil {
+		return nil
+	}
+	if !s.allowUpdates {
+		return errors.New("management trust updates require an authenticated HTTPS management connection")
+	}
+	s.mu.RLock()
+	alreadyInstalled := s.status.State == p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_READY && s.status.InstalledGeneration == update.Generation && s.status.InstalledBundleSha256 == update.BundleSha256
+	installedGeneration := s.status.InstalledGeneration
+	installedDigest := s.status.InstalledBundleSha256
+	s.mu.RUnlock()
+	if alreadyInstalled {
+		return nil
+	}
+	if update.Generation < installedGeneration {
+		if strings.TrimSpace(update.BundleSha256) == installedDigest {
+			return nil
+		}
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, fmt.Errorf("management trust update generation %d is older than installed generation %d", update.Generation, installedGeneration))
+	}
+	if update.Generation == 0 || strings.TrimSpace(update.CaBundlePem) == "" || strings.TrimSpace(update.ServerCertificatePem) == "" {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, errors.New("management trust update is incomplete"))
+	}
+	normalized, err := validateAgentCABundle(update.CaBundlePem)
+	if err != nil {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, err)
+	}
+	digest := sha256.Sum256([]byte(normalized))
+	digestHex := hex.EncodeToString(digest[:])
+	if digestHex != strings.TrimSpace(update.BundleSha256) {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, errors.New("management trust bundle digest does not match the authenticated server response"))
+	}
+	rootOnly := x509.NewCertPool()
+	if !rootOnly.AppendCertsFromPEM([]byte(normalized)) {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, errors.New("management trust update contains no parseable CA certificates"))
+	}
+	certBlock, rest := pem.Decode([]byte(update.ServerCertificatePem))
+	if certBlock == nil || certBlock.Type != "CERTIFICATE" {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, errors.New("management trust update contains no server certificate"))
+	}
+	leaf, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, fmt.Errorf("parse management server certificate: %w", err))
+	}
+	intermediates := x509.NewCertPool()
+	for {
+		block, remaining := pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		rest = remaining
+		if block.Type == "CERTIFICATE" {
+			if cert, parseErr := x509.ParseCertificate(block.Bytes); parseErr == nil {
+				intermediates.AddCert(cert)
+			}
+		}
+	}
+	if err := leaf.VerifyHostname(s.managementHost); err != nil {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_HOSTNAME_MISMATCH, fmt.Errorf("new management certificate cannot be verified for %q: %w", s.managementHost, err))
+	}
+	if _, err := leaf.Verify(x509.VerifyOptions{Roots: rootOnly, Intermediates: intermediates, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}); err != nil {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_INVALID_BUNDLE, fmt.Errorf("new management certificate does not verify with the supplied CA bundle: %w", err))
+	}
+	if strings.TrimSpace(s.persistFile) == "" {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_PERSIST_FAILED, errors.New("agent has no writable MANAGEMENT_TRUST_FILE; reinstall or repair this agent before activation"))
+	}
+	if err := atomicWriteAgentTrustFile(s.persistFile, []byte(normalized), 0644); err != nil {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_PERSIST_FAILED, fmt.Errorf("persist management trust bundle: %w", err))
+	}
+	diskRaw, _ := json.Marshal(managementTrustDiskState{Generation: update.Generation, SHA256: digestHex})
+	if err := atomicWriteAgentTrustFile(s.persistFile+".state.json", diskRaw, 0600); err != nil {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_PERSIST_FAILED, fmt.Errorf("persist management trust generation: %w", err))
+	}
+	readback, err := os.ReadFile(s.persistFile)
+	readbackNormalized := ""
+	if err == nil {
+		readbackNormalized, err = validateAgentCABundle(string(readback))
+	}
+	if err != nil || readbackNormalized != normalized {
+		if err == nil {
+			err = errors.New("durable trust readback differs from requested bundle")
+		}
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_RELOAD_FAILED, err)
+	}
+	stateReadback, err := os.ReadFile(s.persistFile + ".state.json")
+	var persistedState managementTrustDiskState
+	if err != nil || json.Unmarshal(stateReadback, &persistedState) != nil || persistedState.Generation != update.Generation || persistedState.SHA256 != digestHex {
+		if err == nil {
+			err = errors.New("durable trust generation readback differs from requested update")
+		}
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_RELOAD_FAILED, err)
+	}
+	roots, err := managementRootPool(normalized)
+	if err != nil {
+		return s.fail(p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_RELOAD_FAILED, err)
+	}
+	s.roots.Store(roots)
+	s.mu.Lock()
+	s.bundlePEM = normalized
+	s.status.InstalledGeneration = update.Generation
+	s.status.InstalledBundleSha256 = digestHex
+	s.status.State = p2pstreamv1.ManagementTrustInstallState_MANAGEMENT_TRUST_INSTALL_STATE_READY
+	s.status.ErrorCode = p2pstreamv1.ManagementTrustErrorCode_MANAGEMENT_TRUST_ERROR_CODE_UNSPECIFIED
+	s.status.ErrorDetail = ""
+	s.mu.Unlock()
+	s.closeIdleConnections()
+	return nil
+}
+
+func atomicWriteAgentTrustFile(path string, contents []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, ".management-trust-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(mode); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(contents); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	directory, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
+}
+
+func managementHTTPClientWithTrust(opts Options, trustStore *managementTrustStore) (*http.Client, error) {
 	if err := validateOptions(opts); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(opts.ManagementCAFile) == "" &&
-		strings.TrimSpace(opts.ManagementCAPEMBase64) == "" &&
+	parsedManagementURL, _ := url.Parse(strings.TrimSpace(opts.ManagementURL))
+	if parsedManagementURL.Scheme != "https" && strings.TrimSpace(opts.ManagementCAFile) == "" &&
+		strings.TrimSpace(opts.ManagementCAPEMBase64) == "" && strings.TrimSpace(opts.ManagementTrustFile) == "" &&
 		strings.TrimSpace(opts.TLSCertFile) == "" &&
 		strings.TrimSpace(opts.TLSKeyFile) == "" {
 		return http.DefaultClient, nil
@@ -248,42 +643,12 @@ func managementHTTPClient(opts Options) (*http.Client, error) {
 	}
 	transport := baseTransport.Clone()
 	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
-
-	if caFile := strings.TrimSpace(opts.ManagementCAFile); caFile != "" {
-		rootCAs, err := x509.SystemCertPool()
-		if err != nil {
-			rootCAs = x509.NewCertPool()
-		}
-		caPEM, err := os.ReadFile(caFile)
-		if err != nil {
-			return nil, fmt.Errorf("read management CA file: %w", err)
-		}
-		if !rootCAs.AppendCertsFromPEM(caPEM) {
-			return nil, fmt.Errorf("no PEM certificates found in management CA file %q", caFile)
-		}
-		tlsConfig.RootCAs = rootCAs
-	}
-
-	if caBase64 := strings.TrimSpace(opts.ManagementCAPEMBase64); caBase64 != "" {
-		rootCAs := tlsConfig.RootCAs
-		if rootCAs == nil {
-			var err error
-			rootCAs, err = x509.SystemCertPool()
-			if err != nil {
-				rootCAs = x509.NewCertPool()
-			}
-		}
-		caPEM, err := base64.StdEncoding.DecodeString(caBase64)
-		if err != nil {
-			caPEM, err = base64.RawStdEncoding.DecodeString(caBase64)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("decode MANAGEMENT_CA_PEM_BASE64: %w", err)
-		}
-		if !rootCAs.AppendCertsFromPEM(caPEM) {
-			return nil, fmt.Errorf("MANAGEMENT_CA_PEM_BASE64 did not contain PEM certificates")
-		}
-		tlsConfig.RootCAs = rootCAs
+	if parsedManagementURL.Scheme == "https" && trustStore != nil {
+		// Verification is performed in VerifyConnection against an atomically
+		// replaceable root pool. This is equivalent to the standard verifier but
+		// permits a running agent to durably reload a staged CA bundle.
+		tlsConfig.InsecureSkipVerify = true //nolint:gosec -- full verification below
+		tlsConfig.VerifyConnection = trustStore.verifyConnection
 	}
 
 	if certFile := strings.TrimSpace(opts.TLSCertFile); certFile != "" {
@@ -295,6 +660,7 @@ func managementHTTPClient(opts Options) (*http.Client, error) {
 	}
 
 	transport.TLSClientConfig = tlsConfig
+	trustStore.registerTransport(transport)
 	return &http.Client{Transport: transport}, nil
 }
 
@@ -662,7 +1028,7 @@ func isTimeoutError(err error) bool {
 	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
-func startStatsReporter(ctx context.Context, httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string) {
+func startStatsReporter(ctx context.Context, httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string, trustStores ...*managementTrustStore) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -671,10 +1037,10 @@ func startStatsReporter(ctx context.Context, httpClient *http.Client, mgmtURL st
 		mgmtURL,
 		connect.WithGRPC(), // We can use gRPC or Connect protocol, let's use default Connect or GRPC
 	)
-	runStatsReporter(ctx, client, agentPublicID, agentToken, sysmetrics.NewProcessCPUSampler())
+	runStatsReporter(ctx, client, agentPublicID, agentToken, sysmetrics.NewProcessCPUSampler(), trustStores...)
 }
 
-func runStatsReporter(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler) {
+func runStatsReporter(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStores ...*managementTrustStore) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -691,21 +1057,25 @@ func runStatsReporter(ctx context.Context, client agentStatsReportClient, agentP
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := reportAgentStats(ctx, client, agentPublicID, agentToken, cpuSampler); err != nil && ctx.Err() == nil {
+			if err := reportAgentStats(ctx, client, agentPublicID, agentToken, cpuSampler, trustStores...); err != nil && ctx.Err() == nil {
 				log.Debug().Err(err).Msg("Failed to report stats")
 			}
 		}
 	}
 }
 
-func reportAgentStats(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler) error {
+func reportAgentStats(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStores ...*managementTrustStore) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	req := buildAgentStatsRequest(agentPublicID, cpuSampler)
+	var trustStore *managementTrustStore
+	if len(trustStores) > 0 {
+		trustStore = trustStores[0]
+	}
+	req := buildAgentStatsRequest(agentPublicID, cpuSampler, trustStore)
 
 	connectReq := connect.NewRequest(req)
 	connectReq.Header().Set("Authorization", "Bearer "+agentToken)
@@ -717,11 +1087,19 @@ func reportAgentStats(ctx context.Context, client agentStatsReportClient, agentP
 	}
 	defer cancel()
 
-	_, err := client.ReportStats(reportCtx, connectReq)
-	return err
+	response, err := client.ReportStats(reportCtx, connectReq)
+	if err != nil {
+		return err
+	}
+	if trustStore != nil && response != nil && response.Msg != nil && response.Msg.ManagementTrustUpdate != nil {
+		if err := trustStore.apply(response.Msg.ManagementTrustUpdate); err != nil {
+			log.Warn().Err(err).Uint64("generation", response.Msg.ManagementTrustUpdate.Generation).Msg("Rejected management trust update")
+		}
+	}
+	return nil
 }
 
-func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.ProcessCPUSampler) *p2pstreamv1.AgentStatsRequest {
+func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStores ...*managementTrustStore) *p2pstreamv1.AgentStatsRequest {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 	cpuPercent := 0.0
@@ -731,7 +1109,7 @@ func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.Process
 		}
 	}
 
-	return &p2pstreamv1.AgentStatsRequest{
+	request := &p2pstreamv1.AgentStatsRequest{
 		MemorySysMb:      agentStatsMemorySysMB(mem),
 		NumGoroutine:     int64(runtime.NumGoroutine()),
 		CpuPercent:       cpuPercent,
@@ -743,7 +1121,13 @@ func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.Process
 		BytesReceived:    bytesReceived.Swap(0),
 		BytesSent:        bytesSent.Swap(0),
 		AgentPublicId:    agentPublicID,
+		AgentVersion:     buildinfo.Version,
+		AgentCommit:      buildinfo.Commit,
 	}
+	if len(trustStores) > 0 && trustStores[0] != nil {
+		request.ManagementTrustStatus = trustStores[0].snapshot()
+	}
+	return request
 }
 
 func agentStatsMemorySysMB(mem runtime.MemStats) int64 {

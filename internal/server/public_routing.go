@@ -150,6 +150,7 @@ type publicRouteConfig struct {
 	RedirectPreservePathSuffix bool
 	RedirectPreserveQuery      bool
 	PathSecurityMode           string
+	AccessPolicyID             int64
 	Enabled                    bool
 }
 
@@ -166,6 +167,9 @@ type publicTLSCertificateConfig struct {
 }
 
 type publicProxySnapshot struct {
+	AccessProviders     map[int64]publicAccessProviderConfig
+	AccessPolicies      map[int64]publicAccessPolicyConfig
+	AccessHeaderNames   []string
 	RouteTargets        map[int64]publicRouteTargetConfig
 	Agents              map[int64]publicAgentConfig
 	Listeners           map[int64]publicListenerConfig
@@ -178,12 +182,14 @@ type publicProxySnapshot struct {
 	WafCookieSecret     []byte
 	CacheSettings       publicCacheSettingsConfig
 	CacheRules          []publicCacheRuleConfig
+	RetryRules          []publicRetryRuleConfig
 	CacheFingerprint    string
 	ResponseTemplates   map[int64]publicResponseTemplateConfig
 	ClientIdentity      *ClientIdentityResolver
 }
 
 type publicRouteResolution struct {
+	Snapshot                            *publicProxySnapshot
 	Target                              publicRouteTargetConfig
 	Agent                               *AgentConn
 	Listener                            publicListenerConfig
@@ -216,6 +222,10 @@ type publicRouteResolution struct {
 	CacheKeyDigest                      string
 	RouteLoadBalancing                  string
 	RouteFallbackSelected               bool
+	RetryRuleID                         int64
+	RetryRuleName                       string
+	RetryCount                          int64
+	RetryOutcome                        string
 }
 
 type publicRouteMatch struct {
@@ -409,35 +419,47 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	errorKind := ""
 	handler := "direct"
 	var selectedAgentID sql.NullInt64
+	var retryResult *publicRetryAttemptResult
 	if resolution.Target.Transport == publicRouteTargetTransportAgent {
 		handler = "agent_target"
 	}
 	defer func() {
+		finalAgent := agent
+		if retryResult != nil {
+			retryResult.applyToResolution(&resolution)
+			if retryResult.FinalAgent != nil {
+				finalAgent = retryResult.FinalAgent
+				selectedAgentID = sql.NullInt64{Int64: finalAgent.AgentID, Valid: true}
+			}
+		}
 		if trace != nil {
 			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
 			if errorKind != "" {
 				stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
 			}
-			trace.emit(stage, &resolution, agent, statusCode, errorKind, w.Header(), map[string]string{"handler": handler})
+			attributes := map[string]string{"handler": handler}
+			if retryResult != nil && retryResult.ReplaySkippedReason != "" {
+				attributes["retry_skip_reason"] = retryResult.ReplaySkippedReason
+			}
+			trace.emit(stage, &resolution, finalAgent, statusCode, errorKind, w.Header(), attributes)
 		}
-		a.recordProxyRequestEventWithRouteTargetCacheAndContext(
-			context.Background(),
-			statusCode,
-			time.Since(startedAt),
-			errorKind,
-			resolution.ListenerID,
-			resolution.RouteID,
-			resolution.RouteTargetID,
-			sql.NullInt64{},
-			"",
-			selectedAgentID,
-			cacheRuleID(cacheDecision),
-			cacheStatus(cacheDecision),
-			cacheBytes(cacheDecision),
-			observability.requestBytesValue(),
-			observability.responseBytesValue(),
-			proxyRequestContextFromResolution(r, resolution),
-		)
+		event := proxyRequestEvent{
+			StatusCode: statusCode, Duration: time.Since(startedAt), ErrorKind: errorKind,
+			ListenerID: resolution.ListenerID, RouteID: resolution.RouteID, RouteTargetID: resolution.RouteTargetID,
+			AgentID: selectedAgentID, CacheRuleID: cacheRuleID(cacheDecision), CacheStatus: cacheStatus(cacheDecision),
+			CacheBytes: cacheBytes(cacheDecision), RequestBytes: observability.requestBytesValue(),
+			ResponseBytes: observability.responseBytesValue(), Context: proxyRequestContextFromResolution(r, resolution),
+		}
+		if retryResult != nil {
+			event.RetryRuleID = publicRetryRuleID(retryResult)
+			event.RetryCount = retryResult.RetryCount
+			event.RetryOutcome = retryResult.Outcome
+			event.RetryErrorKind = retryResult.FirstErrorKind
+			if retryResult.FirstFailedAgent != nil {
+				event.RetryFailedAgentID = sql.NullInt64{Int64: retryResult.FirstFailedAgent.AgentID, Valid: true}
+			}
+		}
+		a.recordProxyRequestEvent(context.Background(), event)
 	}()
 
 	targetOrigin := resolution.Target.ParsedURL
@@ -456,11 +478,6 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		}
 		selectedAgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
 		resolution.AgentID = selectedAgentID
-		if trace != nil {
-			trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_AGENT_SELECTED, &resolution, agent, 0, "", nil, map[string]string{
-				"load_balancer": resolution.Target.AgentLoadBalancing,
-			})
-		}
 		releaseAgentRequest, ok := a.agentProxyRequests.TryAcquire()
 		if !ok {
 			statusCode = http.StatusServiceUnavailable
@@ -469,8 +486,6 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			return
 		}
 		defer releaseAgentRequest()
-		agent.ActiveRequests.Add(1)
-		defer agent.ActiveRequests.Add(-1)
 	}
 
 	id := uuid.Nil
@@ -488,19 +503,8 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		}
 	}
 
-	if agent != nil {
-		log.Info().
-			Str("req_id", id.String()).
-			Str("method", r.Method).
-			Str("path", r.URL.Path).
-			Str("agent", agent.PublicID).
-			Msg("Proxying request through agent target")
-	}
-	if trace != nil {
+	if trace != nil && agent == nil {
 		attributes := map[string]string{"handler": handler, "upstream": redactSensitiveTraceURL(targetOrigin.String())}
-		if agent != nil {
-			attributes["agent"] = agent.PublicID
-		}
 		trace.emit(
 			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED,
 			&resolution,
@@ -514,8 +518,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 
 	var transport http.RoundTripper
 	if agent != nil {
-		transport = a.agentTargetTransport(agent, resolution.Target)
-		r = r.WithContext(withAgentDialRequestID(r.Context(), id.String()))
+		retryResult = &publicRetryAttemptResult{}
+		transport = &publicAgentAttemptRoundTripper{
+			app: a, snapshot: resolution.Snapshot, resolution: resolution, initial: agent,
+			rule: selectPublicRetryRule(resolution.Snapshot, r, resolution), trace: trace,
+			shaper: shaper, requestID: id.String(), result: retryResult,
+		}
 	} else {
 		transport = a.directTargetTransport(resolution.Target)
 	}
@@ -523,11 +531,20 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		Rewrite: func(proxyReq *httputil.ProxyRequest) {
 			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
 			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In, resolution.Listener)
-			if shaper != nil {
+			applyTrustedPublicAccessHeaders(proxyReq.Out, proxyReq.In)
+			if shaper != nil && agent == nil {
 				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
 			}
 		},
 		ModifyResponse: func(resp *http.Response) error {
+			finalAgent := agent
+			if retryResult != nil {
+				retryResult.applyToResolution(&resolution)
+				if retryResult.FinalAgent != nil {
+					finalAgent = retryResult.FinalAgent
+					selectedAgentID = sql.NullInt64{Int64: finalAgent.AgentID, Valid: true}
+				}
+			}
 			statusCode = resp.StatusCode
 			if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
 				resp.Header.Set("X-p2pstream-Cache", "MISS")
@@ -540,13 +557,13 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			}
 			if trace != nil {
 				attributes := map[string]string{"handler": handler}
-				if agent != nil {
-					attributes["agent"] = agent.PublicID
+				if finalAgent != nil {
+					attributes["agent"] = finalAgent.PublicID
 				}
 				trace.emit(
 					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
 					&resolution,
-					agent,
+					finalAgent,
 					resp.StatusCode,
 					"",
 					resp.Header,
@@ -584,51 +601,19 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				http.Error(w, "Bad Gateway", http.StatusBadGateway)
 				return
 			}
-			log.Error().Err(err).Str("req_id", id.String()).Str("agent", agent.PublicID).Msg("Agent target proxy failed")
-			if selectedAgentID.Valid && shouldMarkAgentPassiveFailure(r.Context(), err) {
-				a.markPublicRouteTargetAgentPassiveFailure(resolution.Target.ID, selectedAgentID.Int64, err)
+			finalAgent := agent
+			if retryResult != nil && retryResult.FinalAgent != nil {
+				finalAgent = retryResult.FinalAgent
+				selectedAgentID = sql.NullInt64{Int64: finalAgent.AgentID, Valid: true}
 			}
-			var dialErr agentDialError
-			switch {
-			case errors.Is(err, errAgentDisconnected):
-				statusCode = http.StatusBadGateway
-				errorKind = "agent_disconnected"
-				http.Error(w, "Bad Gateway", http.StatusBadGateway)
-			case errors.As(err, &dialErr):
-				log.Debug().
-					Err(err).
-					Str("req_id", id.String()).
-					Str("agent", agent.PublicID).
-					Str("kind", dialErr.Kind).
-					Msg("Agent target dial failed")
-				if dialErr.Kind == "dial_timeout" {
-					statusCode = http.StatusGatewayTimeout
-					errorKind = "agent_dial_timeout"
-					http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
-					return
-				}
-				if dialErr.Kind == "agent_capacity" {
-					statusCode = http.StatusServiceUnavailable
-					errorKind = "agent_capacity"
-					http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
-					return
-				}
-				statusCode = http.StatusBadGateway
-				if dialErr.Kind == "" {
-					errorKind = "agent_dial_failed"
-				} else {
-					errorKind = "agent_" + dialErr.Kind
-				}
-				http.Error(w, "Bad Gateway", http.StatusBadGateway)
-			case isTimeoutError(err):
-				statusCode = http.StatusGatewayTimeout
-				errorKind = "upstream_response_header_timeout"
-				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
-			default:
-				statusCode = http.StatusBadGateway
-				errorKind = "agent_proxy_failed"
-				http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			logger := log.Error().Err(err).Str("req_id", id.String())
+			if finalAgent != nil {
+				logger = logger.Str("agent", finalAgent.PublicID)
 			}
+			logger.Msg("Agent target proxy failed")
+			var message string
+			statusCode, errorKind, message = agentProxyHTTPFailure(err)
+			http.Error(w, message, statusCode)
 		},
 		Transport:  transport,
 		BufferPool: a.reverseProxyBufferPool(),
@@ -716,7 +701,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 	}
 	releaseStream, ok := a.agentTunnelStreams.TryAcquire()
 	if !ok {
-		return nil, agentDialError{Kind: "agent_capacity", Err: "server tunnel stream capacity reached"}
+		return nil, agentDialError{Kind: "server_capacity", Err: "server tunnel stream capacity reached"}
 	}
 	releaseOnReturn := true
 	defer func() {
@@ -858,7 +843,20 @@ func (a *App) selectTargetAgent(target publicRouteTargetConfig) *AgentConn {
 }
 
 func (a *App) selectTargetAgentFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig) *AgentConn {
+	return a.selectTargetAgentExcludingFromSnapshot(snap, target, nil)
+}
+
+func (a *App) selectTargetAgentExcludingFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig, excluded map[int64]struct{}) *AgentConn {
 	candidates := a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
+	if len(excluded) > 0 {
+		filtered := candidates[:0]
+		for _, candidate := range candidates {
+			if _, skip := excluded[candidate.AgentID]; !skip {
+				filtered = append(filtered, candidate)
+			}
+		}
+		candidates = filtered
+	}
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -932,7 +930,7 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 		return false
 	}
 	var dialErr agentDialError
-	if errors.As(err, &dialErr) && (dialErr.Kind == "agent_capacity" || dialErr.Kind == "dial_forbidden") {
+	if errors.As(err, &dialErr) && (dialErr.Kind == "agent_capacity" || dialErr.Kind == "server_capacity" || dialErr.Kind == "dial_forbidden") {
 		return false
 	}
 	return !requestContextCanceled(requestCtx, err)
@@ -1238,6 +1236,7 @@ func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteRe
 	action := normalizePublicRouteAction(matchedRoute.Action)
 	if action == publicRouteActionRedirect {
 		return publicRouteResolution{
+			Snapshot:     match.Snapshot,
 			Listener:     listener,
 			Route:        matchedRoute,
 			Action:       publicRouteActionRedirect,
@@ -1252,6 +1251,7 @@ func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteRe
 	}
 
 	resolution := publicRouteResolution{
+		Snapshot:           match.Snapshot,
 		Target:             target,
 		Agent:              agent,
 		Listener:           listener,
