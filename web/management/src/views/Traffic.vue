@@ -326,7 +326,7 @@ function togglePause() {
 
 function isProblemTrace(request: TraceRequest | null): boolean {
   if (!request) return false;
-  if (request.stage === TrafficTraceStage.FAILED || request.stage === TrafficTraceStage.WAF_BLOCKED || request.stage === TrafficTraceStage.RATE_LIMITED) return true;
+  if (request.stage === TrafficTraceStage.FAILED || request.stage === TrafficTraceStage.WAF_BLOCKED || request.stage === TrafficTraceStage.RATE_LIMITED || request.stage === TrafficTraceStage.ACCESS_DENIED) return true;
   return request.statusCode >= 400n;
 }
 

@@ -59,6 +59,7 @@ The same binary also includes the agent command:
 p2pstream agent \
   --management-url https://proxy.example.com:8081 \
   --management-ca-file /etc/p2pstream/management-ca.pem \
+  --management-trust-file ./p2pstream-agent-state/management-ca.pem \
   --agent-id agent-... \
   --agent-token ...
 ```

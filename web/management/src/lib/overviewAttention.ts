@@ -63,12 +63,14 @@ const ACTIONABLE_POLICY_WARNING_CODES = new Set<TrafficPolicyAttentionWarning["c
   "captcha-provider-secret-missing",
   "cache-settings-disabled",
   "cache-allows-cookie-requests",
+  "retry-duplicate-risk",
 ]);
 
 const POLICY_DESTINATIONS: Record<TrafficPolicyKind, Readonly<{ label: string; route: string }>> = {
   "rate-limit": { label: "Rate-limit", route: "/policies/rate-limits" },
   waf: { label: "WAF", route: "/policies/waf" },
   cache: { label: "Cache", route: "/policies/cache" },
+  retry: { label: "Retry", route: "/policies/retries" },
   "traffic-shaper": { label: "Traffic-shaper", route: "/policies/traffic-shaper" },
 };
 

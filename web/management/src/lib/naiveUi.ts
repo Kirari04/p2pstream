@@ -40,8 +40,17 @@ export function naiveTagType(severity?: string): "default" | "success" | "warnin
 export function modalCardStyle(maxWidth = "42rem"): CSSProperties {
   return {
     width: `min(calc(100vw - 2rem), ${maxWidth})`,
-    maxHeight: "calc(100vh - 3rem)",
+    maxHeight: "min(calc(100vh - 3rem), calc(100dvh - 3rem))",
     overflow: "hidden",
+  };
+}
+
+export function modalScrollableContentStyle(): CSSProperties {
+  return {
+    minHeight: "0",
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+    scrollbarGutter: "stable",
   };
 }
 

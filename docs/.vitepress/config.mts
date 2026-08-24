@@ -88,6 +88,8 @@ export default defineConfig({
           { text: "Limits and Shaping", link: "/concepts/limits-and-shaping" },
           { text: "WAF", link: "/concepts/waf" },
           { text: "Public Asset Cache", link: "/concepts/cache" },
+          { text: "Request Retries", link: "/concepts/request-retries" },
+          { text: "Identity-Aware Access", link: "/reference/access-control" },
           { text: "CEL Policy Matching", link: "/reference/cel" },
           { text: "Rate Limits Reference", link: "/reference/rate-limits" },
           { text: "Traffic Shaping Reference", link: "/reference/traffic-shaping" },
@@ -127,6 +129,7 @@ export default defineConfig({
           { text: "Rate Limits", link: "/reference/rate-limits" },
           { text: "Traffic Shaping", link: "/reference/traffic-shaping" },
           { text: "WAF", link: "/reference/waf" },
+          { text: "Identity-Aware Access", link: "/reference/access-control" },
           { text: "Cache", link: "/reference/cache" }
         ]
       }

@@ -54,6 +54,10 @@ export type TraceRequest = {
   cacheRuleName: string;
   cacheStatus: string;
   cacheKeyDigest: string;
+  retryRuleId: bigint;
+  retryRuleName: string;
+  retryCount: bigint;
+  retryOutcome: string;
   visible: boolean;
   completedAt: number | null;
   latestEvent: TrafficTraceEvent | null;

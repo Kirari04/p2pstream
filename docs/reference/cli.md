@@ -38,6 +38,7 @@ p2pstream agent [flags]
 | `--agent-name` | `AGENT_NAME` | Optional display name. |
 | `--management-ca-file` | `MANAGEMENT_CA_FILE` | PEM CA bundle for management HTTPS. |
 | `--management-ca-pem-base64` | `MANAGEMENT_CA_PEM_BASE64` | Base64 PEM CA bundle for management HTTPS. |
+| `--management-trust-file` | `MANAGEMENT_TRUST_FILE` | Writable durable CA bundle used for acknowledged management certificate rotation. |
 | `--tls-cert-file` | `AGENT_TLS_CERT_FILE` | Client certificate for management mTLS. |
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
@@ -97,6 +98,7 @@ Agent:
 p2pstream agent \
   --management-url https://proxy.example.com:8081 \
   --management-ca-file /etc/p2pstream/management-ca.pem \
+  --management-trust-file ./p2pstream-agent-state/management-ca.pem \
   --agent-id agent-abc123 \
   --agent-token "$AGENT_TOKEN" \
   --allow-target myapp.internal:443 \
