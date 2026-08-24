@@ -75,6 +75,8 @@ If health checks are enabled, checks run through each matching connected agent. 
 
 Agent targets enforce the response-header timeout in the server-side transport. The default is `60000` ms.
 
+For flaky VPN paths, add an opt-in rule under **Traffic Policy → Retries**. Start with `GET` and `HEAD`, one retry, and **Connection establishment only**. A retry stays on this target, excludes the failed agent, and uses the target's agent load-balancing policy to choose a replacement. At least two matching connected agents are required. See [Request Retries](../concepts/request-retries) before enabling broader failures, request-body replay, or methods with side effects.
+
 Agent tunnels use Yamux keepalives over an HTTP/1.1 upgraded management connection. When management is behind another reverse proxy, allow upgrade streaming for `p2pstream-yamux` on `/agent/tunnel` and configure that proxy's idle timeout high enough for long-lived agent sessions.
 
 Old WebSocket agents are incompatible with Yamux-tunnel servers. Upgrade agents and servers together.
@@ -97,9 +99,11 @@ Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Monit
 | Agent is skipped | Confirm it is enabled, connected, label-matched, and healthy when health checks are on. |
 | Agent disconnects while idle | Check management reverse-proxy HTTP/1.1 upgrade support and idle timeout for `p2pstream-yamux`. |
 | Long first-byte delay times out | Increase target response-header timeout. |
+| A retry rule never recovers | Confirm another enabled, connected, label-matched agent is available in the same target and inspect retry samples in **Monitor → Diagnostics**. |
 
 ## Next Steps
 
 - [Route targets](../concepts/backends)
 - [Agents](../concepts/agents)
 - [Trace live traffic](./trace-live-traffic)
+- [Request retries](../concepts/request-retries)

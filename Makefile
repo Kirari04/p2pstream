@@ -1,10 +1,13 @@
-.PHONY: all build backend-build clean dev docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
+.PHONY: all build backend-build clean dev dev-token-check docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
     include .env
     export
 endif
+
+# Deliberately static: this fallback is only used by the local development stack.
+DEV_AGENT_TOKEN := local-development-agent-token-not-for-production
 
 all: build
 
@@ -45,16 +48,23 @@ backend-build:
 
 build: frontend-build backend-build
 
-dev: frontend-install generate-proto kill
+dev-token-check:
+	@token="$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)}"; \
+	if [ "$${#token}" -lt 32 ]; then \
+		echo "AGENT_TOKEN must contain at least 32 characters" >&2; \
+		exit 1; \
+	fi
+
+dev: dev-token-check frontend-install generate-proto kill
 	@echo "Starting p2pstream development mode..."
 	@mkdir -p tmp
 	@go build -o ./tmp/p2pstream-agent-dev .
-	@cd web/management && VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} VITE_MANAGEMENT_PROXY_SECURE=false VITE_HMR_PROTOCOL=wss VITE_HMR_HOST=localhost VITE_HMR_CLIENT_PORT=$${MANAGEMENT_PORT:-8081} bun run dev & FRONTEND_PID=$$!; \
-	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
+	@cd web/management && VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} VITE_MANAGEMENT_PROXY_SECURE=false bun run dev & FRONTEND_PID=$$!; \
+	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)} MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
 	MGMT_PORT=$${MANAGEMENT_PORT:-8081}; \
 	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
 	cleanup() { \
 		trap - INT TERM EXIT; \

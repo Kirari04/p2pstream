@@ -258,6 +258,10 @@ export class TrafficTraceStore {
     request.cacheRuleName = event.cacheRuleName || request.cacheRuleName;
     request.cacheStatus = event.cacheStatus || request.cacheStatus;
     request.cacheKeyDigest = event.cacheKeyDigest || request.cacheKeyDigest;
+    request.retryRuleId = event.retryRuleId || request.retryRuleId;
+    request.retryRuleName = event.retryRuleName || request.retryRuleName;
+    request.retryCount = event.retryCount || request.retryCount;
+    request.retryOutcome = event.retryOutcome || request.retryOutcome;
     request.lastSeenAt = now;
     request.lastEventSequence = event.sequence;
     request.version += 1;
@@ -371,6 +375,10 @@ export function newTraceRequest(requestId: string, now = Date.now()): TraceReque
     cacheRuleName: "",
     cacheStatus: "",
     cacheKeyDigest: "",
+    retryRuleId: 0n,
+    retryRuleName: "",
+    retryCount: 0n,
+    retryOutcome: "",
     visible: true,
     completedAt: null,
     latestEvent: null,
@@ -417,10 +425,13 @@ export function traceStageLabel(stage: TrafficTraceStage): string {
     case TrafficTraceStage.CACHE_STORED: return "Cache stored";
     case TrafficTraceStage.TRAFFIC_SHAPER_SELECTED: return "Shaper";
     case TrafficTraceStage.UPSTREAM_STARTED: return "Upstream";
+    case TrafficTraceStage.UPSTREAM_RETRY: return "Retry";
     case TrafficTraceStage.UPSTREAM_RESPONDED: return "Responded";
     case TrafficTraceStage.RESPONSE_SENT: return "Done";
     case TrafficTraceStage.FAILED: return "Failed";
     case TrafficTraceStage.RATE_LIMITED: return "Rate limited";
+    case TrafficTraceStage.ACCESS_GRANTED: return "Access granted";
+    case TrafficTraceStage.ACCESS_DENIED: return "Access denied";
     default: return "Waiting";
   }
 }
@@ -430,6 +441,7 @@ export function requestStatusClass(request: Pick<TraceRequest, "stage" | "status
   if (request.stage === TrafficTraceStage.WAF_BLOCKED) return "trace-status--error";
   if (request.stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || request.stage === TrafficTraceStage.WAF_WAITING_ROOM) return "trace-status--warning";
   if (request.stage === TrafficTraceStage.RATE_LIMITED) return "trace-status--warning";
+  if (request.stage === TrafficTraceStage.ACCESS_DENIED) return "trace-status--warning";
   const status = Number(request.statusCode);
   if (status >= 500) return "trace-status--error";
   if (status >= 400) return "trace-status--warning";
@@ -451,6 +463,10 @@ export function traceFlowLabel(request: TraceRequest): string {
   if (request.cacheRuleName || request.cacheRuleId > 0n || request.cacheStatus) {
     const label = request.cacheRuleName ? `Cache: ${request.cacheRuleName}` : "Cache";
     parts.push(request.cacheStatus ? `${label} (${request.cacheStatus})` : label);
+  }
+  if (request.retryRuleName || request.retryRuleId > 0n || request.retryCount > 0n) {
+    const label = request.retryRuleName ? `Retry: ${request.retryRuleName}` : "Retry";
+    parts.push(request.retryOutcome ? `${label} (${request.retryOutcome})` : label);
   }
   if (request.routeLabel || request.defaultRoute) {
     parts.push(request.routeLabel || "Default route");
@@ -474,7 +490,8 @@ export function formatDuration(value: bigint | undefined): string {
 export function isTerminalStage(stage: TrafficTraceStage): boolean {
   return stage === TrafficTraceStage.RESPONSE_SENT ||
     stage === TrafficTraceStage.FAILED ||
-    stage === TrafficTraceStage.RATE_LIMITED;
+    stage === TrafficTraceStage.RATE_LIMITED ||
+    stage === TrafficTraceStage.ACCESS_DENIED;
 }
 
 export function isEmptyStats(stats: TraceRenderStats): boolean {

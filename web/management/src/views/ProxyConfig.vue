@@ -37,6 +37,7 @@ import {
   ProxyState,
   PublicRouteAction,
   type PublicListener,
+  type PublicRoute,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const proxySectionKeys = ["routes", "listeners"] as const;
@@ -76,6 +77,7 @@ const proxySeverity = computed(() => severityForState(proxyState.value));
 const listeners = computed(() => config.value?.listeners ?? []);
 const routeTargets = computed(() => config.value?.routeTargets ?? []);
 const routes = computed(() => config.value?.routes ?? []);
+const accessPolicies = computed(() => config.value?.accessPolicies ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const runningListeners = computed(() => listeners.value.filter((listener) => listenerStatus(listener)?.running).length);
 const busyDisabledReason = computed(() => isBusy.value ? BUSY_REASON : "");
@@ -336,6 +338,12 @@ function cloneRoute(routeId: bigint) {
   editorHost.value?.openCloneRoute(routeId);
 }
 
+function routeAccessLabel(route: PublicRoute): string {
+  if (route.accessPolicyId <= 0n) return "";
+  const policy = accessPolicies.value.find((item) => item.id === route.accessPolicyId);
+  return policy ? `Protected · ${policy.name}` : `Protected · policy #${route.accessPolicyId.toString()}`;
+}
+
 async function deleteListener(listener: PublicListener) {
   if (!await confirm(
     "Delete Listener",
@@ -483,6 +491,7 @@ async function deleteRoute(id: bigint) {
                   <span class="route-table__listener">{{ listenerName(route.listenerId, listeners) }}</span>
                   <span class="route-table__id mono-text">#{{ route.id.toString() }}</span>
                   <span v-if="route.isDefault" class="route-table__default">Default</span>
+                  <span v-if="route.accessPolicyId > 0n" class="route-table__access">{{ routeAccessLabel(route) }}</span>
                 </div>
                 <p class="route-table__technical mono-text" dir="auto">
                   {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
@@ -773,6 +782,7 @@ async function deleteRoute(id: bigint) {
 }
 
 .route-table__default,
+.route-table__access,
 .route-table__action {
   flex: 0 0 auto;
   border-radius: 4px;
@@ -782,6 +792,11 @@ async function deleteRoute(id: bigint) {
   font-size: 0.6875rem;
   font-weight: 600;
   line-height: 1.5;
+}
+
+.route-table__access {
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
 }
 
 .route-table__action--redirect {

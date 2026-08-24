@@ -30,10 +30,10 @@ export default defineConfig({
     dataDir,
     cacheDir,
     binaryPath: e2eBinary,
-    setupToken: "playwright-setup-token",
+    setupToken: "playwright-setup-token-not-for-production",
     agentId: "playwright-agent",
     agentName: "Playwright Agent",
-    agentToken: "playwright-agent-token",
+    agentToken: "playwright-agent-token-not-for-production",
   }),
   use: {
     ignoreHTTPSErrors: true,

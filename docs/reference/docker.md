@@ -102,9 +102,14 @@ services:
     environment:
       MANAGEMENT_URL: "https://proxy.example.com:8081"
       MANAGEMENT_CA_PEM_BASE64: "..."
+      MANAGEMENT_TRUST_FILE: "/data/management-ca.pem"
       AGENT_ID: "agent-..."
       AGENT_TOKEN: "..."
+    volumes:
+      - p2pstream-agent-state:/data
     restart: unless-stopped
+volumes:
+  p2pstream-agent-state:
 ```
 
 ## Related Tasks

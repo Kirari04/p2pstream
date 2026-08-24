@@ -208,6 +208,82 @@ func TestDashboardDiagnosticsSampleLimitClamp(t *testing.T) {
 	}
 }
 
+func TestGetDashboardDiagnosticsAggregatesRetryHealth(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	header := createTestAdminSession(t, app)
+	insertDashboardRollupAgentFixture(t, app.DB, 10)
+	insertDashboardRollupAgentFixture(t, app.DB, 11)
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_retry_rules (id, name) VALUES (7, 'VPN reads')`); err != nil {
+		t.Fatalf("insert retry rule: %v", err)
+	}
+
+	now := time.Now().UTC()
+	insert := func(offset time.Duration, durationMs, retryCount int64, outcome, retryError string, failedAgentID sql.NullInt64, status int64) {
+		t.Helper()
+		if err := app.insertProxyRequestEventWithRollups(ctx, db.InsertProxyRequestEventAtParams{
+			OccurredAt:         now.Add(offset),
+			StatusCode:         status,
+			DurationMs:         durationMs,
+			AgentID:            sqlNullInt64(11),
+			RetryRuleID:        sqlNullInt64(7),
+			RetryCount:         retryCount,
+			RetryOutcome:       outcome,
+			RetryErrorKind:     retryError,
+			RetryFailedAgentID: failedAgentID,
+		}); err != nil {
+			t.Fatalf("insert retry event: %v", err)
+		}
+	}
+	insert(-4*time.Minute, 100, 0, "", "", sql.NullInt64{}, http.StatusOK)
+	insert(-3*time.Minute, 200, 1, publicRetryOutcomeRecovered, "agent_dial_timeout", sqlNullInt64(10), http.StatusOK)
+	insert(-2*time.Minute, 300, 1, publicRetryOutcomeExhausted, "agent_disconnected", sqlNullInt64(10), http.StatusGatewayTimeout)
+	insert(-time.Minute, 400, 0, publicRetryOutcomeSkipped, "agent_proxy_failed", sqlNullInt64(10), http.StatusBadGateway)
+
+	req := connect.NewRequest(&p2pstreamv1.GetDashboardDiagnosticsRequest{WindowLabel: "5m"})
+	req.Header().Set("Cookie", header.Get("Cookie"))
+	resp, err := app.GetDashboardDiagnostics(ctx, req)
+	if err != nil {
+		t.Fatalf("get retry diagnostics: %v", err)
+	}
+	health := resp.Msg.RetryHealth
+	if health == nil {
+		t.Fatal("missing retry health")
+	}
+	if health.MatchedRequests != 4 || health.RetriedRequests != 2 || health.RetryAttempts != 2 ||
+		health.RecoveredRequests != 1 || health.ExhaustedRequests != 1 || health.SkippedRequests != 1 {
+		t.Fatalf("retry health = %+v", health)
+	}
+	if health.AvgMatchedDurationMs != 250 || health.AvgRetriedDurationMs != 250 {
+		t.Fatalf("retry latency = matched %d/retried %d, want 250/250", health.AvgMatchedDurationMs, health.AvgRetriedDurationMs)
+	}
+	if len(resp.Msg.RetryRules) != 1 || resp.Msg.RetryRules[0].Label != "VPN reads" || resp.Msg.RetryRules[0].RetriedRequests != 2 {
+		t.Fatalf("retry rule summaries = %+v", resp.Msg.RetryRules)
+	}
+	if len(resp.Msg.RetryFailedAgents) != 1 || resp.Msg.RetryFailedAgents[0].Label != "agent-10" || resp.Msg.RetryFailedAgents[0].AffectedRequests != 3 {
+		t.Fatalf("retry failed agents = %+v", resp.Msg.RetryFailedAgents)
+	}
+	if len(resp.Msg.RetryErrorKinds) != 3 {
+		t.Fatalf("retry error kinds = %+v, want 3", resp.Msg.RetryErrorKinds)
+	}
+	var trendMatched, trendRetried int64
+	for _, bucket := range resp.Msg.RetryTrend {
+		trendMatched += bucket.MatchedRequests
+		trendRetried += bucket.RetriedRequests
+	}
+	if trendMatched != 4 || trendRetried != 2 {
+		t.Fatalf("retry trend totals = %d/%d, want 4/2", trendMatched, trendRetried)
+	}
+	if len(resp.Msg.RecentSamples) != 3 {
+		t.Fatalf("retry samples = %d, want recovered, exhausted, and skipped", len(resp.Msg.RecentSamples))
+	}
+	for _, sample := range resp.Msg.RecentSamples {
+		if sample.RetryFailedAgentLabel != "agent-10" {
+			t.Fatalf("retry failed agent label = %q, want agent-10", sample.RetryFailedAgentLabel)
+		}
+	}
+}
+
 func TestRedactedProxyPathPrefix(t *testing.T) {
 	tests := []struct {
 		path string
@@ -1425,6 +1501,89 @@ func TestDashboardRecentAgentConnectionSessions(t *testing.T) {
 	}
 	if sessions[1].DurationMillis != int64((5*time.Minute).Milliseconds()) || !sessions[1].Active {
 		t.Fatalf("active session duration/active = %d/%v, want 5m/true", sessions[1].DurationMillis, sessions[1].Active)
+	}
+}
+
+func TestGetAgentAvailabilityRequiresAuthAndValidWindow(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+
+	unauthenticated := connect.NewRequest(&p2pstreamv1.GetAgentAvailabilityRequest{
+		AgentPublicId: "agent-availability",
+		WindowLabel:   "24h",
+	})
+	if _, err := app.GetAgentAvailability(ctx, unauthenticated); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("GetAgentAvailability unauthenticated code = %s, want unauthenticated: %v", connect.CodeOf(err), err)
+	}
+
+	header := createTestAdminSession(t, app)
+	invalid := connect.NewRequest(&p2pstreamv1.GetAgentAvailabilityRequest{
+		AgentPublicId: "agent-availability",
+		WindowLabel:   "forever",
+	})
+	invalid.Header().Set("Cookie", header.Get("Cookie"))
+	if _, err := app.GetAgentAvailability(ctx, invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("GetAgentAvailability invalid window code = %s, want invalid argument: %v", connect.CodeOf(err), err)
+	}
+}
+
+func TestAgentAvailabilityBuildsClippedTimeline(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30}, newServerTestDB(t))
+	now := time.Unix(1_800_000_000, 0).UTC()
+	agent := createDashboardUptimeAgent(t, app.DB, "agent-availability", now.Add(-48*time.Hour))
+
+	insertDashboardConnection(t, app.DB, agent.ID, now.Add(-23*time.Hour), sql.NullTime{Time: now.Add(-20 * time.Hour), Valid: true})
+	insertDashboardConnection(t, app.DB, agent.ID, now.Add(-18*time.Hour), sql.NullTime{Time: now.Add(-12 * time.Hour), Valid: true})
+	insertDashboardConnection(t, app.DB, agent.ID, now.Add(-2*time.Hour), sql.NullTime{})
+	active := testAgentConn(agent.ID, agent.PublicID)
+	active.ConnectedAt = now.Add(-2 * time.Hour)
+	if err := app.AgentHub.connect(active); err != nil {
+		t.Fatalf("connect active agent: %v", err)
+	}
+
+	availability, err := app.agentAvailability(ctx, agent, "24h", 24*time.Hour, now)
+	if err != nil {
+		t.Fatalf("agent availability: %v", err)
+	}
+	if availability.ObservedSinceUnixMillis != now.Add(-24*time.Hour).UnixMilli() || availability.ObservedUntilUnixMillis != now.UnixMilli() {
+		t.Fatalf("observed range = %d..%d, want %d..%d", availability.ObservedSinceUnixMillis, availability.ObservedUntilUnixMillis, now.Add(-24*time.Hour).UnixMilli(), now.UnixMilli())
+	}
+	if availability.UptimeMillis != int64((11*time.Hour).Milliseconds()) || availability.DowntimeMillis != int64((13*time.Hour).Milliseconds()) {
+		t.Fatalf("uptime/downtime = %d/%d, want 11h/13h", availability.UptimeMillis, availability.DowntimeMillis)
+	}
+	assertDashboardFloatClose(t, availability.UptimePercent, 11.0/24.0)
+	if availability.DisconnectCount != 2 || availability.LongestDowntimeMillis != int64((10*time.Hour).Milliseconds()) {
+		t.Fatalf("disconnects/longest downtime = %d/%d, want 2/10h", availability.DisconnectCount, availability.LongestDowntimeMillis)
+	}
+	if !availability.Connected {
+		t.Fatal("availability connected = false, want true")
+	}
+	if len(availability.Intervals) != 3 || !availability.Intervals[2].Active {
+		t.Fatalf("intervals = %#v, want three with final active", availability.Intervals)
+	}
+}
+
+func TestAgentAvailabilityClipsObservationToAgentCreation(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{ObservabilityRetentionDays: 30}, newServerTestDB(t))
+	now := time.Unix(1_800_000_000, 0).UTC()
+	createdAt := now.Add(-90 * time.Minute)
+	agent := createDashboardUptimeAgent(t, app.DB, "agent-new-availability", createdAt)
+	insertDashboardConnection(t, app.DB, agent.ID, now.Add(-60*time.Minute), sql.NullTime{Time: now.Add(-30 * time.Minute), Valid: true})
+
+	availability, err := app.agentAvailability(ctx, agent, "24h", 24*time.Hour, now)
+	if err != nil {
+		t.Fatalf("agent availability: %v", err)
+	}
+	if availability.ObservedSinceUnixMillis != createdAt.UnixMilli() {
+		t.Fatalf("observed since = %d, want creation time %d", availability.ObservedSinceUnixMillis, createdAt.UnixMilli())
+	}
+	if availability.UptimeMillis != int64((30*time.Minute).Milliseconds()) || availability.DowntimeMillis != int64((60*time.Minute).Milliseconds()) {
+		t.Fatalf("uptime/downtime = %d/%d, want 30m/60m", availability.UptimeMillis, availability.DowntimeMillis)
+	}
+	if availability.LongestDowntimeMillis != int64((30 * time.Minute).Milliseconds()) {
+		t.Fatalf("longest downtime = %d, want 30m", availability.LongestDowntimeMillis)
 	}
 }
 
