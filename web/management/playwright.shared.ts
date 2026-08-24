@@ -87,9 +87,6 @@ export function createManagementWebServer(options: ManagementWebServerOptions): 
     [
       `VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:${options.managementPort}`,
       "VITE_MANAGEMENT_PROXY_SECURE=false",
-      "VITE_HMR_PROTOCOL=wss",
-      "VITE_HMR_HOST=localhost",
-      `VITE_HMR_CLIENT_PORT=${options.managementPort}`,
       `node node_modules/vite/bin/vite.js --host 127.0.0.1 --port ${options.frontendPort} --strictPort`,
     ].join(" "),
   ].join("\n");

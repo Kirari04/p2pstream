@@ -4,6 +4,7 @@ import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
 import PublicListenerEditorModal from "@/components/editors/PublicListenerEditorModal.vue";
 import PublicCacheRuleEditorModal from "@/components/editors/PublicCacheRuleEditorModal.vue";
 import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
+import PublicRetryRuleEditorModal from "@/components/editors/PublicRetryRuleEditorModal.vue";
 import PublicRouteEditorModal from "@/components/editors/PublicRouteEditorModal.vue";
 import PublicTrafficShaperRuleEditorModal from "@/components/editors/PublicTrafficShaperRuleEditorModal.vue";
 import PublicWafCaptchaProviderEditorModal from "@/components/editors/PublicWafCaptchaProviderEditorModal.vue";
@@ -25,6 +26,7 @@ const listenerEditor = ref<InstanceType<typeof PublicListenerEditorModal> | null
 const routeEditor = ref<InstanceType<typeof PublicRouteEditorModal> | null>(null);
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
+const retryRuleEditor = ref<InstanceType<typeof PublicRetryRuleEditorModal> | null>(null);
 const cacheRuleEditor = ref<InstanceType<typeof PublicCacheRuleEditorModal> | null>(null);
 const trafficShaperEditor = ref<InstanceType<typeof PublicTrafficShaperRuleEditorModal> | null>(null);
 const wafRuleEditor = ref<InstanceType<typeof PublicWafRuleEditorModal> | null>(null);
@@ -91,6 +93,10 @@ function openTrafficShaperRule(ruleId: bigint | string) {
   trafficShaperEditor.value?.openEdit(ruleId);
 }
 
+function openRetryRule(ruleId: bigint | string) {
+  retryRuleEditor.value?.openEdit(ruleId);
+}
+
 function openWafRule(ruleId: bigint | string) {
   wafRuleEditor.value?.openEdit(ruleId);
 }
@@ -126,6 +132,10 @@ function openCreateTrafficShaperRule() {
   trafficShaperEditor.value?.openCreate();
 }
 
+function openCreateRetryRule() {
+  retryRuleEditor.value?.openCreate();
+}
+
 function openCreateWafRule() {
   wafRuleEditor.value?.openCreate();
 }
@@ -148,6 +158,7 @@ defineExpose({
   openAgent,
   openRateLimitRule,
   openTrafficShaperRule,
+  openRetryRule,
   openWafRule,
   openCacheRule,
   openWafCaptchaProvider,
@@ -157,6 +168,7 @@ defineExpose({
   openCreateAgent,
   openCreateRateLimitRule,
   openCreateTrafficShaperRule,
+  openCreateRetryRule,
   openCreateWafRule,
   openCreateCacheRule,
   openCreateWafCaptchaProvider,
@@ -168,6 +180,7 @@ defineExpose({
   <PublicRouteEditorModal ref="routeEditor" :config="config" @saved="emit('saved')" />
   <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" @saved="emit('saved')" />
   <PublicTrafficShaperRuleEditorModal ref="trafficShaperEditor" :config="config" @saved="emit('saved')" />
+  <PublicRetryRuleEditorModal ref="retryRuleEditor" :config="config" @saved="emit('saved')" />
   <PublicCacheRuleEditorModal ref="cacheRuleEditor" :config="config" @saved="emit('saved')" />
   <PublicWafRuleEditorModal ref="wafRuleEditor" :config="config" @saved="emit('saved')" />
   <PublicWafCaptchaProviderEditorModal ref="wafCaptchaProviderEditor" :config="config" @saved="emit('saved')" />

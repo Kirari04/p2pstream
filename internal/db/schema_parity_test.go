@@ -149,7 +149,10 @@ func readNormalizedSchema(t *testing.T, database *sql.DB) []schemaObject {
 
 func normalizeSchemaSQL(value string) string {
 	// Keep normalization whitespace-only so parity failures catch schema drift.
-	return strings.Join(strings.Fields(value), " ")
+	// SQLite preserves a cosmetic space before punctuation when ALTER TABLE adds
+	// columns, while schema.sql naturally formats the same definition without it.
+	value = strings.Join(strings.Fields(value), " ")
+	return strings.NewReplacer(" ,", ",", "( ", "(", " )", ")").Replace(value)
 }
 
 func repoPath(t *testing.T, elements ...string) string {

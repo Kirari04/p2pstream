@@ -32,6 +32,7 @@ func (db *DB) runLegacyCompatibilityMigrations() error {
 		{name: "public route target schema", run: db.migrateLegacyPublicRouteTargetSchema},
 		{name: "public policy tables", run: db.migrateLegacyPublicPolicyTables},
 		{name: "public backend route targets", run: db.migrateLegacyPublicBackendsToRouteTargets},
+		{name: "public access control", run: db.migrateLegacyPublicAccessControl},
 		{name: "public policy indexes", run: db.migrateLegacyPublicPolicyIndexes},
 		{name: "policy match JSON", run: db.migrateLegacyPolicyMatchJSON},
 	}
@@ -55,7 +56,8 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		last_disconnected_at DATETIME,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-	);
+		, agent_version TEXT NOT NULL DEFAULT '',
+		agent_commit TEXT NOT NULL DEFAULT '');
 
 	CREATE TABLE IF NOT EXISTS connections (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,6 +80,21 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		bytes_tx INTEGER NOT NULL,
 		cpu_percent REAL NOT NULL DEFAULT 0
 	);
+
+	CREATE TABLE IF NOT EXISTS management_agent_trust_reports (
+		agent_id INTEGER PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
+		installed_generation INTEGER NOT NULL DEFAULT 0,
+		installed_bundle_sha256 TEXT NOT NULL DEFAULT '',
+		install_state TEXT NOT NULL DEFAULT 'unsupported',
+		error_code TEXT NOT NULL DEFAULT '',
+		error_detail TEXT NOT NULL DEFAULT '',
+		agent_version TEXT NOT NULL DEFAULT '',
+		capabilities_json TEXT NOT NULL DEFAULT '[]',
+		reported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_management_agent_trust_reports_reported_at
+	ON management_agent_trust_reports (reported_at);
 
 		CREATE TABLE IF NOT EXISTS proxy_request_events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -213,6 +230,34 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		UNIQUE(bind_address, port)
 	);
 
+	CREATE TABLE IF NOT EXISTS public_access_providers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_type TEXT NOT NULL DEFAULT 'forward_auth',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		forward_auth_url TEXT NOT NULL,
+		timeout_millis INTEGER NOT NULL DEFAULT 5000,
+		tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+		subject_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Preferred-Username',
+		user_header TEXT NOT NULL DEFAULT 'X-Auth-Request-User',
+		email_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Email',
+		groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
+		forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS public_access_policies (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE RESTRICT,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		required_groups_json TEXT NOT NULL DEFAULT '[]',
+		group_match TEXT NOT NULL DEFAULT 'any',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS public_routes (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
@@ -228,6 +273,7 @@ func (db *DB) ensureLegacyBaseSchema() error {
 		redirect_preserve_path_suffix INTEGER NOT NULL DEFAULT 1,
 		redirect_preserve_query INTEGER NOT NULL DEFAULT 1,
 		path_security_mode TEXT NOT NULL DEFAULT 'strict',
+		access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT,
 		enabled INTEGER NOT NULL DEFAULT 1,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -513,6 +559,11 @@ func (db *DB) migrateLegacyObservability() error {
 		`ALTER TABLE proxy_request_events ADD COLUMN method TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE proxy_request_events ADD COLUMN host TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE proxy_request_events ADD COLUMN path_prefix TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_rule_id INTEGER`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_outcome TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_error_kind TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE proxy_request_events ADD COLUMN retry_failed_agent_id INTEGER REFERENCES agents(id)`,
 	); err != nil {
 		return err
 	}
@@ -524,7 +575,11 @@ func (db *DB) migrateLegacyObservability() error {
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_target_id ON proxy_request_events (route_target_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id ON proxy_request_events (route_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id ON proxy_request_events (agent_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != ''`,
+		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id ON proxy_request_events (retry_rule_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != '' OR retry_count > 0`,
+		`CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_rule ON proxy_retry_rollup_minutes (retry_rule_id, bucket_unix_millis)`,
+		`CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_failed_agent ON proxy_retry_rollup_minutes (failed_agent_id, bucket_unix_millis) WHERE failed_agent_id != 0`,
+		`CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_error_kind ON proxy_retry_rollup_minutes (error_kind, bucket_unix_millis) WHERE error_kind != ''`,
 	)
 }
 
@@ -598,6 +653,54 @@ func (db *DB) migrateLegacyPublicRoutes() error {
 		return err
 	}
 	return db.backfillPublicAgentSystemLabels()
+}
+
+func (db *DB) migrateLegacyPublicAccessControl() error {
+	if err := db.execLegacyStatements(
+		`CREATE TABLE IF NOT EXISTS public_access_providers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider_type TEXT NOT NULL DEFAULT 'forward_auth',
+			enabled INTEGER NOT NULL DEFAULT 1,
+			forward_auth_url TEXT NOT NULL,
+			timeout_millis INTEGER NOT NULL DEFAULT 5000,
+			tls_skip_verify INTEGER NOT NULL DEFAULT 0,
+			subject_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Preferred-Username',
+			user_header TEXT NOT NULL DEFAULT 'X-Auth-Request-User',
+			email_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Email',
+			groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
+			forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS public_access_policies (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE RESTRICT,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			required_groups_json TEXT NOT NULL DEFAULT '[]',
+			group_match TEXT NOT NULL DEFAULT 'any',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+	); err != nil {
+		return err
+	}
+
+	columns, err := db.sqliteTableColumns("public_routes")
+	if err != nil {
+		return err
+	}
+	if _, exists := columns["access_policy_id"]; !exists {
+		if _, err := db.Exec(`ALTER TABLE public_routes ADD COLUMN access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT`); err != nil {
+			return err
+		}
+	}
+
+	return db.execLegacyStatements(
+		`CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id ON public_routes (access_policy_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_policies_provider_id ON public_access_policies (provider_id)`,
+	)
 }
 
 func (db *DB) migrateLegacyPublicRouteTargetSchema() error {
@@ -688,6 +791,29 @@ func (db *DB) migrateLegacyPublicRouteTargetSchema() error {
 }
 
 func (db *DB) migrateLegacyPublicPolicyTables() error {
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS public_retry_rules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			priority INTEGER NOT NULL DEFAULT 100,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			methods_json TEXT NOT NULL DEFAULT '["GET","HEAD"]',
+			max_retries INTEGER NOT NULL DEFAULT 1,
+			failure_mode TEXT NOT NULL DEFAULT 'connection_failures',
+			body_mode TEXT NOT NULL DEFAULT 'never',
+			max_replay_body_bytes INTEGER NOT NULL DEFAULT 0,
+			route_ids_json TEXT NOT NULL DEFAULT '[]',
+			target_ids_json TEXT NOT NULL DEFAULT '[]',
+			match_json TEXT NOT NULL DEFAULT '{}',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_retry_rules_priority ON public_retry_rules (priority, id)`); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS public_response_templates (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1129,6 +1255,24 @@ func (db *DB) migrateObservabilityRollups() error {
 		PRIMARY KEY (bucket_unix_millis, status_code)
 	);
 
+	CREATE TABLE IF NOT EXISTS proxy_retry_rollup_minutes (
+		bucket_unix_millis INTEGER NOT NULL,
+		retry_rule_id INTEGER NOT NULL,
+		failed_agent_id INTEGER NOT NULL DEFAULT 0,
+		error_kind TEXT NOT NULL DEFAULT '',
+		matched_requests INTEGER NOT NULL DEFAULT 0,
+		retried_requests INTEGER NOT NULL DEFAULT 0,
+		retry_attempts INTEGER NOT NULL DEFAULT 0,
+		recovered_requests INTEGER NOT NULL DEFAULT 0,
+		exhausted_requests INTEGER NOT NULL DEFAULT 0,
+		skipped_requests INTEGER NOT NULL DEFAULT 0,
+		duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+		retried_duration_ms_sum INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind)
+	);
+
 	CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
 		bucket_unix_millis INTEGER PRIMARY KEY,
 		samples INTEGER NOT NULL DEFAULT 0,
@@ -1266,7 +1410,11 @@ func (db *DB) migrateProxyObservabilityTargetOnly() error {
 				response_bytes INTEGER NOT NULL DEFAULT 0,
 				cache_rule_id INTEGER,
 				cache_status TEXT NOT NULL DEFAULT '',
-				cache_bytes INTEGER NOT NULL DEFAULT 0
+				cache_bytes INTEGER NOT NULL DEFAULT 0,
+				retry_rule_id INTEGER,
+				retry_count INTEGER NOT NULL DEFAULT 0,
+				retry_outcome TEXT NOT NULL DEFAULT '',
+				retry_error_kind TEXT NOT NULL DEFAULT ''
 			)
 		`); err != nil {
 			return err
@@ -1275,6 +1423,12 @@ func (db *DB) migrateProxyObservabilityTargetOnly() error {
 			return err
 		}
 		if _, err := tx.Exec(`ALTER TABLE proxy_request_events_new RENAME TO proxy_request_events`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id ON proxy_request_events (retry_rule_id)`); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem ON proxy_request_events (occurred_at DESC) WHERE status_code >= 400 OR error_kind != '' OR retry_count > 0`); err != nil {
 			return err
 		}
 	}

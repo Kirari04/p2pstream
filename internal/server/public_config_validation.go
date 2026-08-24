@@ -338,6 +338,7 @@ func (a *App) validatePublicRouteInput(
 	redirectPreservePathSuffix bool,
 	redirectPreserveQuery bool,
 	pathSecurityMode p2pstreamv1.PublicRoutePathSecurityMode,
+	accessPolicyID int64,
 	existingSecrets existingPublicRouteTargetSecrets,
 ) (db.UpdatePublicRouteParams, []publicRouteTargetMutationInput, error) {
 	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
@@ -363,6 +364,14 @@ func (a *App) validatePublicRouteInput(
 	pathSecurityModeString, err := routePathSecurityModeStringFromProto(pathSecurityMode)
 	if err != nil {
 		return db.UpdatePublicRouteParams{}, nil, err
+	}
+	if accessPolicyID < 0 {
+		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("access policy ID cannot be negative"))
+	}
+	if accessPolicyID > 0 {
+		if _, err := a.DB.GetPublicAccessPolicy(ctx, accessPolicyID); err != nil {
+			return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+		}
 	}
 	targetLoadBalancingString := publicRouteTargetLoadBalancingRoundRobin
 	var routeTargets []publicRouteTargetMutationInput
@@ -412,6 +421,7 @@ func (a *App) validatePublicRouteInput(
 		RedirectPreservePathSuffix: boolInt(redirectPreservePathSuffix),
 		RedirectPreserveQuery:      boolInt(redirectPreserveQuery),
 		PathSecurityMode:           pathSecurityModeString,
+		AccessPolicyID:             publicAccessPolicyID(accessPolicyID),
 		Enabled:                    boolInt(enabled),
 	}, routeTargets, nil
 }
