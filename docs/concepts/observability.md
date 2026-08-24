@@ -18,7 +18,7 @@ The **Overview** page summarizes retained proxy request events over `5m`, `1h`, 
 OBSERVABILITY_RETENTION_DAYS=30
 ```
 
-Proxy request events include status code, duration, error kind, listener ID, route ID, route target ID, WAF rule/action, cache rule/status/bytes, agent ID, request bytes, and response bytes. The route-target-only migration resets retained proxy request events and proxy rollups so legacy backend IDs are no longer kept. Agent stats history is not reset.
+Proxy request events include status code, duration, error kind, listener ID, route ID, route target ID, WAF rule/action, cache rule/status/bytes, retry rule/count/outcome/initial error, final agent ID, request bytes, and response bytes. Recovered retries are retained as diagnostic samples even when their final status is successful. The route-target-only migration resets retained proxy request events and proxy rollups so legacy backend IDs are no longer kept. Agent stats history is not reset.
 
 Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 
@@ -58,4 +58,4 @@ Use Headers and Debug temporarily because they can expose operational details an
 
 The trace-details drawer complements the flow diagram when one request needs deeper inspection. It starts with the outcome, resolved flow, lifecycle, and policy decisions; exact headers, raw attributes, and debug data remain progressively disclosed at the tracing levels that capture them.
 
-**Monitor → Diagnostics** ranks retained failure dimensions and recent samples for the selected dashboard window. Filter by a dimension before opening an exact sample in its details drawer; refresh or retry when the snapshot is stale or unavailable.
+**Monitor → Diagnostics** ranks retained failure dimensions and shows recent failure or retry samples for the selected dashboard window. A retry sample exposes its rule ID, attempt count, outcome, and initial error kind. Filter by a failure dimension before opening an exact sample in its details drawer; refresh when the snapshot is stale or unavailable.

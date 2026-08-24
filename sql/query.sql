@@ -46,18 +46,39 @@ LIMIT 1;
 
 -- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
-    status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
-    occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes
+    occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id;
+
+-- name: UpsertProxyRetryRollupMinute :exec
+INSERT INTO proxy_retry_rollup_minutes (
+    bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind,
+    matched_requests, retried_requests, retry_attempts, recovered_requests,
+    exhausted_requests, skipped_requests, duration_ms_sum, retried_duration_ms_sum
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind) DO UPDATE SET
+    matched_requests = proxy_retry_rollup_minutes.matched_requests + excluded.matched_requests,
+    retried_requests = proxy_retry_rollup_minutes.retried_requests + excluded.retried_requests,
+    retry_attempts = proxy_retry_rollup_minutes.retry_attempts + excluded.retry_attempts,
+    recovered_requests = proxy_retry_rollup_minutes.recovered_requests + excluded.recovered_requests,
+    exhausted_requests = proxy_retry_rollup_minutes.exhausted_requests + excluded.exhausted_requests,
+    skipped_requests = proxy_retry_rollup_minutes.skipped_requests + excluded.skipped_requests,
+    duration_ms_sum = proxy_retry_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    retried_duration_ms_sum = proxy_retry_rollup_minutes.retried_duration_ms_sum + excluded.retried_duration_ms_sum,
+    updated_at = CURRENT_TIMESTAMP;
 
 -- name: UpsertProxyRequestRollupMinute :exec
 INSERT INTO proxy_request_rollup_minutes (
@@ -679,6 +700,82 @@ FROM proxy_request_tuple_rollup_minutes
 WHERE bucket_unix_millis >= ?
 ORDER BY bucket_unix_millis ASC;
 
+-- name: GetProxyRetryRollupSummarySince :one
+SELECT
+    CAST(COALESCE(SUM(matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(skipped_requests), 0) AS INTEGER) AS skipped_requests,
+    CAST(CASE WHEN COALESCE(SUM(matched_requests), 0) > 0 THEN COALESCE(SUM(duration_ms_sum), 0) / SUM(matched_requests) ELSE 0 END AS INTEGER) AS avg_matched_duration_ms,
+    CAST(CASE WHEN COALESCE(SUM(retried_requests), 0) > 0 THEN COALESCE(SUM(retried_duration_ms_sum), 0) / SUM(retried_requests) ELSE 0 END AS INTEGER) AS avg_retried_duration_ms
+FROM proxy_retry_rollup_minutes
+WHERE bucket_unix_millis >= ?;
+
+-- name: ListProxyRetryTrendRollupsSince :many
+SELECT
+    CAST((bucket_unix_millis / (CAST(sqlc.arg(bucket_seconds) AS INTEGER) * 1000)) * (CAST(sqlc.arg(bucket_seconds) AS INTEGER) * 1000) AS INTEGER) AS bucket_unix_millis,
+    CAST(COALESCE(SUM(matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes
+WHERE bucket_unix_millis >= sqlc.arg(since_unix_millis)
+GROUP BY 1
+ORDER BY bucket_unix_millis ASC;
+
+-- name: ListProxyRetryRuleRollupsSince :many
+SELECT
+    r.retry_rule_id AS id,
+    COALESCE(prr.name, 'deleted rule #' || r.retry_rule_id) AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(r.retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests,
+    CAST(CASE WHEN COALESCE(SUM(r.retried_requests), 0) > 0 THEN COALESCE(SUM(r.retried_duration_ms_sum), 0) / SUM(r.retried_requests) ELSE 0 END AS INTEGER) AS avg_retried_duration_ms
+FROM proxy_retry_rollup_minutes r
+LEFT JOIN public_retry_rules prr ON prr.id = r.retry_rule_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.retry_rule_id, prr.name
+ORDER BY retried_requests DESC, exhausted_requests DESC, matched_requests DESC, id ASC;
+
+-- name: ListProxyRetryFailedAgentRollupsSince :many
+SELECT
+    r.failed_agent_id AS id,
+    COALESCE(a.name, 'deleted agent #' || r.failed_agent_id) AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS affected_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes r
+LEFT JOIN agents a ON a.id = r.failed_agent_id
+WHERE r.bucket_unix_millis >= ?
+  AND r.failed_agent_id != 0
+GROUP BY r.failed_agent_id, a.name
+ORDER BY affected_requests DESC, exhausted_requests DESC, retry_attempts DESC, id ASC
+LIMIT 10;
+
+-- name: ListProxyRetryErrorKindRollupsSince :many
+SELECT
+    r.error_kind AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS affected_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes r
+WHERE r.bucket_unix_millis >= ?
+  AND r.error_kind != ''
+GROUP BY r.error_kind
+ORDER BY affected_requests DESC, exhausted_requests DESC, retry_attempts DESC, label ASC
+LIMIT 10;
+
 -- name: ListRecentProxyProblemSamplesSince :many
 SELECT
     pre.occurred_at,
@@ -700,14 +797,20 @@ SELECT
     COALESCE(a.name, CASE WHEN pre.agent_id IS NULL THEN '' ELSE 'agent #' || pre.agent_id END) AS agent_label,
     pre.duration_ms,
     pre.request_bytes,
-    pre.response_bytes
+    pre.response_bytes,
+    pre.retry_rule_id,
+    pre.retry_count,
+    pre.retry_outcome,
+    pre.retry_error_kind,
+    COALESCE(failed_agent.name, CASE WHEN pre.retry_failed_agent_id IS NULL THEN '' ELSE 'deleted agent #' || pre.retry_failed_agent_id END) AS retry_failed_agent_label
 FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
 LEFT JOIN public_routes pr ON pr.id = pre.route_id
 LEFT JOIN public_route_targets prt ON prt.id = pre.route_target_id
 LEFT JOIN agents a ON a.id = pre.agent_id
+LEFT JOIN agents failed_agent ON failed_agent.id = pre.retry_failed_agent_id
 WHERE pre.occurred_at >= sqlc.arg(since)
-  AND (pre.status_code >= 400 OR pre.error_kind != '')
+  AND (pre.status_code >= 400 OR pre.error_kind != '' OR pre.retry_count > 0)
 ORDER BY pre.occurred_at DESC, pre.id DESC
 LIMIT sqlc.arg(limit);
 
@@ -761,6 +864,17 @@ WHERE c.connected_at >= ?
    OR c.disconnected_at >= ?
 ORDER BY c.connected_at ASC;
 
+-- name: ListAgentConnectionsSince :many
+SELECT id, connected_at, disconnected_at
+FROM connections
+WHERE agent_id = sqlc.arg(agent_id)
+  AND (
+    connected_at >= sqlc.arg(since)
+    OR disconnected_at IS NULL
+    OR disconnected_at >= sqlc.arg(since)
+  )
+ORDER BY connected_at ASC, id ASC;
+
 -- name: ListRecentConnections :many
 SELECT
     c.id,
@@ -775,24 +889,24 @@ ORDER BY c.connected_at DESC, c.id DESC
 LIMIT ?;
 
 -- name: ListAgents :many
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 ORDER BY name ASC, public_id ASC, id ASC;
 
 -- name: GetAgent :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE id = ?;
 
 -- name: GetAgentByPublicID :one
-SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at
+SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
 WHERE public_id = ?;
 
 -- name: CreateAgent :one
 INSERT INTO agents (public_id, name, token_hash, enabled)
 VALUES (?, ?, ?, ?)
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
 
 -- name: UpdateAgent :one
 UPDATE agents
@@ -800,14 +914,24 @@ SET name = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
 
 -- name: UpdateAgentToken :one
 UPDATE agents
 SET token_hash = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
+
+-- name: UpdateAgentBuild :exec
+UPDATE agents
+SET agent_version = sqlc.arg(agent_version),
+    agent_commit = sqlc.arg(agent_commit)
+WHERE id = sqlc.arg(id)
+  AND (
+    agent_version != sqlc.arg(agent_version)
+    OR agent_commit != sqlc.arg(agent_commit)
+  );
 
 -- name: UpsertBootstrapAgent :one
 INSERT INTO agents (public_id, name, token_hash, enabled)
@@ -817,7 +941,7 @@ ON CONFLICT(public_id) DO UPDATE SET
     token_hash = excluded.token_hash,
     enabled = 1,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at;
+RETURNING id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit;
 
 -- name: MarkAgentConnected :exec
 UPDATE agents
@@ -927,6 +1051,10 @@ WHERE bucket_unix_millis < ?;
 
 -- name: DeleteProxyRequestStatusRollupsBefore :exec
 DELETE FROM proxy_request_status_rollup_minutes
+WHERE bucket_unix_millis < ?;
+
+-- name: DeleteProxyRetryRollupsBefore :exec
+DELETE FROM proxy_retry_rollup_minutes
 WHERE bucket_unix_millis < ?;
 
 -- name: DeleteAgentStatRollupsBefore :exec
@@ -1554,18 +1682,19 @@ INSERT INTO public_routes (
     redirect_preserve_path_suffix,
     redirect_preserve_query,
     path_security_mode,
+    access_policy_id,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at;
 
 -- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC;
 
 -- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
 FROM public_routes
 WHERE id = ?;
 
@@ -1584,13 +1713,68 @@ SET listener_id = ?,
     redirect_preserve_path_suffix = ?,
     redirect_preserve_query = ?,
     path_security_mode = ?,
+    access_policy_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, enabled, created_at, updated_at;
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at;
 
 -- name: DeletePublicRoute :exec
 DELETE FROM public_routes
+WHERE id = ?;
+
+-- name: CreatePublicAccessProvider :one
+INSERT INTO public_access_providers (
+    name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify,
+    subject_header, user_header, email_header, groups_header, forwarded_headers_json
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at;
+
+-- name: ListPublicAccessProviders :many
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+FROM public_access_providers
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicAccessProvider :one
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+FROM public_access_providers
+WHERE id = ?;
+
+-- name: UpdatePublicAccessProvider :one
+UPDATE public_access_providers
+SET name = ?, provider_type = ?, enabled = ?, forward_auth_url = ?, timeout_millis = ?, tls_skip_verify = ?,
+    subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at;
+
+-- name: DeletePublicAccessProvider :exec
+DELETE FROM public_access_providers
+WHERE id = ?;
+
+-- name: CreatePublicAccessPolicy :one
+INSERT INTO public_access_policies (name, provider_id, enabled, required_groups_json, group_match)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at;
+
+-- name: ListPublicAccessPolicies :many
+SELECT id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+FROM public_access_policies
+ORDER BY name ASC, id ASC;
+
+-- name: GetPublicAccessPolicy :one
+SELECT id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
+FROM public_access_policies
+WHERE id = ?;
+
+-- name: UpdatePublicAccessPolicy :one
+UPDATE public_access_policies
+SET name = ?, provider_id = ?, enabled = ?, required_groups_json = ?, group_match = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at;
+
+-- name: DeletePublicAccessPolicy :exec
+DELETE FROM public_access_policies
 WHERE id = ?;
 
 -- name: CreatePublicTlsDnsCredential :one
@@ -2218,6 +2402,50 @@ RETURNING id, name, priority, enabled, match_json, route_ids_json, target_ids_js
 
 -- name: DeletePublicCacheRule :exec
 DELETE FROM public_cache_rules
+WHERE id = ?;
+
+-- name: ListPublicRetryRules :many
+SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+FROM public_retry_rules
+ORDER BY priority ASC, id ASC;
+
+-- name: GetPublicRetryRule :one
+SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+FROM public_retry_rules
+WHERE id = ?;
+
+-- name: CreatePublicRetryRule :one
+INSERT INTO public_retry_rules (
+    name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+    max_replay_body_bytes, route_ids_json, target_ids_json, match_json
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at;
+
+-- name: UpdatePublicRetryRule :one
+UPDATE public_retry_rules
+SET name = ?,
+    priority = ?,
+    enabled = ?,
+    methods_json = ?,
+    max_retries = ?,
+    failure_mode = ?,
+    body_mode = ?,
+    max_replay_body_bytes = ?,
+    route_ids_json = ?,
+    target_ids_json = ?,
+    match_json = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at;
+
+-- name: DeletePublicRetryRule :exec
+DELETE FROM public_retry_rules
 WHERE id = ?;
 
 -- name: GetPublicCacheEntry :one

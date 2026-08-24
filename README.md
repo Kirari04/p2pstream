@@ -4,7 +4,7 @@
 
 # p2pstream
 
-p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, route-owned proxy/static targets, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
+p2pstream is a self-hosted public reverse proxy with a web management UI, optional remote agents, route-owned proxy/static targets, forward-auth access policies, TLS automation, WAF challenges, public asset caching, rate limits, traffic shaping, and live traffic tracing.
 
 ## Quick Start With Docker Compose
 
@@ -102,6 +102,7 @@ Full self-hosting and operations documentation is available at <https://kirari04
 - [Response templates reference](https://kirari04.github.io/p2pstream/reference/response-templates)
 - [Backup and restore](https://kirari04.github.io/p2pstream/operations/backup-restore)
 - [WAF reference](https://kirari04.github.io/p2pstream/reference/waf)
+- [Identity-aware access](https://kirari04.github.io/p2pstream/reference/access-control)
 - [Cache reference](https://kirari04.github.io/p2pstream/reference/cache)
 
 ## Agent Install

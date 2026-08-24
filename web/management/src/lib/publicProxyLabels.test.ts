@@ -150,6 +150,8 @@ function agent(id: bigint, publicId: string): Agent {
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
     labels: {},
+    version: "",
+    commit: "",
   };
 }
 

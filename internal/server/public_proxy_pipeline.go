@@ -59,6 +59,7 @@ var publicProxyStages = []publicProxyStage{
 	beginWAFPressureStage,
 	wafPolicyStage,
 	rateLimitStage,
+	publicAccessControlStage,
 	trafficShaperStage,
 	routeResolutionStage,
 	redirectStage,

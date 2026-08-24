@@ -106,6 +106,44 @@ describe("trafficFlowLayout", () => {
     ]);
   });
 
+  test("access-denied request ends at response from the matched route", () => {
+    const request = traceRequest({
+      listenerId: 1n,
+      routeId: 3n,
+      stage: TrafficTraceStage.ACCESS_DENIED,
+    });
+
+    expect(buildTrafficFlowRequestPath(request, emptyIndex())).toEqual([
+      "ingress",
+      listenerKey(1n),
+      routeKey(3n),
+      "response",
+    ]);
+  });
+
+  test("access decisions preserve the listener default-route node", () => {
+    const denied = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ACCESS_DENIED,
+    });
+    const granted = traceRequest({
+      listenerId: 1n,
+      defaultRoute: true,
+      stage: TrafficTraceStage.ACCESS_GRANTED,
+    });
+    const deniedPath = buildTrafficFlowRequestPath(denied, emptyIndex());
+    const grantedPath = buildTrafficFlowRequestPath(granted, emptyIndex());
+
+    expect(deniedPath).toEqual([
+      "ingress",
+      listenerKey(1n),
+      listenerDefaultRouteKey(1n),
+      "response",
+    ]);
+    expect(targetIndexForTraceRequest(granted, grantedPath)).toBe(grantedPath.indexOf(listenerDefaultRouteKey(1n)));
+  });
+
   test("traffic-shaped request path includes shaper after rate limit", () => {
     const index = createTrafficFlowConfigIndex(configWith({
       rateLimitRules: [rateLimitRule({ id: 9n, enabled: true })],
@@ -409,6 +447,7 @@ function configWith(overrides: Partial<GetPublicProxyConfigResponse>): GetPublic
     rateLimitRules: [],
     trafficShaperRules: [],
     cacheRules: [],
+    retryRules: [],
     tlsCertificates: [],
     proxy: undefined,
     ...overrides,
@@ -508,6 +547,8 @@ function agent(overrides: Partial<Agent>): Agent {
     lastDisconnectedAtUnixMillis: 0n,
     latestStats: undefined,
     labels: {},
+    version: "",
+    commit: "",
     ...overrides,
   } as Agent;
 }

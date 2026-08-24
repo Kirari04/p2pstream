@@ -34,6 +34,7 @@ import {
   type PublicPolicyMatchGroup,
   type PublicPolicyMatchRule,
   type PublicRateLimitRule,
+  type PublicRetryRule,
   type PublicRoute,
   type PublicRouteTarget,
   type PublicTlsCertificate,
@@ -279,7 +280,7 @@ export function rateLimitRuleSummary(rule: PublicRateLimitRule): string {
   return `${Number(rule.limit).toString()} / ${durationMillisLabel(rule.windowMillis)}${burst}`;
 }
 
-export function publicPolicyMatchSummary(rule: PublicRateLimitRule | PublicWafRule | PublicTrafficShaperRule): string {
+export function publicPolicyMatchSummary(rule: PublicRateLimitRule | PublicWafRule | PublicTrafficShaperRule | PublicRetryRule): string {
   return policyMatchRuleSummary(rule.matchRule);
 }
 

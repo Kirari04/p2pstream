@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AgentStatsRequest, AgentStatsResponse, CreateAgentRequest, CreateAgentResponse, CreateEnvironmentRequest, CreateEnvironmentResponse, CreateManagementAccessTokenRequest, CreateManagementAccessTokenResponse, CreatePublicCacheRuleRequest, CreatePublicCacheRuleResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRateLimitRuleRequest, CreatePublicRateLimitRuleResponse, CreatePublicResponseTemplateRequest, CreatePublicResponseTemplateResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, CreatePublicTlsDnsCredentialRequest, CreatePublicTlsDnsCredentialResponse, CreatePublicTrafficShaperRuleRequest, CreatePublicTrafficShaperRuleResponse, CreatePublicTrustedProxySourceRequest, CreatePublicTrustedProxySourceResponse, CreatePublicWafCaptchaProviderRequest, CreatePublicWafCaptchaProviderResponse, CreatePublicWafRuleRequest, CreatePublicWafRuleResponse, DeleteAgentRequest, DeleteAgentResponse, DeleteEnvironmentRequest, DeleteEnvironmentResponse, DeleteManagementAccessTokenRequest, DeleteManagementAccessTokenResponse, DeletePublicCacheRuleRequest, DeletePublicCacheRuleResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRateLimitRuleRequest, DeletePublicRateLimitRuleResponse, DeletePublicResponseTemplateRequest, DeletePublicResponseTemplateResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DeletePublicTlsDnsCredentialRequest, DeletePublicTlsDnsCredentialResponse, DeletePublicTrafficShaperRuleRequest, DeletePublicTrafficShaperRuleResponse, DeletePublicTrustedProxySourceRequest, DeletePublicTrustedProxySourceResponse, DeletePublicWafCaptchaProviderRequest, DeletePublicWafCaptchaProviderResponse, DeletePublicWafRuleRequest, DeletePublicWafRuleResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, DiscoverEnvironmentCertificateRequest, DiscoverEnvironmentCertificateResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardDiagnosticsRequest, GetDashboardDiagnosticsResponse, GetDashboardRequest, GetDashboardResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, ListEnvironmentsRequest, ListEnvironmentsResponse, ListManagementAccessTokensRequest, ListManagementAccessTokensResponse, ListPublicRouteTargetHealthTracesRequest, ListPublicRouteTargetHealthTracesResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, PurgePublicCacheRequest, PurgePublicCacheResponse, RefreshPublicGeoIpDatabaseRequest, RefreshPublicGeoIpDatabaseResponse, RefreshPublicTrustedProxySourceRequest, RefreshPublicTrustedProxySourceResponse, RenewPublicTlsCertificateRequest, RenewPublicTlsCertificateResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, TestEnvironmentRequest, TestEnvironmentResponse, TrustEnvironmentCertificateRequest, TrustEnvironmentCertificateResponse, UpdateAgentRequest, UpdateAgentResponse, UpdateEnvironmentRequest, UpdateEnvironmentResponse, UpdatePublicCacheRuleRequest, UpdatePublicCacheRuleResponse, UpdatePublicCacheSettingsRequest, UpdatePublicCacheSettingsResponse, UpdatePublicGeoIpSettingsRequest, UpdatePublicGeoIpSettingsResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRateLimitRuleRequest, UpdatePublicRateLimitRuleResponse, UpdatePublicResponseTemplateRequest, UpdatePublicResponseTemplateResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse, UpdatePublicTlsDnsCredentialRequest, UpdatePublicTlsDnsCredentialResponse, UpdatePublicTrafficShaperRuleRequest, UpdatePublicTrafficShaperRuleResponse, UpdatePublicTrustedProxySourceRequest, UpdatePublicTrustedProxySourceResponse, UpdatePublicWafCaptchaProviderRequest, UpdatePublicWafCaptchaProviderResponse, UpdatePublicWafRuleRequest, UpdatePublicWafRuleResponse } from "./management_pb";
+import { ActivateManagementTlsRotationRequest, ActivateManagementTlsRotationResponse, AgentStatsRequest, AgentStatsResponse, BeginManagementTlsTrustRetirementRequest, BeginManagementTlsTrustRetirementResponse, CancelManagementTlsRotationRequest, CancelManagementTlsRotationResponse, CreateAgentRequest, CreateAgentResponse, CreateEnvironmentRequest, CreateEnvironmentResponse, CreateManagementAccessTokenRequest, CreateManagementAccessTokenResponse, CreatePublicAccessPolicyRequest, CreatePublicAccessPolicyResponse, CreatePublicAccessProviderRequest, CreatePublicAccessProviderResponse, CreatePublicCacheRuleRequest, CreatePublicCacheRuleResponse, CreatePublicListenerRequest, CreatePublicListenerResponse, CreatePublicRateLimitRuleRequest, CreatePublicRateLimitRuleResponse, CreatePublicResponseTemplateRequest, CreatePublicResponseTemplateResponse, CreatePublicRetryRuleRequest, CreatePublicRetryRuleResponse, CreatePublicRouteRequest, CreatePublicRouteResponse, CreatePublicTlsCertificateRequest, CreatePublicTlsCertificateResponse, CreatePublicTlsDnsCredentialRequest, CreatePublicTlsDnsCredentialResponse, CreatePublicTrafficShaperRuleRequest, CreatePublicTrafficShaperRuleResponse, CreatePublicTrustedProxySourceRequest, CreatePublicTrustedProxySourceResponse, CreatePublicWafCaptchaProviderRequest, CreatePublicWafCaptchaProviderResponse, CreatePublicWafRuleRequest, CreatePublicWafRuleResponse, DeleteAgentRequest, DeleteAgentResponse, DeleteEnvironmentRequest, DeleteEnvironmentResponse, DeleteManagementAccessTokenRequest, DeleteManagementAccessTokenResponse, DeletePublicAccessPolicyRequest, DeletePublicAccessPolicyResponse, DeletePublicAccessProviderRequest, DeletePublicAccessProviderResponse, DeletePublicCacheRuleRequest, DeletePublicCacheRuleResponse, DeletePublicListenerRequest, DeletePublicListenerResponse, DeletePublicRateLimitRuleRequest, DeletePublicRateLimitRuleResponse, DeletePublicResponseTemplateRequest, DeletePublicResponseTemplateResponse, DeletePublicRetryRuleRequest, DeletePublicRetryRuleResponse, DeletePublicRouteRequest, DeletePublicRouteResponse, DeletePublicTlsCertificateRequest, DeletePublicTlsCertificateResponse, DeletePublicTlsDnsCredentialRequest, DeletePublicTlsDnsCredentialResponse, DeletePublicTrafficShaperRuleRequest, DeletePublicTrafficShaperRuleResponse, DeletePublicTrustedProxySourceRequest, DeletePublicTrustedProxySourceResponse, DeletePublicWafCaptchaProviderRequest, DeletePublicWafCaptchaProviderResponse, DeletePublicWafRuleRequest, DeletePublicWafRuleResponse, DisablePublicListenerRequest, DisablePublicListenerResponse, DiscoverEnvironmentCertificateRequest, DiscoverEnvironmentCertificateResponse, EnablePublicListenerRequest, EnablePublicListenerResponse, FinalizeManagementTlsTrustCleanupRequest, FinalizeManagementTlsTrustCleanupResponse, FinalizeManagementTlsTrustRetirementRequest, FinalizeManagementTlsTrustRetirementResponse, GenerateManagementTlsRotationRequest, GenerateManagementTlsRotationResponse, GetAgentAvailabilityRequest, GetAgentAvailabilityResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetDashboardDiagnosticsRequest, GetDashboardDiagnosticsResponse, GetDashboardRequest, GetDashboardResponse, GetManagementTlsRotationRequest, GetManagementTlsRotationResponse, GetPublicProxyConfigRequest, GetPublicProxyConfigResponse, GetSetupStateRequest, GetSetupStateResponse, GetStatusRequest, GetStatusResponse, GetTrafficTraceSettingsRequest, GetTrafficTraceSettingsResponse, ListEnvironmentsRequest, ListEnvironmentsResponse, ListManagementAccessTokensRequest, ListManagementAccessTokensResponse, ListPublicRouteTargetHealthTracesRequest, ListPublicRouteTargetHealthTracesResponse, LoginRequest, LoginResponse, LogoutRequest, LogoutResponse, PurgePublicCacheRequest, PurgePublicCacheResponse, RefreshPublicGeoIpDatabaseRequest, RefreshPublicGeoIpDatabaseResponse, RefreshPublicTrustedProxySourceRequest, RefreshPublicTrustedProxySourceResponse, RenewPublicTlsCertificateRequest, RenewPublicTlsCertificateResponse, RollbackManagementTlsRotationRequest, RollbackManagementTlsRotationResponse, RotateAgentTokenRequest, RotateAgentTokenResponse, SetTrafficTraceSettingsRequest, SetTrafficTraceSettingsResponse, SetupAdminRequest, SetupAdminResponse, StageManagementTlsRotationRequest, StageManagementTlsRotationResponse, StartProxyRequest, StartProxyResponse, StartPublicListenerRequest, StartPublicListenerResponse, StopProxyRequest, StopProxyResponse, StopPublicListenerRequest, StopPublicListenerResponse, StreamTrafficTraceEventsRequest, StreamTrafficTraceEventsResponse, TestEnvironmentRequest, TestEnvironmentResponse, TrustEnvironmentCertificateRequest, TrustEnvironmentCertificateResponse, UpdateAgentRequest, UpdateAgentResponse, UpdateEnvironmentRequest, UpdateEnvironmentResponse, UpdatePublicAccessPolicyRequest, UpdatePublicAccessPolicyResponse, UpdatePublicAccessProviderRequest, UpdatePublicAccessProviderResponse, UpdatePublicCacheRuleRequest, UpdatePublicCacheRuleResponse, UpdatePublicCacheSettingsRequest, UpdatePublicCacheSettingsResponse, UpdatePublicGeoIpSettingsRequest, UpdatePublicGeoIpSettingsResponse, UpdatePublicListenerRequest, UpdatePublicListenerResponse, UpdatePublicRateLimitRuleRequest, UpdatePublicRateLimitRuleResponse, UpdatePublicResponseTemplateRequest, UpdatePublicResponseTemplateResponse, UpdatePublicRetryRuleRequest, UpdatePublicRetryRuleResponse, UpdatePublicRouteRequest, UpdatePublicRouteResponse, UpdatePublicTlsCertificateRequest, UpdatePublicTlsCertificateResponse, UpdatePublicTlsDnsCredentialRequest, UpdatePublicTlsDnsCredentialResponse, UpdatePublicTrafficShaperRuleRequest, UpdatePublicTrafficShaperRuleResponse, UpdatePublicTrustedProxySourceRequest, UpdatePublicTrustedProxySourceResponse, UpdatePublicWafCaptchaProviderRequest, UpdatePublicWafCaptchaProviderResponse, UpdatePublicWafRuleRequest, UpdatePublicWafRuleResponse } from "./management_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -22,6 +22,87 @@ export const AgentManagementService = {
       kind: MethodKind.Unary,
     },
     /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.GetManagementTlsRotation
+     */
+    getManagementTlsRotation: {
+      name: "GetManagementTlsRotation",
+      I: GetManagementTlsRotationRequest,
+      O: GetManagementTlsRotationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.StageManagementTlsRotation
+     */
+    stageManagementTlsRotation: {
+      name: "StageManagementTlsRotation",
+      I: StageManagementTlsRotationRequest,
+      O: StageManagementTlsRotationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.GenerateManagementTlsRotation
+     */
+    generateManagementTlsRotation: {
+      name: "GenerateManagementTlsRotation",
+      I: GenerateManagementTlsRotationRequest,
+      O: GenerateManagementTlsRotationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.ActivateManagementTlsRotation
+     */
+    activateManagementTlsRotation: {
+      name: "ActivateManagementTlsRotation",
+      I: ActivateManagementTlsRotationRequest,
+      O: ActivateManagementTlsRotationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.RollbackManagementTlsRotation
+     */
+    rollbackManagementTlsRotation: {
+      name: "RollbackManagementTlsRotation",
+      I: RollbackManagementTlsRotationRequest,
+      O: RollbackManagementTlsRotationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.BeginManagementTlsTrustRetirement
+     */
+    beginManagementTlsTrustRetirement: {
+      name: "BeginManagementTlsTrustRetirement",
+      I: BeginManagementTlsTrustRetirementRequest,
+      O: BeginManagementTlsTrustRetirementResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustRetirement
+     */
+    finalizeManagementTlsTrustRetirement: {
+      name: "FinalizeManagementTlsTrustRetirement",
+      I: FinalizeManagementTlsTrustRetirementRequest,
+      O: FinalizeManagementTlsTrustRetirementResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CancelManagementTlsRotation
+     */
+    cancelManagementTlsRotation: {
+      name: "CancelManagementTlsRotation",
+      I: CancelManagementTlsRotationRequest,
+      O: CancelManagementTlsRotationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustCleanup
+     */
+    finalizeManagementTlsTrustCleanup: {
+      name: "FinalizeManagementTlsTrustCleanup",
+      I: FinalizeManagementTlsTrustCleanupRequest,
+      O: FinalizeManagementTlsTrustCleanupResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * @generated from rpc p2pstream.v1.AgentManagementService.GetStatus
      */
     getStatus: {
@@ -37,6 +118,15 @@ export const AgentManagementService = {
       name: "GetDashboard",
       I: GetDashboardRequest,
       O: GetDashboardResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.GetAgentAvailability
+     */
+    getAgentAvailability: {
+      name: "GetAgentAvailability",
+      I: GetAgentAvailabilityRequest,
+      O: GetAgentAvailabilityResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -400,6 +490,60 @@ export const AgentManagementService = {
       kind: MethodKind.Unary,
     },
     /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicAccessProvider
+     */
+    createPublicAccessProvider: {
+      name: "CreatePublicAccessProvider",
+      I: CreatePublicAccessProviderRequest,
+      O: CreatePublicAccessProviderResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider
+     */
+    updatePublicAccessProvider: {
+      name: "UpdatePublicAccessProvider",
+      I: UpdatePublicAccessProviderRequest,
+      O: UpdatePublicAccessProviderResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicAccessProvider
+     */
+    deletePublicAccessProvider: {
+      name: "DeletePublicAccessProvider",
+      I: DeletePublicAccessProviderRequest,
+      O: DeletePublicAccessProviderResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy
+     */
+    createPublicAccessPolicy: {
+      name: "CreatePublicAccessPolicy",
+      I: CreatePublicAccessPolicyRequest,
+      O: CreatePublicAccessPolicyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy
+     */
+    updatePublicAccessPolicy: {
+      name: "UpdatePublicAccessPolicy",
+      I: UpdatePublicAccessPolicyRequest,
+      O: UpdatePublicAccessPolicyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy
+     */
+    deletePublicAccessPolicy: {
+      name: "DeletePublicAccessPolicy",
+      I: DeletePublicAccessPolicyRequest,
+      O: DeletePublicAccessPolicyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential
      */
     createPublicTlsDnsCredential: {
@@ -649,6 +793,33 @@ export const AgentManagementService = {
       name: "DeletePublicCacheRule",
       I: DeletePublicCacheRuleRequest,
       O: DeletePublicCacheRuleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.CreatePublicRetryRule
+     */
+    createPublicRetryRule: {
+      name: "CreatePublicRetryRule",
+      I: CreatePublicRetryRuleRequest,
+      O: CreatePublicRetryRuleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.UpdatePublicRetryRule
+     */
+    updatePublicRetryRule: {
+      name: "UpdatePublicRetryRule",
+      I: UpdatePublicRetryRuleRequest,
+      O: UpdatePublicRetryRuleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc p2pstream.v1.AgentManagementService.DeletePublicRetryRule
+     */
+    deletePublicRetryRule: {
+      name: "DeletePublicRetryRule",
+      I: DeletePublicRetryRuleRequest,
+      O: DeletePublicRetryRuleResponse,
       kind: MethodKind.Unary,
     },
     /**

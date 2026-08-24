@@ -75,6 +75,8 @@ const (
 var publicNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 type publicConfigRows struct {
+	AccessProviders            []db.PublicAccessProvider
+	AccessPolicies             []db.PublicAccessPolicy
 	Agents                     []db.Agent
 	AgentLabels                []db.PublicAgentLabel
 	Listeners                  []db.PublicListener
@@ -93,6 +95,7 @@ type publicConfigRows struct {
 	TrustedProxySources        []db.PublicTrustedProxySource
 	CacheSettings              db.PublicCacheSetting
 	CacheRules                 []db.PublicCacheRule
+	RetryRules                 []db.PublicRetryRule
 	ResponseTemplates          []db.PublicResponseTemplate
 }
 
