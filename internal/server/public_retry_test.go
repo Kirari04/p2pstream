@@ -1,6 +1,8 @@
 package server
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"io"
@@ -38,6 +40,27 @@ type retryTrackingReadWriteCloser struct {
 	io.Reader
 	writes strings.Builder
 	closed bool
+}
+
+type retryErrorAfterReadCloser struct {
+	reader io.Reader
+	err    error
+	closed bool
+}
+
+func (b *retryErrorAfterReadCloser) Read(p []byte) (int, error) {
+	n, err := b.reader.Read(p)
+	if err == io.EOF && b.err != nil {
+		failure := b.err
+		b.err = nil
+		return n, failure
+	}
+	return n, err
+}
+
+func (b *retryErrorAfterReadCloser) Close() error {
+	b.closed = true
+	return nil
 }
 
 func (b *retryTrackingReadWriteCloser) Write(p []byte) (int, error) {
@@ -230,6 +253,303 @@ func TestPublicAgentRetryReturnsFinalRetryableStatusWhenExhausted(t *testing.T) 
 	}
 }
 
+func TestPublicAgentRetryRecoversTruncatedCompressedResponseBeforeDelivery(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	var encoded bytes.Buffer
+	compressor := gzip.NewWriter(&encoded)
+	plain := []byte(strings.Repeat("general response payload\n", 32))
+	if _, err := compressor.Write(plain); err != nil {
+		t.Fatalf("compress response: %v", err)
+	}
+	if err := compressor.Close(); err != nil {
+		t.Fatalf("close compressor: %v", err)
+	}
+	compressed := encoded.Bytes()
+	partial := append([]byte(nil), compressed[:len(compressed)/2]...)
+	firstBody := &retryErrorAfterReadCloser{reader: bytes.NewReader(partial), err: io.ErrUnexpectedEOF}
+	result := &publicRetryAttemptResult{}
+	var attempts []int64
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 7, Name: "completed-responses", MaxRetries: 1,
+			FailureMode:                  publicRetryFailureModePreResponseFailures,
+			BodyMode:                     publicRetryBodyModeNever,
+			ResponseBodyMode:             publicRetryResponseBodyModeBuffered,
+			MaxBufferedResponseBodyBytes: 4096,
+		},
+		requestID: "request-response-body", result: result,
+		transportForAgent: func(agent *AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts = append(attempts, agent.AgentID)
+				body := io.ReadCloser(io.NopCloser(bytes.NewReader(compressed)))
+				if agent.AgentID == first.AgentID {
+					body = firstBody
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Type":     []string{"application/octet-stream"},
+						"Content-Encoding": []string{"gzip"},
+					},
+					ContentLength: int64(len(compressed)),
+					Body:          body,
+					Request:       req,
+				}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/download", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	if first.ActiveRequests.Load() != 0 || second.ActiveRequests.Load() != 0 {
+		t.Fatalf("active requests after completed buffering = [%d %d], want [0 0]", first.ActiveRequests.Load(), second.ActiveRequests.Load())
+	}
+	wireBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read protected response: %v", err)
+	}
+	if !bytes.Equal(wireBody, compressed) {
+		t.Fatal("protected response did not preserve the complete encoded wire body")
+	}
+	if resp.Header.Get("Content-Encoding") != "gzip" {
+		t.Fatalf("content encoding = %q, want gzip", resp.Header.Get("Content-Encoding"))
+	}
+	reader, err := gzip.NewReader(bytes.NewReader(wireBody))
+	if err != nil {
+		t.Fatalf("open recovered gzip response: %v", err)
+	}
+	decoded, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("decode recovered gzip response: %v", err)
+	}
+	_ = reader.Close()
+	if !bytes.Equal(decoded, plain) {
+		t.Fatal("decoded recovered response differs from the upstream payload")
+	}
+	if !firstBody.closed {
+		t.Fatal("failed response body was not closed before retry")
+	}
+	if len(attempts) != 2 || attempts[0] != first.AgentID || attempts[1] != second.AgentID {
+		t.Fatalf("attempted agents = %v, want [%d %d]", attempts, first.AgentID, second.AgentID)
+	}
+	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FirstErrorKind != "upstream_response_body_truncated" || result.TerminalErrorKind != "" || result.FirstFailedAgent != first || result.FinalAgent != second {
+		t.Fatalf("retry result = %+v", result)
+	}
+	if got := app.retryReplayBudget.used.Load(); got != int64(len(compressed)) {
+		t.Fatalf("response buffer reservation = %d, want %d until client close", got, len(compressed))
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("close response: %v", err)
+	}
+	if got := app.retryReplayBudget.used.Load(); got != 0 {
+		t.Fatalf("response buffer reservation after close = %d, want 0", got)
+	}
+}
+
+func TestPublicAgentRetryReturnsErrorWhenBufferedResponseRetriesAreExhausted(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	result := &publicRetryAttemptResult{}
+	attempts := 0
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 8, Name: "completed-responses", MaxRetries: 1,
+			FailureMode: publicRetryFailureModePreResponseFailures,
+			BodyMode:    publicRetryBodyModeNever, ResponseBodyMode: publicRetryResponseBodyModeBuffered,
+			MaxBufferedResponseBodyBytes: 1024,
+		},
+		requestID: "request-response-exhausted", result: result,
+		transportForAgent: func(*AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				return &http.Response{
+					StatusCode: http.StatusOK, Header: make(http.Header), ContentLength: 64,
+					Body: &retryErrorAfterReadCloser{reader: strings.NewReader("partial"), err: io.ErrUnexpectedEOF}, Request: req,
+				}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/download", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if resp != nil || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("round trip = response %v, error %v; want no committed response and unexpected EOF", resp, err)
+	}
+	if attempts != 2 || result.Outcome != publicRetryOutcomeExhausted || result.RetryCount != 1 || result.TerminalErrorKind != "upstream_response_body_truncated" || result.FinalAgent != second {
+		t.Fatalf("retry result after %d attempts = %+v", attempts, result)
+	}
+	if first.ActiveRequests.Load() != 0 || second.ActiveRequests.Load() != 0 || app.retryReplayBudget.used.Load() != 0 {
+		t.Fatalf("resources leaked: active=[%d %d] budget=%d", first.ActiveRequests.Load(), second.ActiveRequests.Load(), app.retryReplayBudget.used.Load())
+	}
+}
+
+func TestPublicAgentRetryStreamsOversizedResponseAndRecordsBodyFailure(t *testing.T) {
+	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
+	result := &publicRetryAttemptResult{}
+	attempts := 0
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 9, Name: "small-responses", MaxRetries: 1,
+			FailureMode: publicRetryFailureModePreResponseFailures,
+			BodyMode:    publicRetryBodyModeNever, ResponseBodyMode: publicRetryResponseBodyModeBuffered,
+			MaxBufferedResponseBodyBytes: 4,
+		},
+		requestID: "request-response-too-large", result: result,
+		transportForAgent: func(*AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				return &http.Response{
+					StatusCode: http.StatusOK, Header: make(http.Header), ContentLength: 64,
+					Body: &retryErrorAfterReadCloser{reader: strings.NewReader("partial"), err: io.ErrUnexpectedEOF}, Request: req,
+				}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/large", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip headers: %v", err)
+	}
+	if _, err := io.ReadAll(resp.Body); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("streaming body error = %v, want unexpected EOF", err)
+	}
+	_ = resp.Body.Close()
+	if attempts != 1 || result.Outcome != publicRetryOutcomeSkipped || result.ReplaySkippedReason != "response_body_too_large" || result.TerminalErrorKind != "upstream_response_body_truncated" {
+		t.Fatalf("streaming retry result after %d attempts = %+v", attempts, result)
+	}
+	if first.ActiveRequests.Load() != 0 || app.retryReplayBudget.used.Load() != 0 {
+		t.Fatalf("streaming resources leaked: active=%d budget=%d", first.ActiveRequests.Load(), app.retryReplayBudget.used.Load())
+	}
+}
+
+func TestPublicAgentRetryDoesNotReplayConsumedRequestAfterResponseBodyFailure(t *testing.T) {
+	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
+	result := &publicRetryAttemptResult{}
+	attempts := 0
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 10, Name: "unsafe-response-replay", MaxRetries: 1,
+			FailureMode: publicRetryFailureModePreResponseFailures,
+			BodyMode:    publicRetryBodyModeNever, ResponseBodyMode: publicRetryResponseBodyModeBuffered,
+			MaxBufferedResponseBodyBytes: 1024,
+		},
+		requestID: "request-response-consumed-post", result: result,
+		transportForAgent: func(*AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				if _, err := io.ReadAll(req.Body); err != nil {
+					t.Fatalf("read request body: %v", err)
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK, Header: make(http.Header), ContentLength: 64,
+					Body: &retryErrorAfterReadCloser{reader: strings.NewReader("partial"), err: io.ErrUnexpectedEOF}, Request: req,
+				}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodPost, "http://proxy.test/mutate", strings.NewReader("mutation"))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if resp != nil || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("round trip = response %v, error %v; want no response and unexpected EOF", resp, err)
+	}
+	if attempts != 1 || result.Outcome != publicRetryOutcomeSkipped || result.ReplaySkippedReason != "request_body_not_replayable" {
+		t.Fatalf("non-replayable result after %d attempts = %+v", attempts, result)
+	}
+}
+
+func TestPreparePublicRetryResponseBodyStreamsUnknownOversizeWithoutLosingPrefix(t *testing.T) {
+	app := NewApp(nil, nil)
+	app.retryReplayBudget = newRetryReplayBudget(4)
+	rule := &publicRetryRuleConfig{ResponseBodyMode: publicRetryResponseBodyModeBuffered, MaxBufferedResponseBodyBytes: 4}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/download", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp := &http.Response{
+		StatusCode: http.StatusOK, Header: make(http.Header), ContentLength: -1,
+		Body: io.NopCloser(strings.NewReader("oversized")), Request: req,
+	}
+	prepared, err := preparePublicRetryResponseBody(app, req, resp, rule)
+	if err != nil {
+		t.Fatalf("prepare unknown response: %v", err)
+	}
+	if prepared.complete || prepared.skipReason != "response_body_too_large" {
+		t.Fatalf("prepared response = %+v, want streaming oversize", prepared)
+	}
+	body, err := io.ReadAll(prepared.body)
+	if err != nil {
+		t.Fatalf("read reconstructed response: %v", err)
+	}
+	if string(body) != "oversized" {
+		t.Fatalf("reconstructed response = %q, want oversized", body)
+	}
+	if got := app.retryReplayBudget.used.Load(); got != 4 {
+		t.Fatalf("response prefix reservation = %d, want 4 until close", got)
+	}
+	if err := prepared.body.Close(); err != nil {
+		t.Fatalf("close reconstructed response: %v", err)
+	}
+	if got := app.retryReplayBudget.used.Load(); got != 0 {
+		t.Fatalf("response prefix reservation after close = %d, want 0", got)
+	}
+}
+
+func TestPublicRetryResponseBufferExcludesStreamingProtocolsAndRanges(t *testing.T) {
+	rule := &publicRetryRuleConfig{ResponseBodyMode: publicRetryResponseBodyModeBuffered, MaxBufferedResponseBodyBytes: 1024}
+	tests := []struct {
+		name        string
+		method      string
+		request     http.Header
+		status      int
+		response    http.Header
+		contentType string
+		want        string
+	}{
+		{name: "head", method: http.MethodHead, status: http.StatusOK, want: "response_body_absent"},
+		{name: "request range", method: http.MethodGet, request: http.Header{"Range": []string{"bytes=0-10"}}, status: http.StatusOK, want: "response_range_streamed"},
+		{name: "partial response", method: http.MethodGet, status: http.StatusPartialContent, want: "response_range_streamed"},
+		{name: "upstream opt out", method: http.MethodGet, status: http.StatusOK, response: http.Header{"X-Accel-Buffering": []string{"no"}}, want: "response_buffering_disabled_by_upstream"},
+		{name: "server sent events", method: http.MethodGet, status: http.StatusOK, contentType: "text/event-stream; charset=utf-8", want: "streaming_response_type"},
+		{name: "grpc variant", method: http.MethodGet, status: http.StatusOK, contentType: "application/grpc+json", want: "streaming_response_type"},
+		{name: "multipart stream", method: http.MethodGet, status: http.StatusOK, contentType: "multipart/x-mixed-replace; boundary=frame", want: "streaming_response_type"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &http.Request{Method: tt.method, Header: tt.request}
+			if req.Header == nil {
+				req.Header = make(http.Header)
+			}
+			respHeader := tt.response
+			if respHeader == nil {
+				respHeader = make(http.Header)
+			}
+			if tt.contentType != "" {
+				respHeader.Set("Content-Type", tt.contentType)
+			}
+			resp := &http.Response{StatusCode: tt.status, Header: respHeader, ContentLength: -1, Body: io.NopCloser(strings.NewReader("body"))}
+			if got := publicRetryResponseBufferExclusion(req, resp, rule); got != tt.want {
+				t.Fatalf("exclusion = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPublicAgentRetrySkipsStatusRetryForConsumedUnbufferedBody(t *testing.T) {
 	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
 	attempts := 0
@@ -418,7 +738,8 @@ func TestValidatePublicRetryRuleRequiresExplicitDuplicateRiskAcknowledgement(t *
 		context.Background(), "mutations", 100, true, []string{http.MethodPost}, 1,
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
-		1024, nil, nil, nil, nil, false,
+		1024, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
+		nil, nil, nil, nil, false,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("validation error = %v, want invalid argument", err)
@@ -428,7 +749,8 @@ func TestValidatePublicRetryRuleRequiresExplicitDuplicateRiskAcknowledgement(t *
 		context.Background(), "mutations", 100, true, []string{http.MethodPost}, 1,
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
-		1024, nil, nil, nil, nil, true,
+		1024, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
+		nil, nil, nil, nil, true,
 	); err != nil {
 		t.Fatalf("acknowledged validation: %v", err)
 	}
@@ -440,7 +762,8 @@ func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
 		context.Background(), "gateway-errors", 100, true, []string{http.MethodGet}, 1,
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
-		0, []int64{http.StatusServiceUnavailable}, nil, nil, nil, false,
+		0, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
+		[]int64{http.StatusServiceUnavailable}, nil, nil, nil, false,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unacknowledged status retry error = %v, want invalid argument", err)
@@ -450,7 +773,8 @@ func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
 		context.Background(), "gateway-errors", 100, true, []string{http.MethodGet}, 1,
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
-		0, []int64{504, 502, 503, 502}, nil, nil, nil, true,
+		0, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
+		[]int64{504, 502, 503, 502}, nil, nil, nil, true,
 	)
 	if err != nil {
 		t.Fatalf("validate retry statuses: %v", err)
@@ -463,10 +787,50 @@ func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
 		context.Background(), "gateway-errors", 100, true, []string{http.MethodGet}, 1,
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
-		0, []int64{399}, nil, nil, nil, true,
+		0, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
+		[]int64{399}, nil, nil, nil, true,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid retry status error = %v, want invalid argument", err)
+	}
+}
+
+func TestValidatePublicRetryRuleBufferedResponseRequiresRiskAcknowledgementAndBound(t *testing.T) {
+	app := NewApp(nil, nil)
+	_, err := app.validatePublicRetryRuleInput(
+		context.Background(), "completed-responses", 100, true, []string{http.MethodGet}, 1,
+		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER, 0,
+		p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED, 1024,
+		nil, nil, nil, nil, false,
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unacknowledged response buffering error = %v, want invalid argument", err)
+	}
+
+	input, err := app.validatePublicRetryRuleInput(
+		context.Background(), "completed-responses", 100, true, []string{http.MethodGet}, 1,
+		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER, 0,
+		p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED, 1024,
+		nil, nil, nil, nil, true,
+	)
+	if err != nil {
+		t.Fatalf("validate response buffering: %v", err)
+	}
+	if input.ResponseBodyMode != publicRetryResponseBodyModeBuffered || input.MaxBufferedResponseBodyBytes != 1024 {
+		t.Fatalf("validated response buffering = mode %q limit %d", input.ResponseBodyMode, input.MaxBufferedResponseBodyBytes)
+	}
+
+	_, err = app.validatePublicRetryRuleInput(
+		context.Background(), "completed-responses", 100, true, []string{http.MethodGet}, 1,
+		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER, 0,
+		p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED, maxPublicRetryBufferedResponseBodyBytes+1,
+		nil, nil, nil, nil, true,
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("oversized response buffering error = %v, want invalid argument", err)
 	}
 }
 
@@ -500,18 +864,20 @@ func TestPublicRetryManagementAPICreateUpdateDeleteReadback(t *testing.T) {
 	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicRetryRuleRequest{
 		Id: created.Msg.Rule.Id, Name: "vpn-mutations", Priority: 10, Enabled: true,
 		Methods: []string{http.MethodPost}, MaxRetries: 2,
-		FailureMode:               p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
-		BodyMode:                  p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
-		MaxReplayBodyBytes:        2048,
-		RetryStatusCodes:          []int64{http.StatusBadGateway, http.StatusServiceUnavailable},
-		DuplicateRiskAcknowledged: true,
+		FailureMode:                  p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
+		BodyMode:                     p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
+		MaxReplayBodyBytes:           2048,
+		ResponseBodyMode:             p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED,
+		MaxBufferedResponseBodyBytes: 8 * 1024 * 1024,
+		RetryStatusCodes:             []int64{http.StatusBadGateway, http.StatusServiceUnavailable},
+		DuplicateRiskAcknowledged:    true,
 	})
 	updateReq.Header().Set("Cookie", header.Get("Cookie"))
 	updated, err := app.UpdatePublicRetryRule(context.Background(), updateReq)
 	if err != nil {
 		t.Fatalf("update retry rule: %v", err)
 	}
-	if updated.Msg.Rule.Name != "vpn-mutations" || updated.Msg.Rule.MaxRetries != 2 || updated.Msg.Rule.MaxReplayBodyBytes != 2048 || len(updated.Msg.Rule.RetryStatusCodes) != 2 {
+	if updated.Msg.Rule.Name != "vpn-mutations" || updated.Msg.Rule.MaxRetries != 2 || updated.Msg.Rule.MaxReplayBodyBytes != 2048 || updated.Msg.Rule.ResponseBodyMode != p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED || updated.Msg.Rule.MaxBufferedResponseBodyBytes != 8*1024*1024 || len(updated.Msg.Rule.RetryStatusCodes) != 2 {
 		t.Fatalf("update readback = %+v", updated.Msg.Rule)
 	}
 

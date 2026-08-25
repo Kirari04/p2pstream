@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
@@ -27,9 +29,10 @@ var retryAsset = &retryAssetState{attemptsByPath: make(map[string]int)}
 var retryStatus = &retryStatusState{attemptsByPath: make(map[string]int)}
 
 type retryAssetState struct {
-	mu             sync.Mutex
-	totalAttempts  int
-	attemptsByPath map[string]int
+	mu                    sync.Mutex
+	totalAttempts         int
+	responseBodiesStarted int
+	attemptsByPath        map[string]int
 }
 
 type retryStatusState struct {
@@ -51,6 +54,7 @@ func main() {
 	mux.HandleFunc("/slow-headers", slowHeadersHandler)
 	mux.HandleFunc("/close-early", closeEarlyHandler)
 	mux.HandleFunc("/retry-assets/", retryAssetHandler)
+	mux.HandleFunc("/retry-response-assets/", retryResponseAssetHandler)
 	mux.HandleFunc("/retry-asset-status", retryAssetStatusHandler)
 	mux.HandleFunc("/retry-status/", retryStatusHandler)
 	mux.HandleFunc("/health", healthHandler)
@@ -200,6 +204,64 @@ func retryAssetHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, "%s recovered\n", strings.TrimPrefix(r.URL.Path, "/retry-assets/"))
 }
 
+func retryResponseAssetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	retryAsset.mu.Lock()
+	retryAsset.totalAttempts++
+	retryAsset.attemptsByPath[r.URL.Path]++
+	attempt := retryAsset.attemptsByPath[r.URL.Path]
+	retryAsset.mu.Unlock()
+
+	asset := strings.TrimPrefix(r.URL.Path, "/retry-response-assets/")
+	payload := []byte(asset + " recovered\n")
+	contentType := "text/html; charset=utf-8"
+	encoded := payload
+	if strings.HasSuffix(asset, ".bin") {
+		contentType = "application/octet-stream"
+		var compressed bytes.Buffer
+		writer := gzip.NewWriter(&compressed)
+		if _, err := writer.Write(payload); err != nil {
+			http.Error(w, "compress response", http.StatusInternalServerError)
+			return
+		}
+		if err := writer.Close(); err != nil {
+			http.Error(w, "close compressed response", http.StatusInternalServerError)
+			return
+		}
+		encoded = compressed.Bytes()
+		w.Header().Set("Content-Encoding", "gzip")
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(encoded)))
+	w.Header().Set("X-Smoke-Upstream-Attempt", strconv.Itoa(attempt))
+
+	if attempt == 1 {
+		partialLength := len(encoded) / 2
+		if partialLength < 1 {
+			partialLength = 1
+		}
+		_, _ = w.Write(encoded[:partialLength])
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		retryAsset.mu.Lock()
+		retryAsset.responseBodiesStarted++
+		retryAsset.mu.Unlock()
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(30 * time.Second):
+			return
+		}
+	}
+
+	_, _ = w.Write(encoded)
+}
+
 func retryAssetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -207,8 +269,9 @@ func retryAssetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	retryAsset.mu.Lock()
 	attempts := retryAsset.totalAttempts
+	responseBodiesStarted := retryAsset.responseBodiesStarted
 	retryAsset.mu.Unlock()
-	writeJSON(w, map[string]int{"attempts": attempts})
+	writeJSON(w, map[string]int{"attempts": attempts, "response_bodies_started": responseBodiesStarted})
 }
 
 func retryStatusHandler(w http.ResponseWriter, r *http.Request) {

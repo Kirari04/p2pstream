@@ -12,6 +12,7 @@ import {
   PublicPolicyMatchRuleSchema,
   PublicRateLimitRuleSchema,
   PublicRetryFailureMode,
+  PublicRetryResponseBodyMode,
   PublicRetryRuleSchema,
   PublicRouteTargetSchema,
   PublicRouteTargetTransport,
@@ -424,6 +425,7 @@ describe("trafficPolicyWorkbench", () => {
         retryRule({ id: 40n, priority: 1n, failureMode: PublicRetryFailureMode.PRE_RESPONSE_FAILURES }),
         retryRule({ id: 41n, priority: 1n, matchRule: pathRule("/retry") }),
         retryRule({ id: 42n, priority: 2n, retryStatusCodes: [503n], matchRule: pathRule("/gateway") }),
+        retryRule({ id: 43n, priority: 3n, responseBodyMode: PublicRetryResponseBodyMode.BUFFERED, maxBufferedResponseBodyBytes: 1024n, matchRule: pathRule("/completed") }),
       ],
     });
 
@@ -443,6 +445,7 @@ describe("trafficPolicyWorkbench", () => {
     expect(warnings.map((warning) => warning.code)).toContain("cache-allows-cookie-requests");
     expect(warnings.map((warning) => warning.code)).toContain("retry-duplicate-risk");
     expect(warnings.some((warning) => warning.ruleId === 42n && warning.code === "retry-duplicate-risk")).toBe(true);
+    expect(warnings.some((warning) => warning.ruleId === 43n && warning.code === "retry-duplicate-risk")).toBe(true);
     expect(warnings.some((warning) => warning.ruleId === 2n && warning.code === "any-request-rule")).toBe(false);
     expect(warnings.some((warning) => warning.ruleId === 32n && warning.code === "cache-allows-cookie-requests")).toBe(false);
   });
@@ -566,6 +569,8 @@ function retryRule(overrides: Partial<PublicRetryRule>): PublicRetryRule {
     maxRetries: overrides.maxRetries ?? 1n,
     failureMode: overrides.failureMode ?? PublicRetryFailureMode.CONNECTION_FAILURES,
     retryStatusCodes: overrides.retryStatusCodes ?? [],
+    responseBodyMode: overrides.responseBodyMode ?? PublicRetryResponseBodyMode.STREAM,
+    maxBufferedResponseBodyBytes: overrides.maxBufferedResponseBodyBytes ?? 0n,
     routeIds: overrides.routeIds ?? [],
     targetIds: overrides.targetIds ?? [],
     matchRule: overrides.matchRule,

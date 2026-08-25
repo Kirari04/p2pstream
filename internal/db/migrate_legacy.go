@@ -807,13 +807,17 @@ func (db *DB) migrateLegacyPublicPolicyTables() error {
 			match_json TEXT NOT NULL DEFAULT '{}',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			retry_status_codes_json TEXT NOT NULL DEFAULT '[]'
+			retry_status_codes_json TEXT NOT NULL DEFAULT '[]',
+			response_body_mode TEXT NOT NULL DEFAULT 'stream',
+			max_buffered_response_body_bytes INTEGER NOT NULL DEFAULT 0
 		)
 	`); err != nil {
 		return err
 	}
 	if err := db.execLegacyAlterStatements(
 		`ALTER TABLE public_retry_rules ADD COLUMN retry_status_codes_json TEXT NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE public_retry_rules ADD COLUMN response_body_mode TEXT NOT NULL DEFAULT 'stream'`,
+		`ALTER TABLE public_retry_rules ADD COLUMN max_buffered_response_body_bytes INTEGER NOT NULL DEFAULT 0`,
 	); err != nil {
 		return err
 	}

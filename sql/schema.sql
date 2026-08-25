@@ -547,7 +547,9 @@ CREATE TABLE IF NOT EXISTS public_retry_rules (
     match_json TEXT NOT NULL DEFAULT '{}',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    retry_status_codes_json TEXT NOT NULL DEFAULT '[]'
+    retry_status_codes_json TEXT NOT NULL DEFAULT '[]',
+    response_body_mode TEXT NOT NULL DEFAULT 'stream',
+    max_buffered_response_body_bytes INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS public_cache_entries (

@@ -2,15 +2,18 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/http/httptrace"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -59,6 +62,7 @@ type publicRetryAttemptResult struct {
 	Outcome             string
 	FirstErrorKind      string
 	LastErrorKind       string
+	TerminalErrorKind   string
 	ReplaySkippedReason string
 }
 
@@ -121,6 +125,93 @@ func (b *countedAttemptBody) Read(p []byte) (int, error) {
 type joinedRequestBody struct {
 	io.Reader
 	closer io.Closer
+}
+
+type publicRetryBufferedResponseBody struct {
+	reader      *bytes.Reader
+	releaseOnce sync.Once
+	release     func()
+}
+
+func (b *publicRetryBufferedResponseBody) Read(p []byte) (int, error) {
+	if b == nil || b.reader == nil {
+		return 0, io.EOF
+	}
+	return b.reader.Read(p)
+}
+
+func (b *publicRetryBufferedResponseBody) Close() error {
+	if b == nil {
+		return nil
+	}
+	b.releaseOnce.Do(func() {
+		if b.release != nil {
+			b.release()
+		}
+	})
+	return nil
+}
+
+type publicRetryPrefixedResponseBody struct {
+	reader    io.Reader
+	source    io.ReadCloser
+	closeOnce sync.Once
+	release   func()
+	closeErr  error
+}
+
+type publicRetryResponseErrorReader struct {
+	err error
+}
+
+func (r publicRetryResponseErrorReader) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+func (b *publicRetryPrefixedResponseBody) Read(p []byte) (int, error) {
+	if b == nil || b.reader == nil {
+		return 0, io.EOF
+	}
+	return b.reader.Read(p)
+}
+
+func (b *publicRetryPrefixedResponseBody) Close() error {
+	if b == nil {
+		return nil
+	}
+	b.closeOnce.Do(func() {
+		if b.source != nil {
+			b.closeErr = b.source.Close()
+		}
+		if b.release != nil {
+			b.release()
+		}
+	})
+	return b.closeErr
+}
+
+type publicRetryObservedResponseBody struct {
+	io.ReadCloser
+	once    sync.Once
+	onError func(error)
+}
+
+func (b *publicRetryObservedResponseBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if err != nil && err != io.EOF && !errors.Is(err, context.Canceled) {
+		b.once.Do(func() {
+			if b.onError != nil {
+				b.onError(err)
+			}
+		})
+	}
+	return n, err
+}
+
+type publicRetryPreparedResponseBody struct {
+	body       io.ReadCloser
+	complete   bool
+	skipReason string
 }
 
 func (b *joinedRequestBody) Close() error {
@@ -264,6 +355,209 @@ func (b *publicRetryRequestBody) next() (io.ReadCloser, bool) {
 	return nonClosingReadCloser{Reader: b.original}, true
 }
 
+func preparePublicRetryResponseBody(app *App, req *http.Request, resp *http.Response, rule *publicRetryRuleConfig) (publicRetryPreparedResponseBody, error) {
+	if resp == nil || resp.Body == nil || resp.Body == http.NoBody {
+		return publicRetryPreparedResponseBody{body: http.NoBody, skipReason: "response_body_absent"}, nil
+	}
+	reason := publicRetryResponseBufferExclusion(req, resp, rule)
+	if reason != "" {
+		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: reason}, nil
+	}
+	limit := rule.MaxBufferedResponseBodyBytes
+	if resp.ContentLength > limit {
+		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: "response_body_too_large"}, nil
+	}
+	if app == nil || app.retryReplayBudget == nil {
+		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: "response_buffer_unavailable"}, nil
+	}
+	reservationBytes := limit
+	if resp.ContentLength >= 0 {
+		reservationBytes = resp.ContentLength
+	}
+	release, ok := app.retryReplayBudget.tryAcquire(reservationBytes)
+	if !ok {
+		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: "response_buffer_budget_exhausted"}, nil
+	}
+	prefix, complete, overflow, overflowErr, err := readPublicRetryResponseBody(resp.Body, resp.ContentLength, limit)
+	if err != nil {
+		_ = resp.Body.Close()
+		release()
+		return publicRetryPreparedResponseBody{}, err
+	}
+	if !complete {
+		readers := []io.Reader{bytes.NewReader(prefix), bytes.NewReader(overflow)}
+		if overflowErr != nil && overflowErr != io.EOF {
+			readers = append(readers, publicRetryResponseErrorReader{err: overflowErr})
+		} else {
+			readers = append(readers, resp.Body)
+		}
+		return publicRetryPreparedResponseBody{
+			body: &publicRetryPrefixedResponseBody{
+				reader:  io.MultiReader(readers...),
+				source:  resp.Body,
+				release: release,
+			},
+			skipReason: "response_body_too_large",
+		}, nil
+	}
+	_ = resp.Body.Close()
+	return publicRetryPreparedResponseBody{
+		body: &publicRetryBufferedResponseBody{
+			reader:  bytes.NewReader(prefix),
+			release: release,
+		},
+		complete: true,
+	}, nil
+}
+
+// readPublicRetryResponseBody bounds allocations by the acquired replay
+// reservation. Known-length responses are read to their HTTP framing length;
+// unknown-length responses use a one-byte probe to distinguish a complete
+// body at the configured limit from a body that must fall back to streaming.
+func readPublicRetryResponseBody(body io.Reader, contentLength, limit int64) (prefix []byte, complete bool, overflow []byte, overflowErr error, err error) {
+	if body == nil || limit <= 0 {
+		return nil, true, nil, nil, nil
+	}
+	if contentLength >= 0 {
+		prefix = make([]byte, int(contentLength))
+		if _, err := io.ReadFull(body, prefix); err != nil {
+			if errors.Is(err, io.EOF) {
+				err = io.ErrUnexpectedEOF
+			}
+			return nil, false, nil, nil, err
+		}
+		return prefix, true, nil, nil, nil
+	}
+
+	prefix = make([]byte, int(limit))
+	read := 0
+	emptyReads := 0
+	for read < len(prefix) {
+		n, readErr := body.Read(prefix[read:])
+		if n < 0 || n > len(prefix)-read {
+			return nil, false, nil, nil, errors.New("upstream response body returned an invalid read count")
+		}
+		read += n
+		if readErr == io.EOF {
+			return prefix[:read], true, nil, nil, nil
+		}
+		if readErr != nil {
+			return nil, false, nil, nil, readErr
+		}
+		if n == 0 {
+			emptyReads++
+			if emptyReads >= 100 {
+				return nil, false, nil, nil, io.ErrNoProgress
+			}
+		} else {
+			emptyReads = 0
+		}
+	}
+
+	var probe [1]byte
+	for emptyReads = 0; ; emptyReads++ {
+		n, readErr := body.Read(probe[:])
+		if n < 0 || n > len(probe) {
+			return nil, false, nil, nil, errors.New("upstream response body returned an invalid read count")
+		}
+		if n > 0 {
+			return prefix, false, append([]byte(nil), probe[:n]...), readErr, nil
+		}
+		if readErr == io.EOF {
+			return prefix, true, nil, nil, nil
+		}
+		if readErr != nil {
+			return nil, false, nil, nil, readErr
+		}
+		if emptyReads >= 99 {
+			return nil, false, nil, nil, io.ErrNoProgress
+		}
+	}
+}
+
+func publicRetryResponseBufferExclusion(req *http.Request, resp *http.Response, rule *publicRetryRuleConfig) string {
+	if rule == nil || normalizePublicRetryResponseBodyMode(rule.ResponseBodyMode) != publicRetryResponseBodyModeBuffered || rule.MaxBufferedResponseBodyBytes <= 0 {
+		return "response_body_streamed"
+	}
+	if req == nil || req.Method == http.MethodHead || resp == nil || !responseStatusAllowsBody(resp.StatusCode) || resp.ContentLength == 0 {
+		return "response_body_absent"
+	}
+	if req.Header.Get("Range") != "" || resp.StatusCode == http.StatusPartialContent || resp.Header.Get("Content-Range") != "" {
+		return "response_range_streamed"
+	}
+	if strings.EqualFold(strings.TrimSpace(resp.Header.Get("X-Accel-Buffering")), "no") {
+		return "response_buffering_disabled_by_upstream"
+	}
+	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil {
+		mediaType = strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0])
+	}
+	mediaType = strings.ToLower(mediaType)
+	if mediaType == "text/event-stream" || mediaType == "multipart/x-mixed-replace" || strings.HasPrefix(mediaType, "application/grpc") {
+		return "streaming_response_type"
+	}
+	return ""
+}
+
+func responseStatusAllowsBody(status int) bool {
+	return status >= http.StatusOK && status != http.StatusNoContent && status != http.StatusResetContent && status != http.StatusNotModified
+}
+
+func publicRetryResponseBodyErrorKind(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return "upstream_response_body_truncated"
+	}
+	if isTimeoutError(err) {
+		return "upstream_response_body_timeout"
+	}
+	if errors.Is(err, errAgentDisconnected) {
+		return "agent_disconnected_during_response"
+	}
+	return "upstream_response_body_failed"
+}
+
+func (rt *publicAgentAttemptRoundTripper) recordResponseBodyFailure(req *http.Request, agent *AgentConn, attempt int64, err error, outcome, skipReason string) string {
+	errorKind := publicRetryResponseBodyErrorKind(err)
+	rt.result.LastErrorKind = errorKind
+	rt.result.TerminalErrorKind = errorKind
+	if rt.result.FirstErrorKind == "" {
+		rt.result.FirstErrorKind = errorKind
+		rt.result.FirstFailedAgent = agent
+	}
+	rt.result.Outcome = outcome
+	rt.result.RetryCount = attempt - 1
+	if skipReason != "" {
+		rt.result.ReplaySkippedReason = skipReason
+	}
+	if req != nil && shouldMarkAgentPassiveFailure(req.Context(), err) {
+		rt.app.markPublicRouteTargetAgentPassiveFailure(rt.resolution.Target.ID, agent.AgentID, err)
+	}
+	logger := log.Warn().Err(err).Str("req_id", rt.requestID).Int64("attempt", attempt).Str("error_kind", errorKind)
+	if agent != nil {
+		logger = logger.Str("agent", agent.PublicID)
+	}
+	logger.Msg("Agent response body failed")
+	return errorKind
+}
+
+func (rt *publicAgentAttemptRoundTripper) observeStreamingResponseBody(req *http.Request, resp *http.Response, agent *AgentConn, attempt int64, skipReason string) {
+	if rt == nil || rt.rule == nil || resp == nil || resp.Body == nil || resp.Body == http.NoBody {
+		return
+	}
+	resp.Body = &publicRetryObservedResponseBody{
+		ReadCloser: resp.Body,
+		onError: func(err error) {
+			if req != nil && requestContextCanceled(req.Context(), err) {
+				return
+			}
+			rt.recordResponseBodyFailure(req, agent, attempt, err, publicRetryOutcomeSkipped, skipReason)
+		},
+	}
+}
+
 func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if rt == nil || rt.app == nil || rt.initial == nil {
 		return nil, errAgentDisconnected
@@ -290,6 +584,14 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			releaseActiveRequest()
 			body.close()
 		})
+		responseOwnsRequestBody = true
+		rt.result.Outcome = outcome
+		rt.result.RetryCount = attempt - 1
+		return resp
+	}
+	finishBufferedResponse := func(resp *http.Response, releaseActiveRequest func(), attempt int64, outcome string) *http.Response {
+		releaseActiveRequest()
+		body.close()
 		responseOwnsRequestBody = true
 		rt.result.Outcome = outcome
 		rt.result.RetryCount = attempt - 1
@@ -372,39 +674,74 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			attemptErr = errors.New("agent transport returned no response")
 		}
 		if attemptErr == nil {
-			if rt.rule == nil || !rt.rule.retriesStatus(resp.StatusCode) {
-				outcome := ""
-				if attempt > 1 {
-					outcome = publicRetryOutcomeRecovered
+			outcome := ""
+			if attempt > 1 {
+				outcome = publicRetryOutcomeRecovered
+			}
+			if rt.rule != nil && rt.rule.retriesStatus(resp.StatusCode) {
+				errorKind := fmt.Sprintf("upstream_status_%d", resp.StatusCode)
+				rt.result.LastErrorKind = errorKind
+				if rt.result.FirstErrorKind == "" {
+					rt.result.FirstErrorKind = errorKind
+					rt.result.FirstFailedAgent = agent
 				}
-				return finishResponse(resp, releaseActiveRequest, attempt, outcome), nil
+				switch {
+				case attempt >= maxAttempts:
+					outcome = publicRetryOutcomeExhausted
+				case !body.replayable && !body.bodyless && bodyRead.Load() > 0:
+					outcome = publicRetryOutcomeSkipped
+					rt.result.ReplaySkippedReason = "request_body_not_replayable"
+				default:
+					next := rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+					if next == nil {
+						outcome = publicRetryOutcomeExhausted
+					} else {
+						if resp.Body != nil {
+							_ = resp.Body.Close()
+						}
+						releaseActiveRequest()
+						rt.result.RetryCount = attempt
+						rt.emitRetry(attemptResolution, agent, next, attempt, errorKind)
+						agent = next
+						continue
+					}
+				}
 			}
 
-			errorKind := fmt.Sprintf("upstream_status_%d", resp.StatusCode)
-			rt.result.LastErrorKind = errorKind
-			if rt.result.FirstErrorKind == "" {
-				rt.result.FirstErrorKind = errorKind
-				rt.result.FirstFailedAgent = agent
+			prepared, responseBodyErr := preparePublicRetryResponseBody(rt.app, req, resp, rt.rule)
+			if responseBodyErr != nil {
+				releaseActiveRequest()
+				if requestContextCanceled(req.Context(), responseBodyErr) {
+					rt.result.Outcome = publicRetryOutcomeSkipped
+					rt.result.ReplaySkippedReason = "client_cancelled"
+					rt.result.RetryCount = attempt - 1
+					return nil, responseBodyErr
+				}
+				errorKind := rt.recordResponseBodyFailure(req, agent, attempt, responseBodyErr, publicRetryOutcomeExhausted, "")
+				if attempt >= maxAttempts || rt.rule == nil {
+					return nil, responseBodyErr
+				}
+				if !body.replayable && !body.bodyless && bodyRead.Load() > 0 {
+					rt.result.Outcome = publicRetryOutcomeSkipped
+					rt.result.ReplaySkippedReason = "request_body_not_replayable"
+					return nil, responseBodyErr
+				}
+				next := rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+				if next == nil {
+					return nil, responseBodyErr
+				}
+				rt.result.TerminalErrorKind = ""
+				rt.result.RetryCount = attempt
+				rt.emitRetry(attemptResolution, agent, next, attempt, errorKind)
+				agent = next
+				continue
 			}
-			if attempt >= maxAttempts {
-				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeExhausted), nil
+			resp.Body = prepared.body
+			if prepared.complete {
+				return finishBufferedResponse(resp, releaseActiveRequest, attempt, outcome), nil
 			}
-			if !body.replayable && !body.bodyless && bodyRead.Load() > 0 {
-				rt.result.ReplaySkippedReason = "request_body_not_replayable"
-				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeSkipped), nil
-			}
-			next := rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
-			if next == nil {
-				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeExhausted), nil
-			}
-			if resp.Body != nil {
-				_ = resp.Body.Close()
-			}
-			releaseActiveRequest()
-			rt.result.RetryCount = attempt
-			rt.emitRetry(attemptResolution, agent, next, attempt, errorKind)
-			agent = next
-			continue
+			rt.observeStreamingResponseBody(req, resp, agent, attempt, prepared.skipReason)
+			return finishResponse(resp, releaseActiveRequest, attempt, outcome), nil
 		}
 
 		errorKind := agentProxyErrorKind(attemptErr)
