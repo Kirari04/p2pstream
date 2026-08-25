@@ -17,6 +17,7 @@ import {
   type PublicRouteTarget,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceStage as TraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
+import { trafficShaperProtocolScopeLabel } from "@/lib/publicProxyLabels";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRequest } from "@/types/trafficTrace";
 
@@ -417,7 +418,7 @@ function trafficShaperEditTarget(rule: PublicTrafficShaperRule): TrafficFlowEdit
     kind: "traffic-shaper",
     id: rule.id.toString(),
     label: rule.name || `Traffic shaper ${rule.id.toString()}`,
-    subLabel: `${trafficShaperScopeLabel(rule.budgetScope)} / P${rule.priority.toString()}`,
+    subLabel: `${trafficShaperProtocolScopeLabel(rule.protocolScope)} / ${trafficShaperScopeLabel(rule.budgetScope)} / P${rule.priority.toString()}`,
   };
 }
 

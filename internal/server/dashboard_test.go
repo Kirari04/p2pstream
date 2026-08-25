@@ -208,6 +208,82 @@ func TestDashboardDiagnosticsSampleLimitClamp(t *testing.T) {
 	}
 }
 
+func TestGetDashboardDiagnosticsAggregatesRetryHealth(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(nil, newServerTestDB(t))
+	header := createTestAdminSession(t, app)
+	insertDashboardRollupAgentFixture(t, app.DB, 10)
+	insertDashboardRollupAgentFixture(t, app.DB, 11)
+	if _, err := app.DB.ExecContext(ctx, `INSERT INTO public_retry_rules (id, name) VALUES (7, 'VPN reads')`); err != nil {
+		t.Fatalf("insert retry rule: %v", err)
+	}
+
+	now := time.Now().UTC()
+	insert := func(offset time.Duration, durationMs, retryCount int64, outcome, retryError string, failedAgentID sql.NullInt64, status int64) {
+		t.Helper()
+		if err := app.insertProxyRequestEventWithRollups(ctx, db.InsertProxyRequestEventAtParams{
+			OccurredAt:         now.Add(offset),
+			StatusCode:         status,
+			DurationMs:         durationMs,
+			AgentID:            sqlNullInt64(11),
+			RetryRuleID:        sqlNullInt64(7),
+			RetryCount:         retryCount,
+			RetryOutcome:       outcome,
+			RetryErrorKind:     retryError,
+			RetryFailedAgentID: failedAgentID,
+		}); err != nil {
+			t.Fatalf("insert retry event: %v", err)
+		}
+	}
+	insert(-4*time.Minute, 100, 0, "", "", sql.NullInt64{}, http.StatusOK)
+	insert(-3*time.Minute, 200, 1, publicRetryOutcomeRecovered, "agent_dial_timeout", sqlNullInt64(10), http.StatusOK)
+	insert(-2*time.Minute, 300, 1, publicRetryOutcomeExhausted, "agent_disconnected", sqlNullInt64(10), http.StatusGatewayTimeout)
+	insert(-time.Minute, 400, 0, publicRetryOutcomeSkipped, "agent_proxy_failed", sqlNullInt64(10), http.StatusBadGateway)
+
+	req := connect.NewRequest(&p2pstreamv1.GetDashboardDiagnosticsRequest{WindowLabel: "5m"})
+	req.Header().Set("Cookie", header.Get("Cookie"))
+	resp, err := app.GetDashboardDiagnostics(ctx, req)
+	if err != nil {
+		t.Fatalf("get retry diagnostics: %v", err)
+	}
+	health := resp.Msg.RetryHealth
+	if health == nil {
+		t.Fatal("missing retry health")
+	}
+	if health.MatchedRequests != 4 || health.RetriedRequests != 2 || health.RetryAttempts != 2 ||
+		health.RecoveredRequests != 1 || health.ExhaustedRequests != 1 || health.SkippedRequests != 1 {
+		t.Fatalf("retry health = %+v", health)
+	}
+	if health.AvgMatchedDurationMs != 250 || health.AvgRetriedDurationMs != 250 {
+		t.Fatalf("retry latency = matched %d/retried %d, want 250/250", health.AvgMatchedDurationMs, health.AvgRetriedDurationMs)
+	}
+	if len(resp.Msg.RetryRules) != 1 || resp.Msg.RetryRules[0].Label != "VPN reads" || resp.Msg.RetryRules[0].RetriedRequests != 2 {
+		t.Fatalf("retry rule summaries = %+v", resp.Msg.RetryRules)
+	}
+	if len(resp.Msg.RetryFailedAgents) != 1 || resp.Msg.RetryFailedAgents[0].Label != "agent-10" || resp.Msg.RetryFailedAgents[0].AffectedRequests != 3 {
+		t.Fatalf("retry failed agents = %+v", resp.Msg.RetryFailedAgents)
+	}
+	if len(resp.Msg.RetryErrorKinds) != 3 {
+		t.Fatalf("retry error kinds = %+v, want 3", resp.Msg.RetryErrorKinds)
+	}
+	var trendMatched, trendRetried int64
+	for _, bucket := range resp.Msg.RetryTrend {
+		trendMatched += bucket.MatchedRequests
+		trendRetried += bucket.RetriedRequests
+	}
+	if trendMatched != 4 || trendRetried != 2 {
+		t.Fatalf("retry trend totals = %d/%d, want 4/2", trendMatched, trendRetried)
+	}
+	if len(resp.Msg.RecentSamples) != 3 {
+		t.Fatalf("retry samples = %d, want recovered, exhausted, and skipped", len(resp.Msg.RecentSamples))
+	}
+	for _, sample := range resp.Msg.RecentSamples {
+		if sample.RetryFailedAgentLabel != "agent-10" {
+			t.Fatalf("retry failed agent label = %q, want agent-10", sample.RetryFailedAgentLabel)
+		}
+	}
+}
+
 func TestRedactedProxyPathPrefix(t *testing.T) {
 	tests := []struct {
 		path string

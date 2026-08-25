@@ -2,6 +2,7 @@
 import { computed, h, onMounted, ref, watch } from "vue";
 import { NAlert, NButton, NButtonGroup, NDataTable, NDrawer, NDrawerContent, NEmpty, NSkeleton } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
+import RetryHealthPanel from "@/components/RetryHealthPanel.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import type {
@@ -21,7 +22,7 @@ import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticTex
 import { editorDrawerWidth } from "@/lib/naiveUi";
 
 type WindowLabel = "5m" | "1h" | "24h" | "30d";
-type DimensionKey = "error" | "listener" | "route" | "target" | "agent";
+type DimensionKey = "error" | "listener" | "route" | "target" | "agent" | "retry-error" | "retry-agent";
 type DimensionFilter = Readonly<{ key: DimensionKey; label: string; title: string }>;
 
 const managementClient = useManagementClient();
@@ -101,6 +102,7 @@ const selectedSampleDetails = computed(() => {
     { label: "Retry attempts", value: sample.retryCount.toString() },
     { label: "Retry outcome", value: inspectionValue(sample.retryOutcome) },
     { label: "First retry error", value: inspectionValue(sample.retryErrorKind) },
+    { label: "First failed agent", value: inspectionValue(sample.retryFailedAgentLabel) },
     { label: "Listener", value: inspectionValue(sample.listenerLabel) },
     { label: "Route", value: inspectionValue(sample.routeLabel) },
     { label: "Target", value: inspectionValue(sample.routeTargetLabel) },
@@ -141,7 +143,9 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
     render: (sample) => h("span", { class: "diagnostic-outcome-cell" }, [
       h("span", { class: ["status-pill", `tone-${statusTone(sample.statusCode)}`] }, sampleStatusLabel(sample)),
       attackerCell(sample.errorKind, 48),
-      sample.retryCount > 0n ? h("span", { class: "diagnostic-retry-outcome" }, retrySampleLabel(sample)) : null,
+      sample.retryRuleId > 0n && (sample.retryCount > 0n || Boolean(sample.retryOutcome))
+        ? h("span", { class: "diagnostic-retry-outcome" }, retrySampleLabel(sample))
+        : null,
     ]),
   },
   {
@@ -254,6 +258,7 @@ function sampleStatusLabel(sample: DashboardDiagnosticsSample): string {
 
 function retrySampleLabel(sample: DashboardDiagnosticsSample): string {
   const outcomeLabel = sample.retryOutcome || "attempted";
+  if (sample.retryCount <= 0n) return `retry ${outcomeLabel}`;
   return `${sample.retryCount.toString()} ${sample.retryCount === 1n ? "retry" : "retries"} · ${outcomeLabel}`;
 }
 
@@ -263,7 +268,11 @@ function openSampleDetails(sample: DashboardDiagnosticsSample) {
 }
 
 function selectDimension(key: DimensionKey, row: DashboardProxyDimensionSummary, title: string) {
-  const next = { key, label: row.label, title };
+  selectDimensionLabel(key, row.label, title);
+}
+
+function selectDimensionLabel(key: DimensionKey, label: string, title: string) {
+  const next = { key, label, title };
   const current = selectedDimension.value;
   selectedDimension.value = current?.key === next.key && current.label === next.label ? null : next;
 }
@@ -279,6 +288,8 @@ function sampleDimensionValue(sample: DashboardDiagnosticsSample, key: Dimension
     case "route": return sample.routeLabel;
     case "target": return sample.routeTargetLabel;
     case "agent": return sample.agentLabel;
+    case "retry-error": return sample.retryErrorKind;
+    case "retry-agent": return sample.retryFailedAgentLabel;
   }
 }
 
@@ -336,6 +347,7 @@ function sampleRowBaseKey(sample: DashboardDiagnosticsSample): string {
     sample.retryCount.toString(),
     sample.retryOutcome,
     sample.retryErrorKind,
+    sample.retryFailedAgentLabel,
     sample.listenerLabel,
     sample.routeLabel,
     sample.routeTargetLabel,
@@ -457,6 +469,18 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         </dl>
       </section>
 
+      <RetryHealthPanel
+        :retry-health="diagnostics.retryHealth"
+        :retry-trend="diagnostics.retryTrend"
+        :retry-rules="diagnostics.retryRules"
+        :retry-failed-agents="diagnostics.retryFailedAgents"
+        :retry-error-kinds="diagnostics.retryErrorKinds"
+        :generated-at-unix-millis="diagnostics.generatedAtUnixMillis"
+        :window-label="selectedWindowLabel"
+        :selected-filter="selectedDimension"
+        @select-dimension="selectDimensionLabel"
+      />
+
       <section class="diagnostics-panel">
         <div class="panel-heading">
           <div>
@@ -524,7 +548,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         <div class="panel-heading diagnostics-samples-heading">
           <div>
             <h4>Recent Samples</h4>
-            <p>Newest non-success responses, proxy failures, and requests recovered by agent retry.</p>
+            <p>Newest non-success responses, proxy failures, and requests with retry activity.</p>
           </div>
           <div v-if="selectedDimension" class="sample-filter">
             <span>Filtered by {{ selectedDimension.title }}</span>
@@ -775,6 +799,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   font-size: 1rem;
   font-weight: 700;
 }
+
 
 .diagnostics-panel {
   display: grid;
@@ -1230,6 +1255,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   .sample-filter {
     width: 100%;
   }
+
 }
 
 @media (max-width: 520px) {
@@ -1242,6 +1268,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   .window-tabs :deep(.n-button) {
     padding-inline: 0.5rem;
   }
+
 }
 
 @media (pointer: coarse) {

@@ -5,6 +5,7 @@ import {
   PublicRetryFailureMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
+  PublicTrafficShaperProtocolScope,
   PublicWafActivationMode,
   PublicWafGeoRestrictionMode,
   PublicWafGeoUnknownBehavior,
@@ -220,7 +221,7 @@ export function previewTrafficPolicyStages(
       return evaluateTrafficPolicyMatchForRequest(rule.matchRule, normalized);
     }),
     trafficShaper: firstMatchingCandidate(runtimeOrderedTrafficShaperRules(config.trafficShaperRules ?? []), (rule) => {
-      return evaluateTrafficPolicyMatchForRequest(rule.matchRule, normalized);
+      return evaluateTrafficShaperRule(rule, normalized);
     }),
     cache: firstMatchingCandidate(runtimeOrderedCacheRules(config.cacheRules ?? []), (rule) => {
       return evaluateCacheRule(rule, normalized, config.cacheSettings?.enabled !== false);
@@ -390,6 +391,7 @@ function evaluateRetryTarget(config: TrafficPolicyWorkbenchConfig, targetId: big
 
 function retryRuleHasDuplicateRisk(rule: PublicRetryRule): boolean {
   return rule.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
+    rule.retryStatusCodes.length > 0 ||
     rule.methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
 }
 
@@ -764,6 +766,39 @@ function cacheRequestBypassResult(request: NormalizedTrafficPolicyRequest, cache
 
 function missResult(reason: string): TrafficPolicyMatchResult {
   return { state: "miss", reason };
+}
+
+function evaluateTrafficShaperRule(rule: PublicTrafficShaperRule, request: NormalizedTrafficPolicyRequest): TrafficPolicyMatchResult {
+  const isWebSocket = isWebSocketHandshakeRequest(request);
+  if (rule.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY && !isWebSocket) {
+    return missResult("Traffic shaper applies only to WebSocket handshake requests.");
+  }
+  if (rule.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED && isWebSocket) {
+    return missResult("Traffic shaper excludes WebSocket handshake requests.");
+  }
+  return evaluateTrafficPolicyMatchForRequest(rule.matchRule, request);
+}
+
+function isWebSocketHandshakeRequest(request: NormalizedTrafficPolicyRequest): boolean {
+  if (request.method !== "GET" || request.hasRequestBody) return false;
+  if (!headerContainsToken(request.headers, "connection", "upgrade")) return false;
+  if (!firstHeaderEquals(request.headers, "upgrade", "websocket")) return false;
+  if (!firstHeaderEquals(request.headers, "sec-websocket-version", "13")) return false;
+  const key = firstHeaderValue(request.headers, "sec-websocket-key").trim();
+  if (!/^[A-Za-z0-9+/]{22}==$/.test(key)) return false;
+  try {
+    return atob(key).length === 16;
+  } catch {
+    return false;
+  }
+}
+
+function firstHeaderValue(headers: Map<string, string[]>, name: string): string {
+  return (headers.get(name.toLowerCase()) ?? [])[0] ?? "";
+}
+
+function firstHeaderEquals(headers: Map<string, string[]>, name: string, expected: string): boolean {
+  return firstHeaderValue(headers, name).trim().toLowerCase() === expected;
 }
 
 function hasHeader(headers: Map<string, string[]>, name: string): boolean {

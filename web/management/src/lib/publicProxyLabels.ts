@@ -21,6 +21,7 @@ import {
   PublicTlsCertificateSource,
   PublicTlsCertificateStatus,
   PublicTrafficShaperBudgetScope,
+  PublicTrafficShaperProtocolScope,
   PublicWafActivationMode,
   PublicWafCaptchaProviderType,
   PublicWafGeoRestrictionMode,
@@ -480,6 +481,14 @@ export function kiBToBytes(value: number): bigint {
 
 export function trafficShaperScopeLabel(scope: PublicTrafficShaperBudgetScope): string {
   return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
+}
+
+export function trafficShaperProtocolScopeLabel(scope: PublicTrafficShaperProtocolScope): string {
+  switch (scope) {
+    case PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY: return "WebSockets only";
+    case PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED: return "WebSockets excluded";
+    default: return "All requests";
+  }
 }
 
 export function trafficShaperBytesLabel(bytes: bigint): string {

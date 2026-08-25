@@ -54,6 +54,7 @@ func (b *retryReplayBudget) tryAcquire(size int64) (func(), bool) {
 type publicRetryAttemptResult struct {
 	Rule                *publicRetryRuleConfig
 	FinalAgent          *AgentConn
+	FirstFailedAgent    *AgentConn
 	RetryCount          int64
 	Outcome             string
 	FirstErrorKind      string
@@ -137,6 +138,11 @@ type activeAgentResponseBody struct {
 	release     func()
 }
 
+type activeAgentReadWriteResponseBody struct {
+	*activeAgentResponseBody
+	writer io.Writer
+}
+
 func (b *activeAgentResponseBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	if err != nil {
@@ -160,6 +166,22 @@ func (b *activeAgentResponseBody) releaseActiveRequest() {
 			b.release()
 		}
 	})
+}
+
+func (b *activeAgentReadWriteResponseBody) Write(p []byte) (int, error) {
+	n, err := b.writer.Write(p)
+	if err != nil {
+		b.releaseActiveRequest()
+	}
+	return n, err
+}
+
+func wrapActiveAgentResponseBody(body io.ReadCloser, release func()) io.ReadCloser {
+	active := &activeAgentResponseBody{ReadCloser: body, release: release}
+	if readWriteBody, ok := body.(io.ReadWriteCloser); ok {
+		return &activeAgentReadWriteResponseBody{activeAgentResponseBody: active, writer: readWriteBody}
+	}
+	return active
 }
 
 func preparePublicRetryRequestBody(app *App, req *http.Request, rule *publicRetryRuleConfig) (*publicRetryRequestBody, error) {
@@ -260,6 +282,19 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			body.close()
 		}
 	}()
+	finishResponse := func(resp *http.Response, releaseActiveRequest func(), attempt int64, outcome string) *http.Response {
+		if resp.Body == nil {
+			resp.Body = http.NoBody
+		}
+		resp.Body = wrapActiveAgentResponseBody(resp.Body, func() {
+			releaseActiveRequest()
+			body.close()
+		})
+		responseOwnsRequestBody = true
+		rt.result.Outcome = outcome
+		rt.result.RetryCount = attempt - 1
+		return resp
+	}
 
 	maxAttempts := int64(1)
 	if rt.rule != nil {
@@ -337,28 +372,46 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			attemptErr = errors.New("agent transport returned no response")
 		}
 		if attemptErr == nil {
-			if resp.Body == nil {
-				resp.Body = http.NoBody
+			if rt.rule == nil || !rt.rule.retriesStatus(resp.StatusCode) {
+				outcome := ""
+				if attempt > 1 {
+					outcome = publicRetryOutcomeRecovered
+				}
+				return finishResponse(resp, releaseActiveRequest, attempt, outcome), nil
 			}
-			resp.Body = &activeAgentResponseBody{
-				ReadCloser: resp.Body,
-				release: func() {
-					releaseActiveRequest()
-					body.close()
-				},
+
+			errorKind := fmt.Sprintf("upstream_status_%d", resp.StatusCode)
+			rt.result.LastErrorKind = errorKind
+			if rt.result.FirstErrorKind == "" {
+				rt.result.FirstErrorKind = errorKind
+				rt.result.FirstFailedAgent = agent
 			}
-			responseOwnsRequestBody = true
-			if attempt > 1 {
-				rt.result.Outcome = publicRetryOutcomeRecovered
+			if attempt >= maxAttempts {
+				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeExhausted), nil
 			}
-			rt.result.RetryCount = attempt - 1
-			return resp, nil
+			if !body.replayable && !body.bodyless && bodyRead.Load() > 0 {
+				rt.result.ReplaySkippedReason = "request_body_not_replayable"
+				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeSkipped), nil
+			}
+			next := rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+			if next == nil {
+				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeExhausted), nil
+			}
+			if resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			releaseActiveRequest()
+			rt.result.RetryCount = attempt
+			rt.emitRetry(attemptResolution, agent, next, attempt, errorKind)
+			agent = next
+			continue
 		}
 
 		errorKind := agentProxyErrorKind(attemptErr)
 		rt.result.LastErrorKind = errorKind
 		if rt.result.FirstErrorKind == "" {
 			rt.result.FirstErrorKind = errorKind
+			rt.result.FirstFailedAgent = agent
 		}
 		if shouldMarkAgentPassiveFailure(req.Context(), attemptErr) {
 			rt.app.markPublicRouteTargetAgentPassiveFailure(rt.resolution.Target.ID, agent.AgentID, attemptErr)

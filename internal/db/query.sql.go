@@ -765,26 +765,27 @@ func (q *Queries) CreatePublicResponseTemplate(ctx context.Context, arg CreatePu
 const createPublicRetryRule = `-- name: CreatePublicRetryRule :one
 INSERT INTO public_retry_rules (
     name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-    max_replay_body_bytes, route_ids_json, target_ids_json, match_json
+    max_replay_body_bytes, retry_status_codes_json, route_ids_json, target_ids_json, match_json
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
 `
 
 type CreatePublicRetryRuleParams struct {
-	Name               string `json:"name"`
-	Priority           int64  `json:"priority"`
-	Enabled            int64  `json:"enabled"`
-	MethodsJson        string `json:"methods_json"`
-	MaxRetries         int64  `json:"max_retries"`
-	FailureMode        string `json:"failure_mode"`
-	BodyMode           string `json:"body_mode"`
-	MaxReplayBodyBytes int64  `json:"max_replay_body_bytes"`
-	RouteIdsJson       string `json:"route_ids_json"`
-	TargetIdsJson      string `json:"target_ids_json"`
-	MatchJson          string `json:"match_json"`
+	Name                 string `json:"name"`
+	Priority             int64  `json:"priority"`
+	Enabled              int64  `json:"enabled"`
+	MethodsJson          string `json:"methods_json"`
+	MaxRetries           int64  `json:"max_retries"`
+	FailureMode          string `json:"failure_mode"`
+	BodyMode             string `json:"body_mode"`
+	MaxReplayBodyBytes   int64  `json:"max_replay_body_bytes"`
+	RetryStatusCodesJson string `json:"retry_status_codes_json"`
+	RouteIdsJson         string `json:"route_ids_json"`
+	TargetIdsJson        string `json:"target_ids_json"`
+	MatchJson            string `json:"match_json"`
 }
 
 func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRetryRuleParams) (PublicRetryRule, error) {
@@ -797,6 +798,7 @@ func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRet
 		arg.FailureMode,
 		arg.BodyMode,
 		arg.MaxReplayBodyBytes,
+		arg.RetryStatusCodesJson,
 		arg.RouteIdsJson,
 		arg.TargetIdsJson,
 		arg.MatchJson,
@@ -817,6 +819,7 @@ func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRet
 		&i.MatchJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RetryStatusCodesJson,
 	)
 	return i, err
 }
@@ -1230,11 +1233,12 @@ INSERT INTO public_traffic_shaper_rules (
     request_exempt_bytes,
     response_exempt_bytes,
     match_json,
-    key_parts_json
+    key_parts_json,
+    protocol_scope
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 `
 
 type CreatePublicTrafficShaperRuleParams struct {
@@ -1249,6 +1253,7 @@ type CreatePublicTrafficShaperRuleParams struct {
 	ResponseExemptBytes    int64  `json:"response_exempt_bytes"`
 	MatchJson              string `json:"match_json"`
 	KeyPartsJson           string `json:"key_parts_json"`
+	ProtocolScope          string `json:"protocol_scope"`
 }
 
 func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error) {
@@ -1264,6 +1269,7 @@ func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreateP
 		arg.ResponseExemptBytes,
 		arg.MatchJson,
 		arg.KeyPartsJson,
+		arg.ProtocolScope,
 	)
 	var i PublicTrafficShaperRule
 	err := row.Scan(
@@ -1281,6 +1287,7 @@ func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreateP
 		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProtocolScope,
 	)
 	return i, err
 }
@@ -1819,6 +1826,16 @@ WHERE bucket_unix_millis < ?
 
 func (q *Queries) DeleteProxyRequestTupleRollupsBefore(ctx context.Context, bucketUnixMillis int64) error {
 	_, err := q.db.ExecContext(ctx, deleteProxyRequestTupleRollupsBefore, bucketUnixMillis)
+	return err
+}
+
+const deleteProxyRetryRollupsBefore = `-- name: DeleteProxyRetryRollupsBefore :exec
+DELETE FROM proxy_retry_rollup_minutes
+WHERE bucket_unix_millis < ?
+`
+
+func (q *Queries) DeleteProxyRetryRollupsBefore(ctx context.Context, bucketUnixMillis int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProxyRetryRollupsBefore, bucketUnixMillis)
 	return err
 }
 
@@ -2635,6 +2652,47 @@ func (q *Queries) GetProxyRequestSummarySince(ctx context.Context, occurredAt ti
 	return i, err
 }
 
+const getProxyRetryRollupSummarySince = `-- name: GetProxyRetryRollupSummarySince :one
+SELECT
+    CAST(COALESCE(SUM(matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(skipped_requests), 0) AS INTEGER) AS skipped_requests,
+    CAST(CASE WHEN COALESCE(SUM(matched_requests), 0) > 0 THEN COALESCE(SUM(duration_ms_sum), 0) / SUM(matched_requests) ELSE 0 END AS INTEGER) AS avg_matched_duration_ms,
+    CAST(CASE WHEN COALESCE(SUM(retried_requests), 0) > 0 THEN COALESCE(SUM(retried_duration_ms_sum), 0) / SUM(retried_requests) ELSE 0 END AS INTEGER) AS avg_retried_duration_ms
+FROM proxy_retry_rollup_minutes
+WHERE bucket_unix_millis >= ?
+`
+
+type GetProxyRetryRollupSummarySinceRow struct {
+	MatchedRequests      int64 `json:"matched_requests"`
+	RetriedRequests      int64 `json:"retried_requests"`
+	RetryAttempts        int64 `json:"retry_attempts"`
+	RecoveredRequests    int64 `json:"recovered_requests"`
+	ExhaustedRequests    int64 `json:"exhausted_requests"`
+	SkippedRequests      int64 `json:"skipped_requests"`
+	AvgMatchedDurationMs int64 `json:"avg_matched_duration_ms"`
+	AvgRetriedDurationMs int64 `json:"avg_retried_duration_ms"`
+}
+
+func (q *Queries) GetProxyRetryRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRetryRollupSummarySinceRow, error) {
+	row := q.db.QueryRowContext(ctx, getProxyRetryRollupSummarySince, bucketUnixMillis)
+	var i GetProxyRetryRollupSummarySinceRow
+	err := row.Scan(
+		&i.MatchedRequests,
+		&i.RetriedRequests,
+		&i.RetryAttempts,
+		&i.RecoveredRequests,
+		&i.ExhaustedRequests,
+		&i.SkippedRequests,
+		&i.AvgMatchedDurationMs,
+		&i.AvgRetriedDurationMs,
+	)
+	return i, err
+}
+
 const getPublicAccessPolicy = `-- name: GetPublicAccessPolicy :one
 SELECT id, name, provider_id, enabled, required_groups_json, group_match, created_at, updated_at
 FROM public_access_policies
@@ -2904,7 +2962,7 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 
 const getPublicRetryRule = `-- name: GetPublicRetryRule :one
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
 FROM public_retry_rules
 WHERE id = ?
 `
@@ -2927,6 +2985,7 @@ func (q *Queries) GetPublicRetryRule(ctx context.Context, id int64) (PublicRetry
 		&i.MatchJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RetryStatusCodesJson,
 	)
 	return i, err
 }
@@ -3071,7 +3130,7 @@ func (q *Queries) GetPublicTlsDnsCredential(ctx context.Context, id int64) (Publ
 }
 
 const getPublicTrafficShaperRule = `-- name: GetPublicTrafficShaperRule :one
-SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 FROM public_traffic_shaper_rules
 WHERE id = ?
 `
@@ -3094,6 +3153,7 @@ func (q *Queries) GetPublicTrafficShaperRule(ctx context.Context, id int64) (Pub
 		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProtocolScope,
 	)
 	return i, err
 }
@@ -3365,34 +3425,35 @@ func (q *Queries) InsertConnection(ctx context.Context, agentID sql.NullInt64) (
 const insertProxyRequestEvent = `-- name: InsertProxyRequestEvent :exec
 INSERT INTO proxy_request_events (
     status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
-    retry_rule_id, retry_count, retry_outcome, retry_error_kind
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
 type InsertProxyRequestEventParams struct {
-	StatusCode     int64         `json:"status_code"`
-	DurationMs     int64         `json:"duration_ms"`
-	ErrorKind      string        `json:"error_kind"`
-	Method         string        `json:"method"`
-	Host           string        `json:"host"`
-	PathPrefix     string        `json:"path_prefix"`
-	ListenerID     sql.NullInt64 `json:"listener_id"`
-	RouteID        sql.NullInt64 `json:"route_id"`
-	RouteTargetID  sql.NullInt64 `json:"route_target_id"`
-	WafRuleID      sql.NullInt64 `json:"waf_rule_id"`
-	WafAction      string        `json:"waf_action"`
-	AgentID        sql.NullInt64 `json:"agent_id"`
-	RequestBytes   int64         `json:"request_bytes"`
-	ResponseBytes  int64         `json:"response_bytes"`
-	CacheRuleID    sql.NullInt64 `json:"cache_rule_id"`
-	CacheStatus    string        `json:"cache_status"`
-	CacheBytes     int64         `json:"cache_bytes"`
-	RetryRuleID    sql.NullInt64 `json:"retry_rule_id"`
-	RetryCount     int64         `json:"retry_count"`
-	RetryOutcome   string        `json:"retry_outcome"`
-	RetryErrorKind string        `json:"retry_error_kind"`
+	StatusCode         int64         `json:"status_code"`
+	DurationMs         int64         `json:"duration_ms"`
+	ErrorKind          string        `json:"error_kind"`
+	Method             string        `json:"method"`
+	Host               string        `json:"host"`
+	PathPrefix         string        `json:"path_prefix"`
+	ListenerID         sql.NullInt64 `json:"listener_id"`
+	RouteID            sql.NullInt64 `json:"route_id"`
+	RouteTargetID      sql.NullInt64 `json:"route_target_id"`
+	WafRuleID          sql.NullInt64 `json:"waf_rule_id"`
+	WafAction          string        `json:"waf_action"`
+	AgentID            sql.NullInt64 `json:"agent_id"`
+	RequestBytes       int64         `json:"request_bytes"`
+	ResponseBytes      int64         `json:"response_bytes"`
+	CacheRuleID        sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus        string        `json:"cache_status"`
+	CacheBytes         int64         `json:"cache_bytes"`
+	RetryRuleID        sql.NullInt64 `json:"retry_rule_id"`
+	RetryCount         int64         `json:"retry_count"`
+	RetryOutcome       string        `json:"retry_outcome"`
+	RetryErrorKind     string        `json:"retry_error_kind"`
+	RetryFailedAgentID sql.NullInt64 `json:"retry_failed_agent_id"`
 }
 
 func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error {
@@ -3418,6 +3479,7 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 		arg.RetryCount,
 		arg.RetryOutcome,
 		arg.RetryErrorKind,
+		arg.RetryFailedAgentID,
 	)
 	return err
 }
@@ -3425,36 +3487,37 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 const insertProxyRequestEventAt = `-- name: InsertProxyRequestEventAt :one
 INSERT INTO proxy_request_events (
     occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
-    retry_rule_id, retry_count, retry_outcome, retry_error_kind
+    retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id
 `
 
 type InsertProxyRequestEventAtParams struct {
-	OccurredAt     time.Time     `json:"occurred_at"`
-	StatusCode     int64         `json:"status_code"`
-	DurationMs     int64         `json:"duration_ms"`
-	ErrorKind      string        `json:"error_kind"`
-	Method         string        `json:"method"`
-	Host           string        `json:"host"`
-	PathPrefix     string        `json:"path_prefix"`
-	ListenerID     sql.NullInt64 `json:"listener_id"`
-	RouteID        sql.NullInt64 `json:"route_id"`
-	RouteTargetID  sql.NullInt64 `json:"route_target_id"`
-	WafRuleID      sql.NullInt64 `json:"waf_rule_id"`
-	WafAction      string        `json:"waf_action"`
-	AgentID        sql.NullInt64 `json:"agent_id"`
-	RequestBytes   int64         `json:"request_bytes"`
-	ResponseBytes  int64         `json:"response_bytes"`
-	CacheRuleID    sql.NullInt64 `json:"cache_rule_id"`
-	CacheStatus    string        `json:"cache_status"`
-	CacheBytes     int64         `json:"cache_bytes"`
-	RetryRuleID    sql.NullInt64 `json:"retry_rule_id"`
-	RetryCount     int64         `json:"retry_count"`
-	RetryOutcome   string        `json:"retry_outcome"`
-	RetryErrorKind string        `json:"retry_error_kind"`
+	OccurredAt         time.Time     `json:"occurred_at"`
+	StatusCode         int64         `json:"status_code"`
+	DurationMs         int64         `json:"duration_ms"`
+	ErrorKind          string        `json:"error_kind"`
+	Method             string        `json:"method"`
+	Host               string        `json:"host"`
+	PathPrefix         string        `json:"path_prefix"`
+	ListenerID         sql.NullInt64 `json:"listener_id"`
+	RouteID            sql.NullInt64 `json:"route_id"`
+	RouteTargetID      sql.NullInt64 `json:"route_target_id"`
+	WafRuleID          sql.NullInt64 `json:"waf_rule_id"`
+	WafAction          string        `json:"waf_action"`
+	AgentID            sql.NullInt64 `json:"agent_id"`
+	RequestBytes       int64         `json:"request_bytes"`
+	ResponseBytes      int64         `json:"response_bytes"`
+	CacheRuleID        sql.NullInt64 `json:"cache_rule_id"`
+	CacheStatus        string        `json:"cache_status"`
+	CacheBytes         int64         `json:"cache_bytes"`
+	RetryRuleID        sql.NullInt64 `json:"retry_rule_id"`
+	RetryCount         int64         `json:"retry_count"`
+	RetryOutcome       string        `json:"retry_outcome"`
+	RetryErrorKind     string        `json:"retry_error_kind"`
+	RetryFailedAgentID sql.NullInt64 `json:"retry_failed_agent_id"`
 }
 
 func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error) {
@@ -3481,6 +3544,7 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 		arg.RetryCount,
 		arg.RetryOutcome,
 		arg.RetryErrorKind,
+		arg.RetryFailedAgentID,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -4387,6 +4451,244 @@ func (q *Queries) ListProxyRequestTupleRollupMinutesSince(ctx context.Context, b
 	return items, nil
 }
 
+const listProxyRetryErrorKindRollupsSince = `-- name: ListProxyRetryErrorKindRollupsSince :many
+SELECT
+    r.error_kind AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS affected_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes r
+WHERE r.bucket_unix_millis >= ?
+  AND r.error_kind != ''
+GROUP BY r.error_kind
+ORDER BY affected_requests DESC, exhausted_requests DESC, retry_attempts DESC, label ASC
+LIMIT 10
+`
+
+type ListProxyRetryErrorKindRollupsSinceRow struct {
+	Label             string `json:"label"`
+	AffectedRequests  int64  `json:"affected_requests"`
+	RetryAttempts     int64  `json:"retry_attempts"`
+	RecoveredRequests int64  `json:"recovered_requests"`
+	ExhaustedRequests int64  `json:"exhausted_requests"`
+	SkippedRequests   int64  `json:"skipped_requests"`
+}
+
+func (q *Queries) ListProxyRetryErrorKindRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryErrorKindRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyRetryErrorKindRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyRetryErrorKindRollupsSinceRow
+	for rows.Next() {
+		var i ListProxyRetryErrorKindRollupsSinceRow
+		if err := rows.Scan(
+			&i.Label,
+			&i.AffectedRequests,
+			&i.RetryAttempts,
+			&i.RecoveredRequests,
+			&i.ExhaustedRequests,
+			&i.SkippedRequests,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProxyRetryFailedAgentRollupsSince = `-- name: ListProxyRetryFailedAgentRollupsSince :many
+SELECT
+    r.failed_agent_id AS id,
+    COALESCE(a.name, 'deleted agent #' || r.failed_agent_id) AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS affected_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes r
+LEFT JOIN agents a ON a.id = r.failed_agent_id
+WHERE r.bucket_unix_millis >= ?
+  AND r.failed_agent_id != 0
+GROUP BY r.failed_agent_id, a.name
+ORDER BY affected_requests DESC, exhausted_requests DESC, retry_attempts DESC, id ASC
+LIMIT 10
+`
+
+type ListProxyRetryFailedAgentRollupsSinceRow struct {
+	ID                int64  `json:"id"`
+	Label             string `json:"label"`
+	AffectedRequests  int64  `json:"affected_requests"`
+	RetryAttempts     int64  `json:"retry_attempts"`
+	RecoveredRequests int64  `json:"recovered_requests"`
+	ExhaustedRequests int64  `json:"exhausted_requests"`
+	SkippedRequests   int64  `json:"skipped_requests"`
+}
+
+func (q *Queries) ListProxyRetryFailedAgentRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryFailedAgentRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyRetryFailedAgentRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyRetryFailedAgentRollupsSinceRow
+	for rows.Next() {
+		var i ListProxyRetryFailedAgentRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.AffectedRequests,
+			&i.RetryAttempts,
+			&i.RecoveredRequests,
+			&i.ExhaustedRequests,
+			&i.SkippedRequests,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProxyRetryRuleRollupsSince = `-- name: ListProxyRetryRuleRollupsSince :many
+SELECT
+    r.retry_rule_id AS id,
+    COALESCE(prr.name, 'deleted rule #' || r.retry_rule_id) AS label,
+    CAST(COALESCE(SUM(r.matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(r.retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(r.retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(r.recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(r.exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(r.skipped_requests), 0) AS INTEGER) AS skipped_requests,
+    CAST(CASE WHEN COALESCE(SUM(r.retried_requests), 0) > 0 THEN COALESCE(SUM(r.retried_duration_ms_sum), 0) / SUM(r.retried_requests) ELSE 0 END AS INTEGER) AS avg_retried_duration_ms
+FROM proxy_retry_rollup_minutes r
+LEFT JOIN public_retry_rules prr ON prr.id = r.retry_rule_id
+WHERE r.bucket_unix_millis >= ?
+GROUP BY r.retry_rule_id, prr.name
+ORDER BY retried_requests DESC, exhausted_requests DESC, matched_requests DESC, id ASC
+`
+
+type ListProxyRetryRuleRollupsSinceRow struct {
+	ID                   int64  `json:"id"`
+	Label                string `json:"label"`
+	MatchedRequests      int64  `json:"matched_requests"`
+	RetriedRequests      int64  `json:"retried_requests"`
+	RetryAttempts        int64  `json:"retry_attempts"`
+	RecoveredRequests    int64  `json:"recovered_requests"`
+	ExhaustedRequests    int64  `json:"exhausted_requests"`
+	SkippedRequests      int64  `json:"skipped_requests"`
+	AvgRetriedDurationMs int64  `json:"avg_retried_duration_ms"`
+}
+
+func (q *Queries) ListProxyRetryRuleRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryRuleRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyRetryRuleRollupsSince, bucketUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyRetryRuleRollupsSinceRow
+	for rows.Next() {
+		var i ListProxyRetryRuleRollupsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.MatchedRequests,
+			&i.RetriedRequests,
+			&i.RetryAttempts,
+			&i.RecoveredRequests,
+			&i.ExhaustedRequests,
+			&i.SkippedRequests,
+			&i.AvgRetriedDurationMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProxyRetryTrendRollupsSince = `-- name: ListProxyRetryTrendRollupsSince :many
+SELECT
+    CAST((bucket_unix_millis / (CAST(?1 AS INTEGER) * 1000)) * (CAST(?1 AS INTEGER) * 1000) AS INTEGER) AS bucket_unix_millis,
+    CAST(COALESCE(SUM(matched_requests), 0) AS INTEGER) AS matched_requests,
+    CAST(COALESCE(SUM(retried_requests), 0) AS INTEGER) AS retried_requests,
+    CAST(COALESCE(SUM(retry_attempts), 0) AS INTEGER) AS retry_attempts,
+    CAST(COALESCE(SUM(recovered_requests), 0) AS INTEGER) AS recovered_requests,
+    CAST(COALESCE(SUM(exhausted_requests), 0) AS INTEGER) AS exhausted_requests,
+    CAST(COALESCE(SUM(skipped_requests), 0) AS INTEGER) AS skipped_requests
+FROM proxy_retry_rollup_minutes
+WHERE bucket_unix_millis >= ?2
+GROUP BY 1
+ORDER BY bucket_unix_millis ASC
+`
+
+type ListProxyRetryTrendRollupsSinceParams struct {
+	BucketSeconds   int64 `json:"bucket_seconds"`
+	SinceUnixMillis int64 `json:"since_unix_millis"`
+}
+
+type ListProxyRetryTrendRollupsSinceRow struct {
+	BucketUnixMillis  int64 `json:"bucket_unix_millis"`
+	MatchedRequests   int64 `json:"matched_requests"`
+	RetriedRequests   int64 `json:"retried_requests"`
+	RetryAttempts     int64 `json:"retry_attempts"`
+	RecoveredRequests int64 `json:"recovered_requests"`
+	ExhaustedRequests int64 `json:"exhausted_requests"`
+	SkippedRequests   int64 `json:"skipped_requests"`
+}
+
+func (q *Queries) ListProxyRetryTrendRollupsSince(ctx context.Context, arg ListProxyRetryTrendRollupsSinceParams) ([]ListProxyRetryTrendRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProxyRetryTrendRollupsSince, arg.BucketSeconds, arg.SinceUnixMillis)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProxyRetryTrendRollupsSinceRow
+	for rows.Next() {
+		var i ListProxyRetryTrendRollupsSinceRow
+		if err := rows.Scan(
+			&i.BucketUnixMillis,
+			&i.MatchedRequests,
+			&i.RetriedRequests,
+			&i.RetryAttempts,
+			&i.RecoveredRequests,
+			&i.ExhaustedRequests,
+			&i.SkippedRequests,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProxyStatusClassesRollupsSince = `-- name: ListProxyStatusClassesRollupsSince :many
 SELECT
     r.status_class AS id,
@@ -5092,7 +5394,7 @@ func (q *Queries) ListPublicResponseTemplates(ctx context.Context) ([]PublicResp
 
 const listPublicRetryRules = `-- name: ListPublicRetryRules :many
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
 FROM public_retry_rules
 ORDER BY priority ASC, id ASC
 `
@@ -5121,6 +5423,7 @@ func (q *Queries) ListPublicRetryRules(ctx context.Context) ([]PublicRetryRule, 
 			&i.MatchJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.RetryStatusCodesJson,
 		); err != nil {
 			return nil, err
 		}
@@ -5560,7 +5863,7 @@ func (q *Queries) ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsD
 }
 
 const listPublicTrafficShaperRules = `-- name: ListPublicTrafficShaperRules :many
-SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 FROM public_traffic_shaper_rules
 ORDER BY priority ASC, id ASC
 `
@@ -5589,6 +5892,7 @@ func (q *Queries) ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTra
 			&i.KeyPartsJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ProtocolScope,
 		); err != nil {
 			return nil, err
 		}
@@ -5841,12 +6145,14 @@ SELECT
     pre.retry_rule_id,
     pre.retry_count,
     pre.retry_outcome,
-    pre.retry_error_kind
+    pre.retry_error_kind,
+    COALESCE(failed_agent.name, CASE WHEN pre.retry_failed_agent_id IS NULL THEN '' ELSE 'deleted agent #' || pre.retry_failed_agent_id END) AS retry_failed_agent_label
 FROM proxy_request_events AS pre INDEXED BY idx_proxy_request_events_occurred_at
 LEFT JOIN public_listeners pl ON pl.id = pre.listener_id
 LEFT JOIN public_routes pr ON pr.id = pre.route_id
 LEFT JOIN public_route_targets prt ON prt.id = pre.route_target_id
 LEFT JOIN agents a ON a.id = pre.agent_id
+LEFT JOIN agents failed_agent ON failed_agent.id = pre.retry_failed_agent_id
 WHERE pre.occurred_at >= ?1
   AND (pre.status_code >= 400 OR pre.error_kind != '' OR pre.retry_count > 0)
 ORDER BY pre.occurred_at DESC, pre.id DESC
@@ -5859,23 +6165,24 @@ type ListRecentProxyProblemSamplesSinceParams struct {
 }
 
 type ListRecentProxyProblemSamplesSinceRow struct {
-	OccurredAt       time.Time     `json:"occurred_at"`
-	Method           string        `json:"method"`
-	Host             string        `json:"host"`
-	PathPrefix       string        `json:"path_prefix"`
-	StatusCode       int64         `json:"status_code"`
-	ErrorKind        string        `json:"error_kind"`
-	ListenerLabel    string        `json:"listener_label"`
-	RouteLabel       interface{}   `json:"route_label"`
-	RouteTargetLabel string        `json:"route_target_label"`
-	AgentLabel       string        `json:"agent_label"`
-	DurationMs       int64         `json:"duration_ms"`
-	RequestBytes     int64         `json:"request_bytes"`
-	ResponseBytes    int64         `json:"response_bytes"`
-	RetryRuleID      sql.NullInt64 `json:"retry_rule_id"`
-	RetryCount       int64         `json:"retry_count"`
-	RetryOutcome     string        `json:"retry_outcome"`
-	RetryErrorKind   string        `json:"retry_error_kind"`
+	OccurredAt            time.Time     `json:"occurred_at"`
+	Method                string        `json:"method"`
+	Host                  string        `json:"host"`
+	PathPrefix            string        `json:"path_prefix"`
+	StatusCode            int64         `json:"status_code"`
+	ErrorKind             string        `json:"error_kind"`
+	ListenerLabel         string        `json:"listener_label"`
+	RouteLabel            interface{}   `json:"route_label"`
+	RouteTargetLabel      string        `json:"route_target_label"`
+	AgentLabel            string        `json:"agent_label"`
+	DurationMs            int64         `json:"duration_ms"`
+	RequestBytes          int64         `json:"request_bytes"`
+	ResponseBytes         int64         `json:"response_bytes"`
+	RetryRuleID           sql.NullInt64 `json:"retry_rule_id"`
+	RetryCount            int64         `json:"retry_count"`
+	RetryOutcome          string        `json:"retry_outcome"`
+	RetryErrorKind        string        `json:"retry_error_kind"`
+	RetryFailedAgentLabel string        `json:"retry_failed_agent_label"`
 }
 
 func (q *Queries) ListRecentProxyProblemSamplesSince(ctx context.Context, arg ListRecentProxyProblemSamplesSinceParams) ([]ListRecentProxyProblemSamplesSinceRow, error) {
@@ -5905,6 +6212,7 @@ func (q *Queries) ListRecentProxyProblemSamplesSince(ctx context.Context, arg Li
 			&i.RetryCount,
 			&i.RetryOutcome,
 			&i.RetryErrorKind,
+			&i.RetryFailedAgentLabel,
 		); err != nil {
 			return nil, err
 		}
@@ -7937,28 +8245,30 @@ SET name = ?,
     failure_mode = ?,
     body_mode = ?,
     max_replay_body_bytes = ?,
+    retry_status_codes_json = ?,
     route_ids_json = ?,
     target_ids_json = ?,
     match_json = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
 `
 
 type UpdatePublicRetryRuleParams struct {
-	Name               string `json:"name"`
-	Priority           int64  `json:"priority"`
-	Enabled            int64  `json:"enabled"`
-	MethodsJson        string `json:"methods_json"`
-	MaxRetries         int64  `json:"max_retries"`
-	FailureMode        string `json:"failure_mode"`
-	BodyMode           string `json:"body_mode"`
-	MaxReplayBodyBytes int64  `json:"max_replay_body_bytes"`
-	RouteIdsJson       string `json:"route_ids_json"`
-	TargetIdsJson      string `json:"target_ids_json"`
-	MatchJson          string `json:"match_json"`
-	ID                 int64  `json:"id"`
+	Name                 string `json:"name"`
+	Priority             int64  `json:"priority"`
+	Enabled              int64  `json:"enabled"`
+	MethodsJson          string `json:"methods_json"`
+	MaxRetries           int64  `json:"max_retries"`
+	FailureMode          string `json:"failure_mode"`
+	BodyMode             string `json:"body_mode"`
+	MaxReplayBodyBytes   int64  `json:"max_replay_body_bytes"`
+	RetryStatusCodesJson string `json:"retry_status_codes_json"`
+	RouteIdsJson         string `json:"route_ids_json"`
+	TargetIdsJson        string `json:"target_ids_json"`
+	MatchJson            string `json:"match_json"`
+	ID                   int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRetryRuleParams) (PublicRetryRule, error) {
@@ -7971,6 +8281,7 @@ func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRet
 		arg.FailureMode,
 		arg.BodyMode,
 		arg.MaxReplayBodyBytes,
+		arg.RetryStatusCodesJson,
 		arg.RouteIdsJson,
 		arg.TargetIdsJson,
 		arg.MatchJson,
@@ -7992,6 +8303,7 @@ func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRet
 		&i.MatchJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RetryStatusCodesJson,
 	)
 	return i, err
 }
@@ -8531,9 +8843,10 @@ SET name = ?,
     response_exempt_bytes = ?,
     match_json = ?,
     key_parts_json = ?,
+    protocol_scope = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 `
 
 type UpdatePublicTrafficShaperRuleParams struct {
@@ -8548,6 +8861,7 @@ type UpdatePublicTrafficShaperRuleParams struct {
 	ResponseExemptBytes    int64  `json:"response_exempt_bytes"`
 	MatchJson              string `json:"match_json"`
 	KeyPartsJson           string `json:"key_parts_json"`
+	ProtocolScope          string `json:"protocol_scope"`
 	ID                     int64  `json:"id"`
 }
 
@@ -8564,6 +8878,7 @@ func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdateP
 		arg.ResponseExemptBytes,
 		arg.MatchJson,
 		arg.KeyPartsJson,
+		arg.ProtocolScope,
 		arg.ID,
 	)
 	var i PublicTrafficShaperRule
@@ -8582,6 +8897,7 @@ func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdateP
 		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProtocolScope,
 	)
 	return i, err
 }
@@ -9199,6 +9515,59 @@ func (q *Queries) UpsertProxyRequestTupleRollupMinute(ctx context.Context, arg U
 		arg.DurationMsSum,
 		arg.RequestBytes,
 		arg.ResponseBytes,
+	)
+	return err
+}
+
+const upsertProxyRetryRollupMinute = `-- name: UpsertProxyRetryRollupMinute :exec
+INSERT INTO proxy_retry_rollup_minutes (
+    bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind,
+    matched_requests, retried_requests, retry_attempts, recovered_requests,
+    exhausted_requests, skipped_requests, duration_ms_sum, retried_duration_ms_sum
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(bucket_unix_millis, retry_rule_id, failed_agent_id, error_kind) DO UPDATE SET
+    matched_requests = proxy_retry_rollup_minutes.matched_requests + excluded.matched_requests,
+    retried_requests = proxy_retry_rollup_minutes.retried_requests + excluded.retried_requests,
+    retry_attempts = proxy_retry_rollup_minutes.retry_attempts + excluded.retry_attempts,
+    recovered_requests = proxy_retry_rollup_minutes.recovered_requests + excluded.recovered_requests,
+    exhausted_requests = proxy_retry_rollup_minutes.exhausted_requests + excluded.exhausted_requests,
+    skipped_requests = proxy_retry_rollup_minutes.skipped_requests + excluded.skipped_requests,
+    duration_ms_sum = proxy_retry_rollup_minutes.duration_ms_sum + excluded.duration_ms_sum,
+    retried_duration_ms_sum = proxy_retry_rollup_minutes.retried_duration_ms_sum + excluded.retried_duration_ms_sum,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertProxyRetryRollupMinuteParams struct {
+	BucketUnixMillis     int64  `json:"bucket_unix_millis"`
+	RetryRuleID          int64  `json:"retry_rule_id"`
+	FailedAgentID        int64  `json:"failed_agent_id"`
+	ErrorKind            string `json:"error_kind"`
+	MatchedRequests      int64  `json:"matched_requests"`
+	RetriedRequests      int64  `json:"retried_requests"`
+	RetryAttempts        int64  `json:"retry_attempts"`
+	RecoveredRequests    int64  `json:"recovered_requests"`
+	ExhaustedRequests    int64  `json:"exhausted_requests"`
+	SkippedRequests      int64  `json:"skipped_requests"`
+	DurationMsSum        int64  `json:"duration_ms_sum"`
+	RetriedDurationMsSum int64  `json:"retried_duration_ms_sum"`
+}
+
+func (q *Queries) UpsertProxyRetryRollupMinute(ctx context.Context, arg UpsertProxyRetryRollupMinuteParams) error {
+	_, err := q.db.ExecContext(ctx, upsertProxyRetryRollupMinute,
+		arg.BucketUnixMillis,
+		arg.RetryRuleID,
+		arg.FailedAgentID,
+		arg.ErrorKind,
+		arg.MatchedRequests,
+		arg.RetriedRequests,
+		arg.RetryAttempts,
+		arg.RecoveredRequests,
+		arg.ExhaustedRequests,
+		arg.SkippedRequests,
+		arg.DurationMsSum,
+		arg.RetriedDurationMsSum,
 	)
 	return err
 }

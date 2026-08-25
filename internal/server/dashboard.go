@@ -154,6 +154,29 @@ func (a *App) GetDashboardDiagnostics(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	retryHealth, err := a.DB.GetProxyRetryRollupSummarySince(ctx, sinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	retryTrendRows, err := a.DB.ListProxyRetryTrendRollupsSince(ctx, db.ListProxyRetryTrendRollupsSinceParams{
+		BucketSeconds:   dashboardRetryTrendBucketSeconds(window),
+		SinceUnixMillis: sinceUnixMillis,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	retryRuleRows, err := a.DB.ListProxyRetryRuleRollupsSince(ctx, sinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	retryAgentRows, err := a.DB.ListProxyRetryFailedAgentRollupsSince(ctx, sinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	retryErrorRows, err := a.DB.ListProxyRetryErrorKindRollupsSince(ctx, sinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	sampleRows, err := a.DB.ListRecentProxyProblemSamplesSince(ctx, db.ListRecentProxyProblemSamplesSinceParams{
 		Since: since,
 		Limit: sampleLimit,
@@ -174,6 +197,11 @@ func (a *App) GetDashboardDiagnostics(
 		ProblemRouteTargets:   dashboardProblemRouteTargetSummaries(routeTargetRows),
 		ProblemAgents:         dashboardProblemAgentSummaries(agentRows),
 		RecentSamples:         dashboardDiagnosticsSamples(sampleRows),
+		RetryHealth:           dashboardRetryHealthSummary(retryHealth),
+		RetryTrend:            dashboardRetryTrendBuckets(retryTrendRows),
+		RetryRules:            dashboardRetryRuleSummaries(retryRuleRows),
+		RetryFailedAgents:     dashboardRetryFailedAgentSummaries(retryAgentRows),
+		RetryErrorKinds:       dashboardRetryErrorKindSummaries(retryErrorRows),
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -196,6 +224,19 @@ func dashboardDiagnosticsSampleLimit(limit int64) int64 {
 		return diagnosticsMaxSampleLimit
 	}
 	return limit
+}
+
+func dashboardRetryTrendBucketSeconds(window time.Duration) int64 {
+	switch {
+	case window <= 5*time.Minute:
+		return 60
+	case window <= time.Hour:
+		return int64(5 * time.Minute / time.Second)
+	case window <= 24*time.Hour:
+		return int64(time.Hour / time.Second)
+	default:
+		return int64(24 * time.Hour / time.Second)
+	}
 }
 
 func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstreamv1.GetDashboardResponse, error) {
@@ -1212,26 +1253,108 @@ func dashboardDiagnosticsSamples(rows []db.ListRecentProxyProblemSamplesSinceRow
 	items := make([]*p2pstreamv1.DashboardDiagnosticsSample, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, &p2pstreamv1.DashboardDiagnosticsSample{
-			OccurredAtUnixMillis: row.OccurredAt.UnixMilli(),
-			Method:               row.Method,
-			Host:                 row.Host,
-			PathPrefix:           row.PathPrefix,
-			StatusCode:           row.StatusCode,
-			ErrorKind:            row.ErrorKind,
-			ListenerLabel:        row.ListenerLabel,
-			RouteLabel:           dashboardLabelString(row.RouteLabel),
-			RouteTargetLabel:     row.RouteTargetLabel,
-			AgentLabel:           row.AgentLabel,
-			DurationMs:           row.DurationMs,
-			RequestBytes:         uint64FromInt64(row.RequestBytes),
-			ResponseBytes:        uint64FromInt64(row.ResponseBytes),
-			RetryRuleId:          nullInt64Value(row.RetryRuleID),
-			RetryCount:           row.RetryCount,
-			RetryOutcome:         row.RetryOutcome,
-			RetryErrorKind:       row.RetryErrorKind,
+			OccurredAtUnixMillis:  row.OccurredAt.UnixMilli(),
+			Method:                row.Method,
+			Host:                  row.Host,
+			PathPrefix:            row.PathPrefix,
+			StatusCode:            row.StatusCode,
+			ErrorKind:             row.ErrorKind,
+			ListenerLabel:         row.ListenerLabel,
+			RouteLabel:            dashboardLabelString(row.RouteLabel),
+			RouteTargetLabel:      row.RouteTargetLabel,
+			AgentLabel:            row.AgentLabel,
+			DurationMs:            row.DurationMs,
+			RequestBytes:          uint64FromInt64(row.RequestBytes),
+			ResponseBytes:         uint64FromInt64(row.ResponseBytes),
+			RetryRuleId:           nullInt64Value(row.RetryRuleID),
+			RetryCount:            row.RetryCount,
+			RetryOutcome:          row.RetryOutcome,
+			RetryErrorKind:        row.RetryErrorKind,
+			RetryFailedAgentLabel: row.RetryFailedAgentLabel,
 		})
 	}
 	return items
+}
+
+func dashboardRetryHealthSummary(row db.GetProxyRetryRollupSummarySinceRow) *p2pstreamv1.DashboardRetryHealthSummary {
+	return &p2pstreamv1.DashboardRetryHealthSummary{
+		MatchedRequests:      row.MatchedRequests,
+		RetriedRequests:      row.RetriedRequests,
+		RetryAttempts:        row.RetryAttempts,
+		RecoveredRequests:    row.RecoveredRequests,
+		ExhaustedRequests:    row.ExhaustedRequests,
+		SkippedRequests:      row.SkippedRequests,
+		AvgMatchedDurationMs: row.AvgMatchedDurationMs,
+		AvgRetriedDurationMs: row.AvgRetriedDurationMs,
+	}
+}
+
+func dashboardRetryTrendBuckets(rows []db.ListProxyRetryTrendRollupsSinceRow) []*p2pstreamv1.DashboardRetryTrendBucket {
+	items := make([]*p2pstreamv1.DashboardRetryTrendBucket, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, &p2pstreamv1.DashboardRetryTrendBucket{
+			BucketUnixMillis:  row.BucketUnixMillis,
+			MatchedRequests:   row.MatchedRequests,
+			RetriedRequests:   row.RetriedRequests,
+			RetryAttempts:     row.RetryAttempts,
+			RecoveredRequests: row.RecoveredRequests,
+			ExhaustedRequests: row.ExhaustedRequests,
+			SkippedRequests:   row.SkippedRequests,
+		})
+	}
+	return items
+}
+
+func dashboardRetryRuleSummaries(rows []db.ListProxyRetryRuleRollupsSinceRow) []*p2pstreamv1.DashboardRetryRuleSummary {
+	items := make([]*p2pstreamv1.DashboardRetryRuleSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, &p2pstreamv1.DashboardRetryRuleSummary{
+			Id:                   row.ID,
+			Label:                row.Label,
+			MatchedRequests:      row.MatchedRequests,
+			RetriedRequests:      row.RetriedRequests,
+			RetryAttempts:        row.RetryAttempts,
+			RecoveredRequests:    row.RecoveredRequests,
+			ExhaustedRequests:    row.ExhaustedRequests,
+			SkippedRequests:      row.SkippedRequests,
+			AvgRetriedDurationMs: row.AvgRetriedDurationMs,
+		})
+	}
+	return items
+}
+
+func dashboardRetryFailedAgentSummaries(rows []db.ListProxyRetryFailedAgentRollupsSinceRow) []*p2pstreamv1.DashboardRetryFailureSummary {
+	items := make([]*p2pstreamv1.DashboardRetryFailureSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardRetryFailureSummary(
+			row.ID, row.Label, row.AffectedRequests, row.RetryAttempts,
+			row.RecoveredRequests, row.ExhaustedRequests, row.SkippedRequests,
+		))
+	}
+	return items
+}
+
+func dashboardRetryErrorKindSummaries(rows []db.ListProxyRetryErrorKindRollupsSinceRow) []*p2pstreamv1.DashboardRetryFailureSummary {
+	items := make([]*p2pstreamv1.DashboardRetryFailureSummary, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dashboardRetryFailureSummary(
+			0, row.Label, row.AffectedRequests, row.RetryAttempts,
+			row.RecoveredRequests, row.ExhaustedRequests, row.SkippedRequests,
+		))
+	}
+	return items
+}
+
+func dashboardRetryFailureSummary(id int64, label string, affected, attempts, recovered, exhausted, skipped int64) *p2pstreamv1.DashboardRetryFailureSummary {
+	return &p2pstreamv1.DashboardRetryFailureSummary{
+		Id:                id,
+		Label:             label,
+		AffectedRequests:  affected,
+		RetryAttempts:     attempts,
+		RecoveredRequests: recovered,
+		ExhaustedRequests: exhausted,
+		SkippedRequests:   skipped,
+	}
 }
 
 func dashboardDimensionSummary(
