@@ -391,6 +391,7 @@ function evaluateRetryTarget(config: TrafficPolicyWorkbenchConfig, targetId: big
 
 function retryRuleHasDuplicateRisk(rule: PublicRetryRule): boolean {
   return rule.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
+    rule.retryStatusCodes.length > 0 ||
     rule.methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
 }
 

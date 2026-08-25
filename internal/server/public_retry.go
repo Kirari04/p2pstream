@@ -29,6 +29,7 @@ const (
 	maxPublicRetryMaxRetries            = int64(3)
 	maxPublicRetryMethods               = 32
 	maxPublicRetryFilters               = 64
+	maxPublicRetryStatusCodes           = 64
 	maxPublicRetryReplayBodyBytes       = int64(4 << 20)
 	defaultPublicRetryReplayBudgetBytes = int64(64 << 20)
 )
@@ -47,6 +48,8 @@ type publicRetryRuleConfig struct {
 	FailureMode        string
 	BodyMode           string
 	MaxReplayBodyBytes int64
+	RetryStatusCodes   []int64
+	retryStatusCodeSet map[int]struct{}
 	RouteIDs           []int64
 	routeIDSet         map[int64]struct{}
 	TargetIDs          []int64
@@ -65,6 +68,7 @@ type publicRetryRuleMutationInput struct {
 	FailureMode        string
 	BodyMode           string
 	MaxReplayBodyBytes int64
+	RetryStatusJSON    string
 	RouteIDsJSON       string
 	TargetIDsJSON      string
 	MatchJSON          string
@@ -160,8 +164,8 @@ func normalizePublicRetryMethods(values []string) ([]string, error) {
 	return methods, nil
 }
 
-func publicRetryRequiresDuplicateRiskAcknowledgement(methods []string, failureMode string) bool {
-	if failureMode == publicRetryFailureModePreResponseFailures {
+func publicRetryRequiresDuplicateRiskAcknowledgement(methods []string, failureMode string, retryStatusCodes []int64) bool {
+	if failureMode == publicRetryFailureModePreResponseFailures || len(retryStatusCodes) > 0 {
 		return true
 	}
 	for _, method := range methods {
@@ -172,6 +176,34 @@ func publicRetryRequiresDuplicateRiskAcknowledgement(methods []string, failureMo
 		}
 	}
 	return false
+}
+
+func normalizePublicRetryStatusCodes(values []int64) ([]int64, error) {
+	if len(values) > maxPublicRetryStatusCodes {
+		return nil, fmt.Errorf("retry rule can include at most %d HTTP status codes", maxPublicRetryStatusCodes)
+	}
+	seen := make(map[int64]struct{}, len(values))
+	statuses := make([]int64, 0, len(values))
+	for _, status := range values {
+		if status < http.StatusBadRequest || status > 599 {
+			return nil, fmt.Errorf("retry HTTP status code %d must be between 400 and 599", status)
+		}
+		if _, ok := seen[status]; ok {
+			continue
+		}
+		seen[status] = struct{}{}
+		statuses = append(statuses, status)
+	}
+	sort.Slice(statuses, func(i, j int) bool { return statuses[i] < statuses[j] })
+	return statuses, nil
+}
+
+func (rule publicRetryRuleConfig) retriesStatus(status int) bool {
+	if status < http.StatusBadRequest || len(rule.retryStatusCodeSet) == 0 {
+		return false
+	}
+	_, ok := rule.retryStatusCodeSet[status]
+	return ok
 }
 
 func normalizePublicRetryFailureMode(value string) string {
@@ -227,6 +259,14 @@ func publicRetryRuleRowToConfig(row db.PublicRetryRule) (publicRetryRuleConfig, 
 	if err != nil {
 		return publicRetryRuleConfig{}, err
 	}
+	var retryStatusCodes []int64
+	if err := json.Unmarshal([]byte(row.RetryStatusCodesJson), &retryStatusCodes); err != nil {
+		return publicRetryRuleConfig{}, err
+	}
+	retryStatusCodes, err = normalizePublicRetryStatusCodes(retryStatusCodes)
+	if err != nil {
+		return publicRetryRuleConfig{}, err
+	}
 	routeIDs, err := publicCacheInt64ListFromJSON(row.RouteIdsJson)
 	if err != nil {
 		return publicRetryRuleConfig{}, err
@@ -255,6 +295,10 @@ func publicRetryRuleRowToConfig(row db.PublicRetryRule) (publicRetryRuleConfig, 
 	for _, method := range methods {
 		methodSet[method] = struct{}{}
 	}
+	retryStatusCodeSet := make(map[int]struct{}, len(retryStatusCodes))
+	for _, status := range retryStatusCodes {
+		retryStatusCodeSet[int(status)] = struct{}{}
+	}
 	routeIDSet := make(map[int64]struct{}, len(routeIDs))
 	for _, id := range routeIDs {
 		routeIDSet[id] = struct{}{}
@@ -268,6 +312,7 @@ func publicRetryRuleRowToConfig(row db.PublicRetryRule) (publicRetryRuleConfig, 
 		Methods: methods, methodSet: methodSet, AllMethods: len(methods) == 1 && methods[0] == "*",
 		MaxRetries: maxRetries, FailureMode: normalizePublicRetryFailureMode(row.FailureMode),
 		BodyMode: bodyMode, MaxReplayBodyBytes: maxReplayBodyBytes,
+		RetryStatusCodes: retryStatusCodes, retryStatusCodeSet: retryStatusCodeSet,
 		RouteIDs: routeIDs, routeIDSet: routeIDSet, TargetIDs: targetIDs, targetIDSet: targetIDSet,
 		Match: match, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}, nil
@@ -279,7 +324,8 @@ func publicRetryRuleConfigToProto(rule publicRetryRuleConfig) *p2pstreamv1.Publi
 		Methods: append([]string(nil), rule.Methods...), MaxRetries: rule.MaxRetries,
 		FailureMode: protoPublicRetryFailureMode(rule.FailureMode), BodyMode: protoPublicRetryBodyMode(rule.BodyMode),
 		MaxReplayBodyBytes: rule.MaxReplayBodyBytes, RouteIds: append([]int64(nil), rule.RouteIDs...),
-		TargetIds: append([]int64(nil), rule.TargetIDs...), MatchRule: publicPolicyMatchRuleToProto(rule.Match),
+		RetryStatusCodes: append([]int64(nil), rule.RetryStatusCodes...),
+		TargetIds:        append([]int64(nil), rule.TargetIDs...), MatchRule: publicPolicyMatchRuleToProto(rule.Match),
 		CreatedAtUnixMillis: rule.CreatedAt.UnixMilli(), UpdatedAtUnixMillis: rule.UpdatedAt.UnixMilli(),
 	}
 }
@@ -314,6 +360,7 @@ func (a *App) validatePublicRetryRuleInput(
 	failureMode p2pstreamv1.PublicRetryFailureMode,
 	bodyMode p2pstreamv1.PublicRetryBodyMode,
 	maxReplayBodyBytes int64,
+	retryStatusCodes []int64,
 	routeIDs []int64,
 	targetIDs []int64,
 	matchRule *p2pstreamv1.PublicPolicyMatchRule,
@@ -331,8 +378,12 @@ func (a *App) validatePublicRetryRuleInput(
 		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("maximum retries must be between 1 and %d", maxPublicRetryMaxRetries))
 	}
 	failureModeString := publicRetryFailureModeFromProto(failureMode)
-	if publicRetryRequiresDuplicateRiskAcknowledgement(methods, failureModeString) && !duplicateRiskAcknowledged {
-		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("duplicate request risk must be acknowledged for pre-response failures or methods with side effects"))
+	retryStatusCodes, err = normalizePublicRetryStatusCodes(retryStatusCodes)
+	if err != nil {
+		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if publicRetryRequiresDuplicateRiskAcknowledgement(methods, failureModeString, retryStatusCodes) && !duplicateRiskAcknowledged {
+		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("duplicate request risk must be acknowledged for pre-response failures, retryable HTTP statuses, or methods with side effects"))
 	}
 	bodyModeString := publicRetryBodyModeFromProto(bodyMode)
 	if bodyModeString == publicRetryBodyModeNever {
@@ -364,6 +415,7 @@ func (a *App) validatePublicRetryRuleInput(
 		return publicRetryRuleMutationInput{}, err
 	}
 	methodsJSON, _ := json.Marshal(methods)
+	retryStatusJSON, _ := json.Marshal(retryStatusCodes)
 	routeIDsJSON, _ := json.Marshal(routeIDs)
 	targetIDsJSON, _ := json.Marshal(targetIDs)
 	matchJSON, err := json.Marshal(match)
@@ -373,7 +425,7 @@ func (a *App) validatePublicRetryRuleInput(
 	return publicRetryRuleMutationInput{
 		Name: name, Priority: priority, Enabled: boolInt(enabled), MethodsJSON: string(methodsJSON),
 		MaxRetries: maxRetries, FailureMode: failureModeString, BodyMode: bodyModeString,
-		MaxReplayBodyBytes: maxReplayBodyBytes, RouteIDsJSON: string(routeIDsJSON),
+		MaxReplayBodyBytes: maxReplayBodyBytes, RetryStatusJSON: string(retryStatusJSON), RouteIDsJSON: string(routeIDsJSON),
 		TargetIDsJSON: string(targetIDsJSON), MatchJSON: string(matchJSON),
 	}, nil
 }
@@ -382,14 +434,14 @@ func (a *App) CreatePublicRetryRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
+	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.RetryStatusCodes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
 	if err != nil {
 		return nil, err
 	}
 	row, err := a.DB.CreatePublicRetryRule(ctx, db.CreatePublicRetryRuleParams{
 		Name: input.Name, Priority: input.Priority, Enabled: input.Enabled, MethodsJson: input.MethodsJSON,
 		MaxRetries: input.MaxRetries, FailureMode: input.FailureMode, BodyMode: input.BodyMode,
-		MaxReplayBodyBytes: input.MaxReplayBodyBytes, RouteIdsJson: input.RouteIDsJSON,
+		MaxReplayBodyBytes: input.MaxReplayBodyBytes, RetryStatusCodesJson: input.RetryStatusJSON, RouteIdsJson: input.RouteIDsJSON,
 		TargetIdsJson: input.TargetIDsJSON, MatchJson: input.MatchJSON,
 	})
 	if err != nil {
@@ -409,7 +461,7 @@ func (a *App) UpdatePublicRetryRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
+	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.RetryStatusCodes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +469,8 @@ func (a *App) UpdatePublicRetryRule(ctx context.Context, req *connect.Request[p2
 		ID: req.Msg.Id, Name: input.Name, Priority: input.Priority, Enabled: input.Enabled,
 		MethodsJson: input.MethodsJSON, MaxRetries: input.MaxRetries, FailureMode: input.FailureMode,
 		BodyMode: input.BodyMode, MaxReplayBodyBytes: input.MaxReplayBodyBytes,
-		RouteIdsJson: input.RouteIDsJSON, TargetIdsJson: input.TargetIDsJSON, MatchJson: input.MatchJSON,
+		RetryStatusCodesJson: input.RetryStatusJSON,
+		RouteIdsJson:         input.RouteIDsJSON, TargetIdsJson: input.TargetIDsJSON, MatchJson: input.MatchJSON,
 	})
 	if err != nil {
 		return nil, publicDBError(err)

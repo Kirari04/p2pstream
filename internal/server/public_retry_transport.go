@@ -282,6 +282,19 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			body.close()
 		}
 	}()
+	finishResponse := func(resp *http.Response, releaseActiveRequest func(), attempt int64, outcome string) *http.Response {
+		if resp.Body == nil {
+			resp.Body = http.NoBody
+		}
+		resp.Body = wrapActiveAgentResponseBody(resp.Body, func() {
+			releaseActiveRequest()
+			body.close()
+		})
+		responseOwnsRequestBody = true
+		rt.result.Outcome = outcome
+		rt.result.RetryCount = attempt - 1
+		return resp
+	}
 
 	maxAttempts := int64(1)
 	if rt.rule != nil {
@@ -359,19 +372,39 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			attemptErr = errors.New("agent transport returned no response")
 		}
 		if attemptErr == nil {
-			if resp.Body == nil {
-				resp.Body = http.NoBody
+			if rt.rule == nil || !rt.rule.retriesStatus(resp.StatusCode) {
+				outcome := ""
+				if attempt > 1 {
+					outcome = publicRetryOutcomeRecovered
+				}
+				return finishResponse(resp, releaseActiveRequest, attempt, outcome), nil
 			}
-			resp.Body = wrapActiveAgentResponseBody(resp.Body, func() {
-				releaseActiveRequest()
-				body.close()
-			})
-			responseOwnsRequestBody = true
-			if attempt > 1 {
-				rt.result.Outcome = publicRetryOutcomeRecovered
+
+			errorKind := fmt.Sprintf("upstream_status_%d", resp.StatusCode)
+			rt.result.LastErrorKind = errorKind
+			if rt.result.FirstErrorKind == "" {
+				rt.result.FirstErrorKind = errorKind
+				rt.result.FirstFailedAgent = agent
 			}
-			rt.result.RetryCount = attempt - 1
-			return resp, nil
+			if attempt >= maxAttempts {
+				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeExhausted), nil
+			}
+			if !body.replayable && !body.bodyless && bodyRead.Load() > 0 {
+				rt.result.ReplaySkippedReason = "request_body_not_replayable"
+				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeSkipped), nil
+			}
+			next := rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+			if next == nil {
+				return finishResponse(resp, releaseActiveRequest, attempt, publicRetryOutcomeExhausted), nil
+			}
+			if resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			releaseActiveRequest()
+			rt.result.RetryCount = attempt
+			rt.emitRetry(attemptResolution, agent, next, attempt, errorKind)
+			agent = next
+			continue
 		}
 
 		errorKind := agentProxyErrorKind(attemptErr)

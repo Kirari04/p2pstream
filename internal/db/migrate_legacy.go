@@ -806,9 +806,15 @@ func (db *DB) migrateLegacyPublicPolicyTables() error {
 			target_ids_json TEXT NOT NULL DEFAULT '[]',
 			match_json TEXT NOT NULL DEFAULT '{}',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			retry_status_codes_json TEXT NOT NULL DEFAULT '[]'
 		)
 	`); err != nil {
+		return err
+	}
+	if err := db.execLegacyAlterStatements(
+		`ALTER TABLE public_retry_rules ADD COLUMN retry_status_codes_json TEXT NOT NULL DEFAULT '[]'`,
+	); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_retry_rules_priority ON public_retry_rules (priority, id)`); err != nil {

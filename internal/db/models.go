@@ -372,20 +372,21 @@ type PublicResponseTemplate struct {
 }
 
 type PublicRetryRule struct {
-	ID                 int64     `json:"id"`
-	Name               string    `json:"name"`
-	Priority           int64     `json:"priority"`
-	Enabled            int64     `json:"enabled"`
-	MethodsJson        string    `json:"methods_json"`
-	MaxRetries         int64     `json:"max_retries"`
-	FailureMode        string    `json:"failure_mode"`
-	BodyMode           string    `json:"body_mode"`
-	MaxReplayBodyBytes int64     `json:"max_replay_body_bytes"`
-	RouteIdsJson       string    `json:"route_ids_json"`
-	TargetIdsJson      string    `json:"target_ids_json"`
-	MatchJson          string    `json:"match_json"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                   int64     `json:"id"`
+	Name                 string    `json:"name"`
+	Priority             int64     `json:"priority"`
+	Enabled              int64     `json:"enabled"`
+	MethodsJson          string    `json:"methods_json"`
+	MaxRetries           int64     `json:"max_retries"`
+	FailureMode          string    `json:"failure_mode"`
+	BodyMode             string    `json:"body_mode"`
+	MaxReplayBodyBytes   int64     `json:"max_replay_body_bytes"`
+	RouteIdsJson         string    `json:"route_ids_json"`
+	TargetIdsJson        string    `json:"target_ids_json"`
+	MatchJson            string    `json:"match_json"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	RetryStatusCodesJson string    `json:"retry_status_codes_json"`
 }
 
 type PublicRoute struct {
