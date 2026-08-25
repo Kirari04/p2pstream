@@ -4,6 +4,8 @@ package smoketest
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -137,37 +139,61 @@ func TestDockerSmoke(t *testing.T) {
 		)
 		retryRule := createAgentDisconnectRetryRule(ctx, t, client, cookie, retryRoute.GetId())
 
-		assets := []string{"app.js", "vendor.js", "site.css"}
+		type retryAssetScenario struct {
+			path       string
+			asset      string
+			compressed bool
+		}
+		assets := []retryAssetScenario{
+			{path: "/retry-assets/app.js", asset: "app.js"},
+			{path: "/retry-assets/vendor.js", asset: "vendor.js"},
+			{path: "/retry-assets/site.css", asset: "site.css"},
+			{path: "/retry-response-assets/document.html", asset: "document.html"},
+			{path: "/retry-response-assets/archive.bin", asset: "archive.bin", compressed: true},
+		}
 		type requestResult struct {
-			asset   string
-			status  int
-			body    string
-			attempt string
-			err     error
+			scenario retryAssetScenario
+			status   int
+			body     []byte
+			encoding string
+			attempt  string
+			err      error
 		}
 		resultCh := make(chan requestResult, len(assets))
-		for _, asset := range assets {
-			go func() {
-				requestClient := httpClient()
-				requestClient.Timeout = 20 * time.Second
-				resp, err := requestClient.Get(smokeURL(publicAgentURL, "/retry-assets/"+asset))
+		for _, scenario := range assets {
+			go func(scenario retryAssetScenario) {
+				requestClient := &http.Client{
+					Timeout: 20 * time.Second,
+					Transport: &http.Transport{
+						DisableKeepAlives:  true,
+						DisableCompression: true,
+					},
+				}
+				req, err := http.NewRequest(http.MethodGet, smokeURL(publicAgentURL, scenario.path), nil)
 				if err != nil {
-					resultCh <- requestResult{asset: asset, err: err}
+					resultCh <- requestResult{scenario: scenario, err: err}
+					return
+				}
+				req.Header.Set("Accept-Encoding", "gzip")
+				resp, err := requestClient.Do(req)
+				if err != nil {
+					resultCh <- requestResult{scenario: scenario, err: err}
 					return
 				}
 				defer resp.Body.Close()
 				body, readErr := io.ReadAll(resp.Body)
 				resultCh <- requestResult{
-					asset:   asset,
-					status:  resp.StatusCode,
-					body:    string(body),
-					attempt: resp.Header.Get("X-Smoke-Upstream-Attempt"),
-					err:     readErr,
+					scenario: scenario,
+					status:   resp.StatusCode,
+					body:     body,
+					encoding: resp.Header.Get("Content-Encoding"),
+					attempt:  resp.Header.Get("X-Smoke-Upstream-Attempt"),
+					err:      readErr,
 				}
-			}()
+			}(scenario)
 		}
 
-		waitRetryAssetAttempts(t, upstreamURL, len(assets))
+		waitRetryAssetState(t, upstreamURL, len(assets), 2)
 		startSmokeAgent(t, controlDir, "retry-backup")
 		waitAgentConnectionState(ctx, t, client, cookie, backup.GetPublicId(), true)
 		rotateSmokeAgentToken(ctx, t, client, cookie, primary.GetId())
@@ -180,20 +206,38 @@ func TestDockerSmoke(t *testing.T) {
 				t.Fatal("asset requests did not finish after primary agent disconnected")
 			}
 			if result.err != nil {
-				t.Fatalf("asset %q request after primary agent disconnect: %v", result.asset, result.err)
+				t.Fatalf("asset %q request after primary agent disconnect: %v", result.scenario.asset, result.err)
 			}
 			if result.status != http.StatusOK {
-				t.Fatalf("asset %q request status = %d, want 200; body=%q", result.asset, result.status, result.body)
+				t.Fatalf("asset %q request status = %d, want 200; body=%q", result.scenario.asset, result.status, result.body)
 			}
-			if wantBody := result.asset + " recovered\n"; result.body != wantBody {
-				t.Fatalf("asset %q request body = %q, want %q", result.asset, result.body, wantBody)
+			body := result.body
+			if result.scenario.compressed {
+				if result.encoding != "gzip" {
+					t.Fatalf("asset %q content encoding = %q, want gzip", result.scenario.asset, result.encoding)
+				}
+				reader, err := gzip.NewReader(bytes.NewReader(body))
+				if err != nil {
+					t.Fatalf("asset %q gzip header after failover: %v", result.scenario.asset, err)
+				}
+				body, err = io.ReadAll(reader)
+				closeErr := reader.Close()
+				if err != nil || closeErr != nil {
+					t.Fatalf("asset %q gzip body after failover: read=%v close=%v", result.scenario.asset, err, closeErr)
+				}
+			} else if result.encoding != "" {
+				t.Fatalf("asset %q content encoding = %q, want identity", result.scenario.asset, result.encoding)
+			}
+			if wantBody := result.scenario.asset + " recovered\n"; string(body) != wantBody {
+				t.Fatalf("asset %q request body = %q, want %q", result.scenario.asset, body, wantBody)
 			}
 			if result.attempt != "2" {
-				t.Fatalf("asset %q response upstream attempt = %q, want 2", result.asset, result.attempt)
+				t.Fatalf("asset %q response upstream attempt = %q, want 2", result.scenario.asset, result.attempt)
 			}
 		}
-		waitRetryAssetAttempts(t, upstreamURL, 2*len(assets))
+		waitRetryAssetState(t, upstreamURL, 2*len(assets), 2)
 		waitRetryRuleRecovered(ctx, t, client, cookie, retryRule.GetId(), int64(len(assets)))
+		waitRetryErrorKinds(ctx, t, client, cookie, "upstream_response_body_truncated")
 
 		updateAgentLabels(ctx, t, client, cookie, dockerAgent, retryLabels)
 		waitAgentConnectionState(ctx, t, client, cookie, dockerAgent.GetPublicId(), true)
@@ -279,16 +323,18 @@ func createAgentDisconnectRetryRule(
 ) *p2pstreamv1.PublicRetryRule {
 	t.Helper()
 	req := connect.NewRequest(&p2pstreamv1.CreatePublicRetryRuleRequest{
-		Name:                      "docker-agent-disconnect-retry",
-		Priority:                  1,
-		Enabled:                   true,
-		Methods:                   []string{http.MethodGet},
-		MaxRetries:                1,
-		FailureMode:               p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
-		BodyMode:                  p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
-		RetryStatusCodes:          []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
-		RouteIds:                  []int64{routeID},
-		DuplicateRiskAcknowledged: true,
+		Name:                         "docker-agent-disconnect-retry",
+		Priority:                     1,
+		Enabled:                      true,
+		Methods:                      []string{http.MethodGet},
+		MaxRetries:                   1,
+		FailureMode:                  p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
+		BodyMode:                     p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		ResponseBodyMode:             p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED,
+		MaxBufferedResponseBodyBytes: 1024 * 1024,
+		RetryStatusCodes:             []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
+		RouteIds:                     []int64{routeID},
+		DuplicateRiskAcknowledged:    true,
 	})
 	req.Header().Set("Cookie", cookie)
 	resp, err := client.CreatePublicRetryRule(ctx, req)
@@ -743,10 +789,11 @@ func waitAgentConnectionState(
 	t.Fatalf("agent %q connected = %t, want %t (found=%t)", publicID, lastConnected, wantConnected, found)
 }
 
-func waitRetryAssetAttempts(t *testing.T, upstreamURL string, want int) {
+func waitRetryAssetState(t *testing.T, upstreamURL string, wantAttempts int, wantResponseBodiesStarted int) {
 	t.Helper()
 	type retryStatus struct {
-		Attempts int `json:"attempts"`
+		Attempts              int `json:"attempts"`
+		ResponseBodiesStarted int `json:"response_bodies_started"`
 	}
 	client := httpClient()
 	var last retryStatus
@@ -770,12 +817,12 @@ func waitRetryAssetAttempts(t *testing.T, upstreamURL string, want int) {
 		} else {
 			lastErr = err
 		}
-		if last.Attempts >= want {
+		if last.Attempts >= wantAttempts && last.ResponseBodiesStarted >= wantResponseBodiesStarted {
 			return
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	t.Fatalf("retry asset attempts = %d, want at least %d; last error=%v", last.Attempts, want, lastErr)
+	t.Fatalf("retry asset state = attempts %d / response bodies started %d, want at least %d / %d; last error=%v", last.Attempts, last.ResponseBodiesStarted, wantAttempts, wantResponseBodiesStarted, lastErr)
 }
 
 func smokeRetryableStatus(t *testing.T, publicURL string, retryStatus int, asset string) {
@@ -848,9 +895,24 @@ func waitRetryStatusErrorKinds(
 	statuses ...int,
 ) {
 	t.Helper()
-	want := make(map[string]struct{}, len(statuses))
+	labels := make([]string, 0, len(statuses))
 	for _, status := range statuses {
-		want[fmt.Sprintf("upstream_status_%d", status)] = struct{}{}
+		labels = append(labels, fmt.Sprintf("upstream_status_%d", status))
+	}
+	waitRetryErrorKinds(ctx, t, client, cookie, labels...)
+}
+
+func waitRetryErrorKinds(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	labels ...string,
+) {
+	t.Helper()
+	want := make(map[string]struct{}, len(labels))
+	for _, label := range labels {
+		want[label] = struct{}{}
 	}
 	last := make(map[string]int64)
 	deadline := time.Now().Add(20 * time.Second)
@@ -876,7 +938,7 @@ func waitRetryStatusErrorKinds(
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
-	t.Fatalf("dashboard retry error kinds = %+v, want statuses %+v", last, want)
+	t.Fatalf("dashboard retry error kinds = %+v, want labels %+v", last, want)
 }
 
 func waitDashboardHasProxyRequests(

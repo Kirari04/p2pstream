@@ -431,6 +431,9 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		finalAgent := agent
 		if retryResult != nil {
 			retryResult.applyToResolution(&resolution)
+			if errorKind == "" && retryResult.TerminalErrorKind != "" {
+				errorKind = retryResult.TerminalErrorKind
+			}
 			if retryResult.FinalAgent != nil {
 				finalAgent = retryResult.FinalAgent
 				selectedAgentID = sql.NullInt64{Int64: finalAgent.AgentID, Valid: true}
@@ -625,6 +628,9 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			logger.Msg("Agent target proxy failed")
 			var message string
 			statusCode, errorKind, message = agentProxyHTTPFailure(err)
+			if retryResult != nil && retryResult.TerminalErrorKind != "" {
+				errorKind = retryResult.TerminalErrorKind
+			}
 			http.Error(w, message, statusCode)
 		},
 		Transport:  transport,

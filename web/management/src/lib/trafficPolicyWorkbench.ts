@@ -3,6 +3,7 @@ import {
   PublicPolicyMatchConditionOperator,
   PublicPolicyMatchField,
   PublicRetryFailureMode,
+  PublicRetryResponseBodyMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
   PublicTrafficShaperProtocolScope,
@@ -392,6 +393,7 @@ function evaluateRetryTarget(config: TrafficPolicyWorkbenchConfig, targetId: big
 function retryRuleHasDuplicateRisk(rule: PublicRetryRule): boolean {
   return rule.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
     rule.retryStatusCodes.length > 0 ||
+    rule.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED ||
     rule.methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
 }
 

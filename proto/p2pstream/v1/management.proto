@@ -2414,6 +2414,17 @@ enum PublicRetryBodyMode {
   PUBLIC_RETRY_BODY_MODE_BUFFERED = 2;
 }
 
+enum PublicRetryResponseBodyMode {
+  PUBLIC_RETRY_RESPONSE_BODY_MODE_UNSPECIFIED = 0;
+  // Preserve normal reverse-proxy streaming. A failure after response headers
+  // reach the client cannot be retried safely.
+  PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM = 1;
+  // Hold bounded, non-streaming responses until their complete encoded body
+  // has arrived. Body-read failures can then retry on another agent before any
+  // response is committed downstream.
+  PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED = 2;
+}
+
 enum PublicTrafficShaperProtocolScope {
   PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_UNSPECIFIED = 0;
   PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL = 1;
@@ -2438,6 +2449,8 @@ message PublicRetryRule {
   int64 updated_at_unix_millis = 14;
   // Exact 400-599 upstream response statuses that trigger another attempt.
   repeated int64 retry_status_codes = 15;
+  PublicRetryResponseBodyMode response_body_mode = 16;
+  int64 max_buffered_response_body_bytes = 17;
 }
 
 message CreatePublicRetryRuleRequest {
@@ -2453,11 +2466,13 @@ message CreatePublicRetryRuleRequest {
   repeated int64 target_ids = 10;
   PublicPolicyMatchRule match_rule = 11;
   // Required when the rule can retry after an upstream may have observed the
-  // request, when response statuses are retried, or when it includes methods
-  // with side effects.
+  // request, when response statuses or buffered response bodies are retried,
+  // or when it includes methods with side effects.
   bool duplicate_risk_acknowledged = 12;
   // Exact 400-599 upstream response statuses that trigger another attempt.
   repeated int64 retry_status_codes = 13;
+  PublicRetryResponseBodyMode response_body_mode = 14;
+  int64 max_buffered_response_body_bytes = 15;
 }
 
 message CreatePublicRetryRuleResponse {
@@ -2478,11 +2493,13 @@ message UpdatePublicRetryRuleRequest {
   repeated int64 target_ids = 11;
   PublicPolicyMatchRule match_rule = 12;
   // Required when the rule can retry after an upstream may have observed the
-  // request, when response statuses are retried, or when it includes methods
-  // with side effects.
+  // request, when response statuses or buffered response bodies are retried,
+  // or when it includes methods with side effects.
   bool duplicate_risk_acknowledged = 13;
   // Exact 400-599 upstream response statuses that trigger another attempt.
   repeated int64 retry_status_codes = 14;
+  PublicRetryResponseBodyMode response_body_mode = 15;
+  int64 max_buffered_response_body_bytes = 16;
 }
 
 message UpdatePublicRetryRuleResponse {
