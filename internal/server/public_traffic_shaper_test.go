@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"math"
 	"net"
@@ -114,12 +115,17 @@ func TestPublicTrafficShaperReclassifiesRejectedWebSocketHandshake(t *testing.T)
 	shaper := newPublicTrafficShaper()
 	app := &App{TrafficShaper: shaper}
 	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
-	rule := testTrafficShaperRule(1, "http-only", 100, publicTrafficShaperBudgetScopePerRequest, 0, 1024)
-	rule.ProtocolScope = publicTrafficShaperProtocolScopeWebSocketExcluded
-	rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
+	webSocketRule := testTrafficShaperRule(1, "websocket-only", 10, publicTrafficShaperBudgetScopePerRequest, 0, 2048)
+	webSocketRule.ProtocolScope = publicTrafficShaperProtocolScopeWebSocketOnly
+	webSocketRule.Fingerprint = publicTrafficShaperRuleFingerprint(webSocketRule)
+	httpRule := testTrafficShaperRule(2, "http-only", 20, publicTrafficShaperBudgetScopePerRequest, 0, 1024)
+	httpRule.ProtocolScope = publicTrafficShaperProtocolScopeWebSocketExcluded
+	httpRule.Fingerprint = publicTrafficShaperRuleFingerprint(httpRule)
+	rules := []publicTrafficShaperRuleConfig{webSocketRule, httpRule}
+	sortPublicTrafficShaperRules(rules)
 	snapshot := &publicProxySnapshot{
 		Listeners:          map[int64]publicListenerConfig{listener.ID: listener},
-		TrafficShaperRules: []publicTrafficShaperRuleConfig{rule},
+		TrafficShaperRules: rules,
 	}
 	request := testRateLimitRequest("GET", "http://example.com/chat", "198.51.100.10:1234")
 	request.Header.Set("Connection", "Upgrade")
@@ -127,12 +133,17 @@ func TestPublicTrafficShaperReclassifiesRejectedWebSocketHandshake(t *testing.T)
 	request.Header.Set("Sec-WebSocket-Version", "13")
 	request.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
 
-	if selected := app.publicTrafficShaperForResponse(snapshot, listener.ID, request, http.StatusSwitchingProtocols, nil); selected != nil {
-		t.Fatalf("successful WebSocket upgrade selected excluded rule %q", selected.Rule.Name)
+	requestDecision, ok := app.selectPublicTrafficShaperWithSnapshot(snapshot, listener.ID, request)
+	if !ok || requestDecision.Rule.ID != webSocketRule.ID {
+		t.Fatalf("WebSocket handshake selected rule %+v, want %q", requestDecision.Rule, webSocketRule.Name)
 	}
-	selected := app.publicTrafficShaperForResponse(snapshot, listener.ID, request, http.StatusOK, nil)
-	if selected == nil || selected.Rule.ID != rule.ID {
-		t.Fatalf("rejected WebSocket handshake selected rule %+v, want %q", selected, rule.Name)
+	selected := app.publicTrafficShaperForResponse(snapshot, listener.ID, request, http.StatusSwitchingProtocols, &requestDecision)
+	if selected == nil || selected.Rule.ID != webSocketRule.ID {
+		t.Fatalf("successful WebSocket upgrade selected rule %+v, want %q", selected, webSocketRule.Name)
+	}
+	selected = app.publicTrafficShaperForResponse(snapshot, listener.ID, request, http.StatusOK, &requestDecision)
+	if selected == nil || selected.Rule.ID != httpRule.ID {
+		t.Fatalf("rejected WebSocket handshake selected rule %+v, want %q", selected, httpRule.Name)
 	}
 }
 
@@ -264,6 +275,59 @@ func TestTrafficShaperUpgradeBodyPreservesReadWriteCloser(t *testing.T) {
 	}
 }
 
+func TestTrafficShaperUpgradeWriteWaitsBeforeForwarding(t *testing.T) {
+	now := time.Unix(1, 0)
+	var slept time.Duration
+	bucket := newByteTokenBucket(4, 4, now)
+	bucket.tokens = 0
+	bucket.now = func() time.Time { return now }
+	bucket.sleep = func(_ context.Context, d time.Duration) error {
+		slept += d
+		now = now.Add(d)
+		return nil
+	}
+	body := &testShapingReadWriteCloser{
+		reader: strings.NewReader(""),
+		beforeWrite: func() {
+			if slept != time.Second {
+				t.Fatalf("underlying write ran after %s of pacing, want 1s", slept)
+			}
+		},
+	}
+	wrapper := &shapingReadWriteCloser{ctx: context.Background(), body: body, writeBucket: bucket}
+	if n, err := wrapper.Write([]byte("ping")); err != nil || n != 4 {
+		t.Fatalf("write = %d, %v, want 4, nil", n, err)
+	}
+}
+
+func TestTrafficShaperUpgradeWriteRefundsPartialReservation(t *testing.T) {
+	bucket := newByteTokenBucket(4, 4, time.Unix(1, 0))
+	body := &testShapingReadWriteCloser{
+		reader:   strings.NewReader(""),
+		maxWrite: 2,
+		writeErr: io.ErrUnexpectedEOF,
+	}
+	wrapper := &shapingReadWriteCloser{
+		ctx:                  context.Background(),
+		body:                 body,
+		writeBucket:          bucket,
+		writeExemptRemaining: 1,
+	}
+	n, err := wrapper.Write([]byte("ping"))
+	if n != 2 || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("write = %d, %v, want 2, unexpected EOF", n, err)
+	}
+	bucket.mu.Lock()
+	tokens := bucket.tokens
+	bucket.mu.Unlock()
+	if math.Abs(tokens-3) > 0.001 {
+		t.Fatalf("tokens after partial write = %.3f, want 3", tokens)
+	}
+	if wrapper.writeExemptRemaining != 0 {
+		t.Fatalf("exempt bytes after partial write = %d, want 0", wrapper.writeExemptRemaining)
+	}
+}
+
 func TestTrafficShaperAllowsReverseProxyWebSocketUpgrade(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		conn, rw, err := w.(http.Hijacker).Hijack()
@@ -288,12 +352,10 @@ func TestTrafficShaperAllowsReverseProxyWebSocketUpgrade(t *testing.T) {
 		UploadBucket:   newByteTokenBucket(1024, 1024, time.Now()),
 		DownloadBucket: newByteTokenBucket(1024, 1024, time.Now()),
 	}
-	proxy := httputil.NewSingleHostReverseProxy(upstreamURL)
-	originalDirector := proxy.Director
-	proxy.Director = func(r *http.Request) {
-		originalDirector(r)
-		r.Body = decision.wrapUploadBody(r.Context(), r.Body)
-	}
+	proxy := &httputil.ReverseProxy{Rewrite: func(r *httputil.ProxyRequest) {
+		r.SetURL(upstreamURL)
+		r.Out.Body = decision.wrapUploadBody(r.Out.Context(), r.Out.Body)
+	}}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		resp.Body = decision.wrapUpgradeBody(resp.Request.Context(), resp.Body)
 		return nil
@@ -322,6 +384,7 @@ func TestTrafficShaperAllowsReverseProxyWebSocketUpgrade(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read handshake response: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		t.Fatalf("status = %d, want 101", resp.StatusCode)
 	}
@@ -338,9 +401,12 @@ func TestTrafficShaperAllowsReverseProxyWebSocketUpgrade(t *testing.T) {
 }
 
 type testShapingReadWriteCloser struct {
-	reader *strings.Reader
-	writes bytes.Buffer
-	closed bool
+	reader      *strings.Reader
+	writes      bytes.Buffer
+	beforeWrite func()
+	maxWrite    int
+	writeErr    error
+	closed      bool
 }
 
 func (r *testShapingReadWriteCloser) Read(p []byte) (int, error) {
@@ -348,7 +414,14 @@ func (r *testShapingReadWriteCloser) Read(p []byte) (int, error) {
 }
 
 func (r *testShapingReadWriteCloser) Write(p []byte) (int, error) {
-	return r.writes.Write(p)
+	if r.beforeWrite != nil {
+		r.beforeWrite()
+	}
+	if r.maxWrite > 0 && len(p) > r.maxWrite {
+		p = p[:r.maxWrite]
+	}
+	n, _ := r.writes.Write(p)
+	return n, r.writeErr
 }
 
 func (r *testShapingReadWriteCloser) Close() error {

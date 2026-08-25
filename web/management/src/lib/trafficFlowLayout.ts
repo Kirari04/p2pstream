@@ -2,7 +2,6 @@ import {
   PublicCacheTtlMode,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
-  PublicTrafficShaperProtocolScope,
   PublicRouteAction,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
@@ -18,6 +17,7 @@ import {
   type PublicRouteTarget,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceStage as TraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
+import { trafficShaperProtocolScopeLabel } from "@/lib/publicProxyLabels";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRequest } from "@/types/trafficTrace";
 
@@ -492,12 +492,6 @@ function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
 
 function trafficShaperScopeLabel(scope: PublicTrafficShaperRule["budgetScope"]): string {
   return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
-}
-
-function trafficShaperProtocolScopeLabel(scope: PublicTrafficShaperRule["protocolScope"]): string {
-  if (scope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY) return "WebSockets only";
-  if (scope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED) return "No WebSockets";
-  return "All requests";
 }
 
 function wafActionLabel(action: PublicWafRuleAction): string {

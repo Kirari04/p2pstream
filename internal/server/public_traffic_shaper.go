@@ -308,7 +308,7 @@ func (a *App) publicTrafficShaperForResponse(
 	statusCode int,
 	selected *publicTrafficShaperDecision,
 ) *publicTrafficShaperDecision {
-	if selected != nil || statusCode == http.StatusSwitchingProtocols || !isWebSocketHandshakeRequest(r) {
+	if statusCode == http.StatusSwitchingProtocols || !isWebSocketHandshakeRequest(r) {
 		return selected
 	}
 	decision, ok := a.selectPublicTrafficShaperWithSnapshotForProtocol(snap, listenerID, r, false)
@@ -418,6 +418,18 @@ func (b *byteTokenBucket) waitForSpend(ctx context.Context, bytes float64) error
 			return err
 		}
 	}
+}
+
+func (b *byteTokenBucket) refund(bytes int) {
+	if b == nil || bytes <= 0 {
+		return
+	}
+	b.mu.Lock()
+	b.tokens += float64(bytes)
+	if b.tokens > b.burstBytes {
+		b.tokens = b.burstBytes
+	}
+	b.mu.Unlock()
 }
 
 func (b *byteTokenBucket) refillLocked(now time.Time) {
@@ -561,13 +573,19 @@ func (r *shapingReadWriteCloser) Write(p []byte) (int, error) {
 		if r.writeBucket != nil && len(chunk) > r.writeBucket.chunkLimit() {
 			chunk = chunk[:r.writeBucket.chunkLimit()]
 		}
+		reservation, err := reserveShapedBytes(r.ctx, r.writeBucket, &r.writeExemptRemaining, len(chunk))
+		if err != nil {
+			return written, err
+		}
 		n, err := r.body.Write(chunk)
+		if n < 0 || n > len(chunk) {
+			reservation.reconcile(0)
+			return written, fmt.Errorf("invalid upgraded connection write count %d", n)
+		}
+		reservation.reconcile(n)
 		if n > 0 {
 			written += n
 			p = p[n:]
-			if waitErr := shapeTransferredBytes(r.ctx, r.writeBucket, &r.writeExemptRemaining, n); waitErr != nil && err == nil {
-				err = waitErr
-			}
 		}
 		if err != nil {
 			return written, err
@@ -581,6 +599,53 @@ func (r *shapingReadWriteCloser) Write(p []byte) (int, error) {
 
 func (r *shapingReadWriteCloser) Close() error {
 	return r.body.Close()
+}
+
+type shapedByteReservation struct {
+	bucket          *byteTokenBucket
+	exemptRemaining *int64
+	reserved        int
+	exempted        int
+	charged         int
+}
+
+func reserveShapedBytes(ctx context.Context, bucket *byteTokenBucket, exemptRemaining *int64, bytes int) (shapedByteReservation, error) {
+	reservation := shapedByteReservation{bucket: bucket, exemptRemaining: exemptRemaining, reserved: bytes}
+	if bytes <= 0 || bucket == nil {
+		return reservation, nil
+	}
+	if exemptRemaining != nil && *exemptRemaining > 0 {
+		reservation.exempted = bytes
+		if int64(reservation.exempted) > *exemptRemaining {
+			reservation.exempted = int(*exemptRemaining)
+		}
+	}
+	reservation.charged = bytes - reservation.exempted
+	if err := bucket.wait(ctx, reservation.charged); err != nil {
+		return shapedByteReservation{}, err
+	}
+	if exemptRemaining != nil {
+		*exemptRemaining -= int64(reservation.exempted)
+	}
+	return reservation, nil
+}
+
+func (r shapedByteReservation) reconcile(transferred int) {
+	if r.bucket == nil || r.reserved <= 0 {
+		return
+	}
+	if transferred < 0 {
+		transferred = 0
+	}
+	if transferred > r.reserved {
+		transferred = r.reserved
+	}
+	actualExempted := min(transferred, r.exempted)
+	if r.exemptRemaining != nil {
+		*r.exemptRemaining += int64(r.exempted - actualExempted)
+	}
+	actualCharged := transferred - actualExempted
+	r.bucket.refund(r.charged - actualCharged)
 }
 
 func shapeTransferredBytes(ctx context.Context, bucket *byteTokenBucket, exemptRemaining *int64, transferred int) error {

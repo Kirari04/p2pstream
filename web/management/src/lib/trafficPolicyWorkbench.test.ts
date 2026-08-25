@@ -220,6 +220,18 @@ describe("trafficPolicyWorkbench", () => {
       headers: { Connection: ["Upgrade"], Upgrade: ["websocket"] },
     })).trafficShaper?.rule.id).toBe(3n);
     expect(previewTrafficPolicyStages({ trafficShaperRules: [all] }, syntheticRequest({ headers: webSocketHeaders })).trafficShaper?.rule.id).toBe(1n);
+
+    for (const headers of [
+      { ...webSocketHeaders, Upgrade: ["h2c", "websocket"] },
+      { ...webSocketHeaders, "Sec-WebSocket-Version": ["12", "13"] },
+      { ...webSocketHeaders, "Sec-WebSocket-Key": ["invalid", "dGhlIHNhbXBsZSBub25jZQ=="] },
+    ]) {
+      expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest({ headers })).trafficShaper).toBeNull();
+      expect(previewTrafficPolicyStages({ trafficShaperRules: [excludeWebSockets] }, syntheticRequest({ headers })).trafficShaper?.rule.id).toBe(3n);
+    }
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest({
+      headers: { ...webSocketHeaders, Connection: ["keep-alive", "Upgrade"] },
+    })).trafficShaper?.rule.id).toBe(2n);
   });
 
   test("previews retry method and agent-target eligibility", () => {

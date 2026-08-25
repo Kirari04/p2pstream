@@ -1578,7 +1578,7 @@ async function deleteTrafficShaperRule(id: bigint) {
           size="small"
           clearable
           placeholder="Filter traffic-shaper rules"
-          :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, or warning' }"
+          :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, protocol scope, or warning' }"
         >
           <template #prefix><SearchIcon class="icon-sm" /></template>
         </NInput>

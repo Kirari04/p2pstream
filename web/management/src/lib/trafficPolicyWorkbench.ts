@@ -781,18 +781,23 @@ function evaluateTrafficShaperRule(rule: PublicTrafficShaperRule, request: Norma
 function isWebSocketHandshakeRequest(request: NormalizedTrafficPolicyRequest): boolean {
   if (request.method !== "GET" || request.hasRequestBody) return false;
   if (!headerContainsToken(request.headers, "connection", "upgrade")) return false;
-  if (!headerEquals(request.headers, "upgrade", "websocket")) return false;
-  if (!headerEquals(request.headers, "sec-websocket-version", "13")) return false;
-  const keys = request.headers.get("sec-websocket-key") ?? [];
-  return keys.some((rawKey) => {
-    const key = rawKey.trim();
-    if (!/^[A-Za-z0-9+/]{22}==$/.test(key)) return false;
-    try {
-      return atob(key).length === 16;
-    } catch {
-      return false;
-    }
-  });
+  if (!firstHeaderEquals(request.headers, "upgrade", "websocket")) return false;
+  if (!firstHeaderEquals(request.headers, "sec-websocket-version", "13")) return false;
+  const key = firstHeaderValue(request.headers, "sec-websocket-key").trim();
+  if (!/^[A-Za-z0-9+/]{22}==$/.test(key)) return false;
+  try {
+    return atob(key).length === 16;
+  } catch {
+    return false;
+  }
+}
+
+function firstHeaderValue(headers: Map<string, string[]>, name: string): string {
+  return (headers.get(name.toLowerCase()) ?? [])[0] ?? "";
+}
+
+function firstHeaderEquals(headers: Map<string, string[]>, name: string, expected: string): boolean {
+  return firstHeaderValue(headers, name).trim().toLowerCase() === expected;
 }
 
 function hasHeader(headers: Map<string, string[]>, name: string): boolean {
