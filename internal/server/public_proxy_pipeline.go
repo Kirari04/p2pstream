@@ -535,6 +535,7 @@ func trafficShaperStage(ctx *publicProxyContext) publicProxyStageResult {
 				"traffic_shaper_rule_id":         strconv.FormatInt(decision.Rule.ID, 10),
 				"traffic_shaper_rule_name":       decision.Rule.Name,
 				"traffic_shaper_budget_scope":    decision.Rule.BudgetScope,
+				"traffic_shaper_protocol_scope":  decision.Rule.ProtocolScope,
 				"traffic_shaper_upload_bps":      strconv.FormatInt(decision.Rule.UploadBytesPerSecond, 10),
 				"traffic_shaper_download_bps":    strconv.FormatInt(decision.Rule.DownloadBytesPerSecond, 10),
 				"traffic_shaper_request_exempt":  strconv.FormatInt(decision.Rule.RequestExemptBytes, 10),

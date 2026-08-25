@@ -41,6 +41,7 @@ import {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type MethodPreset = "safe" | "idempotent" | "all" | "custom";
+type StatusPreset = "none" | "gateway" | "transient" | "custom";
 type RetryTransferOption = TransferOption & { searchText: string };
 type DynamicTagValue = string | { label: string; value?: string };
 
@@ -66,6 +67,8 @@ const agentTargets = computed(() => (props.config?.routeTargets ?? []).filter((t
 const maxFilterItems = 64;
 const safeMethods = ["GET", "HEAD"];
 const idempotentMethods = ["GET", "HEAD", "OPTIONS", "PUT", "DELETE"];
+const gatewayStatusCodes = [502, 503, 504];
+const transientStatusCodes = [408, 425, 429, 500, 502, 503, 504];
 
 const form = reactive({
   id: "",
@@ -76,6 +79,8 @@ const form = reactive({
   customMethods: [...safeMethods],
   maxRetries: 1,
   failureMode: PublicRetryFailureMode.CONNECTION_FAILURES,
+  statusPreset: "none" as StatusPreset,
+  customStatusCodes: gatewayStatusCodes.map(String),
   bodyMode: PublicRetryBodyMode.NEVER,
   maxReplayBodyKiB: 256,
   routeIds: [] as string[],
@@ -103,8 +108,15 @@ const normalizedMethods = computed(() => {
   if (form.methodPreset === "all") return ["*"];
   return normalizeMethods(form.customMethods);
 });
+const normalizedStatusCodes = computed(() => {
+  if (form.statusPreset === "none") return [];
+  if (form.statusPreset === "gateway") return gatewayStatusCodes;
+  if (form.statusPreset === "transient") return transientStatusCodes;
+  return normalizeStatusCodes(form.customStatusCodes);
+});
 const requiresRiskAcknowledgement = computed(() =>
   form.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
+  normalizedStatusCodes.value.length > 0 ||
   normalizedMethods.value.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method)),
 );
 const methodSummary = computed(() => normalizedMethods.value[0] === "*"
@@ -113,6 +125,9 @@ const methodSummary = computed(() => normalizedMethods.value[0] === "*"
 const routeSummary = computed(() => form.routeIds.length ? `${form.routeIds.length.toString()} selected` : "All routes");
 const targetSummary = computed(() => form.targetIds.length ? `${form.targetIds.length.toString()} selected` : "All agent targets");
 const attemptSummary = computed(() => `${(form.maxRetries + 1).toString()} total attempts`);
+const statusSummary = computed(() => normalizedStatusCodes.value.length
+  ? normalizedStatusCodes.value.join(", ")
+  : "Transport failures only");
 
 const routeTransferOptions = computed<RetryTransferOption[]>(() => routes.value.map((route) => {
   const value = route.id.toString();
@@ -143,6 +158,8 @@ const submitDisabledReason = computed(() => {
   if (form.targetIds.length > maxFilterItems) return `Select at most ${maxFilterItems.toString()} targets.`;
   const methodError = methodsValidationReason(normalizedMethods.value);
   if (methodError) return methodError;
+  const statusError = statusCodesValidationReason();
+  if (statusError) return statusError;
   if (form.bodyMode === PublicRetryBodyMode.BUFFERED && (!Number.isInteger(form.maxReplayBodyKiB) || form.maxReplayBodyKiB < 1 || form.maxReplayBodyKiB > 4096)) {
     return "Replay body limit must be between 1 KiB and 4,096 KiB.";
   }
@@ -162,6 +179,8 @@ function resetForm() {
   form.customMethods = [...safeMethods];
   form.maxRetries = 1;
   form.failureMode = PublicRetryFailureMode.CONNECTION_FAILURES;
+  form.statusPreset = "none";
+  form.customStatusCodes = gatewayStatusCodes.map(String);
   form.bodyMode = PublicRetryBodyMode.NEVER;
   form.maxReplayBodyKiB = 256;
   form.routeIds = [];
@@ -186,12 +205,15 @@ function openEdit(ruleId: bigint | string) {
   form.customMethods = rule.methods[0] === "*" ? [...safeMethods] : [...rule.methods];
   form.maxRetries = Number(rule.maxRetries || 1n);
   form.failureMode = rule.failureMode || PublicRetryFailureMode.CONNECTION_FAILURES;
+  const retryStatusCodes = rule.retryStatusCodes.map(Number);
+  form.statusPreset = presetForStatusCodes(retryStatusCodes);
+  form.customStatusCodes = retryStatusCodes.length ? retryStatusCodes.map(String) : gatewayStatusCodes.map(String);
   form.bodyMode = rule.bodyMode || PublicRetryBodyMode.NEVER;
   form.maxReplayBodyKiB = Math.max(1, Math.round(Number(rule.maxReplayBodyBytes || 262144n) / 1024));
   form.routeIds = rule.routeIds.map(String);
   form.targetIds = rule.targetIds.map(String);
   form.match = policyMatchFormFromProto(rule.matchRule);
-  form.duplicateRiskAcknowledged = requiresRiskFor(rule.methods, form.failureMode);
+  form.duplicateRiskAcknowledged = requiresRiskFor(rule.methods, form.failureMode, retryStatusCodes);
   isOpen.value = true;
 }
 
@@ -224,9 +246,39 @@ function sameMethods(left: readonly string[], right: readonly string[]): boolean
   return leftSet.size === right.length && right.every((method) => leftSet.has(method));
 }
 
-function requiresRiskFor(methods: readonly string[], failureMode: PublicRetryFailureMode): boolean {
+function requiresRiskFor(methods: readonly string[], failureMode: PublicRetryFailureMode, retryStatusCodes: readonly number[]): boolean {
   return failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
+    retryStatusCodes.length > 0 ||
     methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
+}
+
+function normalizeStatusCodes(values: readonly string[]): number[] {
+  return [...new Set(values.map((value) => Number(value.trim())).filter(Number.isInteger))].sort((left, right) => left - right);
+}
+
+function presetForStatusCodes(statuses: readonly number[]): StatusPreset {
+  if (!statuses.length) return "none";
+  if (sameNumbers(statuses, gatewayStatusCodes)) return "gateway";
+  if (sameNumbers(statuses, transientStatusCodes)) return "transient";
+  return "custom";
+}
+
+function sameNumbers(left: readonly number[], right: readonly number[]): boolean {
+  const leftSet = new Set(left);
+  return leftSet.size === right.length && right.every((value) => leftSet.has(value));
+}
+
+function statusCodesValidationReason(): string {
+  if (form.statusPreset !== "custom") return "";
+  if (!form.customStatusCodes.length) return "Add at least one HTTP status code or choose Transport only.";
+  for (const raw of form.customStatusCodes) {
+    const value = Number(raw.trim());
+    if (!Number.isInteger(value) || value < 400 || value > 599) {
+      return `Status ${raw || "(empty)"} must be a whole number between 400 and 599.`;
+    }
+  }
+  if (normalizeStatusCodes(form.customStatusCodes).length > 64) return "Add at most 64 unique HTTP status codes.";
+  return "";
 }
 
 function methodsValidationReason(methods: readonly string[]): string {
@@ -262,6 +314,10 @@ function updateCustomMethods(value: DynamicTagValue[]) {
   form.customMethods = value.map((tag) => typeof tag === "string" ? tag : tag.value ?? tag.label);
 }
 
+function updateCustomStatusCodes(value: DynamicTagValue[]) {
+  form.customStatusCodes = value.map((tag) => typeof tag === "string" ? tag : tag.value ?? tag.label);
+}
+
 async function run(action: () => Promise<void>): Promise<boolean> {
   if (!runManagementAction) return false;
   return runManagementAction(action);
@@ -276,6 +332,7 @@ async function submitRule() {
       methods: normalizedMethods.value,
       maxRetries: BigInt(form.maxRetries),
       failureMode: form.failureMode,
+      retryStatusCodes: normalizedStatusCodes.value.map(BigInt),
       bodyMode: form.bodyMode,
       maxReplayBodyBytes: form.bodyMode === PublicRetryBodyMode.BUFFERED
         ? BigInt(form.maxReplayBodyKiB * 1024)
@@ -363,7 +420,7 @@ defineExpose({ openCreate, openEdit, close });
         <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
           <div>
             <h4 class="copy-sm weight-semibold base-text">Failure boundary</h4>
-            <p class="margin-top-xs copy-xs line-normal muted-text">Retries stop permanently once response headers arrive. HTTP status codes are never retried.</p>
+            <p class="margin-top-xs copy-xs line-normal muted-text">Transport retries stop once response headers arrive. Selected HTTP error responses can still fail over before any response is sent to the client.</p>
           </div>
           <div class="failure-mode-grid" role="radiogroup" aria-label="Retry failure boundary">
             <button
@@ -381,6 +438,32 @@ defineExpose({ openCreate, openEdit, close });
                 <span class="copy-xs line-normal muted-text">{{ option.detail }}</span>
               </span>
             </button>
+          </div>
+          <div class="status-retry-panel">
+            <div class="layout-grid space-xs">
+              <div class="status-retry-heading">
+                <div>
+                  <p class="panel-eyebrow">HTTP response failover</p>
+                  <h5 class="copy-sm weight-semibold base-text">Retry selected error statuses on another agent</h5>
+                </div>
+                <NTag size="small" :type="normalizedStatusCodes.length ? 'warning' : 'default'" :bordered="false">{{ statusSummary }}</NTag>
+              </div>
+              <p class="copy-xs line-normal muted-text">The first response body is discarded and the same request is replayed through a different healthy agent. A final matching status is returned unchanged after attempts are exhausted.</p>
+            </div>
+            <NButtonGroup class="status-preset-grid" size="small" role="group" aria-label="Retryable HTTP status preset">
+              <NButton attr-type="button" :type="form.statusPreset === 'none' ? 'primary' : 'default'" @click="form.statusPreset = 'none'">Transport only</NButton>
+              <NButton attr-type="button" :type="form.statusPreset === 'gateway' ? 'primary' : 'default'" @click="form.statusPreset = 'gateway'">Gateway failures</NButton>
+              <NButton attr-type="button" :type="form.statusPreset === 'transient' ? 'primary' : 'default'" @click="form.statusPreset = 'transient'">Broad transient</NButton>
+              <NButton attr-type="button" :type="form.statusPreset === 'custom' ? 'primary' : 'default'" @click="form.statusPreset = 'custom'">Custom</NButton>
+            </NButtonGroup>
+            <div v-if="form.statusPreset === 'custom'" class="layout-grid space-xs">
+              <NDynamicTags :value="form.customStatusCodes" @update:value="updateCustomStatusCodes" />
+              <p class="copy-xs muted-text">Add exact HTTP error statuses from 400 through 599.</p>
+            </div>
+            <div class="status-preset-notes copy-xs muted-text">
+              <span><strong>Gateway:</strong> 502, 503, 504</span>
+              <span><strong>Broad:</strong> 408, 425, 429, 500, 502, 503, 504</span>
+            </div>
           </div>
           <div class="layout-grid space-lg mq-sm-cols-two">
             <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
@@ -410,7 +493,7 @@ defineExpose({ openCreate, openEdit, close });
             <div>
               <h4 class="copy-sm weight-semibold base-text">Duplicate request risk</h4>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                The first agent can fail after the upstream has accepted the request. Retrying may repeat writes, payments, uploads, or other side effects even when the client sees only one response.
+                The first agent can fail after the upstream has accepted the request, or return a configured retryable status. Retrying may repeat writes, payments, uploads, or other side effects even when the client sees only one response.
               </p>
             </div>
             <NCheckbox v-model:checked="form.duplicateRiskAcknowledged">
@@ -542,6 +625,39 @@ defineExpose({ openCreate, openEdit, close });
   outline-offset: 2px;
 }
 
+.status-retry-panel {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--app-warning) 24%, var(--app-border));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--app-warning) 4%, var(--app-panel));
+}
+
+.status-retry-heading,
+.status-preset-notes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.status-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.status-preset-notes {
+  justify-content: flex-start;
+  column-gap: 1.25rem;
+}
+
+.status-preset-notes strong {
+  color: var(--text-color-2);
+  font-weight: 650;
+}
+
 .replay-limit-field {
   max-width: 28rem;
 }
@@ -598,6 +714,7 @@ defineExpose({ openCreate, openEdit, close });
 @media (max-width: 760px) {
   .method-presets,
   .failure-mode-grid,
+  .status-preset-grid,
   .target-grid {
     grid-template-columns: 1fr;
   }

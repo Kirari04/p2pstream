@@ -37,6 +37,7 @@ import {
   routeTargetName,
   trafficShaperBudgetSummary,
   trafficShaperKeySummary,
+  trafficShaperProtocolScopeLabel,
   trafficShaperRuleSummary,
   trafficShaperScopeLabel,
   wafActionLabel,
@@ -158,7 +159,7 @@ const executionStages = computed(() => [
   { key: "traffic-shaper", label: "Traffic Shaper", description: "first matching bandwidth budget", icon: "traffic-shaper" as const, tags: countTags(enabledTrafficShapers.value) },
   { key: "route", label: "Route / Target", description: "selected before cache", icon: "route" as const },
   { key: "cache", label: "Cache", description: "first matching cacheable request", icon: "cache" as const, tags: countTags(enabledCacheRules.value) },
-  { key: "retry", label: "Retries", description: "alternate agent before response headers", icon: "retry" as const, tags: countTags(enabledRetryRules.value) },
+  { key: "retry", label: "Retries", description: "transport failures + selected statuses", icon: "retry" as const, tags: countTags(enabledRetryRules.value) },
   { key: "response", label: "Response", description: "upstream, cached, or terminal", icon: "response" as const },
 ]);
 const executionOrderSummary = computed(() => executionStages.value.map((stage) => stage.label).join(" → "));
@@ -549,6 +550,12 @@ function retryBodyModeLabel(rule: PublicRetryRule): string {
   return `Replay ≤ ${bytesToKiB(rule.maxReplayBodyBytes).toLocaleString()} KiB`;
 }
 
+function retryStatusSummary(rule: PublicRetryRule): string {
+  return rule.retryStatusCodes.length
+    ? `HTTP ${rule.retryStatusCodes.map(String).join(", ")}`
+    : "No status retries";
+}
+
 function retryMethodSummary(rule: PublicRetryRule): string {
   return rule.methods.length === 1 && rule.methods[0] === "*"
     ? "All supported methods"
@@ -563,6 +570,7 @@ function retryScopeSummary(rule: PublicRetryRule): string {
 
 function retryHasDuplicateRisk(rule: PublicRetryRule): boolean {
   return rule.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
+    rule.retryStatusCodes.length > 0 ||
     rule.methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
 }
 
@@ -573,6 +581,7 @@ function retrySearchText(rule: PublicRetryRule): string {
     rule.enabled ? "enabled" : "disabled",
     retryMethodSummary(rule),
     retryFailureModeLabel(rule.failureMode),
+    retryStatusSummary(rule),
     retryBodyModeLabel(rule),
     retryScopeSummary(rule),
     publicPolicyMatchSummary(rule),
@@ -586,6 +595,7 @@ function trafficShaperSearchText(rule: PublicTrafficShaperRule): string {
     rule.priority.toString(),
     rule.enabled ? "enabled" : "disabled",
     trafficShaperScopeLabel(rule.budgetScope),
+    trafficShaperProtocolScopeLabel(rule.protocolScope),
     trafficShaperRuleSummary(rule),
     trafficShaperBudgetSummary(rule),
     trafficShaperKeySummary(rule),
@@ -1408,7 +1418,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             <div>
               <h2 id="retry-principles-title">One client request, bounded upstream attempts</h2>
               <p>
-                Retries use a different eligible agent chosen by the target's load balancer. They stay inside the selected target, stop before any response headers reach the client, and never retry HTTP status codes.
+                Retries use a different eligible agent chosen by the target's load balancer. They stay inside the selected target and can recover transport failures or explicitly selected HTTP error statuses before any response reaches the client.
               </p>
             </div>
             <div class="retry-principles__facts" aria-label="Retry invariants">
@@ -1422,7 +1432,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
               <div>
                 <h2 class="copy-base weight-semibold">Request retry rules</h2>
-                <p class="margin-top-xs copy-sm muted-text">Recover from agent tunnel and VPN failures without changing route semantics.</p>
+                <p class="margin-top-xs copy-sm muted-text">Recover from agent tunnel, VPN, and selected upstream response failures without changing route semantics.</p>
               </div>
               <NButton type="primary" size="small" @click="openAddRetryRuleModal">
                 <template #icon><PlusIcon class="icon-sm" /></template>
@@ -1483,6 +1493,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                         <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
                         <div><dt>Scope</dt><dd>{{ retryScopeSummary(rule) }}</dd></div>
                         <div><dt>Failure mode</dt><dd>{{ retryFailureModeLabel(rule.failureMode) }}</dd></div>
+                        <div><dt>Retry statuses</dt><dd>{{ retryStatusSummary(rule) }}</dd></div>
                         <div><dt>Body replay</dt><dd>{{ retryBodyModeLabel(rule) }}</dd></div>
                       </dl>
                     </details>
@@ -1499,6 +1510,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                       <NTag size="small" :bordered="false">{{ retryFailureModeLabel(rule.failureMode) }}</NTag>
                     </div>
                     <p class="policy-data-secondary mono-text" :title="retryMethodSummary(rule)">{{ retryMethodSummary(rule) }}</p>
+                    <p class="policy-data-secondary">{{ retryStatusSummary(rule) }}</p>
                     <p class="policy-data-secondary">{{ retryBodyModeLabel(rule) }}</p>
                   </div>
                   <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
@@ -1576,7 +1588,7 @@ async function deleteTrafficShaperRule(id: bigint) {
           size="small"
           clearable
           placeholder="Filter traffic-shaper rules"
-          :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, or warning' }"
+          :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, protocol scope, or warning' }"
         >
           <template #prefix><SearchIcon class="icon-sm" /></template>
         </NInput>
@@ -1626,6 +1638,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                   <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
                   <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
                   <div><dt>Key</dt><dd dir="auto">{{ trafficShaperKeySummary(rule) }}</dd></div>
+                  <div><dt>Applies to</dt><dd dir="auto">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</dd></div>
                   <div><dt>Budget</dt><dd dir="auto">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</dd></div>
                 </dl>
               </details>
@@ -1637,7 +1650,10 @@ async function deleteTrafficShaperRule(id: bigint) {
             </div>
             <div class="policy-data-cell policy-grid-action" data-label="Budget & scope" role="cell">
               <span class="policy-data-label">Budget &amp; scope</span>
-              <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
+              <div class="policy-data-tags">
+                <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
+                <NTag size="small" :bordered="false">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</NTag>
+              </div>
               <p class="policy-data-secondary mono-text" :title="trafficShaperRuleSummary(rule)">{{ trafficShaperRuleSummary(rule) }}</p>
               <p class="policy-data-secondary" :title="trafficShaperBudgetSummary(rule)">{{ trafficShaperBudgetSummary(rule) }}</p>
             </div>

@@ -17,6 +17,7 @@ import {
   PublicRouteTargetTransport,
   PublicRouteTargetType,
   PublicTrafficShaperRuleSchema,
+  PublicTrafficShaperProtocolScope,
   PublicWafActivationMode,
   PublicWafCaptchaProviderSchema,
   PublicWafGeoRestrictionMode,
@@ -199,6 +200,38 @@ describe("trafficPolicyWorkbench", () => {
     expect(preview.trafficShaper?.rule.id).toBe(21n);
     expect(preview.cache?.rule.id).toBe(31n);
     expect(preview.retry?.rule.id).toBe(40n);
+  });
+
+  test("previews traffic-shaper WebSocket protocol scopes", () => {
+    const all = trafficShaperRule({ id: 1n, priority: 1n, protocolScope: PublicTrafficShaperProtocolScope.ALL });
+    const onlyWebSockets = trafficShaperRule({ id: 2n, priority: 2n, protocolScope: PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY });
+    const excludeWebSockets = trafficShaperRule({ id: 3n, priority: 3n, protocolScope: PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED });
+    const webSocketHeaders = {
+      Connection: ["keep-alive, Upgrade"],
+      Upgrade: ["websocket"],
+      "Sec-WebSocket-Version": ["13"],
+      "Sec-WebSocket-Key": ["dGhlIHNhbXBsZSBub25jZQ=="],
+    };
+
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest()).trafficShaper).toBeNull();
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest({ headers: webSocketHeaders })).trafficShaper?.rule.id).toBe(2n);
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [excludeWebSockets] }, syntheticRequest({ headers: webSocketHeaders })).trafficShaper).toBeNull();
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [excludeWebSockets] }, syntheticRequest({
+      headers: { Connection: ["Upgrade"], Upgrade: ["websocket"] },
+    })).trafficShaper?.rule.id).toBe(3n);
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [all] }, syntheticRequest({ headers: webSocketHeaders })).trafficShaper?.rule.id).toBe(1n);
+
+    for (const headers of [
+      { ...webSocketHeaders, Upgrade: ["h2c", "websocket"] },
+      { ...webSocketHeaders, "Sec-WebSocket-Version": ["12", "13"] },
+      { ...webSocketHeaders, "Sec-WebSocket-Key": ["invalid", "dGhlIHNhbXBsZSBub25jZQ=="] },
+    ]) {
+      expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest({ headers })).trafficShaper).toBeNull();
+      expect(previewTrafficPolicyStages({ trafficShaperRules: [excludeWebSockets] }, syntheticRequest({ headers })).trafficShaper?.rule.id).toBe(3n);
+    }
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest({
+      headers: { ...webSocketHeaders, Connection: ["keep-alive", "Upgrade"] },
+    })).trafficShaper?.rule.id).toBe(2n);
   });
 
   test("previews retry method and agent-target eligibility", () => {
@@ -390,6 +423,7 @@ describe("trafficPolicyWorkbench", () => {
       retryRules: [
         retryRule({ id: 40n, priority: 1n, failureMode: PublicRetryFailureMode.PRE_RESPONSE_FAILURES }),
         retryRule({ id: 41n, priority: 1n, matchRule: pathRule("/retry") }),
+        retryRule({ id: 42n, priority: 2n, retryStatusCodes: [503n], matchRule: pathRule("/gateway") }),
       ],
     });
 
@@ -408,6 +442,7 @@ describe("trafficPolicyWorkbench", () => {
     expect(warnings.map((warning) => warning.code)).toContain("cache-settings-disabled");
     expect(warnings.map((warning) => warning.code)).toContain("cache-allows-cookie-requests");
     expect(warnings.map((warning) => warning.code)).toContain("retry-duplicate-risk");
+    expect(warnings.some((warning) => warning.ruleId === 42n && warning.code === "retry-duplicate-risk")).toBe(true);
     expect(warnings.some((warning) => warning.ruleId === 2n && warning.code === "any-request-rule")).toBe(false);
     expect(warnings.some((warning) => warning.ruleId === 32n && warning.code === "cache-allows-cookie-requests")).toBe(false);
   });
@@ -489,6 +524,7 @@ function trafficShaperRule(overrides: Partial<PublicTrafficShaperRule>): PublicT
     name: overrides.name ?? `shape-${overrides.id?.toString() ?? "1"}`,
     priority: overrides.priority ?? 1n,
     enabled: overrides.enabled ?? true,
+    protocolScope: overrides.protocolScope ?? PublicTrafficShaperProtocolScope.ALL,
     matchRule: overrides.matchRule,
   });
 }
@@ -529,6 +565,7 @@ function retryRule(overrides: Partial<PublicRetryRule>): PublicRetryRule {
     methods: overrides.methods ?? ["GET", "HEAD"],
     maxRetries: overrides.maxRetries ?? 1n,
     failureMode: overrides.failureMode ?? PublicRetryFailureMode.CONNECTION_FAILURES,
+    retryStatusCodes: overrides.retryStatusCodes ?? [],
     routeIds: overrides.routeIds ?? [],
     targetIds: overrides.targetIds ?? [],
     matchRule: overrides.matchRule,

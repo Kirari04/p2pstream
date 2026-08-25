@@ -34,6 +34,21 @@ func (b *retryTrackingReadCloser) Close() error {
 	return nil
 }
 
+type retryTrackingReadWriteCloser struct {
+	io.Reader
+	writes strings.Builder
+	closed bool
+}
+
+func (b *retryTrackingReadWriteCloser) Write(p []byte) (int, error) {
+	return b.writes.Write(p)
+}
+
+func (b *retryTrackingReadWriteCloser) Close() error {
+	b.closed = true
+	return nil
+}
+
 func newPublicRetryTestApp(t *testing.T) (*App, *publicProxySnapshot, publicRouteTargetConfig, *AgentConn, *AgentConn) {
 	t.Helper()
 	app := NewApp(nil, nil)
@@ -114,8 +129,182 @@ func TestPublicAgentRetryUsesDifferentAgentAfterDialFailure(t *testing.T) {
 	if len(attempts) != 2 || attempts[0] != first.AgentID || attempts[1] != second.AgentID {
 		t.Fatalf("attempted agents = %v, want [%d %d]", attempts, first.AgentID, second.AgentID)
 	}
-	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FinalAgent != second {
+	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FinalAgent != second || result.FirstFailedAgent != first {
 		t.Fatalf("retry result = %+v", result)
+	}
+}
+
+func TestPublicAgentRetryUsesDifferentAgentAfterRetryableStatus(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	var attempts []int64
+	firstBody := &retryTrackingReadCloser{Reader: strings.NewReader("temporary failure")}
+	result := &publicRetryAttemptResult{}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 4, Name: "gateway-errors", MaxRetries: 1,
+			FailureMode: publicRetryFailureModeConnectionFailures, BodyMode: publicRetryBodyModeNever,
+			RetryStatusCodes: []int64{http.StatusServiceUnavailable}, retryStatusCodeSet: map[int]struct{}{http.StatusServiceUnavailable: {}},
+		},
+		requestID: "request-status", result: result,
+		transportForAgent: func(agent *AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts = append(attempts, agent.AgentID)
+				if agent.AgentID == first.AgentID {
+					return &http.Response{StatusCode: http.StatusServiceUnavailable, Body: firstBody, Header: make(http.Header), Request: req}, nil
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("recovered")), Header: make(http.Header), Request: req}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/app.js", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read recovered response: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || string(body) != "recovered" {
+		t.Fatalf("response = %d %q, want 200 recovered", resp.StatusCode, body)
+	}
+	if !firstBody.closed {
+		t.Fatal("retryable response body was not closed before the next attempt")
+	}
+	if len(attempts) != 2 || attempts[0] != first.AgentID || attempts[1] != second.AgentID {
+		t.Fatalf("attempted agents = %v, want [%d %d]", attempts, first.AgentID, second.AgentID)
+	}
+	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FirstErrorKind != "upstream_status_503" || result.FirstFailedAgent != first || result.FinalAgent != second {
+		t.Fatalf("retry result = %+v", result)
+	}
+	if first.ActiveRequests.Load() != 0 || second.ActiveRequests.Load() != 0 {
+		t.Fatalf("active requests after close = [%d %d], want [0 0]", first.ActiveRequests.Load(), second.ActiveRequests.Load())
+	}
+}
+
+func TestPublicAgentRetryReturnsFinalRetryableStatusWhenExhausted(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	result := &publicRetryAttemptResult{}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 5, Name: "gateway-errors", MaxRetries: 1,
+			FailureMode: publicRetryFailureModeConnectionFailures, BodyMode: publicRetryBodyModeNever,
+			RetryStatusCodes: []int64{http.StatusBadGateway}, retryStatusCodeSet: map[int]struct{}{http.StatusBadGateway: {}},
+		},
+		requestID: "request-status-exhausted", result: result,
+		transportForAgent: func(agent *AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusBadGateway,
+					Body:       io.NopCloser(strings.NewReader(agent.PublicID)),
+					Header:     make(http.Header),
+					Request:    req,
+				}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/app.js", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read exhausted response: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway || string(body) != second.PublicID {
+		t.Fatalf("final response = %d %q, want second agent's 502", resp.StatusCode, body)
+	}
+	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeExhausted || result.FirstErrorKind != "upstream_status_502" || result.FirstFailedAgent != first || result.FinalAgent != second {
+		t.Fatalf("retry result = %+v", result)
+	}
+}
+
+func TestPublicAgentRetrySkipsStatusRetryForConsumedUnbufferedBody(t *testing.T) {
+	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
+	attempts := 0
+	result := &publicRetryAttemptResult{}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 6, Name: "post-status", MaxRetries: 1,
+			FailureMode: publicRetryFailureModeConnectionFailures, BodyMode: publicRetryBodyModeNever,
+			RetryStatusCodes: []int64{http.StatusServiceUnavailable}, retryStatusCodeSet: map[int]struct{}{http.StatusServiceUnavailable: {}},
+		},
+		requestID: "request-status-unbuffered", result: result,
+		transportForAgent: func(*AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				_, _ = io.ReadAll(req.Body)
+				return &http.Response{StatusCode: http.StatusServiceUnavailable, Body: http.NoBody, Header: make(http.Header), Request: req}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodPost, "http://proxy.test/mutate", strings.NewReader("payload"))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	_ = resp.Body.Close()
+	if attempts != 1 || resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("attempts/status = %d/%d, want 1/503", attempts, resp.StatusCode)
+	}
+	if result.RetryCount != 0 || result.Outcome != publicRetryOutcomeSkipped || result.ReplaySkippedReason != "request_body_not_replayable" {
+		t.Fatalf("retry result = %+v", result)
+	}
+}
+
+func TestPublicAgentRetryPreservesWebSocketUpgradeBody(t *testing.T) {
+	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
+	body := &retryTrackingReadWriteCloser{Reader: strings.NewReader("pong")}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		requestID: "websocket-request",
+		transportForAgent: func(*AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: http.StatusSwitchingProtocols, Body: body, Header: make(http.Header), Request: req}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/ws", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	upgraded, ok := resp.Body.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("upgrade body type %T does not implement io.ReadWriteCloser", resp.Body)
+	}
+	if _, err := upgraded.Write([]byte("ping")); err != nil {
+		t.Fatalf("write upgrade body: %v", err)
+	}
+	if body.writes.String() != "ping" {
+		t.Fatalf("upgrade write = %q, want ping", body.writes.String())
+	}
+	if err := upgraded.Close(); err != nil {
+		t.Fatalf("close upgrade body: %v", err)
+	}
+	if !body.closed {
+		t.Fatal("underlying upgrade body was not closed")
+	}
+	if first.ActiveRequests.Load() != 0 {
+		t.Fatalf("active requests after upgrade close = %d, want 0", first.ActiveRequests.Load())
 	}
 }
 
@@ -229,7 +418,7 @@ func TestValidatePublicRetryRuleRequiresExplicitDuplicateRiskAcknowledgement(t *
 		context.Background(), "mutations", 100, true, []string{http.MethodPost}, 1,
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
-		1024, nil, nil, nil, false,
+		1024, nil, nil, nil, nil, false,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("validation error = %v, want invalid argument", err)
@@ -239,9 +428,45 @@ func TestValidatePublicRetryRuleRequiresExplicitDuplicateRiskAcknowledgement(t *
 		context.Background(), "mutations", 100, true, []string{http.MethodPost}, 1,
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
-		1024, nil, nil, nil, true,
+		1024, nil, nil, nil, nil, true,
 	); err != nil {
 		t.Fatalf("acknowledged validation: %v", err)
+	}
+}
+
+func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
+	app := NewApp(nil, nil)
+	_, err := app.validatePublicRetryRuleInput(
+		context.Background(), "gateway-errors", 100, true, []string{http.MethodGet}, 1,
+		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		0, []int64{http.StatusServiceUnavailable}, nil, nil, nil, false,
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unacknowledged status retry error = %v, want invalid argument", err)
+	}
+
+	input, err := app.validatePublicRetryRuleInput(
+		context.Background(), "gateway-errors", 100, true, []string{http.MethodGet}, 1,
+		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		0, []int64{504, 502, 503, 502}, nil, nil, nil, true,
+	)
+	if err != nil {
+		t.Fatalf("validate retry statuses: %v", err)
+	}
+	if input.RetryStatusJSON != "[502,503,504]" {
+		t.Fatalf("normalized retry statuses = %s", input.RetryStatusJSON)
+	}
+
+	_, err = app.validatePublicRetryRuleInput(
+		context.Background(), "gateway-errors", 100, true, []string{http.MethodGet}, 1,
+		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		0, []int64{399}, nil, nil, nil, true,
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid retry status error = %v, want invalid argument", err)
 	}
 }
 
@@ -278,6 +503,7 @@ func TestPublicRetryManagementAPICreateUpdateDeleteReadback(t *testing.T) {
 		FailureMode:               p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		BodyMode:                  p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
 		MaxReplayBodyBytes:        2048,
+		RetryStatusCodes:          []int64{http.StatusBadGateway, http.StatusServiceUnavailable},
 		DuplicateRiskAcknowledged: true,
 	})
 	updateReq.Header().Set("Cookie", header.Get("Cookie"))
@@ -285,7 +511,7 @@ func TestPublicRetryManagementAPICreateUpdateDeleteReadback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update retry rule: %v", err)
 	}
-	if updated.Msg.Rule.Name != "vpn-mutations" || updated.Msg.Rule.MaxRetries != 2 || updated.Msg.Rule.MaxReplayBodyBytes != 2048 {
+	if updated.Msg.Rule.Name != "vpn-mutations" || updated.Msg.Rule.MaxRetries != 2 || updated.Msg.Rule.MaxReplayBodyBytes != 2048 || len(updated.Msg.Rule.RetryStatusCodes) != 2 {
 		t.Fatalf("update readback = %+v", updated.Msg.Rule)
 	}
 

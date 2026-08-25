@@ -18,12 +18,12 @@ services:
     environment:
       MANAGEMENT_PORT: "8081"
       MANAGEMENT_BIND_ADDRESS: "0.0.0.0"
-      MANAGEMENT_SETUP_TOKEN: "docker-smoke-setup-token"
+      MANAGEMENT_SETUP_TOKEN: "docker-smoke-management-setup-token-2026"
       PORT: "8080"
       CONFIG_DIR: "/data"
       BOOTSTRAP_AGENT_ID: "docker-agent"
       BOOTSTRAP_AGENT_NAME: "Docker Smoke Agent"
-      BOOTSTRAP_AGENT_TOKEN: "docker-smoke-token"
+      BOOTSTRAP_AGENT_TOKEN: "docker-smoke-agent-token-2026-secure"
       MANAGEMENT_COOKIE_SECURE: "false"
     ports:
       - "18081:8081"
@@ -44,9 +44,62 @@ services:
       MANAGEMENT_URL: "https://server:8081"
       MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
       AGENT_ID: "docker-agent"
-      AGENT_TOKEN: "docker-smoke-token"
+      AGENT_TOKEN: "docker-smoke-agent-token-2026-secure"
+      AGENT_ALLOW_TARGETS: "upstream:9000"
     volumes:
       - p2pstream-data:/data:ro
+    depends_on:
+      - server
+      - upstream
+
+  retry-agent-primary:
+    image: p2pstream:docker-smoke-runtime
+    build: *runtime-build
+    command:
+      - "sh"
+      - "-c"
+      - >-
+        while [ ! -s /data/certs/management/ca.crt.pem ] ||
+        [ ! -s /control/retry-primary.id ] ||
+        [ ! -s /control/retry-primary.token ] ||
+        [ ! -e /control/retry-primary.start ]; do sleep 0.2; done;
+        IFS= read -r AGENT_ID < /control/retry-primary.id;
+        IFS= read -r AGENT_TOKEN < /control/retry-primary.token;
+        export AGENT_ID AGENT_TOKEN;
+        exec /app/p2pstream agent
+    environment:
+      MANAGEMENT_URL: "https://server:8081"
+      MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
+      AGENT_ALLOW_TARGETS: "upstream:9000"
+    volumes:
+      - p2pstream-data:/data:ro
+      - smoke-control:/control:ro
+    depends_on:
+      - server
+      - upstream
+
+  retry-agent-backup:
+    image: p2pstream:docker-smoke-runtime
+    build: *runtime-build
+    command:
+      - "sh"
+      - "-c"
+      - >-
+        while [ ! -s /data/certs/management/ca.crt.pem ] ||
+        [ ! -s /control/retry-backup.id ] ||
+        [ ! -s /control/retry-backup.token ] ||
+        [ ! -e /control/retry-backup.start ]; do sleep 0.2; done;
+        IFS= read -r AGENT_ID < /control/retry-backup.id;
+        IFS= read -r AGENT_TOKEN < /control/retry-backup.token;
+        export AGENT_ID AGENT_TOKEN;
+        exec /app/p2pstream agent
+    environment:
+      MANAGEMENT_URL: "https://server:8081"
+      MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
+      AGENT_ALLOW_TARGETS: "upstream:9000"
+    volumes:
+      - p2pstream-data:/data:ro
+      - smoke-control:/control:ro
     depends_on:
       - server
       - upstream
@@ -60,18 +113,23 @@ services:
     environment:
       MANAGEMENT_URL: "https://server:8081"
       MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
-      MANAGEMENT_SETUP_TOKEN: "docker-smoke-setup-token"
+      MANAGEMENT_SETUP_TOKEN: "docker-smoke-management-setup-token-2026"
       PUBLIC_DEFAULT_URL: "http://server:8080"
       PUBLIC_AGENT_URL: "http://server:8089"
       PUBLIC_STATIC_URL: "http://server:8088"
       PUBLIC_HTTPS_URL: "https://server:443"
       UPSTREAM_URL: "http://upstream:9000"
+      SMOKE_CONTROL_DIR: "/control"
     volumes:
       - p2pstream-data:/data:ro
+      - smoke-control:/control
     depends_on:
       - server
       - agent
+      - retry-agent-primary
+      - retry-agent-backup
       - upstream
 
 volumes:
   p2pstream-data:
+  smoke-control:

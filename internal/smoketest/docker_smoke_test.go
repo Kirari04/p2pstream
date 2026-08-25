@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -59,6 +60,10 @@ func TestDockerSmoke(t *testing.T) {
 	cfg = getPublicProxyConfig(ctx, t, client, cookie)
 	defaultListener := requireListener(t, cfg, "public-http")
 	upsertDefaultRouteTarget(ctx, t, client, cookie, cfg, defaultListener.GetId(), "default", proxyTarget("default-direct", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT, "", 60000))
+	cfg = getPublicProxyConfig(ctx, t, client, cookie)
+	httpsListener := requireListener(t, cfg, "public-https")
+	upsertDefaultRouteTarget(ctx, t, client, cookie, cfg, httpsListener.GetId(), "default-https", proxyTarget("default-https-direct", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT, "", 60000))
+	createWebSocketTrafficShaper(ctx, t, client, cookie)
 
 	waitAgentConnected(ctx, t, client, cookie)
 	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "smoke upstream ok", "proxy-forward default listener")
@@ -66,6 +71,12 @@ func TestDockerSmoke(t *testing.T) {
 		waitHTTPBody(t, httpClient(), smokeURL(publicDefaultURL, "/"), http.StatusOK, "smoke upstream ok", "direct GET")
 		smokePostEcho(t, smokeURL(publicDefaultURL, "/echo"))
 		smokeStream(t, smokeURL(publicDefaultURL, "/stream"))
+		t.Run("shaped websocket", func(t *testing.T) {
+			smokeWebSocketEcho(t, smokeURL(publicDefaultURL, "/ws"))
+		})
+		t.Run("shaped websocket TLS", func(t *testing.T) {
+			smokeWebSocketEcho(t, smokeURL(publicHTTPSURL, "/ws"))
+		})
 	})
 
 	cfg = getPublicProxyConfig(ctx, t, client, cookie)
@@ -79,8 +90,10 @@ func TestDockerSmoke(t *testing.T) {
 		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent GET")
 		smokePostEcho(t, smokeURL(publicAgentURL, "/echo"))
 		smokeStream(t, smokeURL(publicAgentURL, "/stream"))
-		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"), mustURLHost(t, upstreamURL), mustURLHost(t, publicAgentURL))
-		smokeWebSocketEcho(t, smokeURL(publicAgentURL, "/ws"))
+		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"), mustURLHost(t, upstreamURL), mustURLHostname(t, publicAgentURL))
+		t.Run("shaped websocket", func(t *testing.T) {
+			smokeWebSocketEcho(t, smokeURL(publicAgentURL, "/ws"))
+		})
 
 		upsertDefaultRouteTarget(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), agentListener.GetId(), "docker-agent", proxyTargetWithSelector("docker-agent-target", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT, agentSelector, 1000))
 		waitHTTPStatus(t, httpClient(), smokeURL(publicAgentURL, "/slow-headers"), func(resp *http.Response, body string) error {
@@ -94,6 +107,101 @@ func TestDockerSmoke(t *testing.T) {
 		smokeCloseEarly(t, smokeURL(publicAgentURL, "/close-early"))
 		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent listener after close-early")
 	})
+	t.Run("agent failover retries disconnects and HTTP statuses", func(t *testing.T) {
+		retryLabels := map[string]string{"smoke": "retry", "scenario": "agent-disconnect"}
+		primary, primaryToken := createSmokeAgent(ctx, t, client, cookie, "Docker Retry Primary", retryLabels)
+		backup, backupToken := createSmokeAgent(ctx, t, client, cookie, "Docker Retry Backup", retryLabels)
+
+		controlDir := envOrDefault("SMOKE_CONTROL_DIR", "/control")
+		writeSmokeAgentCredentials(t, controlDir, "retry-primary", primary.GetPublicId(), primaryToken)
+		writeSmokeAgentCredentials(t, controlDir, "retry-backup", backup.GetPublicId(), backupToken)
+		startSmokeAgent(t, controlDir, "retry-primary")
+		waitAgentConnectionState(ctx, t, client, cookie, primary.GetPublicId(), true)
+		waitAgentConnectionState(ctx, t, client, cookie, backup.GetPublicId(), false)
+
+		retryRoute := upsertDefaultRouteTarget(
+			ctx,
+			t,
+			client,
+			cookie,
+			getPublicProxyConfig(ctx, t, client, cookie),
+			agentListener.GetId(),
+			"docker-agent-retry",
+			proxyTargetWithSelector(
+				"docker-agent-retry-target",
+				upstreamURL,
+				p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT,
+				retryLabels,
+				60000,
+			),
+		)
+		retryRule := createAgentDisconnectRetryRule(ctx, t, client, cookie, retryRoute.GetId())
+
+		assets := []string{"app.js", "vendor.js", "site.css"}
+		type requestResult struct {
+			asset   string
+			status  int
+			body    string
+			attempt string
+			err     error
+		}
+		resultCh := make(chan requestResult, len(assets))
+		for _, asset := range assets {
+			go func() {
+				requestClient := httpClient()
+				requestClient.Timeout = 20 * time.Second
+				resp, err := requestClient.Get(smokeURL(publicAgentURL, "/retry-assets/"+asset))
+				if err != nil {
+					resultCh <- requestResult{asset: asset, err: err}
+					return
+				}
+				defer resp.Body.Close()
+				body, readErr := io.ReadAll(resp.Body)
+				resultCh <- requestResult{
+					asset:   asset,
+					status:  resp.StatusCode,
+					body:    string(body),
+					attempt: resp.Header.Get("X-Smoke-Upstream-Attempt"),
+					err:     readErr,
+				}
+			}()
+		}
+
+		waitRetryAssetAttempts(t, upstreamURL, len(assets))
+		startSmokeAgent(t, controlDir, "retry-backup")
+		waitAgentConnectionState(ctx, t, client, cookie, backup.GetPublicId(), true)
+		rotateSmokeAgentToken(ctx, t, client, cookie, primary.GetId())
+
+		for range assets {
+			var result requestResult
+			select {
+			case result = <-resultCh:
+			case <-time.After(20 * time.Second):
+				t.Fatal("asset requests did not finish after primary agent disconnected")
+			}
+			if result.err != nil {
+				t.Fatalf("asset %q request after primary agent disconnect: %v", result.asset, result.err)
+			}
+			if result.status != http.StatusOK {
+				t.Fatalf("asset %q request status = %d, want 200; body=%q", result.asset, result.status, result.body)
+			}
+			if wantBody := result.asset + " recovered\n"; result.body != wantBody {
+				t.Fatalf("asset %q request body = %q, want %q", result.asset, result.body, wantBody)
+			}
+			if result.attempt != "2" {
+				t.Fatalf("asset %q response upstream attempt = %q, want 2", result.asset, result.attempt)
+			}
+		}
+		waitRetryAssetAttempts(t, upstreamURL, 2*len(assets))
+		waitRetryRuleRecovered(ctx, t, client, cookie, retryRule.GetId(), int64(len(assets)))
+
+		updateAgentLabels(ctx, t, client, cookie, dockerAgent, retryLabels)
+		waitAgentConnectionState(ctx, t, client, cookie, dockerAgent.GetPublicId(), true)
+		smokeRetryableStatus(t, publicAgentURL, http.StatusBadGateway, "chunk.js")
+		smokeRetryableStatus(t, publicAgentURL, http.StatusServiceUnavailable, "theme.css")
+		waitRetryRuleRecovered(ctx, t, client, cookie, retryRule.GetId(), int64(len(assets)+2))
+		waitRetryStatusErrorKinds(ctx, t, client, cookie, http.StatusBadGateway, http.StatusServiceUnavailable)
+	})
 
 	staticListener := upsertListener(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), "docker-static", "", 8088, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true)
 	upsertDefaultRouteTarget(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), staticListener.GetId(), "docker-static", staticTarget("docker-static-target", http.StatusOK, "ok"))
@@ -105,14 +213,125 @@ func TestDockerSmoke(t *testing.T) {
 	enablePublicListener(ctx, t, client, cookie, staticListener.Id)
 	waitHTTPBody(t, httpClient(), publicStaticURL, http.StatusOK, "ok", "re-enabled static listener")
 
-	waitHTTPStatus(t, insecureHTTPClient(), publicHTTPSURL, func(resp *http.Response, body string) error {
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("expected status 200, got %d with body %q", resp.StatusCode, body)
-		}
-		return nil
-	}, "HTTPS fallback listener")
+	waitHTTPBody(t, insecureHTTPClient(), publicHTTPSURL, http.StatusOK, "smoke upstream ok", "HTTPS proxy listener")
 
 	waitDashboardHasProxyRequests(ctx, t, client, cookie)
+}
+
+func createWebSocketTrafficShaper(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+) {
+	t.Helper()
+	req := connect.NewRequest(&p2pstreamv1.CreatePublicTrafficShaperRuleRequest{
+		Name:                   "docker-websocket-shaper",
+		Priority:               10,
+		Enabled:                true,
+		BudgetScope:            p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST,
+		ProtocolScope:          p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY,
+		UploadBytesPerSecond:   1024 * 1024,
+		DownloadBytesPerSecond: 1024 * 1024,
+		BurstBytes:             1024 * 1024,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.CreatePublicTrafficShaperRule(ctx, req)
+	if err != nil {
+		t.Fatalf("create WebSocket traffic shaper: %v", err)
+	}
+	if resp.Msg.GetRule().GetProtocolScope() != p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY {
+		t.Fatalf("WebSocket traffic shaper scope = %s", resp.Msg.GetRule().GetProtocolScope())
+	}
+}
+
+func createSmokeAgent(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	name string,
+	labels map[string]string,
+) (*p2pstreamv1.Agent, string) {
+	t.Helper()
+	req := connect.NewRequest(&p2pstreamv1.CreateAgentRequest{
+		Name:    name,
+		Enabled: true,
+		Labels:  labels,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.CreateAgent(ctx, req)
+	if err != nil {
+		t.Fatalf("create smoke agent %q: %v", name, err)
+	}
+	if resp.Msg.GetAgent().GetPublicId() == "" || resp.Msg.GetToken() == "" {
+		t.Fatalf("create smoke agent %q returned incomplete credentials", name)
+	}
+	return resp.Msg.GetAgent(), resp.Msg.GetToken()
+}
+
+func createAgentDisconnectRetryRule(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	routeID int64,
+) *p2pstreamv1.PublicRetryRule {
+	t.Helper()
+	req := connect.NewRequest(&p2pstreamv1.CreatePublicRetryRuleRequest{
+		Name:                      "docker-agent-disconnect-retry",
+		Priority:                  1,
+		Enabled:                   true,
+		Methods:                   []string{http.MethodGet},
+		MaxRetries:                1,
+		FailureMode:               p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
+		BodyMode:                  p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		RetryStatusCodes:          []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
+		RouteIds:                  []int64{routeID},
+		DuplicateRiskAcknowledged: true,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.CreatePublicRetryRule(ctx, req)
+	if err != nil {
+		t.Fatalf("create agent disconnect retry rule: %v", err)
+	}
+	return resp.Msg.GetRule()
+}
+
+func writeSmokeAgentCredentials(t *testing.T, dir string, prefix string, publicID string, token string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("create smoke control directory: %v", err)
+	}
+	for suffix, value := range map[string]string{"id": publicID, "token": token} {
+		path := filepath.Join(dir, prefix+"."+suffix)
+		if err := os.WriteFile(path, []byte(value+"\n"), 0o644); err != nil {
+			t.Fatalf("write smoke agent %s: %v", suffix, err)
+		}
+	}
+}
+
+func startSmokeAgent(t *testing.T, dir string, prefix string) {
+	t.Helper()
+	path := filepath.Join(dir, prefix+".start")
+	if err := os.WriteFile(path, []byte("start\n"), 0o644); err != nil {
+		t.Fatalf("start smoke agent %q: %v", prefix, err)
+	}
+}
+
+func rotateSmokeAgentToken(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	agentID int64,
+) {
+	t.Helper()
+	req := connect.NewRequest(&p2pstreamv1.RotateAgentTokenRequest{Id: agentID})
+	req.Header().Set("Cookie", cookie)
+	if _, err := client.RotateAgentToken(ctx, req); err != nil {
+		t.Fatalf("rotate primary smoke agent token: %v", err)
+	}
 }
 
 func waitManagement(ctx context.Context, t *testing.T, client p2pstreamv1connect.AgentManagementServiceClient) {
@@ -141,13 +360,7 @@ func setupAndLogin(ctx context.Context, t *testing.T, client p2pstreamv1connect.
 		if !setupResp.Msg.GetSetupAvailable() {
 			t.Fatalf("setup is unavailable: %s", setupResp.Msg.GetSetupUnavailableReason())
 		}
-		if _, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-			Username:   smokeAdminUsername,
-			Password:   smokeAdminPassword,
-			SetupToken: envOrDefault("MANAGEMENT_SETUP_TOKEN", ""),
-		})); err != nil && connect.CodeOf(err) != connect.CodeFailedPrecondition {
-			t.Fatalf("setup admin: %v", err)
-		}
+		setupAdmin(ctx, t, client)
 	}
 
 	loginResp, err := client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
@@ -162,6 +375,26 @@ func setupAndLogin(ctx context.Context, t *testing.T, client p2pstreamv1connect.
 		t.Fatal("login response did not include a session cookie")
 	}
 	return cookie
+}
+
+func setupAdmin(ctx context.Context, t *testing.T, client p2pstreamv1connect.AgentManagementServiceClient) {
+	t.Helper()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+			Username:   smokeAdminUsername,
+			Password:   smokeAdminPassword,
+			SetupToken: envOrDefault("MANAGEMENT_SETUP_TOKEN", ""),
+		}))
+		if err == nil || connect.CodeOf(err) == connect.CodeFailedPrecondition {
+			return
+		}
+		if !strings.Contains(strings.ToLower(err.Error()), "database is locked") || time.Now().After(deadline) {
+			t.Fatalf("setup admin: %v", err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func getPublicProxyConfig(
@@ -479,6 +712,173 @@ func waitAgentConnected(
 	t.Fatalf("agent did not connect; last status=%+v last error=%v", lastStatus, lastErr)
 }
 
+func waitAgentConnectionState(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	publicID string,
+	wantConnected bool,
+) {
+	t.Helper()
+	var lastConnected bool
+	var found bool
+	deadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(deadline) {
+		cfg := getPublicProxyConfig(ctx, t, client, cookie)
+		found = false
+		for _, agent := range cfg.GetAgents() {
+			if agent.GetPublicId() != publicID {
+				continue
+			}
+			found = true
+			lastConnected = agent.GetConnected()
+			if lastConnected == wantConnected {
+				return
+			}
+			break
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	t.Fatalf("agent %q connected = %t, want %t (found=%t)", publicID, lastConnected, wantConnected, found)
+}
+
+func waitRetryAssetAttempts(t *testing.T, upstreamURL string, want int) {
+	t.Helper()
+	type retryStatus struct {
+		Attempts int `json:"attempts"`
+	}
+	client := httpClient()
+	var last retryStatus
+	var lastErr error
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(smokeURL(upstreamURL, "/retry-asset-status"))
+		if err == nil {
+			func() {
+				defer resp.Body.Close()
+				if resp.StatusCode != http.StatusOK {
+					lastErr = fmt.Errorf("status endpoint returned %d", resp.StatusCode)
+					return
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&last); err != nil {
+					lastErr = err
+					return
+				}
+				lastErr = nil
+			}()
+		} else {
+			lastErr = err
+		}
+		if last.Attempts >= want {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("retry asset attempts = %d, want at least %d; last error=%v", last.Attempts, want, lastErr)
+}
+
+func smokeRetryableStatus(t *testing.T, publicURL string, retryStatus int, asset string) {
+	t.Helper()
+	resp, err := httpClient().Get(smokeURL(publicURL, fmt.Sprintf("/retry-status/%d/%s", retryStatus, asset)))
+	if err != nil {
+		t.Fatalf("retry HTTP status %d for asset %q: %v", retryStatus, asset, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read retry HTTP status %d response: %v", retryStatus, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("retry HTTP status %d final response = %d %q, want 200", retryStatus, resp.StatusCode, body)
+	}
+	if got := resp.Header.Get("X-Smoke-Upstream-Attempt"); got != "2" {
+		t.Fatalf("retry HTTP status %d upstream attempt = %q, want 2", retryStatus, got)
+	}
+	if want := fmt.Sprintf("%s recovered from %d\n", asset, retryStatus); string(body) != want {
+		t.Fatalf("retry HTTP status %d response body = %q, want %q", retryStatus, body, want)
+	}
+}
+
+func waitRetryRuleRecovered(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	ruleID int64,
+	wantRequests int64,
+) {
+	t.Helper()
+	var last *p2pstreamv1.DashboardRetryRuleSummary
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		req := connect.NewRequest(&p2pstreamv1.GetDashboardDiagnosticsRequest{
+			WindowLabel: "1h",
+			SampleLimit: 20,
+		})
+		req.Header().Set("Cookie", cookie)
+		resp, err := client.GetDashboardDiagnostics(ctx, req)
+		if err != nil {
+			t.Fatalf("get dashboard retry diagnostics: %v", err)
+		}
+		for _, summary := range resp.Msg.GetRetryRules() {
+			if summary.GetId() != ruleID {
+				continue
+			}
+			last = summary
+			if summary.GetMatchedRequests() == wantRequests &&
+				summary.GetRetriedRequests() == wantRequests &&
+				summary.GetRetryAttempts() == wantRequests &&
+				summary.GetRecoveredRequests() == wantRequests &&
+				summary.GetExhaustedRequests() == 0 &&
+				summary.GetSkippedRequests() == 0 {
+				return
+			}
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	t.Fatalf("dashboard did not report %d recovered retries for rule %d; last summary=%+v", wantRequests, ruleID, last)
+}
+
+func waitRetryStatusErrorKinds(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	statuses ...int,
+) {
+	t.Helper()
+	want := make(map[string]struct{}, len(statuses))
+	for _, status := range statuses {
+		want[fmt.Sprintf("upstream_status_%d", status)] = struct{}{}
+	}
+	last := make(map[string]int64)
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		req := connect.NewRequest(&p2pstreamv1.GetDashboardDiagnosticsRequest{WindowLabel: "1h"})
+		req.Header().Set("Cookie", cookie)
+		resp, err := client.GetDashboardDiagnostics(ctx, req)
+		if err != nil {
+			t.Fatalf("get dashboard retry status diagnostics: %v", err)
+		}
+		for _, summary := range resp.Msg.GetRetryErrorKinds() {
+			last[summary.GetLabel()] = summary.GetRetryAttempts()
+		}
+		complete := true
+		for label := range want {
+			if last[label] < 1 {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			return
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	t.Fatalf("dashboard retry error kinds = %+v, want statuses %+v", last, want)
+}
+
 func waitDashboardHasProxyRequests(
 	ctx context.Context,
 	t *testing.T,
@@ -619,6 +1019,15 @@ func mustURLHost(t *testing.T, raw string) string {
 	return parsed.Host
 }
 
+func mustURLHostname(t *testing.T, raw string) string {
+	t.Helper()
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Hostname() == "" {
+		t.Fatalf("invalid URL %q: %v", raw, err)
+	}
+	return parsed.Hostname()
+}
+
 func smokeCloseEarly(t *testing.T, requestURL string) {
 	t.Helper()
 
@@ -662,14 +1071,31 @@ func smokeWebSocketEcho(t *testing.T, requestURL string) {
 	if err != nil {
 		t.Fatalf("parse websocket URL: %v", err)
 	}
-	if u.Scheme != "http" {
-		t.Fatalf("smoke websocket only supports ws over http, got %q", u.Scheme)
-	}
 	address := u.Host
-	if !strings.Contains(address, ":") {
-		address += ":80"
+	if u.Port() == "" {
+		port := "80"
+		if u.Scheme == "https" {
+			port = "443"
+		}
+		address = net.JoinHostPort(u.Hostname(), port)
 	}
-	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+	var conn net.Conn
+	switch u.Scheme {
+	case "http":
+		conn, err = net.DialTimeout("tcp", address, 5*time.Second)
+	case "https":
+		conn, err = tls.DialWithDialer(
+			&net.Dialer{Timeout: 5 * time.Second},
+			"tcp",
+			address,
+			&tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: true, // The smoke stack generates an ephemeral self-signed public certificate.
+			},
+		)
+	default:
+		t.Fatalf("unsupported websocket URL scheme %q", u.Scheme)
+	}
 	if err != nil {
 		t.Fatalf("dial websocket target: %v", err)
 	}
