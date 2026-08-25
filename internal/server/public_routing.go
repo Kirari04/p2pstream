@@ -734,7 +734,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 			releaseStream()
 			return nil, err
 		}
-		return newAgentTunnelStreamConn(conn, releaseStream), nil
+		return newAgentTunnelStreamConn(conn, agent, releaseStream), nil
 	})
 	if openCh != nil {
 		// The Open callback now owns the slot. On failure it releases directly;

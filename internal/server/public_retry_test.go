@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -349,6 +350,159 @@ func TestPublicAgentRetryRecoversTruncatedCompressedResponseBeforeDelivery(t *te
 	}
 	if got := app.retryReplayBudget.used.Load(); got != 0 {
 		t.Fatalf("response buffer reservation after close = %d, want 0", got)
+	}
+}
+
+func TestPublicAgentRetryRecoversUnknownLengthAgentDisconnect(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	result := &publicRetryAttemptResult{}
+	var attempts []int64
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 11, Name: "unknown-length", MaxRetries: 1,
+			FailureMode: publicRetryFailureModePreResponseFailures, BodyMode: publicRetryBodyModeNever,
+			ResponseBodyMode: publicRetryResponseBodyModeBuffered, MaxBufferedResponseBodyBytes: 1024,
+		},
+		requestID: "request-unknown-length", result: result,
+		transportForAgent: func(agent *AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts = append(attempts, agent.AgentID)
+				body := io.ReadCloser(io.NopCloser(strings.NewReader("complete response")))
+				if agent.AgentID == first.AgentID {
+					body = &retryErrorAfterReadCloser{reader: strings.NewReader("partial"), err: errors.Join(errAgentDisconnected, io.EOF)}
+				}
+				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), ContentLength: -1, Body: body, Request: req}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/close-delimited", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read recovered response: %v", err)
+	}
+	_ = resp.Body.Close()
+	if string(body) != "complete response" || len(attempts) != 2 || attempts[0] != first.AgentID || attempts[1] != second.AgentID {
+		t.Fatalf("recovered response/attempts = %q/%v", body, attempts)
+	}
+	if result.Outcome != publicRetryOutcomeRecovered || result.FirstErrorKind != "agent_disconnected_during_response" {
+		t.Fatalf("retry result = %+v", result)
+	}
+}
+
+func TestPreparePublicRetryResponseBodyFallsBackAfterCompletionWait(t *testing.T) {
+	app := NewApp(nil, nil)
+	app.retryReplayBudget = newRetryReplayBudget(1024)
+	rule := &publicRetryRuleConfig{
+		ResponseBodyMode: publicRetryResponseBodyModeBuffered, MaxBufferedResponseBodyBytes: 1024,
+		MaxBufferedResponseWait: 20 * time.Millisecond,
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/slow-stream", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	reader, writer := io.Pipe()
+	releaseRemainder := make(chan struct{})
+	writerDone := make(chan error, 1)
+	go func() {
+		if _, err := writer.Write([]byte("prefix-")); err != nil {
+			writerDone <- err
+			return
+		}
+		<-releaseRemainder
+		if _, err := writer.Write([]byte("remainder")); err != nil {
+			writerDone <- err
+			return
+		}
+		writerDone <- writer.Close()
+	}()
+	resp := &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), ContentLength: -1, Body: reader, Request: req}
+	started := time.Now()
+	prepared, err := preparePublicRetryResponseBody(app, req, resp, rule)
+	if err != nil {
+		t.Fatalf("prepare slow response: %v", err)
+	}
+	if prepared.complete || prepared.skipReason != "response_buffer_wait_exceeded" {
+		t.Fatalf("prepared response = %+v, want timed streaming fallback", prepared)
+	}
+	if elapsed := time.Since(started); elapsed < rule.MaxBufferedResponseWait || elapsed > time.Second {
+		t.Fatalf("buffer wait elapsed = %v, want bounded near %v", elapsed, rule.MaxBufferedResponseWait)
+	}
+	close(releaseRemainder)
+	body, err := io.ReadAll(prepared.body)
+	if err != nil {
+		t.Fatalf("read fallback response: %v", err)
+	}
+	if string(body) != "prefix-remainder" {
+		t.Fatalf("fallback response = %q, want complete body", body)
+	}
+	if err := <-writerDone; err != nil {
+		t.Fatalf("write fallback response: %v", err)
+	}
+	if err := prepared.body.Close(); err != nil {
+		t.Fatalf("close fallback response: %v", err)
+	}
+	if got := app.retryReplayBudget.used.Load(); got != 0 {
+		t.Fatalf("response buffer reservation after close = %d, want 0", got)
+	}
+}
+
+func TestPublicAgentRetryStreamsWhenResponseBufferBudgetIsExhausted(t *testing.T) {
+	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
+	app.retryReplayBudget = newRetryReplayBudget(1024)
+	releaseHeld, ok := app.retryReplayBudget.tryAcquire(1024)
+	if !ok {
+		t.Fatal("reserve response replay budget")
+	}
+	defer releaseHeld()
+	result := &publicRetryAttemptResult{}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule: &publicRetryRuleConfig{
+			ID: 12, Name: "budget-pressure", MaxRetries: 1,
+			FailureMode: publicRetryFailureModePreResponseFailures, BodyMode: publicRetryBodyModeNever,
+			ResponseBodyMode: publicRetryResponseBodyModeBuffered, MaxBufferedResponseBodyBytes: 1024,
+		},
+		requestID: "request-budget-pressure", result: result,
+		transportForAgent: func(*AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK, Header: make(http.Header), ContentLength: int64(len("stream safely")),
+					Body: io.NopCloser(strings.NewReader("stream safely")), Request: req,
+				}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/budget-pressure", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read streaming fallback: %v", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Fatalf("close streaming fallback: %v", err)
+	}
+	if string(body) != "stream safely" {
+		t.Fatalf("streaming fallback body = %q", body)
+	}
+	if result.Outcome != publicRetryOutcomeSkipped || result.ReplaySkippedReason != "response_buffer_budget_exhausted" || result.RetryCount != 0 {
+		t.Fatalf("budget fallback result = %+v", result)
+	}
+	if got := app.retryReplayBudget.used.Load(); got != 1024 {
+		t.Fatalf("response replay budget after fallback = %d, want held reservation only", got)
 	}
 }
 
@@ -739,7 +893,7 @@ func TestValidatePublicRetryRuleRequiresExplicitDuplicateRiskAcknowledgement(t *
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
 		1024, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
-		nil, nil, nil, nil, false,
+		0, nil, nil, nil, nil, false,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("validation error = %v, want invalid argument", err)
@@ -750,7 +904,7 @@ func TestValidatePublicRetryRuleRequiresExplicitDuplicateRiskAcknowledgement(t *
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
 		1024, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
-		nil, nil, nil, nil, true,
+		0, nil, nil, nil, nil, true,
 	); err != nil {
 		t.Fatalf("acknowledged validation: %v", err)
 	}
@@ -763,7 +917,7 @@ func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
 		0, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
-		[]int64{http.StatusServiceUnavailable}, nil, nil, nil, false,
+		0, []int64{http.StatusServiceUnavailable}, nil, nil, nil, false,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unacknowledged status retry error = %v, want invalid argument", err)
@@ -774,7 +928,7 @@ func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
 		0, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
-		[]int64{504, 502, 503, 502}, nil, nil, nil, true,
+		0, []int64{504, 502, 503, 502}, nil, nil, nil, true,
 	)
 	if err != nil {
 		t.Fatalf("validate retry statuses: %v", err)
@@ -788,7 +942,7 @@ func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
 		0, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
-		[]int64{399}, nil, nil, nil, true,
+		0, []int64{399}, nil, nil, nil, true,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid retry status error = %v, want invalid argument", err)
@@ -802,7 +956,7 @@ func TestValidatePublicRetryRuleBufferedResponseRequiresRiskAcknowledgementAndBo
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER, 0,
 		p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED, 1024,
-		nil, nil, nil, nil, false,
+		0, nil, nil, nil, nil, false,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unacknowledged response buffering error = %v, want invalid argument", err)
@@ -813,13 +967,13 @@ func TestValidatePublicRetryRuleBufferedResponseRequiresRiskAcknowledgementAndBo
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER, 0,
 		p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED, 1024,
-		nil, nil, nil, nil, true,
+		0, nil, nil, nil, nil, true,
 	)
 	if err != nil {
 		t.Fatalf("validate response buffering: %v", err)
 	}
-	if input.ResponseBodyMode != publicRetryResponseBodyModeBuffered || input.MaxBufferedResponseBodyBytes != 1024 {
-		t.Fatalf("validated response buffering = mode %q limit %d", input.ResponseBodyMode, input.MaxBufferedResponseBodyBytes)
+	if input.ResponseBodyMode != publicRetryResponseBodyModeBuffered || input.MaxBufferedResponseBodyBytes != 1024 || input.MaxBufferedResponseWaitMillis != defaultPublicRetryResponseWaitMillis {
+		t.Fatalf("validated response buffering = mode %q limit %d wait %d", input.ResponseBodyMode, input.MaxBufferedResponseBodyBytes, input.MaxBufferedResponseWaitMillis)
 	}
 
 	_, err = app.validatePublicRetryRuleInput(
@@ -827,10 +981,21 @@ func TestValidatePublicRetryRuleBufferedResponseRequiresRiskAcknowledgementAndBo
 		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
 		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER, 0,
 		p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED, maxPublicRetryBufferedResponseBodyBytes+1,
-		nil, nil, nil, nil, true,
+		0, nil, nil, nil, nil, true,
 	)
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("oversized response buffering error = %v, want invalid argument", err)
+	}
+
+	_, err = app.validatePublicRetryRuleInput(
+		context.Background(), "completed-responses", 100, true, []string{http.MethodGet}, 1,
+		p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+		p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER, 0,
+		p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED, 1024,
+		minPublicRetryResponseWaitMillis-1, nil, nil, nil, nil, true,
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("short response wait error = %v, want invalid argument", err)
 	}
 }
 
@@ -864,20 +1029,21 @@ func TestPublicRetryManagementAPICreateUpdateDeleteReadback(t *testing.T) {
 	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicRetryRuleRequest{
 		Id: created.Msg.Rule.Id, Name: "vpn-mutations", Priority: 10, Enabled: true,
 		Methods: []string{http.MethodPost}, MaxRetries: 2,
-		FailureMode:                  p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
-		BodyMode:                     p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
-		MaxReplayBodyBytes:           2048,
-		ResponseBodyMode:             p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED,
-		MaxBufferedResponseBodyBytes: 8 * 1024 * 1024,
-		RetryStatusCodes:             []int64{http.StatusBadGateway, http.StatusServiceUnavailable},
-		DuplicateRiskAcknowledged:    true,
+		FailureMode:                   p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
+		BodyMode:                      p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_BUFFERED,
+		MaxReplayBodyBytes:            2048,
+		ResponseBodyMode:              p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED,
+		MaxBufferedResponseBodyBytes:  8 * 1024 * 1024,
+		MaxBufferedResponseWaitMillis: 45_000,
+		RetryStatusCodes:              []int64{http.StatusBadGateway, http.StatusServiceUnavailable},
+		DuplicateRiskAcknowledged:     true,
 	})
 	updateReq.Header().Set("Cookie", header.Get("Cookie"))
 	updated, err := app.UpdatePublicRetryRule(context.Background(), updateReq)
 	if err != nil {
 		t.Fatalf("update retry rule: %v", err)
 	}
-	if updated.Msg.Rule.Name != "vpn-mutations" || updated.Msg.Rule.MaxRetries != 2 || updated.Msg.Rule.MaxReplayBodyBytes != 2048 || updated.Msg.Rule.ResponseBodyMode != p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED || updated.Msg.Rule.MaxBufferedResponseBodyBytes != 8*1024*1024 || len(updated.Msg.Rule.RetryStatusCodes) != 2 {
+	if updated.Msg.Rule.Name != "vpn-mutations" || updated.Msg.Rule.MaxRetries != 2 || updated.Msg.Rule.MaxReplayBodyBytes != 2048 || updated.Msg.Rule.ResponseBodyMode != p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED || updated.Msg.Rule.MaxBufferedResponseBodyBytes != 8*1024*1024 || updated.Msg.Rule.MaxBufferedResponseWaitMillis != 45_000 || len(updated.Msg.Rule.RetryStatusCodes) != 2 {
 		t.Fatalf("update readback = %+v", updated.Msg.Rule)
 	}
 

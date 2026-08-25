@@ -1249,7 +1249,7 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 		strconv.FormatInt(routeID, 10),
 		strconv.FormatInt(routeTargetID, 10),
 	}
-	for _, header := range normalizePublicCacheHeaderList(varyHeaders) {
+	for _, header := range publicCacheRequiredVaryHeaders(varyHeaders) {
 		parts = append(parts, textproto.CanonicalMIMEHeaderKey(header), r.Header.Get(header))
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
@@ -1718,6 +1718,12 @@ func publicCacheResponseEligibility(rule publicCacheRuleConfig, resp *http.Respo
 	if len(resp.Header.Values("Set-Cookie")) > 0 {
 		return 0, nil, false
 	}
+	// Trailer fields are populated only after the body reaches EOF. Cache
+	// entries currently persist response headers and body bytes, not trailers,
+	// so storing one would silently change the response on a cache hit.
+	if len(resp.Trailer) > 0 || len(resp.Header.Values("Trailer")) > 0 {
+		return 0, nil, false
+	}
 	for _, directive := range publicCacheControlDirectives(resp.Header) {
 		switch directive.Name {
 		case "no-store", "private", "no-cache":
@@ -1807,7 +1813,7 @@ func publicCacheControlDirectives(header http.Header) []publicCacheControlDirect
 }
 
 func publicCacheResponseVaryHeaders(ruleHeaders []string, varyValues []string) ([]string, bool) {
-	headers := normalizePublicCacheHeaderList(ruleHeaders)
+	headers := publicCacheRequiredVaryHeaders(ruleHeaders)
 	for _, header := range headers {
 		if publicCacheSensitiveVaryHeader(header) {
 			return nil, false
@@ -1830,6 +1836,12 @@ func publicCacheResponseVaryHeaders(ruleHeaders []string, varyValues []string) (
 		}
 	}
 	return normalizePublicCacheHeaderList(headers), true
+}
+
+func publicCacheRequiredVaryHeaders(headers []string) []string {
+	combined := append([]string(nil), headers...)
+	combined = append(combined, defaultPublicCacheVaryHeaders...)
+	return normalizePublicCacheHeaderList(combined)
 }
 
 func publicCacheSensitiveVaryHeader(header string) bool {
@@ -2048,7 +2060,7 @@ func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, 
 		return publicCacheRuleConfig{}, err
 	}
 	queryParams := publicCacheStringListFromJSON(row.QueryParamsJson)
-	varyHeaders := normalizePublicCacheHeaderList(publicCacheStringListFromJSON(row.VaryHeadersJson))
+	varyHeaders := publicCacheRequiredVaryHeaders(publicCacheStringListFromJSON(row.VaryHeadersJson))
 	statusCodes, err := publicCacheInt64ListFromJSON(row.CacheStatusCodesJson)
 	if err != nil {
 		return publicCacheRuleConfig{}, err
@@ -2073,9 +2085,6 @@ func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, 
 		AllowCookieRequests:  row.AllowCookieRequests != 0,
 		CreatedAt:            row.CreatedAt,
 		UpdatedAt:            row.UpdatedAt,
-	}
-	if len(rule.VaryHeaders) == 0 {
-		rule.VaryHeaders = append([]string(nil), defaultPublicCacheVaryHeaders...)
 	}
 	rule.Fingerprint = publicCacheRuleFingerprint(rule)
 	return rule, nil
@@ -2176,10 +2185,7 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 	if len(queryParams) > maxPublicCacheListItems {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule has too many query parameters"))
 	}
-	varyHeaders = normalizePublicCacheHeaderList(varyHeaders)
-	if len(varyHeaders) == 0 {
-		varyHeaders = append([]string(nil), defaultPublicCacheVaryHeaders...)
-	}
+	varyHeaders = publicCacheRequiredVaryHeaders(varyHeaders)
 	if len(varyHeaders) > maxPublicCacheListItems {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule has too many vary headers"))
 	}

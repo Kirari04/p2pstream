@@ -2451,6 +2451,9 @@ message PublicRetryRule {
   repeated int64 retry_status_codes = 15;
   PublicRetryResponseBodyMode response_body_mode = 16;
   int64 max_buffered_response_body_bytes = 17;
+  // Maximum time spent waiting for a protected response to complete before
+  // falling back to normal streaming delivery.
+  int64 max_buffered_response_wait_millis = 18;
 }
 
 message CreatePublicRetryRuleRequest {
@@ -2473,6 +2476,7 @@ message CreatePublicRetryRuleRequest {
   repeated int64 retry_status_codes = 13;
   PublicRetryResponseBodyMode response_body_mode = 14;
   int64 max_buffered_response_body_bytes = 15;
+  int64 max_buffered_response_wait_millis = 16;
 }
 
 message CreatePublicRetryRuleResponse {
@@ -2500,6 +2504,7 @@ message UpdatePublicRetryRuleRequest {
   repeated int64 retry_status_codes = 14;
   PublicRetryResponseBodyMode response_body_mode = 15;
   int64 max_buffered_response_body_bytes = 16;
+  int64 max_buffered_response_wait_millis = 17;
 }
 
 message UpdatePublicRetryRuleResponse {

@@ -78,7 +78,7 @@ func TestAgentTunnelStreamConnReleasesAfterRemoteClose(t *testing.T) {
 		Conn:         local,
 		remoteClosed: remoteClosed,
 		readStarted:  readStarted,
-	}, release)
+	}, nil, release)
 	readerDone := make(chan error, 1)
 	go func() {
 		var buf [1]byte
@@ -118,6 +118,22 @@ func TestAgentTunnelStreamConnReleasesAfterRemoteClose(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	t.Fatalf("stream slots after remote close = %d, want 0", limiter.InUse())
+}
+
+func TestAgentTunnelStreamConnDistinguishesAgentLossFromOriginEOF(t *testing.T) {
+	local, peer := net.Pipe()
+	agent := &AgentConn{Done: make(chan struct{})}
+	conn := newAgentTunnelStreamConn(local, agent, nil)
+	close(agent.Done)
+	if err := peer.Close(); err != nil {
+		t.Fatalf("close peer: %v", err)
+	}
+	var buf [1]byte
+	_, err := conn.Read(buf[:])
+	if !errors.Is(err, errAgentDisconnected) || !errors.Is(err, io.EOF) {
+		t.Fatalf("agent-loss read error = %v, want agent disconnected wrapping EOF", err)
+	}
+	_ = conn.Close()
 }
 
 type delayedRemoteCloseConn struct {

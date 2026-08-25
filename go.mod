@@ -4,11 +4,13 @@ go 1.26.6
 
 require (
 	connectrpc.com/connect v1.20.0
+	github.com/andybalholm/brotli v1.2.2
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/google/cel-go v0.31.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/joho/godotenv v1.5.1
+	github.com/klauspost/compress v1.19.1
 	github.com/mattn/go-sqlite3 v1.14.49
 	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/oschwald/maxminddb-golang/v2 v2.5.0
@@ -16,6 +18,7 @@ require (
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.55.0
+	golang.org/x/net v0.57.0
 	golang.org/x/term v0.45.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -85,7 +88,6 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jdx/go-netrc v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.23 // indirect
@@ -145,7 +147,6 @@ require (
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/exp v0.0.0-20260718201538-764159d718ef // indirect
 	golang.org/x/mod v0.38.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect

@@ -86,6 +86,7 @@ const form = reactive({
   maxReplayBodyKiB: 256,
   responseBodyMode: PublicRetryResponseBodyMode.STREAM,
   maxBufferedResponseBodyKiB: 8192,
+  maxBufferedResponseWaitSeconds: 30,
   routeIds: [] as string[],
   targetIds: [] as string[],
   match: defaultPolicyMatchForm() as PolicyMatchForm,
@@ -133,7 +134,7 @@ const statusSummary = computed(() => normalizedStatusCodes.value.length
   ? normalizedStatusCodes.value.join(", ")
   : "Transport failures only");
 const responseDeliverySummary = computed(() => form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED
-  ? `Protected through ${form.maxBufferedResponseBodyKiB.toLocaleString()} KiB`
+  ? `Best effort through ${form.maxBufferedResponseBodyKiB.toLocaleString()} KiB / ${form.maxBufferedResponseWaitSeconds.toLocaleString()}s`
   : "Immediate streaming");
 
 const routeTransferOptions = computed<RetryTransferOption[]>(() => routes.value.map((route) => {
@@ -173,6 +174,9 @@ const submitDisabledReason = computed(() => {
   if (form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED && (!Number.isInteger(form.maxBufferedResponseBodyKiB) || form.maxBufferedResponseBodyKiB < 1 || form.maxBufferedResponseBodyKiB > 65536)) {
     return "Protected response limit must be between 1 KiB and 65,536 KiB.";
   }
+  if (form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED && (!Number.isInteger(form.maxBufferedResponseWaitSeconds) || form.maxBufferedResponseWaitSeconds < 1 || form.maxBufferedResponseWaitSeconds > 300)) {
+    return "Protected response wait must be between 1 and 300 seconds.";
+  }
   const matchError = policyMatchValidationReason(form.match);
   if (matchError) return matchError;
   if (requiresRiskAcknowledgement.value && !form.duplicateRiskAcknowledged) return "Acknowledge the duplicate-request risk.";
@@ -195,6 +199,7 @@ function resetForm() {
   form.maxReplayBodyKiB = 256;
   form.responseBodyMode = PublicRetryResponseBodyMode.STREAM;
   form.maxBufferedResponseBodyKiB = 8192;
+  form.maxBufferedResponseWaitSeconds = 30;
   form.routeIds = [];
   form.targetIds = [];
   form.match = defaultPolicyMatchForm();
@@ -224,6 +229,7 @@ function openEdit(ruleId: bigint | string) {
   form.maxReplayBodyKiB = Math.max(1, Math.round(Number(rule.maxReplayBodyBytes || 262144n) / 1024));
   form.responseBodyMode = rule.responseBodyMode || PublicRetryResponseBodyMode.STREAM;
   form.maxBufferedResponseBodyKiB = Math.max(1, Math.round(Number(rule.maxBufferedResponseBodyBytes || 8388608n) / 1024));
+  form.maxBufferedResponseWaitSeconds = Math.max(1, Math.round(Number(rule.maxBufferedResponseWaitMillis || 30000n) / 1000));
   form.routeIds = rule.routeIds.map(String);
   form.targetIds = rule.targetIds.map(String);
   form.match = policyMatchFormFromProto(rule.matchRule);
@@ -355,6 +361,9 @@ async function submitRule() {
       responseBodyMode: form.responseBodyMode,
       maxBufferedResponseBodyBytes: form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED
         ? BigInt(form.maxBufferedResponseBodyKiB * 1024)
+        : 0n,
+      maxBufferedResponseWaitMillis: form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED
+        ? BigInt(form.maxBufferedResponseWaitSeconds * 1000)
         : 0n,
       routeIds: form.routeIds.map(BigInt),
       targetIds: form.targetIds.map(BigInt),
@@ -538,16 +547,28 @@ defineExpose({ openCreate, openEdit, close });
                 @click="form.responseBodyMode = PublicRetryResponseBodyMode.BUFFERED"
               >
                 <span class="weight-medium base-text">Buffer bounded responses</span>
-                <span class="copy-xs line-normal muted-text">Adds upstream completion latency and uses replay memory, but enables clean failover.</span>
+                <span class="copy-xs line-normal muted-text">Adds upstream completion latency and uses replay memory, but enables clean failover while protection remains available.</span>
               </button>
             </div>
-            <label v-if="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
-              Maximum protected response KiB
-              <NInputNumber v-model:value="form.maxBufferedResponseBodyKiB" :show-button="false" size="small" :min="1" :max="65536" />
-              <span class="copy-xs weight-normal normal-text letter-normal muted-text">
-                Larger or budget-constrained responses fall back to streaming. Request and response buffers share the server's 64 MiB replay-memory budget.
-              </span>
-            </label>
+            <div v-if="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED" class="layout-grid space-lg mq-sm-cols-two">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
+                Maximum protected response KiB
+                <NInputNumber v-model:value="form.maxBufferedResponseBodyKiB" :show-button="false" size="small" :min="1" :max="65536" />
+                <span class="copy-xs weight-normal normal-text letter-normal muted-text">
+                  Larger responses fall back to streaming without dropping the request.
+                </span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
+                Maximum completion wait seconds
+                <NInputNumber v-model:value="form.maxBufferedResponseWaitSeconds" :show-button="false" size="small" :min="1" :max="300" />
+                <span class="copy-xs weight-normal normal-text letter-normal muted-text">
+                  Slow or long-lived responses switch cleanly to streaming after this wait.
+                </span>
+              </label>
+            </div>
+            <p v-if="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED" class="copy-xs line-normal muted-text">
+              Protection is best effort. Request and response buffers share the server's 64 MiB replay-memory budget; budget-constrained responses stream normally and the skip reason is recorded in traffic traces.
+            </p>
             <div class="response-exclusions copy-xs line-normal muted-text">
               <strong>Always streamed:</strong>
               WebSocket/upgrades, HEAD and bodyless responses, ranges and 206 responses, server-sent events, gRPC, multipart streams, and responses with <code>X-Accel-Buffering: no</code>.

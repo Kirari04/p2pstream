@@ -2409,14 +2409,14 @@ WHERE id = ?;
 -- name: ListPublicRetryRules :many
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
        max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-       response_body_mode, max_buffered_response_body_bytes
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 ORDER BY priority ASC, id ASC;
 
 -- name: GetPublicRetryRule :one
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
        max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-       response_body_mode, max_buffered_response_body_bytes
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 WHERE id = ?;
 
@@ -2424,13 +2424,13 @@ WHERE id = ?;
 INSERT INTO public_retry_rules (
     name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
     max_replay_body_bytes, retry_status_codes_json, route_ids_json, target_ids_json, match_json,
-    response_body_mode, max_buffered_response_body_bytes
+    response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
           max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-          response_body_mode, max_buffered_response_body_bytes;
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis;
 
 -- name: UpdatePublicRetryRule :one
 UPDATE public_retry_rules
@@ -2448,11 +2448,12 @@ SET name = ?,
     match_json = ?,
     response_body_mode = ?,
     max_buffered_response_body_bytes = ?,
+    max_buffered_response_wait_millis = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
           max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-          response_body_mode, max_buffered_response_body_bytes;
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis;
 
 -- name: DeletePublicRetryRule :exec
 DELETE FROM public_retry_rules
