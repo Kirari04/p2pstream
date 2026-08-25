@@ -423,6 +423,7 @@ describe("trafficPolicyWorkbench", () => {
       retryRules: [
         retryRule({ id: 40n, priority: 1n, failureMode: PublicRetryFailureMode.PRE_RESPONSE_FAILURES }),
         retryRule({ id: 41n, priority: 1n, matchRule: pathRule("/retry") }),
+        retryRule({ id: 42n, priority: 2n, retryStatusCodes: [503n], matchRule: pathRule("/gateway") }),
       ],
     });
 
@@ -441,6 +442,7 @@ describe("trafficPolicyWorkbench", () => {
     expect(warnings.map((warning) => warning.code)).toContain("cache-settings-disabled");
     expect(warnings.map((warning) => warning.code)).toContain("cache-allows-cookie-requests");
     expect(warnings.map((warning) => warning.code)).toContain("retry-duplicate-risk");
+    expect(warnings.some((warning) => warning.ruleId === 42n && warning.code === "retry-duplicate-risk")).toBe(true);
     expect(warnings.some((warning) => warning.ruleId === 2n && warning.code === "any-request-rule")).toBe(false);
     expect(warnings.some((warning) => warning.ruleId === 32n && warning.code === "cache-allows-cookie-requests")).toBe(false);
   });
@@ -563,6 +565,7 @@ function retryRule(overrides: Partial<PublicRetryRule>): PublicRetryRule {
     methods: overrides.methods ?? ["GET", "HEAD"],
     maxRetries: overrides.maxRetries ?? 1n,
     failureMode: overrides.failureMode ?? PublicRetryFailureMode.CONNECTION_FAILURES,
+    retryStatusCodes: overrides.retryStatusCodes ?? [],
     routeIds: overrides.routeIds ?? [],
     targetIds: overrides.targetIds ?? [],
     matchRule: overrides.matchRule,

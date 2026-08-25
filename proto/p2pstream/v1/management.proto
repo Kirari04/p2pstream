@@ -2436,6 +2436,8 @@ message PublicRetryRule {
   PublicPolicyMatchRule match_rule = 12;
   int64 created_at_unix_millis = 13;
   int64 updated_at_unix_millis = 14;
+  // Exact 400-599 upstream response statuses that trigger another attempt.
+  repeated int64 retry_status_codes = 15;
 }
 
 message CreatePublicRetryRuleRequest {
@@ -2451,8 +2453,11 @@ message CreatePublicRetryRuleRequest {
   repeated int64 target_ids = 10;
   PublicPolicyMatchRule match_rule = 11;
   // Required when the rule can retry after an upstream may have observed the
-  // request, or when it includes methods with side effects.
+  // request, when response statuses are retried, or when it includes methods
+  // with side effects.
   bool duplicate_risk_acknowledged = 12;
+  // Exact 400-599 upstream response statuses that trigger another attempt.
+  repeated int64 retry_status_codes = 13;
 }
 
 message CreatePublicRetryRuleResponse {
@@ -2473,8 +2478,11 @@ message UpdatePublicRetryRuleRequest {
   repeated int64 target_ids = 11;
   PublicPolicyMatchRule match_rule = 12;
   // Required when the rule can retry after an upstream may have observed the
-  // request, or when it includes methods with side effects.
+  // request, when response statuses are retried, or when it includes methods
+  // with side effects.
   bool duplicate_risk_acknowledged = 13;
+  // Exact 400-599 upstream response statuses that trigger another attempt.
+  repeated int64 retry_status_codes = 14;
 }
 
 message UpdatePublicRetryRuleResponse {

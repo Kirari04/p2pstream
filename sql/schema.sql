@@ -546,7 +546,8 @@ CREATE TABLE IF NOT EXISTS public_retry_rules (
     target_ids_json TEXT NOT NULL DEFAULT '[]',
     match_json TEXT NOT NULL DEFAULT '{}',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    retry_status_codes_json TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS public_cache_entries (

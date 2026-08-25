@@ -107,7 +107,7 @@ func TestDockerSmoke(t *testing.T) {
 		smokeCloseEarly(t, smokeURL(publicAgentURL, "/close-early"))
 		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent listener after close-early")
 	})
-	t.Run("agent disconnect retries asset GET through backup", func(t *testing.T) {
+	t.Run("agent failover retries disconnects and HTTP statuses", func(t *testing.T) {
 		retryLabels := map[string]string{"smoke": "retry", "scenario": "agent-disconnect"}
 		primary, primaryToken := createSmokeAgent(ctx, t, client, cookie, "Docker Retry Primary", retryLabels)
 		backup, backupToken := createSmokeAgent(ctx, t, client, cookie, "Docker Retry Backup", retryLabels)
@@ -194,6 +194,13 @@ func TestDockerSmoke(t *testing.T) {
 		}
 		waitRetryAssetAttempts(t, upstreamURL, 2*len(assets))
 		waitRetryRuleRecovered(ctx, t, client, cookie, retryRule.GetId(), int64(len(assets)))
+
+		updateAgentLabels(ctx, t, client, cookie, dockerAgent, retryLabels)
+		waitAgentConnectionState(ctx, t, client, cookie, dockerAgent.GetPublicId(), true)
+		smokeRetryableStatus(t, publicAgentURL, http.StatusBadGateway, "chunk.js")
+		smokeRetryableStatus(t, publicAgentURL, http.StatusServiceUnavailable, "theme.css")
+		waitRetryRuleRecovered(ctx, t, client, cookie, retryRule.GetId(), int64(len(assets)+2))
+		waitRetryStatusErrorKinds(ctx, t, client, cookie, http.StatusBadGateway, http.StatusServiceUnavailable)
 	})
 
 	staticListener := upsertListener(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), "docker-static", "", 8088, p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP, true)
@@ -279,6 +286,7 @@ func createAgentDisconnectRetryRule(
 		MaxRetries:                1,
 		FailureMode:               p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
 		BodyMode:                  p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		RetryStatusCodes:          []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
 		RouteIds:                  []int64{routeID},
 		DuplicateRiskAcknowledged: true,
 	})
@@ -770,6 +778,28 @@ func waitRetryAssetAttempts(t *testing.T, upstreamURL string, want int) {
 	t.Fatalf("retry asset attempts = %d, want at least %d; last error=%v", last.Attempts, want, lastErr)
 }
 
+func smokeRetryableStatus(t *testing.T, publicURL string, retryStatus int, asset string) {
+	t.Helper()
+	resp, err := httpClient().Get(smokeURL(publicURL, fmt.Sprintf("/retry-status/%d/%s", retryStatus, asset)))
+	if err != nil {
+		t.Fatalf("retry HTTP status %d for asset %q: %v", retryStatus, asset, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read retry HTTP status %d response: %v", retryStatus, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("retry HTTP status %d final response = %d %q, want 200", retryStatus, resp.StatusCode, body)
+	}
+	if got := resp.Header.Get("X-Smoke-Upstream-Attempt"); got != "2" {
+		t.Fatalf("retry HTTP status %d upstream attempt = %q, want 2", retryStatus, got)
+	}
+	if want := fmt.Sprintf("%s recovered from %d\n", asset, retryStatus); string(body) != want {
+		t.Fatalf("retry HTTP status %d response body = %q, want %q", retryStatus, body, want)
+	}
+}
+
 func waitRetryRuleRecovered(
 	ctx context.Context,
 	t *testing.T,
@@ -808,6 +838,45 @@ func waitRetryRuleRecovered(
 		time.Sleep(250 * time.Millisecond)
 	}
 	t.Fatalf("dashboard did not report %d recovered retries for rule %d; last summary=%+v", wantRequests, ruleID, last)
+}
+
+func waitRetryStatusErrorKinds(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	statuses ...int,
+) {
+	t.Helper()
+	want := make(map[string]struct{}, len(statuses))
+	for _, status := range statuses {
+		want[fmt.Sprintf("upstream_status_%d", status)] = struct{}{}
+	}
+	last := make(map[string]int64)
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		req := connect.NewRequest(&p2pstreamv1.GetDashboardDiagnosticsRequest{WindowLabel: "1h"})
+		req.Header().Set("Cookie", cookie)
+		resp, err := client.GetDashboardDiagnostics(ctx, req)
+		if err != nil {
+			t.Fatalf("get dashboard retry status diagnostics: %v", err)
+		}
+		for _, summary := range resp.Msg.GetRetryErrorKinds() {
+			last[summary.GetLabel()] = summary.GetRetryAttempts()
+		}
+		complete := true
+		for label := range want {
+			if last[label] < 1 {
+				complete = false
+				break
+			}
+		}
+		if complete {
+			return
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	t.Fatalf("dashboard retry error kinds = %+v, want statuses %+v", last, want)
 }
 
 func waitDashboardHasProxyRequests(

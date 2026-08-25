@@ -21386,8 +21386,10 @@ type PublicRetryRule struct {
 	MatchRule           *PublicPolicyMatchRule `protobuf:"bytes,12,opt,name=match_rule,json=matchRule,proto3" json:"match_rule,omitempty"`
 	CreatedAtUnixMillis int64                  `protobuf:"varint,13,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
 	UpdatedAtUnixMillis int64                  `protobuf:"varint,14,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Exact 400-599 upstream response statuses that trigger another attempt.
+	RetryStatusCodes []int64 `protobuf:"varint,15,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PublicRetryRule) Reset() {
@@ -21518,6 +21520,13 @@ func (x *PublicRetryRule) GetUpdatedAtUnixMillis() int64 {
 	return 0
 }
 
+func (x *PublicRetryRule) GetRetryStatusCodes() []int64 {
+	if x != nil {
+		return x.RetryStatusCodes
+	}
+	return nil
+}
+
 type CreatePublicRetryRuleRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -21532,10 +21541,13 @@ type CreatePublicRetryRuleRequest struct {
 	TargetIds          []int64                `protobuf:"varint,10,rep,packed,name=target_ids,json=targetIds,proto3" json:"target_ids,omitempty"`
 	MatchRule          *PublicPolicyMatchRule `protobuf:"bytes,11,opt,name=match_rule,json=matchRule,proto3" json:"match_rule,omitempty"`
 	// Required when the rule can retry after an upstream may have observed the
-	// request, or when it includes methods with side effects.
+	// request, when response statuses are retried, or when it includes methods
+	// with side effects.
 	DuplicateRiskAcknowledged bool `protobuf:"varint,12,opt,name=duplicate_risk_acknowledged,json=duplicateRiskAcknowledged,proto3" json:"duplicate_risk_acknowledged,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Exact 400-599 upstream response statuses that trigger another attempt.
+	RetryStatusCodes []int64 `protobuf:"varint,13,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreatePublicRetryRuleRequest) Reset() {
@@ -21652,6 +21664,13 @@ func (x *CreatePublicRetryRuleRequest) GetDuplicateRiskAcknowledged() bool {
 	return false
 }
 
+func (x *CreatePublicRetryRuleRequest) GetRetryStatusCodes() []int64 {
+	if x != nil {
+		return x.RetryStatusCodes
+	}
+	return nil
+}
+
 type CreatePublicRetryRuleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rule          *PublicRetryRule       `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
@@ -21711,10 +21730,13 @@ type UpdatePublicRetryRuleRequest struct {
 	TargetIds          []int64                `protobuf:"varint,11,rep,packed,name=target_ids,json=targetIds,proto3" json:"target_ids,omitempty"`
 	MatchRule          *PublicPolicyMatchRule `protobuf:"bytes,12,opt,name=match_rule,json=matchRule,proto3" json:"match_rule,omitempty"`
 	// Required when the rule can retry after an upstream may have observed the
-	// request, or when it includes methods with side effects.
+	// request, when response statuses are retried, or when it includes methods
+	// with side effects.
 	DuplicateRiskAcknowledged bool `protobuf:"varint,13,opt,name=duplicate_risk_acknowledged,json=duplicateRiskAcknowledged,proto3" json:"duplicate_risk_acknowledged,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Exact 400-599 upstream response statuses that trigger another attempt.
+	RetryStatusCodes []int64 `protobuf:"varint,14,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdatePublicRetryRuleRequest) Reset() {
@@ -21836,6 +21858,13 @@ func (x *UpdatePublicRetryRuleRequest) GetDuplicateRiskAcknowledged() bool {
 		return x.DuplicateRiskAcknowledged
 	}
 	return false
+}
+
+func (x *UpdatePublicRetryRuleRequest) GetRetryStatusCodes() []int64 {
+	if x != nil {
+		return x.RetryStatusCodes
+	}
+	return nil
 }
 
 type UpdatePublicRetryRuleResponse struct {
@@ -23644,7 +23673,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x17PublicCacheStorageStats\x12&\n" +
 	"\x0fdisk_bytes_used\x18\x01 \x01(\x03R\rdiskBytesUsed\x12*\n" +
 	"\x11memory_bytes_used\x18\x02 \x01(\x03R\x0fmemoryBytesUsed\x12!\n" +
-	"\fentries_used\x18\x03 \x01(\x03R\ventriesUsed\"\xcc\x04\n" +
+	"\fentries_used\x18\x03 \x01(\x03R\ventriesUsed\"\xfa\x04\n" +
 	"\x0fPublicRetryRule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -23663,7 +23692,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\n" +
 	"match_rule\x18\f \x01(\v2#.p2pstream.v1.PublicPolicyMatchRuleR\tmatchRule\x123\n" +
 	"\x16created_at_unix_millis\x18\r \x01(\x03R\x13createdAtUnixMillis\x123\n" +
-	"\x16updated_at_unix_millis\x18\x0e \x01(\x03R\x13updatedAtUnixMillis\"\x9f\x04\n" +
+	"\x16updated_at_unix_millis\x18\x0e \x01(\x03R\x13updatedAtUnixMillis\x12,\n" +
+	"\x12retry_status_codes\x18\x0f \x03(\x03R\x10retryStatusCodes\"\xcd\x04\n" +
 	"\x1cCreatePublicRetryRuleRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bpriority\x18\x02 \x01(\x03R\bpriority\x12\x18\n" +
@@ -23680,9 +23710,10 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	" \x03(\x03R\ttargetIds\x12B\n" +
 	"\n" +
 	"match_rule\x18\v \x01(\v2#.p2pstream.v1.PublicPolicyMatchRuleR\tmatchRule\x12>\n" +
-	"\x1bduplicate_risk_acknowledged\x18\f \x01(\bR\x19duplicateRiskAcknowledged\"R\n" +
+	"\x1bduplicate_risk_acknowledged\x18\f \x01(\bR\x19duplicateRiskAcknowledged\x12,\n" +
+	"\x12retry_status_codes\x18\r \x03(\x03R\x10retryStatusCodes\"R\n" +
 	"\x1dCreatePublicRetryRuleResponse\x121\n" +
-	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicRetryRuleR\x04rule\"\xaf\x04\n" +
+	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicRetryRuleR\x04rule\"\xdd\x04\n" +
 	"\x1cUpdatePublicRetryRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -23700,7 +23731,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"target_ids\x18\v \x03(\x03R\ttargetIds\x12B\n" +
 	"\n" +
 	"match_rule\x18\f \x01(\v2#.p2pstream.v1.PublicPolicyMatchRuleR\tmatchRule\x12>\n" +
-	"\x1bduplicate_risk_acknowledged\x18\r \x01(\bR\x19duplicateRiskAcknowledged\"R\n" +
+	"\x1bduplicate_risk_acknowledged\x18\r \x01(\bR\x19duplicateRiskAcknowledged\x12,\n" +
+	"\x12retry_status_codes\x18\x0e \x03(\x03R\x10retryStatusCodes\"R\n" +
 	"\x1dUpdatePublicRetryRuleResponse\x121\n" +
 	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicRetryRuleR\x04rule\".\n" +
 	"\x1cDeletePublicRetryRuleRequest\x12\x0e\n" +

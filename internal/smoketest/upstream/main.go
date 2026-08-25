@@ -24,10 +24,16 @@ import (
 const websocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 var retryAsset = &retryAssetState{attemptsByPath: make(map[string]int)}
+var retryStatus = &retryStatusState{attemptsByPath: make(map[string]int)}
 
 type retryAssetState struct {
 	mu             sync.Mutex
 	totalAttempts  int
+	attemptsByPath map[string]int
+}
+
+type retryStatusState struct {
+	mu             sync.Mutex
 	attemptsByPath map[string]int
 }
 
@@ -46,6 +52,7 @@ func main() {
 	mux.HandleFunc("/close-early", closeEarlyHandler)
 	mux.HandleFunc("/retry-assets/", retryAssetHandler)
 	mux.HandleFunc("/retry-asset-status", retryAssetStatusHandler)
+	mux.HandleFunc("/retry-status/", retryStatusHandler)
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/ws", websocketHandler)
 
@@ -202,6 +209,40 @@ func retryAssetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	attempts := retryAsset.totalAttempts
 	retryAsset.mu.Unlock()
 	writeJSON(w, map[string]int{"attempts": attempts})
+}
+
+func retryStatusHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/retry-status/"), "/", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		http.NotFound(w, r)
+		return
+	}
+	retryCode, err := strconv.Atoi(parts[0])
+	if err != nil || retryCode < 400 || retryCode > 599 {
+		http.Error(w, "invalid retry status", http.StatusBadRequest)
+		return
+	}
+
+	retryStatus.mu.Lock()
+	retryStatus.attemptsByPath[r.URL.Path]++
+	attempt := retryStatus.attemptsByPath[r.URL.Path]
+	retryStatus.mu.Unlock()
+
+	w.Header().Set("X-Smoke-Upstream-Attempt", strconv.Itoa(attempt))
+	if attempt == 1 {
+		http.Error(w, fmt.Sprintf("temporary upstream status %d", retryCode), retryCode)
+		return
+	}
+	if strings.HasSuffix(parts[1], ".css") {
+		w.Header().Set("Content-Type", "text/css")
+	} else {
+		w.Header().Set("Content-Type", "application/javascript")
+	}
+	_, _ = fmt.Fprintf(w, "%s recovered from %d\n", parts[1], retryCode)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
