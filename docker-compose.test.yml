@@ -52,6 +52,58 @@ services:
       - server
       - upstream
 
+  retry-agent-primary:
+    image: p2pstream:docker-smoke-runtime
+    build: *runtime-build
+    command:
+      - "sh"
+      - "-c"
+      - >-
+        while [ ! -s /data/certs/management/ca.crt.pem ] ||
+        [ ! -s /control/retry-primary.id ] ||
+        [ ! -s /control/retry-primary.token ] ||
+        [ ! -e /control/retry-primary.start ]; do sleep 0.2; done;
+        IFS= read -r AGENT_ID < /control/retry-primary.id;
+        IFS= read -r AGENT_TOKEN < /control/retry-primary.token;
+        export AGENT_ID AGENT_TOKEN;
+        exec /app/p2pstream agent
+    environment:
+      MANAGEMENT_URL: "https://server:8081"
+      MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
+      AGENT_ALLOW_TARGETS: "upstream:9000"
+    volumes:
+      - p2pstream-data:/data:ro
+      - smoke-control:/control:ro
+    depends_on:
+      - server
+      - upstream
+
+  retry-agent-backup:
+    image: p2pstream:docker-smoke-runtime
+    build: *runtime-build
+    command:
+      - "sh"
+      - "-c"
+      - >-
+        while [ ! -s /data/certs/management/ca.crt.pem ] ||
+        [ ! -s /control/retry-backup.id ] ||
+        [ ! -s /control/retry-backup.token ] ||
+        [ ! -e /control/retry-backup.start ]; do sleep 0.2; done;
+        IFS= read -r AGENT_ID < /control/retry-backup.id;
+        IFS= read -r AGENT_TOKEN < /control/retry-backup.token;
+        export AGENT_ID AGENT_TOKEN;
+        exec /app/p2pstream agent
+    environment:
+      MANAGEMENT_URL: "https://server:8081"
+      MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
+      AGENT_ALLOW_TARGETS: "upstream:9000"
+    volumes:
+      - p2pstream-data:/data:ro
+      - smoke-control:/control:ro
+    depends_on:
+      - server
+      - upstream
+
   smoke:
     image: p2pstream:docker-smoke-test
     build:
@@ -67,12 +119,17 @@ services:
       PUBLIC_STATIC_URL: "http://server:8088"
       PUBLIC_HTTPS_URL: "https://server:443"
       UPSTREAM_URL: "http://upstream:9000"
+      SMOKE_CONTROL_DIR: "/control"
     volumes:
       - p2pstream-data:/data:ro
+      - smoke-control:/control
     depends_on:
       - server
       - agent
+      - retry-agent-primary
+      - retry-agent-backup
       - upstream
 
 volumes:
   p2pstream-data:
+  smoke-control:
