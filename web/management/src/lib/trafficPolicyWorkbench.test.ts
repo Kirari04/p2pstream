@@ -571,6 +571,7 @@ function retryRule(overrides: Partial<PublicRetryRule>): PublicRetryRule {
     retryStatusCodes: overrides.retryStatusCodes ?? [],
     responseBodyMode: overrides.responseBodyMode ?? PublicRetryResponseBodyMode.STREAM,
     maxBufferedResponseBodyBytes: overrides.maxBufferedResponseBodyBytes ?? 0n,
+    maxBufferedResponseWaitMillis: overrides.maxBufferedResponseWaitMillis ?? 0n,
     routeIds: overrides.routeIds ?? [],
     targetIds: overrides.targetIds ?? [],
     matchRule: overrides.matchRule,

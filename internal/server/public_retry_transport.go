@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -214,6 +215,121 @@ type publicRetryPreparedResponseBody struct {
 	skipReason string
 }
 
+const publicRetryResponsePumpChunkBytes = 32 << 10
+
+type publicRetryResponseChunk struct {
+	data []byte
+	err  error
+}
+
+// publicRetryResponsePump keeps a single reader on the upstream body while
+// allowing the pre-commit buffering window to expire. Once buffering falls
+// back, the same pump becomes the downstream response body, so no bytes are
+// lost and the upstream request is not restarted merely because it is slow.
+type publicRetryResponsePump struct {
+	source     io.ReadCloser
+	chunks     chan publicRetryResponseChunk
+	done       chan struct{}
+	closeOnce  sync.Once
+	closeErr   error
+	current    []byte
+	currentErr error
+	finished   bool
+}
+
+func newPublicRetryResponsePump(source io.ReadCloser) *publicRetryResponsePump {
+	pump := &publicRetryResponsePump{
+		source: source,
+		chunks: make(chan publicRetryResponseChunk, 1),
+		done:   make(chan struct{}),
+	}
+	go pump.run()
+	return pump
+}
+
+func (p *publicRetryResponsePump) run() {
+	emptyReads := 0
+	for {
+		buffer := make([]byte, publicRetryResponsePumpChunkBytes)
+		n, err := p.source.Read(buffer)
+		if n < 0 || n > len(buffer) {
+			n = 0
+			err = errors.New("upstream response body returned an invalid read count")
+		}
+		if n == 0 && err == nil {
+			emptyReads++
+			if emptyReads >= 100 {
+				err = io.ErrNoProgress
+			}
+		} else {
+			emptyReads = 0
+		}
+		if n > 0 || err != nil {
+			chunk := publicRetryResponseChunk{err: err}
+			if n > 0 {
+				chunk.data = append([]byte(nil), buffer[:n]...)
+			}
+			select {
+			case p.chunks <- chunk:
+			case <-p.done:
+				return
+			}
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (p *publicRetryResponsePump) Read(dst []byte) (int, error) {
+	if p == nil || len(dst) == 0 {
+		return 0, nil
+	}
+	for {
+		if len(p.current) > 0 {
+			n := copy(dst, p.current)
+			p.current = p.current[n:]
+			if len(p.current) == 0 && p.currentErr != nil {
+				err := p.currentErr
+				p.currentErr = nil
+				p.finished = true
+				return n, err
+			}
+			return n, nil
+		}
+		if p.currentErr != nil {
+			err := p.currentErr
+			p.currentErr = nil
+			p.finished = true
+			return 0, err
+		}
+		if p.finished {
+			return 0, io.EOF
+		}
+		select {
+		case chunk := <-p.chunks:
+			p.current = chunk.data
+			p.currentErr = chunk.err
+		case <-p.done:
+			p.finished = true
+			return 0, io.ErrClosedPipe
+		}
+	}
+}
+
+func (p *publicRetryResponsePump) Close() error {
+	if p == nil {
+		return nil
+	}
+	p.closeOnce.Do(func() {
+		close(p.done)
+		if p.source != nil {
+			p.closeErr = p.source.Close()
+		}
+	})
+	return p.closeErr
+}
+
 func (b *joinedRequestBody) Close() error {
 	if b == nil || b.closer == nil {
 		return nil
@@ -378,29 +494,26 @@ func preparePublicRetryResponseBody(app *App, req *http.Request, resp *http.Resp
 	if !ok {
 		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: "response_buffer_budget_exhausted"}, nil
 	}
-	prefix, complete, overflow, overflowErr, err := readPublicRetryResponseBody(resp.Body, resp.ContentLength, limit)
+	wait := rule.MaxBufferedResponseWait
+	if wait <= 0 {
+		wait = time.Duration(defaultPublicRetryResponseWaitMillis) * time.Millisecond
+	}
+	prefix, complete, tail, pump, skipReason, err := readPublicRetryResponseBodyBeforeDeadline(req.Context(), resp.Body, resp.ContentLength, limit, wait)
 	if err != nil {
-		_ = resp.Body.Close()
 		release()
 		return publicRetryPreparedResponseBody{}, err
 	}
 	if !complete {
-		readers := []io.Reader{bytes.NewReader(prefix), bytes.NewReader(overflow)}
-		if overflowErr != nil && overflowErr != io.EOF {
-			readers = append(readers, publicRetryResponseErrorReader{err: overflowErr})
-		} else {
-			readers = append(readers, resp.Body)
-		}
+		readers := []io.Reader{bytes.NewReader(prefix), tail}
 		return publicRetryPreparedResponseBody{
 			body: &publicRetryPrefixedResponseBody{
 				reader:  io.MultiReader(readers...),
-				source:  resp.Body,
+				source:  pump,
 				release: release,
 			},
-			skipReason: "response_body_too_large",
+			skipReason: skipReason,
 		}, nil
 	}
-	_ = resp.Body.Close()
 	return publicRetryPreparedResponseBody{
 		body: &publicRetryBufferedResponseBody{
 			reader:  bytes.NewReader(prefix),
@@ -408,6 +521,85 @@ func preparePublicRetryResponseBody(app *App, req *http.Request, resp *http.Resp
 		},
 		complete: true,
 	}, nil
+}
+
+func readPublicRetryResponseBodyBeforeDeadline(
+	ctx context.Context,
+	body io.ReadCloser,
+	contentLength int64,
+	limit int64,
+	wait time.Duration,
+) (prefix []byte, complete bool, tail io.Reader, pump *publicRetryResponsePump, skipReason string, err error) {
+	if body == nil || body == http.NoBody || limit <= 0 {
+		if body != nil {
+			_ = body.Close()
+		}
+		return nil, true, nil, nil, "", nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if wait <= 0 {
+		wait = time.Duration(defaultPublicRetryResponseWaitMillis) * time.Millisecond
+	}
+	capacity := limit
+	if contentLength >= 0 && contentLength < capacity {
+		capacity = contentLength
+	}
+	prefix = make([]byte, 0, int(capacity))
+	pump = newPublicRetryResponsePump(body)
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+
+	for {
+		var chunk publicRetryResponseChunk
+		select {
+		case <-ctx.Done():
+			_ = pump.Close()
+			return nil, false, nil, nil, "", ctx.Err()
+		case <-timer.C:
+			// If completion raced the deadline, prefer the already available
+			// terminal chunk over an unnecessary streaming fallback.
+			select {
+			case chunk = <-pump.chunks:
+			default:
+				return prefix, false, pump, pump, "response_buffer_wait_exceeded", nil
+			}
+		case chunk = <-pump.chunks:
+		}
+		if len(chunk.data) > 0 {
+			if contentLength >= 0 && int64(len(prefix)+len(chunk.data)) > contentLength {
+				_ = pump.Close()
+				return nil, false, nil, nil, "", errors.New("upstream response body exceeded Content-Length")
+			}
+			remaining := limit - int64(len(prefix))
+			if int64(len(chunk.data)) > remaining {
+				prefix = append(prefix, chunk.data[:int(remaining)]...)
+				readers := []io.Reader{bytes.NewReader(chunk.data[int(remaining):])}
+				switch {
+				case chunk.err == nil:
+					readers = append(readers, pump)
+				case !errors.Is(chunk.err, io.EOF) || errors.Is(chunk.err, errAgentDisconnected):
+					readers = append(readers, publicRetryResponseErrorReader{err: chunk.err})
+				}
+				return prefix, false, io.MultiReader(readers...), pump, "response_body_too_large", nil
+			}
+			prefix = append(prefix, chunk.data...)
+		}
+		if chunk.err == nil {
+			continue
+		}
+		if errors.Is(chunk.err, io.EOF) && !errors.Is(chunk.err, errAgentDisconnected) {
+			if contentLength >= 0 && int64(len(prefix)) != contentLength {
+				_ = pump.Close()
+				return nil, false, nil, nil, "", io.ErrUnexpectedEOF
+			}
+			_ = pump.Close()
+			return prefix, true, nil, nil, "", nil
+		}
+		_ = pump.Close()
+		return nil, false, nil, nil, "", chunk.err
+	}
 }
 
 // readPublicRetryResponseBody bounds allocations by the acquired replay
@@ -507,14 +699,14 @@ func publicRetryResponseBodyErrorKind(err error) string {
 	if err == nil {
 		return ""
 	}
+	if errors.Is(err, errAgentDisconnected) {
+		return "agent_disconnected_during_response"
+	}
 	if errors.Is(err, io.ErrUnexpectedEOF) {
 		return "upstream_response_body_truncated"
 	}
 	if isTimeoutError(err) {
 		return "upstream_response_body_timeout"
-	}
-	if errors.Is(err, errAgentDisconnected) {
-		return "agent_disconnected_during_response"
 	}
 	return "upstream_response_body_failed"
 }
@@ -739,6 +931,12 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			resp.Body = prepared.body
 			if prepared.complete {
 				return finishBufferedResponse(resp, releaseActiveRequest, attempt, outcome), nil
+			}
+			if rt.result.ReplaySkippedReason == "" && rt.rule != nil && normalizePublicRetryResponseBodyMode(rt.rule.ResponseBodyMode) == publicRetryResponseBodyModeBuffered && prepared.skipReason != "" && prepared.skipReason != "response_body_absent" {
+				rt.result.ReplaySkippedReason = prepared.skipReason
+				if outcome == "" {
+					outcome = publicRetryOutcomeSkipped
+				}
 			}
 			rt.observeStreamingResponseBody(req, resp, agent, attempt, prepared.skipReason)
 			return finishResponse(resp, releaseActiveRequest, attempt, outcome), nil

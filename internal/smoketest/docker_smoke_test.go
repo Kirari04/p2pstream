@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -28,6 +29,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
@@ -140,22 +143,32 @@ func TestDockerSmoke(t *testing.T) {
 		retryRule := createAgentDisconnectRetryRule(ctx, t, client, cookie, retryRoute.GetId())
 
 		type retryAssetScenario struct {
-			path       string
-			asset      string
-			compressed bool
+			path          string
+			asset         string
+			encoding      string
+			bodyStarted   bool
+			expectTrailer bool
 		}
 		assets := []retryAssetScenario{
 			{path: "/retry-assets/app.js", asset: "app.js"},
 			{path: "/retry-assets/vendor.js", asset: "vendor.js"},
 			{path: "/retry-assets/site.css", asset: "site.css"},
-			{path: "/retry-response-assets/document.html", asset: "document.html"},
-			{path: "/retry-response-assets/archive.bin", asset: "archive.bin", compressed: true},
+			{path: "/retry-response-assets/document.html", asset: "document.html", bodyStarted: true},
+			{path: "/retry-response-assets/identity.chunked.html", asset: "identity.chunked.html", bodyStarted: true},
+			{path: "/retry-response-assets/archive.gzip.bin", asset: "archive.gzip.bin", encoding: "gzip", bodyStarted: true},
+			{path: "/retry-response-assets/styles.deflate.bin", asset: "styles.deflate.bin", encoding: "deflate", bodyStarted: true},
+			{path: "/retry-response-assets/font.br.bin", asset: "font.br.bin", encoding: "br", bodyStarted: true},
+			{path: "/retry-response-assets/bundle.zstd.bin", asset: "bundle.zstd.bin", encoding: "zstd", bodyStarted: true},
+			{path: "/retry-response-assets/combo.stacked.bin", asset: "combo.stacked.bin", encoding: "gzip, zstd", bodyStarted: true},
+			{path: "/retry-response-assets/metadata.trailers.chunked.html", asset: "metadata.trailers.chunked.html", bodyStarted: true, expectTrailer: true},
+			{path: "/retry-close-delimited/report.txt", asset: "report.txt", bodyStarted: true},
 		}
 		type requestResult struct {
 			scenario retryAssetScenario
 			status   int
 			body     []byte
 			encoding string
+			trailer  string
 			attempt  string
 			err      error
 		}
@@ -174,7 +187,7 @@ func TestDockerSmoke(t *testing.T) {
 					resultCh <- requestResult{scenario: scenario, err: err}
 					return
 				}
-				req.Header.Set("Accept-Encoding", "gzip")
+				req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
 				resp, err := requestClient.Do(req)
 				if err != nil {
 					resultCh <- requestResult{scenario: scenario, err: err}
@@ -187,13 +200,20 @@ func TestDockerSmoke(t *testing.T) {
 					status:   resp.StatusCode,
 					body:     body,
 					encoding: resp.Header.Get("Content-Encoding"),
+					trailer:  resp.Trailer.Get("X-Smoke-Trailer"),
 					attempt:  resp.Header.Get("X-Smoke-Upstream-Attempt"),
 					err:      readErr,
 				}
 			}(scenario)
 		}
 
-		waitRetryAssetState(t, upstreamURL, len(assets), 2)
+		startedBodies := 0
+		for _, scenario := range assets {
+			if scenario.bodyStarted {
+				startedBodies++
+			}
+		}
+		waitRetryAssetState(t, upstreamURL, len(assets), startedBodies)
 		startSmokeAgent(t, controlDir, "retry-backup")
 		waitAgentConnectionState(ctx, t, client, cookie, backup.GetPublicId(), true)
 		rotateSmokeAgentToken(ctx, t, client, cookie, primary.GetId())
@@ -211,33 +231,29 @@ func TestDockerSmoke(t *testing.T) {
 			if result.status != http.StatusOK {
 				t.Fatalf("asset %q request status = %d, want 200; body=%q", result.scenario.asset, result.status, result.body)
 			}
-			body := result.body
-			if result.scenario.compressed {
-				if result.encoding != "gzip" {
-					t.Fatalf("asset %q content encoding = %q, want gzip", result.scenario.asset, result.encoding)
-				}
-				reader, err := gzip.NewReader(bytes.NewReader(body))
-				if err != nil {
-					t.Fatalf("asset %q gzip header after failover: %v", result.scenario.asset, err)
-				}
-				body, err = io.ReadAll(reader)
-				closeErr := reader.Close()
-				if err != nil || closeErr != nil {
-					t.Fatalf("asset %q gzip body after failover: read=%v close=%v", result.scenario.asset, err, closeErr)
-				}
-			} else if result.encoding != "" {
-				t.Fatalf("asset %q content encoding = %q, want identity", result.scenario.asset, result.encoding)
+			if result.encoding != result.scenario.encoding {
+				t.Fatalf("asset %q content encoding = %q, want %q", result.scenario.asset, result.encoding, result.scenario.encoding)
+			}
+			body, err := decodeSmokeContent(result.body, result.encoding)
+			if err != nil {
+				t.Fatalf("asset %q decode %q after failover: %v", result.scenario.asset, result.encoding, err)
 			}
 			if wantBody := result.scenario.asset + " recovered\n"; string(body) != wantBody {
 				t.Fatalf("asset %q request body = %q, want %q", result.scenario.asset, body, wantBody)
+			}
+			if result.scenario.expectTrailer && result.trailer != "complete" {
+				t.Fatalf("asset %q trailer = %q, want complete", result.scenario.asset, result.trailer)
+			}
+			if !result.scenario.expectTrailer && result.trailer != "" {
+				t.Fatalf("asset %q unexpected trailer = %q", result.scenario.asset, result.trailer)
 			}
 			if result.attempt != "2" {
 				t.Fatalf("asset %q response upstream attempt = %q, want 2", result.scenario.asset, result.attempt)
 			}
 		}
-		waitRetryAssetState(t, upstreamURL, 2*len(assets), 2)
+		waitRetryAssetState(t, upstreamURL, 2*len(assets), startedBodies)
 		waitRetryRuleRecovered(ctx, t, client, cookie, retryRule.GetId(), int64(len(assets)))
-		waitRetryErrorKinds(ctx, t, client, cookie, "upstream_response_body_truncated")
+		waitRetryErrorKinds(ctx, t, client, cookie, "agent_disconnected_during_response")
 
 		updateAgentLabels(ctx, t, client, cookie, dockerAgent, retryLabels)
 		waitAgentConnectionState(ctx, t, client, cookie, dockerAgent.GetPublicId(), true)
@@ -323,18 +339,19 @@ func createAgentDisconnectRetryRule(
 ) *p2pstreamv1.PublicRetryRule {
 	t.Helper()
 	req := connect.NewRequest(&p2pstreamv1.CreatePublicRetryRuleRequest{
-		Name:                         "docker-agent-disconnect-retry",
-		Priority:                     1,
-		Enabled:                      true,
-		Methods:                      []string{http.MethodGet},
-		MaxRetries:                   1,
-		FailureMode:                  p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
-		BodyMode:                     p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
-		ResponseBodyMode:             p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED,
-		MaxBufferedResponseBodyBytes: 1024 * 1024,
-		RetryStatusCodes:             []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
-		RouteIds:                     []int64{routeID},
-		DuplicateRiskAcknowledged:    true,
+		Name:                          "docker-agent-disconnect-retry",
+		Priority:                      1,
+		Enabled:                       true,
+		Methods:                       []string{http.MethodGet},
+		MaxRetries:                    1,
+		FailureMode:                   p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
+		BodyMode:                      p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		ResponseBodyMode:              p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED,
+		MaxBufferedResponseBodyBytes:  1024 * 1024,
+		MaxBufferedResponseWaitMillis: 30_000,
+		RetryStatusCodes:              []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
+		RouteIds:                      []int64{routeID},
+		DuplicateRiskAcknowledged:     true,
 	})
 	req.Header().Set("Cookie", cookie)
 	resp, err := client.CreatePublicRetryRule(ctx, req)
@@ -845,6 +862,64 @@ func smokeRetryableStatus(t *testing.T, publicURL string, retryStatus int, asset
 	if want := fmt.Sprintf("%s recovered from %d\n", asset, retryStatus); string(body) != want {
 		t.Fatalf("retry HTTP status %d response body = %q, want %q", retryStatus, body, want)
 	}
+}
+
+func decodeSmokeContent(encoded []byte, contentEncoding string) ([]byte, error) {
+	decoded := encoded
+	codings := strings.Split(contentEncoding, ",")
+	for index := len(codings) - 1; index >= 0; index-- {
+		coding := strings.ToLower(strings.TrimSpace(codings[index]))
+		if coding == "" || coding == "identity" {
+			continue
+		}
+		switch coding {
+		case "gzip":
+			reader, err := gzip.NewReader(bytes.NewReader(decoded))
+			if err != nil {
+				return nil, err
+			}
+			decoded, err = io.ReadAll(reader)
+			closeErr := reader.Close()
+			if err != nil {
+				return nil, err
+			}
+			if closeErr != nil {
+				return nil, closeErr
+			}
+		case "deflate":
+			reader, err := zlib.NewReader(bytes.NewReader(decoded))
+			if err != nil {
+				return nil, err
+			}
+			decoded, err = io.ReadAll(reader)
+			closeErr := reader.Close()
+			if err != nil {
+				return nil, err
+			}
+			if closeErr != nil {
+				return nil, closeErr
+			}
+		case "br":
+			var err error
+			decoded, err = io.ReadAll(brotli.NewReader(bytes.NewReader(decoded)))
+			if err != nil {
+				return nil, err
+			}
+		case "zstd":
+			decoder, err := zstd.NewReader(nil)
+			if err != nil {
+				return nil, err
+			}
+			decoded, err = decoder.DecodeAll(decoded, nil)
+			decoder.Close()
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unsupported content coding %q", coding)
+		}
+	}
+	return decoded, nil
 }
 
 func waitRetryRuleRecovered(

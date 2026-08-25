@@ -21444,8 +21444,11 @@ type PublicRetryRule struct {
 	RetryStatusCodes             []int64                     `protobuf:"varint,15,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
 	ResponseBodyMode             PublicRetryResponseBodyMode `protobuf:"varint,16,opt,name=response_body_mode,json=responseBodyMode,proto3,enum=p2pstream.v1.PublicRetryResponseBodyMode" json:"response_body_mode,omitempty"`
 	MaxBufferedResponseBodyBytes int64                       `protobuf:"varint,17,opt,name=max_buffered_response_body_bytes,json=maxBufferedResponseBodyBytes,proto3" json:"max_buffered_response_body_bytes,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// Maximum time spent waiting for a protected response to complete before
+	// falling back to normal streaming delivery.
+	MaxBufferedResponseWaitMillis int64 `protobuf:"varint,18,opt,name=max_buffered_response_wait_millis,json=maxBufferedResponseWaitMillis,proto3" json:"max_buffered_response_wait_millis,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *PublicRetryRule) Reset() {
@@ -21597,6 +21600,13 @@ func (x *PublicRetryRule) GetMaxBufferedResponseBodyBytes() int64 {
 	return 0
 }
 
+func (x *PublicRetryRule) GetMaxBufferedResponseWaitMillis() int64 {
+	if x != nil {
+		return x.MaxBufferedResponseWaitMillis
+	}
+	return 0
+}
+
 type CreatePublicRetryRuleRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -21615,11 +21625,12 @@ type CreatePublicRetryRuleRequest struct {
 	// or when it includes methods with side effects.
 	DuplicateRiskAcknowledged bool `protobuf:"varint,12,opt,name=duplicate_risk_acknowledged,json=duplicateRiskAcknowledged,proto3" json:"duplicate_risk_acknowledged,omitempty"`
 	// Exact 400-599 upstream response statuses that trigger another attempt.
-	RetryStatusCodes             []int64                     `protobuf:"varint,13,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
-	ResponseBodyMode             PublicRetryResponseBodyMode `protobuf:"varint,14,opt,name=response_body_mode,json=responseBodyMode,proto3,enum=p2pstream.v1.PublicRetryResponseBodyMode" json:"response_body_mode,omitempty"`
-	MaxBufferedResponseBodyBytes int64                       `protobuf:"varint,15,opt,name=max_buffered_response_body_bytes,json=maxBufferedResponseBodyBytes,proto3" json:"max_buffered_response_body_bytes,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	RetryStatusCodes              []int64                     `protobuf:"varint,13,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
+	ResponseBodyMode              PublicRetryResponseBodyMode `protobuf:"varint,14,opt,name=response_body_mode,json=responseBodyMode,proto3,enum=p2pstream.v1.PublicRetryResponseBodyMode" json:"response_body_mode,omitempty"`
+	MaxBufferedResponseBodyBytes  int64                       `protobuf:"varint,15,opt,name=max_buffered_response_body_bytes,json=maxBufferedResponseBodyBytes,proto3" json:"max_buffered_response_body_bytes,omitempty"`
+	MaxBufferedResponseWaitMillis int64                       `protobuf:"varint,16,opt,name=max_buffered_response_wait_millis,json=maxBufferedResponseWaitMillis,proto3" json:"max_buffered_response_wait_millis,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *CreatePublicRetryRuleRequest) Reset() {
@@ -21757,6 +21768,13 @@ func (x *CreatePublicRetryRuleRequest) GetMaxBufferedResponseBodyBytes() int64 {
 	return 0
 }
 
+func (x *CreatePublicRetryRuleRequest) GetMaxBufferedResponseWaitMillis() int64 {
+	if x != nil {
+		return x.MaxBufferedResponseWaitMillis
+	}
+	return 0
+}
+
 type CreatePublicRetryRuleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rule          *PublicRetryRule       `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
@@ -21820,11 +21838,12 @@ type UpdatePublicRetryRuleRequest struct {
 	// or when it includes methods with side effects.
 	DuplicateRiskAcknowledged bool `protobuf:"varint,13,opt,name=duplicate_risk_acknowledged,json=duplicateRiskAcknowledged,proto3" json:"duplicate_risk_acknowledged,omitempty"`
 	// Exact 400-599 upstream response statuses that trigger another attempt.
-	RetryStatusCodes             []int64                     `protobuf:"varint,14,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
-	ResponseBodyMode             PublicRetryResponseBodyMode `protobuf:"varint,15,opt,name=response_body_mode,json=responseBodyMode,proto3,enum=p2pstream.v1.PublicRetryResponseBodyMode" json:"response_body_mode,omitempty"`
-	MaxBufferedResponseBodyBytes int64                       `protobuf:"varint,16,opt,name=max_buffered_response_body_bytes,json=maxBufferedResponseBodyBytes,proto3" json:"max_buffered_response_body_bytes,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	RetryStatusCodes              []int64                     `protobuf:"varint,14,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
+	ResponseBodyMode              PublicRetryResponseBodyMode `protobuf:"varint,15,opt,name=response_body_mode,json=responseBodyMode,proto3,enum=p2pstream.v1.PublicRetryResponseBodyMode" json:"response_body_mode,omitempty"`
+	MaxBufferedResponseBodyBytes  int64                       `protobuf:"varint,16,opt,name=max_buffered_response_body_bytes,json=maxBufferedResponseBodyBytes,proto3" json:"max_buffered_response_body_bytes,omitempty"`
+	MaxBufferedResponseWaitMillis int64                       `protobuf:"varint,17,opt,name=max_buffered_response_wait_millis,json=maxBufferedResponseWaitMillis,proto3" json:"max_buffered_response_wait_millis,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *UpdatePublicRetryRuleRequest) Reset() {
@@ -21965,6 +21984,13 @@ func (x *UpdatePublicRetryRuleRequest) GetResponseBodyMode() PublicRetryResponse
 func (x *UpdatePublicRetryRuleRequest) GetMaxBufferedResponseBodyBytes() int64 {
 	if x != nil {
 		return x.MaxBufferedResponseBodyBytes
+	}
+	return 0
+}
+
+func (x *UpdatePublicRetryRuleRequest) GetMaxBufferedResponseWaitMillis() int64 {
+	if x != nil {
+		return x.MaxBufferedResponseWaitMillis
 	}
 	return 0
 }
@@ -23775,7 +23801,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x17PublicCacheStorageStats\x12&\n" +
 	"\x0fdisk_bytes_used\x18\x01 \x01(\x03R\rdiskBytesUsed\x12*\n" +
 	"\x11memory_bytes_used\x18\x02 \x01(\x03R\x0fmemoryBytesUsed\x12!\n" +
-	"\fentries_used\x18\x03 \x01(\x03R\ventriesUsed\"\x9b\x06\n" +
+	"\fentries_used\x18\x03 \x01(\x03R\ventriesUsed\"\xe5\x06\n" +
 	"\x0fPublicRetryRule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -23797,7 +23823,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x16updated_at_unix_millis\x18\x0e \x01(\x03R\x13updatedAtUnixMillis\x12,\n" +
 	"\x12retry_status_codes\x18\x0f \x03(\x03R\x10retryStatusCodes\x12W\n" +
 	"\x12response_body_mode\x18\x10 \x01(\x0e2).p2pstream.v1.PublicRetryResponseBodyModeR\x10responseBodyMode\x12F\n" +
-	" max_buffered_response_body_bytes\x18\x11 \x01(\x03R\x1cmaxBufferedResponseBodyBytes\"\xee\x05\n" +
+	" max_buffered_response_body_bytes\x18\x11 \x01(\x03R\x1cmaxBufferedResponseBodyBytes\x12H\n" +
+	"!max_buffered_response_wait_millis\x18\x12 \x01(\x03R\x1dmaxBufferedResponseWaitMillis\"\xb8\x06\n" +
 	"\x1cCreatePublicRetryRuleRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bpriority\x18\x02 \x01(\x03R\bpriority\x12\x18\n" +
@@ -23817,9 +23844,10 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x1bduplicate_risk_acknowledged\x18\f \x01(\bR\x19duplicateRiskAcknowledged\x12,\n" +
 	"\x12retry_status_codes\x18\r \x03(\x03R\x10retryStatusCodes\x12W\n" +
 	"\x12response_body_mode\x18\x0e \x01(\x0e2).p2pstream.v1.PublicRetryResponseBodyModeR\x10responseBodyMode\x12F\n" +
-	" max_buffered_response_body_bytes\x18\x0f \x01(\x03R\x1cmaxBufferedResponseBodyBytes\"R\n" +
+	" max_buffered_response_body_bytes\x18\x0f \x01(\x03R\x1cmaxBufferedResponseBodyBytes\x12H\n" +
+	"!max_buffered_response_wait_millis\x18\x10 \x01(\x03R\x1dmaxBufferedResponseWaitMillis\"R\n" +
 	"\x1dCreatePublicRetryRuleResponse\x121\n" +
-	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicRetryRuleR\x04rule\"\xfe\x05\n" +
+	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicRetryRuleR\x04rule\"\xc8\x06\n" +
 	"\x1cUpdatePublicRetryRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -23840,7 +23868,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x1bduplicate_risk_acknowledged\x18\r \x01(\bR\x19duplicateRiskAcknowledged\x12,\n" +
 	"\x12retry_status_codes\x18\x0e \x03(\x03R\x10retryStatusCodes\x12W\n" +
 	"\x12response_body_mode\x18\x0f \x01(\x0e2).p2pstream.v1.PublicRetryResponseBodyModeR\x10responseBodyMode\x12F\n" +
-	" max_buffered_response_body_bytes\x18\x10 \x01(\x03R\x1cmaxBufferedResponseBodyBytes\"R\n" +
+	" max_buffered_response_body_bytes\x18\x10 \x01(\x03R\x1cmaxBufferedResponseBodyBytes\x12H\n" +
+	"!max_buffered_response_wait_millis\x18\x11 \x01(\x03R\x1dmaxBufferedResponseWaitMillis\"R\n" +
 	"\x1dUpdatePublicRetryRuleResponse\x121\n" +
 	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicRetryRuleR\x04rule\".\n" +
 	"\x1cDeletePublicRetryRuleRequest\x12\x0e\n" +

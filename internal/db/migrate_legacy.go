@@ -809,7 +809,8 @@ func (db *DB) migrateLegacyPublicPolicyTables() error {
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			retry_status_codes_json TEXT NOT NULL DEFAULT '[]',
 			response_body_mode TEXT NOT NULL DEFAULT 'stream',
-			max_buffered_response_body_bytes INTEGER NOT NULL DEFAULT 0
+			max_buffered_response_body_bytes INTEGER NOT NULL DEFAULT 0,
+			max_buffered_response_wait_millis INTEGER NOT NULL DEFAULT 30000
 		)
 	`); err != nil {
 		return err
@@ -818,6 +819,7 @@ func (db *DB) migrateLegacyPublicPolicyTables() error {
 		`ALTER TABLE public_retry_rules ADD COLUMN retry_status_codes_json TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE public_retry_rules ADD COLUMN response_body_mode TEXT NOT NULL DEFAULT 'stream'`,
 		`ALTER TABLE public_retry_rules ADD COLUMN max_buffered_response_body_bytes INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE public_retry_rules ADD COLUMN max_buffered_response_wait_millis INTEGER NOT NULL DEFAULT 30000`,
 	); err != nil {
 		return err
 	}

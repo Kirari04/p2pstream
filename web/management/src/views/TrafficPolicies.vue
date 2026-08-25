@@ -552,7 +552,8 @@ function retryBodyModeLabel(rule: PublicRetryRule): string {
 
 function retryResponseBodyModeLabel(rule: PublicRetryRule): string {
   if (rule.responseBodyMode !== PublicRetryResponseBodyMode.BUFFERED) return "Response streaming";
-  return `Protect response ≤ ${bytesToKiB(rule.maxBufferedResponseBodyBytes).toLocaleString()} KiB`;
+  const waitSeconds = Math.max(1, Math.round(Number(rule.maxBufferedResponseWaitMillis || 30000n) / 1000));
+  return `Protect response ≤ ${bytesToKiB(rule.maxBufferedResponseBodyBytes).toLocaleString()} KiB / ${waitSeconds.toLocaleString()} s`;
 }
 
 function retryStatusSummary(rule: PublicRetryRule): string {

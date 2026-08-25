@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"compress/zlib"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
@@ -21,6 +22,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 )
 
 const websocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -55,6 +59,7 @@ func main() {
 	mux.HandleFunc("/close-early", closeEarlyHandler)
 	mux.HandleFunc("/retry-assets/", retryAssetHandler)
 	mux.HandleFunc("/retry-response-assets/", retryResponseAssetHandler)
+	mux.HandleFunc("/retry-close-delimited/", retryCloseDelimitedAssetHandler)
 	mux.HandleFunc("/retry-asset-status", retryAssetStatusHandler)
 	mux.HandleFunc("/retry-status/", retryStatusHandler)
 	mux.HandleFunc("/health", healthHandler)
@@ -218,25 +223,23 @@ func retryResponseAssetHandler(w http.ResponseWriter, r *http.Request) {
 
 	asset := strings.TrimPrefix(r.URL.Path, "/retry-response-assets/")
 	payload := []byte(asset + " recovered\n")
-	contentType := "text/html; charset=utf-8"
-	encoded := payload
-	if strings.HasSuffix(asset, ".bin") {
-		contentType = "application/octet-stream"
-		var compressed bytes.Buffer
-		writer := gzip.NewWriter(&compressed)
-		if _, err := writer.Write(payload); err != nil {
-			http.Error(w, "compress response", http.StatusInternalServerError)
-			return
-		}
-		if err := writer.Close(); err != nil {
-			http.Error(w, "close compressed response", http.StatusInternalServerError)
-			return
-		}
-		encoded = compressed.Bytes()
-		w.Header().Set("Content-Encoding", "gzip")
+	contentType, contentEncoding, encoded, err := encodeRetryResponseAsset(asset, payload)
+	if err != nil {
+		http.Error(w, "encode response: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", strconv.Itoa(len(encoded)))
+	if contentEncoding != "" {
+		w.Header().Set("Content-Encoding", contentEncoding)
+	}
+	chunked := strings.Contains(asset, ".chunked.")
+	if !chunked {
+		w.Header().Set("Content-Length", strconv.Itoa(len(encoded)))
+	}
+	trailers := strings.Contains(asset, ".trailers.")
+	if trailers {
+		w.Header().Add("Trailer", "X-Smoke-Trailer")
+	}
 	w.Header().Set("X-Smoke-Upstream-Attempt", strconv.Itoa(attempt))
 
 	if attempt == 1 {
@@ -260,6 +263,117 @@ func retryResponseAssetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write(encoded)
+	if trailers {
+		w.Header().Set("X-Smoke-Trailer", "complete")
+	}
+}
+
+func encodeRetryResponseAsset(asset string, payload []byte) (contentType string, contentEncoding string, encoded []byte, err error) {
+	contentType = "application/octet-stream"
+	if strings.HasSuffix(asset, ".html") {
+		contentType = "text/html; charset=utf-8"
+	}
+	encoded = payload
+	encodeGzip := func(input []byte) ([]byte, error) {
+		var compressed bytes.Buffer
+		writer := gzip.NewWriter(&compressed)
+		if _, err := writer.Write(input); err != nil {
+			return nil, err
+		}
+		if err := writer.Close(); err != nil {
+			return nil, err
+		}
+		return compressed.Bytes(), nil
+	}
+
+	switch {
+	case strings.Contains(asset, ".stacked."):
+		encoded, err = encodeGzip(payload)
+		if err == nil {
+			var encoder *zstd.Encoder
+			encoder, err = zstd.NewWriter(nil)
+			if err == nil {
+				encoded = encoder.EncodeAll(encoded, nil)
+				encoder.Close()
+			}
+		}
+		contentEncoding = "gzip, zstd"
+	case strings.Contains(asset, ".gzip."):
+		encoded, err = encodeGzip(payload)
+		contentEncoding = "gzip"
+	case strings.Contains(asset, ".deflate."):
+		var compressed bytes.Buffer
+		writer := zlib.NewWriter(&compressed)
+		if _, err = writer.Write(payload); err == nil {
+			err = writer.Close()
+		} else {
+			_ = writer.Close()
+		}
+		encoded = compressed.Bytes()
+		contentEncoding = "deflate"
+	case strings.Contains(asset, ".br."):
+		var compressed bytes.Buffer
+		writer := brotli.NewWriter(&compressed)
+		if _, err = writer.Write(payload); err == nil {
+			err = writer.Close()
+		} else {
+			_ = writer.Close()
+		}
+		encoded = compressed.Bytes()
+		contentEncoding = "br"
+	case strings.Contains(asset, ".zstd."):
+		var encoder *zstd.Encoder
+		encoder, err = zstd.NewWriter(nil)
+		if err == nil {
+			encoded = encoder.EncodeAll(payload, nil)
+			encoder.Close()
+		}
+		contentEncoding = "zstd"
+	}
+	return contentType, contentEncoding, encoded, err
+}
+
+func retryCloseDelimitedAssetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	retryAsset.mu.Lock()
+	retryAsset.totalAttempts++
+	retryAsset.attemptsByPath[r.URL.Path]++
+	attempt := retryAsset.attemptsByPath[r.URL.Path]
+	retryAsset.mu.Unlock()
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "hijack unsupported", http.StatusInternalServerError)
+		return
+	}
+	conn, rw, err := hijacker.Hijack()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	asset := strings.TrimPrefix(r.URL.Path, "/retry-close-delimited/")
+	payload := []byte(asset + " recovered\n")
+	_, _ = fmt.Fprintf(rw, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\nX-Smoke-Upstream-Attempt: %d\r\n\r\n", attempt)
+	if attempt == 1 {
+		partialLength := len(payload) / 2
+		if partialLength < 1 {
+			partialLength = 1
+		}
+		_, _ = rw.Write(payload[:partialLength])
+		_ = rw.Flush()
+		retryAsset.mu.Lock()
+		retryAsset.responseBodiesStarted++
+		retryAsset.mu.Unlock()
+		_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		_, _ = rw.ReadByte()
+		return
+	}
+	_, _ = rw.Write(payload)
+	_ = rw.Flush()
 }
 
 func retryAssetStatusHandler(w http.ResponseWriter, r *http.Request) {

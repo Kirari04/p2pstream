@@ -766,30 +766,31 @@ const createPublicRetryRule = `-- name: CreatePublicRetryRule :one
 INSERT INTO public_retry_rules (
     name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
     max_replay_body_bytes, retry_status_codes_json, route_ids_json, target_ids_json, match_json,
-    response_body_mode, max_buffered_response_body_bytes
+    response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
           max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-          response_body_mode, max_buffered_response_body_bytes
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 `
 
 type CreatePublicRetryRuleParams struct {
-	Name                         string `json:"name"`
-	Priority                     int64  `json:"priority"`
-	Enabled                      int64  `json:"enabled"`
-	MethodsJson                  string `json:"methods_json"`
-	MaxRetries                   int64  `json:"max_retries"`
-	FailureMode                  string `json:"failure_mode"`
-	BodyMode                     string `json:"body_mode"`
-	MaxReplayBodyBytes           int64  `json:"max_replay_body_bytes"`
-	RetryStatusCodesJson         string `json:"retry_status_codes_json"`
-	RouteIdsJson                 string `json:"route_ids_json"`
-	TargetIdsJson                string `json:"target_ids_json"`
-	MatchJson                    string `json:"match_json"`
-	ResponseBodyMode             string `json:"response_body_mode"`
-	MaxBufferedResponseBodyBytes int64  `json:"max_buffered_response_body_bytes"`
+	Name                          string `json:"name"`
+	Priority                      int64  `json:"priority"`
+	Enabled                       int64  `json:"enabled"`
+	MethodsJson                   string `json:"methods_json"`
+	MaxRetries                    int64  `json:"max_retries"`
+	FailureMode                   string `json:"failure_mode"`
+	BodyMode                      string `json:"body_mode"`
+	MaxReplayBodyBytes            int64  `json:"max_replay_body_bytes"`
+	RetryStatusCodesJson          string `json:"retry_status_codes_json"`
+	RouteIdsJson                  string `json:"route_ids_json"`
+	TargetIdsJson                 string `json:"target_ids_json"`
+	MatchJson                     string `json:"match_json"`
+	ResponseBodyMode              string `json:"response_body_mode"`
+	MaxBufferedResponseBodyBytes  int64  `json:"max_buffered_response_body_bytes"`
+	MaxBufferedResponseWaitMillis int64  `json:"max_buffered_response_wait_millis"`
 }
 
 func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRetryRuleParams) (PublicRetryRule, error) {
@@ -808,6 +809,7 @@ func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRet
 		arg.MatchJson,
 		arg.ResponseBodyMode,
 		arg.MaxBufferedResponseBodyBytes,
+		arg.MaxBufferedResponseWaitMillis,
 	)
 	var i PublicRetryRule
 	err := row.Scan(
@@ -828,6 +830,7 @@ func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRet
 		&i.RetryStatusCodesJson,
 		&i.ResponseBodyMode,
 		&i.MaxBufferedResponseBodyBytes,
+		&i.MaxBufferedResponseWaitMillis,
 	)
 	return i, err
 }
@@ -2971,7 +2974,7 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 const getPublicRetryRule = `-- name: GetPublicRetryRule :one
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
        max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-       response_body_mode, max_buffered_response_body_bytes
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 WHERE id = ?
 `
@@ -2997,6 +3000,7 @@ func (q *Queries) GetPublicRetryRule(ctx context.Context, id int64) (PublicRetry
 		&i.RetryStatusCodesJson,
 		&i.ResponseBodyMode,
 		&i.MaxBufferedResponseBodyBytes,
+		&i.MaxBufferedResponseWaitMillis,
 	)
 	return i, err
 }
@@ -5406,7 +5410,7 @@ func (q *Queries) ListPublicResponseTemplates(ctx context.Context) ([]PublicResp
 const listPublicRetryRules = `-- name: ListPublicRetryRules :many
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
        max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-       response_body_mode, max_buffered_response_body_bytes
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 ORDER BY priority ASC, id ASC
 `
@@ -5438,6 +5442,7 @@ func (q *Queries) ListPublicRetryRules(ctx context.Context) ([]PublicRetryRule, 
 			&i.RetryStatusCodesJson,
 			&i.ResponseBodyMode,
 			&i.MaxBufferedResponseBodyBytes,
+			&i.MaxBufferedResponseWaitMillis,
 		); err != nil {
 			return nil, err
 		}
@@ -8265,29 +8270,31 @@ SET name = ?,
     match_json = ?,
     response_body_mode = ?,
     max_buffered_response_body_bytes = ?,
+    max_buffered_response_wait_millis = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
           max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
-          response_body_mode, max_buffered_response_body_bytes
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 `
 
 type UpdatePublicRetryRuleParams struct {
-	Name                         string `json:"name"`
-	Priority                     int64  `json:"priority"`
-	Enabled                      int64  `json:"enabled"`
-	MethodsJson                  string `json:"methods_json"`
-	MaxRetries                   int64  `json:"max_retries"`
-	FailureMode                  string `json:"failure_mode"`
-	BodyMode                     string `json:"body_mode"`
-	MaxReplayBodyBytes           int64  `json:"max_replay_body_bytes"`
-	RetryStatusCodesJson         string `json:"retry_status_codes_json"`
-	RouteIdsJson                 string `json:"route_ids_json"`
-	TargetIdsJson                string `json:"target_ids_json"`
-	MatchJson                    string `json:"match_json"`
-	ResponseBodyMode             string `json:"response_body_mode"`
-	MaxBufferedResponseBodyBytes int64  `json:"max_buffered_response_body_bytes"`
-	ID                           int64  `json:"id"`
+	Name                          string `json:"name"`
+	Priority                      int64  `json:"priority"`
+	Enabled                       int64  `json:"enabled"`
+	MethodsJson                   string `json:"methods_json"`
+	MaxRetries                    int64  `json:"max_retries"`
+	FailureMode                   string `json:"failure_mode"`
+	BodyMode                      string `json:"body_mode"`
+	MaxReplayBodyBytes            int64  `json:"max_replay_body_bytes"`
+	RetryStatusCodesJson          string `json:"retry_status_codes_json"`
+	RouteIdsJson                  string `json:"route_ids_json"`
+	TargetIdsJson                 string `json:"target_ids_json"`
+	MatchJson                     string `json:"match_json"`
+	ResponseBodyMode              string `json:"response_body_mode"`
+	MaxBufferedResponseBodyBytes  int64  `json:"max_buffered_response_body_bytes"`
+	MaxBufferedResponseWaitMillis int64  `json:"max_buffered_response_wait_millis"`
+	ID                            int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRetryRuleParams) (PublicRetryRule, error) {
@@ -8306,6 +8313,7 @@ func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRet
 		arg.MatchJson,
 		arg.ResponseBodyMode,
 		arg.MaxBufferedResponseBodyBytes,
+		arg.MaxBufferedResponseWaitMillis,
 		arg.ID,
 	)
 	var i PublicRetryRule
@@ -8327,6 +8335,7 @@ func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRet
 		&i.RetryStatusCodesJson,
 		&i.ResponseBodyMode,
 		&i.MaxBufferedResponseBodyBytes,
+		&i.MaxBufferedResponseWaitMillis,
 	)
 	return i, err
 }
