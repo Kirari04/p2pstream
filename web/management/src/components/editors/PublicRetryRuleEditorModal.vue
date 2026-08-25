@@ -271,13 +271,13 @@ function sameNumbers(left: readonly number[], right: readonly number[]): boolean
 function statusCodesValidationReason(): string {
   if (form.statusPreset !== "custom") return "";
   if (!form.customStatusCodes.length) return "Add at least one HTTP status code or choose Transport only.";
-  if (form.customStatusCodes.length > 64) return "Add at most 64 HTTP status codes.";
   for (const raw of form.customStatusCodes) {
     const value = Number(raw.trim());
     if (!Number.isInteger(value) || value < 400 || value > 599) {
       return `Status ${raw || "(empty)"} must be a whole number between 400 and 599.`;
     }
   }
+  if (normalizeStatusCodes(form.customStatusCodes).length > 64) return "Add at most 64 unique HTTP status codes.";
   return "";
 }
 
