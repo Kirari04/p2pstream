@@ -59,6 +59,10 @@ func TestDockerSmoke(t *testing.T) {
 	cfg = getPublicProxyConfig(ctx, t, client, cookie)
 	defaultListener := requireListener(t, cfg, "public-http")
 	upsertDefaultRouteTarget(ctx, t, client, cookie, cfg, defaultListener.GetId(), "default", proxyTarget("default-direct", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT, "", 60000))
+	cfg = getPublicProxyConfig(ctx, t, client, cookie)
+	httpsListener := requireListener(t, cfg, "public-https")
+	upsertDefaultRouteTarget(ctx, t, client, cookie, cfg, httpsListener.GetId(), "default-https", proxyTarget("default-https-direct", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT, "", 60000))
+	createWebSocketTrafficShaper(ctx, t, client, cookie)
 
 	waitAgentConnected(ctx, t, client, cookie)
 	waitHTTPBody(t, httpClient(), publicDefaultURL, http.StatusOK, "smoke upstream ok", "proxy-forward default listener")
@@ -66,6 +70,12 @@ func TestDockerSmoke(t *testing.T) {
 		waitHTTPBody(t, httpClient(), smokeURL(publicDefaultURL, "/"), http.StatusOK, "smoke upstream ok", "direct GET")
 		smokePostEcho(t, smokeURL(publicDefaultURL, "/echo"))
 		smokeStream(t, smokeURL(publicDefaultURL, "/stream"))
+		t.Run("shaped websocket", func(t *testing.T) {
+			smokeWebSocketEcho(t, smokeURL(publicDefaultURL, "/ws"))
+		})
+		t.Run("shaped websocket TLS", func(t *testing.T) {
+			smokeWebSocketEcho(t, smokeURL(publicHTTPSURL, "/ws"))
+		})
 	})
 
 	cfg = getPublicProxyConfig(ctx, t, client, cookie)
@@ -79,8 +89,10 @@ func TestDockerSmoke(t *testing.T) {
 		waitHTTPBody(t, httpClient(), smokeURL(publicAgentURL, "/"), http.StatusOK, "smoke upstream ok", "agent GET")
 		smokePostEcho(t, smokeURL(publicAgentURL, "/echo"))
 		smokeStream(t, smokeURL(publicAgentURL, "/stream"))
-		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"), mustURLHost(t, upstreamURL), mustURLHost(t, publicAgentURL))
-		smokeWebSocketEcho(t, smokeURL(publicAgentURL, "/ws"))
+		smokeHeaders(t, smokeURL(publicAgentURL, "/headers"), mustURLHost(t, upstreamURL), mustURLHostname(t, publicAgentURL))
+		t.Run("shaped websocket", func(t *testing.T) {
+			smokeWebSocketEcho(t, smokeURL(publicAgentURL, "/ws"))
+		})
 
 		upsertDefaultRouteTarget(ctx, t, client, cookie, getPublicProxyConfig(ctx, t, client, cookie), agentListener.GetId(), "docker-agent", proxyTargetWithSelector("docker-agent-target", upstreamURL, p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT, agentSelector, 1000))
 		waitHTTPStatus(t, httpClient(), smokeURL(publicAgentURL, "/slow-headers"), func(resp *http.Response, body string) error {
@@ -105,14 +117,36 @@ func TestDockerSmoke(t *testing.T) {
 	enablePublicListener(ctx, t, client, cookie, staticListener.Id)
 	waitHTTPBody(t, httpClient(), publicStaticURL, http.StatusOK, "ok", "re-enabled static listener")
 
-	waitHTTPStatus(t, insecureHTTPClient(), publicHTTPSURL, func(resp *http.Response, body string) error {
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("expected status 200, got %d with body %q", resp.StatusCode, body)
-		}
-		return nil
-	}, "HTTPS fallback listener")
+	waitHTTPBody(t, insecureHTTPClient(), publicHTTPSURL, http.StatusOK, "smoke upstream ok", "HTTPS proxy listener")
 
 	waitDashboardHasProxyRequests(ctx, t, client, cookie)
+}
+
+func createWebSocketTrafficShaper(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+) {
+	t.Helper()
+	req := connect.NewRequest(&p2pstreamv1.CreatePublicTrafficShaperRuleRequest{
+		Name:                   "docker-websocket-shaper",
+		Priority:               10,
+		Enabled:                true,
+		BudgetScope:            p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST,
+		ProtocolScope:          p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY,
+		UploadBytesPerSecond:   1024 * 1024,
+		DownloadBytesPerSecond: 1024 * 1024,
+		BurstBytes:             1024 * 1024,
+	})
+	req.Header().Set("Cookie", cookie)
+	resp, err := client.CreatePublicTrafficShaperRule(ctx, req)
+	if err != nil {
+		t.Fatalf("create WebSocket traffic shaper: %v", err)
+	}
+	if resp.Msg.GetRule().GetProtocolScope() != p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY {
+		t.Fatalf("WebSocket traffic shaper scope = %s", resp.Msg.GetRule().GetProtocolScope())
+	}
 }
 
 func waitManagement(ctx context.Context, t *testing.T, client p2pstreamv1connect.AgentManagementServiceClient) {
@@ -141,13 +175,7 @@ func setupAndLogin(ctx context.Context, t *testing.T, client p2pstreamv1connect.
 		if !setupResp.Msg.GetSetupAvailable() {
 			t.Fatalf("setup is unavailable: %s", setupResp.Msg.GetSetupUnavailableReason())
 		}
-		if _, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
-			Username:   smokeAdminUsername,
-			Password:   smokeAdminPassword,
-			SetupToken: envOrDefault("MANAGEMENT_SETUP_TOKEN", ""),
-		})); err != nil && connect.CodeOf(err) != connect.CodeFailedPrecondition {
-			t.Fatalf("setup admin: %v", err)
-		}
+		setupAdmin(ctx, t, client)
 	}
 
 	loginResp, err := client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
@@ -162,6 +190,26 @@ func setupAndLogin(ctx context.Context, t *testing.T, client p2pstreamv1connect.
 		t.Fatal("login response did not include a session cookie")
 	}
 	return cookie
+}
+
+func setupAdmin(ctx context.Context, t *testing.T, client p2pstreamv1connect.AgentManagementServiceClient) {
+	t.Helper()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
+			Username:   smokeAdminUsername,
+			Password:   smokeAdminPassword,
+			SetupToken: envOrDefault("MANAGEMENT_SETUP_TOKEN", ""),
+		}))
+		if err == nil || connect.CodeOf(err) == connect.CodeFailedPrecondition {
+			return
+		}
+		if !strings.Contains(strings.ToLower(err.Error()), "database is locked") || time.Now().After(deadline) {
+			t.Fatalf("setup admin: %v", err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func getPublicProxyConfig(
@@ -619,6 +667,15 @@ func mustURLHost(t *testing.T, raw string) string {
 	return parsed.Host
 }
 
+func mustURLHostname(t *testing.T, raw string) string {
+	t.Helper()
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Hostname() == "" {
+		t.Fatalf("invalid URL %q: %v", raw, err)
+	}
+	return parsed.Hostname()
+}
+
 func smokeCloseEarly(t *testing.T, requestURL string) {
 	t.Helper()
 
@@ -662,14 +719,31 @@ func smokeWebSocketEcho(t *testing.T, requestURL string) {
 	if err != nil {
 		t.Fatalf("parse websocket URL: %v", err)
 	}
-	if u.Scheme != "http" {
-		t.Fatalf("smoke websocket only supports ws over http, got %q", u.Scheme)
-	}
 	address := u.Host
-	if !strings.Contains(address, ":") {
-		address += ":80"
+	if u.Port() == "" {
+		port := "80"
+		if u.Scheme == "https" {
+			port = "443"
+		}
+		address = net.JoinHostPort(u.Hostname(), port)
 	}
-	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+	var conn net.Conn
+	switch u.Scheme {
+	case "http":
+		conn, err = net.DialTimeout("tcp", address, 5*time.Second)
+	case "https":
+		conn, err = tls.DialWithDialer(
+			&net.Dialer{Timeout: 5 * time.Second},
+			"tcp",
+			address,
+			&tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: true, // The smoke stack generates an ephemeral self-signed public certificate.
+			},
+		)
+	default:
+		t.Fatalf("unsupported websocket URL scheme %q", u.Scheme)
+	}
 	if err != nil {
 		t.Fatalf("dial websocket target: %v", err)
 	}

@@ -388,7 +388,8 @@ CREATE TABLE IF NOT EXISTS public_traffic_shaper_rules (
     match_json TEXT NOT NULL DEFAULT '{}',
     key_parts_json TEXT NOT NULL DEFAULT '[]',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    protocol_scope TEXT NOT NULL DEFAULT 'all'
 );
 
 CREATE TABLE IF NOT EXISTS public_waf_captcha_providers (

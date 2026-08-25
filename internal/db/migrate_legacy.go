@@ -885,9 +885,13 @@ func (db *DB) migrateLegacyPublicPolicyTables() error {
 			match_json TEXT NOT NULL DEFAULT '{}',
 			key_parts_json TEXT NOT NULL DEFAULT '[]',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			protocol_scope TEXT NOT NULL DEFAULT 'all'
 		)
 	`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`ALTER TABLE public_traffic_shaper_rules ADD COLUMN protocol_scope TEXT NOT NULL DEFAULT 'all'`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return err
 	}
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_public_traffic_shaper_rules_priority ON public_traffic_shaper_rules (priority, id)`); err != nil {

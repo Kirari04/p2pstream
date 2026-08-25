@@ -18,6 +18,7 @@ import {
 import {
   PublicRateLimitKeySource,
   PublicTrafficShaperBudgetScope,
+  PublicTrafficShaperProtocolScope,
   type GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -48,6 +49,7 @@ const form = reactive({
   enabled: true,
   priority: 100,
   budgetScope: PublicTrafficShaperBudgetScope.PER_KEY,
+  protocolScope: PublicTrafficShaperProtocolScope.ALL,
   uploadKibPerSecond: 0,
   downloadKibPerSecond: 1024,
   burstKib: 0,
@@ -81,6 +83,7 @@ function resetForm() {
   form.enabled = true;
   form.priority = 100;
   form.budgetScope = PublicTrafficShaperBudgetScope.PER_KEY;
+  form.protocolScope = PublicTrafficShaperProtocolScope.ALL;
   form.uploadKibPerSecond = 0;
   form.downloadKibPerSecond = 1024;
   form.burstKib = 0;
@@ -112,6 +115,7 @@ function openEdit(ruleId: bigint | string) {
   form.enabled = rule.enabled;
   form.priority = Number(rule.priority);
   form.budgetScope = rule.budgetScope || PublicTrafficShaperBudgetScope.PER_KEY;
+  form.protocolScope = rule.protocolScope || PublicTrafficShaperProtocolScope.ALL;
   form.uploadKibPerSecond = bytesToKib(rule.uploadBytesPerSecond);
   form.downloadKibPerSecond = bytesToKib(rule.downloadBytesPerSecond);
   form.burstKib = bytesToKib(rule.burstBytes);
@@ -154,6 +158,7 @@ async function submitRule() {
       priority: BigInt(form.priority || 0),
       enabled: form.enabled,
       budgetScope: form.budgetScope,
+      protocolScope: form.protocolScope,
       uploadBytesPerSecond: kibToBytes(form.uploadKibPerSecond),
       downloadBytesPerSecond: kibToBytes(form.downloadKibPerSecond),
       burstBytes: kibToBytes(form.burstKib),
@@ -225,6 +230,39 @@ defineExpose({ openCreate, openEdit, close });
             Per request
           </NButton>
         </NButtonGroup>
+
+        <div class="layout-grid space-xs">
+          <p class="copy-xs weight-medium label-case letter-wide muted-text">Applies to</p>
+          <NButtonGroup class="layout-grid cols-one mq-sm-cols-three" size="small" role="group" aria-label="Traffic-shaper protocol scope">
+            <NButton
+              attr-type="button"
+              :type="form.protocolScope === PublicTrafficShaperProtocolScope.ALL ? 'primary' : 'default'"
+              :aria-pressed="form.protocolScope === PublicTrafficShaperProtocolScope.ALL"
+              @click="form.protocolScope = PublicTrafficShaperProtocolScope.ALL"
+            >
+              All requests
+            </NButton>
+            <NButton
+              attr-type="button"
+              :type="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY ? 'primary' : 'default'"
+              :aria-pressed="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY"
+              @click="form.protocolScope = PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY"
+            >
+              WebSockets only
+            </NButton>
+            <NButton
+              attr-type="button"
+              :type="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED ? 'primary' : 'default'"
+              :aria-pressed="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED"
+              @click="form.protocolScope = PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED"
+            >
+              Exclude WebSockets
+            </NButton>
+          </NButtonGroup>
+          <p class="copy-xs muted-text">
+            Successful WebSocket upgrades keep separate upload and download shaping for the life of the connection.
+          </p>
+        </div>
 
         <div class="layout-grid space-lg mq-sm-cols-five">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">

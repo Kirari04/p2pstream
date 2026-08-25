@@ -1230,11 +1230,12 @@ INSERT INTO public_traffic_shaper_rules (
     request_exempt_bytes,
     response_exempt_bytes,
     match_json,
-    key_parts_json
+    key_parts_json,
+    protocol_scope
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 `
 
 type CreatePublicTrafficShaperRuleParams struct {
@@ -1249,6 +1250,7 @@ type CreatePublicTrafficShaperRuleParams struct {
 	ResponseExemptBytes    int64  `json:"response_exempt_bytes"`
 	MatchJson              string `json:"match_json"`
 	KeyPartsJson           string `json:"key_parts_json"`
+	ProtocolScope          string `json:"protocol_scope"`
 }
 
 func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error) {
@@ -1264,6 +1266,7 @@ func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreateP
 		arg.ResponseExemptBytes,
 		arg.MatchJson,
 		arg.KeyPartsJson,
+		arg.ProtocolScope,
 	)
 	var i PublicTrafficShaperRule
 	err := row.Scan(
@@ -1281,6 +1284,7 @@ func (q *Queries) CreatePublicTrafficShaperRule(ctx context.Context, arg CreateP
 		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProtocolScope,
 	)
 	return i, err
 }
@@ -3122,7 +3126,7 @@ func (q *Queries) GetPublicTlsDnsCredential(ctx context.Context, id int64) (Publ
 }
 
 const getPublicTrafficShaperRule = `-- name: GetPublicTrafficShaperRule :one
-SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 FROM public_traffic_shaper_rules
 WHERE id = ?
 `
@@ -3145,6 +3149,7 @@ func (q *Queries) GetPublicTrafficShaperRule(ctx context.Context, id int64) (Pub
 		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProtocolScope,
 	)
 	return i, err
 }
@@ -5853,7 +5858,7 @@ func (q *Queries) ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsD
 }
 
 const listPublicTrafficShaperRules = `-- name: ListPublicTrafficShaperRules :many
-SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 FROM public_traffic_shaper_rules
 ORDER BY priority ASC, id ASC
 `
@@ -5882,6 +5887,7 @@ func (q *Queries) ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTra
 			&i.KeyPartsJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ProtocolScope,
 		); err != nil {
 			return nil, err
 		}
@@ -8828,9 +8834,10 @@ SET name = ?,
     response_exempt_bytes = ?,
     match_json = ?,
     key_parts_json = ?,
+    protocol_scope = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 `
 
 type UpdatePublicTrafficShaperRuleParams struct {
@@ -8845,6 +8852,7 @@ type UpdatePublicTrafficShaperRuleParams struct {
 	ResponseExemptBytes    int64  `json:"response_exempt_bytes"`
 	MatchJson              string `json:"match_json"`
 	KeyPartsJson           string `json:"key_parts_json"`
+	ProtocolScope          string `json:"protocol_scope"`
 	ID                     int64  `json:"id"`
 }
 
@@ -8861,6 +8869,7 @@ func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdateP
 		arg.ResponseExemptBytes,
 		arg.MatchJson,
 		arg.KeyPartsJson,
+		arg.ProtocolScope,
 		arg.ID,
 	)
 	var i PublicTrafficShaperRule
@@ -8879,6 +8888,7 @@ func (q *Queries) UpdatePublicTrafficShaperRule(ctx context.Context, arg UpdateP
 		&i.KeyPartsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ProtocolScope,
 	)
 	return i, err
 }

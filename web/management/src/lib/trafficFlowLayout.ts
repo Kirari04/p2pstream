@@ -2,6 +2,7 @@ import {
   PublicCacheTtlMode,
   PublicRateLimitAlgorithm,
   PublicTrafficShaperBudgetScope,
+  PublicTrafficShaperProtocolScope,
   PublicRouteAction,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
@@ -417,7 +418,7 @@ function trafficShaperEditTarget(rule: PublicTrafficShaperRule): TrafficFlowEdit
     kind: "traffic-shaper",
     id: rule.id.toString(),
     label: rule.name || `Traffic shaper ${rule.id.toString()}`,
-    subLabel: `${trafficShaperScopeLabel(rule.budgetScope)} / P${rule.priority.toString()}`,
+    subLabel: `${trafficShaperProtocolScopeLabel(rule.protocolScope)} / ${trafficShaperScopeLabel(rule.budgetScope)} / P${rule.priority.toString()}`,
   };
 }
 
@@ -491,6 +492,12 @@ function rateLimitAlgorithmLabel(algorithm: PublicRateLimitAlgorithm): string {
 
 function trafficShaperScopeLabel(scope: PublicTrafficShaperRule["budgetScope"]): string {
   return scope === PublicTrafficShaperBudgetScope.PER_REQUEST ? "Per request" : "Per key";
+}
+
+function trafficShaperProtocolScopeLabel(scope: PublicTrafficShaperRule["protocolScope"]): string {
+  if (scope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY) return "WebSockets only";
+  if (scope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED) return "No WebSockets";
+  return "All requests";
 }
 
 function wafActionLabel(action: PublicWafRuleAction): string {

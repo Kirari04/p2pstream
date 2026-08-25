@@ -17,6 +17,7 @@ import {
   PublicRouteTargetTransport,
   PublicRouteTargetType,
   PublicTrafficShaperRuleSchema,
+  PublicTrafficShaperProtocolScope,
   PublicWafActivationMode,
   PublicWafCaptchaProviderSchema,
   PublicWafGeoRestrictionMode,
@@ -199,6 +200,26 @@ describe("trafficPolicyWorkbench", () => {
     expect(preview.trafficShaper?.rule.id).toBe(21n);
     expect(preview.cache?.rule.id).toBe(31n);
     expect(preview.retry?.rule.id).toBe(40n);
+  });
+
+  test("previews traffic-shaper WebSocket protocol scopes", () => {
+    const all = trafficShaperRule({ id: 1n, priority: 1n, protocolScope: PublicTrafficShaperProtocolScope.ALL });
+    const onlyWebSockets = trafficShaperRule({ id: 2n, priority: 2n, protocolScope: PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY });
+    const excludeWebSockets = trafficShaperRule({ id: 3n, priority: 3n, protocolScope: PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED });
+    const webSocketHeaders = {
+      Connection: ["keep-alive, Upgrade"],
+      Upgrade: ["websocket"],
+      "Sec-WebSocket-Version": ["13"],
+      "Sec-WebSocket-Key": ["dGhlIHNhbXBsZSBub25jZQ=="],
+    };
+
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest()).trafficShaper).toBeNull();
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [onlyWebSockets] }, syntheticRequest({ headers: webSocketHeaders })).trafficShaper?.rule.id).toBe(2n);
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [excludeWebSockets] }, syntheticRequest({ headers: webSocketHeaders })).trafficShaper).toBeNull();
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [excludeWebSockets] }, syntheticRequest({
+      headers: { Connection: ["Upgrade"], Upgrade: ["websocket"] },
+    })).trafficShaper?.rule.id).toBe(3n);
+    expect(previewTrafficPolicyStages({ trafficShaperRules: [all] }, syntheticRequest({ headers: webSocketHeaders })).trafficShaper?.rule.id).toBe(1n);
   });
 
   test("previews retry method and agent-target eligibility", () => {
@@ -489,6 +510,7 @@ function trafficShaperRule(overrides: Partial<PublicTrafficShaperRule>): PublicT
     name: overrides.name ?? `shape-${overrides.id?.toString() ?? "1"}`,
     priority: overrides.priority ?? 1n,
     enabled: overrides.enabled ?? true,
+    protocolScope: overrides.protocolScope ?? PublicTrafficShaperProtocolScope.ALL,
     matchRule: overrides.matchRule,
   });
 }

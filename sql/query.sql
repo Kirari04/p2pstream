@@ -1952,12 +1952,12 @@ DELETE FROM public_rate_limit_rules
 WHERE id = ?;
 
 -- name: ListPublicTrafficShaperRules :many
-SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 FROM public_traffic_shaper_rules
 ORDER BY priority ASC, id ASC;
 
 -- name: GetPublicTrafficShaperRule :one
-SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at
+SELECT id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope
 FROM public_traffic_shaper_rules
 WHERE id = ?;
 
@@ -1973,11 +1973,12 @@ INSERT INTO public_traffic_shaper_rules (
     request_exempt_bytes,
     response_exempt_bytes,
     match_json,
-    key_parts_json
+    key_parts_json,
+    protocol_scope
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at;
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope;
 
 -- name: UpdatePublicTrafficShaperRule :one
 UPDATE public_traffic_shaper_rules
@@ -1992,9 +1993,10 @@ SET name = ?,
     response_exempt_bytes = ?,
     match_json = ?,
     key_parts_json = ?,
+    protocol_scope = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at;
+RETURNING id, name, priority, enabled, budget_scope, upload_bytes_per_second, download_bytes_per_second, burst_bytes, request_exempt_bytes, response_exempt_bytes, match_json, key_parts_json, created_at, updated_at, protocol_scope;
 
 -- name: DeletePublicTrafficShaperRule :exec
 DELETE FROM public_traffic_shaper_rules

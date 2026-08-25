@@ -812,6 +812,7 @@ message PublicTrafficShaperRule {
   int64 created_at_unix_millis = 13;
   int64 updated_at_unix_millis = 14;
   PublicPolicyMatchRule match_rule = 15;
+  PublicTrafficShaperProtocolScope protocol_scope = 16;
 }
 
 message PublicWafCaptchaProvider {
@@ -1604,6 +1605,7 @@ message CreatePublicTrafficShaperRuleRequest {
   int64 response_exempt_bytes = 9;
   repeated PublicRateLimitKeyPart key_parts = 11;
   PublicPolicyMatchRule match_rule = 12;
+  PublicTrafficShaperProtocolScope protocol_scope = 13;
 }
 
 message CreatePublicTrafficShaperRuleResponse {
@@ -1626,6 +1628,7 @@ message UpdatePublicTrafficShaperRuleRequest {
   int64 response_exempt_bytes = 10;
   repeated PublicRateLimitKeyPart key_parts = 12;
   PublicPolicyMatchRule match_rule = 13;
+  PublicTrafficShaperProtocolScope protocol_scope = 14;
 }
 
 message UpdatePublicTrafficShaperRuleResponse {
@@ -2409,6 +2412,13 @@ enum PublicRetryBodyMode {
   PUBLIC_RETRY_BODY_MODE_UNSPECIFIED = 0;
   PUBLIC_RETRY_BODY_MODE_NEVER = 1;
   PUBLIC_RETRY_BODY_MODE_BUFFERED = 2;
+}
+
+enum PublicTrafficShaperProtocolScope {
+  PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_UNSPECIFIED = 0;
+  PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL = 1;
+  PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY = 2;
+  PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_EXCLUDED = 3;
 }
 
 message PublicRetryRule {

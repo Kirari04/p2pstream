@@ -5,6 +5,7 @@ import {
   PublicRetryFailureMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
+  PublicTrafficShaperProtocolScope,
   PublicWafActivationMode,
   PublicWafGeoRestrictionMode,
   PublicWafGeoUnknownBehavior,
@@ -220,7 +221,7 @@ export function previewTrafficPolicyStages(
       return evaluateTrafficPolicyMatchForRequest(rule.matchRule, normalized);
     }),
     trafficShaper: firstMatchingCandidate(runtimeOrderedTrafficShaperRules(config.trafficShaperRules ?? []), (rule) => {
-      return evaluateTrafficPolicyMatchForRequest(rule.matchRule, normalized);
+      return evaluateTrafficShaperRule(rule, normalized);
     }),
     cache: firstMatchingCandidate(runtimeOrderedCacheRules(config.cacheRules ?? []), (rule) => {
       return evaluateCacheRule(rule, normalized, config.cacheSettings?.enabled !== false);
@@ -764,6 +765,34 @@ function cacheRequestBypassResult(request: NormalizedTrafficPolicyRequest, cache
 
 function missResult(reason: string): TrafficPolicyMatchResult {
   return { state: "miss", reason };
+}
+
+function evaluateTrafficShaperRule(rule: PublicTrafficShaperRule, request: NormalizedTrafficPolicyRequest): TrafficPolicyMatchResult {
+  const isWebSocket = isWebSocketHandshakeRequest(request);
+  if (rule.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY && !isWebSocket) {
+    return missResult("Traffic shaper applies only to WebSocket handshake requests.");
+  }
+  if (rule.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED && isWebSocket) {
+    return missResult("Traffic shaper excludes WebSocket handshake requests.");
+  }
+  return evaluateTrafficPolicyMatchForRequest(rule.matchRule, request);
+}
+
+function isWebSocketHandshakeRequest(request: NormalizedTrafficPolicyRequest): boolean {
+  if (request.method !== "GET" || request.hasRequestBody) return false;
+  if (!headerContainsToken(request.headers, "connection", "upgrade")) return false;
+  if (!headerEquals(request.headers, "upgrade", "websocket")) return false;
+  if (!headerEquals(request.headers, "sec-websocket-version", "13")) return false;
+  const keys = request.headers.get("sec-websocket-key") ?? [];
+  return keys.some((rawKey) => {
+    const key = rawKey.trim();
+    if (!/^[A-Za-z0-9+/]{22}==$/.test(key)) return false;
+    try {
+      return atob(key).length === 16;
+    } catch {
+      return false;
+    }
+  });
 }
 
 function hasHeader(headers: Map<string, string[]>, name: string): boolean {

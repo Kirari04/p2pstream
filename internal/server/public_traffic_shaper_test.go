@@ -1,9 +1,16 @@
 package server
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"io"
 	"math"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -60,6 +67,72 @@ func TestPublicTrafficShaperPathPrefixUsesSegmentBoundaries(t *testing.T) {
 	confusing := testRateLimitRequest("GET", "http://example.com/apiv2/data", "198.51.100.10:1234")
 	if _, ok := shaper.evaluate([]publicTrafficShaperRuleConfig{rule}, listener, confusing, time.Unix(2, 0)); ok {
 		t.Fatal("path prefix /api matched /apiv2")
+	}
+}
+
+func TestPublicTrafficShaperProtocolScopes(t *testing.T) {
+	shaper := newPublicTrafficShaper()
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	normalRequest := testRateLimitRequest("GET", "http://example.com/chat", "198.51.100.10:1234")
+	webSocketRequest := testRateLimitRequest("GET", "http://example.com/chat", "198.51.100.10:1234")
+	webSocketRequest.Header.Set("Connection", "keep-alive, Upgrade")
+	webSocketRequest.Header.Set("Upgrade", "websocket")
+	webSocketRequest.Header.Set("Sec-WebSocket-Version", "13")
+	webSocketRequest.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	spoofedUpgradeRequest := testRateLimitRequest("GET", "http://example.com/chat", "198.51.100.10:1234")
+	spoofedUpgradeRequest.Header.Set("Connection", "Upgrade")
+	spoofedUpgradeRequest.Header.Set("Upgrade", "websocket")
+
+	tests := []struct {
+		name          string
+		protocolScope string
+		request       *http.Request
+		wantSelected  bool
+	}{
+		{name: "all selects HTTP", protocolScope: publicTrafficShaperProtocolScopeAll, request: normalRequest, wantSelected: true},
+		{name: "all selects WebSocket", protocolScope: publicTrafficShaperProtocolScopeAll, request: webSocketRequest, wantSelected: true},
+		{name: "WebSocket only skips HTTP", protocolScope: publicTrafficShaperProtocolScopeWebSocketOnly, request: normalRequest, wantSelected: false},
+		{name: "WebSocket only selects WebSocket", protocolScope: publicTrafficShaperProtocolScopeWebSocketOnly, request: webSocketRequest, wantSelected: true},
+		{name: "WebSocket excluded selects HTTP", protocolScope: publicTrafficShaperProtocolScopeWebSocketExcluded, request: normalRequest, wantSelected: true},
+		{name: "WebSocket excluded skips WebSocket", protocolScope: publicTrafficShaperProtocolScopeWebSocketExcluded, request: webSocketRequest, wantSelected: false},
+		{name: "incomplete attacker headers remain HTTP", protocolScope: publicTrafficShaperProtocolScopeWebSocketExcluded, request: spoofedUpgradeRequest, wantSelected: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := testTrafficShaperRule(1, "protocol", 100, publicTrafficShaperBudgetScopePerRequest, 1024, 1024)
+			rule.ProtocolScope = tt.protocolScope
+			rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
+			_, selected := shaper.evaluate([]publicTrafficShaperRuleConfig{rule}, listener, tt.request, time.Unix(1, 0))
+			if selected != tt.wantSelected {
+				t.Fatalf("selected = %t, want %t", selected, tt.wantSelected)
+			}
+		})
+	}
+}
+
+func TestPublicTrafficShaperReclassifiesRejectedWebSocketHandshake(t *testing.T) {
+	shaper := newPublicTrafficShaper()
+	app := &App{TrafficShaper: shaper}
+	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTP}
+	rule := testTrafficShaperRule(1, "http-only", 100, publicTrafficShaperBudgetScopePerRequest, 0, 1024)
+	rule.ProtocolScope = publicTrafficShaperProtocolScopeWebSocketExcluded
+	rule.Fingerprint = publicTrafficShaperRuleFingerprint(rule)
+	snapshot := &publicProxySnapshot{
+		Listeners:          map[int64]publicListenerConfig{listener.ID: listener},
+		TrafficShaperRules: []publicTrafficShaperRuleConfig{rule},
+	}
+	request := testRateLimitRequest("GET", "http://example.com/chat", "198.51.100.10:1234")
+	request.Header.Set("Connection", "Upgrade")
+	request.Header.Set("Upgrade", "websocket")
+	request.Header.Set("Sec-WebSocket-Version", "13")
+	request.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+
+	if selected := app.publicTrafficShaperForResponse(snapshot, listener.ID, request, http.StatusSwitchingProtocols, nil); selected != nil {
+		t.Fatalf("successful WebSocket upgrade selected excluded rule %q", selected.Rule.Name)
+	}
+	selected := app.publicTrafficShaperForResponse(snapshot, listener.ID, request, http.StatusOK, nil)
+	if selected == nil || selected.Rule.ID != rule.ID {
+		t.Fatalf("rejected WebSocket handshake selected rule %+v, want %q", selected, rule.Name)
 	}
 }
 
@@ -158,12 +231,155 @@ func TestShapingReadCloserExemptsBytesWithoutDebit(t *testing.T) {
 	}
 }
 
+func TestTrafficShaperUpgradeBodyPreservesReadWriteCloser(t *testing.T) {
+	body := &testShapingReadWriteCloser{reader: strings.NewReader("download")}
+	decision := publicTrafficShaperDecision{
+		Rule:           publicTrafficShaperRuleConfig{RequestExemptBytes: 1, ResponseExemptBytes: 2},
+		UploadBucket:   newByteTokenBucket(32, 32, time.Unix(1, 0)),
+		DownloadBucket: newByteTokenBucket(32, 32, time.Unix(1, 0)),
+	}
+	wrapped := decision.wrapUpgradeBody(context.Background(), body)
+	readWriteBody, ok := wrapped.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("upgrade body type %T does not implement io.ReadWriteCloser", wrapped)
+	}
+	download, err := io.ReadAll(readWriteBody)
+	if err != nil {
+		t.Fatalf("read upgraded body: %v", err)
+	}
+	if string(download) != "download" {
+		t.Fatalf("download = %q", download)
+	}
+	if _, err := readWriteBody.Write([]byte("upload")); err != nil {
+		t.Fatalf("write upgraded body: %v", err)
+	}
+	if got := body.writes.String(); got != "upload" {
+		t.Fatalf("upload = %q", got)
+	}
+	if err := readWriteBody.Close(); err != nil {
+		t.Fatalf("close upgraded body: %v", err)
+	}
+	if !body.closed {
+		t.Fatal("underlying upgraded body was not closed")
+	}
+}
+
+func TestTrafficShaperAllowsReverseProxyWebSocketUpgrade(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		conn, rw, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _ = rw.WriteString("HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+		if err := rw.Flush(); err != nil {
+			return
+		}
+		_, _ = io.Copy(conn, rw)
+	}))
+	defer upstream.Close()
+
+	upstreamURL, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	decision := publicTrafficShaperDecision{
+		Rule:           publicTrafficShaperRuleConfig{ProtocolScope: publicTrafficShaperProtocolScopeAll},
+		UploadBucket:   newByteTokenBucket(1024, 1024, time.Now()),
+		DownloadBucket: newByteTokenBucket(1024, 1024, time.Now()),
+	}
+	proxy := httputil.NewSingleHostReverseProxy(upstreamURL)
+	originalDirector := proxy.Director
+	proxy.Director = func(r *http.Request) {
+		originalDirector(r)
+		r.Body = decision.wrapUploadBody(r.Context(), r.Body)
+	}
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		resp.Body = decision.wrapUpgradeBody(resp.Request.Context(), resp.Body)
+		return nil
+	}
+	proxyServer := httptest.NewServer(proxy)
+	defer proxyServer.Close()
+
+	proxyURL, err := url.Parse(proxyServer.URL)
+	if err != nil {
+		t.Fatalf("parse proxy URL: %v", err)
+	}
+	conn, err := net.DialTimeout("tcp", proxyURL.Host, 2*time.Second)
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(3 * time.Second)); err != nil {
+		t.Fatalf("set connection deadline: %v", err)
+	}
+	_, err = io.WriteString(conn, "GET /ws HTTP/1.1\r\nHost: example.com\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n")
+	if err != nil {
+		t.Fatalf("write handshake: %v", err)
+	}
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, &http.Request{Method: http.MethodGet})
+	if err != nil {
+		t.Fatalf("read handshake response: %v", err)
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("status = %d, want 101", resp.StatusCode)
+	}
+	if _, err := io.WriteString(conn, "ping"); err != nil {
+		t.Fatalf("write upgraded payload: %v", err)
+	}
+	echo := make([]byte, 4)
+	if _, err := io.ReadFull(reader, echo); err != nil {
+		t.Fatalf("read upgraded payload: %v", err)
+	}
+	if string(echo) != "ping" {
+		t.Fatalf("echo = %q", echo)
+	}
+}
+
+type testShapingReadWriteCloser struct {
+	reader *strings.Reader
+	writes bytes.Buffer
+	closed bool
+}
+
+func (r *testShapingReadWriteCloser) Read(p []byte) (int, error) {
+	return r.reader.Read(p)
+}
+
+func (r *testShapingReadWriteCloser) Write(p []byte) (int, error) {
+	return r.writes.Write(p)
+}
+
+func (r *testShapingReadWriteCloser) Close() error {
+	r.closed = true
+	return nil
+}
+
 func TestPublicTrafficShaperValidationAndDBRoundTrip(t *testing.T) {
+	if _, err := validatePublicTrafficShaperRuleInput(
+		"invalid-protocol",
+		100,
+		true,
+		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST,
+		p2pstreamv1.PublicTrafficShaperProtocolScope(99),
+		1024,
+		0,
+		0,
+		0,
+		0,
+		nil,
+		nil,
+	); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid protocol scope error, got %v", err)
+	}
+
 	if _, err := validatePublicTrafficShaperRuleInput(
 		"invalid",
 		100,
 		true,
 		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
+		p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL,
 		0,
 		0,
 		0,
@@ -180,6 +396,7 @@ func TestPublicTrafficShaperValidationAndDBRoundTrip(t *testing.T) {
 		100,
 		true,
 		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST,
+		p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL,
 		1024,
 		0,
 		0,
@@ -200,6 +417,7 @@ func TestPublicTrafficShaperValidationAndDBRoundTrip(t *testing.T) {
 		50,
 		true,
 		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
+		p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_EXCLUDED,
 		1024,
 		2048,
 		4096,
@@ -217,6 +435,7 @@ func TestPublicTrafficShaperValidationAndDBRoundTrip(t *testing.T) {
 		Priority:               params.Priority,
 		Enabled:                params.Enabled,
 		BudgetScope:            params.BudgetScope,
+		ProtocolScope:          params.ProtocolScope,
 		UploadBytesPerSecond:   params.UploadBytesPerSecond,
 		DownloadBytesPerSecond: params.DownloadBytesPerSecond,
 		BurstBytes:             params.BurstBytes,
@@ -234,6 +453,9 @@ func TestPublicTrafficShaperValidationAndDBRoundTrip(t *testing.T) {
 	}
 	if rule.BudgetScope != publicTrafficShaperBudgetScopePerKey {
 		t.Fatalf("scope = %q", rule.BudgetScope)
+	}
+	if rule.ProtocolScope != publicTrafficShaperProtocolScopeWebSocketExcluded {
+		t.Fatalf("protocol scope = %q", rule.ProtocolScope)
 	}
 	if len(rule.KeyParts) != 1 || rule.KeyParts[0].Source != publicRateLimitKeySourceRemoteIP {
 		t.Fatalf("default key parts = %+v, want remote IP", rule.KeyParts)
@@ -254,6 +476,7 @@ func TestPublicTrafficShaperValidationRejectsUnsafeForwardingHeaderKeyParts(t *t
 			100,
 			true,
 			p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
+			p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL,
 			1024,
 			0,
 			0,
@@ -280,6 +503,7 @@ func TestPublicTrafficShaperValidationAllowsApplicationHeaderKeyPart(t *testing.
 		100,
 		true,
 		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY,
+		p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL,
 		1024,
 		0,
 		0,
@@ -305,6 +529,7 @@ func TestPublicTrafficShaperPerRequestIgnoresUnsafeKeyParts(t *testing.T) {
 		100,
 		true,
 		p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_REQUEST,
+		p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL,
 		1024,
 		0,
 		0,
@@ -414,6 +639,7 @@ func testTrafficShaperRule(id int64, name string, priority int64, scope string, 
 		Priority:               priority,
 		Enabled:                true,
 		BudgetScope:            scope,
+		ProtocolScope:          publicTrafficShaperProtocolScopeAll,
 		UploadBytesPerSecond:   uploadBPS,
 		DownloadBytesPerSecond: downloadBPS,
 		KeyParts:               []publicRateLimitKeyPartConfig{{Source: publicRateLimitKeySourceRemoteIP}},
